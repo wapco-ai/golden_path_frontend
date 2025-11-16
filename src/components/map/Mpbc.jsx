@@ -379,6 +379,14 @@ const Mpbc = ({
     })
     : [];
 
+  const doorPointFeatures = geoData
+    ? geoData.features.filter(feature => {
+      const isDoor = feature.properties?.nodeFunction === 'door';
+      const type = feature.geometry?.type;
+      return isDoor && type === 'Point';
+    })
+    : [];
+
   const polygonFeatures = geoData
     ? geoData.features.filter(
       f => f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'
@@ -526,6 +534,27 @@ const Mpbc = ({
               'line-width': 3,
               'line-cap': 'round',
               'line-join': 'round'
+            }}
+          />
+        </Source>
+      )}
+
+      {/* Door points (fallback when we only have point geometries) */}
+      {doorPointFeatures.length > 0 && (
+        <Source
+          id="door-points"
+          type="geojson"
+          data={{ type: 'FeatureCollection', features: doorPointFeatures }}
+        >
+          <Layer
+            id="door-points-layer"
+            type="circle"
+            paint={{
+              'circle-radius': 5,
+              'circle-color': nodeFunctionColors.door,
+              'circle-stroke-color': '#ffffff',
+              'circle-stroke-width': 1.5,
+              'circle-opacity': 0.9
             }}
           />
         </Source>
