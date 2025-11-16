@@ -340,7 +340,7 @@ const Mpbc = ({
       const isDoorLine = isDoor && geometry?.type &&
         (geometry.type === 'LineString' || geometry.type === 'MultiLineString');
 
-      if (isDoorLine) return acc;
+      if (isDoorLine || isDoor) return acc;
 
       const coordinates = geometry?.type === 'Point'
         ? geometry.coordinates

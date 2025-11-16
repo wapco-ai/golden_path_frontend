@@ -319,7 +319,16 @@ const Mprc = ({
   }, [userCoords, destCoords, geoData]);
 
   const pointFeatures = geoData
-    ? geoData.features.filter(f => f.geometry.type === 'Point')
+    ? geoData.features.filter(f =>
+      f.geometry.type === 'Point' && f.properties?.nodeFunction !== 'door'
+    )
+    : [];
+  const doorLineFeatures = geoData
+    ? geoData.features.filter(feature => {
+      const isDoor = feature.properties?.nodeFunction === 'door';
+      const type = feature.geometry?.type;
+      return isDoor && (type === 'LineString' || type === 'MultiLineString');
+    })
     : [];
   const polygonFeatures = geoData
     ? geoData.features.filter(
@@ -376,6 +385,26 @@ const Mprc = ({
       {polygonFeatures.length > 0 && (
         <Source id="polygons" type="geojson" data={{ type: 'FeatureCollection', features: polygonFeatures }}>
           <Layer id="polygon-lines" type="line" paint={{ 'line-color': '#333', 'line-width': 2 }} />
+        </Source>
+      )}
+
+      {/* Door lines */}
+      {doorLineFeatures.length > 0 && (
+        <Source
+          id="mprc-door-lines"
+          type="geojson"
+          data={{ type: 'FeatureCollection', features: doorLineFeatures }}
+        >
+          <Layer
+            id="mprc-door-lines-layer"
+            type="line"
+            paint={{
+              'line-color': nodeFunctionColors.door,
+              'line-width': 3,
+              'line-cap': 'round',
+              'line-join': 'round'
+            }}
+          />
         </Source>
       )}
 

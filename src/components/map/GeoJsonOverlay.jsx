@@ -79,8 +79,16 @@ const GeoJsonOverlay = ({ selectedCategory, routeCoords = null }) => {
   if (!features) return null;
 
   const pointFeatures = features.filter(
-    f => f.geometry.type === 'Point' && f.properties?.nodeFunction !== 'connection'
+    f =>
+      f.geometry.type === 'Point' &&
+      f.properties?.nodeFunction !== 'connection' &&
+      f.properties?.nodeFunction !== 'door'
   );
+  const doorLineFeatures = features.filter(feature => {
+    const isDoor = feature.properties?.nodeFunction === 'door';
+    const type = feature.geometry?.type;
+    return isDoor && (type === 'LineString' || type === 'MultiLineString');
+  });
   const polygonFeatures = features.filter(
     f => f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'
   );
@@ -147,6 +155,24 @@ const GeoJsonOverlay = ({ selectedCategory, routeCoords = null }) => {
             id="overlay-lines"
             type="line"
             paint={polygonOutlinePaint}
+          />
+        </Source>
+      )}
+      {doorLineFeatures.length > 0 && (
+        <Source
+          id="overlay-door-lines"
+          type="geojson"
+          data={{ type: 'FeatureCollection', features: doorLineFeatures }}
+        >
+          <Layer
+            id="overlay-door-lines-layer"
+            type="line"
+            paint={{
+              'line-color': nodeFunctionColors.door,
+              'line-width': 3,
+              'line-cap': 'round',
+              'line-join': 'round'
+            }}
           />
         </Source>
       )}
