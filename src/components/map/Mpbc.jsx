@@ -371,20 +371,41 @@ const Mpbc = ({
     }, [])
     : [];
 
-  const doorLineFeatures = geoData
-    ? geoData.features.filter(feature => {
-      const isDoor = feature.properties?.nodeFunction === 'door';
-      const type = feature.geometry?.type;
-      return isDoor && (type === 'LineString' || type === 'MultiLineString');
-    })
-    : [];
+  const DOOR_SEGMENT_HALF_LENGTH = 0.000015;
 
-  const doorPointFeatures = geoData
-    ? geoData.features.filter(feature => {
+  const doorLineFeatures = geoData
+    ? geoData.features.reduce((acc, feature) => {
       const isDoor = feature.properties?.nodeFunction === 'door';
-      const type = feature.geometry?.type;
-      return isDoor && type === 'Point';
-    })
+      if (!isDoor || !feature.geometry) return acc;
+
+      const { type, coordinates } = feature.geometry;
+
+      if (type === 'LineString' || type === 'MultiLineString') {
+        acc.push(feature);
+        return acc;
+      }
+
+      if (type === 'Point' && Array.isArray(coordinates) && coordinates.length >= 2) {
+        const [lng, lat] = coordinates;
+
+        if (typeof lng === 'number' && typeof lat === 'number') {
+          const lineCoordinates = [
+            [lng - DOOR_SEGMENT_HALF_LENGTH, lat],
+            [lng + DOOR_SEGMENT_HALF_LENGTH, lat]
+          ];
+
+          acc.push({
+            ...feature,
+            geometry: {
+              type: 'LineString',
+              coordinates: lineCoordinates
+            }
+          });
+        }
+      }
+
+      return acc;
+    }, [])
     : [];
 
   const polygonFeatures = geoData
@@ -534,27 +555,6 @@ const Mpbc = ({
               'line-width': 3,
               'line-cap': 'round',
               'line-join': 'round'
-            }}
-          />
-        </Source>
-      )}
-
-      {/* Door points (fallback when we only have point geometries) */}
-      {doorPointFeatures.length > 0 && (
-        <Source
-          id="door-points"
-          type="geojson"
-          data={{ type: 'FeatureCollection', features: doorPointFeatures }}
-        >
-          <Layer
-            id="door-points-layer"
-            type="circle"
-            paint={{
-              'circle-radius': 5,
-              'circle-color': nodeFunctionColors.door,
-              'circle-stroke-color': '#ffffff',
-              'circle-stroke-width': 1.5,
-              'circle-opacity': 0.9
             }}
           />
         </Source>
