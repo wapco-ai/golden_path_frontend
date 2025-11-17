@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { useIntl } from 'react-intl';
 import Map, { Marker, Source, Layer, Popup } from 'react-map-gl';
-import GeoJsonOverlay from '../components/map/GeoJsonOverlay';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { groups, subGroups } from '../components/groupData';
@@ -451,7 +450,6 @@ const RouteOverview = () => {
               <div className="time-popup main-popup">{time}</div>
             </Popup>
           )}
-          <GeoJsonOverlay routeCoords={routeCoordinates} />
         </Map>
       </div>
 

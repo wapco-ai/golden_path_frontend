@@ -3,7 +3,6 @@ import Map, { Marker, Source, Layer } from 'react-map-gl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
-import GeoJsonOverlay from './GeoJsonOverlay';
 import useLocaleDigits from '../../utils/useLocaleDigits';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
 
@@ -70,8 +69,6 @@ const Routing = ({ userLocation, routeSteps, currentStep }) => {
             <Layer id="segment-line" type="line" paint={{ 'line-color': '#e74c3c', 'line-width': 6 }} />
           </Source>
         )}
-
-        <GeoJsonOverlay routeCoords={routePath} />
       </Map>
     </div>
   );

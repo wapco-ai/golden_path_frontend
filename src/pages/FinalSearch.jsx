@@ -3,7 +3,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import Map, { Marker, Source, Layer, Popup } from 'react-map-gl';
-import GeoJsonOverlay from '../components/map/GeoJsonOverlay';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../hooks/useOfflineMapStyle';
@@ -688,7 +687,6 @@ const FinalSearch = () => {
               </div>
             </Popup>
           )}
-          <GeoJsonOverlay routeCoords={routeGeo?.geometry?.coordinates} />
         </Map>
         <div className="map-fade"></div>
       </div>
