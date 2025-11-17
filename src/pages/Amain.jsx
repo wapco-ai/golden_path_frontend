@@ -79,34 +79,6 @@ const Amain = () => {
         registerDate: '۲۷ مرداد ۱۴۰۴',
         gender: 'مرد'
       },
-      {
-        id: 5,
-        fullName: 'مرتضی یوسف نیا',
-        phone: '۹۱۹۳۹۳۷۸۶۹ ۹۸+',
-        registerDate: '۲۷ مرداد ۱۴۰۴',
-        gender: 'مرد'
-      },
-      {
-        id: 5,
-        fullName: 'مرتضی یوسف نیا',
-        phone: '۹۱۹۳۹۳۷۸۶۹ ۹۸+',
-        registerDate: '۲۷ مرداد ۱۴۰۴',
-        gender: 'مرد'
-      },
-      {
-        id: 5,
-        fullName: 'مرتضی یوسف نیا',
-        phone: '۹۱۹۳۹۳۷۸۶۹ ۹۸+',
-        registerDate: '۲۷ مرداد ۱۴۰۴',
-        gender: 'مرد'
-      },
-      {
-        id: 5,
-        fullName: 'مرتضی یوسف نیا',
-        phone: '۹۱۹۳۹۳۷۸۶۹ ۹۸+',
-        registerDate: '۲۷ مرداد ۱۴۰۴',
-        gender: 'مرد'
-      }
     ];
     setUsers(mockUsers);
   }, []);
