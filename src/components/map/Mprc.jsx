@@ -78,7 +78,8 @@ const Mprc = ({
   const [userCoords, setUserCoords] = useState(null);
   const [destCoords, setDestCoords] = useState(null);
   const [selectedCoords, setSelectedCoords] = useState(null);
-  const [geoData, setGeoData] = useState(null);
+  const [pointFeatures, setPointFeatures] = useState([]);
+  const [doorConnectionNodes, setDoorConnectionNodes] = useState([]);
   const [routeCoords, setRouteCoords] = useState(null);
   const language = useLangStore((state) => state.language);
   const { mapStyle, handleMapError } = useOfflineMapStyle();
@@ -245,16 +246,17 @@ const Mprc = ({
       setSelectedCoords(c);
 
       let closestFeature = null;
-      if (geoData) {
+      if (pointFeatures.length) {
         let minDist = Infinity;
-        geoData.features.forEach((f) => {
-          if (f.geometry.type === 'Point') {
-            const [flng, flat] = f.geometry.coordinates;
-            const d = Math.hypot(flng - lng, flat - lat);
-            if (d < minDist) {
-              minDist = d;
-              closestFeature = f;
-            }
+        pointFeatures.forEach((f) => {
+          const [flng, flat] = f.geometry.coordinates || [];
+          if (typeof flng !== 'number' || typeof flat !== 'number') {
+            return;
+          }
+          const d = Math.hypot(flng - lng, flat - lat);
+          if (d < minDist) {
+            minDist = d;
+            closestFeature = f;
           }
         });
         if (minDist > 0.0005) {
@@ -266,15 +268,45 @@ const Mprc = ({
     }
   };
 
+  const shouldLoadGeoJson = Boolean(
+    selectedCategory ||
+    (userCoords && destCoords) ||
+    isSelectingLocation
+  );
+
   useEffect(() => {
+    if (!shouldLoadGeoJson) {
+      setPointFeatures([]);
+      setDoorConnectionNodes([]);
+      return;
+    }
+
     let isMounted = true;
     const controller = new AbortController();
 
     loadGeoJsonData({ language, signal: controller.signal })
       .then(data => {
-        if (isMounted) {
-          setGeoData(data);
+        if (!isMounted) {
+          return;
         }
+
+        const features = Array.isArray(data?.features) ? data.features : [];
+        const nextPointFeatures = features.filter((f) => {
+          if (f.geometry?.type !== 'Point') {
+            return false;
+          }
+          const nodeFn = f.properties?.nodeFunction;
+          return nodeFn !== 'door' && nodeFn !== 'connection';
+        });
+
+        const nextDoorNodes = features.filter(
+          (f) =>
+            f.geometry?.type === 'Point' &&
+            ['door', 'connection'].includes(f.properties?.nodeFunction)
+        );
+
+        setPointFeatures(nextPointFeatures);
+        setDoorConnectionNodes(nextDoorNodes);
       })
       .catch(err => {
         if (err?.name === 'AbortError') return;
@@ -285,16 +317,11 @@ const Mprc = ({
       isMounted = false;
       controller.abort();
     };
-  }, [language]);
+  }, [language, shouldLoadGeoJson]);
 
   useEffect(() => {
-    if (userCoords && destCoords && geoData) {
-      const points = geoData.features.filter(
-        (f) =>
-          f.geometry.type === 'Point' &&
-          ['door', 'connection'].includes(f.properties?.nodeFunction)
-      );
-
+    if (userCoords && destCoords && doorConnectionNodes.length) {
+      const points = doorConnectionNodes;
       const nearest = (coords) => {
         let best = null;
         let dmin = Infinity;
@@ -321,25 +348,7 @@ const Mprc = ({
     } else {
       setRouteCoords(null);
     }
-  }, [userCoords, destCoords, geoData]);
-
-  const pointFeatures = geoData
-    ? geoData.features.filter(f =>
-      f.geometry.type === 'Point' && f.properties?.nodeFunction !== 'door'
-    )
-    : [];
-  const doorLineFeatures = geoData
-    ? geoData.features.filter(feature => {
-      const isDoor = feature.properties?.nodeFunction === 'door';
-      const type = feature.geometry?.type;
-      return isDoor && (type === 'LineString' || type === 'MultiLineString');
-    })
-    : [];
-  const polygonFeatures = geoData
-    ? geoData.features.filter(
-      f => f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'
-    )
-    : [];
+  }, [userCoords, destCoords, doorConnectionNodes]);
 
   return (
     <Map
@@ -384,35 +393,6 @@ const Mprc = ({
       {routeCoords && (
         <Source id="route" type="geojson" data={{ type: 'Feature', geometry: { type: 'LineString', coordinates: routeCoords } }}>
           <Layer id="route-line" type="line" paint={{ 'line-color': '#4285F4', 'line-width': 4, 'line-opacity': 0.7 }} />
-        </Source>
-      )}
-
-      {/* Building polygons */}
-      {polygonFeatures.length > 0 && (
-        <Source id="polygons" type="geojson" data={{ type: 'FeatureCollection', features: polygonFeatures }}>
-          <Layer id="polygon-lines" type="line" paint={{ 'line-color': '#333', 'line-width': 2 }} />
-        </Source>
-      )}
-
-      {/* Door lines */}
-      {doorLineFeatures.length > 0 && (
-        <Source
-          id="mprc-door-lines"
-          type="geojson"
-          data={{ type: 'FeatureCollection', features: doorLineFeatures }}
-        >
-          <Layer
-            id="mprc-door-lines-layer"
-            type="line"
-            paint={{
-              'line-color': nodeFunctionColors.door,
-              'line-width': 3
-            }}
-            layout={{
-              'line-cap': 'round',
-              'line-join': 'round'
-            }}
-          />
         </Source>
       )}
 
