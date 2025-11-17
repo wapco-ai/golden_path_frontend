@@ -131,7 +131,7 @@ CREATE INDEX IF NOT EXISTS contents_lang_idx ON contents (lang);
 
 CREATE TABLE IF NOT EXISTS i18n_texts (
   id            BIGSERIAL PRIMARY KEY,
-  entity_table  TEXT NOT NULL CHECK (entity_table IN ('areas','doors','poi_points','van_nodes')),
+  entity_table  TEXT NOT NULL CHECK (entity_table IN ('areas','doors','poi_points','van_nodes','qrcodes','categories'))),
   entity_id     BIGINT NOT NULL,
   field         TEXT NOT NULL CHECK (field IN ('name','short','desc')),
   lang          lang_enum NOT NULL,
@@ -610,22 +610,21 @@ FROM fn_allowed_areas(
 );
 
 
--- =========================================
--- Done.
--- =========================================
-
 
 -- =====================================================
--- 6) جدول نگاشت Feature Group Mappings (جدید)
+-- 6) جدول نگاشت Feature Group Mappings
 -- =====================================================
 CREATE TABLE IF NOT EXISTS feature_group_mappings (
   id BIGSERIAL PRIMARY KEY,
 
   entity_table TEXT NOT NULL CHECK (
-    entity_table IN ('areas','doors','poi_points','van_nodes','qrcodes')
+    entity_table IN ('areas','doors','poi_points','van_nodes','qrcodes','categories')
   ),
 
   feature_key TEXT NOT NULL,
+
+  -- اتصال به دسته‌بندی چندسطحی
+  category_leaf_id BIGINT,
 
   default_group TEXT NOT NULL,
   default_subgroup TEXT NOT NULL,
@@ -636,46 +635,51 @@ CREATE TABLE IF NOT EXISTS feature_group_mappings (
 
   default_services JSONB NOT NULL DEFAULT '{}'::jsonb,
 
-  default_gender TEXT NOT NULL DEFAULT 'family'
+  default_gender TEXT NOT NULL DEFAULT 'family',
+
+  CONSTRAINT feature_group_mappings_category_leaf_fk
+    FOREIGN KEY (category_leaf_id) REFERENCES categories(id)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS feature_group_mappings_uq
   ON feature_group_mappings(entity_table, feature_key);
 
--- اصلاح CHECK روی i18n_texts برای پشتیبانی qrcodes
-ALTER TABLE i18n_texts
-  DROP CONSTRAINT IF EXISTS i18n_texts_entity_table_check;
-ALTER TABLE i18n_texts
-  ADD CONSTRAINT i18n_texts_entity_table_check
-  CHECK (entity_table IN ('areas','doors','poi_points','van_nodes','qrcodes'));
+CREATE INDEX IF NOT EXISTS feature_group_mappings_cat_leaf_idx
+  ON feature_group_mappings(category_leaf_id);
+
+
+
 
 -- =====================================================
 -- 7) تابع تجمیعی fn_map_features (جدید)
 -- =====================================================
-CREATE OR REPLACE FUNCTION fn_map_features(p_lang lang_enum)
-RETURNS TABLE (
-  entity_table      TEXT,
-  entity_id         BIGINT,
-  geom_4326         geometry(Geometry, 4326),
-  floor             SMALLINT,
-  name              TEXT,
-  description       TEXT,
-  "group"           TEXT,
-  "subGroup"        TEXT,
-  "subGroupValue"   TEXT,
-  types             TEXT[],
-  services          JSONB,
-  gender            TEXT,
-  nodeFunction      TEXT,
-  restrictedTimes   JSONB,
-  latitude          DOUBLE PRECISION,
-  longitude         DOUBLE PRECISION,
-  gpsMeta           JSONB,
-  "timestamp"       TIMESTAMPTZ,
-  transportModes    TEXT[]
-)
-LANGUAGE sql
-AS $$
+CREATE OR REPLACE FUNCTION public.fn_map_features(p_lang public.lang_enum)
+RETURNS TABLE(
+  entity_table      text,
+  entity_id         int8,
+  geom_4326         public.geometry,
+  floor             int2,
+  name              text,
+  description       text,
+  "group"           text,
+  "subGroup"        text,
+  "subGroupValue"   text,
+  category_level3   text,
+  category_level4   text,
+  category_level5   text,
+  category_leaf     text,
+  types             _text,
+  services          jsonb,
+  gender            text,
+  nodefunction      text,
+  restrictedtimes   jsonb,
+  latitude          float8,
+  longitude         float8,
+  gpsmeta           jsonb,
+  "timestamp"       timestamptz,
+  transportmodes    _text
+) AS
+$BODY$
   -- ========== 1) POI ها ==========
   SELECT
     'poi_points'::text AS entity_table,
@@ -687,20 +691,28 @@ AS $$
 
     COALESCE(
       p.attrs->>'group',
+      cat.level1_code,
       m.default_group,
       'poi'
     ) AS "group",
 
     COALESCE(
       p.attrs->>'sub_group',
+      cat.level2_code,
       m.default_subgroup,
       p.poi_type::text
     ) AS "subGroup",
 
     COALESCE(
       p.attrs->>'sub_group_value',
+      cat.leaf_code,
       'poi-' || p.id
     ) AS "subGroupValue",
+
+    cat.level3_code AS category_level3,
+    cat.level4_code AS category_level4,
+    cat.level5_code AS category_level5,
+    cat.leaf_code   AS category_leaf,
 
     COALESCE(
       ARRAY(
@@ -757,6 +769,10 @@ AS $$
   LEFT JOIN feature_group_mappings m
     ON m.entity_table = 'poi_points'
    AND m.feature_key  = p.poi_type::text
+  LEFT JOIN categories c_leaf
+    ON c_leaf.id = m.category_leaf_id
+  LEFT JOIN LATERAL fn_category_path(c_leaf.id) cat
+    ON TRUE
 
   UNION ALL
 
@@ -771,20 +787,28 @@ AS $$
 
     COALESCE(
       d.attrs->>'group',
+      cat.level1_code,
       m.default_group,
       'connection'
     ) AS "group",
 
     COALESCE(
       d.attrs->>'sub_group',
+      cat.level2_code,
       m.default_subgroup,
       'door'
     ) AS "subGroup",
 
     COALESCE(
       d.attrs->>'sub_group_value',
+      cat.leaf_code,
       'door-' || d.id
     ) AS "subGroupValue",
+
+    cat.level3_code AS category_level3,
+    cat.level4_code AS category_level4,
+    cat.level5_code AS category_level5,
+    cat.leaf_code   AS category_leaf,
 
     COALESCE(
       ARRAY(
@@ -834,6 +858,10 @@ AS $$
   LEFT JOIN feature_group_mappings m
     ON m.entity_table = 'doors'
    AND m.feature_key  = 'door'
+  LEFT JOIN categories c_leaf
+    ON c_leaf.id = m.category_leaf_id
+  LEFT JOIN LATERAL fn_category_path(c_leaf.id) cat
+    ON TRUE
 
   UNION ALL
 
@@ -848,6 +876,7 @@ AS $$
 
     COALESCE(
       a.attrs->>'group',
+      cat.level1_code,
       m.default_group,
       CASE a.area_type
         WHEN 'courtyard'     THEN 'sahn'
@@ -865,14 +894,21 @@ AS $$
 
     COALESCE(
       a.attrs->>'sub_group',
+      cat.level2_code,
       m.default_subgroup,
       fn_i18n_label('areas', a.id, 'name', p_lang, 'fa')
     ) AS "subGroup",
 
     COALESCE(
       a.attrs->>'sub_group_value',
+      cat.leaf_code,
       'area-' || a.id
     ) AS "subGroupValue",
+
+    cat.level3_code AS category_level3,
+    cat.level4_code AS category_level4,
+    cat.level5_code AS category_level5,
+    cat.leaf_code   AS category_leaf,
 
     COALESCE(
       ARRAY(
@@ -938,6 +974,10 @@ AS $$
   LEFT JOIN feature_group_mappings m
     ON m.entity_table = 'areas'
    AND m.feature_key  = a.area_type::text
+  LEFT JOIN categories c_leaf
+    ON c_leaf.id = m.category_leaf_id
+  LEFT JOIN LATERAL fn_category_path(c_leaf.id) cat
+    ON TRUE
 
   UNION ALL
 
@@ -951,11 +991,13 @@ AS $$
     fn_i18n_label('van_nodes', v.id, 'desc', p_lang, 'fa') AS description,
 
     COALESCE(
+      cat.level1_code,
       m.default_group,
       'van'
     ) AS "group",
 
     COALESCE(
+      cat.level2_code,
       m.default_subgroup,
       CASE v.node_type
         WHEN 'stop'     THEN 'van-stop'
@@ -964,7 +1006,15 @@ AS $$
       END
     ) AS "subGroup",
 
-    ('van-node-' || v.id)::text AS "subGroupValue",
+    COALESCE(
+      cat.leaf_code,
+      ('van-node-' || v.id)::text
+    ) AS "subGroupValue",
+
+    cat.level3_code AS category_level3,
+    cat.level4_code AS category_level4,
+    cat.level5_code AS category_level5,
+    cat.leaf_code   AS category_leaf,
 
     COALESCE(
       m.default_types,
@@ -1008,6 +1058,10 @@ AS $$
   LEFT JOIN feature_group_mappings m
     ON m.entity_table = 'van_nodes'
    AND m.feature_key  = v.node_type::text
+  LEFT JOIN categories c_leaf
+    ON c_leaf.id = m.category_leaf_id
+  LEFT JOIN LATERAL fn_category_path(c_leaf.id) cat
+    ON TRUE
 
   UNION ALL
 
@@ -1023,20 +1077,28 @@ AS $$
 
     COALESCE(
       q.attrs->>'group',
+      cat.level1_code,
       m.default_group,
       'qrcode'
     ) AS "group",
 
     COALESCE(
       q.attrs->>'sub_group',
+      cat.level2_code,
       m.default_subgroup,
       q.target_type::text
     ) AS "subGroup",
 
     COALESCE(
       q.attrs->>'sub_group_value',
+      cat.leaf_code,
       q.code
     ) AS "subGroupValue",
+
+    cat.level3_code AS category_level3,
+    cat.level4_code AS category_level4,
+    cat.level5_code AS category_level5,
+    cat.leaf_code   AS category_leaf,
 
     COALESCE(
       ARRAY(
@@ -1093,7 +1155,40 @@ AS $$
   LEFT JOIN feature_group_mappings m
     ON m.entity_table = 'qrcodes'
    AND m.feature_key  = q.target_type::text
-$$;
+  LEFT JOIN categories c_leaf
+    ON c_leaf.id = m.category_leaf_id
+  LEFT JOIN LATERAL fn_category_path(c_leaf.id) cat
+    ON TRUE
+$BODY$
+LANGUAGE sql
+VOLATILE
+COST 100
+ROWS 1000;
+
+
+-- =====================================================
+-- 1) جدول دسته‌بندی چندسطحی (تا ۵ سطح)
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS categories (
+  id              BIGSERIAL PRIMARY KEY,
+  code            TEXT NOT NULL,           -- دیگه اینجا UNIQUE نمی‌ذاریم
+  label_key       TEXT,
+  property_target TEXT NOT NULL,           -- 'group' یا 'subGroup' یا ...
+  icon            TEXT,
+  parent_id       BIGINT REFERENCES categories(id) ON DELETE RESTRICT,
+  level           SMALLINT NOT NULL CHECK (level BETWEEN 1 AND 5),
+  sort_order      INTEGER NOT NULL DEFAULT 0,
+  is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+  CHECK (
+    (parent_id IS NULL AND level = 1) OR
+    (parent_id IS NOT NULL AND level > 1)
+  )
+);
+
+-- یکتایی روی ترکیب (code + property_target + parent_id) برای تمایز درختی
+CREATE UNIQUE INDEX IF NOT EXISTS categories_code_prop_parent_uq
+  ON categories (code, property_target, COALESCE(parent_id, 0));
 
 
 -- =====================================================
@@ -1152,3 +1247,51 @@ CREATE TABLE IF NOT EXISTS areas_simplified (
 --FROM areas a
 --ON CONFLICT (id) DO UPDATE
 --SET geom = EXCLUDED.geom;
+
+
+-- =====================================================
+-- این تابع برای یک category_leaf_id مسیر را به‌صورت ۵ ستون برمی‌گرداند:
+-- =====================================================
+CREATE OR REPLACE FUNCTION fn_category_path(p_leaf_id BIGINT)
+RETURNS TABLE (
+  level1_id   BIGINT, level1_code TEXT,
+  level2_id   BIGINT, level2_code TEXT,
+  level3_id   BIGINT, level3_code TEXT,
+  level4_id   BIGINT, level4_code TEXT,
+  level5_id   BIGINT, level5_code TEXT,
+  leaf_id     BIGINT, leaf_code   TEXT
+)
+LANGUAGE sql
+STABLE
+AS $$
+WITH RECURSIVE cte AS (
+  SELECT c.id, c.code, c.parent_id, c.level
+  FROM   categories c
+  WHERE  c.id = p_leaf_id
+
+  UNION ALL
+
+  SELECT p.id, p.code, p.parent_id, p.level
+  FROM   categories p
+  JOIN   cte ON p.id = cte.parent_id
+)
+SELECT
+  MAX(CASE WHEN level = 1 THEN id   END) AS level1_id,
+  MAX(CASE WHEN level = 1 THEN code END) AS level1_code,
+
+  MAX(CASE WHEN level = 2 THEN id   END) AS level2_id,
+  MAX(CASE WHEN level = 2 THEN code END) AS level2_code,
+
+  MAX(CASE WHEN level = 3 THEN id   END) AS level3_id,
+  MAX(CASE WHEN level = 3 THEN code END) AS level3_code,
+
+  MAX(CASE WHEN level = 4 THEN id   END) AS level4_id,
+  MAX(CASE WHEN level = 4 THEN code END) AS level4_code,
+
+  MAX(CASE WHEN level = 5 THEN id   END) AS level5_id,
+  MAX(CASE WHEN level = 5 THEN code END) AS level5_code,
+
+  MAX(id)   AS leaf_id,
+  MAX(code) AS leaf_code
+FROM cte;
+$$;
