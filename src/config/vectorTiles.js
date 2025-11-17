@@ -33,7 +33,7 @@ const buildFnMapFeaturesTileUrl = (entityTables = []) => {
     params.set('p_entity_tables', entityTables.join(','));
   }
 
-  return `${TILE_BASE_URL}/functions/public.fn_map_features_mvt/{z}/{x}/{y}.pbf?${params.toString()}`;
+  return `${TILE_BASE_URL}/public.fn_map_features_mvt/{z}/{x}/{y}.pbf?${params.toString()}`;
 };
 
 const MAP_FEATURES_SOURCE_ID = 'map-features';
