@@ -86,6 +86,10 @@ const ensureSourcesAndLayers = (map) => {
       layout: baseLayout
     };
 
+    if (layerCfg.filter) {
+      layer.filter = layerCfg.filter;
+    }
+
     map.addLayer(layer);
   });
 };
