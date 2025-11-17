@@ -9,6 +9,7 @@ import { buildGeoJsonPath } from '../../utils/geojsonPath.js';
 import { fetchMapGeojson } from '../../services/geojsonService.js';
 import { groups, subGroups } from '../groupData';
 import { getLocationTitleById } from '../../utils/getLocationTitle';
+import { initHaramVectorLayers } from '../../utils/initVectorLayers';
 
 const groupColors = {
   sahn: '#4caf50',
@@ -90,6 +91,10 @@ const Mpbc = ({
       onUserMove();
     }
   }, [onUserMove]);
+
+  const handleMapLoad = useCallback((event) => {
+    initHaramVectorLayers(event?.target || event);
+  }, []);
 
   // Initialize with shrine location or QR code location if available
   useEffect(() => {
@@ -474,6 +479,7 @@ const Mpbc = ({
       style={{ width: '100%', height: '100%' }}
       {...viewState}
       onMove={onMove}
+      onLoad={handleMapLoad}
       onClick={handleClick}
       onError={handleMapError}
       interactive={true}

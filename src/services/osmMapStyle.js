@@ -16,36 +16,22 @@ export const offlineFallbackStyle = {
   }
 };
 
-const osmMapStyle = {
+const vectorBaseMapStyle = {
   version: 8,
-  name: 'osm-standard',
-  sources: {
-    'osm-standard': {
-      type: 'raster',
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    },
-    terrain: {
-      type: 'raster-dem',
-      tiles: ['https://demotiles.maplibre.org/terrain-tiles/tiles/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      maxzoom: 14,
-      encoding: 'terrarium'
-    }
-  },
+  name: 'haram-vector-base',
+  sources: {},
   layers: [
     {
-      id: 'osm-standard',
-      type: 'raster',
-      source: 'osm-standard',
-      minzoom: 0,
-      maxzoom: 19
+      id: 'vector-background',
+      type: 'background',
+      paint: {
+        'background-color': '#02101f'
+      }
     }
   ],
   metadata: {
-    description: 'Standard OpenStreetMap tile style used for default map rendering'
+    description: 'Empty base style for Haram vector tiles'
   }
 };
 
-export default osmMapStyle;
+export default vectorBaseMapStyle;
