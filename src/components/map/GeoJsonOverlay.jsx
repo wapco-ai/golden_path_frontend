@@ -169,7 +169,9 @@ const GeoJsonOverlay = ({ selectedCategory, routeCoords = null }) => {
             type="line"
             paint={{
               'line-color': nodeFunctionColors.door,
-              'line-width': 3,
+              'line-width': 3
+            }}
+            layout={{
               'line-cap': 'round',
               'line-join': 'round'
             }}
