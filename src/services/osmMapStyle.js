@@ -19,7 +19,17 @@ export const offlineFallbackStyle = {
 const vectorBaseMapStyle = {
   version: 8,
   name: 'haram-vector-base',
-  sources: {},
+  sources: {
+    'osm-raster': {
+      type: 'raster',
+      tiles: [
+        'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+      ],
+      tileSize: 256,
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }
+  },
   layers: [
     {
       id: 'vector-background',
@@ -27,10 +37,17 @@ const vectorBaseMapStyle = {
       paint: {
         'background-color': '#02101f'
       }
+    },
+    {
+      id: 'osm-raster-base',
+      type: 'raster',
+      source: 'osm-raster',
+      minzoom: 0,
+      maxzoom: 19
     }
   ],
   metadata: {
-    description: 'Empty base style for Haram vector tiles'
+    description: 'OpenStreetMap base style with Haram vector overlays'
   }
 };
 

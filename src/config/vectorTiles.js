@@ -1,4 +1,18 @@
-const TILE_BASE_URL = 'http://localhost:8080/tiles';
+const inferDefaultTileBaseUrl = () => {
+  if (typeof window === 'undefined' || !window?.location?.origin) {
+    return 'http://localhost:8080/tiles';
+  }
+
+  const { origin, hostname } = window.location;
+
+  if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+    return `${origin.replace(/\/$/, '')}/tiles`;
+  }
+
+  return 'http://localhost:8080/tiles';
+};
+
+const TILE_BASE_URL = (import.meta?.env?.VITE_TILE_BASE_URL?.trim() || inferDefaultTileBaseUrl()).replace(/\/$/, '');
 
 export const haramVectorTileConfig = [
   {
