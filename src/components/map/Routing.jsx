@@ -43,6 +43,7 @@ const Routing = ({ userLocation, routeSteps, currentStep }) => {
         key={styleKey}
         mapLib={maplibregl}
         mapStyle={mapStyle}
+        styleDiffing={false}
         style={{ width: '100%', height: '100%' }}
         viewState={viewState}
         onLoad={handleMapLoad}

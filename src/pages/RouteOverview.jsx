@@ -408,6 +408,7 @@ const RouteOverview = () => {
           ref={mapRef}
           mapLib={maplibregl}
           mapStyle={mapStyle}
+          styleDiffing={false}
           initialViewState={viewState}
           attributionControl={false}
           style={{ width: '100%', height: '100%' }}

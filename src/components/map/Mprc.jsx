@@ -355,6 +355,7 @@ const Mprc = ({
       key={styleKey}
       mapLib={maplibregl}
       mapStyle={mapStyle}
+      styleDiffing={false}
       style={{ width: '100%', height: '100%' }}
       {...viewState}
       onMove={onMove}

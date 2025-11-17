@@ -361,6 +361,7 @@ const RouteMap = forwardRef(({
       ref={mapRef}
       mapLib={maplibregl}
       mapStyle={mapStyle}
+      styleDiffing={false}
       interactiveLayerIds={altLayerIds}
       onLoad={handleMapLoad}
       onClick={(e) => {

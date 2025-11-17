@@ -579,6 +579,7 @@ const FinalSearch = () => {
           ref={mapRef}
           mapLib={maplibregl}
           mapStyle={mapStyle}
+          styleDiffing={false}
           style={{ width: '100%', height: '100%' }}
           initialViewState={{
             longitude:
