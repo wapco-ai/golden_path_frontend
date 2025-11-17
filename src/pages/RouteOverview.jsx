@@ -56,7 +56,7 @@ const RouteOverview = () => {
 
   const { routeGeo, routeSteps } = useRouteStore();
   const routeCoordinates = routeGeo?.geometry?.coordinates || [];
-  const { mapStyle, handleMapError } = useOfflineMapStyle();
+  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
 
   const handleSubgroupClick = (subgroup) => {
     setSelectedSubgroup(subgroup);
@@ -404,6 +404,7 @@ const RouteOverview = () => {
 
       <div className="route-map-container">
         <Map
+          key={styleKey}
           ref={mapRef}
           mapLib={maplibregl}
           mapStyle={mapStyle}

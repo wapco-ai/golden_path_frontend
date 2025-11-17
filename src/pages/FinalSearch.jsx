@@ -24,7 +24,7 @@ const FinalSearch = () => {
   const navigate = useNavigate();
   const intl = useIntl();
   const formatDigits = useLocaleDigits();
-  const { mapStyle, handleMapError } = useOfflineMapStyle();
+  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
   const {
     origin: storedOrigin,
     destination: storedDestination,
@@ -575,6 +575,7 @@ const FinalSearch = () => {
           </div>
         </div>
         <Map
+          key={styleKey}
           ref={mapRef}
           mapLib={maplibregl}
           mapStyle={mapStyle}

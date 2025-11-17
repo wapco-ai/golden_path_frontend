@@ -62,7 +62,7 @@ const Pmap = () => {
   const navigate = useNavigate();
   const intl = useIntl();
   const language = useLangStore(state => state.language);
-  const { mapStyle, handleMapError } = useOfflineMapStyle();
+  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
 
   const [viewState, setViewState] = useState({
     latitude: 36.2880,
@@ -328,6 +328,7 @@ const Pmap = () => {
       {/* Map Container */}
       <div className="pmap-container">
         <Map
+          key={styleKey}
           mapLib={maplibregl}
           mapStyle={mapStyle}
           style={{ width: '100%', height: '100%' }}

@@ -10,7 +10,7 @@ import { initHaramVectorLayers } from '../../utils/initVectorLayers';
 
 const Routing = ({ userLocation, routeSteps, currentStep }) => {
   const formatDigits = useLocaleDigits();
-  const { mapStyle, handleMapError } = useOfflineMapStyle();
+  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
   const initial = routeSteps && routeSteps.length > 0 ? routeSteps[0].coordinates : [36.2880, 59.6157];
   const [viewState, setViewState] = useState({ latitude: initial[0], longitude: initial[1], zoom: 18 });
 
@@ -40,6 +40,7 @@ const Routing = ({ userLocation, routeSteps, currentStep }) => {
   return (
     <div ref={null} className="route-map">
       <Map
+        key={styleKey}
         mapLib={maplibregl}
         mapStyle={mapStyle}
         style={{ width: '100%', height: '100%' }}
