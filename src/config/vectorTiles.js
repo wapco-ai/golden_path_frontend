@@ -13,15 +13,42 @@ const inferDefaultTileBaseUrl = () => {
 };
 
 const TILE_BASE_URL = (import.meta?.env?.VITE_TILE_BASE_URL?.trim() || inferDefaultTileBaseUrl()).replace(/\/$/, '');
+const DEFAULT_TILE_LANG = import.meta?.env?.VITE_TILE_LANG?.trim() || 'fa';
+const DEFAULT_TILE_FLOOR = import.meta?.env?.VITE_TILE_FLOOR?.trim();
+const DEFAULT_TILE_GENDER = import.meta?.env?.VITE_TILE_GENDER?.trim();
+
+const buildFnMapFeaturesTileUrl = (entityTables = []) => {
+  const params = new URLSearchParams();
+  params.set('p_lang', DEFAULT_TILE_LANG);
+
+  if (DEFAULT_TILE_FLOOR) {
+    params.set('p_floor', DEFAULT_TILE_FLOOR);
+  }
+
+  if (DEFAULT_TILE_GENDER) {
+    params.set('p_gender', DEFAULT_TILE_GENDER);
+  }
+
+  if (entityTables.length) {
+    params.set('p_entity_tables', entityTables.join(','));
+  }
+
+  return `${TILE_BASE_URL}/functions/public.fn_map_features_mvt/{z}/{x}/{y}.pbf?${params.toString()}`;
+};
+
+const MAP_FEATURES_SOURCE_ID = 'map-features';
+const MAP_FEATURES_SOURCE_LAYER = 'map_features';
+const MAP_FEATURES_ENTITY_TABLES = ['areas', 'doors', 'poi_points', 'van_nodes', 'qrcodes'];
+const MAP_FEATURES_TILE_URL = buildFnMapFeaturesTileUrl(MAP_FEATURES_ENTITY_TABLES);
 
 export const haramVectorTileConfig = [
   {
     id: 'areas-fill',
     titleFa: 'محدوده‌ها (ساده‌شده)',
-    table: 'public.areas_simplified',
-    sourceId: 'areas-simplified',
-    sourceLayer: 'public.areas_simplified',
-    tileUrl: `${TILE_BASE_URL}/public.areas_simplified/{z}/{x}/{y}.pbf`,
+    table: 'public.fn_map_features',
+    sourceId: MAP_FEATURES_SOURCE_ID,
+    sourceLayer: MAP_FEATURES_SOURCE_LAYER,
+    tileUrl: MAP_FEATURES_TILE_URL,
     type: 'fill',
     minzoom: 14,
     maxzoom: 20,
@@ -29,15 +56,16 @@ export const haramVectorTileConfig = [
     paint: {
       'fill-color': '#0f71ef',
       'fill-opacity': 0.2
-    }
+    },
+    filter: ['==', ['get', 'entity_table'], 'areas']
   },
   {
     id: 'areas-outline',
     titleFa: 'مرز محدوده‌ها',
-    table: 'public.areas_simplified',
-    sourceId: 'areas-simplified',
-    sourceLayer: 'public.areas_simplified',
-    tileUrl: `${TILE_BASE_URL}/public.areas_simplified/{z}/{x}/{y}.pbf`,
+    table: 'public.fn_map_features',
+    sourceId: MAP_FEATURES_SOURCE_ID,
+    sourceLayer: MAP_FEATURES_SOURCE_LAYER,
+    tileUrl: MAP_FEATURES_TILE_URL,
     type: 'line',
     minzoom: 14,
     maxzoom: 22,
@@ -45,15 +73,16 @@ export const haramVectorTileConfig = [
     paint: {
       'line-color': '#0f71ef',
       'line-width': 1.5
-    }
+    },
+    filter: ['==', ['get', 'entity_table'], 'areas']
   },
   {
     id: 'doors',
     titleFa: 'درب‌ها',
-    table: 'public.doors',
-    sourceId: 'doors',
-    sourceLayer: 'public.doors',
-    tileUrl: `${TILE_BASE_URL}/public.doors/{z}/{x}/{y}.pbf`,
+    table: 'public.fn_map_features',
+    sourceId: MAP_FEATURES_SOURCE_ID,
+    sourceLayer: MAP_FEATURES_SOURCE_LAYER,
+    tileUrl: MAP_FEATURES_TILE_URL,
     type: 'symbol',
     minzoom: 17,
     maxzoom: 22,
@@ -61,15 +90,16 @@ export const haramVectorTileConfig = [
     layout: {
       'icon-image': 'marker-15',
       'icon-size': 1.2
-    }
+    },
+    filter: ['==', ['get', 'entity_table'], 'doors']
   },
   {
     id: 'poi-points',
     titleFa: 'نقاط علاقه (POI)',
-    table: 'public.poi_points',
-    sourceId: 'poi-points',
-    sourceLayer: 'public.poi_points',
-    tileUrl: `${TILE_BASE_URL}/public.poi_points/{z}/{x}/{y}.pbf`,
+    table: 'public.fn_map_features',
+    sourceId: MAP_FEATURES_SOURCE_ID,
+    sourceLayer: MAP_FEATURES_SOURCE_LAYER,
+    tileUrl: MAP_FEATURES_TILE_URL,
     type: 'symbol',
     minzoom: 16,
     maxzoom: 22,
@@ -77,15 +107,16 @@ export const haramVectorTileConfig = [
     layout: {
       'icon-image': 'marker-15',
       'icon-size': 1.1
-    }
+    },
+    filter: ['==', ['get', 'entity_table'], 'poi_points']
   },
   {
     id: 'qrcodes',
     titleFa: 'مکان‌های QR',
-    table: 'public.qrcodes',
-    sourceId: 'qrcodes',
-    sourceLayer: 'public.qrcodes',
-    tileUrl: `${TILE_BASE_URL}/public.qrcodes/{z}/{x}/{y}.pbf`,
+    table: 'public.fn_map_features',
+    sourceId: MAP_FEATURES_SOURCE_ID,
+    sourceLayer: MAP_FEATURES_SOURCE_LAYER,
+    tileUrl: MAP_FEATURES_TILE_URL,
     type: 'symbol',
     minzoom: 16,
     maxzoom: 22,
@@ -93,7 +124,8 @@ export const haramVectorTileConfig = [
     layout: {
       'icon-image': 'marker-15',
       'icon-size': 1
-    }
+    },
+    filter: ['==', ['get', 'entity_table'], 'qrcodes']
   },
   {
     id: 'admin-restrictions',
@@ -131,10 +163,10 @@ export const haramVectorTileConfig = [
   {
     id: 'van-nodes',
     titleFa: 'گره‌های ون',
-    table: 'public.van_nodes',
-    sourceId: 'van-nodes',
-    sourceLayer: 'public.van_nodes',
-    tileUrl: `${TILE_BASE_URL}/public.van_nodes/{z}/{x}/{y}.pbf`,
+    table: 'public.fn_map_features',
+    sourceId: MAP_FEATURES_SOURCE_ID,
+    sourceLayer: MAP_FEATURES_SOURCE_LAYER,
+    tileUrl: MAP_FEATURES_TILE_URL,
     type: 'symbol',
     minzoom: 16,
     maxzoom: 22,
@@ -142,7 +174,8 @@ export const haramVectorTileConfig = [
     layout: {
       'icon-image': 'marker-15',
       'icon-size': 0.9
-    }
+    },
+    filter: ['==', ['get', 'entity_table'], 'van_nodes']
   },
   {
     id: 'mesh-triangles',
