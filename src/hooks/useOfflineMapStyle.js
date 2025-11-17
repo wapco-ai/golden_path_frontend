@@ -30,9 +30,12 @@ export default function useOfflineMapStyle(initialStyle = osmMapStyle) {
     });
   }, []);
 
+  const styleKey = isFallback ? 'offline-style' : 'online-style';
+
   return {
     mapStyle,
     handleMapError,
-    isFallback
+    isFallback,
+    styleKey
   };
 }

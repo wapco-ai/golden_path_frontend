@@ -39,7 +39,7 @@ const RouteMap = forwardRef(({
   const [heading, setHeading] = useState(0);
   const [terrainAvailable, setTerrainAvailable] = useState(false);
   const [geoData, setGeoData] = useState(null);
-  const { mapStyle, handleMapError } = useOfflineMapStyle();
+  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
   const language = useLangStore(state => state.language);
 
   const handleMapLoad = useCallback((event) => {
@@ -357,6 +357,7 @@ const RouteMap = forwardRef(({
 
   return (
     <Map
+      key={styleKey}
       ref={mapRef}
       mapLib={maplibregl}
       mapStyle={mapStyle}

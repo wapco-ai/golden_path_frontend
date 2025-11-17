@@ -82,7 +82,7 @@ const Mprc = ({
   const [doorConnectionNodes, setDoorConnectionNodes] = useState([]);
   const [routeCoords, setRouteCoords] = useState(null);
   const language = useLangStore((state) => state.language);
-  const { mapStyle, handleMapError } = useOfflineMapStyle();
+  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
 
   const onMove = useCallback((evt) => {
     setViewState(evt.viewState);
@@ -352,6 +352,7 @@ const Mprc = ({
 
   return (
     <Map
+      key={styleKey}
       mapLib={maplibregl}
       mapStyle={mapStyle}
       style={{ width: '100%', height: '100%' }}
