@@ -22,7 +22,8 @@
   box-sizing: border-box !important;
   font-family: inherit !important;
   direction: inherit !important;
-  max-height: 1000000px !important; /* Prevent Chrome collapsing */
+  max-height: 1000000px !important;
+  /* Prevent Chrome collapsing */
 }
 
 .admin-panel-isolated .admin-content-wrapper {
@@ -56,7 +57,8 @@
 }
 
 
-html, body {
+html,
+body {
   width: 100%;
   height: 100%;
   margin: 0;
@@ -225,7 +227,7 @@ body {
 .sidebar-menu {
   flex: 1;
   padding: 11px 0;
-  border-top: 1px solid  #F2F2F2;
+  border-top: 1px solid #F2F2F2;
 }
 
 .menu-title3 {
@@ -402,6 +404,7 @@ body {
 
 .content-header {
   margin-bottom: 20px;
+  width: 77vw;
 }
 
 .content-header h1 {
@@ -472,7 +475,8 @@ body {
   border-radius: 6px;
   color: #1E2023;
   font-size: 12px;
-  cursor: pointer;
+  width: 110px;
+  justify-content: space-between;
 }
 
 .pie-chart-wrapper {
@@ -527,8 +531,8 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 80px; 
-  height: 80px; 
+  width: 80px;
+  height: 80px;
   background: #fff;
   border-radius: 50%;
   z-index: 2;
@@ -617,14 +621,15 @@ body {
   position: absolute;
   top: 100%;
   left: 0;
+  right: 0;
   background: white;
   border: 1px solid #F2F2F2;
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   padding: 8px 0;
-  z-index: 10;
-  min-width: 120px;
-  display: none;
+  z-index: 100;
+  min-width: 110px;
+  margin-top: 4px;
 }
 
 .time-filter-dropdown.show {
@@ -636,10 +641,22 @@ body {
   font-size: 12px;
   color: #1E2023;
   cursor: pointer;
+  transition: background-color 0.2s;
 }
 
 .time-filter-option:hover {
   background: #F5F6FF;
+  color: #0F71EF;
+}
+
+.chart-header-with-filter,
+.chart-header {
+  position: relative;
+  z-index: 1;
+}
+
+.time-filter-dropdown {
+  z-index: 1000;
 }
 
 /* Stats cards container */
@@ -727,7 +744,8 @@ body {
   border-radius: 6px;
   color: #1E2023;
   font-size: 12px;
-  cursor: pointer;
+  width: 110px;
+  justify-content: space-between;
 }
 
 /* Bar chart styles */
@@ -796,13 +814,53 @@ body {
 }
 
 .bar {
-  width: 20px;
+  width: 42px;
   background-color: #0F71EF;
   border-radius: 10px 10px 0 0;
   position: absolute;
   bottom: 0px;
-  width: 42px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
 }
+
+.bar.selected {
+  background-color: #0F71EF;
+  box-shadow: 0 0 0 2px #0F71EF;
+}
+
+.bar.dimmed {
+  background-color: #A0C8FF;
+  opacity: 0.6;
+}
+
+.bar-value {
+  position: absolute;
+  top: -30px;
+  background: #0F71EF;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 10px;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+.bar-value::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid #0F71EF;
+}
+
 
 .x-label {
   font-size: 12px;
@@ -1142,22 +1200,22 @@ body {
 }
 
 .search-box5 {
-  width: 300px; 
-  height: 50px; 
+  width: 300px;
+  height: 50px;
 }
 
 .notifications-btn {
-  width: 120px; 
-  height: 50px; 
+  width: 120px;
+  height: 50px;
 }
 
 .admin-sidebar {
-  width: 280px; 
+  width: 280px;
 }
 
 .sidebar-logo {
-  width: 280px; 
-  height: 80px; 
+  width: 280px;
+  height: 80px;
 }
 
 /* AdminPanel.css - Add at the end */
@@ -1168,12 +1226,12 @@ body {
     min-height: 100vh;
     overflow: hidden;
   }
-  
+
   .admin-panel-isolated .admin-header {
     height: 14vh;
     min-height: 80px;
   }
-  
+
   .admin-panel-isolated .admin-content-wrapper {
     height: 86vh;
   }
@@ -1208,7 +1266,7 @@ body {
     text-size-adjust: 100%;
     transform-origin: top right;
   }
-  
+
   .admin-panel-isolated .admin-header {
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
@@ -1220,4 +1278,284 @@ body {
   -webkit-text-size-adjust: 100%;
   -moz-text-size-adjust: 100%;
   -ms-text-size-adjust: 100%;
+}
+
+/* Reports Section Styles */
+.reports-section {
+  background: transparent;
+  border-radius: 10px;
+  margin-bottom: 0px;
+  border: none;
+  width: 79vw;
+}
+
+.report-filters {
+  background: transparent;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.filter-row {
+  display: flex;
+  gap: 20px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 150px;
+}
+
+.filter-label {
+  font-size: 12px;
+  color: #858585;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+/* Date Input with Separator */
+.date-input-with-separator {
+  display: flex;
+  border: 1px solid #D9D9D9;
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: white;
+  height: 36px;
+  min-width: 240px;
+}
+
+.dtg {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  font-size: 13px;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  gap: 5px;
+}
+
+.date-start,
+.date-end {
+  flex: 1;
+  text-align: center;
+  color: #1E2023;
+  cursor: pointer;
+}
+
+.date-separator {
+  width: 2px;
+  height: 16px;
+  background: #1E2023;
+  margin: 0 12px;
+}
+
+/* Updated Select Wrapper */
+.select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.select-wrapper select {
+  width: 100%;
+  padding: 8px 32px 8px 12px;
+  border: 1px solid #D9D9D9;
+  border-radius: 6px;
+  font-size: 12px;
+  background: white;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  appearance: none;
+  height: 36px;
+}
+
+.select-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid #858585;
+  pointer-events: none;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.clear-filters-btn {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid #D9D9D9;
+  border-radius: 8px;
+  color: #858585;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  height: 36px;
+}
+
+.export-report-btn {
+  padding-left: 8px;
+  padding-right: 10px;
+  background: #0F71EF;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 12px;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  height: 36px;
+}
+
+/* Ensure the dashboard charts are hidden when in report view */
+.reports-section+.charts-section {
+  display: none;
+}
+
+/* Make sure the users table stays visible in both views */
+.users-section {
+  margin-top: 20px;
+}
+
+/* Persistent active state for submenu items */
+.submenu-item.active {
+  color: #0F71EF !important;
+}
+
+.submenu-item.active .submenu-branch {
+  background-color: #0F71EF !important;
+}
+
+.submenu-item.active .submenu-branch::before {
+  background-color: #0F71EF !important;
+}
+
+.menu-item.active .menu-icon svg path,
+.menu-item.active .submenu-arrow path {
+  fill: #1e2023 !important;
+}
+
+.submenu-item.active:hover {
+  color: #0F71EF !important;
+}
+
+.submenu-item.active:hover .submenu-branch {
+  background-color: #0F71EF !important;
+}
+
+.submenu-item.active:hover .submenu-branch::before {
+  background-color: #0F71EF !important;
+}
+
+.time-filter,
+.chart-filter {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #F2F2F2;
+  border-radius: 6px;
+  color: #1E2023;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+  padding: 16px 0;
+  justify-content: center;
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 8px;
+  flex-direction: row;
+  width: 100vw;
+  justify-content: space-between;
+  align-items: center;;
+}
+
+.btc {
+  display: flex;
+  gap: 8px;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;;
+}
+
+
+.pagination-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #0F71EF;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.pagination-btn:hover:not(.disabled) {
+  background: #F5F6FF;
+  border-color: #0F71EF;
+}
+
+.pagination-btn.disabled {
+  cursor: auto;
+  opacity: 0.5;
+  border-color: grey;
+}
+
+.page-numbers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 8px;
+}
+
+.page-number {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #D9D9D9;
+  border-radius: 6px;
+  background: white;
+  font-size: 12px;
+  color: #1E2023;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Vazir', Tahoma, sans-serif;
+}
+
+.page-number:hover {
+  background: #F5F6FF;
+  border-color: #0F71EF;
+}
+
+.page-number.active {
+  background: #0F71EF;
+  border-color: #0F71EF;
+  color: white;
 }
