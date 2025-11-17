@@ -5,8 +5,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
 import { useLangStore } from '../../store/langStore';
-import { buildGeoJsonPath } from '../../utils/geojsonPath.js';
-import { fetchMapGeojson } from '../../services/geojsonService.js';
+import { loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
 import { groups, subGroups } from '../groupData';
 import { getLocationTitleById } from '../../utils/getLocationTitle';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
@@ -261,39 +260,18 @@ const Mpbc = ({
     let isMounted = true;
     const controller = new AbortController();
 
-    const loadGeojson = async () => {
-      try {
-        const data = await fetchMapGeojson({ language, floor: 0, signal: controller.signal });
+    loadGeoJsonData({ language, signal: controller.signal })
+      .then(data => {
         if (isMounted) {
           setGeoData(data);
-          return;
         }
-      } catch (err) {
+      })
+      .catch(err => {
         if (err?.name === 'AbortError') {
           return;
         }
-        console.error('failed to load geojson from api service', err);
-      }
-
-      const file = buildGeoJsonPath(language);
-      try {
-        const response = await fetch(file, { signal: controller.signal });
-        if (!response.ok) {
-          throw new Error(`GeoJSON fallback failed with status ${response.status}`);
-        }
-        const data = await response.json();
-        if (isMounted) {
-          setGeoData(data);
-        }
-      } catch (fallbackErr) {
-        if (fallbackErr?.name === 'AbortError') {
-          return;
-        }
-        console.error('failed to load geojson fallback', fallbackErr);
-      }
-    };
-
-    loadGeojson();
+        console.error('failed to load geojson data', err);
+      });
 
     return () => {
       isMounted = false;
