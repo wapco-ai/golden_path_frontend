@@ -1,5 +1,5 @@
 // src/components/map/RouteMap.jsx
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -10,6 +10,7 @@ import ArrowMarker from './ArrowMarker';
 import { useLangStore } from '../../store/langStore';
 import { subGroups } from '../groupData';
 import { loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
+import { initHaramVectorLayers } from '../../utils/initVectorLayers';
 
 import { forwardRef, useImperativeHandle } from 'react';
 
@@ -40,6 +41,10 @@ const RouteMap = forwardRef(({
   const [geoData, setGeoData] = useState(null);
   const { mapStyle, handleMapError } = useOfflineMapStyle();
   const language = useLangStore(state => state.language);
+
+  const handleMapLoad = useCallback((event) => {
+    initHaramVectorLayers(event?.target || event);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -356,6 +361,7 @@ const RouteMap = forwardRef(({
       mapLib={maplibregl}
       mapStyle={mapStyle}
       interactiveLayerIds={altLayerIds}
+      onLoad={handleMapLoad}
       onClick={(e) => {
         const feature = e.features && e.features[0];
         if (

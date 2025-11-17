@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useIntl } from 'react-intl';
 import Map, { Marker, Source, Layer, Popup } from 'react-map-gl';
@@ -10,6 +10,7 @@ import '../styles/RouteOverview.css';
 import useOfflineMapStyle from '../hooks/useOfflineMapStyle';
 import { useRouteStore } from '../store/routeStore';
 import useLocaleDigits from '../utils/useLocaleDigits';
+import { initHaramVectorLayers } from '../utils/initVectorLayers';
 
 const RouteOverview = () => {
   const navigate = useNavigate();
@@ -24,6 +25,10 @@ const RouteOverview = () => {
   const [popupCoord, setPopupCoord] = useState(null);
   const [selectedSubgroup, setSelectedSubgroup] = useState(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
+  const handleMapLoad = useCallback((event) => {
+    initHaramVectorLayers(event?.target || event);
+  }, []);
 
   const toRad = deg => (deg * Math.PI) / 180;
   const toDeg = rad => (rad * 180) / Math.PI;
@@ -405,6 +410,7 @@ const RouteOverview = () => {
           initialViewState={viewState}
           attributionControl={false}
           style={{ width: '100%', height: '100%' }}
+          onLoad={handleMapLoad}
           onError={handleMapError}
         >
           <Marker longitude={routeCoordinates[0]?.[0]} latitude={routeCoordinates[0]?.[1]} anchor="bottom">

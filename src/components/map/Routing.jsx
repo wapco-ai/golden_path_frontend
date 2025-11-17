@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
 import GeoJsonOverlay from './GeoJsonOverlay';
 import useLocaleDigits from '../../utils/useLocaleDigits';
+import { initHaramVectorLayers } from '../../utils/initVectorLayers';
 
 
 const Routing = ({ userLocation, routeSteps, currentStep }) => {
@@ -32,6 +33,10 @@ const Routing = ({ userLocation, routeSteps, currentStep }) => {
 
   const fullGeo = { type: 'Feature', geometry: { type: 'LineString', coordinates: routePath } };
 
+  const handleMapLoad = useCallback((event) => {
+    initHaramVectorLayers(event?.target || event);
+  }, []);
+
   return (
     <div ref={null} className="route-map">
       <Map
@@ -39,6 +44,7 @@ const Routing = ({ userLocation, routeSteps, currentStep }) => {
         mapStyle={mapStyle}
         style={{ width: '100%', height: '100%' }}
         viewState={viewState}
+        onLoad={handleMapLoad}
         onError={handleMapError}
       >
         {userLocation && (

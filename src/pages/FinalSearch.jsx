@@ -1,5 +1,5 @@
 // src/pages/FinalSearch.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import Map, { Marker, Source, Layer, Popup } from 'react-map-gl';
@@ -15,6 +15,7 @@ import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
 import { analyzeRoute } from '../utils/routeAnalysis';
 import useLocaleDigits from '../utils/useLocaleDigits';
 import { toast } from 'react-toastify';
+import { initHaramVectorLayers } from '../utils/initVectorLayers';
 
 const FinalSearch = () => {
   const [isSwapping, setIsSwapping] = useState(false);
@@ -82,6 +83,10 @@ const FinalSearch = () => {
   const [popupMinutes, setPopupMinutes] = useState(null);
   const [altPopupCoords, setAltPopupCoords] = useState([]);
   const [altPopupMinutes, setAltPopupMinutes] = useState([]);
+
+  const handleVectorTileLoad = useCallback((event) => {
+    initHaramVectorLayers(event?.target || event);
+  }, []);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [geoData, setGeoData] = useState(null);
@@ -586,6 +591,7 @@ const FinalSearch = () => {
           attributionControl={false}
           interactiveLayerIds={altLayerIds}
           onError={handleMapError}
+          onLoad={handleVectorTileLoad}
           onClick={(e) => {
             const feature = e.features && e.features[0];
             if (

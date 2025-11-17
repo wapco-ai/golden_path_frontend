@@ -11,6 +11,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import '../styles/Pmap.css';
 import useOfflineMapStyle from '../hooks/useOfflineMapStyle';
 import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
+import { initHaramVectorLayers } from '../utils/initVectorLayers';
 
 const groupColors = {
   sahn: '#4caf50',
@@ -301,8 +302,9 @@ const Pmap = () => {
     setViewState(evt.viewState);
   }, []);
 
-  const handleMapLoad = useCallback(() => {
+  const handleMapLoad = useCallback((event) => {
     setMapLoaded(true);
+    initHaramVectorLayers(event?.target || event);
     console.log('Map loaded successfully');
   }, []);
 
