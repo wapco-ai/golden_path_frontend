@@ -91,7 +91,8 @@ export const haramVectorTileConfig = [
     paint: {
       'fill-color': 'rgba(0, 0, 0, 0)',
       'fill-outline-color': '#000000',
-      'fill-opacity': 1
+      'fill-opacity': 1,
+      'line-width': 2
     }
   },
   {
