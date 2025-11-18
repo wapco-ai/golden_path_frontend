@@ -20,6 +20,10 @@ export const DEFAULT_TILE_GENDER = import.meta?.env?.VITE_TILE_GENDER?.trim();
 const DEFAULT_VECTOR_TILE_FLOOR = 0;
 const VECTOR_FUNCTION_SOURCE_LAYER = 'public.fn_map_features_mvt';
 const VECTOR_FUNCTION_TILE_BASE = `${TILE_BASE_URL}/${VECTOR_FUNCTION_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
+const AREAS_FUNCTION_SOURCE_LAYER = 'public.areas_mvt';
+const AREAS_FUNCTION_TILE_BASE = `${TILE_BASE_URL}/${AREAS_FUNCTION_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
+const DOORS_SOURCE_LAYER = 'public.doors';
+const DOORS_TILE_URL = `${TILE_BASE_URL}/${DOORS_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
 
 const normalizeFloorValue = (floor) => {
   if (typeof floor === 'number' && !Number.isNaN(floor)) {
@@ -63,16 +67,22 @@ const buildFnTileUrlFactory = ({ entityTables }) => {
   };
 };
 
+const buildAreasTileUrlFactory = () => ({ floor } = {}) => {
+  const params = new URLSearchParams();
+  const fallbackFloor = typeof floor !== 'undefined' ? floor : DEFAULT_TILE_FLOOR;
+  params.set('p_floor', normalizeFloorValue(fallbackFloor));
+
+  return `${AREAS_FUNCTION_TILE_BASE}?${params.toString()}`;
+};
+
 export const haramVectorTileConfig = [
   {
     id: 'areas-outline',
     titleFa: 'مرز محدوده‌ها',
     table: 'public.areas',
     sourceId: 'areas',
-    // All features are now served through the fn_map_features_mvt function,
-    // so the source-layer must match the function name exposed by Tegola.
-    sourceLayer: VECTOR_FUNCTION_SOURCE_LAYER,
-    tileUrlFactory: buildFnTileUrlFactory({ entityTables: 'areas' }),
+    sourceLayer: AREAS_FUNCTION_SOURCE_LAYER,
+    tileUrlFactory: buildAreasTileUrlFactory(),
     type: 'line',
     minzoom: 14,
     maxzoom: 22,
@@ -87,8 +97,8 @@ export const haramVectorTileConfig = [
     titleFa: 'درب‌ها',
     table: 'public.doors',
     sourceId: 'doors',
-    sourceLayer: VECTOR_FUNCTION_SOURCE_LAYER,
-    tileUrlFactory: buildFnTileUrlFactory({ entityTables: 'doors' }),
+    sourceLayer: DOORS_SOURCE_LAYER,
+    tileUrl: DOORS_TILE_URL,
     type: 'line',
     minzoom: 15,
     maxzoom: 22,
