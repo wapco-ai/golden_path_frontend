@@ -20,7 +20,7 @@ export const DEFAULT_TILE_GENDER = import.meta?.env?.VITE_TILE_GENDER?.trim();
 const buildTableTileUrl = (tableName) => `${TILE_BASE_URL}/public.${tableName}/{z}/{x}/{y}.pbf`;
 
 const TABLE_TILE_URLS = {
-  areasSimplified: buildTableTileUrl('areas_simplified'),
+  areas: buildTableTileUrl('areas'),
   doors: buildTableTileUrl('doors'),
   poiPoints: buildTableTileUrl('poi_points')
 };
@@ -28,11 +28,11 @@ const TABLE_TILE_URLS = {
 export const haramVectorTileConfig = [
   {
     id: 'areas-outline',
-    titleFa: 'مرز محدوده‌ها (ساده‌شده)',
-    table: 'public.areas_simplified',
-    sourceId: 'areas_simplified',
-    sourceLayer: 'areas_simplified',
-    tileUrl: TABLE_TILE_URLS.areasSimplified,
+    titleFa: 'مرز محدوده‌ها',
+    table: 'public.areas',
+    sourceId: 'areas',
+    sourceLayer: 'areas',
+    tileUrl: TABLE_TILE_URLS.areas,
     type: 'line',
     minzoom: 14,
     maxzoom: 22,
