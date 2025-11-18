@@ -336,4 +336,11 @@ VALUES
   ('saghakhaneh',  NULL, 'subGroup', NULL,
     (SELECT id FROM categories WHERE code = 'other'), 2, 30, TRUE);
 
-
+--- پر کردن جدول ساده سازی پ.لیگون
+INSERT INTO areas_simplified (id, geom)
+SELECT
+  a.id,
+  ST_SimplifyPreserveTopology(a.geom, 0.5)  -- عدد 0.5 یعنی حدود نیم متر؛ قابل تنظیم
+FROM areas a
+ON CONFLICT (id) DO UPDATE
+SET geom = EXCLUDED.geom;

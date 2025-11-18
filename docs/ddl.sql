@@ -1239,15 +1239,6 @@ CREATE TABLE IF NOT EXISTS areas_simplified (
   geom      geometry(MultiPolygon, 32640) NOT NULL
 );
 
--- یکبار پرکردن:
---INSERT INTO areas_simplified (id, geom)
---SELECT
---  a.id,
---  ST_SimplifyPreserveTopology(a.geom, 0.001)  -- عدد 0.5 یعنی حدود نیم متر؛ قابل تنظیم
---FROM areas a
---ON CONFLICT (id) DO UPDATE
---SET geom = EXCLUDED.geom;
-
 
 -- =====================================================
 -- این تابع برای یک category_leaf_id مسیر را به‌صورت ۵ ستون برمی‌گرداند:
@@ -1294,4 +1285,83 @@ SELECT
   MAX(id)   AS leaf_id,
   MAX(code) AS leaf_code
 FROM cte;
+$$;
+
+
+-- function layer
+CREATE OR REPLACE FUNCTION public.fn_map_features_mvt(
+  z                 integer,
+  x                 integer,
+  y                 integer,
+  p_lang            public.lang_enum DEFAULT 'fa',
+  p_floor           smallint         DEFAULT NULL,
+  p_gender          text             DEFAULT NULL,
+  p_entity_tables   text             DEFAULT NULL  -- مثل 'areas,doors'
+)
+RETURNS bytea
+LANGUAGE plpgsql
+STABLE
+AS $$
+DECLARE
+  tile_bbox_3857   geometry;
+  tile_bbox_4326   geometry;
+  v_entity_tables  text[];
+BEGIN
+  -- BBOX tile در WebMercator
+  tile_bbox_3857 := ST_TileEnvelope(z, x, y);
+  tile_bbox_4326 := ST_Transform(tile_bbox_3857, 4326);
+
+  -- لیست لایه‌ها (entity_table) اگر داده شده
+  IF p_entity_tables IS NOT NULL AND p_entity_tables <> '' THEN
+    v_entity_tables := string_to_array(p_entity_tables, ',');
+  ELSE
+    v_entity_tables := NULL;
+  END IF;
+
+  RETURN (
+    SELECT ST_AsMVT(tile, 'map_features', 4096, 'geom')
+    FROM (
+      SELECT
+        ST_AsMVTGeom(
+          ST_Transform(f.geom_4326, 3857),
+          tile_bbox_3857,
+          4096,
+          64,
+          true
+        ) AS geom,
+
+        f.entity_table,
+        f.entity_id,
+        f.floor,
+        f.name,
+        f.description,
+        f."group",
+        f."subGroup",
+        f."subGroupValue",
+        f.category_level3,
+        f.category_level4,
+        f.category_level5,
+        f.category_leaf,
+        f.types,
+        f.services,
+        f.gender,
+        f.nodefunction,
+        f.restrictedtimes,
+        f.latitude,
+        f.longitude,
+        f.gpsmeta,
+        f."timestamp",
+        f.transportmodes
+
+      FROM public.fn_map_features(p_lang) AS f
+      WHERE
+        f.geom_4326 IS NOT NULL
+        AND ST_Intersects(f.geom_4326, tile_bbox_4326)
+        AND (p_floor  IS NULL OR f.floor  = p_floor)
+        AND (p_gender IS NULL OR f.gender = p_gender)
+        AND (v_entity_tables IS NULL OR f.entity_table = ANY (v_entity_tables))
+    ) AS tile
+    WHERE geom IS NOT NULL
+  );
+END;
 $$;
