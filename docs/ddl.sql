@@ -1367,7 +1367,7 @@ END;
 $$;
 
 ---- function layer areas_mvt
-CREATE OR REPLACE FUNCTION public.areas_mvt(
+CREATE OR REPLACE FUNCTION public.fn_areas_mvt(
   z integer,
   x integer,
   y integer,

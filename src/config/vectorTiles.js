@@ -20,8 +20,7 @@ export const DEFAULT_TILE_GENDER = import.meta?.env?.VITE_TILE_GENDER?.trim();
 const DEFAULT_VECTOR_TILE_FLOOR = 0;
 const VECTOR_FUNCTION_SOURCE_LAYER = 'public.fn_map_features_mvt';
 const VECTOR_FUNCTION_TILE_BASE = `${TILE_BASE_URL}/${VECTOR_FUNCTION_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
-const AREAS_FUNCTION_SOURCE_LAYER = 'public.areas_mvt';
-const AREAS_VECTOR_LAYER_NAME = 'areas';
+const AREAS_FUNCTION_SOURCE_LAYER = 'public.fn_areas_mvt';
 const AREAS_FUNCTION_TILE_BASE = `${TILE_BASE_URL}/${AREAS_FUNCTION_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
 const DOORS_SOURCE_LAYER = 'public.doors';
 const DOORS_TILE_URL = `${TILE_BASE_URL}/${DOORS_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
@@ -80,9 +79,9 @@ export const haramVectorTileConfig = [
   {
     id: 'areas-outline',
     titleFa: 'مرز محدوده‌ها',
-    table: 'public.areas',
-    sourceId: 'areas',
-    sourceLayer: AREAS_VECTOR_LAYER_NAME,
+    table: 'public.fn_areas_mvt',
+    sourceId: 'fn_areas_mvt',
+    sourceLayer: AREAS_FUNCTION_SOURCE_LAYER,
     tileUrlFactory: buildAreasTileUrlFactory(),
     type: 'fill',
     minzoom: 14,
