@@ -1,5 +1,6 @@
-
-list of vector tiles by property json
+////////////////////////////////////////////
+#list of vector tiles by property json tables
+////////////////////////////////////////////
 
 1- http://localhost:8080/tiles/public.admin_restrictions.json
 
@@ -39,6 +40,20 @@ list of vector tiles by property json
 
 {"id":"public.van_nodes","schema":"public","name":"van_nodes","properties":[{"name":"id","type":"int8","description":""},{"name":"node_type","type":"van_node_type_enum","description":""},{"name":"floor","type":"int2","description":""},{"name":"updated_at","type":"timestamptz","description":""}],"geometrytype":"Point","center":[0,0],"bounds":[-180,-90,180,90],"minzoom":0,"maxzoom":22,"tileurl":"http://localhost/public.van_nodes/{z}/{x}/{y}.pbf"}
 
-10-http://localhost:8080/tiles/public.fn_map_features_mvt.json
+
+
+
+
+
+////////////////////////////////////////////
+#list of vector tiles by property json functions
+////////////////////////////////////////////
+
+1-http://localhost:8080/tiles/public.fn_map_features_mvt.json
 
 {"id":"public.fn_map_features_mvt","schema":"public","name":"fn_map_features_mvt","arguments":[{"name":"p_lang","type":"lang_enum","default":"fa_enum"},{"name":"p_floor","type":"smallint","default":"NULL::smallint"},{"name":"p_gender","type":"text","default":"NULL::text"},{"name":"p_entity_tables","type":"text","default":"NULL::text"}],"minzoom":0,"maxzoom":22,"tileurl":"http://localhost/public.fn_map_features_mvt/{z}/{x}/{y}.pbf"}
+
+2- http://localhost:8080/tiles/public.areas_mvt.json
+
+{"id":"public.areas_mvt","schema":"public","name":"areas_mvt","arguments":[{"name":"p_floor","type":"smallint","default":"NULL::smallint"}],"minzoom":0,"maxzoom":22,"tileurl":"http://localhost/public.areas_mvt/{z}/{x}/{y}.pbf"}
+
