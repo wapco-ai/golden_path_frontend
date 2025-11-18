@@ -17,8 +17,9 @@ export const DEFAULT_TILE_LANG = import.meta?.env?.VITE_TILE_LANG?.trim() || 'fa
 export const DEFAULT_TILE_FLOOR = import.meta?.env?.VITE_TILE_FLOOR?.trim();
 export const DEFAULT_TILE_GENDER = import.meta?.env?.VITE_TILE_GENDER?.trim();
 
-const buildTableTileUrl = (tableName) => `${TILE_BASE_URL}/public.${tableName}/{z}/{x}/{y}.pbf`;
 const DEFAULT_VECTOR_TILE_FLOOR = 0;
+const VECTOR_FUNCTION_SOURCE_LAYER = 'public.fn_map_features_mvt';
+const VECTOR_FUNCTION_TILE_BASE = `${TILE_BASE_URL}/${VECTOR_FUNCTION_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
 
 const normalizeFloorValue = (floor) => {
   if (typeof floor === 'number' && !Number.isNaN(floor)) {
@@ -35,19 +36,31 @@ const normalizeFloorValue = (floor) => {
   return DEFAULT_VECTOR_TILE_FLOOR;
 };
 
-const buildFloorFilteredTileUrlFactory = (tableName, paramName = 'floor') => {
-  const baseUrl = buildTableTileUrl(tableName);
-  return ({ floor } = {}) => {
-    const safeFloor = normalizeFloorValue(floor);
-    const connector = baseUrl.includes('?') ? '&' : '?';
-    return `${baseUrl}${connector}${encodeURIComponent(paramName)}=${encodeURIComponent(safeFloor)}`;
-  };
-};
+const buildFnTileUrlFactory = ({ entityTables }) => {
+  const normalizedEntities = Array.isArray(entityTables)
+    ? entityTables.filter(Boolean).join(',')
+    : entityTables;
 
-const TABLE_TILE_URLS = {
-  areas: buildTableTileUrl('areas'),
-  doors: buildTableTileUrl('doors'),
-  poiPoints: buildTableTileUrl('poi_points')
+  return ({ floor } = {}) => {
+    const params = new URLSearchParams();
+
+    if (DEFAULT_TILE_LANG) {
+      params.set('p_lang', DEFAULT_TILE_LANG);
+    }
+
+    const fallbackFloor = typeof floor !== 'undefined' ? floor : DEFAULT_TILE_FLOOR;
+    params.set('p_floor', normalizeFloorValue(fallbackFloor));
+
+    if (DEFAULT_TILE_GENDER) {
+      params.set('p_gender', DEFAULT_TILE_GENDER);
+    }
+
+    if (normalizedEntities) {
+      params.set('p_entity_tables', normalizedEntities);
+    }
+
+    return `${VECTOR_FUNCTION_TILE_BASE}?${params.toString()}`;
+  };
 };
 
 export const haramVectorTileConfig = [
@@ -56,13 +69,10 @@ export const haramVectorTileConfig = [
     titleFa: 'مرز محدوده‌ها',
     table: 'public.areas',
     sourceId: 'areas',
-    // Source layer name must match exactly what the vector tile server encodes.
-    // Tegola/PostGIS exports often keep the schema prefix (e.g. "public.areas"),
-    // so we default to the fully-qualified table name instead of a stripped alias
-    // to ensure the layer becomes visible even when schemas are included.
-    sourceLayer: 'public.areas',
-    tileUrl: TABLE_TILE_URLS.areas,
-    tileUrlFactory: buildFloorFilteredTileUrlFactory('areas'),
+    // All features are now served through the fn_map_features_mvt function,
+    // so the source-layer must match the function name exposed by Tegola.
+    sourceLayer: VECTOR_FUNCTION_SOURCE_LAYER,
+    tileUrlFactory: buildFnTileUrlFactory({ entityTables: 'areas' }),
     type: 'line',
     minzoom: 14,
     maxzoom: 22,
@@ -77,8 +87,8 @@ export const haramVectorTileConfig = [
     titleFa: 'درب‌ها',
     table: 'public.doors',
     sourceId: 'doors',
-    sourceLayer: 'public.doors',
-    tileUrl: TABLE_TILE_URLS.doors,
+    sourceLayer: VECTOR_FUNCTION_SOURCE_LAYER,
+    tileUrlFactory: buildFnTileUrlFactory({ entityTables: 'doors' }),
     type: 'line',
     minzoom: 15,
     maxzoom: 22,
