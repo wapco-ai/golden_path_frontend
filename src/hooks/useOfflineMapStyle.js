@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import osmMapStyle, { offlineFallbackStyle } from '../services/osmMapStyle';
+import osmMapStyle, { BASE_RASTER_SOURCE_ID, offlineFallbackStyle } from '../services/osmMapStyle';
 import { toast } from 'react-toastify';
 
 const FALLBACK_TOAST_ID = 'map-tiles-fallback-notice';
@@ -8,6 +8,34 @@ const FALLBACK_TOAST_ID = 'map-tiles-fallback-notice';
  * Provides a map style that automatically falls back to an offline-friendly version
  * whenever MapLibre fails to load raster tiles (e.g., due to blocked network access).
  */
+const extractSourceId = (event) => {
+  if (!event) return null;
+
+  return event.sourceId ||
+    event?.error?.sourceId ||
+    event?.tile?.sourceId ||
+    event?.tile?.source ||
+    event?.error?.source ||
+    null;
+};
+
+const extractResourceUrl = (event) =>
+  event?.error?.resource?.url || event?.error?.url || event?.url || null;
+
+const shouldTriggerFallback = (event) => {
+  const sourceId = extractSourceId(event);
+  if (sourceId && sourceId !== BASE_RASTER_SOURCE_ID) {
+    return false;
+  }
+
+  const resourceUrl = extractResourceUrl(event);
+  if (resourceUrl && !resourceUrl.includes('tile.openstreetmap.org')) {
+    return false;
+  }
+
+  return true;
+};
+
 export default function useOfflineMapStyle(initialStyle = osmMapStyle) {
   const [mapStyle, setMapStyle] = useState(initialStyle);
   const [isFallback, setIsFallback] = useState(initialStyle === offlineFallbackStyle);
@@ -15,6 +43,11 @@ export default function useOfflineMapStyle(initialStyle = osmMapStyle) {
 
   const handleMapError = useCallback((event) => {
     if (hasSwitchedRef.current) {
+      return;
+    }
+
+    if (!shouldTriggerFallback(event)) {
+      console.warn('Map error ignored because it is unrelated to the base raster source.', event);
       return;
     }
 
