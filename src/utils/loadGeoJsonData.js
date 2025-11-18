@@ -1,20 +1,14 @@
 import { VectorTile } from '@mapbox/vector-tile';
 import Protobuf from 'pbf';
-import {
-  TILE_BASE_URL,
-  DEFAULT_TILE_FLOOR,
-  DEFAULT_TILE_GENDER,
-  DEFAULT_TILE_LANG
-} from '../config/vectorTiles.js';
+import { TILE_BASE_URL, DEFAULT_TILE_FLOOR } from '../config/vectorTiles.js';
 
 const DEFAULT_FLOOR = 0;
-const FALLBACK_LANG = DEFAULT_TILE_LANG || 'fa';
 const FALLBACK_FLOOR =
   DEFAULT_TILE_FLOOR !== undefined && DEFAULT_TILE_FLOOR !== ''
     ? Number(DEFAULT_TILE_FLOOR)
     : DEFAULT_FLOOR;
 const DEFAULT_VECTOR_TILE_ZOOM = 16;
-const FEATURE_SOURCE_LAYER = 'public.fn_map_features_mvt';
+const FEATURE_SOURCE_LAYER = 'public.areas_mvt';
 const HARAM_BOUNDS = {
   minLng: 59.61013495098894,
   minLat: 36.28169290965149,
@@ -58,21 +52,12 @@ const getTileRangeForBounds = (bounds, zoom) => {
   return { minX, maxX, minY, maxY };
 };
 
-const buildTileUrl = ({ z, x, y, language, floor }) => {
+const buildTileUrl = ({ z, x, y, floor }) => {
   const params = new URLSearchParams();
-
-  const normalizedLang = (language || FALLBACK_LANG).trim();
-  if (normalizedLang) {
-    params.set('p_lang', normalizedLang);
-  }
 
   const normalizedFloor = toFloorValue(floor);
   if (typeof normalizedFloor === 'number' && !Number.isNaN(normalizedFloor)) {
     params.set('p_floor', normalizedFloor);
-  }
-
-  if (DEFAULT_TILE_GENDER) {
-    params.set('p_gender', DEFAULT_TILE_GENDER);
   }
 
   const query = params.toString();
@@ -99,18 +84,13 @@ const decodeTileFeatures = (arrayBuffer, layerId, tileCoords) => {
   return features;
 };
 
-export async function loadGeoJsonData({
-  language = FALLBACK_LANG,
-  floor = FALLBACK_FLOOR,
-  zoom = DEFAULT_VECTOR_TILE_ZOOM,
-  signal
-} = {}) {
+export async function loadGeoJsonData({ floor = FALLBACK_FLOOR, zoom = DEFAULT_VECTOR_TILE_ZOOM, signal } = {}) {
   const tileRange = getTileRangeForBounds(HARAM_BOUNDS, zoom);
   const requests = [];
 
   for (let x = tileRange.minX; x <= tileRange.maxX; x += 1) {
     for (let y = tileRange.minY; y <= tileRange.maxY; y += 1) {
-      const url = buildTileUrl({ z: zoom, x, y, language, floor });
+      const url = buildTileUrl({ z: zoom, x, y, floor });
       const request = fetch(url, { signal })
         .then((response) => {
           if (!response.ok) {
