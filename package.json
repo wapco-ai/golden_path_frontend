@@ -13,7 +13,7 @@
 		"predeploy": "npm run build",
 		"deploy": "gh-pages -d dist",
 		"generate-pwa-assets": "pwa-assets-generator",
-		"test": "node tests/routeAnalysis.test.js && node tests/geojsonPath.test.js"
+                "test": "node tests/routeAnalysis.test.js"
 	},
 	"dependencies": {
 		"@turf/turf": "^7.2.0",

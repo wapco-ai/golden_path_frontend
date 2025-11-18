@@ -12,10 +12,10 @@ const inferDefaultTileBaseUrl = () => {
   return 'http://localhost:8080/tiles';
 };
 
-const TILE_BASE_URL = (import.meta?.env?.VITE_TILE_BASE_URL?.trim() || inferDefaultTileBaseUrl()).replace(/\/$/, '');
-const DEFAULT_TILE_LANG = import.meta?.env?.VITE_TILE_LANG?.trim() || 'fa';
-const DEFAULT_TILE_FLOOR = import.meta?.env?.VITE_TILE_FLOOR?.trim();
-const DEFAULT_TILE_GENDER = import.meta?.env?.VITE_TILE_GENDER?.trim();
+export const TILE_BASE_URL = (import.meta?.env?.VITE_TILE_BASE_URL?.trim() || inferDefaultTileBaseUrl()).replace(/\/$/, '');
+export const DEFAULT_TILE_LANG = import.meta?.env?.VITE_TILE_LANG?.trim() || 'fa';
+export const DEFAULT_TILE_FLOOR = import.meta?.env?.VITE_TILE_FLOOR?.trim();
+export const DEFAULT_TILE_GENDER = import.meta?.env?.VITE_TILE_GENDER?.trim();
 
 const buildFnMapFeaturesTileUrl = (entityTables = []) => {
   const params = new URLSearchParams();
