@@ -36,19 +36,10 @@ const normalizeFloorValue = (floor) => {
   return DEFAULT_VECTOR_TILE_FLOOR;
 };
 
-
 const buildFnTileUrlFactory = ({ entityTables }) => {
   const normalizedEntities = Array.isArray(entityTables)
     ? entityTables.filter(Boolean).join(',')
     : entityTables;
-const buildFloorFilteredTileUrlFactory = (tableName, paramName = 'p_floor') => {
-  const baseUrl = buildTableTileUrl(tableName);
-  return ({ floor } = {}) => {
-    const safeFloor = normalizeFloorValue(floor);
-    const connector = baseUrl.includes('?') ? '&' : '?';
-    return `${baseUrl}${connector}${encodeURIComponent(paramName)}=${encodeURIComponent(safeFloor)}`;
-  };
-};
 
   return ({ floor } = {}) => {
     const params = new URLSearchParams();
@@ -76,14 +67,12 @@ export const haramVectorTileConfig = [
   {
     id: 'areas-outline',
     titleFa: 'مرز محدوده‌ها',
-    table: 'public.fn_map_features_mvt',
+    table: 'public.areas',
     sourceId: 'areas',
-    // Source layer name must match exactly what the vector tile server encodes.
-    // Tegola/PostGIS exports often keep the schema prefix (e.g. "public.areas"),
-    // so we default to the fully-qualified table name instead of a stripped alias
-    // to ensure the layer becomes visible even when schemas are included.
-    sourceLayer: 'public.fn_map_features_mvt',
-    tileUrlFactory: buildFloorFilteredTileUrlFactory('areas'),
+    // All features are now served through the fn_map_features_mvt function,
+    // so the source-layer must match the function name exposed by Tegola.
+    sourceLayer: VECTOR_FUNCTION_SOURCE_LAYER,
+    tileUrlFactory: buildFnTileUrlFactory({ entityTables: 'areas' }),
     type: 'line',
     minzoom: 14,
     maxzoom: 22,
