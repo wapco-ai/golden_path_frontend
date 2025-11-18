@@ -31,7 +31,11 @@ export const haramVectorTileConfig = [
     titleFa: 'مرز محدوده‌ها',
     table: 'public.areas',
     sourceId: 'areas',
-    sourceLayer: 'areas',
+    // Source layer name must match exactly what the vector tile server encodes.
+    // Tegola/PostGIS exports often keep the schema prefix (e.g. "public.areas"),
+    // so we default to the fully-qualified table name instead of a stripped alias
+    // to ensure the layer becomes visible even when schemas are included.
+    sourceLayer: 'public.areas',
     tileUrl: TABLE_TILE_URLS.areas,
     type: 'line',
     minzoom: 14,
@@ -47,7 +51,7 @@ export const haramVectorTileConfig = [
     titleFa: 'درب‌ها',
     table: 'public.doors',
     sourceId: 'doors',
-    sourceLayer: 'doors',
+    sourceLayer: 'public.doors',
     tileUrl: TABLE_TILE_URLS.doors,
     type: 'line',
     minzoom: 15,
