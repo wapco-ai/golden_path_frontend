@@ -1288,7 +1288,7 @@ FROM cte;
 $$;
 
 
--- function layer
+-- function layer fn_map_features_mvt
 CREATE OR REPLACE FUNCTION public.fn_map_features_mvt(
   z                 integer,
   x                 integer,
@@ -1361,6 +1361,51 @@ BEGIN
         AND (p_gender IS NULL OR f.gender = p_gender)
         AND (v_entity_tables IS NULL OR f.entity_table = ANY (v_entity_tables))
     ) AS tile
+    WHERE geom IS NOT NULL
+  );
+END;
+$$;
+
+---- function layer areas_mvt
+CREATE OR REPLACE FUNCTION public.areas_mvt(
+  z integer,
+  x integer,
+  y integer,
+  p_floor smallint DEFAULT NULL
+)
+RETURNS bytea
+LANGUAGE plpgsql
+STABLE
+AS $$
+DECLARE
+  tile_bbox_3857 geometry;
+  tile_bbox_4326 geometry;
+BEGIN
+  tile_bbox_3857 := ST_TileEnvelope(z, x, y);
+  tile_bbox_4326 := ST_Transform(tile_bbox_3857, 4326);
+
+  RETURN (
+    SELECT ST_AsMVT(t, 'areas', 4096, 'geom')
+    FROM (
+      SELECT
+        ST_AsMVTGeom(
+          ST_Transform(a.geom, 3857),
+          tile_bbox_3857,
+          4096,
+          64,
+          true
+        ) AS geom,
+        a.id,
+        a.area_type,
+        a.floor,
+        a.allowed_gender,
+        a.is_closed,
+        a.weight_open_space,
+        a.attrs
+      FROM areas a
+      WHERE ST_Intersects(ST_Transform(a.geom, 4326), tile_bbox_4326)
+        AND (p_floor IS NULL OR a.floor = p_floor)
+    ) AS t
     WHERE geom IS NOT NULL
   );
 END;
