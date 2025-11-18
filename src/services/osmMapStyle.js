@@ -1,3 +1,5 @@
+export const BASE_RASTER_SOURCE_ID = 'osm-raster';
+
 export const offlineFallbackStyle = {
   version: 8,
   name: 'offline-fallback',
@@ -20,7 +22,7 @@ const vectorBaseMapStyle = {
   version: 8,
   name: 'haram-vector-base',
   sources: {
-    'osm-raster': {
+    [BASE_RASTER_SOURCE_ID]: {
       type: 'raster',
       tiles: [
         'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
@@ -41,7 +43,7 @@ const vectorBaseMapStyle = {
     {
       id: 'osm-raster-base',
       type: 'raster',
-      source: 'osm-raster',
+      source: BASE_RASTER_SOURCE_ID,
       minzoom: 0,
       maxzoom: 19
     }
