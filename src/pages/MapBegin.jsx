@@ -6,7 +6,6 @@ import Mpbc from '../components/map/Mpbc';
 import { groups, subGroups } from '../components/groupData';
 import { useRouteStore } from '../store/routeStore';
 import { useLangStore } from '../store/langStore';
-import { buildGeoJsonPath } from '../utils/geojsonPath.js';
 import { getLocationTitleById } from '../utils/getLocationTitle';
 import '../styles/MapBegin.css';
 
