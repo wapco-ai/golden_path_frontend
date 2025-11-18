@@ -76,7 +76,7 @@ const ensureSourcesAndLayers = (map) => {
       if (meta.isDynamic) {
         const source = map.getSource(sourceId);
         if (source && typeof source.setTiles === 'function') {
-          source.setTiles([meta.tileUrlResolver({p_floor: currentFloor })]);
+          source.setTiles([meta.tileUrlResolver({ floor: currentFloor })]);
         }
       }
       return;
@@ -84,7 +84,7 @@ const ensureSourcesAndLayers = (map) => {
 
     map.addSource(sourceId, {
       type: 'vector',
-      tiles: [meta.tileUrlResolver({ p_floor: currentFloor })],
+      tiles: [meta.tileUrlResolver({ floor: currentFloor })],
       minzoom: meta.minzoom,
       maxzoom: meta.maxzoom
     });
