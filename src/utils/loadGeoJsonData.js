@@ -8,7 +8,7 @@ const FALLBACK_FLOOR =
     ? Number(DEFAULT_TILE_FLOOR)
     : DEFAULT_FLOOR;
 const DEFAULT_VECTOR_TILE_ZOOM = 16;
-const FEATURE_SOURCE_LAYER = 'public.areas_mvt';
+const FEATURE_SOURCE_LAYER = 'public.fn_areas_mvt';
 const HARAM_BOUNDS = {
   minLng: 59.61013495098894,
   minLat: 36.28169290965149,
