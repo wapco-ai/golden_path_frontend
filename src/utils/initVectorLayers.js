@@ -1,16 +1,34 @@
 import { haramVectorTileConfig } from '../config/vectorTiles';
+import { getSessionFloor, subscribeToSessionFloor } from './sessionFloor';
+
+const resolveTileUrlResolver = (layerCfg) => {
+  if (typeof layerCfg.tileUrlFactory === 'function') {
+    return layerCfg.tileUrlFactory;
+  }
+  const staticUrl = layerCfg.tileUrl;
+  return () => staticUrl;
+};
 
 const sourceMeta = haramVectorTileConfig.reduce((acc, layerCfg) => {
   const existing = acc[layerCfg.sourceId];
+  const isDynamic = typeof layerCfg.tileUrlFactory === 'function';
+  const tileUrlResolver = resolveTileUrlResolver(layerCfg);
+
   if (!existing) {
     acc[layerCfg.sourceId] = {
-      tileUrl: layerCfg.tileUrl,
+      tileUrlResolver,
       minzoom: layerCfg.minzoom,
-      maxzoom: layerCfg.maxzoom
+      maxzoom: layerCfg.maxzoom,
+      isDynamic
     };
   } else {
     existing.minzoom = Math.min(existing.minzoom, layerCfg.minzoom);
     existing.maxzoom = Math.max(existing.maxzoom, layerCfg.maxzoom);
+
+    if (isDynamic && !existing.isDynamic) {
+      existing.tileUrlResolver = tileUrlResolver;
+      existing.isDynamic = true;
+    }
   }
   return acc;
 }, {});
@@ -51,14 +69,22 @@ const ensureSourcesAndLayers = (map) => {
     return;
   }
 
+  const currentFloor = getSessionFloor();
+
   Object.entries(sourceMeta).forEach(([sourceId, meta]) => {
     if (map.getSource(sourceId)) {
+      if (meta.isDynamic) {
+        const source = map.getSource(sourceId);
+        if (source && typeof source.setTiles === 'function') {
+          source.setTiles([meta.tileUrlResolver({ floor: currentFloor })]);
+        }
+      }
       return;
     }
 
     map.addSource(sourceId, {
       type: 'vector',
-      tiles: [meta.tileUrl],
+      tiles: [meta.tileUrlResolver({ floor: currentFloor })],
       minzoom: meta.minzoom,
       maxzoom: meta.maxzoom
     });
@@ -94,6 +120,35 @@ const ensureSourcesAndLayers = (map) => {
   });
 };
 
+const ensureFloorSync = (map) => {
+  if (!map) {
+    return;
+  }
+
+  if (!map.__haramFloorCleanup) {
+    map.__haramFloorCleanup = subscribeToSessionFloor((floor) => {
+      Object.entries(sourceMeta).forEach(([sourceId, meta]) => {
+        if (!meta.isDynamic) {
+          return;
+        }
+        const source = map.getSource(sourceId);
+        if (source && typeof source.setTiles === 'function') {
+          source.setTiles([meta.tileUrlResolver({ floor })]);
+        }
+      });
+    });
+
+    if (typeof map.on === 'function') {
+      map.on('remove', () => {
+        if (typeof map.__haramFloorCleanup === 'function') {
+          map.__haramFloorCleanup();
+          map.__haramFloorCleanup = null;
+        }
+      });
+    }
+  }
+};
+
 export const initHaramVectorLayers = (mapOrEventTarget) => {
   const map = resolveMap(mapOrEventTarget?.target || mapOrEventTarget);
   if (!map) {
@@ -101,6 +156,7 @@ export const initHaramVectorLayers = (mapOrEventTarget) => {
   }
 
   ensureSourcesAndLayers(map);
+  ensureFloorSync(map);
 
   if (!map[FLAG_KEY] && typeof map.on === 'function') {
     map[FLAG_KEY] = true;
