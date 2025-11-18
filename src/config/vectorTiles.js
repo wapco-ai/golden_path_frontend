@@ -38,11 +38,14 @@ const normalizeFloorValue = (floor) => {
 
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 const buildFnTileUrlFactory = ({ entityTables }) => {
   const normalizedEntities = Array.isArray(entityTables)
     ? entityTables.filter(Boolean).join(',')
     : entityTables;
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 const buildFloorFilteredTileUrlFactory = (tableName, paramName = 'p_floor') => {
