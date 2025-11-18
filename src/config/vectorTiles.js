@@ -18,6 +18,31 @@ export const DEFAULT_TILE_FLOOR = import.meta?.env?.VITE_TILE_FLOOR?.trim();
 export const DEFAULT_TILE_GENDER = import.meta?.env?.VITE_TILE_GENDER?.trim();
 
 const buildTableTileUrl = (tableName) => `${TILE_BASE_URL}/public.${tableName}/{z}/{x}/{y}.pbf`;
+const DEFAULT_VECTOR_TILE_FLOOR = 0;
+
+const normalizeFloorValue = (floor) => {
+  if (typeof floor === 'number' && !Number.isNaN(floor)) {
+    return floor;
+  }
+
+  if (typeof floor === 'string' && floor.trim() !== '') {
+    const parsed = Number(floor);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+
+  return DEFAULT_VECTOR_TILE_FLOOR;
+};
+
+const buildFloorFilteredTileUrlFactory = (tableName, paramName = 'floor') => {
+  const baseUrl = buildTableTileUrl(tableName);
+  return ({ floor } = {}) => {
+    const safeFloor = normalizeFloorValue(floor);
+    const connector = baseUrl.includes('?') ? '&' : '?';
+    return `${baseUrl}${connector}${encodeURIComponent(paramName)}=${encodeURIComponent(safeFloor)}`;
+  };
+};
 
 const TABLE_TILE_URLS = {
   areas: buildTableTileUrl('areas'),
@@ -37,6 +62,7 @@ export const haramVectorTileConfig = [
     // to ensure the layer becomes visible even when schemas are included.
     sourceLayer: 'public.areas',
     tileUrl: TABLE_TILE_URLS.areas,
+    tileUrlFactory: buildFloorFilteredTileUrlFactory('areas'),
     type: 'line',
     minzoom: 14,
     maxzoom: 22,
