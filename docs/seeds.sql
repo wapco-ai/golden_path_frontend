@@ -344,3 +344,363 @@ SELECT
 FROM areas a
 ON CONFLICT (id) DO UPDATE
 SET geom = EXCLUDED.geom;
+
+
+
+-- ===== AREAS =====
+INSERT INTO feature_group_mappings (
+  entity_table, feature_key,
+  category_leaf_id,
+  default_group, default_subgroup,
+  default_node_function, default_types,
+  default_transport_modes, default_services, default_gender
+) VALUES
+('areas', 'courtyard',
+ (SELECT id
+    FROM categories
+   WHERE code = 'sahn'
+     AND property_target = 'group'),
+ 'sahn', 'courtyard',
+ 'area',
+ ARRAY['courtyard'],
+ ARRAY['walk'],
+ '{"walking": true}'::jsonb,
+ 'family'),
+
+('areas', 'riwaq',
+ (SELECT id
+    FROM categories
+   WHERE code = 'ravaq'
+     AND property_target = 'group'),
+ 'riwaq', 'riwaq',
+ 'area',
+ ARRAY['riwaq'],
+ ARRAY['walk'],
+ '{"walking": true}'::jsonb,
+ 'family'),
+
+('areas', 'iwan',
+ (SELECT id
+    FROM categories
+   WHERE code = 'eyvan'
+     AND property_target = 'group'),
+ 'iwan', 'iwan',
+ 'area',
+ ARRAY['iwan'],
+ ARRAY['walk'],
+ '{"walking": true}'::jsonb,
+ 'family'),
+
+('areas', 'mosque',
+ (SELECT id
+    FROM categories
+   WHERE code = 'masjed'
+     AND property_target = 'group'),
+ 'mosque', 'mosque',
+ 'area',
+ ARRAY['mosque'],
+ ARRAY['walk'],
+ '{"walking": true}'::jsonb,
+ 'family'),
+
+('areas', 'elevator_area',
+ (SELECT id
+    FROM categories
+   WHERE code = 'elevator'
+     AND property_target = 'group'),
+ 'vertical', 'elevator_area',
+ 'area',
+ ARRAY['vertical','elevator_area'],
+ ARRAY['walk','wheelchair'],
+ '{"walking": true, "wheelchair": true}'::jsonb,
+ 'family'),
+
+('areas', 'stair_area',
+ (SELECT id
+    FROM categories
+   WHERE code = 'elevator'
+     AND property_target = 'group'),
+ 'vertical', 'stair_area',
+ 'area',
+ ARRAY['vertical','stair_area'],
+ ARRAY['walk'],
+ '{"walking": true}'::jsonb,
+ 'family'),
+
+('areas', 'ramp_area',
+ (SELECT id
+    FROM categories
+   WHERE code = 'elevator'
+     AND property_target = 'group'),
+ 'vertical', 'ramp_area',
+ 'area',
+ ARRAY['vertical','ramp_area'],
+ ARRAY['walk','wheelchair'],
+ '{"walking": true, "wheelchair": true}'::jsonb,
+ 'family'),
+
+('areas', 'admin_zone',
+ (SELECT id
+    FROM categories
+   WHERE code = 'other'
+     AND property_target = 'group'),
+ 'admin', 'admin_zone',
+ 'area',
+ ARRAY['admin_zone'],
+ ARRAY['walk'],
+ '{"walking": true}'::jsonb,
+ 'family')
+ON CONFLICT (entity_table, feature_key) DO UPDATE
+SET category_leaf_id        = EXCLUDED.category_leaf_id,
+    default_group           = EXCLUDED.default_group,
+    default_subgroup        = EXCLUDED.default_subgroup,
+    default_node_function   = EXCLUDED.default_node_function,
+    default_types           = EXCLUDED.default_types,
+    default_transport_modes = EXCLUDED.default_transport_modes,
+    default_services        = EXCLUDED.default_services,
+    default_gender          = EXCLUDED.default_gender;
+
+-- ===== DOORS =====
+INSERT INTO feature_group_mappings (
+  entity_table, feature_key,
+  category_leaf_id,
+  default_group, default_subgroup,
+  default_node_function, default_types,
+  default_transport_modes, default_services, default_gender
+) VALUES
+('doors', 'door',
+ (SELECT id
+    FROM categories
+   WHERE code = 'other'
+     AND property_target = 'group'),
+ 'connection', 'door',
+ 'door',
+ ARRAY['door'],
+ ARRAY['walk','wheelchair','van'],
+ '{"walking": true, "wheelchair": true, "electricVan": true}'::jsonb,
+ 'family')
+ON CONFLICT (entity_table, feature_key) DO UPDATE
+SET category_leaf_id        = EXCLUDED.category_leaf_id,
+    default_group           = EXCLUDED.default_group,
+    default_subgroup        = EXCLUDED.default_subgroup,
+    default_node_function   = EXCLUDED.default_node_function,
+    default_types           = EXCLUDED.default_types,
+    default_transport_modes = EXCLUDED.default_transport_modes,
+    default_services        = EXCLUDED.default_services,
+    default_gender          = EXCLUDED.default_gender;
+
+
+-- ===== POI_POINTS =====
+INSERT INTO feature_group_mappings (
+  entity_table, feature_key,
+  category_leaf_id,
+  default_group, default_subgroup,
+  default_node_function, default_types,
+  default_transport_modes, default_services, default_gender
+) VALUES
+-- WC → khadamat / wc (زیرگروه صریح در md)
+('poi_points', 'wc',
+ (SELECT c.id
+    FROM categories c
+    JOIN categories g ON c.parent_id = g.id
+   WHERE g.code = 'khadamat'
+     AND g.property_target = 'group'
+     AND c.code = 'wc'
+     AND c.property_target = 'subGroup'),
+ 'service', 'wc',
+ 'poi',
+ ARRAY['wc','toilet'],
+ ARRAY['walk'],
+ '{"walking": true}'::jsonb,
+ 'family'),
+
+-- آسانسور و پله‌ها → گروه elevator (بدون زیرگروه در md)
+('poi_points', 'elevator',
+ (SELECT id
+    FROM categories
+   WHERE code = 'elevator'
+     AND property_target = 'group'),
+ 'vertical', 'elevator',
+ 'poi',
+ ARRAY['elevator','vertical'],
+ ARRAY['walk','wheelchair'],
+ '{"walking": true, "wheelchair": true}'::jsonb,
+ 'family'),
+
+('poi_points', 'stair',
+ (SELECT id
+    FROM categories
+   WHERE code = 'elevator'
+     AND property_target = 'group'),
+ 'vertical', 'stair',
+ 'poi',
+ ARRAY['stair','vertical'],
+ ARRAY['walk'],
+ '{"walking": true}'::jsonb,
+ 'family'),
+
+-- بقیه‌ی سرویس‌ها → گروه khadamat (سطح ۱)
+('poi_points', 'info_desk',
+ (SELECT id
+    FROM categories
+   WHERE code = 'khadamat'
+     AND property_target = 'group'),
+ 'service', 'info_desk',
+ 'poi',
+ ARRAY['info','service'],
+ ARRAY['walk'],
+ '{"walking": true}'::jsonb,
+ 'family'),
+
+('poi_points', 'restaurant',
+ (SELECT id
+    FROM categories
+   WHERE code = 'khadamat'
+     AND property_target = 'group'),
+ 'service', 'restaurant',
+ 'poi',
+ ARRAY['food','restaurant'],
+ ARRAY['walk'],
+ '{"walking": true}'::jsonb,
+ 'family'),
+
+('poi_points', 'shop',
+ (SELECT id
+    FROM categories
+   WHERE code = 'khadamat'
+     AND property_target = 'group'),
+ 'service', 'shop',
+ 'poi',
+ ARRAY['shop','store'],
+ ARRAY['walk'],
+ '{"walking": true}'::jsonb,
+ 'family'),
+
+('poi_points', 'wheelchair_storage',
+ (SELECT id
+    FROM categories
+   WHERE code = 'khadamat'
+     AND property_target = 'group'),
+ 'service', 'wheelchair_storage',
+ 'poi',
+ ARRAY['wheelchair_storage'],
+ ARRAY['walk','wheelchair'],
+ '{"walking": true, "wheelchair": true}'::jsonb,
+ 'family')
+ON CONFLICT (entity_table, feature_key) DO UPDATE
+SET category_leaf_id        = EXCLUDED.category_leaf_id,
+    default_group           = EXCLUDED.default_group,
+    default_subgroup        = EXCLUDED.default_subgroup,
+    default_node_function   = EXCLUDED.default_node_function,
+    default_types           = EXCLUDED.default_types,
+    default_transport_modes = EXCLUDED.default_transport_modes,
+    default_services        = EXCLUDED.default_services,
+    default_gender          = EXCLUDED.default_gender;
+
+
+-- ===== VAN_NODES =====
+INSERT INTO feature_group_mappings (
+  entity_table, feature_key,
+  category_leaf_id,
+  default_group, default_subgroup,
+  default_node_function, default_types,
+  default_transport_modes, default_services, default_gender
+) VALUES
+('van_nodes', 'stop',
+ (SELECT id
+    FROM categories
+   WHERE code = 'khadamat'
+     AND property_target = 'group'),
+ 'van', 'van_stop',
+ 'van_node',
+ ARRAY['stop','van'],
+ ARRAY['van','walk'],
+ '{"walking": true, "electricVan": true}'::jsonb,
+ 'family'),
+
+('van_nodes', 'junction',
+ (SELECT id
+    FROM categories
+   WHERE code = 'khadamat'
+     AND property_target = 'group'),
+ 'van', 'van_junction',
+ 'van_node',
+ ARRAY['junction','van'],
+ ARRAY['van'],
+ '{"electricVan": true}'::jsonb,
+ 'family')
+ON CONFLICT (entity_table, feature_key) DO UPDATE
+SET category_leaf_id        = EXCLUDED.category_leaf_id,
+    default_group           = EXCLUDED.default_group,
+    default_subgroup        = EXCLUDED.default_subgroup,
+    default_node_function   = EXCLUDED.default_node_function,
+    default_types           = EXCLUDED.default_types,
+    default_transport_modes = EXCLUDED.default_transport_modes,
+    default_services        = EXCLUDED.default_services,
+    default_gender          = EXCLUDED.default_gender;
+
+
+-- ===== QR CODES =====
+INSERT INTO feature_group_mappings (
+  entity_table, feature_key,
+  category_leaf_id,
+  default_group, default_subgroup,
+  default_node_function, default_types,
+  default_transport_modes, default_services, default_gender
+) VALUES
+('qrcodes', 'area',
+ (SELECT id
+    FROM categories
+   WHERE code = 'qrcode'
+     AND property_target = 'nodeFunction'),
+ 'qrcode', 'qrcode_area',
+ 'qrcode',
+ ARRAY['qrcode','area'],
+ ARRAY['walk'],
+ '{"walking": true}'::jsonb,
+ 'family'),
+
+('qrcodes', 'poi',
+ (SELECT id
+    FROM categories
+   WHERE code = 'qrcode'
+     AND property_target = 'nodeFunction'),
+ 'qrcode', 'qrcode_poi',
+ 'qrcode',
+ ARRAY['qrcode','poi'],
+ ARRAY['walk'],
+ '{"walking": true}'::jsonb,
+ 'family'),
+
+('qrcodes', 'door',
+ (SELECT id
+    FROM categories
+   WHERE code = 'qrcode'
+     AND property_target = 'nodeFunction'),
+ 'qrcode', 'qrcode_door',
+ 'qrcode',
+ ARRAY['qrcode','door'],
+ ARRAY['walk','wheelchair','van'],
+ '{"walking": true, "wheelchair": true, "electricVan": true}'::jsonb,
+ 'family'),
+
+('qrcodes', 'generic',
+ (SELECT id
+    FROM categories
+   WHERE code = 'qrcode'
+     AND property_target = 'nodeFunction'),
+ 'qrcode', 'qrcode_generic',
+ 'qrcode',
+ ARRAY['qrcode'],
+ ARRAY['walk'],
+ '{"walking": true}'::jsonb,
+ 'family')
+ON CONFLICT (entity_table, feature_key) DO UPDATE
+SET category_leaf_id        = EXCLUDED.category_leaf_id,
+    default_group           = EXCLUDED.default_group,
+    default_subgroup        = EXCLUDED.default_subgroup,
+    default_node_function   = EXCLUDED.default_node_function,
+    default_types           = EXCLUDED.default_types,
+    default_transport_modes = EXCLUDED.default_transport_modes,
+    default_services        = EXCLUDED.default_services,
+    default_gender          = EXCLUDED.default_gender;
