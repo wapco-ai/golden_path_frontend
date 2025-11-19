@@ -189,12 +189,26 @@ const Amain = () => {
 
   const handleSubmenuClick = (viewName) => {
     setCurrentReportView(viewName);
-    setActiveMenu('culturemanage');
-    setBreadcrumbPath(['منوی اصلی', 'مدیریت اطلاعات فرهنگی', viewName]);
 
-    // Reset form when switching to content upload
-    if (viewName === 'بارگذاری و ثبت محتوا') {
-      resetForm();
+    // Set the correct active menu based on which submenu was clicked
+    if (viewName === 'کاربران ثبت نام کرده' ||
+      viewName === 'لاگ های مسیریابی کاربران' ||
+      viewName === 'نظرات ثبت شده کاربران') {
+      setActiveMenu('reports');
+      setBreadcrumbPath(['منوی اصلی', 'گزارشات', viewName]);
+    } else if (viewName === 'بارگذاری و ثبت محتوا' ||
+      viewName === 'ثبت ماهیت') {
+      setActiveMenu('culturemanage');
+      setBreadcrumbPath(['منوی اصلی', 'مدیریت اطلاعات فرهنگی', viewName]);
+
+      // Reset form when switching to content upload
+      if (viewName === 'بارگذاری و ثبت محتوا') {
+        resetForm();
+      }
+    } else {
+      // For other submenus like user management
+      setActiveMenu('usermanage');
+      setBreadcrumbPath(['منوی اصلی', 'مدیریت کاربران', viewName]);
     }
   };
 
@@ -275,14 +289,17 @@ const Amain = () => {
     setIsEditing(true);
   };
 
-  const handleMenuClick = (menuName, breadcrumbLabel) => {
-    setActiveMenu(menuName);
-    if (menuName === 'dashboard') {
-      setCurrentReportView(null);
-    }
-    const newPath = ['منوی اصلی', breadcrumbLabel, 'آمار کلی استارتاپ من'];
+const handleMenuClick = (menuName, breadcrumbLabel) => {
+  setActiveMenu(menuName);
+  if (menuName === 'dashboard') {
+    setCurrentReportView(null);
+    setBreadcrumbPath(['منوی اصلی', breadcrumbLabel, 'آمار کلی استارتاپ من']);
+  } else {
+    setCurrentReportView(null);
+    const newPath = ['منوی اصلی', breadcrumbLabel];
     setBreadcrumbPath(newPath);
-  };
+  }
+};
 
 
   const formatJalaliDate = (date) => {
@@ -449,7 +466,7 @@ const Amain = () => {
             <div className="menu-item with-submenu">
 
               <div
-                className={`menu-item ${activeMenu === 'usermanage' ? 'active' : ''}`}
+                className={`menu-item ${activeMenu === 'reports' ? 'active' : ''}`}
                 onClick={() => {
                   toggleReportsManagement();
                   handleMenuClick('reports', 'گزارشات');
@@ -492,7 +509,7 @@ const Amain = () => {
             </div>
 
             <div
-              className={`menu-item ${activeMenu === 'reports' ? 'active' : ''}`}
+              className={`menu-item ${activeMenu === '' ? 'active' : ''}`}
               onClick={() => handleMenuClick('mapmanage', 'مدیریت نقشه')}
             >
               <span className="menu-icon">
