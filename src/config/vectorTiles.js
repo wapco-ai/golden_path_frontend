@@ -84,14 +84,17 @@ export const haramVectorTileConfig = [
     sourceId: 'fn_areas_mvt',
     sourceLayer: AREAS_VECTOR_LAYER_NAME,
     tileUrlFactory: buildAreasTileUrlFactory(),
-    type: 'fill',
+    type: 'line',
     minzoom: 14,
     maxzoom: 22,
     visibleByDefault: true,
     paint: {
-      'fill-color': 'rgba(0, 0, 0, 0)',
-      'fill-outline-color': '#000000',
-      'fill-opacity': 1
+      'line-color': '#000000',
+      'line-width': 2
+    },
+    layout: {
+      'line-cap': 'round',
+      'line-join': 'round'
     }
   },
   {
