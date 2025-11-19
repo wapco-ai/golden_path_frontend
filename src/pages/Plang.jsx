@@ -51,7 +51,7 @@ const Plang = () => {
         setLanguage(selected.code);
       }
       // Navigate back to profile page
-      navigate('/profile');
+      navigate(-1);
     }
   };
 

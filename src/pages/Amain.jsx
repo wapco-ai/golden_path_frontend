@@ -21,8 +21,22 @@ const Amain = () => {
   const rejectedDegrees = (commentStats.rejected / commentStats.total) * 360;
   const unknownDegrees = (unknownComments / commentStats.total) * 360;
   const [userManagementOpen, setUserManagementOpen] = useState(false);
+  const [userCultureOpen, setUserCultureOpen] = useState(false);
   const [reportsManagementOpen, setReportsManagementOpen] = useState(false);
   const [users, setUsers] = useState([]);
+  const [selectedPlace, setSelectedPlace] = useState(null);
+  const [placeName, setPlaceName] = useState('');
+  const [placeAddress, setPlaceAddress] = useState('');
+  const [openingTime, setOpeningTime] = useState('');
+  const [closingTime, setClosingTime] = useState('');
+  const [shortDescription, setShortDescription] = useState('');
+  const [fullDescription, setFullDescription] = useState('');
+  const [mediaFiles, setMediaFiles] = useState([]);
+  const [additionalNotes, setAdditionalNotes] = useState('');
+  const [placeIcon, setPlaceIcon] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [existingPlaces, setExistingPlaces] = useState([]);
+  const [isEditing, setIsEditing] = useState(false);
   const intl = useIntl();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -128,11 +142,25 @@ const Amain = () => {
     setUserManagementOpen(!userManagementOpen);
   };
 
+  const toggleUserCulture = () => {
+    setUserCultureOpen(!userCultureOpen);
+    if (!userCultureOpen) {
+      setActiveMenu('culturemanage');
+    }
+  };
+
   const getPageTitle = () => {
     if (currentReportView === 'کاربران ثبت نام کرده') {
       return {
         title: 'گزارش کاربران ثبت نام کرده در نرم افزار مسیربایی حرم تا امروز',
         description: 'آزمون آئینسوم متن ساختگی با تولید سادگی نامفهوم از صنعت استفاده از طراحان گرافیک است چاپگرها'
+      };
+    }
+
+    if (currentReportView === 'بارگذاری و ثبت محتوا') {
+      return {
+        title: 'بارگذاری و ثبت محتوای فرهنگی',
+        description: 'مدیریت و ثبت اطلاعات کامل مکان‌های فرهنگی شامل مشخصات، رسانه‌ها و اطلاعات تکمیلی'
       };
     }
 
@@ -161,8 +189,90 @@ const Amain = () => {
 
   const handleSubmenuClick = (viewName) => {
     setCurrentReportView(viewName);
-    setActiveMenu('reports');
-    setBreadcrumbPath(['منوی اصلی', 'گزارشات', viewName]);
+    setActiveMenu('culturemanage');
+    setBreadcrumbPath(['منوی اصلی', 'مدیریت اطلاعات فرهنگی', viewName]);
+
+    // Reset form when switching to content upload
+    if (viewName === 'بارگذاری و ثبت محتوا') {
+      resetForm();
+    }
+  };
+
+  // Reset form function
+  const resetForm = () => {
+    setSelectedPlace(null);
+    setPlaceName('');
+    setPlaceAddress('');
+    setOpeningTime('');
+    setClosingTime('');
+    setShortDescription('');
+    setFullDescription('');
+    setMediaFiles([]);
+    setAdditionalNotes('');
+    setPlaceIcon(null);
+    setIsEditing(false);
+  };
+
+  // Handle media upload
+  const handleMediaUpload = (event) => {
+    const files = Array.from(event.target.files);
+    const validFiles = files.filter(file =>
+      file.type.startsWith('image/') ||
+      file.type.startsWith('video/') ||
+      file.type === 'image/gif'
+    );
+    setMediaFiles(prev => [...prev, ...validFiles]);
+  };
+
+  // Handle icon upload
+  const handleIconUpload = (event) => {
+    const file = event.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      setPlaceIcon(file);
+    }
+  };
+
+  // Remove media file
+  const removeMediaFile = (index) => {
+    setMediaFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Search places
+  const handleSearchPlaces = (e) => {
+    setSearchQuery(e.target.value);
+    // In real app, this would filter from API
+  };
+
+  // Save place data
+  const handleSavePlace = () => {
+    // Here you would typically send data to API
+    const placeData = {
+      name: placeName,
+      address: placeAddress,
+      openingHours: { open: openingTime, close: closingTime },
+      shortDescription,
+      fullDescription,
+      media: mediaFiles,
+      additionalNotes,
+      icon: placeIcon
+    };
+
+    console.log('Saving place data:', placeData);
+    // Add API call here
+    alert('اطلاعات با موفقیت ذخیره شد');
+  };
+
+  // Load place for editing
+  const handleEditPlace = (place) => {
+    setSelectedPlace(place);
+    setPlaceName(place.name || '');
+    setPlaceAddress(place.address || '');
+    setOpeningTime(place.openingHours?.open || '');
+    setClosingTime(place.openingHours?.close || '');
+    setShortDescription(place.shortDescription || '');
+    setFullDescription(place.fullDescription || '');
+    setAdditionalNotes(place.additionalNotes || '');
+    setIsEditing(true);
   };
 
   const handleMenuClick = (menuName, breadcrumbLabel) => {
@@ -453,21 +563,41 @@ const Amain = () => {
               </svg>
             </div>
 
-            <div
-              className={`menu-item ${activeMenu === 'culturemanage' ? 'active' : ''}`}
-              onClick={() => handleMenuClick('culturemanage', 'مدیریت اطلاهات فرهتگی')}
-            >
-              <span className="menu-icon">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path fillRule="evenodd" clipRule="evenodd" d="M8.03259 0.833375H7.96676C7.52353 0.833351 7.1416 0.833331 6.83578 0.874448C6.50802 0.918514 6.19385 1.01789 5.93901 1.27272C5.68418 1.52755 5.58481 1.84172 5.54074 2.16948C5.49963 2.47531 5.49965 2.85722 5.49967 3.30046L5.49967 4.91873C5.34329 4.86346 5.17499 4.83338 4.99967 4.83338H2.99967C2.17125 4.83338 1.49967 5.50495 1.49967 6.33338V14.1667H1.33301C1.05687 14.1667 0.833008 14.3906 0.833008 14.6667C0.833008 14.9429 1.05687 15.1667 1.33301 15.1667H14.6663C14.9425 15.1667 15.1663 14.9429 15.1663 14.6667C15.1663 14.3906 14.9425 14.1667 14.6663 14.1667H14.4997V9.66671C14.4997 8.83828 13.8281 8.16671 12.9997 8.16671H10.9997C10.8244 8.16671 10.6561 8.19679 10.4997 8.25206L10.4997 3.30047C10.4997 2.85722 10.4997 2.47531 10.4586 2.16948C10.4145 1.84172 10.3152 1.52755 10.0603 1.27272C9.8055 1.01789 9.49133 0.918514 9.16357 0.874448C8.85775 0.833331 8.47582 0.833351 8.03259 0.833375ZM13.4997 14.1667V9.66671C13.4997 9.39057 13.2758 9.16671 12.9997 9.16671H10.9997C10.7235 9.16671 10.4997 9.39057 10.4997 9.66671V14.1667H13.4997ZM9.49967 14.1667V3.33338C9.49967 2.84784 9.49861 2.53398 9.46752 2.30273C9.43836 2.08586 9.39129 2.01789 9.35323 1.97982C9.31517 1.94176 9.24719 1.89469 9.03032 1.86553C8.79907 1.83444 8.48521 1.83338 7.99967 1.83338C7.51413 1.83338 7.20028 1.83444 6.96903 1.86553C6.75216 1.89469 6.68418 1.94176 6.64612 1.97982C6.60806 2.01789 6.56099 2.08586 6.53183 2.30273C6.50074 2.53398 6.49967 2.84784 6.49967 3.33338V14.1667H9.49967ZM5.49967 14.1667V6.33338C5.49967 6.05724 5.27582 5.83338 4.99967 5.83338H2.99967C2.72353 5.83338 2.49967 6.05724 2.49967 6.33338V14.1667H5.49967Z" fill="#858585" />
+            <div className="menu-item with-submenu">
+              <div
+                className={`menu-item ${activeMenu === 'culturemanage' ? 'active' : ''}`}
+                onClick={() => {
+                  toggleUserCulture();
+                  handleMenuClick('culturemanage', 'مدیریت اطلاهات فرهنگی');
+                }}
+              >
+                <span className="menu-icon">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" clipRule="evenodd" d="M8.03259 0.833375H7.96676C7.52353 0.833351 7.1416 0.833331 6.83578 0.874448C6.50802 0.918514 6.19385 1.01789 5.93901 1.27272C5.68418 1.52755 5.58481 1.84172 5.54074 2.16948C5.49963 2.47531 5.49965 2.85722 5.49967 3.30046L5.49967 4.91873C5.34329 4.86346 5.17499 4.83338 4.99967 4.83338H2.99967C2.17125 4.83338 1.49967 5.50495 1.49967 6.33338V14.1667H1.33301C1.05687 14.1667 0.833008 14.3906 0.833008 14.6667C0.833008 14.9429 1.05687 15.1667 1.33301 15.1667H14.6663C14.9425 15.1667 15.1663 14.9429 15.1663 14.6667C15.1663 14.3906 14.9425 14.1667 14.6663 14.1667H14.4997V9.66671C14.4997 8.83828 13.8281 8.16671 12.9997 8.16671H10.9997C10.8244 8.16671 10.6561 8.19679 10.4997 8.25206L10.4997 3.30047C10.4997 2.85722 10.4997 2.47531 10.4586 2.16948C10.4145 1.84172 10.3152 1.52755 10.0603 1.27272C9.8055 1.01789 9.49133 0.918514 9.16357 0.874448C8.85775 0.833331 8.47582 0.833351 8.03259 0.833375ZM13.4997 14.1667V9.66671C13.4997 9.39057 13.2758 9.16671 12.9997 9.16671H10.9997C10.7235 9.16671 10.4997 9.39057 10.4997 9.66671V14.1667H13.4997ZM9.49967 14.1667V3.33338C9.49967 2.84784 9.49861 2.53398 9.46752 2.30273C9.43836 2.08586 9.39129 2.01789 9.35323 1.97982C9.31517 1.94176 9.24719 1.89469 9.03032 1.86553C8.79907 1.83444 8.48521 1.83338 7.99967 1.83338C7.51413 1.83338 7.20028 1.83444 6.96903 1.86553C6.75216 1.89469 6.68418 1.94176 6.64612 1.97982C6.60806 2.01789 6.56099 2.08586 6.53183 2.30273C6.50074 2.53398 6.49967 2.84784 6.49967 3.33338V14.1667H9.49967ZM5.49967 14.1667V6.33338C5.49967 6.05724 5.27582 5.83338 4.99967 5.83338H2.99967C2.72353 5.83338 2.49967 6.05724 2.49967 6.33338V14.1667H5.49967Z" fill="#858585" />
+                  </svg>
+
+                </span>
+                <span>مدیریت اطلاعات فرهنگی</span>
+                <svg className={`submenu-arrow ${userCultureOpen ? 'open' : ''}`} width="16" height="17" viewBox="0 0 16 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path fillRule="evenodd" clipRule="evenodd" d="M2.95363 5.98434C3.13334 5.77467 3.44899 5.75039 3.65866 5.9301L7.99993 9.65119L12.3412 5.9301C12.5509 5.75039 12.8665 5.77467 13.0462 5.98434C13.2259 6.194 13.2017 6.50965 12.992 6.68936L8.32532 10.6894C8.13808 10.8499 7.86178 10.8499 7.67453 10.6894L3.00787 6.68936C2.7982 6.50965 2.77392 6.194 2.95363 5.98434Z" fill="#858585" />
                 </svg>
+              </div>
 
-
-              </span>
-              <span>مدیریت اطلاعات فرهنگی</span>
-              <svg className="submenu-arrow" width="16" height="17" viewBox="0 0 16 17" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path fillRule="evenodd" clipRule="evenodd" d="M2.95363 5.98434C3.13334 5.77467 3.44899 5.75039 3.65866 5.9301L7.99993 9.65119L12.3412 5.9301C12.5509 5.75039 12.8665 5.77467 13.0462 5.98434C13.2259 6.194 13.2017 6.50965 12.992 6.68936L8.32532 10.6894C8.13808 10.8499 7.86178 10.8499 7.67453 10.6894L3.00787 6.68936C2.7982 6.50965 2.77392 6.194 2.95363 5.98434Z" fill="#858585" />
-              </svg>
+              {userCultureOpen && (
+                <div className="submenu-items">
+                  <div
+                    className={`submenu-item ${currentReportView === 'بارگذاری و ثبت محتوا' ? 'active' : ''}`}
+                    onClick={() => handleSubmenuClick('بارگذاری و ثبت محتوا')}
+                  >
+                    <div className="submenu-branch"></div>
+                    <span>بارگذاری و ثبت محتوا</span>
+                  </div>
+                  <div className="submenu-item">
+                    <div className="submenu-branch"></div>
+                    <span>ثبت ماهیت</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -607,7 +737,204 @@ const Amain = () => {
             </div>
           </div>
 
-          {currentReportView === 'کاربران ثبت نام کرده' ? (
+
+
+          {currentReportView === 'بارگذاری و ثبت محتوا' ? (
+            /* Content Upload Section */
+            <div className="content-upload-section">
+              <div className="upload-header">
+                <div className="search-existing">
+                  <div className="search-box-with-icon">
+                    <svg className="search-icon7" width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path fillRule="evenodd" clipRule="evenodd" d="M10.4167 2.29166C14.4438 2.29166 17.7084 5.55625 17.7084 9.58332C17.7084 13.6104 14.4438 16.875 10.4167 16.875C6.38963 16.875 3.12504 13.6104 3.12504 9.58332C3.12504 5.55625 6.38963 2.29166 10.4167 2.29166ZM18.9584 9.58332C18.9584 4.86589 15.1341 1.04166 10.4167 1.04166C5.69928 1.04166 1.87504 4.86589 1.87504 9.58332C1.87504 11.7171 2.65743 13.6681 3.95099 15.1652L1.22476 17.8914C0.980688 18.1355 0.980688 18.5312 1.22476 18.7753C1.46884 19.0193 1.86457 19.0193 2.10865 18.7753L4.83487 16.049C6.33192 17.3426 8.28295 18.125 10.4167 18.125C15.1341 18.125 18.9584 14.3008 18.9584 9.58332Z" fill="#858585" />
+                    </svg>
+                    <input
+                      type="text"
+                      placeholder="جستجوی مکان موجود برای ویرایش..."
+                      value={searchQuery}
+                      onChange={handleSearchPlaces}
+                      className="search-input7"
+                    />
+                  </div>
+                  <button className="new-place-btn" onClick={resetForm}>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M8 3.33333V12.6667" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+                      <path d="M3.33398 8H12.6673" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                    مکان جدید
+                  </button>
+                </div>
+              </div>
+
+              <div className="upload-content">
+                <div className="form-section">
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">نام مکان *</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={placeName}
+                        onChange={(e) => setPlaceName(e.target.value)}
+                        placeholder="نام مکان فرهنگی را وارد کنید"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">آدرس *</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={placeAddress}
+                        onChange={(e) => setPlaceAddress(e.target.value)}
+                        placeholder="آدرس کامل مکان را وارد کنید"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">ساعت بازگشایی *</label>
+                      <input
+                        type="time"
+                        className="form-input"
+                        value={openingTime}
+                        onChange={(e) => setOpeningTime(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">ساعت بسته شدن *</label>
+                      <input
+                        type="time"
+                        className="form-input"
+                        value={closingTime}
+                        onChange={(e) => setClosingTime(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">توضیح مختصر *</label>
+                    <textarea
+                      className="form-textarea short"
+                      value={shortDescription}
+                      onChange={(e) => setShortDescription(e.target.value)}
+                      placeholder="توضیح کوتاه درباره مکان (حداکثر 200 کاراکتر)"
+                      maxLength="200"
+                    />
+                    <div className="char-count">{shortDescription.length}/200</div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">توضیح کامل *</label>
+                    <textarea
+                      className="form-textarea long"
+                      value={fullDescription}
+                      onChange={(e) => setFullDescription(e.target.value)}
+                      placeholder="توضیح کامل درباره مکان، تاریخچه و ویژگی‌ها"
+                      rows="4"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">آیکون مکان</label>
+                    <div className="icon-upload-area">
+                      {placeIcon ? (
+                        <div className="icon-preview">
+                          <img src={URL.createObjectURL(placeIcon)} alt="Place icon" />
+                          <button
+                            className="remove-icon"
+                            onClick={() => setPlaceIcon(null)}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="upload-placeholder">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleIconUpload}
+                            className="file-input"
+                          />
+                          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20 13.3333V26.6667" stroke="#858585" strokeWidth="2" strokeLinecap="round" />
+                            <path d="M13.333 20H26.6663" stroke="#858585" strokeWidth="2" strokeLinecap="round" />
+                          </svg>
+                          <span>آیکون مکان را انتخاب کنید</span>
+                          <small>فرمت‌های مجاز: JPG, PNG, SVG (حداکثر 2MB)</small>
+                        </label>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">مدیا (عکس، فیلم، GIF)</label>
+                    <div className="media-upload-area">
+                      <label className="media-upload-btn">
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*,video/*,image/gif"
+                          onChange={handleMediaUpload}
+                          className="file-input"
+                        />
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M10 4.16666V15.8333" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" />
+                          <path d="M4.16602 10H15.8327" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" />
+                        </svg>
+                        افزودن مدیا
+                      </label>
+
+                      {mediaFiles.length > 0 && (
+                        <div className="media-preview">
+                          {mediaFiles.map((file, index) => (
+                            <div key={index} className="media-item">
+                              {file.type.startsWith('image/') ? (
+                                <img src={URL.createObjectURL(file)} alt={`Media ${index}`} />
+                              ) : (
+                                <video controls>
+                                  <source src={URL.createObjectURL(file)} type={file.type} />
+                                </video>
+                              )}
+                              <button
+                                className="remove-media"
+                                onClick={() => removeMediaFile(index)}
+                              >
+                                ×
+                              </button>
+                              <span className="file-name">{file.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">توضیحات تکمیلی (بایدها و نبایدها)</label>
+                    <textarea
+                      className="form-textarea"
+                      value={additionalNotes}
+                      onChange={(e) => setAdditionalNotes(e.target.value)}
+                      placeholder="قوانین، بایدها و نبایدهای مکان (مانند: درآوردن کفش، پوشش مناسب و...)"
+                      rows="3"
+                    />
+                  </div>
+
+                  <div className="form-actions">
+                    <button className="cancel-btn" onClick={resetForm}>
+                      انصراف
+                    </button>
+                    <button className="save-btn" onClick={handleSavePlace}>
+                      {isEditing ? 'بروزرسانی اطلاعات' : 'ثبت مکان جدید'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : currentReportView === 'کاربران ثبت نام کرده' ? (
             /* Registered Users Report View */
             <div className="reports-section">
               <div className="report-filters">
@@ -959,7 +1286,7 @@ const Amain = () => {
                       onClick={() => handlePageChange(1)}
                       disabled={currentPage === 1}
                     >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"  style={{ transform: 'rotate(180deg)' }}>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(180deg)' }}>
                         <path fillRule="evenodd" clipRule="evenodd" d="M11.6584 2.95363C11.4487 2.77392 11.1331 2.7982 10.9534 3.00787L6.95337 7.67453C6.79287 7.86178 6.79287 8.13808 6.95337 8.32532L10.9534 12.992C11.1331 13.2017 11.4487 13.2259 11.6584 13.0462C11.8681 12.8665 11.8923 12.5509 11.7126 12.3412L7.99154 7.99993L11.7126 3.65866C11.8923 3.44899 11.8681 3.13334 11.6584 2.95363ZM8.9916 2.9537C8.78193 2.77399 8.46628 2.79827 8.28657 3.00793L4.28657 7.6746C4.12608 7.86185 4.12608 8.13815 4.28657 8.32539L8.28657 12.9921C8.46628 13.2017 8.78193 13.226 8.9916 13.0463C9.20126 12.8666 9.22554 12.5509 9.04583 12.3413L5.32474 8L9.04583 3.65873C9.22554 3.44906 9.20126 3.13341 8.9916 2.9537Z" fill={currentPage === 1 ? "#C5C5C5" : "#0F71EF"} />
                       </svg>
                     </button>
@@ -969,7 +1296,7 @@ const Amain = () => {
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
                     >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"style={{ transform: 'rotate(180deg)' }}>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(180deg)' }}>
                         <path fillRule="evenodd" clipRule="evenodd" d="M10.3254 2.95375C10.1157 2.77404 9.80007 2.79832 9.62036 3.00799L5.62036 7.67465C5.45987 7.8619 5.45987 8.1382 5.62036 8.32544L9.62036 12.9921C9.80007 13.2018 10.1157 13.2261 10.3254 13.0463C10.535 12.8666 10.5593 12.551 10.3796 12.3413L6.65853 8.00005L10.3796 3.65878C10.5593 3.44912 10.535 3.13347 10.3254 2.95375Z" fill={currentPage === 1 ? "#C5C5C5" : "#0F71EF"} />
                       </svg>
                     </button>

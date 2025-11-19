@@ -162,7 +162,7 @@ function ProfileInfo() {
     
     // Navigate back to profile after a short delay
     setTimeout(() => {
-      navigate('/profile');
+      navigate(-1);
     }, 1500);
   };
 
