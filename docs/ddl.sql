@@ -41,8 +41,9 @@ CREATE TABLE IF NOT EXISTS areas (
   weight_open_space NUMERIC(6,3) NOT NULL DEFAULT 1.0,
   attrs             JSONB NOT NULL DEFAULT '{}'::jsonb
 );
-CREATE INDEX IF NOT EXISTS areas_gix       ON areas USING GIST (geom);
+CREATE INDEX IF NOT EXISTS areas_geom_gist       ON areas USING GIST (geom);
 CREATE INDEX IF NOT EXISTS areas_floor_idx  ON areas (floor);
+
 
 CREATE TABLE IF NOT EXISTS doors (
   id               BIGSERIAL PRIMARY KEY,
@@ -1367,30 +1368,25 @@ END;
 $$;
 
 ---- function layer areas_mvt
-CREATE OR REPLACE FUNCTION public.fn_areas_mvt(
-  z integer,
-  x integer,
-  y integer,
-  p_floor smallint DEFAULT NULL
-)
-RETURNS bytea
-LANGUAGE plpgsql
-STABLE
-AS $$
+CREATE OR REPLACE FUNCTION "public"."fn_areas_mvt"("z" int4, "x" int4, "y" int4, "p_floor" int2=NULL::smallint)
+  RETURNS "pg_catalog"."bytea" AS $BODY$
 DECLARE
-  tile_bbox_3857 geometry;
-  tile_bbox_4326 geometry;
+  tile_bbox_3857   geometry;  -- bbox تایل در 3857
+  tile_bbox_32640  geometry;  -- همان bbox در SRID داده‌ها
 BEGIN
+  -- bbox تایل در WebMercator
   tile_bbox_3857 := ST_TileEnvelope(z, x, y);
-  tile_bbox_4326 := ST_Transform(tile_bbox_3857, 4326);
+
+  -- تبدیل bbox به سیستم مختصات داده‌ها (32640)
+  tile_bbox_32640 := ST_Transform(tile_bbox_3857, 32640);
 
   RETURN (
     SELECT ST_AsMVT(t, 'areas', 4096, 'geom')
     FROM (
       SELECT
         ST_AsMVTGeom(
-          ST_Transform(a.geom, 3857),
-          tile_bbox_3857,
+          ST_Transform(a.geom, 3857),  -- تبدیل داده‌ها به 3857 برای MVT
+          tile_bbox_3857,              -- bbox در همان 3857
           4096,
           64,
           true
@@ -1403,10 +1399,15 @@ BEGIN
         a.weight_open_space,
         a.attrs
       FROM areas a
-      WHERE ST_Intersects(ST_Transform(a.geom, 4326), tile_bbox_4326)
-        AND (p_floor IS NULL OR a.floor = p_floor)
+      WHERE
+        (p_floor IS NULL OR a.floor = p_floor)
+        -- *** اینجا فیلتر مکانی در SRID درست (32640) انجام می‌شود ***
+        AND a.geom && tile_bbox_32640
+        AND ST_Intersects(a.geom, tile_bbox_32640)
     ) AS t
     WHERE geom IS NOT NULL
   );
 END;
-$$;
+$BODY$
+  LANGUAGE plpgsql STABLE
+  COST 100
