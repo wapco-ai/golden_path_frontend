@@ -15,56 +15,56 @@ INSERT INTO feature_group_mappings (
  ARRAY['courtyard'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 ('areas', 'riwaq',
  'riwaq', 'riwaq',
  'area',
  ARRAY['riwaq'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 ('areas', 'iwan',
  'iwan', 'iwan',
  'area',
  ARRAY['iwan'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 ('areas', 'mosque',
  'mosque', 'mosque',
  'area',
  ARRAY['mosque'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 ('areas', 'elevator_area',
  'vertical', 'elevator_area',
  'area',
  ARRAY['vertical','elevator_area'],
  ARRAY['walk','wheelchair'],
  '{"walking": true, "wheelchair": true}'::jsonb,
- 'family'),
+ 'both'),
 ('areas', 'stair_area',
  'vertical', 'stair_area',
  'area',
  ARRAY['vertical','stair_area'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 ('areas', 'ramp_area',
  'vertical', 'ramp_area',
  'area',
  ARRAY['vertical','ramp_area'],
  ARRAY['walk','wheelchair'],
  '{"walking": true, "wheelchair": true}'::jsonb,
- 'family'),
+ 'both'),
 ('areas', 'admin_zone',
  'admin', 'admin_zone',
  'area',
  ARRAY['admin_zone'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family')
+ 'both')
 ON CONFLICT (entity_table, feature_key) DO NOTHING;
 
 -- ===== DOORS =====
@@ -80,7 +80,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['door'],
  ARRAY['walk','wheelchair','van'],
  '{"walking": true, "wheelchair": true, "electricVan": true}'::jsonb,
- 'family')
+ 'both')
 ON CONFLICT (entity_table, feature_key) DO NOTHING;
 
 -- ===== POI_POINTS =====
@@ -96,49 +96,49 @@ INSERT INTO feature_group_mappings (
  ARRAY['wc','toilet'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 ('poi_points', 'elevator',
  'vertical', 'elevator',
  'poi',
  ARRAY['elevator','vertical'],
  ARRAY['walk','wheelchair'],
  '{"walking": true, "wheelchair": true}'::jsonb,
- 'family'),
+ 'both'),
 ('poi_points', 'stair',
  'vertical', 'stair',
  'poi',
  ARRAY['stair','vertical'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 ('poi_points', 'info_desk',
  'service', 'info_desk',
  'poi',
  ARRAY['info','service'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 ('poi_points', 'restaurant',
  'service', 'restaurant',
  'poi',
  ARRAY['food','restaurant'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 ('poi_points', 'shop',
  'service', 'shop',
  'poi',
  ARRAY['shop','store'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 ('poi_points', 'wheelchair_storage',
  'service', 'wheelchair_storage',
  'poi',
  ARRAY['wheelchair_storage'],
  ARRAY['walk','wheelchair'],
  '{"walking": true, "wheelchair": true}'::jsonb,
- 'family')
+ 'both')
 ON CONFLICT (entity_table, feature_key) DO NOTHING;
 
 -- ===== VAN_NODES =====
@@ -154,14 +154,14 @@ INSERT INTO feature_group_mappings (
  ARRAY['stop','van'],
  ARRAY['van','walk'],
  '{"walking": true, "electricVan": true}'::jsonb,
- 'family'),
+ 'both'),
 ('van_nodes', 'junction',
  'van', 'van_junction',
  'van_node',
  ARRAY['junction','van'],
  ARRAY['van'],
  '{"electricVan": true}'::jsonb,
- 'family')
+ 'both')
 ON CONFLICT (entity_table, feature_key) DO NOTHING;
 
 -- ===== QRCODES =====
@@ -177,28 +177,28 @@ INSERT INTO feature_group_mappings (
  ARRAY['qrcode','area'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 ('qrcodes', 'poi',
  'qrcode', 'qrcode_poi',
  'qrcode',
  ARRAY['qrcode','poi'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 ('qrcodes', 'door',
  'qrcode', 'qrcode_door',
  'qrcode',
  ARRAY['qrcode','door'],
  ARRAY['walk','wheelchair','van'],
  '{"walking": true, "wheelchair": true, "electricVan": true}'::jsonb,
- 'family'),
+ 'both'),
 ('qrcodes', 'generic',
  'qrcode', 'qrcode_generic',
  'qrcode',
  ARRAY['qrcode'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family')
+ 'both')
 ON CONFLICT (entity_table, feature_key) DO NOTHING;
 
 
@@ -365,7 +365,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['courtyard'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 
 ('areas', 'riwaq',
  (SELECT id
@@ -377,7 +377,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['riwaq'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 
 ('areas', 'iwan',
  (SELECT id
@@ -389,7 +389,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['iwan'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 
 ('areas', 'mosque',
  (SELECT id
@@ -401,7 +401,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['mosque'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 
 ('areas', 'elevator_area',
  (SELECT id
@@ -413,7 +413,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['vertical','elevator_area'],
  ARRAY['walk','wheelchair'],
  '{"walking": true, "wheelchair": true}'::jsonb,
- 'family'),
+ 'both'),
 
 ('areas', 'stair_area',
  (SELECT id
@@ -425,7 +425,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['vertical','stair_area'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 
 ('areas', 'ramp_area',
  (SELECT id
@@ -437,7 +437,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['vertical','ramp_area'],
  ARRAY['walk','wheelchair'],
  '{"walking": true, "wheelchair": true}'::jsonb,
- 'family'),
+ 'both'),
 
 ('areas', 'admin_zone',
  (SELECT id
@@ -449,7 +449,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['admin_zone'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family')
+ 'both')
 ON CONFLICT (entity_table, feature_key) DO UPDATE
 SET category_leaf_id        = EXCLUDED.category_leaf_id,
     default_group           = EXCLUDED.default_group,
@@ -478,7 +478,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['door'],
  ARRAY['walk','wheelchair','van'],
  '{"walking": true, "wheelchair": true, "electricVan": true}'::jsonb,
- 'family')
+ 'both')
 ON CONFLICT (entity_table, feature_key) DO UPDATE
 SET category_leaf_id        = EXCLUDED.category_leaf_id,
     default_group           = EXCLUDED.default_group,
@@ -512,7 +512,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['wc','toilet'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 
 -- آسانسور و پله‌ها → گروه elevator (بدون زیرگروه در md)
 ('poi_points', 'elevator',
@@ -525,7 +525,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['elevator','vertical'],
  ARRAY['walk','wheelchair'],
  '{"walking": true, "wheelchair": true}'::jsonb,
- 'family'),
+ 'both'),
 
 ('poi_points', 'stair',
  (SELECT id
@@ -537,7 +537,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['stair','vertical'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 
 -- بقیه‌ی سرویس‌ها → گروه khadamat (سطح ۱)
 ('poi_points', 'info_desk',
@@ -550,7 +550,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['info','service'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 
 ('poi_points', 'restaurant',
  (SELECT id
@@ -562,7 +562,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['food','restaurant'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 
 ('poi_points', 'shop',
  (SELECT id
@@ -574,7 +574,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['shop','store'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 
 ('poi_points', 'wheelchair_storage',
  (SELECT id
@@ -586,7 +586,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['wheelchair_storage'],
  ARRAY['walk','wheelchair'],
  '{"walking": true, "wheelchair": true}'::jsonb,
- 'family')
+ 'both')
 ON CONFLICT (entity_table, feature_key) DO UPDATE
 SET category_leaf_id        = EXCLUDED.category_leaf_id,
     default_group           = EXCLUDED.default_group,
@@ -616,7 +616,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['stop','van'],
  ARRAY['van','walk'],
  '{"walking": true, "electricVan": true}'::jsonb,
- 'family'),
+ 'both'),
 
 ('van_nodes', 'junction',
  (SELECT id
@@ -628,7 +628,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['junction','van'],
  ARRAY['van'],
  '{"electricVan": true}'::jsonb,
- 'family')
+ 'both')
 ON CONFLICT (entity_table, feature_key) DO UPDATE
 SET category_leaf_id        = EXCLUDED.category_leaf_id,
     default_group           = EXCLUDED.default_group,
@@ -658,7 +658,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['qrcode','area'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 
 ('qrcodes', 'poi',
  (SELECT id
@@ -670,7 +670,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['qrcode','poi'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family'),
+ 'both'),
 
 ('qrcodes', 'door',
  (SELECT id
@@ -682,7 +682,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['qrcode','door'],
  ARRAY['walk','wheelchair','van'],
  '{"walking": true, "wheelchair": true, "electricVan": true}'::jsonb,
- 'family'),
+ 'both'),
 
 ('qrcodes', 'generic',
  (SELECT id
@@ -694,7 +694,7 @@ INSERT INTO feature_group_mappings (
  ARRAY['qrcode'],
  ARRAY['walk'],
  '{"walking": true}'::jsonb,
- 'family')
+ 'both')
 ON CONFLICT (entity_table, feature_key) DO UPDATE
 SET category_leaf_id        = EXCLUDED.category_leaf_id,
     default_group           = EXCLUDED.default_group,
@@ -704,3 +704,102 @@ SET category_leaf_id        = EXCLUDED.category_leaf_id,
     default_transport_modes = EXCLUDED.default_transport_modes,
     default_services        = EXCLUDED.default_services,
     default_gender          = EXCLUDED.default_gender;
+
+
+-- ساخت NavMesh سلولی بر اساس areas
+-- 1) پاک کردن قبلی ها
+TRUNCATE mesh_triangles RESTART IDENTITY CASCADE;
+
+INSERT INTO mesh_triangles (geom, floor, area_id, attrs)
+SELECT
+  (ST_Dump(
+      ST_Subdivide(a.geom, 50)  -- عدد 50 را بعداً می‌توانی کم/زیاد کنی
+  )).geom::geometry(Polygon, 32640) AS geom,
+  a.floor,
+  a.id       AS area_id,
+  jsonb_build_object('area_type', a.area_type::text) AS attrs
+FROM areas a;
+
+
+--بین سلول‌های مجاور (بدون درب)
+TRUNCATE mesh_adjacency RESTART IDENTITY;
+
+INSERT INTO mesh_adjacency (tri_a, tri_b, door_id, cost_w)
+SELECT
+  t1.id AS tri_a,
+  t2.id AS tri_b,
+  NULL::bigint AS door_id,
+  1.0::numeric AS cost_w
+FROM mesh_triangles t1
+JOIN mesh_triangles t2
+  ON t1.id < t2.id
+ AND t1.floor = t2.floor
+ AND ST_Touches(t1.geom, t2.geom);
+
+
+-- adjacency از طریق درب‌ها (ارتباط بین دو area)
+INSERT INTO mesh_adjacency (tri_a, tri_b, door_id, cost_w)
+SELECT
+  ta.id AS tri_a,
+  tb.id AS tri_b,
+  d.id  AS door_id,
+  1.0::numeric AS cost_w
+FROM doors d
+JOIN mesh_triangles ta
+  ON ta.area_id = d.from_area
+ AND ta.floor   = d.floor
+ AND ST_Intersects(ta.geom, d.geom)
+JOIN mesh_triangles tb
+  ON tb.area_id = d.to_area
+ AND tb.floor   = d.floor
+ AND ST_Intersects(tb.geom, d.geom);
+
+
+--تولید adjacency بدون تکرار
+-- داخل یک area (بدون درب):
+INSERT INTO mesh_adjacency (tri_a, tri_b, door_id, cost_w)
+SELECT DISTINCT
+  t1.id AS tri_a,
+  t2.id AS tri_b,
+  NULL::bigint AS door_id,
+  1.0::numeric AS cost_w
+FROM mesh_triangles t1
+JOIN mesh_triangles t2
+  ON t1.id < t2.id
+ AND t1.floor   = t2.floor
+ AND t1.area_id = t2.area_id
+ AND ST_Touches(t1.geom, t2.geom);
+
+
+--- بین دو area از طریق درب:
+WITH dp AS (
+  SELECT DISTINCT
+    CASE WHEN ta.id < tb.id THEN ta.id ELSE tb.id END AS tri_a,
+    CASE WHEN ta.id < tb.id THEN tb.id ELSE ta.id END AS tri_b,
+    d.id AS door_id
+  FROM doors d
+  JOIN mesh_triangles ta
+    ON ta.area_id = d.from_area
+   AND ta.floor   = d.floor
+   AND ST_Intersects(ta.geom, d.geom)
+  JOIN mesh_triangles tb
+    ON tb.area_id = d.to_area
+   AND tb.floor   = d.floor
+   AND ST_Intersects(tb.geom, d.geom)
+)
+INSERT INTO mesh_adjacency (tri_a, tri_b, door_id, cost_w)
+SELECT
+  dp.tri_a,
+  dp.tri_b,
+  dp.door_id,
+  1.0::numeric AS cost_w
+FROM dp
+LEFT JOIN mesh_adjacency ma
+  ON ma.tri_a = dp.tri_a
+ AND ma.tri_b = dp.tri_b
+WHERE ma.tri_a IS NULL;
+
+
+
+
+

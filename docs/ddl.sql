@@ -636,7 +636,7 @@ CREATE TABLE IF NOT EXISTS feature_group_mappings (
 
   default_services JSONB NOT NULL DEFAULT '{}'::jsonb,
 
-  default_gender TEXT NOT NULL DEFAULT 'family',
+  default_gender TEXT NOT NULL DEFAULT 'both',
 
   CONSTRAINT feature_group_mappings_category_leaf_fk
     FOREIGN KEY (category_leaf_id) REFERENCES categories(id)
@@ -734,10 +734,10 @@ $BODY$
         CASE p.attrs->>'gender'
           WHEN 'male'   THEN 'male'
           WHEN 'female' THEN 'female'
-          ELSE 'family'
+          ELSE 'both'
         END
       WHEN m.default_gender IS NOT NULL THEN m.default_gender
-      ELSE 'family'
+      ELSE 'both'
     END AS gender,
 
     COALESCE(
@@ -829,10 +829,10 @@ $BODY$
       CASE d.allowed_gender
         WHEN 'male'   THEN 'male'
         WHEN 'female' THEN 'female'
-        ELSE 'family'
+        ELSE 'both'
       END,
       m.default_gender,
-      'family'
+      'both'
     ) AS gender,
 
     COALESCE(
@@ -929,10 +929,10 @@ $BODY$
       CASE a.allowed_gender
         WHEN 'male'   THEN 'male'
         WHEN 'female' THEN 'female'
-        ELSE 'family'
+        ELSE 'both'
       END,
       m.default_gender,
-      'family'
+      'both'
     ) AS gender,
 
     COALESCE(
@@ -1033,7 +1033,7 @@ $BODY$
 
     COALESCE(
       m.default_gender,
-      'family'
+      'both'
     ) AS gender,
 
     COALESCE(
@@ -1120,10 +1120,10 @@ $BODY$
         CASE q.attrs->>'gender'
           WHEN 'male'   THEN 'male'
           WHEN 'female' THEN 'female'
-          ELSE 'family'
+          ELSE 'both'
         END
       WHEN m.default_gender IS NOT NULL THEN m.default_gender
-      ELSE 'family'
+      ELSE 'both'
     END AS gender,
 
     COALESCE(
@@ -1367,7 +1367,7 @@ BEGIN
 END;
 $$;
 
----- function layer areas_mvt
+---- function layer fn_areas_mvt
 CREATE OR REPLACE FUNCTION "public"."fn_areas_mvt"("z" int4, "x" int4, "y" int4, "p_floor" int2=NULL::smallint)
   RETURNS "pg_catalog"."bytea" AS $BODY$
 DECLARE
@@ -1411,3 +1411,236 @@ END;
 $BODY$
   LANGUAGE plpgsql STABLE
   COST 100
+  
+  
+---- function layer fn_doors_mvt
+CREATE OR REPLACE FUNCTION public.fn_doors_mvt(
+  z int4,
+  x int4,
+  y int4,
+  p_floor int2 = NULL::smallint
+)
+RETURNS bytea AS
+$BODY$
+DECLARE
+  tile_bbox_3857   geometry;  -- bbox تایل در 3857
+  tile_bbox_32640  geometry;  -- همان bbox در SRID داده‌ها
+BEGIN
+  -- bbox تایل در WebMercator
+  tile_bbox_3857 := ST_TileEnvelope(z, x, y);
+
+  -- تبدیل bbox به سیستم مختصات داده‌ها (32640)
+  tile_bbox_32640 := ST_Transform(tile_bbox_3857, 32640);
+
+  RETURN (
+    SELECT ST_AsMVT(t, 'doors', 4096, 'geom')
+    FROM (
+      SELECT
+        ST_AsMVTGeom(
+          ST_Transform(a.geom, 3857),  -- تبدیل داده‌ها به 3857 برای MVT
+          tile_bbox_3857,              -- bbox در همان 3857
+          4096,
+          64,
+          true
+        ) AS geom,
+        a.id,
+        a.from_area,
+        a.to_area,
+        a.floor,
+        a.allowed_gender,
+        a.is_open,
+        a.modes,
+        a.bidirectional,
+        a.attrs
+      FROM doors a
+      WHERE
+        (p_floor IS NULL OR a.floor = p_floor)
+        AND a.geom && tile_bbox_32640
+        AND ST_Intersects(a.geom, tile_bbox_32640)
+    ) AS t
+    WHERE geom IS NOT NULL
+  );
+END;
+$BODY$
+LANGUAGE plpgsql STABLE
+COST 100;
+
+-- route_segment export
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type WHERE typname = 'route_segment'
+  ) THEN
+    CREATE TYPE route_segment AS (
+      seq        integer,
+      geom       geometry(LineString, 32640),
+      mode       text,
+      floor      smallint,
+      distance_m numeric,
+      duration_s numeric,
+      meta       jsonb
+    );
+  END IF;
+END$$;
+
+
+-- تابع fn_route_walk_navmesh با Dijkstra (CTE بازگشتی)
+CREATE OR REPLACE FUNCTION fn_route_walk_navmesh(
+  p_now     timestamptz,
+  p_gender  gender_enum,
+  p_mode    text,                         -- 'walk' | 'wheelchair'
+  p_floor   smallint,
+  p_origin  geometry(Point, 32640),
+  p_dest    geometry(Point, 32640)
+)
+RETURNS SETOF route_segment
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_speed_mps numeric;
+BEGIN
+  -- سرعت تقریبی: پیاده ~1.2، ویلچر کمی کمتر
+  IF p_mode = 'wheelchair' THEN
+    v_speed_mps := 0.9;
+  ELSE
+    v_speed_mps := 1.2;
+  END IF;
+
+  -- اگر بعداً خواستی محدودیت‌های gender / admin / زمان رو اعمال کنی،
+  -- می‌تونی اینجا با fn_allowed_... یک لیست allowed_triangles بسازی.
+
+  RETURN QUERY
+  WITH
+  -- 1) پیدا کردن سلول NavMesh مبدأ
+  origin_tri AS (
+    SELECT
+      id AS tri_id,
+      ST_ClosestPoint(geom, p_origin) AS anchor_geom
+    FROM mesh_triangles
+    WHERE floor = p_floor
+    ORDER BY geom <-> p_origin
+    LIMIT 1
+  ),
+
+  -- 2) پیدا کردن سلول NavMesh مقصد
+  dest_tri AS (
+    SELECT
+      id AS tri_id,
+      ST_ClosestPoint(geom, p_dest) AS anchor_geom
+    FROM mesh_triangles
+    WHERE floor = p_floor
+    ORDER BY geom <-> p_dest
+    LIMIT 1
+  ),
+
+  -- 3) گراف یال‌ها (بی‌جهت → هر رکورد را به دو جهت تبدیل می‌کنیم)
+  edges AS (
+    SELECT
+      ma.tri_a AS src,
+      ma.tri_b AS dst,
+      ma.door_id,
+      ( ST_Distance(ST_Centroid(t1.geom), ST_Centroid(t2.geom))
+        + COALESCE(ma.cost_w, 0)
+      )::numeric AS weight
+    FROM mesh_adjacency ma
+    JOIN mesh_triangles t1 ON t1.id = ma.tri_a
+    JOIN mesh_triangles t2 ON t2.id = ma.tri_b
+    WHERE t1.floor = p_floor AND t2.floor = p_floor
+
+    UNION ALL
+
+    SELECT
+      ma.tri_b AS src,
+      ma.tri_a AS dst,
+      ma.door_id,
+      ( ST_Distance(ST_Centroid(t1.geom), ST_Centroid(t2.geom))
+        + COALESCE(ma.cost_w, 0)
+      )::numeric AS weight
+    FROM mesh_adjacency ma
+    JOIN mesh_triangles t1 ON t1.id = ma.tri_b
+    JOIN mesh_triangles t2 ON t2.id = ma.tri_a
+    WHERE t1.floor = p_floor AND t2.floor = p_floor
+  ),
+
+  -- 4) جستجوی بازگشتی (Dijkstra ساده با جلوگیری از حلقه و سقف طول مسیر)
+  search AS (
+    -- شروع از origin
+    SELECT
+      o.tri_id                        AS tri,
+      NULL::bigint                    AS prev_tri,
+      NULL::bigint                    AS via_door_id,
+      0::numeric                      AS cost,
+      ARRAY[o.tri_id]::bigint[]       AS path
+    FROM origin_tri o
+
+    UNION ALL
+
+    SELECT
+      e.dst                           AS tri,
+      s.tri                           AS prev_tri,
+      e.door_id                       AS via_door_id,
+      s.cost + e.weight               AS cost,
+      s.path || e.dst                 AS path
+    FROM search s
+    JOIN edges e
+      ON e.src = s.tri
+    WHERE NOT e.dst = ANY(s.path)                 -- جلوگیری از حلقه
+      AND array_length(s.path, 1) < 2000          -- سقف طول مسیر، برای ایمنی
+  ),
+
+  -- 5) بهترین مسیر که به dest_tri رسیده
+  best AS (
+    SELECT s.*
+    FROM search s
+    JOIN dest_tri d ON d.tri_id = s.tri
+    ORDER BY s.cost
+    LIMIT 1
+  ),
+
+  -- 6) بازکردن آرایه‌ی path به لیست tri_id با ترتیب
+  path_nodes AS (
+    SELECT
+      unnest(path)                        AS tri_id,
+      generate_subscripts(path, 1)        AS ord
+    FROM best
+  ),
+
+  -- 7) تولید نقاط مسیر: مبدا + centroids + مقصد
+  route_points AS (
+    SELECT 0 AS ord, p_origin AS geom
+    UNION ALL
+    SELECT 1000 + pn.ord AS ord, ST_Centroid(t.geom) AS geom
+    FROM path_nodes pn
+    JOIN mesh_triangles t ON t.id = pn.tri_id
+    UNION ALL
+    SELECT 2000000 AS ord, p_dest AS geom
+  ),
+
+  -- 8) ساخت LineString نهایی
+  route_geom AS (
+    SELECT ST_MakeLine(geom ORDER BY ord) AS geom
+    FROM route_points
+  )
+
+  -- 9) خروجی در قالب route_segment
+  SELECT
+    1 AS seq,
+    rg.geom,
+    p_mode::text AS mode,
+    p_floor      AS floor,
+    ST_Length(rg.geom)::numeric AS distance_m,
+    (ST_Length(rg.geom) / v_speed_mps)::numeric AS duration_s,
+    jsonb_build_object(
+      'origin_tri_id', (SELECT tri_id FROM origin_tri),
+      'dest_tri_id',   (SELECT tri_id FROM dest_tri),
+      'gender',        p_gender,
+      'mode',          p_mode
+    ) AS meta
+  FROM route_geom rg;
+
+END;
+$$;
+
+--
+
+
