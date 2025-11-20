@@ -15,6 +15,7 @@ import { analyzeRoute } from '../utils/routeAnalysis';
 import useLocaleDigits from '../utils/useLocaleDigits';
 import { toast } from 'react-toastify';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
+import { requestRouting } from '../services/routingService';
 
 const FinalSearch = () => {
   const [isSwapping, setIsSwapping] = useState(false);
@@ -89,6 +90,7 @@ const FinalSearch = () => {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [geoData, setGeoData] = useState(null);
+  const [isRequestingRoute, setIsRequestingRoute] = useState(false);
 
   useEffect(() => {
     storeSetGender(selectedGender);
@@ -219,26 +221,7 @@ const FinalSearch = () => {
     }
   }, [destination.coordinates]);
 
-  useEffect(() => {
-    if (!geoData) return;
-    const result = analyzeRoute(origin, destination, geoData, transportMode, selectedGender);
-    if (!result) {
-      toast.error(intl.formatMessage({ id: 'noRouteFound' }));
-      storeSetRouteGeo(null);
-      storeSetRouteSteps([]);
-      storeSetAlternativeRoutes([]);
-      sessionStorage.removeItem('routeGeo');
-      sessionStorage.removeItem('routeSteps');
-      sessionStorage.removeItem('alternativeRoutes');
-      sessionStorage.removeItem('routeSahns');
-      return;
-    }
-    const { geo, steps, alternatives, sahns } = result;
-    console.log('analyzeRoute result:', {
-      geo,
-      steps,
-      alternatives
-    });
+  const persistRouteData = (geo, steps, alternatives = [], sahns = []) => {
     storeSetRouteGeo(geo);
     storeSetRouteSteps(steps);
     storeSetAlternativeRoutes(alternatives);
@@ -248,7 +231,87 @@ const FinalSearch = () => {
     sessionStorage.setItem('routeSahns', JSON.stringify(sahns));
     sessionStorage.setItem('origin', JSON.stringify(origin));
     sessionStorage.setItem('destination', JSON.stringify(destination));
-  }, [geoData, origin, destination, transportMode, selectedGender, storeSetRouteGeo, storeSetRouteSteps, storeSetAlternativeRoutes, intl]);
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+
+    const runRouting = async () => {
+      setIsRequestingRoute(true);
+      try {
+        const result = await requestRouting({
+          origin,
+          destination,
+          mode: transportMode,
+          gender: selectedGender,
+          signal: controller.signal
+        });
+        if (!isMounted) return;
+        if (!result?.geo || !result?.steps) {
+          throw new Error('Invalid routing response');
+        }
+
+        persistRouteData(result.geo, result.steps, result.alternatives, []);
+
+        const minutes = result.durationSeconds
+          ? Math.max(1, Math.round(result.durationSeconds / 60))
+          : null;
+        const distance = result.distanceMeters != null
+          ? Math.round(result.distanceMeters)
+          : null;
+
+        const summary = {
+          time: `${minutes ?? routeInfo.time}`,
+          distance: `${distance ?? routeInfo.distance}`,
+          mode: result.mode || transportMode
+        };
+        setRouteInfo(summary);
+        sessionStorage.setItem('routeSummaryData', JSON.stringify(summary));
+        return;
+      } catch (err) {
+        if (err?.name === 'AbortError') return;
+        console.warn('routing service failed, falling back to local analysis', err);
+      } finally {
+        if (isMounted) setIsRequestingRoute(false);
+      }
+
+      if (!geoData) return;
+      const result = analyzeRoute(origin, destination, geoData, transportMode, selectedGender);
+      if (!result) {
+        toast.error(intl.formatMessage({ id: 'noRouteFound' }));
+        storeSetRouteGeo(null);
+        storeSetRouteSteps([]);
+        storeSetAlternativeRoutes([]);
+        sessionStorage.removeItem('routeGeo');
+        sessionStorage.removeItem('routeSteps');
+        sessionStorage.removeItem('alternativeRoutes');
+        sessionStorage.removeItem('routeSahns');
+        return;
+      }
+      const { geo, steps, alternatives, sahns } = result;
+      persistRouteData(geo, steps, alternatives, sahns);
+    };
+
+    runRouting();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [
+    geoData,
+    origin,
+    destination,
+    transportMode,
+    selectedGender,
+    storeSetRouteGeo,
+    storeSetRouteSteps,
+    storeSetAlternativeRoutes,
+    intl,
+    routeInfo.time,
+    routeInfo.distance
+  ]);
 
   const alternativeSummaries = React.useMemo(() => {
     if (!storedAlternativeRoutes) return [];

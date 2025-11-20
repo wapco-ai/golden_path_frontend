@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import RouteMap from '../components/map/RouteMap';
@@ -12,6 +12,7 @@ import { analyzeRoute } from '../utils/routeAnalysis';
 import useLocaleDigits from '../utils/useLocaleDigits';
 import { toast } from 'react-toastify';
 import ttsService from '../services/ttsService';
+import { requestRouting } from '../services/routingService';
 
 const RoutingPage = () => {
   const intl = useIntl();
@@ -183,6 +184,54 @@ const RoutingPage = () => {
     }
   }, [isDrActive]);
 
+  const persistRouteData = useCallback((geo, steps, alternatives = [], sahns = []) => {
+    setRouteGeo(geo);
+    setRouteSteps(steps);
+    setAlternativeRoutes(alternatives);
+    sessionStorage.setItem('routeGeo', JSON.stringify(geo));
+    sessionStorage.setItem('routeSteps', JSON.stringify(steps));
+    sessionStorage.setItem('alternativeRoutes', JSON.stringify(alternatives));
+    sessionStorage.setItem('routeSahns', JSON.stringify(sahns));
+  }, [setAlternativeRoutes, setRouteGeo, setRouteSteps]);
+
+  const buildRouteWithFallback = useCallback(async (orig, dest, controller) => {
+    try {
+      const result = await requestRouting({
+        origin: orig,
+        destination: dest,
+        mode: transportMode,
+        gender,
+        signal: controller?.signal
+      });
+      if (result?.geo && result?.steps) {
+        persistRouteData(result.geo, result.steps, result.alternatives, []);
+        return true;
+      }
+    } catch (err) {
+      if (err?.name !== 'AbortError') {
+        console.warn('routing service failed, falling back to local analysis', err);
+      }
+    }
+
+    try {
+      const geoData = await loadGeoJsonData({ language, signal: controller?.signal });
+      const analysis = analyzeRoute(orig, dest, geoData, transportMode, gender);
+      if (!analysis) {
+        toast.error(intl.formatMessage({ id: 'noRouteFound' }));
+        persistRouteData(null, [], []);
+        return false;
+      }
+      const { geo, steps, alternatives, sahns } = analysis;
+      persistRouteData(geo, steps, alternatives, sahns);
+      return true;
+    } catch (err) {
+      if (err?.name !== 'AbortError') {
+        console.error('failed to rebuild route', err);
+      }
+    }
+    return false;
+  }, [gender, intl, language, persistRouteData, transportMode]);
+
   useEffect(() => {
     const sessGeo = sessionStorage.getItem('routeGeo');
     const sessSteps = sessionStorage.getItem('routeSteps');
@@ -241,29 +290,10 @@ const RoutingPage = () => {
           };
 
         try {
-          const geoData = await loadGeoJsonData({ language, signal: controller.signal });
-          if (!isMounted) return;
-          const result = analyzeRoute(
-            newOrigin,
-            newDestination,
-            geoData,
-            'walking',
-            gender
-          );
-          if (!result) {
-            toast.error(intl.formatMessage({ id: 'noRouteFound' }));
-            setRouteGeo(null);
-            setRouteSteps([]);
-            setAlternativeRoutes([]);
-            return;
-          }
-          const { geo, steps, alternatives, sahns } = result;
+          const built = await buildRouteWithFallback(newOrigin, newDestination, controller);
+          if (!isMounted || !built) return;
           setOrigin(newOrigin);
           setDestination(newDestination);
-          setRouteGeo(geo);
-          setRouteSteps(steps);
-          setAlternativeRoutes(alternatives);
-          sessionStorage.setItem('routeSahns', JSON.stringify(sahns));
         } catch (err) {
           if (err?.name === 'AbortError') return;
           console.error('failed to build route from QR', err);
@@ -294,32 +324,8 @@ const RoutingPage = () => {
     let isMounted = true;
 
     const rebuildRoute = async () => {
-      try {
-        const geoData = await loadGeoJsonData({ language, signal: controller.signal });
-        if (!isMounted) return;
-        const result = analyzeRoute(
-          origin,
-          destination,
-          geoData,
-          transportMode,
-          gender
-        );
-        if (!result) {
-          toast.error(intl.formatMessage({ id: 'noRouteFound' }));
-          setRouteGeo(null);
-          setRouteSteps([]);
-          setAlternativeRoutes([]);
-          return;
-        }
-        const { geo, steps, alternatives, sahns } = result;
-        setRouteGeo(geo);
-        setRouteSteps(steps);
-        setAlternativeRoutes(alternatives);
-        sessionStorage.setItem('routeSahns', JSON.stringify(sahns));
-      } catch (err) {
-        if (err?.name === 'AbortError') return;
-        console.error('failed to rebuild route', err);
-      }
+      const built = await buildRouteWithFallback(origin, destination, controller);
+      if (!isMounted || !built) return;
     };
 
     rebuildRoute();
@@ -328,7 +334,7 @@ const RoutingPage = () => {
       isMounted = false;
       controller.abort();
     };
-  }, [transportMode, gender, origin, destination, language, intl, routeGeo, routeSteps.length, setRouteGeo, setRouteSteps, setAlternativeRoutes]);
+  }, [transportMode, gender, origin, destination, routeGeo, routeSteps.length, buildRouteWithFallback]);
 
   // Calculate total time in minutes from all steps
   const calculateTotalTime = (steps) => {
