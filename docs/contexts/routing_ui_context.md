@@ -43,7 +43,7 @@ Accept: application/json
 ```jsonc
 {
   "mode": "walk",        // "walk" | "wheelchair"
-  "gender": "both",      // باید با enum دیتابیس بخواند: مثلا "male" | "female" | "family" | "both"
+  "gender": "both",      // باید با enum دیتابیس بخواند: مثلا "male" | "female" | "both"
 
   "origin": {
     "type": "coordinate",  // "coordinate" | "poi" | "door" | "area" | "qrcode"
@@ -75,7 +75,7 @@ Accept: application/json
 * `gender`
 
   * باید مقدار معتبر `gender_enum` دیتابیس باشد
-  * الان ما معمولاً از `"both"` / `"family"` استفاده می‌کنیم (طبق DDL پروژه)
+  * الان ما معمولاً از `"both"`  استفاده می‌کنیم (طبق DDL پروژه)
 
 #### بخش origin / destination
 
