@@ -18,6 +18,17 @@ import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import { requestRouting } from '../services/routingService';
 
 const FinalSearch = () => {
+  const isValidLngLat = (coords) => {
+    if (!Array.isArray(coords) || coords.length < 2) return false;
+    const [lat, lng] = coords;
+    return (
+      Number.isFinite(lat) &&
+      Number.isFinite(lng) &&
+      Math.abs(lat) <= 90 &&
+      Math.abs(lng) <= 180
+    );
+  };
+
   const [isSwapping, setIsSwapping] = useState(false);
   const [isSwapButton, setSwapButton] = useState(true);
   const mapRef = useRef(null);
@@ -343,6 +354,13 @@ const FinalSearch = () => {
     [storedAlternativeRoutes]
   );
 
+  const originCoords = isValidLngLat(origin.coordinates)
+    ? origin.coordinates
+    : [0, 0];
+  const destinationCoords = isValidLngLat(destination.coordinates)
+    ? destination.coordinates
+    : [0, 0];
+
   // Zoom map to route bounds when a new route is loaded
   useEffect(() => {
     if (mapRef.current && routeGeo) {
@@ -396,7 +414,8 @@ const FinalSearch = () => {
       const mid = Math.floor(coords.length / 2);
       chosen = [coords[mid][1], coords[mid][0]];
     }
-    setPopupCoord(chosen);
+
+    setPopupCoord(isValidLngLat(chosen) ? chosen : null);
   }, [routeGeo, storedAlternativeRoutes]);
 
   // Determine popup locations and minutes for alternative routes
@@ -440,7 +459,8 @@ const FinalSearch = () => {
         const mid = Math.floor(coords.length / 2);
         chosen = [coords[mid][1], coords[mid][0]];
       }
-      coordsArr.push(chosen);
+
+      coordsArr.push(isValidLngLat(chosen) ? chosen : null);
     });
 
     setAltPopupCoords(coordsArr);
@@ -646,12 +666,8 @@ const FinalSearch = () => {
           styleDiffing={false}
           style={{ width: '100%', height: '100%' }}
           initialViewState={{
-            longitude:
-              ((origin.coordinates?.[1] ?? 0) + (destination.coordinates?.[1] ?? 0)) /
-              2,
-            latitude:
-              ((origin.coordinates?.[0] ?? 0) + (destination.coordinates?.[0] ?? 0)) /
-              2,
+            longitude: ((originCoords?.[1] ?? 0) + (destinationCoords?.[1] ?? 0)) / 2,
+            latitude: ((originCoords?.[0] ?? 0) + (destinationCoords?.[0] ?? 0)) / 2,
             zoom: 18
           }}
           attributionControl={false}
@@ -675,7 +691,7 @@ const FinalSearch = () => {
             }
           }}
         >
-          {origin.coordinates && (
+          {isValidLngLat(origin.coordinates) && (
             <Marker
               longitude={origin.coordinates[1]}
               latitude={origin.coordinates[0]}
@@ -684,7 +700,7 @@ const FinalSearch = () => {
               <div className="marker-circle"></div>
             </Marker>
           )}
-          {destination.coordinates && (
+          {isValidLngLat(destination.coordinates) && (
             <Marker
               longitude={destination.coordinates[1]}
               latitude={destination.coordinates[0]}
