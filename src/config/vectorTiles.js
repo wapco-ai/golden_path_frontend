@@ -23,8 +23,9 @@ const VECTOR_FUNCTION_TILE_BASE = `${TILE_BASE_URL}/${VECTOR_FUNCTION_SOURCE_LAY
 const AREAS_FUNCTION_SOURCE_LAYER = 'public.fn_areas_mvt';
 const AREAS_VECTOR_LAYER_NAME = 'areas';
 const AREAS_FUNCTION_TILE_BASE = `${TILE_BASE_URL}/${AREAS_FUNCTION_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
-const DOORS_SOURCE_LAYER = 'public.doors';
-const DOORS_TILE_URL = `${TILE_BASE_URL}/${DOORS_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
+const DOORS_FUNCTION_SOURCE_LAYER = 'public.fn_doors_mvt';
+const DOORS_VECTOR_LAYER_NAME = 'doors';
+const DOORS_FUNCTION_TILE_BASE = `${TILE_BASE_URL}/${DOORS_FUNCTION_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
 
 const normalizeFloorValue = (floor) => {
   if (typeof floor === 'number' && !Number.isNaN(floor)) {
@@ -68,13 +69,16 @@ const buildFnTileUrlFactory = ({ entityTables }) => {
   };
 };
 
-const buildAreasTileUrlFactory = () => ({ floor } = {}) => {
+const buildFloorOnlyTileUrlFactory = (tileBaseUrl) => ({ floor } = {}) => {
   const params = new URLSearchParams();
   const fallbackFloor = typeof floor !== 'undefined' ? floor : DEFAULT_TILE_FLOOR;
   params.set('p_floor', normalizeFloorValue(fallbackFloor));
 
-  return `${AREAS_FUNCTION_TILE_BASE}?${params.toString()}`;
+  return `${tileBaseUrl}?${params.toString()}`;
 };
+
+const buildAreasTileUrlFactory = () => buildFloorOnlyTileUrlFactory(AREAS_FUNCTION_TILE_BASE);
+const buildDoorsTileUrlFactory = () => buildFloorOnlyTileUrlFactory(DOORS_FUNCTION_TILE_BASE);
 
 export const haramVectorTileConfig = [
   {
@@ -100,10 +104,10 @@ export const haramVectorTileConfig = [
   {
     id: 'doors',
     titleFa: 'درب‌ها',
-    table: 'public.doors',
-    sourceId: 'doors',
-    sourceLayer: DOORS_SOURCE_LAYER,
-    tileUrl: DOORS_TILE_URL,
+    table: 'public.fn_doors_mvt',
+    sourceId: 'fn_doors_mvt',
+    sourceLayer: DOORS_VECTOR_LAYER_NAME,
+    tileUrlFactory: buildDoorsTileUrlFactory(),
     type: 'line',
     minzoom: 15,
     maxzoom: 22,
