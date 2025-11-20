@@ -26,6 +26,8 @@ const AREAS_FUNCTION_TILE_BASE = `${TILE_BASE_URL}/${AREAS_FUNCTION_SOURCE_LAYER
 const DOORS_FUNCTION_SOURCE_LAYER = 'public.fn_doors_mvt';
 const DOORS_VECTOR_LAYER_NAME = 'doors';
 const DOORS_FUNCTION_TILE_BASE = `${TILE_BASE_URL}/${DOORS_FUNCTION_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
+const MESH_TRIANGLES_SOURCE_LAYER = 'public.vw_mesh_triangles';
+const MESH_TRIANGLES_TILE_BASE = `${TILE_BASE_URL}/${MESH_TRIANGLES_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
 
 const normalizeFloorValue = (floor) => {
   if (typeof floor === 'number' && !Number.isNaN(floor)) {
@@ -115,6 +117,26 @@ export const haramVectorTileConfig = [
     paint: {
       'line-color': '#ff3b30',
       'line-width': 2
+    }
+  },
+  {
+    id: 'mesh-triangles-ground',
+    titleFa: 'مش‌بندی محدوده‌های طبقه همکف',
+    table: MESH_TRIANGLES_SOURCE_LAYER,
+    sourceId: 'vw_mesh_triangles',
+    sourceLayer: MESH_TRIANGLES_SOURCE_LAYER,
+    tileUrl: MESH_TRIANGLES_TILE_BASE,
+    type: 'line',
+    minzoom: 15,
+    maxzoom: 22,
+    visibleByDefault: true,
+    paint: {
+      'line-color': '#1e90ff',
+      'line-width': 0.75
+    },
+    layout: {
+      'line-join': 'round',
+      'line-cap': 'round'
     }
   }
 ];
