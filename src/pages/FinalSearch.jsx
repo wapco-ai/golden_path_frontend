@@ -73,7 +73,9 @@ const FinalSearch = () => {
     storeSetDestination(destination);
   }, [destination, storeSetDestination]);
   const { transportMode } = useRouteStore();
-  const [selectedGender, setSelectedGender] = useState(storedGender || 'family');
+  const [selectedGender, setSelectedGender] = useState(
+    storedGender === 'family' ? 'both' : storedGender || 'both'
+  );
   const [routeInfo, setRouteInfo] = useState({
     time: '9',
     distance: '75',
@@ -856,11 +858,11 @@ const FinalSearch = () => {
 
         <div className="options-row">
           <button
-            className={`gender-btn ${selectedGender === 'family' ? 'active' : ''}`}
-            onClick={() => setSelectedGender('family')}
+            className={`gender-btn ${selectedGender === 'both' ? 'active' : ''}`}
+            onClick={() => setSelectedGender('both')}
           >
             <div className="gender-circle">
-              {selectedGender === 'family' && <div className="gender-circle-fill"></div>}
+              {selectedGender === 'both' && <div className="gender-circle-fill"></div>}
             </div>
             <FormattedMessage id="routeForFamily" />
           </button>
