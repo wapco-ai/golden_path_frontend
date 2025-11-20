@@ -1499,53 +1499,55 @@ AS $$
 DECLARE
   v_speed_mps numeric;
 BEGIN
-  -- سرعت تقریبی: پیاده ~1.2، ویلچر کمی کمتر
+  -- ۱) تعیین سرعت
   IF p_mode = 'wheelchair' THEN
-    v_speed_mps := 0.9;
+    v_speed_mps := 0.9;   -- متر بر ثانیه
   ELSE
     v_speed_mps := 1.2;
   END IF;
 
-  -- اگر بعداً خواستی محدودیت‌های gender / admin / زمان رو اعمال کنی،
-  -- می‌تونی اینجا با fn_allowed_... یک لیست allowed_triangles بسازی.
-
   RETURN QUERY
   WITH
-  -- 1) پیدا کردن سلول NavMesh مبدأ
+
+  -- ۲) anchorهای NavMesh برای مبدا و مقصد
   origin_tri AS (
-    SELECT
-      id AS tri_id,
-      ST_ClosestPoint(geom, p_origin) AS anchor_geom
-    FROM mesh_triangles
-    WHERE floor = p_floor
-    ORDER BY geom <-> p_origin
-    LIMIT 1
+    SELECT * FROM fn_navmesh_anchor(p_origin, p_floor)
   ),
-
-  -- 2) پیدا کردن سلول NavMesh مقصد
   dest_tri AS (
-    SELECT
-      id AS tri_id,
-      ST_ClosestPoint(geom, p_dest) AS anchor_geom
-    FROM mesh_triangles
-    WHERE floor = p_floor
-    ORDER BY geom <-> p_dest
-    LIMIT 1
+    SELECT * FROM fn_navmesh_anchor(p_dest, p_floor)
   ),
 
-  -- 3) گراف یال‌ها (بی‌جهت → هر رکورد را به دو جهت تبدیل می‌کنیم)
+  -- ۳) (اختیاری) مثلث‌های مجاز بر اساس جنسیت، مد، و محدودیت‌ها
+  -- فعلاً ساده: فقط مثلث‌هایی که area مربوطه بسته نیست.
+  allowed_triangles AS (
+    SELECT
+      t.id AS tri_id
+    FROM mesh_triangles t
+    JOIN areas a ON a.id = t.area_id
+    WHERE t.floor = p_floor
+      AND (a.is_closed IS FALSE OR a.is_closed IS NULL)  -- مثال ساده
+      -- می‌تونی اینجا gender/mode رو هم لحاظ کنی
+      -- AND (a.allowed_gender = 'family' OR a.allowed_gender = p_gender)
+      -- برای wheelchair هم می‌تونی attrs رو چک کنی که stairs نباشه...
+  ),
+
+  -- ۴) گراف یال‌ها (دوطرفه) محدود به allowed_triangles
   edges AS (
     SELECT
       ma.tri_a AS src,
       ma.tri_b AS dst,
       ma.door_id,
-      ( ST_Distance(ST_Centroid(t1.geom), ST_Centroid(t2.geom))
+      (
+        ST_Distance(ST_Centroid(t1.geom), ST_Centroid(t2.geom))
         + COALESCE(ma.cost_w, 0)
       )::numeric AS weight
     FROM mesh_adjacency ma
     JOIN mesh_triangles t1 ON t1.id = ma.tri_a
     JOIN mesh_triangles t2 ON t2.id = ma.tri_b
-    WHERE t1.floor = p_floor AND t2.floor = p_floor
+    WHERE t1.floor = p_floor
+      AND t2.floor = p_floor
+      AND t1.id IN (SELECT tri_id FROM allowed_triangles)
+      AND t2.id IN (SELECT tri_id FROM allowed_triangles)
 
     UNION ALL
 
@@ -1553,42 +1555,45 @@ BEGIN
       ma.tri_b AS src,
       ma.tri_a AS dst,
       ma.door_id,
-      ( ST_Distance(ST_Centroid(t1.geom), ST_Centroid(t2.geom))
+      (
+        ST_Distance(ST_Centroid(t1.geom), ST_Centroid(t2.geom))
         + COALESCE(ma.cost_w, 0)
       )::numeric AS weight
     FROM mesh_adjacency ma
     JOIN mesh_triangles t1 ON t1.id = ma.tri_b
     JOIN mesh_triangles t2 ON t2.id = ma.tri_a
-    WHERE t1.floor = p_floor AND t2.floor = p_floor
+    WHERE t1.floor = p_floor
+      AND t2.floor = p_floor
+      AND t1.id IN (SELECT tri_id FROM allowed_triangles)
+      AND t2.id IN (SELECT tri_id FROM allowed_triangles)
   ),
 
-  -- 4) جستجوی بازگشتی (Dijkstra ساده با جلوگیری از حلقه و سقف طول مسیر)
+  -- ۵) جستجوی بازگشتی (Dijkstra ساده)
   search AS (
-    -- شروع از origin
+    -- شروع از مبدا
     SELECT
-      o.tri_id                        AS tri,
-      NULL::bigint                    AS prev_tri,
-      NULL::bigint                    AS via_door_id,
-      0::numeric                      AS cost,
-      ARRAY[o.tri_id]::bigint[]       AS path
+      o.tri_id                  AS tri,
+      NULL::bigint              AS prev_tri,
+      NULL::bigint              AS via_door_id,
+      0::numeric                AS cost,
+      ARRAY[o.tri_id]::bigint[] AS path
     FROM origin_tri o
 
     UNION ALL
 
     SELECT
-      e.dst                           AS tri,
-      s.tri                           AS prev_tri,
-      e.door_id                       AS via_door_id,
-      s.cost + e.weight               AS cost,
-      s.path || e.dst                 AS path
+      e.dst                     AS tri,
+      s.tri                     AS prev_tri,
+      e.door_id                 AS via_door_id,
+      s.cost + e.weight         AS cost,
+      s.path || e.dst           AS path
     FROM search s
-    JOIN edges e
-      ON e.src = s.tri
-    WHERE NOT e.dst = ANY(s.path)                 -- جلوگیری از حلقه
-      AND array_length(s.path, 1) < 2000          -- سقف طول مسیر، برای ایمنی
+    JOIN edges e ON e.src = s.tri
+    WHERE NOT e.dst = ANY(s.path)            -- جلوگیری از حلقه
+      AND array_length(s.path, 1) < 2000     -- سقف طول مسیر
   ),
 
-  -- 5) بهترین مسیر که به dest_tri رسیده
+  -- ۶) بهترین مسیر که به dest_tri رسیده
   best AS (
     SELECT s.*
     FROM search s
@@ -1597,15 +1602,15 @@ BEGIN
     LIMIT 1
   ),
 
-  -- 6) بازکردن آرایه‌ی path به لیست tri_id با ترتیب
+  -- ۷) بازکردن لیست tri_id ها
   path_nodes AS (
     SELECT
-      unnest(path)                        AS tri_id,
-      generate_subscripts(path, 1)        AS ord
+      unnest(path)                 AS tri_id,
+      generate_subscripts(path, 1) AS ord
     FROM best
   ),
 
-  -- 7) تولید نقاط مسیر: مبدا + centroids + مقصد
+  -- ۸) ساخت نقاط مسیر: مبدا + centroids + مقصد
   route_points AS (
     SELECT 0 AS ord, p_origin AS geom
     UNION ALL
@@ -1616,13 +1621,13 @@ BEGIN
     SELECT 2000000 AS ord, p_dest AS geom
   ),
 
-  -- 8) ساخت LineString نهایی
+  -- ۹) تبدیل نقاط به LineString
   route_geom AS (
     SELECT ST_MakeLine(geom ORDER BY ord) AS geom
     FROM route_points
   )
 
-  -- 9) خروجی در قالب route_segment
+  -- ۱۰) خروجی نهایی
   SELECT
     1 AS seq,
     rg.geom,
@@ -1641,6 +1646,176 @@ BEGIN
 END;
 $$;
 
---
+
+
+
+-- نوع خروجی مشترک برای مبدأ/مقصد
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'location_ref') THEN
+    CREATE TYPE location_ref AS (
+      entity_table  text,
+      entity_id     bigint,
+      floor         smallint,
+      geom          geometry(Point, 32640)
+    );
+  END IF;
+END$$;
+
+
+--- فانکشن کمکی
+CREATE OR REPLACE FUNCTION fn_resolve_location(
+  p_type text,            -- 'poi' | 'door' | 'area' | 'coordinate' | 'qrcode'
+  p_id   bigint,          -- برای poi/door/area
+  p_code text,            -- برای qrcode
+  p_lon  double precision,
+  p_lat  double precision
+)
+RETURNS location_ref
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  res location_ref;
+BEGIN
+  IF p_type = 'poi' THEN
+    SELECT 'poi_points', id, floor,
+           ST_Transform(geom, 32640)
+    INTO  res.entity_table, res.entity_id, res.floor, res.geom
+    FROM poi_points
+    WHERE id = p_id;
+
+  ELSIF p_type = 'door' THEN
+    SELECT 'doors', id, floor,
+           ST_Transform(ST_LineInterpolatePoint(geom, 0.5), 32640)
+    INTO  res.entity_table, res.entity_id, res.floor, res.geom
+    FROM doors
+    WHERE id = p_id;
+
+  ELSIF p_type = 'area' THEN
+    SELECT 'areas', id, floor,
+           ST_Transform(ST_PointOnSurface(geom), 32640)
+    INTO  res.entity_table, res.entity_id, res.floor, res.geom
+    FROM areas
+    WHERE id = p_id;
+
+  ELSIF p_type = 'qrcode' THEN
+    -- ساختار جدول qrcodes رو با دیتابیس خودت هماهنگ کن
+    SELECT 'qrcodes', q.id,
+           COALESCE((q.attrs->>'floor')::smallint, 0),
+           ST_Transform(q.geom, 32640)
+    INTO  res.entity_table, res.entity_id, res.floor, res.geom
+    FROM qrcodes q
+    WHERE q.code = p_code
+      AND q.is_active = TRUE;
+
+  ELSIF p_type = 'coordinate' THEN
+    res.entity_table := 'coordinate';
+    res.entity_id    := NULL;
+    res.floor        := 0; -- یا می‌تونی نزدیک‌ترین area رو پیدا کنی و floor اون رو ست کنی
+    res.geom         := ST_Transform(
+                          ST_SetSRID(ST_MakePoint(p_lon, p_lat), 4326),
+                          32640
+                        );
+  ELSE
+    RAISE EXCEPTION 'Unsupported location type: %', p_type;
+  END IF;
+
+  IF res.geom IS NULL THEN
+    RAISE EXCEPTION 'Location not found for type=% id=% code=%', p_type, p_id, p_code;
+  END IF;
+
+  RETURN res;
+END;
+$$;
+
+
+
+--🔹 قدم ۲: فانکشن fn_navmesh_anchor (پیدا کردن سلول NavMesh نزدیک نقطه)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'navmesh_anchor') THEN
+    CREATE TYPE navmesh_anchor AS (
+      tri_id bigint,
+      point  geometry(Point, 32640),
+      floor  smallint
+    );
+  END IF;
+END$$;
+
+CREATE OR REPLACE FUNCTION fn_navmesh_anchor(
+  p_geom  geometry(Point, 32640),
+  p_floor smallint
+)
+RETURNS navmesh_anchor
+LANGUAGE sql
+AS $$
+  SELECT
+    t.id                                           AS tri_id,
+    ST_ClosestPoint(t.geom, p_geom)               AS point,
+    t.floor                                       AS floor
+  FROM mesh_triangles t
+  WHERE t.floor = p_floor
+  ORDER BY t.geom <-> p_geom
+  LIMIT 1;
+$$;
+
+----- لایه ۲ – فانکشن wrapper سطح بالا: fn_route
+CREATE OR REPLACE FUNCTION fn_route(
+  p_now          timestamptz,
+  p_gender       gender_enum,
+  p_mode         text,          -- 'walk' | 'wheelchair' (فعلاً)
+  p_origin_type  text,
+  p_origin_id    bigint,
+  p_origin_code  text,
+  p_origin_lon   double precision,
+  p_origin_lat   double precision,
+  p_dest_type    text,
+  p_dest_id      bigint,
+  p_dest_code    text,
+  p_dest_lon     double precision,
+  p_dest_lat     double precision
+)
+RETURNS SETOF route_segment
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  o_loc  location_ref;
+  d_loc  location_ref;
+  v_floor smallint;
+BEGIN
+  -- ۱) resolve کردن مبدا و مقصد
+  o_loc := fn_resolve_location(
+    p_origin_type,
+    p_origin_id,
+    p_origin_code,
+    p_origin_lon,
+    p_origin_lat
+  );
+
+  d_loc := fn_resolve_location(
+    p_dest_type,
+    p_dest_id,
+    p_dest_code,
+    p_dest_lon,
+    p_dest_lat
+  );
+
+  -- فرض ساده: هر دو روی یک floor هستند
+  v_floor := COALESCE(o_loc.floor, d_loc.floor, 0);
+
+  -- ۲) صدا زدن هسته‌ی مسیریابی
+  RETURN QUERY
+  SELECT *
+  FROM fn_route_walk_navmesh(
+    p_now,
+    p_gender,
+    p_mode,
+    v_floor,
+    o_loc.geom,
+    d_loc.geom
+  );
+END;
+$$;
+
 
 
