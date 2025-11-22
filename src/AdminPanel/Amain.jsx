@@ -51,6 +51,7 @@ const Amain = () => {
   const [selectedBar, setSelectedBar] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(6);
+  const contentRef = useRef(null);
 
 
 
@@ -257,6 +258,15 @@ const Amain = () => {
     // In real app, this would filter from API
   };
 
+  useEffect(() => {
+    // Reset scroll position when menu changes
+    if (contentRef.current) {
+      contentRef.current.scrollTop = 0;
+    }
+    // Also reset window scroll
+    window.scrollTo(0, 0);
+  }, [activeMenu, currentReportView]);
+
   // Save place data
   const handleSavePlace = () => {
     // Here you would typically send data to API
@@ -289,17 +299,17 @@ const Amain = () => {
     setIsEditing(true);
   };
 
-const handleMenuClick = (menuName, breadcrumbLabel) => {
-  setActiveMenu(menuName);
-  if (menuName === 'dashboard') {
-    setCurrentReportView(null);
-    setBreadcrumbPath(['منوی اصلی', breadcrumbLabel, 'آمار کلی استارتاپ من']);
-  } else {
-    setCurrentReportView(null);
-    const newPath = ['منوی اصلی', breadcrumbLabel];
-    setBreadcrumbPath(newPath);
-  }
-};
+  const handleMenuClick = (menuName, breadcrumbLabel) => {
+    setActiveMenu(menuName);
+    if (menuName === 'dashboard') {
+      setCurrentReportView(null);
+      setBreadcrumbPath(['منوی اصلی', breadcrumbLabel, 'آمار کلی استارتاپ من']);
+    } else {
+      setCurrentReportView(null);
+      const newPath = ['منوی اصلی', breadcrumbLabel];
+      setBreadcrumbPath(newPath);
+    }
+  };
 
 
   const formatJalaliDate = (date) => {
@@ -674,7 +684,7 @@ const handleMenuClick = (menuName, breadcrumbLabel) => {
         </div>
 
         {/* Main Content */}
-        <div className="admin-content">
+        <div className="admin-content" ref={contentRef}>
           {/* Content Header */}
           <div className="content-header">
             <div className="breadcrumb-nav">
@@ -969,7 +979,7 @@ const handleMenuClick = (menuName, breadcrumbLabel) => {
                   </div>
 
                   {/* Gender Filter */}
-                  <div className="filter-group"> 
+                  <div className="filter-group">
                     <label className="filter-label">انتخاب جنسیت</label>
                     <div className="select-wrapper">
                       <select>
