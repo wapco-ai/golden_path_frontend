@@ -1305,6 +1305,7 @@ body {
   gap: 20px;
   align-items: flex-end;
   flex-wrap: wrap;
+  
 }
 
 .filter-group {
@@ -1315,10 +1316,17 @@ body {
 }
 
 .filter-label {
+  position: absolute;
+  top: 261px;
+  margin-right: 5px;
   font-size: 12px;
   color: #858585;
   font-weight: 500;
-  margin-bottom: 4px;
+  z-index: 1001;
+  background-color: white;
+  padding-left: 5px;
+  padding-right: 5px;
+
 }
 
 /* Date Input with Separator */

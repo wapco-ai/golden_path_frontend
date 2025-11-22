@@ -1,6 +1,6 @@
 // src/pages/Alogin.jsx
 import { useNavigate } from 'react-router-dom';
-import '../styles/Alogin.css';
+import '../AdminPanel/Alogin.css';
 import logo from '../assets/images/logo3.png';
 import statsImage from '../assets/images/img1.png'; // Add this import
 import React, { useState, useEffect } from 'react';

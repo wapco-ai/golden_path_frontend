@@ -1,7 +1,7 @@
 // src/pages/Amain.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useIntl } from 'react-intl';
-import '../styles/Amain.css';
+import '../AdminPanel/Amain.css';
 import logo from '../assets/images/logo2.png';
 import 'react-datepicker/dist/react-datepicker.css';
 import { toJalaali, toGregorian } from 'jalaali-js';
@@ -958,7 +958,7 @@ const handleMenuClick = (menuName, breadcrumbLabel) => {
                 <div className="filter-row">
                   {/* Date Filter */}
                   <div className="filter-group">
-                    {/* <label className="filter-label">انتخاب تاریخ</label> */}
+                    <label className="filter-label">انتخاب تاریخ</label>
                     <div className="date-input-with-separator">
                       <div className="dtg">
                         <span className="date-start">شروع</span>
@@ -969,8 +969,8 @@ const handleMenuClick = (menuName, breadcrumbLabel) => {
                   </div>
 
                   {/* Gender Filter */}
-                  <div className="filter-group">
-                    {/* <label className="filter-label">انتخاب جنسیت</label> */}
+                  <div className="filter-group"> 
+                    <label className="filter-label">انتخاب جنسیت</label>
                     <div className="select-wrapper">
                       <select>
                         <option>همه</option>
@@ -983,7 +983,7 @@ const handleMenuClick = (menuName, breadcrumbLabel) => {
 
                   {/* Routing Success Filter */}
                   <div className="filter-group">
-                    {/* <label className="filter-label">مسیریابی موفق</label> */}
+                    <label className="filter-label">مسیریابی موفق</label>
                     <div className="select-wrapper">
                       <select>
                         <option>همه</option>
