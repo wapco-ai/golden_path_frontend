@@ -2315,3 +2315,61 @@ body {
   bottom: 20px;
   left: 20px;
 }
+
+/* Location Marker Mode Styles */
+.action-button.selected {
+  background: #0F71EF !important;
+  border-radius: 6px;
+}
+
+.action-button.selected svg path {
+  fill: white !important;
+}
+
+.location-marker-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.cancel-marker-btn {
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid #EA4335;
+  border-radius: 8px;
+  color: #EA4335;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+
+.cancel-marker-btn:hover {
+  background: #e94b3c17;
+}
+
+.add-place-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #0F71EF;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  transition: background-color 0.3s;
+  white-space: nowrap;
+}
+
+.add-place-btn:hover {
+  background: #0D62D4;
+}
+
+/* Ensure the location marker controls have proper spacing */
+.map-control-bottom-left .location-marker-controls {
+  flex-direction: row;
+}
