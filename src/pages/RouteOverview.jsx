@@ -322,6 +322,16 @@ const RouteOverview = () => {
     if (routeData[currentSlide]) {
       const segObj = routeData[currentSlide];
       const coords = segObj.coordinates;
+
+      if (
+        !Array.isArray(coords) ||
+        coords.length < 2 ||
+        !Array.isArray(coords[0]) ||
+        !Array.isArray(coords[coords.length - 1])
+      ) {
+        return;
+      }
+
       const [lng1, lat1] = coords[0];
       const [lng2, lat2] = coords[coords.length - 1];
       const d = segObj.distance;
@@ -335,9 +345,11 @@ const RouteOverview = () => {
       if (currentSlide === routeData.length - 1) {
         setDirectionArrow('arrived');
       } else {
-        const nextCoords = routeData[currentSlide + 1].coordinates;
+        const nextCoords = routeData[currentSlide + 1]?.coordinates;
         const b1 = bearing(coords[0], coords[coords.length - 1]);
-        const b2 = bearing(nextCoords[0], nextCoords[nextCoords.length - 1]);
+        const b2 = Array.isArray(nextCoords)
+          ? bearing(nextCoords[0], nextCoords[nextCoords.length - 1])
+          : null;
         setDirectionArrow(b1 != null && b2 != null ? computeTurn(b1, b2) : 'up');
       }
 
