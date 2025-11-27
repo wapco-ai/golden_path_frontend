@@ -930,6 +930,7 @@ const RoutingPage = () => {
     sessionStorage.setItem('routeSteps', JSON.stringify(route.steps));
     sessionStorage.setItem('alternativeRoutes', JSON.stringify(newAlternatives));
     sessionStorage.setItem('routeSahns', JSON.stringify(route.via || []));
+    sessionStorage.setItem('manualRouteSelected', 'true');
     setCurrentStep(0);
     setIsRoutingActive(false);
     setShowAlternativeRoutes(false);
