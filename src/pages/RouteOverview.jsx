@@ -166,7 +166,44 @@ const RouteOverview = () => {
     });
   };
   const routeData = useMemo(() => {
-    const segments = routeCoordinates.slice(1).map((c, idx) => {
+    const computeDistance = (coords = []) => {
+      if (!coords || coords.length < 2) return 0;
+      return coords.slice(1).reduce((acc, point, index) => {
+        const prev = coords[index];
+        return acc + (Math.hypot(point[0] - prev[0], point[1] - prev[1]) * 100000);
+      }, 0);
+    };
+
+    const buildFromSteps = () => (routeSteps || []).map((step, idx) => {
+      const coords = step?.coordinates && step.coordinates.length > 0
+        ? step.coordinates
+        : (routeCoordinates[idx] ? [routeCoordinates[idx], routeCoordinates[idx + 1]].filter(Boolean) : []);
+
+      const base = step && step.type
+        ? intl.formatMessage(
+          { id: step.type },
+          { name: step.name, title: step.title, num: idx + 1 }
+        )
+        : step?.instruction
+          ? step.instruction
+          : intl.formatMessage({ id: 'stepArriveDestination' }, { name: step?.name || intl.formatMessage({ id: 'destination' }) });
+
+      const dist = computeDistance(coords);
+      const instruction = step?.landmark
+        ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: step.landmark, distance: Math.round(dist) })}`
+        : base;
+
+      return {
+        id: idx + 1,
+        coordinates: coords,
+        instruction,
+        services: step?.services || {},
+        distance: dist,
+        doorNames: step?.type === 'stepPassDoor' ? [step.name] : []
+      };
+    });
+
+    const segments = routeSteps?.length ? buildFromSteps() : routeCoordinates.slice(1).map((c, idx) => {
       const step = routeSteps?.[idx];
       const base = step && step.type
         ? intl.formatMessage(
