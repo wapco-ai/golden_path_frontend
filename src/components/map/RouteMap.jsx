@@ -353,30 +353,6 @@ const RouteMap = forwardRef(({
         </Marker>
       )}
 
-      {routeGeo && (
-        <Source id="route" type="geojson" data={routeGeo}>
-          <Layer
-            id="route-line"
-            type="line"
-            paint={{
-              'line-color': 'white',
-              'line-width': 8
-            }}
-            layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-          />
-          <Layer
-            id="route-border"
-            type="line"
-            paint={{
-              'line-color': '#0F71EF',
-              'line-width': 8,
-              'line-dasharray': [0, 2]
-            }}
-            layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-          />
-        </Source>
-      )}
-
       {!isDrActive && showAlternativeRoutes &&
         alternativeRoutes.map((alt, idx) => (
           <Source key={idx} id={`alt-route-${idx}`} type="geojson" data={alt.geo}>
@@ -401,6 +377,30 @@ const RouteMap = forwardRef(({
             />
           </Source>
         ))}
+
+      {routeGeo && (
+        <Source id="route" type="geojson" data={routeGeo}>
+          <Layer
+            id="route-line"
+            type="line"
+            paint={{
+              'line-color': 'white',
+              'line-width': 8
+            }}
+            layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+          />
+          <Layer
+            id="route-border"
+            type="line"
+            paint={{
+              'line-color': '#0F71EF',
+              'line-width': 8,
+              'line-dasharray': [0, 2]
+            }}
+            layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+          />
+        </Source>
+      )}
 
     </Map>
   );

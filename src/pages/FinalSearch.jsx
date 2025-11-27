@@ -104,6 +104,9 @@ const FinalSearch = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [geoData, setGeoData] = useState(null);
   const [isRequestingRoute, setIsRequestingRoute] = useState(false);
+  const [hasUserSelectedRoute, setHasUserSelectedRoute] = useState(
+    sessionStorage.getItem('manualRouteSelected') === 'true'
+  );
 
   useEffect(() => {
     storeSetGender(selectedGender);
@@ -247,10 +250,25 @@ const FinalSearch = () => {
   };
 
   useEffect(() => {
+    setHasUserSelectedRoute(false);
+    sessionStorage.removeItem('manualRouteSelected');
+  }, [origin, destination]);
+
+  useEffect(() => {
     let isMounted = true;
     const controller = new AbortController();
 
     const runRouting = async () => {
+      if (
+        hasUserSelectedRoute &&
+        storedRouteGeo &&
+        storedRouteSteps &&
+        storedRouteSteps.length > 0
+      ) {
+        // User explicitly picked a route; avoid overriding it with a new request.
+        return;
+      }
+
       setIsRequestingRoute(true);
       try {
         const result = await requestRouting({
@@ -325,7 +343,10 @@ const FinalSearch = () => {
     storeSetAlternativeRoutes,
     intl,
     routeInfo.time,
-    routeInfo.distance
+    routeInfo.distance,
+    hasUserSelectedRoute,
+    storedRouteGeo,
+    storedRouteSteps
   ]);
 
   const alternativeSummaries = React.useMemo(() => {
@@ -531,6 +552,8 @@ const FinalSearch = () => {
     sessionStorage.setItem('routeSteps', JSON.stringify(route.steps));
     sessionStorage.setItem('alternativeRoutes', JSON.stringify(newAlternatives));
     sessionStorage.setItem('routeSahns', JSON.stringify(route.sahns || []));
+    sessionStorage.setItem('manualRouteSelected', 'true');
+    setHasUserSelectedRoute(true);
   };
 
   const getTransportIcon = () => {
