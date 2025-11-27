@@ -32,6 +32,7 @@ const RouteOverview = () => {
   const toRad = deg => (deg * Math.PI) / 180;
   const toDeg = rad => (rad * 180) / Math.PI;
   const bearing = (from, to) => {
+    if (!Array.isArray(from) || !Array.isArray(to)) return null;
     const [lng1, lat1] = from;
     const [lng2, lat2] = to;
     const y = Math.sin(toRad(lng2 - lng1)) * Math.cos(toRad(lat2));
@@ -166,6 +167,8 @@ const RouteOverview = () => {
     });
   };
   const routeData = useMemo(() => {
+    if (!routeCoordinates || routeCoordinates.length < 2) return [];
+
     const computeDistance = (coords = []) => {
       if (!coords || coords.length < 2) return 0;
       return coords.slice(1).reduce((acc, point, index) => {
@@ -174,34 +177,38 @@ const RouteOverview = () => {
       }, 0);
     };
 
-    const buildFromSteps = () => (routeSteps || []).map((step, idx) => {
-      const coords = step?.coordinates && step.coordinates.length > 0
-        ? step.coordinates
-        : (routeCoordinates[idx] ? [routeCoordinates[idx], routeCoordinates[idx + 1]].filter(Boolean) : []);
+    const buildFromSteps = () => (routeSteps || [])
+      .map((step, idx) => {
+        const coords = step?.coordinates && step.coordinates.length > 0
+          ? step.coordinates
+          : (routeCoordinates[idx] ? [routeCoordinates[idx], routeCoordinates[idx + 1]].filter(Boolean) : []);
 
-      const base = step && step.type
-        ? intl.formatMessage(
-          { id: step.type },
-          { name: step.name, title: step.title, num: idx + 1 }
-        )
-        : step?.instruction
-          ? step.instruction
-          : intl.formatMessage({ id: 'stepArriveDestination' }, { name: step?.name || intl.formatMessage({ id: 'destination' }) });
+        if (!coords || coords.length < 2) return null;
 
-      const dist = computeDistance(coords);
-      const instruction = step?.landmark
-        ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: step.landmark, distance: Math.round(dist) })}`
-        : base;
+        const base = step && step.type
+          ? intl.formatMessage(
+            { id: step.type },
+            { name: step.name, title: step.title, num: idx + 1 }
+          )
+          : step?.instruction
+            ? step.instruction
+            : intl.formatMessage({ id: 'stepArriveDestination' }, { name: step?.name || intl.formatMessage({ id: 'destination' }) });
 
-      return {
-        id: idx + 1,
-        coordinates: coords,
-        instruction,
-        services: step?.services || {},
-        distance: dist,
-        doorNames: step?.type === 'stepPassDoor' ? [step.name] : []
-      };
-    });
+        const dist = computeDistance(coords);
+        const instruction = step?.landmark
+          ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: step.landmark, distance: Math.round(dist) })}`
+          : base;
+
+        return {
+          id: idx + 1,
+          coordinates: coords,
+          instruction,
+          services: step?.services || {},
+          distance: dist,
+          doorNames: step?.type === 'stepPassDoor' ? [step.name] : []
+        };
+      })
+      .filter(Boolean);
 
     const segments = routeSteps?.length ? buildFromSteps() : routeCoordinates.slice(1).map((c, idx) => {
       const step = routeSteps?.[idx];
@@ -229,12 +236,16 @@ const RouteOverview = () => {
         distance: dist,
         doorNames: step?.type === 'stepPassDoor' ? [step.name] : []
       };
-    });
+    }).filter(seg => Array.isArray(seg.coordinates) && seg.coordinates.length >= 2);
 
-    const segmentBearing = coords => bearing(coords[0], coords[coords.length - 1]);
+    const segmentBearing = coords => {
+      if (!coords || coords.length < 2) return null;
+      return bearing(coords[0], coords[coords.length - 1]);
+    };
     const angleDiff = (a, b) => {
       const b1 = segmentBearing(a);
       const b2 = segmentBearing(b);
+      if (b1 == null || b2 == null) return Infinity;
       let diff = Math.abs(b1 - b2);
       if (diff > 180) diff = 360 - diff;
       return diff;
@@ -243,6 +254,7 @@ const RouteOverview = () => {
     const merged = [];
     for (let i = 0; i < segments.length; i++) {
       const seg = segments[i];
+      if (!seg?.coordinates || seg.coordinates.length < 2) continue;
       if (seg.distance >= 30) {
         merged.push({ ...seg });
         continue;
@@ -326,7 +338,7 @@ const RouteOverview = () => {
         const nextCoords = routeData[currentSlide + 1].coordinates;
         const b1 = bearing(coords[0], coords[coords.length - 1]);
         const b2 = bearing(nextCoords[0], nextCoords[nextCoords.length - 1]);
-        setDirectionArrow(computeTurn(b1, b2));
+        setDirectionArrow(b1 != null && b2 != null ? computeTurn(b1, b2) : 'up');
       }
 
       const isShort = d < 50;

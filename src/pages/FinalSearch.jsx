@@ -247,6 +247,8 @@ const FinalSearch = () => {
     sessionStorage.setItem('routeSahns', JSON.stringify(sahns));
     sessionStorage.setItem('origin', JSON.stringify(origin));
     sessionStorage.setItem('destination', JSON.stringify(destination));
+    sessionStorage.setItem('transportMode', transportMode);
+    sessionStorage.setItem('gender', selectedGender);
   };
 
   useEffect(() => {
@@ -257,6 +259,39 @@ const FinalSearch = () => {
   useEffect(() => {
     let isMounted = true;
     const controller = new AbortController();
+
+    const sameCoordinates = (a, b) =>
+      Array.isArray(a) && Array.isArray(b) && a[0] === b[0] && a[1] === b[1];
+
+    const storedOrigin = (() => {
+      try {
+        return JSON.parse(sessionStorage.getItem('origin'));
+      } catch (err) {
+        console.warn('failed to parse stored origin', err);
+        return null;
+      }
+    })();
+
+    const storedDestination = (() => {
+      try {
+        return JSON.parse(sessionStorage.getItem('destination'));
+      } catch (err) {
+        console.warn('failed to parse stored destination', err);
+        return null;
+      }
+    })();
+
+    const hasStoredRoute = storedRouteGeo && storedRouteSteps && storedRouteSteps.length > 0;
+    const hasStoredSelection =
+      hasStoredRoute &&
+      sameCoordinates(origin.coordinates, storedOrigin?.coordinates) &&
+      sameCoordinates(destination.coordinates, storedDestination?.coordinates) &&
+      sessionStorage.getItem('transportMode') === transportMode &&
+      sessionStorage.getItem('gender') === selectedGender;
+
+    if (hasStoredSelection && !hasUserSelectedRoute) {
+      return undefined;
+    }
 
     const runRouting = async () => {
       if (
