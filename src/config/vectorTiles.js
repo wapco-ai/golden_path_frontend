@@ -28,6 +28,8 @@ const DOORS_VECTOR_LAYER_NAME = 'doors';
 const DOORS_FUNCTION_TILE_BASE = `${TILE_BASE_URL}/${DOORS_FUNCTION_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
 const MESH_TRIANGLES_SOURCE_LAYER = 'public.vw_mesh_triangles';
 const MESH_TRIANGLES_TILE_BASE = `${TILE_BASE_URL}/${MESH_TRIANGLES_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
+const ROUTING_EDGES_STATIC_SOURCE_LAYER = 'public.routing_edges_static';
+const ROUTING_EDGES_STATIC_BASE = `${TILE_BASE_URL}/${ROUTING_EDGES_STATIC_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
 
 const normalizeFloorValue = (floor) => {
   if (typeof floor === 'number' && !Number.isNaN(floor)) {
@@ -130,6 +132,26 @@ export const haramVectorTileConfig = [
     minzoom: 15,
     maxzoom: 22,
     visibleByDefault: false,
+    paint: {
+      'line-color': '#ffddcc',
+      'line-width': 0.15
+    },
+    layout: {
+      'line-join': 'round',
+      'line-cap': 'round'
+    }
+  },
+  {
+    id: 'routing_edges_static-ground',
+    titleFa: 'گراف مسیریابی',
+    table: MESH_TRIANGLES_SOURCE_LAYER,
+    sourceId: 'routing_edges_static',
+    sourceLayer: ROUTING_EDGES_STATIC_SOURCE_LAYER,
+    tileUrl: ROUTING_EDGES_STATIC_BASE,
+    type: 'line',
+    minzoom: 15,
+    maxzoom: 22,
+    visibleByDefault: true,
     paint: {
       'line-color': '#ffddcc',
       'line-width': 0.15
