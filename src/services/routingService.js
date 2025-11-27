@@ -11,7 +11,7 @@ const buildCoordinatePayload = (point) => {
   };
 };
 
-const buildRequestBody = ({ origin, destination, mode, gender }) => {
+const buildRequestBody = ({ origin, destination, mode, gender, lang, maxAlternatives }) => {
   const originPayload = buildCoordinatePayload(origin);
   const destinationPayload = buildCoordinatePayload(destination);
 
@@ -22,58 +22,69 @@ const buildRequestBody = ({ origin, destination, mode, gender }) => {
   return {
     mode: mode === 'wheelchair' ? 'wheelchair' : 'walk',
     gender: gender || 'both',
+    lang: lang || 'fa',
+    maxAlternatives: typeof maxAlternatives === 'number' ? maxAlternatives : 2,
     origin: originPayload,
     destination: destinationPayload
   };
 };
 
-const normalizeRouteSegments = (segments = [], destinationName) => {
-  const coordinates = [];
-  const steps = [];
-
-  segments.forEach((segment, index) => {
-    const segCoords = segment?.geometry?.coordinates || [];
-    segCoords.forEach((coord, coordIdx) => {
-      const key = `${coord[0]}-${coord[1]}`;
-      const last = coordinates[coordinates.length - 1];
-      if (!last || `${last[0]}-${last[1]}` !== key) {
-        coordinates.push(coord);
-      }
-      // Build a simple step at the end of each segment
-      if (coordIdx === segCoords.length - 1) {
-        steps.push({
-          id: index + 1,
-          type: index === segments.length - 1 ? 'stepArriveDestination' : 'stepPassConnection',
-          name: destinationName,
-          coordinates: [coord[1], coord[0]],
-          services: {},
-          instruction: segment?.instruction || ''
-        });
-      }
-    });
-  });
-
-  if (coordinates.length === 0) {
-    return { coordinates: [], steps: [] };
-  }
-
-  if (steps.length === 0) {
-    const last = coordinates[coordinates.length - 1];
-    steps.push({
-      id: 1,
-      type: 'stepArriveDestination',
-      name: destinationName,
-      coordinates: [last[1], last[0]],
-      services: {},
-      instruction: ''
-    });
-  }
-
-  return { coordinates, steps };
+const mapSteps = (steps = []) => {
+  return steps
+    .filter(step => step?.coord?.lat != null && step?.coord?.lon != null)
+    .map((step, idx) => ({
+      id: idx + 1,
+      type: step.type,
+      title: step.title,
+      name: step.title || '',
+      coordinates: [step.coord.lat, step.coord.lon],
+      services: step.services || {},
+      instruction: step.title || ''
+    }));
 };
 
-export const requestRouting = async ({ origin, destination, mode, gender, signal }) => {
-  const body = buildRequestBody({ origin, destination, mode, gender });
+const toGeoLine = (steps = []) => {
+  const coords = steps
+    .map(step => step.coordinates)
+    .filter(coord => Array.isArray(coord) && coord.length === 2)
+    .map(([lat, lon]) => [lon, lat]);
+
+  return coords.length
+    ? { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } }
+    : null;
+};
+
+const mapRoute = (route = {}, originName = '', destinationName = '') => {
+  const steps = mapSteps(route.steps || []);
+  const geo = toGeoLine(steps);
+  const distanceMeters =
+    typeof route.distanceMeters === 'number'
+      ? route.distanceMeters
+      : typeof route.distance_m === 'number'
+        ? route.distance_m
+        : null;
+  const durationSeconds =
+    typeof route.estimatedMinutes === 'number'
+      ? route.estimatedMinutes * 60
+      : typeof route.duration_s === 'number'
+        ? route.duration_s
+        : null;
+  const sahns = route.sahns || route.viaPoints || [];
+
+  return {
+    geo,
+    steps,
+    distanceMeters,
+    durationSeconds,
+    sahns,
+    via: sahns,
+    from: originName,
+    to: destinationName
+  };
+};
+
+export const requestRouting = async ({ origin, destination, mode, gender, lang, maxAlternatives, signal }) => {
+  const body = buildRequestBody({ origin, destination, mode, gender, lang, maxAlternatives });
 
   const response = await fetch(`${appConfig.apiBaseUrl}/api/v1/routing/route`, {
     method: 'POST',
@@ -88,27 +99,16 @@ export const requestRouting = async ({ origin, destination, mode, gender, signal
   }
 
   const data = await response.json();
-  const segments = Array.isArray(data.segments) ? data.segments : [];
-  const { coordinates, steps } = normalizeRouteSegments(segments, destination?.name || '');
-
-  const geo = coordinates.length
-    ? {
-        type: 'Feature',
-        geometry: { type: 'LineString', coordinates }
-      }
-    : null;
-
-  const distanceMeters = typeof data.distance_m === 'number' ? data.distance_m : null;
-  const durationSeconds = typeof data.duration_s === 'number' ? data.duration_s : null;
+  const mainRoute = mapRoute(data, origin?.name || '', destination?.name || '');
+  const alternatives = Array.isArray(data.alternatives)
+    ? data.alternatives.map(alt => mapRoute(alt, origin?.name || '', destination?.name || ''))
+    : [];
 
   return {
-    geo,
-    steps,
-    distanceMeters,
-    durationSeconds,
+    ...mainRoute,
     mode: data.mode || body.mode,
     gender: data.gender || body.gender,
-    alternatives: []
+    alternatives
   };
 };
 

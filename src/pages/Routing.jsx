@@ -201,10 +201,12 @@ const RoutingPage = () => {
         destination: dest,
         mode: transportMode,
         gender,
+        lang: language,
+        maxAlternatives: 2,
         signal: controller?.signal
       });
       if (result?.geo && result?.steps) {
-        persistRouteData(result.geo, result.steps, result.alternatives, []);
+        persistRouteData(result.geo, result.steps, result.alternatives, result.sahns || []);
         return true;
       }
     } catch (err) {

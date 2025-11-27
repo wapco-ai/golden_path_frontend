@@ -258,6 +258,8 @@ const FinalSearch = () => {
           destination,
           mode: transportMode,
           gender: selectedGender,
+          lang: language,
+          maxAlternatives: 2,
           signal: controller.signal
         });
         if (!isMounted) return;
@@ -265,7 +267,7 @@ const FinalSearch = () => {
           throw new Error('Invalid routing response');
         }
 
-        persistRouteData(result.geo, result.steps, result.alternatives, []);
+        persistRouteData(result.geo, result.steps, result.alternatives, result.sahns || []);
 
         const minutes = result.durationSeconds
           ? Math.max(1, Math.round(result.durationSeconds / 60))
