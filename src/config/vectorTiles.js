@@ -95,7 +95,7 @@ export const haramVectorTileConfig = [
     maxzoom: 22,
     visibleByDefault: true,
     paint: {
-      'line-color': '#000000',
+      'line-color': '#d1c2fa',
       'line-width': 2
     },
     layout: {
@@ -129,10 +129,10 @@ export const haramVectorTileConfig = [
     type: 'line',
     minzoom: 15,
     maxzoom: 22,
-    visibleByDefault: true,
+    visibleByDefault: false,
     paint: {
-      'line-color': '#1e90ff',
-      'line-width': 0.75
+      'line-color': '#ffddcc',
+      'line-width': 0.15
     },
     layout: {
       'line-join': 'round',
