@@ -13,10 +13,31 @@ const inferHostedBaseUrl = () => {
   return null;
 };
 
+const inferHostedTileBaseUrl = () => {
+  if (typeof window === 'undefined' || !window?.location?.origin) {
+    return 'http://localhost:8080/tiles';
+  }
+
+  const { origin, hostname } = window.location;
+
+  if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+    return `${origin.replace(/\/$/, '')}/tiles`;
+  }
+
+  return 'http://localhost:8080/tiles';
+};
+
 const defaultApiBaseUrl = inferHostedBaseUrl() || 'http://localhost:8080';
+const defaultTileBaseUrl = inferHostedTileBaseUrl();
 
 const appConfig = {
-  apiBaseUrl: import.meta?.env?.VITE_API_BASE_URL?.trim() || defaultApiBaseUrl,
+  apiBaseUrl: (import.meta?.env?.VITE_API_BASE_URL?.trim() || defaultApiBaseUrl).replace(/\/$/, ''),
+  tileBaseUrl: (import.meta?.env?.VITE_TILE_BASE_URL?.trim() || defaultTileBaseUrl).replace(/\/$/, ''),
+  terrainProbeUrl: import.meta?.env?.VITE_TERRAIN_PROBE_URL?.trim() || 'https://demotiles.maplibre.org/terrain-tiles/tiles/0/0/0.png',
+  googleMapsDirectionsBaseUrl: import.meta?.env?.VITE_GOOGLE_MAPS_DIRECTIONS_BASE_URL?.trim() || 'https://www.google.com/maps/dir/',
+  ttsAuthUrl: import.meta?.env?.VITE_TTS_AUTH_URL?.trim() || 'https://api.aipaa.ir/auth/token/',
+  ttsRequestUrl: import.meta?.env?.VITE_TTS_REQUEST_URL?.trim() || 'https://api.aipaa.ir/api/v1/voice/tts-file-response/?expire-file=yes',
+  shrineEventsBaseUrl: import.meta?.env?.VITE_SHRINE_EVENTS_BASE_URL?.trim() || 'https://kouthar.razavi.ir/dashboard/rest/index/',
   doorBoundaryToleranceMeters: Number(import.meta?.env?.VITE_DOOR_BOUNDARY_TOLERANCE ?? '') || 4
 };
 
