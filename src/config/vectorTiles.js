@@ -151,7 +151,7 @@ export const haramVectorTileConfig = [
     type: 'line',
     minzoom: 15,
     maxzoom: 22,
-    visibleByDefault: true,
+    visibleByDefault: false,
     paint: {
       'line-color': '#ffddcc',
       'line-width': 0.15
