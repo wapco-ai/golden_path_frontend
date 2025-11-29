@@ -65,6 +65,14 @@ const Amain = () => {
   const contentRef = useRef(null);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [isLocationMarkerMode, setIsLocationMarkerMode] = useState(false);
+  const [isAddPlaceModalOpen, setIsAddPlaceModalOpen] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [placeCategory, setPlaceCategory] = useState('');
+  const [placeSubcategory, setPlaceSubcategory] = useState('');
+  const [placeFunction, setPlaceFunction] = useState('');
+  const [selectedPlaceTypes, setSelectedPlaceTypes] = useState([]);
+  const [selectedTransport, setSelectedTransport] = useState('');
+  const [selectedGenderAccess, setSelectedGenderAccess] = useState('');
 
 
 
@@ -348,11 +356,10 @@ const Amain = () => {
   };
 
   const handleAddPlaceToMarker = () => {
-    // Functionality for adding place to selected marker
-    console.log('Adding place to selected marker');
-    // You can implement the actual logic here
+    setIsAddPlaceModalOpen(true);
+    setCurrentStep(1);
+    setIsLocationMarkerMode(false);
   };
-
   useEffect(() => {
     // Reset scroll position when menu changes
     if (contentRef.current) {
@@ -1618,6 +1625,279 @@ const Amain = () => {
           </div>
         </div>
       </div>
+      {/* Add Place Modal */}
+      {isAddPlaceModalOpen && (
+        <div className="modal-overlay">
+          <div className="add-place-modal">
+            {/* Modal Header - UNCHANGED */}
+            <div className="modal-header">
+              <div className="step-text">
+                مرحله {currentStep} از ۳ :
+                <span className="step-title">
+                  {currentStep === 1 && 'اطلاعات اولیه و کلی مکان'}
+                  {currentStep === 2 && 'اطلاعات و جزئیات تکمیلی مکان'}
+                  {currentStep === 3 && 'افزودن محدودیت های زمانی'}
+                </span>
+              </div>
+              <div className="step-progress">
+                <div className={`step-circle ${currentStep >= 1 ? 'active' : ''}`}>
+                  {currentStep > 1 ? '✓' : '۱'}
+                </div>
+                <div className={`step-line ${currentStep >= 2 ? 'active' : ''}`}></div>
+                <div className={`step-circle ${currentStep >= 2 ? 'active' : ''}`}>
+                  {currentStep > 2 ? '✓' : '۲'}
+                </div>
+                <div className={`step-line ${currentStep >= 3 ? 'active' : ''}`}></div>
+                <div className={`step-circle ${currentStep >= 3 ? 'active' : ''}`}>
+                  {currentStep > 3 ? '✓' : '۳'}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="modal-content">
+              {currentStep === 1 && (
+                <div className="step-content">
+                  <div className="step-intro">
+                    <h3>فرم و فرایند ایجاد و افزودن یک نقطه و مکان جدید</h3>
+                  </div>
+
+                  <div className="form-section">
+                    <div className="form-group">
+                      <label className="form-label">نام و توضیحات این مکان </label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="نام نقطه و مکان"
+                        value={placeName}
+                        onChange={(e) => setPlaceName(e.target.value)}
+                      />
+                      <textarea
+                        className="form-textarea"
+                        placeholder="توضیحات بیشتر درباره این نقطه و مکان ..."
+                        value={fullDescription}
+                        onChange={(e) => setFullDescription(e.target.value)}
+                        rows="3"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">تعیین گروه این مکان </label>
+                      <div className="dropdown-group">
+                        <div className="dropdown-field">
+                          <select
+                            className="form-input"
+                            value={placeCategory}
+                            onChange={(e) => setPlaceCategory(e.target.value)}
+                          >
+                            <option value="" disabled>گروه اصلی</option>
+                            <option value="حرم">حرم مطهر</option>
+                            <option value="صحن">صحن ها</option>
+                            <option value="رواق">رواق ها</option>
+                            <option value="مسجد">مساجد</option>
+                            <option value="مدرسه">مدارس علمیه</option>
+                            <option value="موزه">موزه ها</option>
+                          </select>
+                        </div>
+
+                        <div className="dropdown-field">
+                          <select
+                            className="form-input"
+                            value={placeSubcategory}
+                            onChange={(e) => setPlaceSubcategory(e.target.value)}
+                            disabled={!placeCategory}
+                          >
+                            <option value="" disabled>زیرگروه</option>
+                            <option value="صحن-انقلاب">صحن انقلاب اسلامی</option>
+                            <option value="صحن-قدس">صحن قدس</option>
+                            <option value="صحن-جمهوری">صحن جمهوری اسلامی</option>
+                            <option value="رواق-امام">رواق امام خمینی</option>
+                            <option value="رواق-دارالحجه">رواق دارالحجه</option>
+                            <option value="رواق-دارالولایه">رواق دارالولایه</option>
+                            <option value="رواق-کوثر">رواق کوثر</option>
+                          </select>
+                        </div>
+
+                        <div className="dropdown-field">
+                          <select
+                            className="form-input"
+                            value={placeFunction}
+                            onChange={(e) => setPlaceFunction(e.target.value)}
+                            disabled={!placeSubcategory}
+                          >
+                            <option value="" disabled>کارکرد گروه</option>
+                            <option value="عبادی">عبادی</option>
+                            <option value="فرهنگی">فرهنگی</option>
+                            <option value="خدماتی">خدماتی</option>
+                            <option value="امکانات">امکانات رفاهی</option>
+                            <option value="اطلاعات">مرکز اطلاعات</option>
+                            <option value="زیارتی">زیارتی</option>
+                            <option value="سیاحتی">سیاحتی</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {currentStep === 2 && (
+                <div className="step-content step2-content">
+                  <div className="step-intro">
+                    <h3>فرم و فرایند ایجاد و افزودن یک نقطه و مکان جدید</h3>
+                  </div>
+
+                  <div className="form-section">
+                    {/* Place Type Section */}
+                    <div className="form-group">
+                      <label className="form-label">نوع این مکان </label>
+                      <div className="multi-select-grid">
+                        {['زیارتی', 'فرهنگی', 'خدماتی', 'تاریخی', 'معماری'].map((type) => (
+                          <div
+                            key={type}
+                            className={`select-option ${selectedPlaceTypes.includes(type) ? 'selected' : ''}`}
+                            onClick={() => {
+                              if (selectedPlaceTypes.includes(type)) {
+                                setSelectedPlaceTypes(selectedPlaceTypes.filter(t => t !== type));
+                              } else {
+                                setSelectedPlaceTypes([...selectedPlaceTypes, type]);
+                              }
+                            }}
+                          >
+                            <div className="option-content">
+                              <span>{type}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Transportation Type Section */}
+                    <div className="form-group">
+                      <label className="form-label">نوع تردد زائرین محترم از این مکان</label>
+                      <div className="radio-options-grid2">
+                        {[
+                          { value: 'electric_car', label: 'ویلچر ', icon: 'electric' },
+                          { value: 'wheelchair', label: 'ون برقی', icon: 'wheelchair' },
+                          { value: 'walking', label: 'به صورت پیاده', icon: 'walking' }
+                        ].map((transport) => (
+                          <div
+                            key={transport.value}
+                            className={`radio-option2 ${selectedTransport === transport.value ? 'selected' : ''}`}
+                            onClick={() => setSelectedTransport(transport.value)}
+                          >
+                            <div className="option-content">
+                              <div className="icon-text">
+                                {transport.icon === 'electric' && (
+                                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                    <path d="M10.9907 4.73014C12.2956 4.73014 13.3557 3.67126 13.3557 2.3651C13.3557 1.05854 12.2956 0 10.9907 0C9.68438 0 8.62516 1.05854 8.62516 2.3651C8.62516 3.67126 9.68438 4.73014 10.9907 4.73014ZM14.6455 18.132C14.017 20.3142 12.0053 21.9168 9.62346 21.9168C6.73911 21.9168 4.39348 19.571 4.39348 16.6876C4.39348 14.5531 5.68116 12.716 7.51881 11.9042V9.68732C4.50939 10.5938 2.31055 13.3874 2.31055 16.6876C2.31055 20.7194 5.59105 24 9.62341 24C12.562 24 15.0949 22.2535 16.2562 19.7476L15.4305 18.1254C15.1988 18.1273 14.9303 18.1297 14.6455 18.132Z" fill="#1E2023" />
+                                    <path d="M21.5346 20.9395L18.3666 14.7112C18.2507 14.4827 18.0737 14.2908 17.8553 14.1567C17.6369 14.0227 17.3856 13.9518 17.1294 13.9519H13.0719V13.0267H16.5639C16.9126 13.0267 17.2057 12.8444 17.395 12.5819C17.5181 12.4108 17.6056 12.2121 17.6056 11.9849C17.6056 11.4098 17.1397 10.9434 16.5639 10.9434H13.0719V7.80527C13.0719 6.94221 12.432 5.72205 10.9894 5.72205C9.83893 5.72205 8.90625 6.65487 8.90625 7.80527V14.6043C8.90625 15.7779 9.85766 16.7293 11.0313 16.7293H16.2779L19.0597 22.1987C19.3041 22.6804 19.792 22.9584 20.2982 22.9584C20.5168 22.9585 20.7322 22.9066 20.9267 22.807C21.6113 22.4597 21.8833 21.6231 21.5346 20.9395Z" fill="#1E2023" />
+                                  </svg>
+                                )}
+                                {transport.icon === 'wheelchair' && (
+                                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C8.22876 2 6.34315 2 5.17157 3.17157C4.10848 4.23467 4.01004 5.8857 4.00093 9H3C2.44772 9 2 9.44772 2 10V11C2 11.3148 2.14819 11.6111 2.4 11.8L4 13C4.00911 16.1143 4.10848 17.7653 5.17157 18.8284C5.41375 19.0706 5.68645 19.2627 6 19.4151V20.9999C6 21.5522 6.44772 21.9999 7 21.9999H8.5C9.05228 21.9999 9.5 21.5522 9.5 20.9999V19.9815C10.2271 20 11.0542 20 12 20C12.9458 20 13.7729 20 14.5 19.9815V20.9999C14.5 21.5522 14.9477 21.9999 15.5 21.9999H17C17.5523 21.9999 18 21.5522 18 20.9999V19.4151C18.3136 19.2627 18.5862 19.0706 18.8284 18.8284C19.8915 17.7653 19.9909 16.1143 20 13L21.6 11.8C21.8518 11.6111 22 11.3148 22 11V10C22 9.44772 21.5523 9 21 9H19.9991C19.99 5.8857 19.8915 4.23467 18.8284 3.17157C17.6569 2 15.7712 2 12 2ZM5.5 9.5C5.5 10.9142 5.5 11.6213 5.93934 12.0607C6.37868 12.5 7.08579 12.5 8.5 12.5H12H15.5C16.9142 12.5 17.6213 12.5 18.0607 12.0607C18.5 11.6213 18.5 10.9142 18.5 9.5V7C18.5 5.58579 18.5 4.87868 18.0607 4.43934C17.6213 4 16.9142 4 15.5 4H12H8.5C7.08579 4 6.37868 4 5.93934 4.43934C5.5 4.87868 5.5 5.58579 5.5 7V9.5ZM6.25 16C6.25 15.5858 6.58579 15.25 7 15.25H8.5C8.91421 15.25 9.25 15.5858 9.25 16C9.25 16.4142 8.91421 16.75 8.5 16.75H7C6.58579 16.75 6.25 16.4142 6.25 16ZM17.75 16C17.75 15.5858 17.4142 15.25 17 15.25H15.5C15.0858 15.25 14.75 15.5858 14.75 16C14.75 16.4142 15.0858 16.75 15.5 16.75H17C17.4142 16.75 17.75 16.4142 17.75 16Z" fill="#1E2023" />
+                                  </svg>
+                                )}
+                                {transport.icon === 'walking' && (
+                                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                    <path d="M14.0002 4.5C14.0002 5.88071 12.8809 7 11.5002 7C10.1194 7 9.00016 5.88071 9.00016 4.5C9.00016 3.11929 10.1194 2 11.5002 2C12.8809 2 14.0002 3.11929 14.0002 4.5Z" fill="#1E2023" />
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M12.528 10.7532C12.4899 10.7505 12.4422 10.75 12.27 10.75H11.1789L11.0877 11.6615C10.9137 13.4019 10.8532 14.1013 11.0087 14.763C11.1641 15.4248 11.5298 16.024 12.4607 17.5048L15.0355 21.6008C15.256 21.9515 15.1504 22.4145 14.7997 22.635C14.449 22.8554 13.986 22.7498 13.7656 22.3991L11.1907 18.3031C11.1662 18.2642 11.142 18.2256 11.118 18.1875C10.2832 16.8599 9.76801 16.0407 9.54843 15.1061C9.32884 14.1715 9.42529 13.2086 9.58159 11.6482C9.58608 11.6034 9.59061 11.5581 9.59519 11.5123L9.67133 10.7509C9.17015 10.7535 8.79942 10.7632 8.50011 10.7995C8.12289 10.8453 7.94697 10.925 7.82234 11.0249C7.69772 11.1249 7.58178 11.2794 7.45526 11.6377C7.32194 12.0153 7.20712 12.526 7.03624 13.295L6.7323 14.6627C6.64245 15.067 6.24181 15.322 5.83746 15.2321C5.43311 15.1423 5.17816 14.7417 5.26802 14.3373L5.58172 12.9256C5.74022 12.2123 5.87365 11.6118 6.04085 11.1382C6.21828 10.6357 6.45997 10.1948 6.88375 9.85488C7.30754 9.51494 7.79038 9.37465 8.3194 9.31045C8.81792 9.24995 9.43308 9.24997 10.1638 9.25L12.27 9.25C12.2783 9.25 12.2866 9.25 12.2947 9.25C12.4307 9.24997 12.5364 9.24995 12.6353 9.25704C13.7493 9.33691 14.7043 10.0826 15.052 11.1439C15.0828 11.2381 15.1084 11.3407 15.1414 11.4727L15.1474 11.4966C15.2035 11.7211 15.2202 11.7848 15.2357 11.8293C15.4459 12.4354 16.0808 12.7839 16.705 12.6359C16.7509 12.6251 16.8136 12.6049 17.0331 12.5318L17.763 12.2885C18.1559 12.1575 18.5807 12.3699 18.7117 12.7628C18.8427 13.1558 18.6303 13.5805 18.2373 13.7115L17.5075 13.9548C17.4965 13.9584 17.4857 13.9621 17.4751 13.9656C17.3031 14.023 17.171 14.067 17.0511 14.0955C15.6779 14.4211 14.2811 13.6543 13.8185 12.321C13.7781 12.2045 13.7444 12.0695 13.7005 11.8936C13.6977 11.8827 13.695 11.8716 13.6922 11.8604C13.6504 11.6934 13.6384 11.6472 13.6265 11.6109C13.4685 11.1285 13.0344 10.7895 12.528 10.7532ZM9.41619 16.876C9.76083 17.1057 9.85396 17.5714 9.6242 17.916L6.6242 22.416C6.39443 22.7607 5.92878 22.8538 5.58414 22.624C5.23949 22.3943 5.14636 21.9286 5.37612 21.584L8.37612 17.084C8.60589 16.7393 9.07154 16.6462 9.41619 16.876Z" fill="#1E2023" />
+                                  </svg>
+                                )}
+                                <span>{transport.label}</span>
+                              </div>
+                              <div className="checkbox-container">
+                                {selectedTransport === transport.value ? (
+                                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M10 20C5.28595 20 2.92893 20 1.46447 18.5355C0 17.0711 0 14.714 0 10C0 5.28595 0 2.92893 1.46447 1.46447C2.92893 0 5.28595 0 10 0C14.714 0 17.0711 0 18.5355 1.46447C20 2.92893 20 5.28595 20 10C20 14.714 20 17.0711 18.5355 18.5355C17.0711 20 14.714 20 10 20ZM14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="#0F71EF" />
+                                  </svg>
+                                ) : (
+                                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                    <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" stroke="#D9D9D9" />
+                                  </svg>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Gender Access Section */}
+                    <div className="form-group">
+                      <label className="form-label">جنسیت تردد زائرین محترم از این مکان</label>
+                      <div className="radio-options-grid3">
+                        {['بانوان', 'مردان', 'خانوادگی'].map((gender) => (
+                          <div
+                            key={gender}
+                            className={`radio-option3 ${selectedGenderAccess === gender ? 'selected' : ''}`}
+                            onClick={() => setSelectedGenderAccess(gender)}
+                          >
+                            <div className="option-content5">
+                              <div className="radio-container">
+                                {selectedGenderAccess === gender ? (
+                                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <rect x="0.5" y="0.5" width="15" height="15" rx="7.5" stroke="white" />
+                                    <circle cx="8.00065" cy="8.00004" r="4.00065" fill="white" />
+                                  </svg>
+                                ) : (
+                                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <rect x="0.5" y="0.5" width="15" height="15" rx="7.5" stroke="#858585" />
+                                  </svg>
+                                )}
+                              </div>
+                              <span>مسیر مناسب {gender}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer - UNCHANGED */}
+            <div className="modal-footer">
+              <button
+                className="cancel-btn5"
+                onClick={() => {
+                  setIsAddPlaceModalOpen(false);
+                  resetForm();
+                  setSelectedPlaceTypes([]);
+                  setSelectedTransport('');
+                  setSelectedGenderAccess('');
+                }}
+              >
+                لغو و بازگشت
+              </button>
+              <button
+                className="confirm-btn"
+                onClick={() => {
+                  if (currentStep === 1) {
+                    // Validate step 1
+                    if (placeName && placeCategory && placeSubcategory && placeFunction) {
+                      setCurrentStep(2);
+                    } else {
+                      alert('لطفا تمام فیلدهای ضروری را پر کنید');
+                    }
+                  } else if (currentStep === 2) {
+                    // Validate step 2
+                    if (selectedPlaceTypes.length === 0) {
+                      alert('لطفا حداقل یک نوع مکان را انتخاب کنید');
+                    } else {
+                      setCurrentStep(3);
+                    }
+                  }
+                }}
+              >
+                {currentStep === 3 ? 'ثبت نهایی مکان' : 'تایید اطلاعات و مرحله بعد'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 };

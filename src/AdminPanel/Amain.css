@@ -1839,12 +1839,12 @@ body {
   border-top: 1px solid #F2F2F2;
 }
 
-.cancel-btn {
+.cancel-btn5 {
   padding: 12px 24px;
   background: transparent;
-  border: 1px solid #D9D9D9;
+  border: 1px solid #EA4335;
   border-radius: 8px;
-  color: #858585;
+  color: #EA4335;
   font-size: 14px;
   cursor: pointer;
   font-family: 'Vazir', Tahoma, sans-serif;
@@ -1901,8 +1901,8 @@ body {
   margin-bottom: 0px;
   border: none;
   width: 79vw;
-  height: 70vh; /* Ensure this has a height */
-  min-height: 500px; /* Add minimum height */
+  height: 70vh; 
+  min-height: 500px; 
 }
 
 .map-container {
@@ -2372,4 +2372,478 @@ body {
 /* Ensure the location marker controls have proper spacing */
 .map-control-bottom-left .location-marker-controls {
   flex-direction: row;
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(5px);
+}
+
+/* Add Place Modal */
+.add-place-modal {
+  background: white;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  min-height: 90vh;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease-out;
+  resize: none;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Modal Header */
+.modal-header {
+  display: flex;
+  flex-direction: column;
+  border: none;
+  background: white;
+  margin-top: 25px;
+  margin-bottom: 18px;
+}
+
+.step-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 35vw;
+}
+
+.step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #D9D9D9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: #858585;
+  background: white;
+  transition: all 0.3s ease;
+}
+
+.step-circle.active {
+  background: #0F71EF;
+  border-color: #0F71EF;
+  color: white;
+}
+
+.step-line {
+  width: 200px;
+  height: 2px;
+  background: #D9D9D9;
+  transition: background 0.3s ease;
+}
+
+.step-line.active {
+  background: #0F71EF;
+}
+
+.step-text {
+  font-size: 15px;
+  color: #1E2023;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.step-title {
+  color: #1E2023;
+  font-weight: 600;
+}
+
+/* Modal Content */
+.modal-content {
+  padding: 0px 24px 0px 24px;
+  max-height: 60vh;
+  overflow-y: auto;
+  margin-top: 0px;
+  margin-bottom: 0px;
+}
+
+.step-intro {
+  text-align: right;
+  margin-bottom: 15px;
+  border:none;
+}
+
+.step-intro h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1E2023;
+  margin: 0 0 8px 0;
+}
+
+/* Dropdown Group */
+.dropdown-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dropdown-field {
+  position: relative;
+}
+
+.dropdown-field select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M3.64645 5.64645C3.84171 5.45118 4.15829 5.45118 4.35355 5.64645L8 9.29289L11.6464 5.64645C11.8417 5.45118 12.1583 5.45118 12.3536 5.64645C12.5488 5.84171 12.5488 6.15829 12.3536 6.35355L8.35355 10.3536C8.15829 10.5488 7.84171 10.5488 7.64645 10.3536L3.64645 6.35355C3.45118 6.15829 3.45118 5.84171 3.64645 5.64645Z' fill='%231E2023'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: left 12px center;
+  background-size: 16px;
+  padding-left: 40px !important;
+}
+
+.dropdown-field select:disabled {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+/* Modal Footer */
+.modal-footer {
+  padding: 20px 24px;
+  border: none;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 0px;
+  padding-top: 0px;
+}
+
+.modal-footer .cancel-btn {
+  padding: 12px 24px;
+  background: transparent;
+  border: 1px solid #D9D9D9;
+  border-radius: 8px;
+  color: #858585;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  transition: all 0.3s;
+  min-width: 120px;
+}
+
+.modal-footer .cancel-btn:hover {
+  background: #F2F2F2;
+  border-color: #C5C5C5;
+}
+
+.modal-footer .confirm-btn {
+  padding: 12px 24px;
+  background: #0F71EF;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  transition: background-color 0.3s;
+  min-width: 160px;
+}
+
+.modal-footer .confirm-btn:hover {
+  background: #0D62D4;
+}
+
+/* Form adjustments for modal */
+.modal-content .form-group {
+  margin-bottom: 24px;
+}
+
+.modal-content .form-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1E2023;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.modal-content .form-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #D9D9D9;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  transition: border-color 0.3s;
+  margin-bottom: 12px;
+}
+
+.modal-content .form-input:focus {
+  outline: none;
+  border-color: #0F71EF;
+}
+
+.modal-content .form-textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #D9D9D9;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  resize: none; /* Changed from 'vertical' to 'none' */
+  transition: border-color 0.3s;
+  min-height: 80px;
+  overflow-y: auto; /* Add scrollbar when content exceeds height */
+}
+
+.modal-content .form-textarea:focus {
+  outline: none;
+  border-color: #0F71EF;
+}
+
+/* Placeholder styling for disabled options */
+.dropdown-field select option[disabled] {
+  color: #858585;
+}
+
+.dropdown-field select option:not([disabled]) {
+  color: #1E2023;
+}
+
+/* Scrollbar for modal content */
+.modal-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: #c5c5c5;
+  border-radius: 3px;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background: #858585;
+}
+
+/* Prevent resizing */
+.add-place-modal {
+  resize: none !important;
+}
+
+.modal-content {
+  resize: none !important;
+}
+
+/* Step 2 Specific Styles */
+.step2-content {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.step-intro p {
+  font-size: 12px;
+  color: #858585;
+  margin: 8px 0 0 0;
+  line-height: 1.5;
+}
+
+/* Multi-select grid for place types */
+.multi-select-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+  border-bottom: 2px solid #F2F2F2;
+  padding-bottom: 15px;
+}
+
+.select-option {
+  border: 1px solid #D9D9D9;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: white;
+  min-height: 48px;
+}
+
+.select-option:hover {
+  border-color: #0F71EF;
+  background: #F5F6FF;
+}
+
+.select-option.selected {
+  border-color: #0F71EF;
+  background: #0F71EF;
+}
+
+.select-option.selected span {
+  color: white !important;
+  font-weight: 500;
+}
+
+.option-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  color: #1E2023;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Radio options grid for transportation and gender */
+.radio-options-grid2 {
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  margin-top: 8px;
+  border-bottom: 2px solid #F2F2F2;
+  padding-bottom: 15px;
+}
+
+.radio-options-grid3 {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  margin-top: 8px;
+  justify-content: center;
+}
+
+.radio-option2 {
+  border-bottom: 1px solid #F2F2F2;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.radio-option2:hover {
+  background: #F5F6FF;
+}
+
+
+.radio-option2 .option-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.radio-option3 {
+  border: 1px solid #D9D9D9;
+  border-radius: 8px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: white;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.radio-option3:hover {
+  border-color: #0F71EF;
+  background: #F5F6FF;
+}
+
+.radio-option3.selected {
+  border-color: #0F71EF;
+  background: #0F71EF;
+}
+
+.radio-option3.selected .option-content5 span {
+  color: white !important;
+  font-weight: 500;
+}
+
+.option-content5 {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: #1E2023;
+}
+
+.icon-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #1E2023;
+}
+
+.radio-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ensure modal content fits properly */
+.modal-content .form-group {
+  margin-bottom: 24px;
+}
+
+.modal-content .form-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1E2023;
+  margin-bottom: 12px;
+  display: block;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .multi-select-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .radio-options-grid3 {
+    flex-direction: column;
+  }
+}
+
+/* Scrollbar for step 2 content */
+.step2-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.step2-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 2px;
+}
+
+.step2-content::-webkit-scrollbar-thumb {
+  background: #c5c5c5;
+  border-radius: 2px;
+}
+
+.step2-content::-webkit-scrollbar-thumb:hover {
+  background: #858585;
 }
