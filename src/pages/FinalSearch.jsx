@@ -104,6 +104,9 @@ const FinalSearch = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [geoData, setGeoData] = useState(null);
   const [isRequestingRoute, setIsRequestingRoute] = useState(false);
+  const [hasUserSelectedRoute, setHasUserSelectedRoute] = useState(
+    sessionStorage.getItem('manualRouteSelected') === 'true'
+  );
 
   useEffect(() => {
     storeSetGender(selectedGender);
@@ -244,13 +247,63 @@ const FinalSearch = () => {
     sessionStorage.setItem('routeSahns', JSON.stringify(sahns));
     sessionStorage.setItem('origin', JSON.stringify(origin));
     sessionStorage.setItem('destination', JSON.stringify(destination));
+    sessionStorage.setItem('transportMode', transportMode);
+    sessionStorage.setItem('gender', selectedGender);
   };
+
+  useEffect(() => {
+    setHasUserSelectedRoute(false);
+    sessionStorage.removeItem('manualRouteSelected');
+  }, [origin, destination]);
 
   useEffect(() => {
     let isMounted = true;
     const controller = new AbortController();
 
+    const sameCoordinates = (a, b) =>
+      Array.isArray(a) && Array.isArray(b) && a[0] === b[0] && a[1] === b[1];
+
+    const storedOrigin = (() => {
+      try {
+        return JSON.parse(sessionStorage.getItem('origin'));
+      } catch (err) {
+        console.warn('failed to parse stored origin', err);
+        return null;
+      }
+    })();
+
+    const storedDestination = (() => {
+      try {
+        return JSON.parse(sessionStorage.getItem('destination'));
+      } catch (err) {
+        console.warn('failed to parse stored destination', err);
+        return null;
+      }
+    })();
+
+    const hasStoredRoute = storedRouteGeo && storedRouteSteps && storedRouteSteps.length > 0;
+    const hasStoredSelection =
+      hasStoredRoute &&
+      sameCoordinates(origin.coordinates, storedOrigin?.coordinates) &&
+      sameCoordinates(destination.coordinates, storedDestination?.coordinates) &&
+      sessionStorage.getItem('transportMode') === transportMode &&
+      sessionStorage.getItem('gender') === selectedGender;
+
+    if (hasStoredSelection && !hasUserSelectedRoute) {
+      return undefined;
+    }
+
     const runRouting = async () => {
+      if (
+        hasUserSelectedRoute &&
+        storedRouteGeo &&
+        storedRouteSteps &&
+        storedRouteSteps.length > 0
+      ) {
+        // User explicitly picked a route; avoid overriding it with a new request.
+        return;
+      }
+
       setIsRequestingRoute(true);
       try {
         const result = await requestRouting({
@@ -258,6 +311,8 @@ const FinalSearch = () => {
           destination,
           mode: transportMode,
           gender: selectedGender,
+          lang: language,
+          maxAlternatives: 2,
           signal: controller.signal
         });
         if (!isMounted) return;
@@ -265,7 +320,7 @@ const FinalSearch = () => {
           throw new Error('Invalid routing response');
         }
 
-        persistRouteData(result.geo, result.steps, result.alternatives, []);
+        persistRouteData(result.geo, result.steps, result.alternatives, result.sahns || []);
 
         const minutes = result.durationSeconds
           ? Math.max(1, Math.round(result.durationSeconds / 60))
@@ -323,7 +378,10 @@ const FinalSearch = () => {
     storeSetAlternativeRoutes,
     intl,
     routeInfo.time,
-    routeInfo.distance
+    routeInfo.distance,
+    hasUserSelectedRoute,
+    storedRouteGeo,
+    storedRouteSteps
   ]);
 
   const alternativeSummaries = React.useMemo(() => {
@@ -529,6 +587,8 @@ const FinalSearch = () => {
     sessionStorage.setItem('routeSteps', JSON.stringify(route.steps));
     sessionStorage.setItem('alternativeRoutes', JSON.stringify(newAlternatives));
     sessionStorage.setItem('routeSahns', JSON.stringify(route.sahns || []));
+    sessionStorage.setItem('manualRouteSelected', 'true');
+    setHasUserSelectedRoute(true);
   };
 
   const getTransportIcon = () => {

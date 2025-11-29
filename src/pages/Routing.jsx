@@ -201,10 +201,12 @@ const RoutingPage = () => {
         destination: dest,
         mode: transportMode,
         gender,
+        lang: language,
+        maxAlternatives: 2,
         signal: controller?.signal
       });
       if (result?.geo && result?.steps) {
-        persistRouteData(result.geo, result.steps, result.alternatives, []);
+        persistRouteData(result.geo, result.steps, result.alternatives, result.sahns || []);
         return true;
       }
     } catch (err) {
@@ -928,6 +930,7 @@ const RoutingPage = () => {
     sessionStorage.setItem('routeSteps', JSON.stringify(route.steps));
     sessionStorage.setItem('alternativeRoutes', JSON.stringify(newAlternatives));
     sessionStorage.setItem('routeSahns', JSON.stringify(route.via || []));
+    sessionStorage.setItem('manualRouteSelected', 'true');
     setCurrentStep(0);
     setIsRoutingActive(false);
     setShowAlternativeRoutes(false);
