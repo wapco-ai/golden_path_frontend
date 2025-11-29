@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useIntl } from 'react-intl';
+import axios from 'axios';
+import { toJalaali } from 'jalaali-js';
 import Mpbc from '../components/map/Mpbc';
 import { groups, subGroups } from '../components/groupData';
 import { useRouteStore } from '../store/routeStore';
@@ -34,6 +36,7 @@ const MapBeginPage = () => {
   const [searchClose, setSearchClose] = useState(false);
   const searchInputRef = useRef(null);
   const [routingData, setRoutingData] = useState(null);
+  const [shrineEvents, setShrineEvents] = useState([]);
   const [activeTab, setActiveTab] = useState('mostVisited');
   const [showImageMarkers, setShowImageMarkers] = useState(true);
   const [selectedLocation, setSelectedLocation] = useState(null);
@@ -385,8 +388,57 @@ const MapBeginPage = () => {
   useEffect(() => {
     fetch(`./data/routing-data.json`)
       .then(res => res.json())
-      .then(data => setRoutingData(data))
+      .then(data => {
+        setRoutingData(data);
+        setShrineEvents(data.places?.shrineEvents || []);
+      })
       .catch(err => console.error('Failed to load routing-data.json', err));
+  }, []);
+
+  useEffect(() => {
+    const fetchShrineEvents = async () => {
+      try {
+        const today = new Date();
+        const { jy, jm, jd } = toJalaali(
+          today.getFullYear(),
+          today.getMonth() + 1,
+          today.getDate()
+        );
+
+        const formattedDate = `${jy}-${String(jm).padStart(2, '0')}-${String(jd).padStart(2, '0')}`;
+        const { data } = await axios.get(`https://kouthar.razavi.ir/dashboard/rest/index/${formattedDate}`);
+
+        if (data?.status_code === 200 && Array.isArray(data.data)) {
+          const mappedEvents = data.data.map(item => {
+            const speakerName = [item.prefix, item.first_name, item.last_name]
+              .filter(Boolean)
+              .join(' ')
+              .trim();
+
+            const descriptionParts = [item.format_title, item.title].filter(Boolean);
+            if (speakerName) descriptionParts.push(speakerName);
+
+            const formattedTime = item.start_time && item.end_time
+              ? `${item.start_time.slice(0, 5)} - ${item.end_time.slice(0, 5)}`
+              : item.start_time?.slice(0, 5) || '';
+
+            return {
+              title: item.title || item.format_title || '',
+              description: descriptionParts.join(' - '),
+              location: item.title_place || '',
+              time: formattedTime,
+              image: item.image_url
+            };
+          });
+
+          setShrineEvents(mappedEvents);
+        }
+      } catch (error) {
+        console.error('Failed to fetch shrine events', error);
+      }
+    };
+
+    fetchShrineEvents();
   }, []);
 
 
@@ -409,6 +461,9 @@ const MapBeginPage = () => {
   };
 
 
+  const eventsToShow = shrineEvents.length > 0
+    ? shrineEvents
+    : routingData?.places?.shrineEvents || [];
 
   return (
     <div className="map-routing-page">
@@ -583,7 +638,7 @@ const MapBeginPage = () => {
         )}
 
         {/* Shrine Events */}
-        {routingData && (
+        {routingData && eventsToShow.length > 0 && (
           <div className="shrine-events-section">
             <div className="shrine-events-header">
               <h2 className="shrine-events-title">
@@ -598,7 +653,7 @@ const MapBeginPage = () => {
               </button>
             </div>
             <div className="shrine-events-list">
-              {routingData.places.shrineEvents?.map((event, index) => (
+              {eventsToShow.map((event, index) => (
                 <div key={index} className="shrine-event-item">
                   <div
                     className="place-image-placeholder"
