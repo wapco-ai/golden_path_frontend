@@ -10,6 +10,7 @@ import { useRouteStore } from '../store/routeStore';
 import { useLangStore } from '../store/langStore';
 import { getLocationTitleById } from '../utils/getLocationTitle';
 import '../styles/MapBegin.css';
+import appConfig from '../config/appConfig';
 
 const MapBeginPage = () => {
   const navigate = useNavigate();
@@ -406,7 +407,8 @@ const MapBeginPage = () => {
         );
 
         const formattedDate = `${jy}-${String(jm).padStart(2, '0')}-${String(jd).padStart(2, '0')}`;
-        const { data } = await axios.get(`https://kouthar.razavi.ir/dashboard/rest/index/${formattedDate}`);
+        const shrineEventsBaseUrl = appConfig.shrineEventsBaseUrl.replace(/\/$/, '');
+        const { data } = await axios.get(`${shrineEventsBaseUrl}/${formattedDate}`);
 
         if (data?.status_code === 200 && Array.isArray(data.data)) {
           const mappedEvents = data.data.map(item => {

@@ -1,18 +1,6 @@
-const inferDefaultTileBaseUrl = () => {
-  if (typeof window === 'undefined' || !window?.location?.origin) {
-    return 'http://localhost:8080/tiles';
-  }
+import appConfig from './appConfig';
 
-  const { origin, hostname } = window.location;
-
-  if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
-    return `${origin.replace(/\/$/, '')}/tiles`;
-  }
-
-  return 'http://localhost:8080/tiles';
-};
-
-export const TILE_BASE_URL = (import.meta?.env?.VITE_TILE_BASE_URL?.trim() || inferDefaultTileBaseUrl()).replace(/\/$/, '');
+export const TILE_BASE_URL = appConfig.tileBaseUrl;
 export const DEFAULT_TILE_LANG = import.meta?.env?.VITE_TILE_LANG?.trim() || 'fa';
 export const DEFAULT_TILE_FLOOR = import.meta?.env?.VITE_TILE_FLOOR?.trim();
 export const DEFAULT_TILE_GENDER = import.meta?.env?.VITE_TILE_GENDER?.trim();

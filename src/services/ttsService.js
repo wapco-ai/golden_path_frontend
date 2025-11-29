@@ -1,5 +1,7 @@
-const AUTH_URL = 'https://api.aipaa.ir/auth/token/';
-const TTS_URL = 'https://api.aipaa.ir/api/v1/voice/tts-file-response/?expire-file=yes';
+import appConfig from '../config/appConfig';
+
+const AUTH_URL = appConfig.ttsAuthUrl;
+const TTS_URL = appConfig.ttsRequestUrl;
 
 let cachedToken = null;
 let tokenExpiry = 0;
