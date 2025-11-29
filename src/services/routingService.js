@@ -86,7 +86,7 @@ const mapRoute = (route = {}, originName = '', destinationName = '') => {
 export const requestRouting = async ({ origin, destination, mode, gender, lang, maxAlternatives, signal }) => {
   const body = buildRequestBody({ origin, destination, mode, gender, lang, maxAlternatives });
 
-  const response = await fetch(`${appConfig.apiBaseUrl}/api/v1/routing/route`, {
+  const response = await fetch(appConfig.routingRouteUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify(body),
