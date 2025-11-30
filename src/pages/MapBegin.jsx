@@ -416,17 +416,39 @@ const MapBeginPage = () => {
         ? { lat: geoCoordinates[0], lng: geoCoordinates[1] }
         : null;
 
+      const parseNumber = (value, fallback = 0) => {
+        const numericValue = Number(value);
+        return Number.isFinite(numericValue) ? numericValue : fallback;
+      };
+
       try {
         const data = await fetchLandmarkPlaces({
           language,
-          limit: 20,
           geo
         });
+
+        const apiLandmarks = Array.isArray(data?.places?.landmarkPlaces)
+          ? data.places.landmarkPlaces
+          : [];
+
+        const landmarksWithImages = apiLandmarks.filter(place => place?.image);
+
+        const topRatedLandmarks = apiLandmarks
+          .filter(place => place?.rate != null || place?.rating != null)
+          .sort((a, b) => parseNumber(b.rate ?? b.rating) - parseNumber(a.rate ?? a.rating))
+          .slice(0, 10);
+
+        const nearestLandmarks = apiLandmarks
+          .filter(place => place?.distance != null)
+          .sort((a, b) => parseNumber(a.distance, Number.POSITIVE_INFINITY) - parseNumber(b.distance, Number.POSITIVE_INFINITY))
+          .slice(0, 10);
 
         setRoutingData(prev => {
           const mergedPlaces = {
             ...(prev?.places || {}),
-            landmarkPlaces: data?.places?.landmarkPlaces || []
+            landmarkPlaces: landmarksWithImages.length ? landmarksWithImages : prev?.places?.landmarkPlaces || [],
+            mostVisited: topRatedLandmarks.length ? topRatedLandmarks : prev?.places?.mostVisited || [],
+            nearest: nearestLandmarks.length ? nearestLandmarks : prev?.places?.nearest || []
           };
 
           return {
@@ -444,7 +466,9 @@ const MapBeginPage = () => {
           ...prev,
           places: {
             ...(prev?.places || {}),
-            landmarkPlaces: []
+            landmarkPlaces: [],
+            mostVisited: prev?.places?.mostVisited || [],
+            nearest: prev?.places?.nearest || []
           }
         }));
       }
