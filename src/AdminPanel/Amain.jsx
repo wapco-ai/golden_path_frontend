@@ -73,6 +73,8 @@ const Amain = () => {
   const [selectedPlaceTypes, setSelectedPlaceTypes] = useState([]);
   const [selectedTransport, setSelectedTransport] = useState('');
   const [selectedGenderAccess, setSelectedGenderAccess] = useState('');
+  const [timeRestrictions, setTimeRestrictions] = useState([]);
+  const [prayerTimeRestrictions, setPrayerTimeRestrictions] = useState([]);
 
 
 
@@ -252,6 +254,15 @@ const Amain = () => {
     setAdditionalNotes('');
     setPlaceIcon(null);
     setIsEditing(false);
+    setPlaceCategory('');
+    setPlaceSubcategory('');
+    setPlaceFunction('');
+    setSelectedPlaceTypes([]);
+    setSelectedTransport('');
+    setSelectedGenderAccess('');
+    setTimeRestrictions([]);
+    setPrayerTimeRestrictions([]);
+    setCurrentStep(1);
   };
 
   // Handle media upload
@@ -467,6 +478,34 @@ const Amain = () => {
       }, 100);
     }
   }, []);
+
+  const addTimeRestriction = () => {
+    const newRestriction = {
+      id: Date.now(),
+      days: [],
+      startTime: '',
+      endTime: '',
+      gender: ''
+    };
+    setTimeRestrictions([...timeRestrictions, newRestriction]);
+  };
+
+  const removeTimeRestriction = (id) => {
+    setTimeRestrictions(timeRestrictions.filter(restriction => restriction.id !== id));
+  };
+
+  const addPrayerTimeRestriction = () => {
+    const newRestriction = {
+      id: Date.now(),
+      prayerType: '',
+      appliesToAllDays: true
+    };
+    setPrayerTimeRestrictions([...prayerTimeRestrictions, newRestriction]);
+  };
+
+  const removePrayerTimeRestriction = (id) => {
+    setPrayerTimeRestrictions(prayerTimeRestrictions.filter(restriction => restriction.id !== id));
+  };
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -1856,6 +1895,124 @@ const Amain = () => {
                   </div>
                 </div>
               )}
+
+              {currentStep === 3 && (
+                <div className="step-content step3-content">
+                  <div className="step-intro">
+                    <h3>فرم و فرایند ایجاد و افزودن یک نقطه و مکان جدید</h3>
+                  </div>
+
+                  <div className="form-section">
+                    {/* Time-based Restrictions Section */}
+                    <div className="restriction-section">
+                      <div className="restriction-header">
+                        <span className="restriction-title">محدودیت بر اساس روز، ساعت و جنسیت</span>
+                        <button className="add-restriction-btn" onClick={addTimeRestriction}>
+                          افزودن محدودیت
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#1E2023" />
+                            <path d="M10 15.625C9.65833 15.625 9.375 15.3417 9.375 15V5C9.375 4.65833 9.65833 4.375 10 4.375C10.3417 4.375 10.625 4.65833 10.625 5V15C10.625 15.3417 10.3417 15.625 10 15.625Z" fill="#1E2023" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {timeRestrictions.map((restriction, index) => (
+                        <div key={restriction.id} className="restriction-item">
+                          <div className="restriction-content">
+                            <div className="restriction-row">
+                              <div className="form-group compact">
+                                <label className="form-label">روزهای هفته</label>
+                                <select className="form-input compact" multiple>
+                                  <option value="saturday">شنبه</option>
+                                  <option value="sunday">یکشنبه</option>
+                                  <option value="monday">دوشنبه</option>
+                                  <option value="tuesday">سه شنبه</option>
+                                  <option value="wednesday">چهارشنبه</option>
+                                  <option value="thursday">پنجشنبه</option>
+                                  <option value="friday">جمعه</option>
+                                </select>
+                              </div>
+
+                              <div className="time-inputs">
+                                <div className="form-group compact">
+                                  <label className="form-label">ساعت شروع</label>
+                                  <input type="time" className="form-input compact" />
+                                </div>
+
+                                <div className="form-group compact">
+                                  <label className="form-label">ساعت پایان</label>
+                                  <input type="time" className="form-input compact" />
+                                </div>
+                              </div>
+
+                              <div className="form-group compact">
+                                <label className="form-label">جنسیت</label>
+                                <select className="form-input compact">
+                                  <option value="">انتخاب کنید</option>
+                                  <option value="male">مردان</option>
+                                  <option value="female">بانوان</option>
+                                  <option value="both">هر دو</option>
+                                </select>
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            className="remove-restriction-btn"
+                            onClick={() => removeTimeRestriction(restriction.id)}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Prayer Time Restrictions Section */}
+                    <div className="restriction-section">
+                      <div className="restriction-header">
+                        <span className="restriction-title">محدودیت بر اساس اوقات شرعی (برای همه روزها)</span>
+                        <button className="add-restriction-btn" onClick={addPrayerTimeRestriction}>
+                          افزودن محدودیت
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#1E2023" />
+                            <path d="M10 15.625C9.65833 15.625 9.375 15.3417 9.375 15V5C9.375 4.65833 9.65833 4.375 10 4.375C10.3417 4.375 10.625 4.65833 10.625 5V15C10.625 15.3417 10.3417 15.625 10 15.625Z" fill="#1E2023" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {prayerTimeRestrictions.map((restriction, index) => (
+                        <div key={restriction.id} className="restriction-item">
+                          <div className="restriction-content">
+                            <div className="restriction-row">
+                              <div className="form-group compact">
+                                <label className="form-label">نوع وقت شرعی</label>
+                                <select className="form-input compact">
+                                  <option value="">انتخاب کنید</option>
+                                  <option value="fajr">اذان صبح</option>
+                                  <option value="sunrise">طلوع آفتاب</option>
+                                  <option value="dhuhr">اذان ظهر</option>
+                                  <option value="asr">اذان عصر</option>
+                                  <option value="maghrib">اذان مغرب</option>
+                                  <option value="isha">اذان عشاء</option>
+                                </select>
+                              </div>
+
+                              <div className="prayer-time-info">
+                                <span className="prayer-time-note">این محدودیت برای همه روزهای هفته اعمال خواهد شد</span>
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            className="remove-restriction-btn"
+                            onClick={() => removePrayerTimeRestriction(restriction.id)}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Modal Footer - UNCHANGED */}
@@ -1865,9 +2022,6 @@ const Amain = () => {
                 onClick={() => {
                   setIsAddPlaceModalOpen(false);
                   resetForm();
-                  setSelectedPlaceTypes([]);
-                  setSelectedTransport('');
-                  setSelectedGenderAccess('');
                 }}
               >
                 لغو و بازگشت
@@ -1892,7 +2046,7 @@ const Amain = () => {
                   }
                 }}
               >
-                {currentStep === 3 ? 'ثبت نهایی مکان' : 'تایید اطلاعات و مرحله بعد'}
+                {currentStep === 3 ? 'تایید اطلاعات و ثبت این مکان ' : 'تایید اطلاعات و مرحله بعد'}
               </button>
             </div>
           </div>

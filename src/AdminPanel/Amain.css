@@ -2400,7 +2400,9 @@ body {
   overflow: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: modalSlideIn 0.3s ease-out;
-  resize: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 @keyframes modalSlideIn {
@@ -2454,9 +2456,10 @@ body {
 
 .step-line {
   width: 200px;
-  height: 2px;
+  height: 3px;
   background: #D9D9D9;
   transition: background 0.3s ease;
+  border-radius: 10px;
 }
 
 .step-line.active {
@@ -2480,6 +2483,7 @@ body {
 
 /* Modal Content */
 .modal-content {
+  flex: 1;
   padding: 0px 24px 0px 24px;
   max-height: 60vh;
   overflow-y: auto;
@@ -2846,4 +2850,195 @@ body {
 
 .step2-content::-webkit-scrollbar-thumb:hover {
   background: #858585;
+}
+
+/* Step 3 Specific Styles */
+.step3-content {
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Restriction Sections */
+.restriction-section {
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #F2F2F2;
+}
+
+.restriction-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.restriction-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.restriction-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1E2023;
+}
+
+.add-restriction-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid #D9D9D9;
+  border-radius: 6px;
+  color: #1E2023;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.add-restriction-btn:hover {
+  background: #F5F6FF;
+}
+
+/* Restriction Items */
+.restriction-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: #F8F9FA;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  border: 1px solid #E9ECEF;
+}
+
+.restriction-item:last-child {
+  margin-bottom: 0;
+}
+
+.restriction-content {
+  flex: 1;
+}
+
+.restriction-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+/* Compact Form Groups */
+.form-group.compact {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.form-group.compact .form-label {
+  font-size: 12px;
+  margin-bottom: 6px;
+  color: #858585;
+}
+
+.form-input.compact {
+  padding: 8px 12px;
+  font-size: 12px;
+  height: 36px;
+}
+
+/* Time Inputs */
+.time-inputs {
+  display: flex;
+  gap: 8px;
+  flex: 2;
+}
+
+.time-inputs .form-group.compact {
+  flex: 1;
+}
+
+/* Multiple Select */
+.form-group.compact select[multiple] {
+  height: 80px;
+  padding: 6px;
+}
+
+.form-group.compact select[multiple] option {
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+/* Prayer Time Info */
+.prayer-time-info {
+  display: flex;
+  align-items: center;
+  flex: 2;
+}
+
+.prayer-time-note {
+  font-size: 12px;
+  color: #858585;
+  font-style: italic;
+}
+
+/* Remove Restriction Button */
+.remove-restriction-btn {
+  background: #F44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s ease;
+  flex-shrink: 0;
+}
+
+.remove-restriction-btn:hover {
+  background: #D32F2F;
+}
+
+/* Scrollbar for step 3 content */
+.step3-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.step3-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.step3-content::-webkit-scrollbar-thumb {
+  background: #c5c5c5;
+  border-radius: 3px;
+}
+
+.step3-content::-webkit-scrollbar-thumb:hover {
+  background: #858585;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .restriction-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .time-inputs {
+    flex-direction: column;
+  }
+  
+  .restriction-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .add-restriction-btn {
+    align-self: flex-start;
+  }
 }
