@@ -66,6 +66,7 @@
   "loading": "Loading...",
   "subgroupDefaultDesc": "Description",
   "fetchError": "Error fetching data: {error}",
+  "generalErrorMessage": "An error occurred while loading data.",
   "noDataFound": "No data found",
   "goToSlide": "Go to slide {n}",
   "searchPlaceholder": "Where do you want to go?",

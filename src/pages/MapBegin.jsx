@@ -11,6 +11,7 @@ import { useLangStore } from '../store/langStore';
 import { getLocationTitleById } from '../utils/getLocationTitle';
 import '../styles/MapBegin.css';
 import appConfig from '../config/appConfig';
+import { fetchLandmarkPlaces } from '../services/landmarkService';
 
 const MapBeginPage = () => {
   const navigate = useNavigate();
@@ -390,11 +391,67 @@ const MapBeginPage = () => {
     fetch(`./data/routing-data.json`)
       .then(res => res.json())
       .then(data => {
-        setRoutingData(data);
+        setRoutingData(prev => {
+          const mergedPlaces = {
+            ...(data.places || {}),
+            ...(prev?.places || {}),
+            landmarkPlaces: prev?.places?.landmarkPlaces ?? data.places?.landmarkPlaces ?? []
+          };
+
+          return {
+            ...data,
+            ...prev,
+            places: mergedPlaces
+          };
+        });
         setShrineEvents(data.places?.shrineEvents || []);
       })
       .catch(err => console.error('Failed to load routing-data.json', err));
   }, []);
+
+  useEffect(() => {
+    const loadLandmarkPlaces = async () => {
+      const geoCoordinates = userLocation?.coordinates;
+      const geo = Array.isArray(geoCoordinates) && geoCoordinates.length >= 2
+        ? { lat: geoCoordinates[0], lng: geoCoordinates[1] }
+        : null;
+
+      try {
+        const data = await fetchLandmarkPlaces({
+          language,
+          limit: 20,
+          geo
+        });
+
+        setRoutingData(prev => {
+          const mergedPlaces = {
+            ...(prev?.places || {}),
+            landmarkPlaces: data?.places?.landmarkPlaces || []
+          };
+
+          return {
+            ...prev,
+            language: data?.language || language,
+            generatedAt: data?.generatedAt || prev?.generatedAt,
+            places: mergedPlaces
+          };
+        });
+      } catch (error) {
+        console.error('Failed to load landmark places', error);
+        toast.error(intl.formatMessage({ id: 'generalErrorMessage' }));
+
+        setRoutingData(prev => ({
+          ...prev,
+          places: {
+            ...(prev?.places || {}),
+            landmarkPlaces: []
+          }
+        }));
+      }
+    };
+
+    loadLandmarkPlaces();
+  }, [language, userLocation, intl]);
 
   useEffect(() => {
     const fetchShrineEvents = async () => {
@@ -719,7 +776,7 @@ const MapBeginPage = () => {
                   <div className="image-container">
                     <div
                       className="place-image"
-                      style={{ backgroundImage: `url(${place.image})` }}
+                      style={place.image ? { backgroundImage: `url(${place.image})` } : {}}
                     ></div>
                     <button className="transparent-save-btn">
                       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -730,11 +787,19 @@ const MapBeginPage = () => {
                   </div>
                   <div className="place-details">
                     <h4 className="place-name">{place.title}</h4>
-                    <div className="place-meta">
-                      <span className="place-distance">{place.distance} {intl.formatMessage({ id: 'meter' })}</span>
-                      <span className="place-meta-separator">|</span>
-                      <span className="place-time">{place.time} {intl.formatMessage({ id: 'walking' })}</span>
-                    </div>
+                    {(place.distance != null || place.time != null) && (
+                      <div className="place-meta">
+                        {place.distance != null && (
+                          <span className="place-distance">{place.distance} {intl.formatMessage({ id: 'meter' })}</span>
+                        )}
+                        {place.distance != null && place.time != null && (
+                          <span className="place-meta-separator">|</span>
+                        )}
+                        {place.time != null && (
+                          <span className="place-time">{place.time} {intl.formatMessage({ id: 'walking' })}</span>
+                        )}
+                      </div>
+                    )}
                     <div className="place-rating-section">
                       <div className="place-rating-stars">
                         {[1, 2, 3, 4, 5].map((star) => (

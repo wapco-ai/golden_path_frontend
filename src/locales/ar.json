@@ -65,6 +65,7 @@
   "loading": "جار التحميل...",
   "subgroupDefaultDesc": "الوصف",
   "fetchError": "خطأ في جلب البيانات: {error}",
+  "generalErrorMessage": "حدث خطأ أثناء تحميل البيانات.",
   "noDataFound": "لم يتم العثور على بيانات",
   "goToSlide": "الانتقال إلى الشريحة {n}",
   "searchPlaceholder": "أين تريد الذهاب؟",

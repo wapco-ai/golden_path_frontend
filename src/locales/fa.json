@@ -65,6 +65,7 @@
   "loading": "در حال بارگذاری...",
   "subgroupDefaultDesc": "توضیحات",
   "fetchError": "خطا در دریافت اطلاعات: {error}",
+  "generalErrorMessage": "در بارگذاری داده‌ها خطایی رخ داد",
   "noDataFound": "موردی یافت نشد",
   "goToSlide": "رفتن به اسلاید {n}",
   "searchPlaceholder": "کجا میخوای بری؟",
