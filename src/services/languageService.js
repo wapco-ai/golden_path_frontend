@@ -1,7 +1,7 @@
 import appConfig from '../config/appConfig';
 
 export async function fetchLanguages() {
-  const response = await fetch(`${appConfig.apiBaseUrl}/api/v1/languages`, {
+  const response = await fetch(appConfig.languagesUrl, {
     headers: {
       'Content-Type': 'application/json'
     }
