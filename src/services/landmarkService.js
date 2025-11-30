@@ -1,8 +1,7 @@
 import appConfig from '../config/appConfig.js';
 
 export const fetchLandmarkPlaces = async ({ language = 'fa', geo } = {}) => {
-  const baseUrl = appConfig.apiBaseUrl.replace(/\/$/, '');
-  const url = `${baseUrl}/api/v1/landmark-places`;
+  const url = appConfig.landmarkPlacesUrl;
 
   const params = new URLSearchParams();
   params.set('language', language || 'fa');
