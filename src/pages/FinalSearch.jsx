@@ -16,6 +16,7 @@ import useLocaleDigits from '../utils/useLocaleDigits';
 import { toast } from 'react-toastify';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import { requestRouting } from '../services/routingService';
+import appConfig from '../config/appConfig';
 
 const FinalSearch = () => {
   const isValidLngLat = (coords) => {
@@ -654,8 +655,8 @@ const FinalSearch = () => {
     const originCoords = `${origin.coordinates[0]},${origin.coordinates[1]}`;
     const destCoords = `${destination.coordinates[0]},${destination.coordinates[1]}`;
     const travel = transportMode === 'electric-car' ? 'driving' : 'walking';
-    const mapsUrl =
-      `https://www.google.com/maps/dir/?api=1&origin=${originCoords}&destination=${destCoords}&travelmode=${travel}`;
+    const mapsBaseUrl = appConfig.googleMapsDirectionsBaseUrl.replace(/\/$/, '');
+    const mapsUrl = `${mapsBaseUrl}?api=1&origin=${originCoords}&destination=${destCoords}&travelmode=${travel}`;
 
     const shareData = {
       title: intl.formatMessage({ id: 'shareRoute' }),

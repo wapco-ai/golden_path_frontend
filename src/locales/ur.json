@@ -65,6 +65,7 @@
   "loading": "لوڈ ہو رہا ہے...",
   "subgroupDefaultDesc": "تفصیل",
   "fetchError": "ڈیٹا حاصل کرنے میں خرابی: {error}",
+  "generalErrorMessage": "ڈیٹا لوڈ کرنے میں ایک مسئلہ پیش آیا۔",
   "noDataFound": "کوئی ڈیٹا نہیں ملا",
   "goToSlide": "سلائیڈ {n} پر جائیں",
   "searchPlaceholder": "آپ کہاں جانا چاہتے ہیں؟",

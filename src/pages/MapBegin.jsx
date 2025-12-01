@@ -2,12 +2,16 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useIntl } from 'react-intl';
+import axios from 'axios';
+import { toJalaali } from 'jalaali-js';
 import Mpbc from '../components/map/Mpbc';
 import { groups, subGroups } from '../components/groupData';
 import { useRouteStore } from '../store/routeStore';
 import { useLangStore } from '../store/langStore';
 import { getLocationTitleById } from '../utils/getLocationTitle';
 import '../styles/MapBegin.css';
+import appConfig from '../config/appConfig';
+import { fetchLandmarkPlaces } from '../services/landmarkService';
 
 const MapBeginPage = () => {
   const navigate = useNavigate();
@@ -34,6 +38,7 @@ const MapBeginPage = () => {
   const [searchClose, setSearchClose] = useState(false);
   const searchInputRef = useRef(null);
   const [routingData, setRoutingData] = useState(null);
+  const [shrineEvents, setShrineEvents] = useState([]);
   const [activeTab, setActiveTab] = useState('mostVisited');
   const [showImageMarkers, setShowImageMarkers] = useState(true);
   const [selectedLocation, setSelectedLocation] = useState(null);
@@ -385,8 +390,138 @@ const MapBeginPage = () => {
   useEffect(() => {
     fetch(`./data/routing-data.json`)
       .then(res => res.json())
-      .then(data => setRoutingData(data))
+      .then(data => {
+        setRoutingData(prev => {
+          const mergedPlaces = {
+            ...(data.places || {}),
+            ...(prev?.places || {}),
+            landmarkPlaces: prev?.places?.landmarkPlaces ?? data.places?.landmarkPlaces ?? []
+          };
+
+          return {
+            ...data,
+            ...prev,
+            places: mergedPlaces
+          };
+        });
+        setShrineEvents(data.places?.shrineEvents || []);
+      })
       .catch(err => console.error('Failed to load routing-data.json', err));
+  }, []);
+
+  useEffect(() => {
+    const loadLandmarkPlaces = async () => {
+      const geoCoordinates = userLocation?.coordinates;
+      const geo = Array.isArray(geoCoordinates) && geoCoordinates.length >= 2
+        ? { lat: geoCoordinates[0], lng: geoCoordinates[1] }
+        : null;
+
+      const parseNumber = (value, fallback = 0) => {
+        const numericValue = Number(value);
+        return Number.isFinite(numericValue) ? numericValue : fallback;
+      };
+
+      try {
+        const data = await fetchLandmarkPlaces({
+          language,
+          geo
+        });
+
+        const apiLandmarks = Array.isArray(data?.places?.landmarkPlaces)
+          ? data.places.landmarkPlaces
+          : [];
+
+        const landmarksWithImages = apiLandmarks.filter(place => place?.image);
+
+        const topRatedLandmarks = apiLandmarks
+          .filter(place => place?.rate != null || place?.rating != null)
+          .sort((a, b) => parseNumber(b.rate ?? b.rating) - parseNumber(a.rate ?? a.rating))
+          .slice(0, 10);
+
+        const nearestLandmarks = apiLandmarks
+          .filter(place => place?.distance != null)
+          .sort((a, b) => parseNumber(a.distance, Number.POSITIVE_INFINITY) - parseNumber(b.distance, Number.POSITIVE_INFINITY))
+          .slice(0, 10);
+
+        setRoutingData(prev => {
+          const mergedPlaces = {
+            ...(prev?.places || {}),
+            landmarkPlaces: landmarksWithImages.length ? landmarksWithImages : prev?.places?.landmarkPlaces || [],
+            mostVisited: topRatedLandmarks.length ? topRatedLandmarks : prev?.places?.mostVisited || [],
+            nearest: nearestLandmarks.length ? nearestLandmarks : prev?.places?.nearest || []
+          };
+
+          return {
+            ...prev,
+            language: data?.language || language,
+            generatedAt: data?.generatedAt || prev?.generatedAt,
+            places: mergedPlaces
+          };
+        });
+      } catch (error) {
+        console.error('Failed to load landmark places', error);
+        toast.error(intl.formatMessage({ id: 'generalErrorMessage' }));
+
+        setRoutingData(prev => ({
+          ...prev,
+          places: {
+            ...(prev?.places || {}),
+            landmarkPlaces: [],
+            mostVisited: prev?.places?.mostVisited || [],
+            nearest: prev?.places?.nearest || []
+          }
+        }));
+      }
+    };
+
+    loadLandmarkPlaces();
+  }, [language, userLocation, intl]);
+
+  useEffect(() => {
+    const fetchShrineEvents = async () => {
+      try {
+        const today = new Date();
+        const { jy, jm, jd } = toJalaali(
+          today.getFullYear(),
+          today.getMonth() + 1,
+          today.getDate()
+        );
+
+        const formattedDate = `${jy}-${String(jm).padStart(2, '0')}-${String(jd).padStart(2, '0')}`;
+        const shrineEventsBaseUrl = appConfig.shrineEventsBaseUrl.replace(/\/$/, '');
+        const { data } = await axios.get(`${shrineEventsBaseUrl}/${formattedDate}`);
+
+        if (data?.status_code === 200 && Array.isArray(data.data)) {
+          const mappedEvents = data.data.map(item => {
+            const speakerName = [item.prefix, item.first_name, item.last_name]
+              .filter(Boolean)
+              .join(' ')
+              .trim();
+
+            const descriptionParts = [item.format_title, item.title].filter(Boolean);
+            if (speakerName) descriptionParts.push(speakerName);
+
+            const formattedTime = item.start_time && item.end_time
+              ? `${item.start_time.slice(0, 5)} - ${item.end_time.slice(0, 5)}`
+              : item.start_time?.slice(0, 5) || '';
+
+            return {
+              title: item.title || item.format_title || '',
+              description: descriptionParts.join(' - '),
+              location: item.title_place || '',
+              time: formattedTime,
+              image: item.image_url
+            };
+          });
+
+          setShrineEvents(mappedEvents);
+        }
+      } catch (error) {
+        console.error('Failed to fetch shrine events', error);
+      }
+    };
+
+    fetchShrineEvents();
   }, []);
 
 
@@ -409,6 +544,9 @@ const MapBeginPage = () => {
   };
 
 
+  const eventsToShow = shrineEvents.length > 0
+    ? shrineEvents
+    : routingData?.places?.shrineEvents || [];
 
   return (
     <div className="map-routing-page">
@@ -583,7 +721,7 @@ const MapBeginPage = () => {
         )}
 
         {/* Shrine Events */}
-        {routingData && (
+        {routingData && eventsToShow.length > 0 && (
           <div className="shrine-events-section">
             <div className="shrine-events-header">
               <h2 className="shrine-events-title">
@@ -598,7 +736,7 @@ const MapBeginPage = () => {
               </button>
             </div>
             <div className="shrine-events-list">
-              {routingData.places.shrineEvents?.map((event, index) => (
+              {eventsToShow.map((event, index) => (
                 <div key={index} className="shrine-event-item">
                   <div
                     className="place-image-placeholder"
@@ -662,7 +800,7 @@ const MapBeginPage = () => {
                   <div className="image-container">
                     <div
                       className="place-image"
-                      style={{ backgroundImage: `url(${place.image})` }}
+                      style={place.image ? { backgroundImage: `url(${place.image})` } : {}}
                     ></div>
                     <button className="transparent-save-btn">
                       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -673,11 +811,19 @@ const MapBeginPage = () => {
                   </div>
                   <div className="place-details">
                     <h4 className="place-name">{place.title}</h4>
-                    <div className="place-meta">
-                      <span className="place-distance">{place.distance} {intl.formatMessage({ id: 'meter' })}</span>
-                      <span className="place-meta-separator">|</span>
-                      <span className="place-time">{place.time} {intl.formatMessage({ id: 'walking' })}</span>
-                    </div>
+                    {(place.distance != null || place.time != null) && (
+                      <div className="place-meta">
+                        {place.distance != null && (
+                          <span className="place-distance">{place.distance} {intl.formatMessage({ id: 'meter' })}</span>
+                        )}
+                        {place.distance != null && place.time != null && (
+                          <span className="place-meta-separator">|</span>
+                        )}
+                        {place.time != null && (
+                          <span className="place-time">{place.time} {intl.formatMessage({ id: 'walking' })}</span>
+                        )}
+                      </div>
+                    )}
                     <div className="place-rating-section">
                       <div className="place-rating-stars">
                         {[1, 2, 3, 4, 5].map((star) => (

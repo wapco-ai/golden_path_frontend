@@ -7,10 +7,11 @@ import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
 import advancedDeadReckoningService from '../../services/AdvancedDeadReckoningService';
 import ArrowMarker from './ArrowMarker';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
+import appConfig from '../../config/appConfig';
 
 import { forwardRef, useImperativeHandle } from 'react';
 
-const TERRAIN_PROBE_URL = 'https://demotiles.maplibre.org/terrain-tiles/tiles/0/0/0.png';
+const TERRAIN_PROBE_URL = appConfig.terrainProbeUrl;
 
 const RouteMap = forwardRef(({
   userLocation,
