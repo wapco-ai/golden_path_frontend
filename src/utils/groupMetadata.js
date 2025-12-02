@@ -1,3 +1,21 @@
+const basePath = (import.meta?.env?.BASE_URL || '/').replace(/\/$/, '');
+
+const withBasePath = (path) => {
+  if (!path || /^https?:\/\//i.test(path)) {
+    return path;
+  }
+
+  if (!basePath) {
+    return path;
+  }
+
+  if (path === basePath || path.startsWith(`${basePath}/`)) {
+    return path;
+  }
+
+  return `${basePath}${path.startsWith('/') ? path : `/${path}`}`;
+};
+
 const normalizeGroupPngPath = (group) => {
   const candidate = group?.png || group?.icon;
 
@@ -10,11 +28,11 @@ const normalizeGroupPngPath = (group) => {
   }
 
   if (candidate.startsWith('/img/')) {
-    return candidate;
+    return withBasePath(candidate);
   }
 
   if (candidate.startsWith('/')) {
-    return candidate;
+    return withBasePath(candidate);
   }
 
   const trimmed = candidate
@@ -23,7 +41,7 @@ const normalizeGroupPngPath = (group) => {
 
   const filename = /\.[a-zA-Z0-9]+$/.test(trimmed) ? trimmed : `${trimmed}.png`;
 
-  return `/img/${filename}`;
+  return withBasePath(`/img/${filename}`);
 };
 
 export const normalizeGroupMetadata = (groups, language) => {
