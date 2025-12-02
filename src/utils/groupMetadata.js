@@ -23,7 +23,7 @@ const normalizeGroupPngPath = (group) => {
     return undefined;
   }
 
-  if (/^https?:\/\//i.test(candidate)) {
+  if (/^https?:\/\//i.test(candidate) || /^data:/i.test(candidate)) {
     return candidate;
   }
 
