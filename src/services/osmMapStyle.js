@@ -1,4 +1,6 @@
-export const BASE_RASTER_SOURCE_ID = 'osm-raster';
+export const BASE_RASTER_SOURCE_ID = 'carto-voyager-base';
+
+export const CARTO_VOYAGER_STYLE_URL = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
 
 export const offlineFallbackStyle = {
   version: 8,
@@ -18,39 +20,6 @@ export const offlineFallbackStyle = {
   }
 };
 
-const vectorBaseMapStyle = {
-  version: 8,
-  name: 'haram-vector-base',
-  sources: {
-    [BASE_RASTER_SOURCE_ID]: {
-      type: 'raster',
-      tiles: [
-        'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-      ],
-      tileSize: 256,
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }
-  },
-  layers: [
-    {
-      id: 'vector-background',
-      type: 'background',
-      paint: {
-        'background-color': '#02101f'
-      }
-    },
-    {
-      id: 'osm-raster-base',
-      type: 'raster',
-      source: BASE_RASTER_SOURCE_ID,
-      minzoom: 0,
-      maxzoom: 19
-    }
-  ],
-  metadata: {
-    description: 'OpenStreetMap base style with Haram vector overlays'
-  }
-};
+const voyagerBaseMapStyle = CARTO_VOYAGER_STYLE_URL;
 
-export default vectorBaseMapStyle;
+export default voyagerBaseMapStyle;
