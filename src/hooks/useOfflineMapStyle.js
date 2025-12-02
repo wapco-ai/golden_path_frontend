@@ -22,15 +22,18 @@ const extractSourceId = (event) => {
 const extractResourceUrl = (event) =>
   event?.error?.resource?.url || event?.error?.url || event?.url || null;
 
+const BASEMAP_RESOURCE_HINTS = ['tile.openstreetmap.org', 'basemaps.cartocdn.com', 'cartocdn.com'];
+const BASEMAP_SOURCE_IDS = [BASE_RASTER_SOURCE_ID, 'basemap', 'basemap_tiles', 'voyager'];
+
 const shouldTriggerFallback = (event) => {
-  const sourceId = extractSourceId(event);
-  if (sourceId && sourceId !== BASE_RASTER_SOURCE_ID) {
-    return false;
+  const resourceUrl = extractResourceUrl(event);
+  if (resourceUrl) {
+    return BASEMAP_RESOURCE_HINTS.some((hint) => resourceUrl.includes(hint));
   }
 
-  const resourceUrl = extractResourceUrl(event);
-  if (resourceUrl && !resourceUrl.includes('tile.openstreetmap.org')) {
-    return false;
+  const sourceId = extractSourceId(event);
+  if (sourceId) {
+    return BASEMAP_SOURCE_IDS.includes(sourceId);
   }
 
   return true;
