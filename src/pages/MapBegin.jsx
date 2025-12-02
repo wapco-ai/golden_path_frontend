@@ -11,7 +11,7 @@ import { getLocationTitleById } from '../utils/getLocationTitle';
 import '../styles/MapBegin.css';
 import appConfig from '../config/appConfig';
 import { fetchLandmarkPlaces } from '../services/landmarkService';
-import { fetchGroupMetadata } from '../services/groupService';
+import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 
 const MapBeginPage = () => {
@@ -90,12 +90,15 @@ const MapBeginPage = () => {
   useEffect(() => {
     let isMounted = true;
 
-    fetchGroupMetadata({ language, withPng: true })
-      .then((data) => {
+    Promise.all([
+      fetchGroupMetadata({ language, withPng: true }),
+      fetchSubGroups({ language, withImages: true })
+    ])
+      .then(([groupData, subGroupData]) => {
         if (!isMounted) return;
 
-        const normalizedGroups = normalizeGroupMetadata(data?.groups, language);
-        const normalizedSubGroups = normalizeSubGroupMetadata(data?.subGroups, language);
+        const normalizedGroups = normalizeGroupMetadata(groupData?.groups, language);
+        const normalizedSubGroups = normalizeSubGroupMetadata(subGroupData?.subGroups, language);
 
         setGroups(normalizedGroups);
         setSubGroups(normalizedSubGroups);
