@@ -4,16 +4,19 @@ import { useIntl } from 'react-intl';
 import Map, { Marker, Source, Layer, Popup } from 'react-map-gl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { groups, subGroups } from '../components/groupData';
 import '../styles/RouteOverview.css';
 import useOfflineMapStyle from '../hooks/useOfflineMapStyle';
 import { useRouteStore } from '../store/routeStore';
 import useLocaleDigits from '../utils/useLocaleDigits';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
+import { useLangStore } from '../store/langStore';
+import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
+import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 
 const RouteOverview = () => {
   const navigate = useNavigate();
   const intl = useIntl();
+  const language = useLangStore(state => state.language);
   const formatDigits = useLocaleDigits();
 
   const mapRef = useRef(null);
@@ -24,6 +27,8 @@ const RouteOverview = () => {
   const [popupCoord, setPopupCoord] = useState(null);
   const [selectedSubgroup, setSelectedSubgroup] = useState(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [groups, setGroups] = useState([]);
+  const [subGroups, setSubGroups] = useState({});
 
   const handleMapLoad = useCallback((event) => {
     initHaramVectorLayers(event?.target || event);
@@ -68,6 +73,31 @@ const RouteOverview = () => {
     setSelectedImageIndex(0);
   };
 
+  useEffect(() => {
+    let isMounted = true;
+
+    Promise.all([
+      fetchGroupMetadata({ language, withPng: true }),
+      fetchSubGroups({ language, withImages: true })
+    ])
+      .then(([groupData, subGroupData]) => {
+        if (!isMounted) return;
+
+        const normalizedGroups = normalizeGroupMetadata(groupData?.groups, language);
+        const normalizedSubGroups = normalizeSubGroupMetadata(subGroupData?.subGroups, language);
+
+        setGroups(normalizedGroups);
+        setSubGroups(normalizedSubGroups);
+      })
+      .catch((err) => {
+        console.error('failed to fetch group metadata', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [language]);
+
 
 
   // Function to render image markers for subgroups with images along the route
@@ -79,11 +109,14 @@ const RouteOverview = () => {
     const getLimitedSubgroups = () => {
       const limitedSubgroups = [];
 
-      // Take max 2 subgroups from each group
-      Object.values(subGroups).forEach(subgroups => {
-        if (subgroups && subgroups.length > 0) {
-          // Take first 2 subgroups from each group
-          const selected = subgroups.slice(0, 2);
+      const groupOrder = groups?.length
+        ? groups.map((group) => group.value).filter(Boolean)
+        : Object.keys(subGroups || {});
+
+      groupOrder.forEach((groupValue) => {
+        const groupSubGroups = subGroups?.[groupValue];
+        if (groupSubGroups && groupSubGroups.length > 0) {
+          const selected = groupSubGroups.slice(0, 2);
           limitedSubgroups.push(...selected);
         }
       });

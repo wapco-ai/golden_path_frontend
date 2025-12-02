@@ -5,13 +5,14 @@ import Map, { Marker } from 'react-map-gl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useLangStore } from '../store/langStore';
-import { groups } from '../components/groupData';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import '../styles/Pmap.css';
 import useOfflineMapStyle from '../hooks/useOfflineMapStyle';
 import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
+import { fetchGroupMetadata } from '../services/groupService';
+import { normalizeGroupMetadata } from '../utils/groupMetadata';
 
 const groupColors = {
   sahn: '#4caf50',
@@ -27,7 +28,7 @@ const groupColors = {
   other: '#757575'
 };
 
-const getCompositeIcon = (group, nodeFunction, size = 35, opacity = 1) => {
+const getCompositeIcon = (group, nodeFunction, groups = [], size = 35, opacity = 1) => {
   const color = groupColors[group] || '#999';
   let iconData =
     groups.find((g) => g.value === group) ||
@@ -63,6 +64,8 @@ const Pmap = () => {
   const intl = useIntl();
   const language = useLangStore(state => state.language);
   const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
+
+  const [groups, setGroups] = useState([]);
 
   const [viewState, setViewState] = useState({
     latitude: 36.2880,
@@ -101,6 +104,24 @@ const Pmap = () => {
     return () => {
       isMounted = false;
       controller.abort();
+    };
+  }, [language]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchGroupMetadata({ language, withPng: true })
+      .then((groupData) => {
+        if (!isMounted) return;
+        const normalizedGroups = normalizeGroupMetadata(groupData?.groups, language);
+        setGroups(normalizedGroups);
+      })
+      .catch((err) => {
+        console.error('failed to fetch group metadata', err);
+      });
+
+    return () => {
+      isMounted = false;
     };
   }, [language]);
 
@@ -384,7 +405,7 @@ const Pmap = () => {
 
             return (
               <Marker key={key} longitude={lng} latitude={lat} anchor="center">
-                {getCompositeIcon(group, nodeFunction, 25, 0.8)}
+                {getCompositeIcon(group, nodeFunction, groups, 25, 0.8)}
               </Marker>
             );
           })}
