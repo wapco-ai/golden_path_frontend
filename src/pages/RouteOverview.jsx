@@ -12,6 +12,9 @@ import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import { useLangStore } from '../store/langStore';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
+import { requestRouting } from '../services/routingService';
+import { loadGeoJsonData } from '../utils/loadGeoJsonData';
+import { analyzeRoute } from '../utils/routeAnalysis';
 
 const RouteOverview = () => {
   const navigate = useNavigate();
@@ -59,7 +62,17 @@ const RouteOverview = () => {
     return diff > 0 ? 'bend-left' : 'bend-right';
   };
 
-  const { routeGeo, routeSteps } = useRouteStore();
+  const {
+    routeGeo,
+    routeSteps,
+    origin,
+    destination,
+    transportMode,
+    gender,
+    setRouteGeo,
+    setRouteSteps,
+    setAlternativeRoutes
+  } = useRouteStore();
   const routeCoordinates = routeGeo?.geometry?.coordinates || [];
   const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
 
@@ -97,6 +110,102 @@ const RouteOverview = () => {
       isMounted = false;
     };
   }, [language]);
+
+  useEffect(() => {
+    const hasRouteData =
+      (routeGeo?.geometry?.coordinates?.length || 0) > 0 ||
+      (routeSteps?.length || 0) > 0;
+
+    if (hasRouteData) {
+      return undefined;
+    }
+
+    const controller = new AbortController();
+
+    const persistRouteData = (geo, steps, alternatives = []) => {
+      setRouteGeo(geo);
+      setRouteSteps(steps);
+      setAlternativeRoutes(alternatives);
+      sessionStorage.setItem('routeGeo', JSON.stringify(geo));
+      sessionStorage.setItem('routeSteps', JSON.stringify(steps));
+      sessionStorage.setItem('alternativeRoutes', JSON.stringify(alternatives));
+    };
+
+    const hydrateFromSession = () => {
+      const sessGeo = sessionStorage.getItem('routeGeo');
+      const sessSteps = sessionStorage.getItem('routeSteps');
+      const sessAlts = sessionStorage.getItem('alternativeRoutes');
+
+      if (sessGeo && sessSteps) {
+        persistRouteData(
+          JSON.parse(sessGeo),
+          JSON.parse(sessSteps),
+          sessAlts ? JSON.parse(sessAlts) : []
+        );
+        return true;
+      }
+      return false;
+    };
+
+    if (hydrateFromSession()) {
+      return undefined;
+    }
+
+    if (!origin || !destination) {
+      return undefined;
+    }
+
+    const rebuildRoute = async () => {
+      try {
+        const result = await requestRouting({
+          origin,
+          destination,
+          mode: transportMode,
+          gender,
+          lang: language,
+          maxAlternatives: 2,
+          signal: controller.signal
+        });
+
+        if (result?.geo && result?.steps) {
+          persistRouteData(result.geo, result.steps, result.alternatives || []);
+          return;
+        }
+      } catch (err) {
+        if (err?.name !== 'AbortError') {
+          console.error('failed to fetch route overview from routing service', err);
+        }
+      }
+
+      try {
+        const geoData = await loadGeoJsonData({ language, signal: controller.signal });
+        const analysis = analyzeRoute(origin, destination, geoData, transportMode, gender);
+
+        if (analysis?.geo && analysis?.steps) {
+          persistRouteData(analysis.geo, analysis.steps, analysis.alternatives || []);
+        }
+      } catch (err) {
+        if (err?.name !== 'AbortError') {
+          console.error('failed to rebuild route overview locally', err);
+        }
+      }
+    };
+
+    rebuildRoute();
+
+    return () => controller.abort();
+  }, [
+    routeGeo,
+    routeSteps,
+    origin,
+    destination,
+    transportMode,
+    gender,
+    language,
+    setRouteGeo,
+    setRouteSteps,
+    setAlternativeRoutes
+  ]);
 
 
 
