@@ -396,68 +396,25 @@ const RouteOverview = () => {
       };
     }).filter(seg => Array.isArray(seg.coordinates) && seg.coordinates.length >= 2);
 
-    const segmentBearing = coords => {
-      if (!coords || coords.length < 2) return null;
-      return bearing(coords[0], coords[coords.length - 1]);
-    };
-    const angleDiff = (a, b) => {
-      const b1 = segmentBearing(a);
-      const b2 = segmentBearing(b);
-      if (b1 == null || b2 == null) return Infinity;
-      let diff = Math.abs(b1 - b2);
-      if (diff > 180) diff = 360 - diff;
-      return diff;
-    };
+    return segments
+      .filter(seg => seg?.coordinates && seg.coordinates.length >= 2)
+      .map((seg, idx) => {
+        const instr =
+          seg.doorNames && seg.doorNames.length > 1
+            ? intl.formatMessage(
+              { id: 'doorToDoor' },
+              { from: seg.doorNames[0], to: seg.doorNames[seg.doorNames.length - 1] }
+            )
+            : seg.instruction;
 
-    const merged = [];
-    for (let i = 0; i < segments.length; i++) {
-      const seg = segments[i];
-      if (!seg?.coordinates || seg.coordinates.length < 2) continue;
-      if (seg.distance >= 30) {
-        merged.push({ ...seg });
-        continue;
-      }
-
-      const prev = merged[merged.length - 1];
-      const next = segments[i + 1];
-      const diffPrev = prev ? angleDiff(prev.coordinates, seg.coordinates) : Infinity;
-      const diffNext = next ? angleDiff(seg.coordinates, next.coordinates) : Infinity;
-
-      if ((diffPrev <= diffNext && prev) || !next) {
-        // merge with previous segment
-        if (prev) {
-          prev.coordinates.push(seg.coordinates[1]);
-          prev.distance += seg.distance;
-          prev.doorNames = [...(prev.doorNames || []), ...(seg.doorNames || [])];
-        } else {
-          merged.push({ ...seg });
-        }
-      } else if (next) {
-        // merge with next segment
-        next.coordinates = [seg.coordinates[0], ...next.coordinates];
-        next.distance += seg.distance;
-        next.doorNames = [...(seg.doorNames || []), ...(next.doorNames || [])];
-      } else {
-        merged.push({ ...seg });
-      }
-    }
-
-    return merged.map((m, idx) => {
-      const instr =
-        m.doorNames && m.doorNames.length > 1
-          ? intl.formatMessage(
-            { id: 'doorToDoor' },
-            { from: m.doorNames[0], to: m.doorNames[m.doorNames.length - 1] }
-          )
-          : m.instruction;
-      return {
-        id: idx + 1,
-        coordinates: m.coordinates,
-        instruction: instr,
-        services: m.services,
-        distance: m.distance
-      };
-    });
+        return {
+          id: idx + 1,
+          coordinates: seg.coordinates,
+          instruction: instr,
+          services: seg.services,
+          distance: seg.distance
+        };
+      });
   }, [routeCoordinates, routeSteps, intl]);
 
   const [viewState, setViewState] = useState({
