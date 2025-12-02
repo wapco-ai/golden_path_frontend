@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import Mprc from '../components/map/Mprc';
@@ -12,6 +12,8 @@ import '../styles/MapRouting.css';
 import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
+import { fetchAreaDoors } from '../services/areaDoorsService';
+import { getSessionFloor } from '../utils/sessionFloor';
 
 const MapRoutingPage = () => {
   const navigate = useNavigate();
@@ -49,6 +51,10 @@ const MapRoutingPage = () => {
   const [selectedSubgroup, setSelectedSubgroup] = useState(null);
   const [groups, setGroups] = useState([]);
   const [subGroups, setSubGroups] = useState({});
+  const [areaDoorsData, setAreaDoorsData] = useState(null);
+  const [areaDoorsStatus, setAreaDoorsStatus] = useState(null);
+  const [areaDoorsMessage, setAreaDoorsMessage] = useState('');
+  const [mapEntryDoors, setMapEntryDoors] = useState([]);
 
   // Separate state for map categories and modal categories
   const [mapSelectedCategory, setMapSelectedCategory] = useState(null);
@@ -334,6 +340,11 @@ const MapRoutingPage = () => {
 
   // UPDATED: Handle destination selection - show entry modal first
   const handleDestinationSelect = (destination) => {
+    setAreaDoorsData(null);
+    setAreaDoorsStatus(null);
+    setAreaDoorsMessage('');
+    setMapEntryDoors([]);
+
     if (activeInput === 'destination') {
       // Store the destination temporarily and show entry modal
       setTempDestination(destination);
@@ -364,11 +375,13 @@ const MapRoutingPage = () => {
   // NEW: Confirm entry and proceed with routing
   const handleConfirmEntry = () => {
     if (tempDestination && selectedEntry) {
+      const selectedDoor = mapEntryDoors.find((door) => door?.doorNo === selectedEntry);
       // For now, all entries use the same coordinates as the destination
       // In the future, you can map entry numbers to specific coordinates
       const finalDestination = {
         ...tempDestination,
-        entry: selectedEntry
+        entry: selectedEntry,
+        ...(selectedDoor ? { door: selectedDoor } : {})
       };
 
       setSelectedDestination(finalDestination);
@@ -616,11 +629,44 @@ const MapRoutingPage = () => {
     setShowOriginModal(false);
   };
 
+  const requestAreaDoors = useCallback(async (lat, lon) => {
+    setAreaDoorsStatus('loading');
+    setAreaDoorsMessage('');
+    setMapEntryDoors([]);
+    setAreaDoorsData(null);
+
+    try {
+      const floor = getSessionFloor();
+      const response = await fetchAreaDoors({ lat, lon, floor, lang: language });
+      const nextDoors = Array.isArray(response?.data?.doors) ? response.data.doors : [];
+
+      setAreaDoorsStatus(response?.status || 'ok');
+      setAreaDoorsData(response?.status === 'ok' || response?.status === 'area_too_small'
+        ? {
+          area: response?.data?.area || null,
+          doors: nextDoors
+        }
+        : null);
+      setAreaDoorsMessage(response?.message || '');
+      setMapEntryDoors(nextDoors);
+    } catch (error) {
+      console.error('failed to fetch area doors', error);
+      setAreaDoorsStatus('error');
+      setAreaDoorsData(null);
+      setMapEntryDoors([]);
+      setAreaDoorsMessage(error?.message || '');
+    }
+  }, [language]);
+
   const handleMapSelection = () => {
     setIsSelectingFromMap(true);
     setIsTracking(false);
     setShowDestinationModal(false);
     setShowOriginModal(false);
+    setAreaDoorsData(null);
+    setAreaDoorsStatus(null);
+    setAreaDoorsMessage('');
+    setMapEntryDoors([]);
   };
 
   const handleMapClick = (latlng, feature) => {
@@ -633,6 +679,8 @@ const MapRoutingPage = () => {
       };
 
       setMapSelectedLocation(location);
+
+      requestAreaDoors(latlng.lat, latlng.lng);
 
       if (activeInput === 'destination') {
         // Show entry modal for destination selected from map
@@ -755,6 +803,8 @@ const MapRoutingPage = () => {
           isTracking={isTracking}
           onUserMove={() => setIsTracking(false)}
           groups={groups}
+          areaDoorsData={areaDoorsData}
+          areaDoorsStatus={areaDoorsStatus}
         />
         {!isSelectingFromMap && (
           <button
@@ -1204,25 +1254,40 @@ const MapRoutingPage = () => {
             </div>
 
             <div className="map-entries-section">
+              {areaDoorsStatus && areaDoorsStatus !== 'ok' && areaDoorsStatus !== 'area_too_small' && areaDoorsMessage && (
+                <div className="map-entry-message">{areaDoorsMessage}</div>
+              )}
               <div className="map-entries-grid">
-                {[1, 2, 3, 4].map((entryNum) => (
-                  <div
-                    key={entryNum}
-                    className={`map-entry-item ${selectedEntry === entryNum ? 'selected' : ''}`}
-                    onClick={() => handleEntrySelect(entryNum)}
-                  >
-                    <div className="map-entry-number">
-                      <FormattedMessage id="entry" /> {entryNum}
-                    </div>
-                    {selectedEntry === entryNum && (
-                      <div className="map-entry-selected-indicator">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path fillRule="evenodd" clipRule="evenodd" d="M13.426 3.23967C13.7319 3.52844 13.753 4.00317 13.4642 4.30907L6.63088 11.5091C6.48602 11.6621 6.28666 11.7494 6.07756 11.7515C5.86846 11.7536 5.66738 11.6704 5.51938 11.5206L2.51938 8.48727C2.22541 8.18942 2.22869 7.71455 2.52654 7.42058C2.82439 7.12661 3.29926 7.12989 3.59323 7.42774L6.05982 9.93174L12.369 3.24093C12.6578 2.93503 13.1325 2.9139 13.4384 3.20267L13.426 3.23967Z" fill="#0F71EF" />
-                        </svg>
+                {(mapEntryDoors.length ? mapEntryDoors : [1, 2, 3, 4]).map((entry) => {
+                  const entryNumber = entry?.doorNo || entry;
+                  const label = entry?.label;
+                  const destinationName = entry?.otherAreaName || entry?.toAreaName;
+
+                  return (
+                    <div
+                      key={entryNumber}
+                      className={`map-entry-item ${selectedEntry === entryNumber ? 'selected' : ''}`}
+                      onClick={() => handleEntrySelect(entryNumber)}
+                    >
+                      <div className="map-entry-number">
+                        <FormattedMessage id="entry" /> {entryNumber}
                       </div>
-                    )}
-                  </div>
-                ))}
+                      {destinationName && (
+                        <div className="map-entry-destination">{destinationName}</div>
+                      )}
+                      {label && (
+                        <div className="map-entry-label">{label}</div>
+                      )}
+                      {selectedEntry === entryNumber && (
+                        <div className="map-entry-selected-indicator">
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path fillRule="evenodd" clipRule="evenodd" d="M13.426 3.23967C13.7319 3.52844 13.753 4.00317 13.4642 4.30907L6.63088 11.5091C6.48602 11.6621 6.28666 11.7494 6.07756 11.7515C5.86846 11.7536 5.66738 11.6704 5.51938 11.5206L2.51938 8.48727C2.22541 8.18942 2.22869 7.71455 2.52654 7.42058C2.82439 7.12661 3.29926 7.12989 3.59323 7.42774L6.05982 9.93174L12.369 3.24093C12.6578 2.93503 13.1325 2.9139 13.4384 3.20267L13.426 3.23967Z" fill="#0F71EF" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
