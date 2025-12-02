@@ -2922,11 +2922,6 @@ body {
   flex: 1;
 }
 
-.restriction-row {
-  display: flex;
-  gap: 12px;
-  align-items: flex-end;
-}
 
 /* Compact Form Groups */
 .form-group.compact {
@@ -2946,16 +2941,6 @@ body {
   height: 36px;
 }
 
-/* Time Inputs */
-.time-inputs {
-  display: flex;
-  gap: 8px;
-  flex: 2;
-}
-
-.time-inputs .form-group.compact {
-  flex: 1;
-}
 
 /* Multiple Select */
 .form-group.compact select[multiple] {
@@ -3023,14 +3008,7 @@ body {
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .restriction-row {
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .time-inputs {
-    flex-direction: column;
-  }
+
   
   .restriction-header {
     flex-direction: column;
@@ -3042,3 +3020,4 @@ body {
     align-self: flex-start;
   }
 }
+
