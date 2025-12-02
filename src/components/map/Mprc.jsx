@@ -71,7 +71,9 @@ const Mprc = ({
   userLocation,
   isTracking = true,
   onUserMove,
-  groups = []
+  groups = [],
+  areaDoorsData,
+  areaDoorsStatus
 }) => {
   const intl = useIntl();
   const [viewState, setViewState] = useState({
@@ -87,6 +89,7 @@ const Mprc = ({
   const [routeCoords, setRouteCoords] = useState(null);
   const language = useLangStore((state) => state.language);
   const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
+  const areaLineColor = areaDoorsStatus === 'area_too_small' ? '#9e9e9e' : '#ff9800';
 
   const onMove = useCallback((evt) => {
     setViewState(evt.viewState);
@@ -401,6 +404,35 @@ const Mprc = ({
           <Layer id="route-line" type="line" paint={{ 'line-color': '#4285F4', 'line-width': 4, 'line-opacity': 0.7 }} />
         </Source>
       )}
+
+      {/* Area outline from area-doors service */}
+      {areaDoorsData?.area?.geometry && (
+        <Source id="selected-area-outline" type="geojson" data={{ type: 'Feature', geometry: areaDoorsData.area.geometry }}>
+          <Layer
+            id="selected-area-outline-line"
+            type="line"
+            paint={{
+              'line-color': areaLineColor,
+              'line-width': 3,
+              'line-dasharray': [2, 1.5]
+            }}
+          />
+        </Source>
+      )}
+
+      {/* Door markers */}
+      {Array.isArray(areaDoorsData?.doors) && areaDoorsData.doors.map((door) => {
+        const [lon, lat] = door?.coord4326 || [];
+        if (typeof lon !== 'number' || typeof lat !== 'number') return null;
+
+        return (
+          <Marker key={`door-${door?.doorId || door?.doorNo}`} longitude={lon} latitude={lat} anchor="center">
+            <div className="map-door-marker">
+              <span className="map-door-marker-number">{door?.doorNo}</span>
+            </div>
+          </Marker>
+        );
+      })}
 
       {/* Point features (doors, services, etc.) */}
       // Point features (doors, services, etc.) - Only show when a category is selected
