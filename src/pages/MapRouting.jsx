@@ -11,7 +11,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import '../styles/MapRouting.css';
 import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
-import { fetchGroupMetadata } from '../services/groupService';
+import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 
 const MapRoutingPage = () => {
   const navigate = useNavigate();
@@ -76,12 +76,15 @@ const MapRoutingPage = () => {
   useEffect(() => {
     let isMounted = true;
 
-    fetchGroupMetadata({ language, withPng: true })
-      .then((data) => {
+    Promise.all([
+      fetchGroupMetadata({ language, withPng: true }),
+      fetchSubGroups({ language, withImages: true })
+    ])
+      .then(([groupData, subGroupData]) => {
         if (!isMounted) return;
 
-        const normalizedGroups = normalizeGroupMetadata(data?.groups, language);
-        const normalizedSubGroups = normalizeSubGroupMetadata(data?.subGroups, language);
+        const normalizedGroups = normalizeGroupMetadata(groupData?.groups, language);
+        const normalizedSubGroups = normalizeSubGroupMetadata(subGroupData?.subGroups, language);
 
         setGroups(normalizedGroups);
         setSubGroups(normalizedSubGroups);

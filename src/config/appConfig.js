@@ -32,7 +32,8 @@ const defaultTileBaseUrl = inferHostedTileBaseUrl();
 const defaultRoutingRouteUrl = `${defaultApiBaseUrl}/api/v1/routing/route`;
 const defaultLanguagesUrl = `${defaultApiBaseUrl}/api/v1/languages`;
 const defaultLandmarkPlacesUrl = `${defaultApiBaseUrl}/api/v1/landmark-places`;
-const defaultGroupMetadataUrl = `${defaultApiBaseUrl}/api/groups/metadata`;
+const defaultGroupMetadataUrl = `${defaultApiBaseUrl}/api/v1/groups/metadata`;
+const defaultGroupSubGroupsUrl = `${defaultApiBaseUrl}/api/v1/groups/subgroups`;
 
 const appConfig = {
   apiBaseUrl: (import.meta?.env?.VITE_API_BASE_URL?.trim() || defaultApiBaseUrl).replace(/\/$/, ''),
@@ -41,6 +42,7 @@ const appConfig = {
   languagesUrl: (import.meta?.env?.VITE_LANGUAGES_URL?.trim() || defaultLanguagesUrl).replace(/\/$/, ''),
   landmarkPlacesUrl: (import.meta?.env?.VITE_LANDMARK_PLACES_URL?.trim() || defaultLandmarkPlacesUrl).replace(/\/$/, ''),
   groupMetadataUrl: (import.meta?.env?.VITE_GROUP_METADATA_URL?.trim() || defaultGroupMetadataUrl).replace(/\/$/, ''),
+  groupSubGroupsUrl: (import.meta?.env?.VITE_GROUP_SUBGROUPS_URL?.trim() || defaultGroupSubGroupsUrl).replace(/\/$/, ''),
   terrainProbeUrl: import.meta?.env?.VITE_TERRAIN_PROBE_URL?.trim() || 'https://demotiles.maplibre.org/terrain-tiles/tiles/0/0/0.png',
   googleMapsDirectionsBaseUrl: import.meta?.env?.VITE_GOOGLE_MAPS_DIRECTIONS_BASE_URL?.trim() || 'https://www.google.com/maps/dir/',
   ttsAuthUrl: import.meta?.env?.VITE_TTS_AUTH_URL?.trim() || 'https://api.aipaa.ir/auth/token/',
