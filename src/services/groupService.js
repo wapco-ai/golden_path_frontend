@@ -1,6 +1,12 @@
 import appConfig from '../config/appConfig';
 
-export async function fetchGroupMetadata({ language = 'fa', only, withPng = true } = {}) {
+export async function fetchGroupMetadata({
+  language = 'fa',
+  only,
+  withPng = true,
+  includeSubGroups = true,
+  withImages
+} = {}) {
   const url = new URL(appConfig.groupMetadataUrl);
   const params = new URLSearchParams();
 
@@ -14,6 +20,14 @@ export async function fetchGroupMetadata({ language = 'fa', only, withPng = true
 
   if (only) {
     params.set('only', only);
+  }
+
+  if (typeof includeSubGroups !== 'undefined') {
+    params.set('includeSubGroups', includeSubGroups ? 'true' : 'false');
+  }
+
+  if (typeof withImages !== 'undefined') {
+    params.set('withImages', withImages ? 'true' : 'false');
   }
 
   url.search = params.toString();

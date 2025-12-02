@@ -54,4 +54,40 @@ export const normalizeGroupMetadata = (groups, language) => {
   }));
 };
 
+const localizeField = (value, language) => {
+  if (!value) return value;
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (typeof value === 'object') {
+    return value[language] || value.fa || Object.values(value).find(Boolean) || '';
+  }
+
+  return '';
+};
+
+export const normalizeSubGroupMetadata = (subGroups, language) => {
+  if (!subGroups || typeof subGroups !== 'object') {
+    return {};
+  }
+
+  return Object.entries(subGroups).reduce((acc, [groupKey, items]) => {
+    const normalizedItems = Array.isArray(items)
+      ? items.map((item) => ({
+        ...item,
+        label: localizeField(item.label, language) || item.value,
+        address: localizeField(item.address, language),
+        description: localizeField(item.description, language)
+      }))
+      : [];
+
+    return {
+      ...acc,
+      [groupKey]: normalizedItems
+    };
+  }, {});
+};
+
 export default normalizeGroupMetadata;
