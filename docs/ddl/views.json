@@ -1,0 +1,557 @@
+[
+    {
+        "schema": "public",
+        "columns": [
+            {
+                "data_type": "name",
+                "column_name": "f_table_catalog",
+                "is_nullable": "YES",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "name",
+                "column_name": "f_table_schema",
+                "is_nullable": "YES",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "name",
+                "column_name": "f_table_name",
+                "is_nullable": "YES",
+                "ordinal_position": 3
+            },
+            {
+                "data_type": "name",
+                "column_name": "f_geography_column",
+                "is_nullable": "YES",
+                "ordinal_position": 4
+            },
+            {
+                "data_type": "integer",
+                "column_name": "coord_dimension",
+                "is_nullable": "YES",
+                "ordinal_position": 5
+            },
+            {
+                "data_type": "integer",
+                "column_name": "srid",
+                "is_nullable": "YES",
+                "ordinal_position": 6
+            },
+            {
+                "data_type": "text",
+                "column_name": "type",
+                "is_nullable": "YES",
+                "ordinal_position": 7
+            }
+        ],
+        "full_ddl": "CREATE OR REPLACE VIEW public.geography_columns AS\n SELECT current_database() AS f_table_catalog,\n    n.nspname AS f_table_schema,\n    c.relname AS f_table_name,\n    a.attname AS f_geography_column,\n    postgis_typmod_dims(a.atttypmod) AS coord_dimension,\n    postgis_typmod_srid(a.atttypmod) AS srid,\n    postgis_typmod_type(a.atttypmod) AS type\n   FROM pg_class c,\n    pg_attribute a,\n    pg_type t,\n    pg_namespace n\n  WHERE ((t.typname = 'geography'::name) AND (a.attisdropped = false) AND (a.atttypid = t.oid) AND (a.attrelid = c.oid) AND (c.relnamespace = n.oid) AND (c.relkind = ANY (ARRAY['r'::\"char\", 'v'::\"char\", 'm'::\"char\", 'f'::\"char\", 'p'::\"char\"])) AND (NOT pg_is_other_temp_schema(c.relnamespace)) AND has_table_privilege(c.oid, 'SELECT'::text));",
+        "view_name": "geography_columns",
+        "check_option": "NONE",
+        "is_updatable": "NO",
+        "view_definition": " SELECT current_database() AS f_table_catalog,\n    n.nspname AS f_table_schema,\n    c.relname AS f_table_name,\n    a.attname AS f_geography_column,\n    postgis_typmod_dims(a.atttypmod) AS coord_dimension,\n    postgis_typmod_srid(a.atttypmod) AS srid,\n    postgis_typmod_type(a.atttypmod) AS type\n   FROM pg_class c,\n    pg_attribute a,\n    pg_type t,\n    pg_namespace n\n  WHERE ((t.typname = 'geography'::name) AND (a.attisdropped = false) AND (a.atttypid = t.oid) AND (a.attrelid = c.oid) AND (c.relnamespace = n.oid) AND (c.relkind = ANY (ARRAY['r'::\"char\", 'v'::\"char\", 'm'::\"char\", 'f'::\"char\", 'p'::\"char\"])) AND (NOT pg_is_other_temp_schema(c.relnamespace)) AND has_table_privilege(c.oid, 'SELECT'::text));",
+        "is_insertable_into": "NO"
+    },
+    {
+        "schema": "public",
+        "columns": [
+            {
+                "data_type": "character varying",
+                "column_name": "f_table_catalog",
+                "is_nullable": "YES",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "name",
+                "column_name": "f_table_schema",
+                "is_nullable": "YES",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "name",
+                "column_name": "f_table_name",
+                "is_nullable": "YES",
+                "ordinal_position": 3
+            },
+            {
+                "data_type": "name",
+                "column_name": "f_geometry_column",
+                "is_nullable": "YES",
+                "ordinal_position": 4
+            },
+            {
+                "data_type": "integer",
+                "column_name": "coord_dimension",
+                "is_nullable": "YES",
+                "ordinal_position": 5
+            },
+            {
+                "data_type": "integer",
+                "column_name": "srid",
+                "is_nullable": "YES",
+                "ordinal_position": 6
+            },
+            {
+                "data_type": "character varying",
+                "column_name": "type",
+                "is_nullable": "YES",
+                "ordinal_position": 7
+            }
+        ],
+        "full_ddl": "CREATE OR REPLACE VIEW public.geometry_columns AS\n SELECT (current_database())::character varying(256) AS f_table_catalog,\n    n.nspname AS f_table_schema,\n    c.relname AS f_table_name,\n    a.attname AS f_geometry_column,\n    COALESCE(postgis_typmod_dims(a.atttypmod), sn.ndims, 2) AS coord_dimension,\n    COALESCE(NULLIF(postgis_typmod_srid(a.atttypmod), 0), sr.srid, 0) AS srid,\n    (replace(replace(COALESCE(NULLIF(upper(postgis_typmod_type(a.atttypmod)), 'GEOMETRY'::text), st.type, 'GEOMETRY'::text), 'ZM'::text, ''::text), 'Z'::text, ''::text))::character varying(30) AS type\n   FROM ((((((pg_class c\n     JOIN pg_attribute a ON (((a.attrelid = c.oid) AND (NOT a.attisdropped))))\n     JOIN pg_namespace n ON ((c.relnamespace = n.oid)))\n     JOIN pg_type t ON ((a.atttypid = t.oid)))\n     LEFT JOIN ( SELECT s.connamespace,\n            s.conrelid,\n            s.conkey,\n            replace(split_part(s.consrc, ''''::text, 2), ')'::text, ''::text) AS type\n           FROM ( SELECT pg_constraint.connamespace,\n                    pg_constraint.conrelid,\n                    pg_constraint.conkey,\n                    pg_get_constraintdef(pg_constraint.oid) AS consrc\n                   FROM pg_constraint) s\n          WHERE (s.consrc ~~* '%geometrytype(% = %'::text)) st ON (((st.connamespace = n.oid) AND (st.conrelid = c.oid) AND (a.attnum = ANY (st.conkey)))))\n     LEFT JOIN ( SELECT s.connamespace,\n            s.conrelid,\n            s.conkey,\n            (replace(split_part(s.consrc, ' = '::text, 2), ')'::text, ''::text))::integer AS ndims\n           FROM ( SELECT pg_constraint.connamespace,\n                    pg_constraint.conrelid,\n                    pg_constraint.conkey,\n                    pg_get_constraintdef(pg_constraint.oid) AS consrc\n                   FROM pg_constraint) s\n          WHERE (s.consrc ~~* '%ndims(% = %'::text)) sn ON (((sn.connamespace = n.oid) AND (sn.conrelid = c.oid) AND (a.attnum = ANY (sn.conkey)))))\n     LEFT JOIN ( SELECT s.connamespace,\n            s.conrelid,\n            s.conkey,\n            (replace(replace(split_part(s.consrc, ' = '::text, 2), ')'::text, ''::text), '('::text, ''::text))::integer AS srid\n           FROM ( SELECT pg_constraint.connamespace,\n                    pg_constraint.conrelid,\n                    pg_constraint.conkey,\n                    pg_get_constraintdef(pg_constraint.oid) AS consrc\n                   FROM pg_constraint) s\n          WHERE (s.consrc ~~* '%srid(% = %'::text)) sr ON (((sr.connamespace = n.oid) AND (sr.conrelid = c.oid) AND (a.attnum = ANY (sr.conkey)))))\n  WHERE ((c.relkind = ANY (ARRAY['r'::\"char\", 'v'::\"char\", 'm'::\"char\", 'f'::\"char\", 'p'::\"char\"])) AND (NOT (c.relname = 'raster_columns'::name)) AND (t.typname = 'geometry'::name) AND (NOT pg_is_other_temp_schema(c.relnamespace)) AND has_table_privilege(c.oid, 'SELECT'::text));",
+        "view_name": "geometry_columns",
+        "check_option": "NONE",
+        "is_updatable": "YES",
+        "view_definition": " SELECT (current_database())::character varying(256) AS f_table_catalog,\n    n.nspname AS f_table_schema,\n    c.relname AS f_table_name,\n    a.attname AS f_geometry_column,\n    COALESCE(postgis_typmod_dims(a.atttypmod), sn.ndims, 2) AS coord_dimension,\n    COALESCE(NULLIF(postgis_typmod_srid(a.atttypmod), 0), sr.srid, 0) AS srid,\n    (replace(replace(COALESCE(NULLIF(upper(postgis_typmod_type(a.atttypmod)), 'GEOMETRY'::text), st.type, 'GEOMETRY'::text), 'ZM'::text, ''::text), 'Z'::text, ''::text))::character varying(30) AS type\n   FROM ((((((pg_class c\n     JOIN pg_attribute a ON (((a.attrelid = c.oid) AND (NOT a.attisdropped))))\n     JOIN pg_namespace n ON ((c.relnamespace = n.oid)))\n     JOIN pg_type t ON ((a.atttypid = t.oid)))\n     LEFT JOIN ( SELECT s.connamespace,\n            s.conrelid,\n            s.conkey,\n            replace(split_part(s.consrc, ''''::text, 2), ')'::text, ''::text) AS type\n           FROM ( SELECT pg_constraint.connamespace,\n                    pg_constraint.conrelid,\n                    pg_constraint.conkey,\n                    pg_get_constraintdef(pg_constraint.oid) AS consrc\n                   FROM pg_constraint) s\n          WHERE (s.consrc ~~* '%geometrytype(% = %'::text)) st ON (((st.connamespace = n.oid) AND (st.conrelid = c.oid) AND (a.attnum = ANY (st.conkey)))))\n     LEFT JOIN ( SELECT s.connamespace,\n            s.conrelid,\n            s.conkey,\n            (replace(split_part(s.consrc, ' = '::text, 2), ')'::text, ''::text))::integer AS ndims\n           FROM ( SELECT pg_constraint.connamespace,\n                    pg_constraint.conrelid,\n                    pg_constraint.conkey,\n                    pg_get_constraintdef(pg_constraint.oid) AS consrc\n                   FROM pg_constraint) s\n          WHERE (s.consrc ~~* '%ndims(% = %'::text)) sn ON (((sn.connamespace = n.oid) AND (sn.conrelid = c.oid) AND (a.attnum = ANY (sn.conkey)))))\n     LEFT JOIN ( SELECT s.connamespace,\n            s.conrelid,\n            s.conkey,\n            (replace(replace(split_part(s.consrc, ' = '::text, 2), ')'::text, ''::text), '('::text, ''::text))::integer AS srid\n           FROM ( SELECT pg_constraint.connamespace,\n                    pg_constraint.conrelid,\n                    pg_constraint.conkey,\n                    pg_get_constraintdef(pg_constraint.oid) AS consrc\n                   FROM pg_constraint) s\n          WHERE (s.consrc ~~* '%srid(% = %'::text)) sr ON (((sr.connamespace = n.oid) AND (sr.conrelid = c.oid) AND (a.attnum = ANY (sr.conkey)))))\n  WHERE ((c.relkind = ANY (ARRAY['r'::\"char\", 'v'::\"char\", 'm'::\"char\", 'f'::\"char\", 'p'::\"char\"])) AND (NOT (c.relname = 'raster_columns'::name)) AND (t.typname = 'geometry'::name) AND (NOT pg_is_other_temp_schema(c.relnamespace)) AND has_table_privilege(c.oid, 'SELECT'::text));",
+        "is_insertable_into": "YES"
+    },
+    {
+        "schema": "public",
+        "columns": [
+            {
+                "data_type": "bigint",
+                "column_name": "id",
+                "is_nullable": "YES",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "column_name": "geom",
+                "is_nullable": "YES",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "bigint",
+                "column_name": "from_area",
+                "is_nullable": "YES",
+                "ordinal_position": 3
+            },
+            {
+                "data_type": "bigint",
+                "column_name": "to_area",
+                "is_nullable": "YES",
+                "ordinal_position": 4
+            },
+            {
+                "data_type": "smallint",
+                "column_name": "floor",
+                "is_nullable": "YES",
+                "ordinal_position": 5
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "column_name": "allowed_gender",
+                "is_nullable": "YES",
+                "ordinal_position": 6
+            },
+            {
+                "data_type": "boolean",
+                "column_name": "is_open",
+                "is_nullable": "YES",
+                "ordinal_position": 7
+            },
+            {
+                "data_type": "ARRAY",
+                "column_name": "modes",
+                "is_nullable": "YES",
+                "ordinal_position": 8
+            },
+            {
+                "data_type": "boolean",
+                "column_name": "bidirectional",
+                "is_nullable": "YES",
+                "ordinal_position": 9
+            },
+            {
+                "data_type": "jsonb",
+                "column_name": "attrs",
+                "is_nullable": "YES",
+                "ordinal_position": 10
+            },
+            {
+                "data_type": "timestamp with time zone",
+                "column_name": "updated_at",
+                "is_nullable": "YES",
+                "ordinal_position": 11
+            },
+            {
+                "data_type": "boolean",
+                "column_name": "is_open_effective",
+                "is_nullable": "YES",
+                "ordinal_position": 12
+            }
+        ],
+        "full_ddl": "CREATE OR REPLACE VIEW public.v_doors_live AS\n WITH scheduled AS (\n         SELECT s.door_id,\n            s.dow,\n            s.time_from,\n            s.time_to,\n            s.is_open,\n            s.rule_type\n           FROM door_schedules s\n        )\n SELECT d.id,\n    d.geom,\n    d.from_area,\n    d.to_area,\n    d.floor,\n    d.allowed_gender,\n    d.is_open,\n    d.modes,\n    d.bidirectional,\n    d.attrs,\n    d.updated_at,\n    COALESCE(ls.is_open, d.is_open) AS is_open_effective\n   FROM (doors d\n     LEFT JOIN door_status_live ls ON ((ls.door_id = d.id)));",
+        "view_name": "v_doors_live",
+        "check_option": "NONE",
+        "is_updatable": "NO",
+        "view_definition": " WITH scheduled AS (\n         SELECT s.door_id,\n            s.dow,\n            s.time_from,\n            s.time_to,\n            s.is_open,\n            s.rule_type\n           FROM door_schedules s\n        )\n SELECT d.id,\n    d.geom,\n    d.from_area,\n    d.to_area,\n    d.floor,\n    d.allowed_gender,\n    d.is_open,\n    d.modes,\n    d.bidirectional,\n    d.attrs,\n    d.updated_at,\n    COALESCE(ls.is_open, d.is_open) AS is_open_effective\n   FROM (doors d\n     LEFT JOIN door_status_live ls ON ((ls.door_id = d.id)));",
+        "is_insertable_into": "NO"
+    },
+    {
+        "schema": "public",
+        "columns": [
+            {
+                "data_type": "bigint",
+                "column_name": "id",
+                "is_nullable": "YES",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "smallint",
+                "column_name": "floor",
+                "is_nullable": "YES",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "column_name": "geom",
+                "is_nullable": "YES",
+                "ordinal_position": 3
+            },
+            {
+                "data_type": "text",
+                "column_name": "restrict_type",
+                "is_nullable": "YES",
+                "ordinal_position": 4
+            },
+            {
+                "data_type": "timestamp with time zone",
+                "column_name": "valid_from",
+                "is_nullable": "YES",
+                "ordinal_position": 5
+            },
+            {
+                "data_type": "timestamp with time zone",
+                "column_name": "valid_to",
+                "is_nullable": "YES",
+                "ordinal_position": 6
+            },
+            {
+                "data_type": "bigint",
+                "column_name": "created_by",
+                "is_nullable": "YES",
+                "ordinal_position": 7
+            },
+            {
+                "data_type": "text",
+                "column_name": "reason",
+                "is_nullable": "YES",
+                "ordinal_position": 8
+            },
+            {
+                "data_type": "timestamp with time zone",
+                "column_name": "created_at",
+                "is_nullable": "YES",
+                "ordinal_position": 9
+            }
+        ],
+        "full_ddl": "CREATE OR REPLACE VIEW public.v_temp_block_areas_active AS\n SELECT id,\n    floor,\n    geom,\n    restrict_type,\n    valid_from,\n    valid_to,\n    created_by,\n    reason,\n    created_at\n   FROM temp_block_areas_live b\n  WHERE ((valid_from <= now()) AND ((valid_to IS NULL) OR (valid_to >= now())));",
+        "view_name": "v_temp_block_areas_active",
+        "check_option": "NONE",
+        "is_updatable": "YES",
+        "view_definition": " SELECT id,\n    floor,\n    geom,\n    restrict_type,\n    valid_from,\n    valid_to,\n    created_by,\n    reason,\n    created_at\n   FROM temp_block_areas_live b\n  WHERE ((valid_from <= now()) AND ((valid_to IS NULL) OR (valid_to >= now())));",
+        "is_insertable_into": "YES"
+    },
+    {
+        "schema": "public",
+        "columns": [
+            {
+                "data_type": "bigint",
+                "column_name": "id",
+                "is_nullable": "YES",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "bigint",
+                "column_name": "tri_a",
+                "is_nullable": "YES",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "bigint",
+                "column_name": "tri_b",
+                "is_nullable": "YES",
+                "ordinal_position": 3
+            },
+            {
+                "data_type": "bigint",
+                "column_name": "door_id",
+                "is_nullable": "YES",
+                "ordinal_position": 4
+            },
+            {
+                "data_type": "numeric",
+                "column_name": "cost_w",
+                "is_nullable": "YES",
+                "ordinal_position": 5
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "column_name": "gate_point",
+                "is_nullable": "YES",
+                "ordinal_position": 6
+            }
+        ],
+        "full_ddl": "CREATE OR REPLACE VIEW public.mesh_adjacency_live AS\n SELECT ma.id,\n    ma.tri_a,\n    ma.tri_b,\n    ma.door_id,\n    ma.cost_w,\n    ma.gate_point\n   FROM (((mesh_adjacency ma\n     JOIN mesh_triangles ta ON ((ta.id = ma.tri_a)))\n     LEFT JOIN v_doors_live d ON ((ma.door_id = d.id)))\n     LEFT JOIN v_temp_block_areas_active b ON (((b.floor = ta.floor) AND st_intersects(ma.gate_point, b.geom))))\n  WHERE ((COALESCE(d.is_open_effective, true) = true) AND (b.id IS NULL));",
+        "view_name": "mesh_adjacency_live",
+        "check_option": "NONE",
+        "is_updatable": "NO",
+        "view_definition": " SELECT ma.id,\n    ma.tri_a,\n    ma.tri_b,\n    ma.door_id,\n    ma.cost_w,\n    ma.gate_point\n   FROM (((mesh_adjacency ma\n     JOIN mesh_triangles ta ON ((ta.id = ma.tri_a)))\n     LEFT JOIN v_doors_live d ON ((ma.door_id = d.id)))\n     LEFT JOIN v_temp_block_areas_active b ON (((b.floor = ta.floor) AND st_intersects(ma.gate_point, b.geom))))\n  WHERE ((COALESCE(d.is_open_effective, true) = true) AND (b.id IS NULL));",
+        "is_insertable_into": "NO"
+    },
+    {
+        "schema": "public",
+        "columns": [
+            {
+                "data_type": "bigint",
+                "column_name": "id",
+                "is_nullable": "YES",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "column_name": "geom",
+                "is_nullable": "YES",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "bigint",
+                "column_name": "from_area",
+                "is_nullable": "YES",
+                "ordinal_position": 3
+            },
+            {
+                "data_type": "bigint",
+                "column_name": "to_area",
+                "is_nullable": "YES",
+                "ordinal_position": 4
+            },
+            {
+                "data_type": "smallint",
+                "column_name": "floor",
+                "is_nullable": "YES",
+                "ordinal_position": 5
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "column_name": "allowed_gender",
+                "is_nullable": "YES",
+                "ordinal_position": 6
+            },
+            {
+                "data_type": "boolean",
+                "column_name": "is_open",
+                "is_nullable": "YES",
+                "ordinal_position": 7
+            },
+            {
+                "data_type": "ARRAY",
+                "column_name": "modes",
+                "is_nullable": "YES",
+                "ordinal_position": 8
+            },
+            {
+                "data_type": "boolean",
+                "column_name": "bidirectional",
+                "is_nullable": "YES",
+                "ordinal_position": 9
+            },
+            {
+                "data_type": "jsonb",
+                "column_name": "attrs",
+                "is_nullable": "YES",
+                "ordinal_position": 10
+            },
+            {
+                "data_type": "boolean",
+                "column_name": "is_allowed",
+                "is_nullable": "YES",
+                "ordinal_position": 11
+            },
+            {
+                "data_type": "numeric",
+                "column_name": "admin_penalty_w",
+                "is_nullable": "YES",
+                "ordinal_position": 12
+            }
+        ],
+        "full_ddl": "CREATE OR REPLACE VIEW public.v_allowed_doors AS\n SELECT id,\n    geom,\n    from_area,\n    to_area,\n    floor,\n    allowed_gender,\n    is_open,\n    modes,\n    bidirectional,\n    attrs,\n    is_allowed,\n    admin_penalty_w\n   FROM fn_allowed_doors__(now(), 'male'::gender_enum, 'walk'::text, (0)::smallint) fn_allowed_doors(id, geom, from_area, to_area, floor, allowed_gender, is_open, modes, bidirectional, attrs, is_allowed, admin_penalty_w);",
+        "view_name": "v_allowed_doors",
+        "check_option": "NONE",
+        "is_updatable": "NO",
+        "view_definition": " SELECT id,\n    geom,\n    from_area,\n    to_area,\n    floor,\n    allowed_gender,\n    is_open,\n    modes,\n    bidirectional,\n    attrs,\n    is_allowed,\n    admin_penalty_w\n   FROM fn_allowed_doors__(now(), 'male'::gender_enum, 'walk'::text, (0)::smallint) fn_allowed_doors(id, geom, from_area, to_area, floor, allowed_gender, is_open, modes, bidirectional, attrs, is_allowed, admin_penalty_w);",
+        "is_insertable_into": "NO"
+    },
+    {
+        "schema": "public",
+        "columns": [
+            {
+                "data_type": "bigint",
+                "column_name": "id",
+                "is_nullable": "YES",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "column_name": "geom",
+                "is_nullable": "YES",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "column_name": "area_type",
+                "is_nullable": "YES",
+                "ordinal_position": 3
+            },
+            {
+                "data_type": "smallint",
+                "column_name": "floor",
+                "is_nullable": "YES",
+                "ordinal_position": 4
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "column_name": "allowed_gender",
+                "is_nullable": "YES",
+                "ordinal_position": 5
+            },
+            {
+                "data_type": "boolean",
+                "column_name": "is_closed",
+                "is_nullable": "YES",
+                "ordinal_position": 6
+            },
+            {
+                "data_type": "numeric",
+                "column_name": "weight_open_space",
+                "is_nullable": "YES",
+                "ordinal_position": 7
+            },
+            {
+                "data_type": "jsonb",
+                "column_name": "attrs",
+                "is_nullable": "YES",
+                "ordinal_position": 8
+            },
+            {
+                "data_type": "boolean",
+                "column_name": "is_allowed",
+                "is_nullable": "YES",
+                "ordinal_position": 9
+            },
+            {
+                "data_type": "numeric",
+                "column_name": "admin_penalty_w",
+                "is_nullable": "YES",
+                "ordinal_position": 10
+            }
+        ],
+        "full_ddl": "CREATE OR REPLACE VIEW public.v_allowed_areas AS\n SELECT id,\n    geom,\n    area_type,\n    floor,\n    allowed_gender,\n    is_closed,\n    weight_open_space,\n    attrs,\n    is_allowed,\n    admin_penalty_w\n   FROM fn_allowed_areas__(now(), 'male'::gender_enum, 'walk'::text, (0)::smallint) fn_allowed_areas(id, geom, area_type, floor, allowed_gender, is_closed, weight_open_space, attrs, is_allowed, admin_penalty_w);",
+        "view_name": "v_allowed_areas",
+        "check_option": "NONE",
+        "is_updatable": "NO",
+        "view_definition": " SELECT id,\n    geom,\n    area_type,\n    floor,\n    allowed_gender,\n    is_closed,\n    weight_open_space,\n    attrs,\n    is_allowed,\n    admin_penalty_w\n   FROM fn_allowed_areas__(now(), 'male'::gender_enum, 'walk'::text, (0)::smallint) fn_allowed_areas(id, geom, area_type, floor, allowed_gender, is_closed, weight_open_space, attrs, is_allowed, admin_penalty_w);",
+        "is_insertable_into": "NO"
+    },
+    {
+        "schema": "public",
+        "columns": [
+            {
+                "data_type": "bigint",
+                "column_name": "id",
+                "is_nullable": "YES",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "column_name": "geom",
+                "is_nullable": "YES",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "smallint",
+                "column_name": "floor",
+                "is_nullable": "YES",
+                "ordinal_position": 3
+            },
+            {
+                "data_type": "bigint",
+                "column_name": "area_id",
+                "is_nullable": "YES",
+                "ordinal_position": 4
+            },
+            {
+                "data_type": "jsonb",
+                "column_name": "attrs",
+                "is_nullable": "YES",
+                "ordinal_position": 5
+            }
+        ],
+        "full_ddl": "CREATE OR REPLACE VIEW public.vw_mesh_triangles AS\n SELECT id,\n    geom,\n    floor,\n    area_id,\n    attrs\n   FROM mesh_triangles\n  WHERE (floor = 0);",
+        "view_name": "vw_mesh_triangles",
+        "check_option": "NONE",
+        "is_updatable": "YES",
+        "view_definition": " SELECT id,\n    geom,\n    floor,\n    area_id,\n    attrs\n   FROM mesh_triangles\n  WHERE (floor = 0);",
+        "is_insertable_into": "YES"
+    },
+    {
+        "schema": "public",
+        "columns": [
+            {
+                "data_type": "bigint",
+                "column_name": "id",
+                "is_nullable": "YES",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "smallint",
+                "column_name": "floor",
+                "is_nullable": "YES",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "bigint",
+                "column_name": "src",
+                "is_nullable": "YES",
+                "ordinal_position": 3
+            },
+            {
+                "data_type": "bigint",
+                "column_name": "dst",
+                "is_nullable": "YES",
+                "ordinal_position": 4
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "column_name": "geom",
+                "is_nullable": "YES",
+                "ordinal_position": 5
+            },
+            {
+                "data_type": "numeric",
+                "column_name": "base_cost",
+                "is_nullable": "YES",
+                "ordinal_position": 6
+            },
+            {
+                "data_type": "numeric",
+                "column_name": "cost",
+                "is_nullable": "YES",
+                "ordinal_position": 7
+            },
+            {
+                "data_type": "bigint",
+                "column_name": "door_id",
+                "is_nullable": "YES",
+                "ordinal_position": 8
+            }
+        ],
+        "full_ddl": "CREATE OR REPLACE VIEW public.routing_edges_live AS\n SELECT e.id,\n    e.floor,\n    e.src,\n    e.dst,\n    e.geom,\n    e.base_cost,\n    e.base_cost AS cost,\n    e.door_id\n   FROM ((routing_edges_static e\n     LEFT JOIN v_doors_live d ON ((e.door_id = d.id)))\n     LEFT JOIN v_temp_block_areas_active b ON (((b.floor = e.floor) AND st_intersects(e.geom, b.geom))))\n  WHERE ((COALESCE(d.is_open_effective, true) = true) AND (b.id IS NULL));",
+        "view_name": "routing_edges_live",
+        "check_option": "NONE",
+        "is_updatable": "NO",
+        "view_definition": " SELECT e.id,\n    e.floor,\n    e.src,\n    e.dst,\n    e.geom,\n    e.base_cost,\n    e.base_cost AS cost,\n    e.door_id\n   FROM ((routing_edges_static e\n     LEFT JOIN v_doors_live d ON ((e.door_id = d.id)))\n     LEFT JOIN v_temp_block_areas_active b ON (((b.floor = e.floor) AND st_intersects(e.geom, b.geom))))\n  WHERE ((COALESCE(d.is_open_effective, true) = true) AND (b.id IS NULL));",
+        "is_insertable_into": "NO"
+    }
+]

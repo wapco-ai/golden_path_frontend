@@ -1,0 +1,7976 @@
+[
+  {
+    "id": 2,
+    "geom": "POINT(734827.851360457 4019383.18071539)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 3,
+    "geom": "POINT(734840.223972547 4019374.78591994)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 6,
+    "geom": "POINT(734838.077134419 4019386.3933072)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 7,
+    "geom": "POINT(734836.826231724 4019386.1261758)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 11,
+    "geom": "POINT(734841.408060656 4019383.27464242)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 13,
+    "geom": "POINT(734820.833703068 4019386.58934183)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 15,
+    "geom": "POINT(734834.245949142 4019372.4008418)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 20,
+    "geom": "POINT(734826.078262135 4019396.32172719)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 23,
+    "geom": "POINT(735116.806332677 4019053.6222071)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 24,
+    "geom": "POINT(735118.321954583 4019051.72804281)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 25,
+    "geom": "POINT(735141.964542892 4019030.26100157)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 27,
+    "geom": "POINT(735173.817824765 4019050.94985718)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 28,
+    "geom": "POINT(734580.341578589 4019164.1341045)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 35,
+    "geom": "POINT(735253.886635381 4019063.95970632)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 39,
+    "geom": "POINT(734923.034089037 4018882.99561584)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 40,
+    "geom": "POINT(735039.47907277 4019082.8347529)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 42,
+    "geom": "POINT(734977.014687124 4019246.53937269)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 45,
+    "geom": "POINT(734688.475642564 4018719.8791961)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 46,
+    "geom": "POINT(734682.068095222 4018729.28007576)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 47,
+    "geom": "POINT(734553.753639837 4018861.92923993)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 48,
+    "geom": "POINT(735141.634835426 4019145.70261935)",
+    "poi_type": "courtyard_name",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 49,
+    "geom": "POINT(735352.921377671 4019119.03220847)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 50,
+    "geom": "POINT(735314.14056101 4019069.32498259)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 51,
+    "geom": "POINT(735219.351141582 4018991.76732876)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 52,
+    "geom": "POINT(735243.181420918 4019003.98584832)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 53,
+    "geom": "POINT(735209.225435244 4018969.64949551)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 54,
+    "geom": "POINT(735304.347159773 4019195.48490351)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 55,
+    "geom": "POINT(734889.063730992 4018987.11894547)",
+    "poi_type": "stair",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 57,
+    "geom": "POINT(735072.135644083 4019122.40065937)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 58,
+    "geom": "POINT(735059.291056982 4019101.17899296)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 59,
+    "geom": "POINT(735022.079753257 4019134.54521638)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 60,
+    "geom": "POINT(735076.429262353 4019027.68687216)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 61,
+    "geom": "POINT(735255.457476798 4019164.8850482)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 62,
+    "geom": "POINT(735161.723733425 4018890.67789787)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 63,
+    "geom": "POINT(734688.922016289 4019395.99428435)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 64,
+    "geom": "POINT(734584.95117599 4018835.74009707)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 65,
+    "geom": "POINT(734580.59566654 4019134.55704904)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 66,
+    "geom": "POINT(734574.505133805 4019128.71127823)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 67,
+    "geom": "POINT(734899.226705112 4018997.49120217)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 68,
+    "geom": "POINT(734638.593584047 4018790.11819622)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 69,
+    "geom": "POINT(735044.088735638 4018986.73299001)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 70,
+    "geom": "POINT(734552.693068751 4018871.69896979)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 71,
+    "geom": "POINT(734625.525618443 4018792.00909209)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 72,
+    "geom": "POINT(734568.252177386 4018852.29060456)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 73,
+    "geom": "POINT(734590.77193308 4018836.71469765)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 74,
+    "geom": "POINT(734595.672411726 4018839.83274103)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 75,
+    "geom": "POINT(735051.659755564 4019299.528494)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 76,
+    "geom": "POINT(735050.428431399 4019300.82389608)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 77,
+    "geom": "POINT(734746.441378367 4018983.98926859)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 78,
+    "geom": "POINT(734746.904998488 4018982.87671628)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 79,
+    "geom": "POINT(734955.357174314 4018888.68107954)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 80,
+    "geom": "POINT(734802.609940285 4019229.12622378)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 81,
+    "geom": "POINT(734803.649932284 4019228.92479028)",
+    "poi_type": "courtyard_name",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 82,
+    "geom": "POINT(734803.010352838 4019232.68167394)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 84,
+    "geom": "POINT(734582.483394005 4019091.60759302)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 85,
+    "geom": "POINT(734582.637041996 4019091.90134628)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 86,
+    "geom": "POINT(734643.847313675 4018784.51256137)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 87,
+    "geom": "POINT(734556.410028384 4018865.89469168)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 88,
+    "geom": "POINT(734561.211094304 4018860.88195698)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 89,
+    "geom": "POINT(734585.576632968 4018847.96720822)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 90,
+    "geom": "POINT(734663.512226252 4018760.09661847)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 91,
+    "geom": "POINT(734601.436992376 4018824.09549833)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 92,
+    "geom": "POINT(734579.554967452 4018840.58417726)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 93,
+    "geom": "POINT(734562.36323556 4018867.29257485)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 94,
+    "geom": "POINT(734619.950653354 4018830.88074868)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 95,
+    "geom": "POINT(734633.808737645 4018815.94883372)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 96,
+    "geom": "POINT(734632.565392044 4018818.50983057)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 97,
+    "geom": "POINT(734630.158733275 4018816.40679553)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 98,
+    "geom": "POINT(734574.188265454 4018843.21333121)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 99,
+    "geom": "POINT(734562.465483327 4018855.85338875)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 100,
+    "geom": "POINT(734636.152487763 4018778.20341014)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 101,
+    "geom": "POINT(734651.952402329 4018764.12186032)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 102,
+    "geom": "POINT(735095.611723592 4019336.0913279)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 103,
+    "geom": "POINT(735082.248856475 4019324.73228625)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 104,
+    "geom": "POINT(734534.70078255 4018921.81874208)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 105,
+    "geom": "POINT(734536.849319751 4018927.96721851)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 106,
+    "geom": "POINT(734532.946909702 4018925.38895602)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 107,
+    "geom": "POINT(734976.048933585 4019338.43813928)",
+    "poi_type": "tea_house",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 108,
+    "geom": "POINT(734887.030976192 4018862.3861513)",
+    "poi_type": "tea_house",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 109,
+    "geom": "POINT(735045.24004453 4019296.68002594)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 110,
+    "geom": "POINT(734885.737544707 4019094.11562261)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 111,
+    "geom": "POINT(734704.951571757 4019229.44616989)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 112,
+    "geom": "POINT(734868.058415433 4019126.41107384)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 113,
+    "geom": "POINT(734864.969361823 4019166.10301082)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 114,
+    "geom": "POINT(734846.862512365 4019151.35554633)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 115,
+    "geom": "POINT(734902.448002392 4019039.64083703)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 116,
+    "geom": "POINT(734866.92134025 4018985.42046879)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 117,
+    "geom": "POINT(734875.116369173 4018989.0025831)",
+    "poi_type": "courtyard_name",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 118,
+    "geom": "POINT(734875.403637601 4018985.81154901)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 119,
+    "geom": "POINT(734883.057676772 4018990.16751644)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 120,
+    "geom": "POINT(734925.892522429 4018943.87870228)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 121,
+    "geom": "POINT(734902.381694744 4018919.3081606)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 122,
+    "geom": "POINT(734827.539573195 4018947.35813089)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 123,
+    "geom": "POINT(734845.121438799 4018966.09703983)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 124,
+    "geom": "POINT(734848.109475424 4018969.86964514)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 125,
+    "geom": "POINT(734856.567728968 4018976.05720993)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 126,
+    "geom": "POINT(734912.589371541 4018947.86891886)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 127,
+    "geom": "POINT(734936.290934874 4019001.61190578)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 128,
+    "geom": "POINT(735000.748328589 4019110.80446127)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 129,
+    "geom": "POINT(734998.274767164 4019113.47842308)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 130,
+    "geom": "POINT(734699.5467093 4019125.54316445)",
+    "poi_type": "ramp",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 131,
+    "geom": "POINT(734996.898883109 4019023.3291107)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 132,
+    "geom": "POINT(735010.2894136 4018966.19361854)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 134,
+    "geom": "POINT(734944.75483434 4018763.72039281)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 136,
+    "geom": "POINT(734928.364530736 4018771.18422626)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 137,
+    "geom": "POINT(734984.952037905 4018945.18259628)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 140,
+    "geom": "POINT(735099.858934577 4019355.31301544)",
+    "poi_type": "ramp",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 145,
+    "geom": "POINT(734969.27980651 4018900.59367235)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 147,
+    "geom": "POINT(735049.496569058 4019372.32513983)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 149,
+    "geom": "POINT(734595.277397905 4019070.52881392)",
+    "poi_type": "tea_house",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 151,
+    "geom": "POINT(734583.54330059 4019058.71738466)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 153,
+    "geom": "POINT(734555.554851803 4019033.32533486)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 155,
+    "geom": "POINT(734542.7288098 4019020.22232573)",
+    "poi_type": "prayer_room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 157,
+    "geom": "POINT(734646.782249408 4018767.66150504)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 158,
+    "geom": "POINT(734804.215660294 4018994.45704051)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 159,
+    "geom": "POINT(734745.45611642 4019191.3530319)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 160,
+    "geom": "POINT(734822.25865426 4019218.92100065)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 161,
+    "geom": "POINT(734824.584193281 4019216.70759065)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 162,
+    "geom": "POINT(734825.293855937 4019216.39780781)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 163,
+    "geom": "POINT(734881.474146302 4019366.67412958)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 164,
+    "geom": "POINT(734870.814945868 4019381.05745079)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 165,
+    "geom": "POINT(734866.617609177 4019380.95184495)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 166,
+    "geom": "POINT(734895.198147067 4018808.00097238)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 167,
+    "geom": "POINT(734894.070349486 4018807.88637236)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 168,
+    "geom": "POINT(734899.056890508 4018802.39734256)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 169,
+    "geom": "POINT(734820.018495933 4019096.63728694)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 170,
+    "geom": "POINT(734818.065784795 4019097.50136937)",
+    "poi_type": "prayer_room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 171,
+    "geom": "POINT(734821.303607021 4019055.61827641)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 172,
+    "geom": "POINT(735050.92688952 4019302.19497573)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 173,
+    "geom": "POINT(734636.799778472 4019093.99484664)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 174,
+    "geom": "POINT(734619.882953804 4019084.20865768)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 175,
+    "geom": "POINT(734616.838157347 4019079.75560083)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 176,
+    "geom": "POINT(734610.910597581 4019075.62421392)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 177,
+    "geom": "POINT(734608.164944213 4019068.61583902)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 178,
+    "geom": "POINT(734531.000414894 4019047.26904849)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 179,
+    "geom": "POINT(734526.764396921 4018999.68711226)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 180,
+    "geom": "POINT(734527.197681157 4018992.42571217)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 181,
+    "geom": "POINT(734545.439174461 4018942.8126665)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 182,
+    "geom": "POINT(734949.663400041 4018888.61741463)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 183,
+    "geom": "POINT(734859.58708202 4018764.78367804)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 184,
+    "geom": "POINT(734877.18445196 4018747.30027784)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 1,
+    "geom": "POINT(735106.951641686 4019360.60509273)",
+    "poi_type": "ramp",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 4,
+    "geom": "POINT(734839.012017323 4019374.44626659)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 8,
+    "geom": "POINT(734833.545348061 4019389.79028655)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 9,
+    "geom": "POINT(734835.021626525 4019390.30022075)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 10,
+    "geom": "POINT(734839.931782878 4019382.76470748)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 12,
+    "geom": "POINT(734835.837123303 4019372.51668852)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 14,
+    "geom": "POINT(734817.757496748 4019391.25134586)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 16,
+    "geom": "POINT(734818.313720062 4019390.75570897)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 17,
+    "geom": "POINT(734818.255388561 4019401.036704)",
+    "poi_type": "stair",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 18,
+    "geom": "POINT(734823.816031318 4019401.74812818)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 19,
+    "geom": "POINT(734829.008880497 4019394.91603012)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 21,
+    "geom": "POINT(734833.140637195 4019380.71149209)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 22,
+    "geom": "POINT(734823.955114398 4019390.2757034)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 26,
+    "geom": "POINT(735130.80671097 4019045.00504843)",
+    "poi_type": "exit",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 29,
+    "geom": "POINT(734974.890768949 4018744.25718855)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 30,
+    "geom": "POINT(734638.085023039 4019256.54662018)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 31,
+    "geom": "POINT(734657.024838102 4019276.35574806)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 41,
+    "geom": "POINT(734899.606572704 4019253.80933556)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 56,
+    "geom": "POINT(734889.537035714 4018986.57532352)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 185,
+    "geom": "POINT(734809.334643736 4018730.90548328)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 186,
+    "geom": "POINT(734814.604734908 4018735.3778421)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 187,
+    "geom": "POINT(734865.519232258 4018758.22818751)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 188,
+    "geom": "POINT(734821.089411305 4018733.75492712)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 189,
+    "geom": "POINT(734832.07293766 4018743.20653016)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 190,
+    "geom": "POINT(734833.656681605 4018741.5934836)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 191,
+    "geom": "POINT(734829.382364258 4018743.41893932)",
+    "poi_type": "courtyard_name",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 192,
+    "geom": "POINT(734828.998404414 4018743.02773791)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 194,
+    "geom": "POINT(734837.999198442 4018732.510336)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 201,
+    "geom": "POINT(734767.088096772 4019198.61893005)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 202,
+    "geom": "POINT(734792.282490265 4019222.69096676)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 203,
+    "geom": "POINT(734813.245942957 4019223.33900239)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 204,
+    "geom": "POINT(734827.218430178 4019209.21161836)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 205,
+    "geom": "POINT(734891.14495685 4018771.21041589)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 207,
+    "geom": "POINT(734878.019806545 4018768.05369216)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 208,
+    "geom": "POINT(734804.49979933 4018727.77609943)",
+    "poi_type": "courtyard_name",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 213,
+    "geom": "POINT(734881.81742377 4019027.03259266)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 217,
+    "geom": "POINT(734523.0616857 4018928.41222918)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 218,
+    "geom": "POINT(734525.714053319 4018926.98960384)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 226,
+    "geom": "POINT(734560.495419207 4018888.7859949)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 227,
+    "geom": "POINT(735036.875057578 4018982.43896108)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 228,
+    "geom": "POINT(735038.931992217 4018983.670965)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 229,
+    "geom": "POINT(735040.334067859 4018984.9724392)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 230,
+    "geom": "POINT(734944.714890707 4018992.38272114)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 231,
+    "geom": "POINT(735013.865066372 4019009.35469908)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 232,
+    "geom": "POINT(734984.725490117 4018952.97713787)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 233,
+    "geom": "POINT(734750.626847666 4018721.76910274)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 234,
+    "geom": "POINT(734838.885004673 4019151.94891976)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 235,
+    "geom": "POINT(734941.453428038 4018764.30588741)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 236,
+    "geom": "POINT(734939.122689393 4018763.15023935)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 237,
+    "geom": "POINT(734939.477330703 4018765.91644829)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 238,
+    "geom": "POINT(734884.650632212 4018799.60427271)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 239,
+    "geom": "POINT(734889.019951219 4018799.15397383)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 240,
+    "geom": "POINT(734906.952949666 4018789.05043712)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 241,
+    "geom": "POINT(734894.699222578 4018777.48850572)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 242,
+    "geom": "POINT(734886.822357464 4018765.22283744)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 243,
+    "geom": "POINT(734706.615881536 4019222.04315283)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 244,
+    "geom": "POINT(734706.242423745 4019221.15596219)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 245,
+    "geom": "POINT(734912.564035753 4018951.226827)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 246,
+    "geom": "POINT(735009.695808962 4019097.58116395)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 247,
+    "geom": "POINT(734886.230853492 4019049.96608514)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 248,
+    "geom": "POINT(734852.53510456 4018882.43228408)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 249,
+    "geom": "POINT(734800.251318369 4018928.50339622)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 250,
+    "geom": "POINT(734881.904913662 4019053.99991565)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 5,
+    "geom": "POINT(734833.885905257 4019372.74867481)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 32,
+    "geom": "POINT(735257.622578829 4019071.4931818)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 33,
+    "geom": "POINT(735260.362734097 4019059.05141711)",
+    "poi_type": "exit",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 34,
+    "geom": "POINT(735257.589152009 4019060.02586156)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 36,
+    "geom": "POINT(735256.743597755 4019063.57051805)",
+    "poi_type": "room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 43,
+    "geom": "POINT(734541.416339271 4018892.46211686)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 44,
+    "geom": "POINT(734631.611929604 4018780.2245166)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 133,
+    "geom": "POINT(734944.057366424 4018763.09745042)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 135,
+    "geom": "POINT(734983.424897078 4019134.63915024)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 138,
+    "geom": "POINT(734987.69650749 4018943.82116969)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 139,
+    "geom": "POINT(735090.930828115 4019355.50193694)",
+    "poi_type": "ramp",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 141,
+    "geom": "POINT(734873.104537314 4019060.08302416)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 142,
+    "geom": "POINT(734904.754062067 4019023.40725721)",
+    "poi_type": "room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 143,
+    "geom": "POINT(734906.492047941 4019021.59884551)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 144,
+    "geom": "POINT(734967.823717361 4018901.07711998)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 146,
+    "geom": "POINT(734897.88398812 4019014.98863294)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 148,
+    "geom": "POINT(734602.575514742 4019065.31430793)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 150,
+    "geom": "POINT(734584.291081299 4019060.20640445)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 152,
+    "geom": "POINT(734579.430481358 4019065.45655772)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 154,
+    "geom": "POINT(734549.87074956 4019038.8805491)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 156,
+    "geom": "POINT(734631.409809342 4018783.84164857)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 193,
+    "geom": "POINT(734837.223492055 4018732.34712067)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 209,
+    "geom": "POINT(734828.847240332 4018724.38903207)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 251,
+    "geom": "POINT(734870.043555685 4019066.26002777)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 252,
+    "geom": "POINT(734958.683822266 4019050.96941391)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 253,
+    "geom": "POINT(735009.769328302 4018952.32552525)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 254,
+    "geom": "POINT(735009.830907723 4019107.95018834)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 255,
+    "geom": "POINT(734905.426538948 4019105.9444069)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 256,
+    "geom": "POINT(734855.353923345 4019156.74157475)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 257,
+    "geom": "POINT(734856.329779724 4019157.68029366)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 258,
+    "geom": "POINT(734858.718422385 4019185.91916887)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 259,
+    "geom": "POINT(734522.984793971 4018924.37546598)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 260,
+    "geom": "POINT(734668.708941413 4018763.14772908)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 261,
+    "geom": "POINT(734679.036824383 4018764.0549014)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 262,
+    "geom": "POINT(734675.434499997 4018765.12696972)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 263,
+    "geom": "POINT(734674.552636622 4018766.11500565)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 264,
+    "geom": "POINT(734916.390130518 4019023.27306775)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 265,
+    "geom": "POINT(734912.718050831 4019027.84740433)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 266,
+    "geom": "POINT(734922.368176234 4019017.28533373)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 267,
+    "geom": "POINT(734927.328187814 4019020.37783077)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 268,
+    "geom": "POINT(734930.090925855 4019023.00024092)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 269,
+    "geom": "POINT(734858.820759686 4018880.31301855)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 270,
+    "geom": "POINT(734857.633634953 4018887.46654233)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 271,
+    "geom": "POINT(734874.432274165 4018895.13076752)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 272,
+    "geom": "POINT(734860.950607409 4018891.68135093)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 273,
+    "geom": "POINT(734869.211164023 4018897.68653575)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 274,
+    "geom": "POINT(734871.230523626 4018893.43614605)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 275,
+    "geom": "POINT(734870.591390177 4018889.09342871)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 276,
+    "geom": "POINT(734862.848630332 4018882.56342244)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 277,
+    "geom": "POINT(734891.188130448 4019120.50458087)",
+    "poi_type": "room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 278,
+    "geom": "POINT(734872.009953584 4019116.69774581)",
+    "poi_type": "room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 279,
+    "geom": "POINT(734894.706865534 4019152.03893095)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 280,
+    "geom": "POINT(734864.072932977 4019178.8498184)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 281,
+    "geom": "POINT(734988.169392156 4019126.18872848)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 282,
+    "geom": "POINT(734939.469336983 4019187.00760853)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 283,
+    "geom": "POINT(734935.253241634 4019183.59575661)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 284,
+    "geom": "POINT(734959.385225845 4019160.42104807)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 285,
+    "geom": "POINT(734949.9348117 4019173.37384723)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 286,
+    "geom": "POINT(734893.242533784 4019122.35176722)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 287,
+    "geom": "POINT(734993.543829039 4019120.3336127)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 288,
+    "geom": "POINT(734557.105544997 4018877.53520812)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 289,
+    "geom": "POINT(734754.410569311 4018962.60535714)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 290,
+    "geom": "POINT(734757.736465247 4018966.78343071)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 291,
+    "geom": "POINT(734761.249142624 4018963.72549972)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 292,
+    "geom": "POINT(734755.742763945 4018957.22227375)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 37,
+    "geom": "POINT(735253.425717527 4019075.31304887)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 38,
+    "geom": "POINT(735053.918294416 4019362.3424776)",
+    "poi_type": "room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 83,
+    "geom": "POINT(734802.544004346 4019233.73787093)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 195,
+    "geom": "POINT(734831.479582404 4018739.10693187)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 196,
+    "geom": "POINT(734829.281288671 4018724.73936502)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 197,
+    "geom": "POINT(734824.755379304 4018720.30926528)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 198,
+    "geom": "POINT(734824.177725948 4018719.20468882)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 199,
+    "geom": "POINT(734838.589710783 4018725.15564175)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 200,
+    "geom": "POINT(734820.87909597 4019217.10058903)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 206,
+    "geom": "POINT(734882.812671867 4018762.51509505)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 210,
+    "geom": "POINT(734865.091441987 4018785.88768941)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 211,
+    "geom": "POINT(734943.867846704 4019074.07445886)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 212,
+    "geom": "POINT(734827.54736386 4018905.62451742)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 214,
+    "geom": "POINT(734933.986192541 4019018.6394589)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 215,
+    "geom": "POINT(734933.442383176 4019004.49635334)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 216,
+    "geom": "POINT(734979.039449057 4019052.53232827)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 219,
+    "geom": "POINT(734604.195001758 4018876.00310537)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 220,
+    "geom": "POINT(734670.98915375 4018803.92760365)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 221,
+    "geom": "POINT(734688.294828224 4018749.16956644)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 222,
+    "geom": "POINT(734685.088985064 4018754.82803693)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 223,
+    "geom": "POINT(734642.240679426 4019209.55774829)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 224,
+    "geom": "POINT(734639.812974516 4019217.093466)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 225,
+    "geom": "POINT(734640.724655058 4019211.81116076)",
+    "poi_type": "room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 293,
+    "geom": "POINT(734773.696116562 4018940.3868129)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 294,
+    "geom": "POINT(734778.7862169 4018946.46056972)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 295,
+    "geom": "POINT(734776.208052349 4018950.1777733)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 296,
+    "geom": "POINT(734770.374579572 4018944.15555957)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 297,
+    "geom": "POINT(734596.460613423 4019157.28089199)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 298,
+    "geom": "POINT(734592.441932477 4019152.78665419)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 299,
+    "geom": "POINT(734800.539321638 4018721.88283688)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 300,
+    "geom": "POINT(734799.131838974 4018722.56044099)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 301,
+    "geom": "POINT(734748.605041464 4018983.81070263)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 302,
+    "geom": "POINT(734749.12981506 4018983.95711656)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 303,
+    "geom": "POINT(734747.995943535 4018975.14951382)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 304,
+    "geom": "POINT(734748.143780075 4018975.93197681)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 305,
+    "geom": "POINT(734763.734809379 4019007.62677079)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 306,
+    "geom": "POINT(734764.307544147 4019009.30914549)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 307,
+    "geom": "POINT(734539.820687896 4019054.82895266)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 308,
+    "geom": "POINT(734540.044904697 4019034.21517681)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 309,
+    "geom": "POINT(734547.563828014 4019025.44245723)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 310,
+    "geom": "POINT(734586.504507141 4018895.05532909)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 311,
+    "geom": "POINT(734582.998394936 4018889.92721418)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 312,
+    "geom": "POINT(734708.856049176 4019231.47006437)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 313,
+    "geom": "POINT(734683.257078443 4019068.42584926)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 314,
+    "geom": "POINT(734692.25607323 4019058.68411746)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 315,
+    "geom": "POINT(734845.95077868 4018755.0538908)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 316,
+    "geom": "POINT(734911.064934903 4019103.05269284)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 317,
+    "geom": "POINT(734825.414623164 4018952.52680764)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 318,
+    "geom": "POINT(734830.03290113 4018959.10660399)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 319,
+    "geom": "POINT(734829.454800437 4018958.90674788)",
+    "poi_type": "room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 320,
+    "geom": "POINT(734824.744138039 4018952.44041974)",
+    "poi_type": "room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 321,
+    "geom": "POINT(734702.465387939 4019100.33436991)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 322,
+    "geom": "POINT(734944.299081612 4019177.38405808)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 323,
+    "geom": "POINT(734654.20022729 4018942.84635601)",
+    "poi_type": "courtyard_name",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 324,
+    "geom": "POINT(734913.040204805 4019103.88845304)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 325,
+    "geom": "POINT(735015.844869334 4019005.83876761)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 326,
+    "geom": "POINT(734754.596158236 4018711.74458511)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 327,
+    "geom": "POINT(734947.24269737 4018881.30399265)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 328,
+    "geom": "POINT(734869.616390155 4018776.42672442)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 329,
+    "geom": "POINT(734626.022513057 4018865.44934831)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 330,
+    "geom": "POINT(734625.070904274 4018861.97872275)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 331,
+    "geom": "POINT(734622.552627893 4018859.7268386)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 332,
+    "geom": "POINT(734620.126344448 4018857.49989493)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 333,
+    "geom": "POINT(734617.31398174 4018869.16386806)",
+    "poi_type": "prayer_room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 334,
+    "geom": "POINT(734611.735068369 4018868.01221905)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 335,
+    "geom": "POINT(734693.686685447 4018782.40011439)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 336,
+    "geom": "POINT(734685.813493717 4018794.62518269)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 337,
+    "geom": "POINT(734680.478669282 4018794.51804652)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 338,
+    "geom": "POINT(734678.841797117 4018795.0826043)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 339,
+    "geom": "POINT(734684.525080258 4018776.23619753)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 340,
+    "geom": "POINT(734584.896127369 4019127.9857279)",
+    "poi_type": "tea_house",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 341,
+    "geom": "POINT(734691.508739855 4019250.46105689)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 342,
+    "geom": "POINT(734690.022053931 4019249.02361056)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 343,
+    "geom": "POINT(734690.208926903 4019247.17599325)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 344,
+    "geom": "POINT(734757.273217635 4018996.21319414)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 345,
+    "geom": "POINT(734800.455153946 4019208.36171355)",
+    "poi_type": "courtyard_name",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 346,
+    "geom": "POINT(734825.419742905 4018962.42136966)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 347,
+    "geom": "POINT(734594.787456388 4018879.02153368)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 348,
+    "geom": "POINT(734609.846781197 4018862.02000301)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 349,
+    "geom": "POINT(734609.327529915 4018848.19747208)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 350,
+    "geom": "POINT(734677.851210482 4018789.82842431)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 351,
+    "geom": "POINT(734599.670802317 4018888.76818711)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 352,
+    "geom": "POINT(734607.902292054 4018858.56385148)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 353,
+    "geom": "POINT(734602.376851297 4018829.89882991)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 354,
+    "geom": "POINT(734598.969208526 4018832.62190189)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 355,
+    "geom": "POINT(734582.016380096 4018879.96520627)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 356,
+    "geom": "POINT(734576.797933549 4018875.52101405)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 357,
+    "geom": "POINT(734574.287881918 4018864.57574289)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 358,
+    "geom": "POINT(734561.171595067 4018877.69205728)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 359,
+    "geom": "POINT(734646.480432896 4018788.78668928)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 360,
+    "geom": "POINT(734650.117695526 4018785.54677701)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 361,
+    "geom": "POINT(734650.693453908 4018801.60587533)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 362,
+    "geom": "POINT(734659.533390004 4018795.95085755)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 363,
+    "geom": "POINT(734641.605765706 4018790.46374527)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 364,
+    "geom": "POINT(734631.08941525 4018797.99501264)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 365,
+    "geom": "POINT(734671.462023264 4018765.12690753)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 366,
+    "geom": "POINT(734665.86826787 4018777.56936494)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 367,
+    "geom": "POINT(734663.321609234 4018767.06671802)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 368,
+    "geom": "POINT(734655.115776289 4018776.25823368)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 369,
+    "geom": "POINT(734668.587211016 4018786.34361118)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 370,
+    "geom": "POINT(734668.551471991 4018784.70178109)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 371,
+    "geom": "POINT(734645.31159355 4018796.75932862)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 372,
+    "geom": "POINT(734648.377512313 4018799.71882564)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 373,
+    "geom": "POINT(734653.884318725 4018795.42574423)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 374,
+    "geom": "POINT(734632.110214561 4018797.51806417)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 375,
+    "geom": "POINT(734634.304217333 4018795.2450228)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 376,
+    "geom": "POINT(734658.20815044 4018798.60341103)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 377,
+    "geom": "POINT(734657.953029082 4018805.09797443)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 378,
+    "geom": "POINT(734662.139942487 4018793.45874338)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 379,
+    "geom": "POINT(734675.134327615 4018786.0320465)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 380,
+    "geom": "POINT(734678.282986724 4018773.33957817)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 381,
+    "geom": "POINT(734669.695121701 4018779.0425072)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 382,
+    "geom": "POINT(734659.980496017 4018780.65990933)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 383,
+    "geom": "POINT(734670.664076381 4018767.90726234)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 384,
+    "geom": "POINT(734668.424552914 4018771.00780051)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 385,
+    "geom": "POINT(734665.300121725 4018761.54951408)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 386,
+    "geom": "POINT(734672.780050218 4018775.29738416)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 387,
+    "geom": "POINT(734680.700460799 4018774.02065899)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 388,
+    "geom": "POINT(734646.189535868 4018787.46822748)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 389,
+    "geom": "POINT(735019.419758494 4019014.91972116)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 390,
+    "geom": "POINT(734851.81447602 4019254.71518155)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 391,
+    "geom": "POINT(734851.730473874 4018885.97279605)",
+    "poi_type": "stair",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 392,
+    "geom": "POINT(734849.24747142 4018887.61905821)",
+    "poi_type": "stair",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 393,
+    "geom": "POINT(734847.011736734 4018884.32928424)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 394,
+    "geom": "POINT(734816.68922569 4018921.9475322)",
+    "poi_type": "stair",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 395,
+    "geom": "POINT(734816.279763643 4018917.90319271)",
+    "poi_type": "stair",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 396,
+    "geom": "POINT(734994.562583803 4019039.16150601)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 397,
+    "geom": "POINT(734989.654637117 4019035.17560831)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 398,
+    "geom": "POINT(734943.457239508 4018970.7526858)",
+    "poi_type": "courtyard_name",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 399,
+    "geom": "POINT(734580.256370977 4019092.36530996)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 400,
+    "geom": "POINT(734863.061290188 4019252.72081971)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 401,
+    "geom": "POINT(734854.847438882 4019262.33937465)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 402,
+    "geom": "POINT(734869.849990141 4019236.79351545)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 403,
+    "geom": "POINT(734861.14222742 4019254.02624711)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 404,
+    "geom": "POINT(734860.634747173 4019255.40559704)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 405,
+    "geom": "POINT(735009.905705254 4019077.06055603)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 406,
+    "geom": "POINT(734667.247305885 4019230.23795997)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 407,
+    "geom": "POINT(734918.535358824 4018755.80629614)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 408,
+    "geom": "POINT(734900.385208135 4019389.16825378)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 409,
+    "geom": "POINT(734886.343059633 4019058.57965751)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 410,
+    "geom": "POINT(734874.890947325 4019083.7933007)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 411,
+    "geom": "POINT(734878.690277788 4019087.24600587)",
+    "poi_type": "info_desk",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 412,
+    "geom": "POINT(734879.917712414 4019095.70994721)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 413,
+    "geom": "POINT(734875.939337043 4019094.73323845)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 414,
+    "geom": "POINT(734865.83688857 4019099.87084788)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 415,
+    "geom": "POINT(734860.564243971 4019096.43459787)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 416,
+    "geom": "POINT(734865.373265452 4019082.2923442)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 417,
+    "geom": "POINT(734860.460577849 4019088.99826459)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 418,
+    "geom": "POINT(734873.505690305 4019104.41269922)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 419,
+    "geom": "POINT(734871.791432133 4019102.98456685)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 420,
+    "geom": "POINT(734873.147076412 4019081.71562137)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 421,
+    "geom": "POINT(734879.487180202 4019090.76336936)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 422,
+    "geom": "POINT(734882.590327814 4019093.88507017)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 423,
+    "geom": "POINT(734875.412351115 4019102.97564761)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 424,
+    "geom": "POINT(734858.13176097 4019094.45944478)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 425,
+    "geom": "POINT(734863.099774044 4019086.71875153)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 426,
+    "geom": "POINT(734928.936174996 4019001.6657838)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 427,
+    "geom": "POINT(734921.947657961 4019050.86302402)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 428,
+    "geom": "POINT(734934.573380091 4019036.80109284)",
+    "poi_type": "room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 429,
+    "geom": "POINT(734926.109890412 4019046.22444096)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 430,
+    "geom": "POINT(734940.630714722 4019032.93699118)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 431,
+    "geom": "POINT(734633.933282448 4019221.01019811)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 432,
+    "geom": "POINT(734594.659254295 4019147.65292961)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 433,
+    "geom": "POINT(734538.599777227 4019055.38781279)",
+    "poi_type": "prayer_room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 434,
+    "geom": "POINT(735047.349996399 4018989.45134054)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 435,
+    "geom": "POINT(735046.561080364 4018987.61225293)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 436,
+    "geom": "POINT(734790.33231235 4018925.72344607)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 437,
+    "geom": "POINT(734805.637108251 4018938.96916327)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 438,
+    "geom": "POINT(734804.804211266 4018936.05735563)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 439,
+    "geom": "POINT(734794.147635053 4018930.59689028)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 440,
+    "geom": "POINT(734793.625501556 4018934.33841898)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 441,
+    "geom": "POINT(734782.622392412 4018929.90570017)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 442,
+    "geom": "POINT(734900.999334315 4019112.64898315)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 443,
+    "geom": "POINT(734673.378878084 4019236.76376894)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 444,
+    "geom": "POINT(734683.010198641 4019226.21856654)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 445,
+    "geom": "POINT(735011.444664516 4019024.68923515)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 446,
+    "geom": "POINT(734942.563987414 4018876.16478974)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 447,
+    "geom": "POINT(734565.422936612 4019035.51479897)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 448,
+    "geom": "POINT(734525.750687621 4018987.64475012)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 449,
+    "geom": "POINT(734748.331979518 4018970.14492548)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 450,
+    "geom": "POINT(734841.055477976 4018714.88697279)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 451,
+    "geom": "POINT(734623.318083802 4019181.25930037)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 452,
+    "geom": "POINT(734612.700624014 4019171.8411401)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 453,
+    "geom": "POINT(734603.718602843 4019163.18864678)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 454,
+    "geom": "POINT(734704.498571344 4019032.00620996)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 455,
+    "geom": "POINT(734686.701264969 4019052.96964359)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 456,
+    "geom": "POINT(734677.112958788 4019063.35462707)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 457,
+    "geom": "POINT(734832.492819833 4019138.18193512)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 458,
+    "geom": "POINT(734834.465006719 4019138.75319057)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 459,
+    "geom": "POINT(734880.675555487 4018782.84689542)",
+    "poi_type": "courtyard_name",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 460,
+    "geom": "POINT(734879.106769689 4018784.53404742)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 461,
+    "geom": "POINT(734753.073486921 4018971.6137538)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 462,
+    "geom": "POINT(734587.827689967 4018885.75899567)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 463,
+    "geom": "POINT(735026.0872552 4018995.12008069)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 464,
+    "geom": "POINT(734694.052674222 4019043.48163151)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 465,
+    "geom": "POINT(734700.512240288 4019037.07065867)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 466,
+    "geom": "POINT(734824.594531377 4019131.34348807)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 467,
+    "geom": "POINT(734862.09834442 4019171.01451902)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 468,
+    "geom": "POINT(734946.987450906 4018762.47859608)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 469,
+    "geom": "POINT(734811.361135807 4019233.90392481)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 470,
+    "geom": "POINT(735032.53139915 4018990.29376384)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 471,
+    "geom": "POINT(734973.216292379 4018905.06685101)",
+    "poi_type": "prayer_room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 472,
+    "geom": "POINT(734580.852655642 4018874.09553463)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 473,
+    "geom": "POINT(734591.295091602 4018868.99869141)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 474,
+    "geom": "POINT(734568.0205164 4018867.39719229)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 475,
+    "geom": "POINT(734577.922591256 4018867.50872661)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 476,
+    "geom": "POINT(734581.121956966 4018870.59208755)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 477,
+    "geom": "POINT(734589.465906926 4018878.43636598)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 478,
+    "geom": "POINT(734665.337043616 4018797.22849318)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 479,
+    "geom": "POINT(734601.847552144 4018857.72759242)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 480,
+    "geom": "POINT(734601.586019078 4018848.81582386)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 481,
+    "geom": "POINT(734600.783423382 4018847.74749262)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 482,
+    "geom": "POINT(734596.075343598 4018871.17260884)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 483,
+    "geom": "POINT(734601.213185193 4018858.73376252)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 484,
+    "geom": "POINT(734609.01332223 4018853.50973555)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 485,
+    "geom": "POINT(734578.726081694 4018858.10524958)",
+    "poi_type": "room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 486,
+    "geom": "POINT(734589.699506039 4018846.13689517)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 487,
+    "geom": "POINT(734607.48528702 4018833.49383759)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 488,
+    "geom": "POINT(734596.017582564 4018867.24199896)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 489,
+    "geom": "POINT(734628.128468608 4018801.81976777)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 490,
+    "geom": "POINT(734660.104445075 4018754.3877476)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 491,
+    "geom": "POINT(734687.798635643 4018751.87992967)",
+    "poi_type": "room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 492,
+    "geom": "POINT(734797.725064405 4018720.94006287)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 493,
+    "geom": "POINT(734834.275913439 4018720.11606559)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 494,
+    "geom": "POINT(734828.852732026 4018715.72076957)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 495,
+    "geom": "POINT(734834.891014126 4018709.24861295)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 496,
+    "geom": "POINT(734828.96259778 4018703.80726631)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 497,
+    "geom": "POINT(734822.85877112 4018710.34967713)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 498,
+    "geom": "POINT(734823.315476595 4018717.90511479)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 499,
+    "geom": "POINT(734847.12917847 4018721.37598368)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 500,
+    "geom": "POINT(734850.33090169 4018723.10865495)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 501,
+    "geom": "POINT(734860.172843364 4018764.37937424)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 502,
+    "geom": "POINT(734885.586887005 4018754.96085723)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 503,
+    "geom": "POINT(734869.769171252 4018787.6269674)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 504,
+    "geom": "POINT(734586.190587172 4019079.68335508)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 505,
+    "geom": "POINT(734575.638222835 4019077.99488454)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 506,
+    "geom": "POINT(734569.485898979 4019072.34802628)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 507,
+    "geom": "POINT(734548.166653539 4019051.918586)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 508,
+    "geom": "POINT(734542.269248415 4019046.25499999)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 509,
+    "geom": "POINT(734537.134739493 4019042.20132744)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 510,
+    "geom": "POINT(734536.498317083 4019031.72359747)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 511,
+    "geom": "POINT(734537.580937397 4019014.06818507)",
+    "poi_type": "prayer_room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 512,
+    "geom": "POINT(734525.841802338 4018956.11546663)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 513,
+    "geom": "POINT(734535.10755753 4018946.11976511)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 514,
+    "geom": "POINT(734822.024028857 4018911.13638845)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 515,
+    "geom": "POINT(734827.91187626 4018918.38693571)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 516,
+    "geom": "POINT(734831.609506551 4018914.98933733)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 517,
+    "geom": "POINT(734844.203233675 4018902.60894145)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 518,
+    "geom": "POINT(734848.857201627 4018897.50861991)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 519,
+    "geom": "POINT(734763.913123327 4018715.07477086)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 520,
+    "geom": "POINT(734746.691791199 4018724.88088218)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 521,
+    "geom": "POINT(735149.25655486 4018933.85426011)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 522,
+    "geom": "POINT(734938.773474098 4018998.06078037)",
+    "poi_type": "info_desk",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 523,
+    "geom": "POINT(734835.59787894 4018898.12747683)",
+    "poi_type": "info_desk",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 524,
+    "geom": "POINT(734875.897548542 4019105.3226216)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 525,
+    "geom": "POINT(734924.076522209 4019048.58119243)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 526,
+    "geom": "POINT(734974.015745753 4018965.42048165)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 527,
+    "geom": "POINT(734798.446796751 4019227.67600349)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 528,
+    "geom": "POINT(734699.987346514 4019247.79268031)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 529,
+    "geom": "POINT(734704.748757255 4019237.59097285)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 530,
+    "geom": "POINT(734787.42997999 4018934.94575774)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 531,
+    "geom": "POINT(734591.845835071 4019096.29595677)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 532,
+    "geom": "POINT(734586.334319494 4019099.35947088)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 533,
+    "geom": "POINT(734754.121410413 4019294.82383235)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 534,
+    "geom": "POINT(734867.320926653 4018858.8702388)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 535,
+    "geom": "POINT(734851.726289827 4018875.43201552)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 536,
+    "geom": "POINT(734858.469195958 4018868.29512048)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 537,
+    "geom": "POINT(734713.619792184 4019023.66904933)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 538,
+    "geom": "POINT(734778.911620443 4018937.81856731)",
+    "poi_type": "room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 539,
+    "geom": "POINT(734800.144448481 4019071.25294115)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 540,
+    "geom": "POINT(734745.949721276 4019019.21835326)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 541,
+    "geom": "POINT(734996.47285074 4019118.28692737)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 542,
+    "geom": "POINT(734950.08768999 4019042.54932492)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 543,
+    "geom": "POINT(734792.227325199 4019091.04330938)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 544,
+    "geom": "POINT(734847.664629795 4019144.24365025)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 545,
+    "geom": "POINT(734832.00675571 4019102.41777902)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 546,
+    "geom": "POINT(734825.605486868 4019112.66228043)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 547,
+    "geom": "POINT(734869.963407382 4019074.47963107)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 548,
+    "geom": "POINT(734932.588801406 4018981.47819651)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 549,
+    "geom": "POINT(734653.112246432 4019215.13050801)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 550,
+    "geom": "POINT(734657.357616753 4018758.17713101)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 551,
+    "geom": "POINT(734781.982353188 4018940.91792331)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 552,
+    "geom": "POINT(734774.242253242 4019018.27711988)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 553,
+    "geom": "POINT(734769.57587575 4019014.47754767)",
+    "poi_type": "prayer_room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 554,
+    "geom": "POINT(734926.743498898 4019184.66646062)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 555,
+    "geom": "POINT(735020.824219877 4019015.77110056)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 556,
+    "geom": "POINT(735036.152377341 4019000.75474096)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 557,
+    "geom": "POINT(735022.259418839 4019007.80474874)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 558,
+    "geom": "POINT(735016.153014259 4019016.91648165)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 559,
+    "geom": "POINT(734831.963535058 4018903.58948954)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 560,
+    "geom": "POINT(734832.354709438 4018914.78308857)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 561,
+    "geom": "POINT(734842.71094286 4018903.91254956)",
+    "poi_type": "room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 562,
+    "geom": "POINT(734841.010629782 4018906.81021192)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 563,
+    "geom": "POINT(734833.100236768 4018913.05718041)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 564,
+    "geom": "POINT(734827.959132563 4018908.8286186)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 565,
+    "geom": "POINT(734840.544037356 4018902.98560598)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 566,
+    "geom": "POINT(734826.159816064 4018907.98507424)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 567,
+    "geom": "POINT(734834.433520596 4018907.12814246)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 568,
+    "geom": "POINT(734882.247545257 4019141.80744)",
+    "poi_type": "shoe_maintenance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 569,
+    "geom": "POINT(734869.971297665 4019150.90355138)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 570,
+    "geom": "POINT(734895.390771405 4019091.48330633)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 571,
+    "geom": "POINT(734830.995956874 4019065.06245155)",
+    "poi_type": "courtyard_name",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 572,
+    "geom": "POINT(734827.273915302 4019069.0753693)",
+    "poi_type": "prayer_room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 573,
+    "geom": "POINT(734817.790626619 4019057.58836541)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 574,
+    "geom": "POINT(734826.560421956 4019088.72116118)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 575,
+    "geom": "POINT(734881.099377031 4019015.62499129)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 576,
+    "geom": "POINT(734884.464050885 4019011.82219903)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 577,
+    "geom": "POINT(734873.627186226 4019001.48699006)",
+    "poi_type": "room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 578,
+    "geom": "POINT(734869.475125061 4019004.84233307)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 579,
+    "geom": "POINT(734946.154645863 4019046.12252523)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 580,
+    "geom": "POINT(734941.248921282 4018995.63736009)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 581,
+    "geom": "POINT(735028.910554311 4018992.15924941)",
+    "poi_type": "prayer_room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 582,
+    "geom": "POINT(734975.444435698 4018786.52524836)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 583,
+    "geom": "POINT(734963.519730054 4018775.566444)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 584,
+    "geom": "POINT(734563.561305772 4019056.99095654)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 585,
+    "geom": "POINT(734549.552338022 4019016.92301751)",
+    "poi_type": "prayer_room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 586,
+    "geom": "POINT(734532.024848023 4018949.63590139)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 587,
+    "geom": "POINT(734534.445443248 4018950.11998086)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 588,
+    "geom": "POINT(734527.958710159 4018953.78339259)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 589,
+    "geom": "POINT(734545.266863194 4019013.62102759)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 590,
+    "geom": "POINT(734547.847741081 4019011.05035148)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 591,
+    "geom": "POINT(734977.944602033 4018914.94598978)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 592,
+    "geom": "POINT(734939.079742724 4018879.37535407)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 593,
+    "geom": "POINT(734928.646726213 4018867.21259307)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 594,
+    "geom": "POINT(734940.120343036 4018758.2832509)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 595,
+    "geom": "POINT(734962.103416422 4018898.98798625)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 596,
+    "geom": "POINT(734881.21104939 4018795.55159373)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 597,
+    "geom": "POINT(734780.437229576 4018717.0719187)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 598,
+    "geom": "POINT(734683.124766086 4018747.59357704)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 599,
+    "geom": "POINT(734534.380906599 4019027.85024321)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 600,
+    "geom": "POINT(734625.557955353 4018805.53766166)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 601,
+    "geom": "POINT(734604.339519386 4018867.10197736)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 602,
+    "geom": "POINT(734634.921225123 4018845.91831269)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 603,
+    "geom": "POINT(734694.041634466 4018794.89045725)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 604,
+    "geom": "POINT(734676.232659195 4018798.42413247)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 605,
+    "geom": "POINT(734667.591343496 4018798.26455673)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 606,
+    "geom": "POINT(734684.589814132 4018770.07299006)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 607,
+    "geom": "POINT(734836.871240585 4018715.66243794)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 608,
+    "geom": "POINT(734711.270863839 4018728.88645694)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 609,
+    "geom": "POINT(734816.470574513 4018729.95965304)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 610,
+    "geom": "POINT(734825.529271478 4018747.18205593)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 611,
+    "geom": "POINT(734844.611155628 4018774.37371121)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 612,
+    "geom": "POINT(734553.492675475 4018886.18420492)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 613,
+    "geom": "POINT(734739.033521143 4018731.13183704)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 614,
+    "geom": "POINT(734572.300472714 4018877.17257072)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 615,
+    "geom": "POINT(734632.570436926 4019098.84897376)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 616,
+    "geom": "POINT(734633.189135315 4019099.11034159)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 617,
+    "geom": "POINT(734559.040529217 4019037.52897372)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 618,
+    "geom": "POINT(734576.49607157 4019069.70030238)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 619,
+    "geom": "POINT(734612.448130824 4019120.75529984)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 620,
+    "geom": "POINT(734608.374852772 4019086.58492693)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 621,
+    "geom": "POINT(734592.990274725 4019103.52056742)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 622,
+    "geom": "POINT(734609.908994247 4019103.8267232)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 623,
+    "geom": "POINT(734539.173428802 4019010.70862946)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 624,
+    "geom": "POINT(734521.446011324 4018963.92362572)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 625,
+    "geom": "POINT(734842.435707441 4018893.16495381)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 626,
+    "geom": "POINT(734826.371761581 4019060.79557374)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 627,
+    "geom": "POINT(734875.156503691 4019012.47208216)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 628,
+    "geom": "POINT(734826.561781227 4018973.19356394)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 629,
+    "geom": "POINT(734931.357094487 4018993.51172282)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 630,
+    "geom": "POINT(734920.849764324 4018999.17131181)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 631,
+    "geom": "POINT(734913.546886806 4019012.68965847)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 632,
+    "geom": "POINT(734815.418143021 4019003.98713167)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 633,
+    "geom": "POINT(734797.623277291 4019024.76213713)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 634,
+    "geom": "POINT(734808.055625336 4019035.62497463)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 635,
+    "geom": "POINT(734786.315634542 4019013.98859455)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 636,
+    "geom": "POINT(734859.366800017 4018997.39949756)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 637,
+    "geom": "POINT(734844.429918579 4018990.32359846)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 638,
+    "geom": "POINT(734858.680869758 4019081.6762061)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 639,
+    "geom": "POINT(734837.84509496 4019074.76759805)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 640,
+    "geom": "POINT(734813.949062779 4019051.14048834)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 641,
+    "geom": "POINT(734626.742218017 4018866.72499438)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 642,
+    "geom": "POINT(734621.204725052 4018872.69052878)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 643,
+    "geom": "POINT(734684.904431097 4018782.90194892)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 644,
+    "geom": "POINT(734902.594510448 4018798.38730874)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 645,
+    "geom": "POINT(734923.528187004 4018885.57412686)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 646,
+    "geom": "POINT(734947.072499862 4019035.205371)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 647,
+    "geom": "POINT(734864.370830416 4019139.7834168)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 648,
+    "geom": "POINT(734880.618673849 4019122.58038452)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 649,
+    "geom": "POINT(734897.606286119 4019104.69056893)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 650,
+    "geom": "POINT(734887.889736359 4019102.06279468)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 651,
+    "geom": "POINT(734950.229585499 4019054.14022202)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 652,
+    "geom": "POINT(734936.029866944 4019067.76339371)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 653,
+    "geom": "POINT(734927.270121638 4019084.24360534)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 654,
+    "geom": "POINT(734922.972897113 4019074.41691507)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 655,
+    "geom": "POINT(734913.669700409 4019084.92980985)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 656,
+    "geom": "POINT(734905.392182025 4019095.10030898)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 657,
+    "geom": "POINT(734892.187072054 4019075.96093142)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 658,
+    "geom": "POINT(734922.211866413 4019031.15402734)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 659,
+    "geom": "POINT(734915.172639689 4019040.66853898)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 660,
+    "geom": "POINT(734898.60282675 4019033.9202324)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 661,
+    "geom": "POINT(734922.529387838 4019059.95512639)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 662,
+    "geom": "POINT(734934.571650353 4019047.48924666)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 663,
+    "geom": "POINT(734929.318900208 4019037.25281957)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 664,
+    "geom": "POINT(734899.301755173 4019058.04416746)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 665,
+    "geom": "POINT(734909.742849359 4019048.22004562)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 666,
+    "geom": "POINT(734906.921686543 4019079.04969585)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 667,
+    "geom": "POINT(734910.397446626 4019068.06521982)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 668,
+    "geom": "POINT(734887.591972971 4019023.04607177)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 669,
+    "geom": "POINT(734868.439141498 4019093.86223384)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 670,
+    "geom": "POINT(734839.510927464 4019122.95823512)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 671,
+    "geom": "POINT(734685.472761897 4019248.75777655)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 672,
+    "geom": "POINT(734697.545016703 4019244.89667613)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 673,
+    "geom": "POINT(734687.692786348 4019231.06924126)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 674,
+    "geom": "POINT(734778.412538656 4019078.79143132)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 675,
+    "geom": "POINT(734937.969679426 4019184.37406776)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 676,
+    "geom": "POINT(734998.033743002 4019115.91092439)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 677,
+    "geom": "POINT(735005.017519743 4019111.0842166)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 678,
+    "geom": "POINT(735022.232226493 4019001.86446791)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 679,
+    "geom": "POINT(734947.725150042 4018988.97237756)",
+    "poi_type": "courtyard_name",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 680,
+    "geom": "POINT(734969.057237054 4018972.47416902)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 681,
+    "geom": "POINT(734884.220808131 4018960.11360006)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 682,
+    "geom": "POINT(734844.141994607 4018926.77432102)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 683,
+    "geom": "POINT(734787.896692484 4018984.63496354)",
+    "poi_type": "courtyard_name",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 684,
+    "geom": "POINT(734939.870893246 4018921.37555065)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 685,
+    "geom": "POINT(734908.331618923 4018915.84935995)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 686,
+    "geom": "POINT(734829.209869373 4019135.15743385)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 687,
+    "geom": "POINT(734820.549089 4019256.42140808)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 688,
+    "geom": "POINT(734883.846445301 4019188.57588567)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 689,
+    "geom": "POINT(735004.067188155 4019059.57235841)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 690,
+    "geom": "POINT(734960.016897992 4018940.26790092)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 691,
+    "geom": "POINT(734510.763622826 4018976.43279941)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 692,
+    "geom": "POINT(734596.989071911 4019138.71134832)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 693,
+    "geom": "POINT(735068.110928885 4018989.11959857)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 694,
+    "geom": "POINT(734757.681219902 4018709.53819408)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 695,
+    "geom": "POINT(734768.783785003 4018712.00658387)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 696,
+    "geom": "POINT(734793.090939663 4018714.03214365)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 697,
+    "geom": "POINT(734592.638662404 4019052.55660085)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 698,
+    "geom": "POINT(734564.612167308 4019026.88000646)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 699,
+    "geom": "POINT(734559.133030702 4019067.07406533)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 700,
+    "geom": "POINT(734552.44511384 4019060.93372553)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 701,
+    "geom": "POINT(734606.358311778 4019079.45365638)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 702,
+    "geom": "POINT(734607.492837359 4019078.08300973)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 703,
+    "geom": "POINT(734537.594966651 4019016.58051963)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 704,
+    "geom": "POINT(734579.483932693 4018883.8748563)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 705,
+    "geom": "POINT(734931.202874065 4019086.7457705)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 706,
+    "geom": "POINT(734949.006442575 4019063.00856145)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 707,
+    "geom": "POINT(735008.946584151 4019093.77315937)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 708,
+    "geom": "POINT(734992.351462076 4019123.68836922)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 709,
+    "geom": "POINT(734986.209832696 4019128.72837617)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 710,
+    "geom": "POINT(734984.068963597 4019135.17657863)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 711,
+    "geom": "POINT(734933.267080168 4019182.40430046)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 712,
+    "geom": "POINT(734924.650899974 4019181.68869234)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 713,
+    "geom": "POINT(734916.82004446 4019094.20008076)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 714,
+    "geom": "POINT(735029.32971778 4019035.46907119)",
+    "poi_type": "stair",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 715,
+    "geom": "POINT(735026.275627172 4019038.6925107)",
+    "poi_type": "stair",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 716,
+    "geom": "POINT(735025.239058727 4019031.48193851)",
+    "poi_type": "stair",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 717,
+    "geom": "POINT(735022.210054902 4019034.72858827)",
+    "poi_type": "stair",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 718,
+    "geom": "POINT(734868.430767204 4019209.31635706)",
+    "poi_type": "stair",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 719,
+    "geom": "POINT(734871.434498731 4019206.04669589)",
+    "poi_type": "stair",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 720,
+    "geom": "POINT(734863.575377659 4019204.86615391)",
+    "poi_type": "stair",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 721,
+    "geom": "POINT(734866.604381483 4019201.61950415)",
+    "poi_type": "stair",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 722,
+    "geom": "POINT(734873.932725041 4019235.9398007)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 723,
+    "geom": "POINT(734871.516194245 4019230.67257591)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 724,
+    "geom": "POINT(734525.603410602 4018920.4171851)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 725,
+    "geom": "POINT(734879.042441543 4018794.3767022)",
+    "poi_type": "room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 726,
+    "geom": "POINT(734536.50592314 4018953.03131374)",
+    "poi_type": "cloakroom",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 727,
+    "geom": "POINT(734923.284032421 4018776.66759591)",
+    "poi_type": "room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 728,
+    "geom": "POINT(734918.131458293 4018782.63529549)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 729,
+    "geom": "POINT(734569.918241279 4019025.3663343)",
+    "poi_type": "stair",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 730,
+    "geom": "POINT(734591.565102379 4019045.2347221)",
+    "poi_type": "stair",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 731,
+    "geom": "POINT(734882.147366751 4018799.08756575)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 732,
+    "geom": "POINT(734765.978644275 4018717.93149318)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 733,
+    "geom": "POINT(734817.813945632 4018722.32127663)",
+    "poi_type": "stair",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 734,
+    "geom": "POINT(734548.030394779 4018938.55727228)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 735,
+    "geom": "POINT(734587.270814826 4019087.25896815)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 736,
+    "geom": "POINT(734535.924536088 4019023.6270916)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 737,
+    "geom": "POINT(734627.516236736 4018805.91034305)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 738,
+    "geom": "POINT(734626.488122273 4018803.38506063)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 739,
+    "geom": "POINT(734669.45077065 4018821.74483572)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 740,
+    "geom": "POINT(734675.553317478 4018815.10442595)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 741,
+    "geom": "POINT(734602.048011911 4018893.95388735)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 742,
+    "geom": "POINT(734601.52204515 4018873.89522848)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 743,
+    "geom": "POINT(734606.718561516 4018868.41439956)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 744,
+    "geom": "POINT(734609.420696133 4018837.86944557)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 745,
+    "geom": "POINT(734635.360177824 4018810.06610923)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 746,
+    "geom": "POINT(734671.161947188 4018803.35397536)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 747,
+    "geom": "POINT(734681.50704875 4018759.43866664)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 748,
+    "geom": "POINT(734685.911938805 4018747.71234462)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 749,
+    "geom": "POINT(734710.495734771 4018736.09152377)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 750,
+    "geom": "POINT(734825.703067687 4018749.73867981)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 751,
+    "geom": "POINT(734822.875575851 4018754.35273797)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 752,
+    "geom": "POINT(734881.595242598 4018748.15023404)",
+    "poi_type": "room",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 753,
+    "geom": "POINT(734842.448907126 4018771.99370855)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 754,
+    "geom": "POINT(734873.10328959 4018785.9282463)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 755,
+    "geom": "POINT(734894.771248905 4018803.66491287)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 756,
+    "geom": "POINT(734537.518224328 4018916.90229903)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 757,
+    "geom": "POINT(734730.666993247 4018740.50094094)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 758,
+    "geom": "POINT(734572.967689165 4018883.14654763)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 759,
+    "geom": "POINT(734555.485358978 4018887.47614612)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 760,
+    "geom": "POINT(734543.585659001 4018927.96724929)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 761,
+    "geom": "POINT(734540.621274686 4018916.03631725)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 762,
+    "geom": "POINT(734543.70345539 4019050.46362269)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 763,
+    "geom": "POINT(734560.991408762 4019033.58027749)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 764,
+    "geom": "POINT(734599.234254699 4019080.5659817)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 765,
+    "geom": "POINT(734593.961759576 4019085.25201109)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 766,
+    "geom": "POINT(734639.065269175 4019083.3984692)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 767,
+    "geom": "POINT(734606.329511035 4019071.90899244)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 768,
+    "geom": "POINT(734536.967682361 4019008.73077632)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 769,
+    "geom": "POINT(734534.296266186 4019006.23691231)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 770,
+    "geom": "POINT(734523.437878336 4018993.69511297)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 771,
+    "geom": "POINT(734530.836865088 4018971.16220312)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 772,
+    "geom": "POINT(734521.289720542 4018986.36003881)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 773,
+    "geom": "POINT(734548.613272478 4018928.73294489)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 774,
+    "geom": "POINT(734580.951044487 4018893.74808066)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 775,
+    "geom": "POINT(734681.755420179 4018781.45099987)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 776,
+    "geom": "POINT(734685.05041136 4018778.09917327)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 777,
+    "geom": "POINT(734686.504376891 4018779.28692316)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 778,
+    "geom": "POINT(734875.433929658 4018787.47447495)",
+    "poi_type": "courtyard_name",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 779,
+    "geom": "POINT(734530.997206411 4019003.70599062)",
+    "poi_type": "courtyard_name",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 780,
+    "geom": "POINT(734630.6220107 4019094.2230028)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 781,
+    "geom": "POINT(734722.483142119 4018732.21371325)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 782,
+    "geom": "POINT(734772.902442363 4018700.42202976)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 783,
+    "geom": "POINT(734759.729889642 4018711.34003204)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 784,
+    "geom": "POINT(734714.631321453 4018731.04943196)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 785,
+    "geom": "POINT(734780.705470549 4018707.74665963)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 786,
+    "geom": "POINT(734764.178539026 4018706.78882983)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 787,
+    "geom": "POINT(734812.657121523 4018721.87750275)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 788,
+    "geom": "POINT(734692.136958586 4018774.18354095)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 789,
+    "geom": "POINT(734635.180576128 4018836.56632619)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 790,
+    "geom": "POINT(734640.53068558 4018811.46677073)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 791,
+    "geom": "POINT(734614.847866533 4018839.28725698)",
+    "poi_type": "elevator",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 792,
+    "geom": "POINT(734923.53921729 4019313.14924243)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 793,
+    "geom": "POINT(734936.525199044 4019325.81721939)",
+    "poi_type": "exit",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 794,
+    "geom": "POINT(734938.064667619 4019334.76671227)",
+    "poi_type": "ramp",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 795,
+    "geom": "POINT(734644.943537905 4019088.68118641)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 796,
+    "geom": "POINT(734640.614007308 4019086.56157051)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 797,
+    "geom": "POINT(734627.298051746 4019104.78507021)",
+    "poi_type": "warehouse",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 798,
+    "geom": "POINT(734909.190271018 4018883.86575248)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 799,
+    "geom": "POINT(734880.330277875 4018884.07430464)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 800,
+    "geom": "POINT(735108.802780525 4019356.66728926)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 801,
+    "geom": "POINT(734997.185071846 4019166.38836985)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 802,
+    "geom": "POINT(734540.498772182 4018940.99406429)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 803,
+    "geom": "POINT(734677.921028489 4019241.54313867)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 804,
+    "geom": "POINT(734697.569616134 4019220.48272208)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 805,
+    "geom": "POINT(734801.254282796 4019100.49007826)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 806,
+    "geom": "POINT(734788.205254298 4019114.47673121)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 807,
+    "geom": "POINT(734814.86513046 4019114.15617991)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 808,
+    "geom": "POINT(734802.405891013 4019127.51066513)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 809,
+    "geom": "POINT(734770.634019653 4019096.83367267)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 810,
+    "geom": "POINT(734951.243589451 4019168.62236338)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 811,
+    "geom": "POINT(734956.017631898 4019165.37245509)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 812,
+    "geom": "POINT(734958.360719734 4019158.71655467)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 813,
+    "geom": "POINT(734963.041280544 4019154.67785503)",
+    "poi_type": "courtyard_name",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 814,
+    "geom": "POINT(734889.766407896 4019148.72719774)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 815,
+    "geom": "POINT(734884.855153411 4019136.82164217)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 816,
+    "geom": "POINT(734894.708480306 4019123.78436711)",
+    "poi_type": "rest_area",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 817,
+    "geom": "POINT(735010.76323636 4019013.58469488)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 818,
+    "geom": "POINT(735019.33971387 4019005.31452973)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 819,
+    "geom": "POINT(734786.798630693 4018711.46369224)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 820,
+    "geom": "POINT(734837.10750553 4019033.43198986)",
+    "poi_type": "courtyard_name",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 821,
+    "geom": "POINT(734929.565012369 4018893.73543502)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 822,
+    "geom": "POINT(734861.348688597 4019167.2232444)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 823,
+    "geom": "POINT(734853.150258512 4019189.12228947)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 824,
+    "geom": "POINT(734846.576977337 4019192.6425491)",
+    "poi_type": "administrative",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 825,
+    "geom": "POINT(734817.72532931 4019223.98548607)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 826,
+    "geom": "POINT(734917.29006628 4018959.23687909)",
+    "poi_type": "stair",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 827,
+    "geom": "POINT(734917.76337169 4018958.69325641)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 828,
+    "geom": "POINT(734931.05010446 4019312.38098124)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 829,
+    "geom": "POINT(735048.903904065 4019350.91753459)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 830,
+    "geom": "POINT(734998.377942304 4019349.40604486)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 831,
+    "geom": "POINT(734989.30707036 4019301.09028726)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 832,
+    "geom": "POINT(734992.850641303 4019314.39831239)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 833,
+    "geom": "POINT(734922.590186788 4019310.41709523)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 834,
+    "geom": "POINT(734431.290867705 4018915.93603884)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 835,
+    "geom": "POINT(734620.517032754 4019366.98326453)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 836,
+    "geom": "POINT(734559.314979835 4019320.58025644)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 837,
+    "geom": "POINT(734452.004012775 4019124.24634158)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 838,
+    "geom": "POINT(734453.577420262 4019118.61988865)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 839,
+    "geom": "POINT(734479.293664216 4019064.15163039)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 840,
+    "geom": "POINT(734866.558308772 4019414.41867281)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 841,
+    "geom": "POINT(734990.888285441 4018775.39581872)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 842,
+    "geom": "POINT(734600.736838566 4019196.65272378)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 843,
+    "geom": "POINT(734816.485594817 4019405.88555473)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 844,
+    "geom": "POINT(735107.907577754 4019345.88609826)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 845,
+    "geom": "POINT(735054.398773674 4019305.68286064)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 846,
+    "geom": "POINT(734586.945307587 4019069.56386054)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 847,
+    "geom": "POINT(734836.287613401 4018728.33620259)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 848,
+    "geom": "POINT(734833.066707063 4019137.88316386)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 849,
+    "geom": "POINT(734730.103347771 4019069.97793036)",
+    "poi_type": "toilet",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 850,
+    "geom": "POINT(734748.769341079 4019091.62754359)",
+    "poi_type": "other",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 851,
+    "geom": "POINT(735048.340618738 4019113.846517)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 852,
+    "geom": "POINT(735038.364599217 4019200.40667386)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 853,
+    "geom": "POINT(734812.510598009 4019268.08095149)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 854,
+    "geom": "POINT(735043.192244527 4019189.03907055)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 855,
+    "geom": "POINT(734406.609093284 4019426.57340581)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 856,
+    "geom": "POINT(734660.77906153 4019274.41706438)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 857,
+    "geom": "POINT(735107.016603247 4019247.36830577)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 858,
+    "geom": "POINT(734746.615949419 4019288.04432542)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 859,
+    "geom": "POINT(734621.139046291 4018845.5979988)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 860,
+    "geom": "POINT(734609.085549714 4018846.43606012)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 861,
+    "geom": "POINT(735043.86571284 4019018.16003038)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 862,
+    "geom": "POINT(735223.202880205 4019005.29400025)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 863,
+    "geom": "POINT(734672.00253492 4019192.10296013)",
+    "poi_type": "courtyard_name",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 864,
+    "geom": "POINT(734931.47351104 4019127.1778203)",
+    "poi_type": "courtyard_name",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 865,
+    "geom": "POINT(734978.633531506 4019029.01774343)",
+    "poi_type": "courtyard_name",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 866,
+    "geom": "POINT(735212.615604023 4019136.34422737)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 867,
+    "geom": "POINT(734679.330111859 4019464.30403057)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 868,
+    "geom": "POINT(734631.56299431 4019259.27390644)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 869,
+    "geom": "POINT(734789.781275443 4018787.07422878)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 870,
+    "geom": "POINT(734659.71610383 4019012.71815528)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 871,
+    "geom": "POINT(735145.911176061 4018932.11005899)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 872,
+    "geom": "POINT(735005.217528587 4018801.71194175)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 873,
+    "geom": "POINT(734600.809907144 4019233.89761796)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 874,
+    "geom": "POINT(734619.234201834 4018653.69937882)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 875,
+    "geom": "POINT(734521.658194633 4019107.44564139)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 876,
+    "geom": "POINT(734887.232868438 4018718.66757395)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 877,
+    "geom": "POINT(734477.294443342 4019057.3933714)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 878,
+    "geom": "POINT(734557.212106351 4018931.04590399)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 879,
+    "geom": "POINT(734705.501631558 4018774.34252551)",
+    "poi_type": "entrance",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 880,
+    "geom": "POINT(735335.666350606 4019051.44845238)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 881,
+    "geom": "POINT(735186.810906915 4018809.32380932)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 882,
+    "geom": "POINT(734929.003460722 4018834.82338766)",
+    "poi_type": "courtyard_name",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 883,
+    "geom": "POINT(735260.994194217 4019190.08677656)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 884,
+    "geom": "POINT(735322.365203325 4019096.69410479)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 885,
+    "geom": "POINT(735247.744631271 4019381.16853676)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  },
+  {
+    "id": 886,
+    "geom": "POINT(734966.620532177 4019345.87678479)",
+    "poi_type": "landmark",
+    "floor": 0,
+    "has_content": "f",
+    "attrs": "{}",
+    "updated_at": "16/11/2025 13:25:52.-1f+00"
+  }
+]

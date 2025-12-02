@@ -1,0 +1,54 @@
+[
+  {
+    "id": 1,
+    "name": "فارسی",
+    "english_name": "Persian",
+    "locale": "fa_IR",
+    "code": "fa",
+    "direction": "rtl",
+    "is_default": "t",
+    "is_active": "t",
+    "flag_icon_url": "https://flagcdn.com/w320/ir.png",
+    "created_at": "13/11/2025 18:07:02.-1f+00",
+    "updated_at": "13/11/2025 18:07:02.-1f+00"
+  },
+  {
+    "id": 2,
+    "name": "اردو",
+    "english_name": "Urdu",
+    "locale": "ur_PK",
+    "code": "ur",
+    "direction": "rtl",
+    "is_default": "f",
+    "is_active": "t",
+    "flag_icon_url": "https://flagcdn.com/w320/pk.png",
+    "created_at": "13/11/2025 18:07:02.-1f+00",
+    "updated_at": "13/11/2025 18:07:02.-1f+00"
+  },
+  {
+    "id": 3,
+    "name": "العربية",
+    "english_name": "Arabic",
+    "locale": "ar_SA",
+    "code": "ar",
+    "direction": "rtl",
+    "is_default": "f",
+    "is_active": "t",
+    "flag_icon_url": "https://flagcdn.com/w320/sa.png",
+    "created_at": "13/11/2025 18:07:02.-1f+00",
+    "updated_at": "13/11/2025 18:07:02.-1f+00"
+  },
+  {
+    "id": 4,
+    "name": "English",
+    "english_name": "English",
+    "locale": "en_US",
+    "code": "en",
+    "direction": "ltr",
+    "is_default": "f",
+    "is_active": "t",
+    "flag_icon_url": "https://flagcdn.com/w320/us.png",
+    "created_at": "13/11/2025 18:07:02.-1f+00",
+    "updated_at": "13/11/2025 18:07:02.-1f+00"
+  }
+]
