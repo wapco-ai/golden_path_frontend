@@ -12,7 +12,7 @@ import '../styles/MapBegin.css';
 import appConfig from '../config/appConfig';
 import { fetchLandmarkPlaces } from '../services/landmarkService';
 import { fetchGroupMetadata } from '../services/groupService';
-import { normalizeGroupMetadata } from '../utils/groupMetadata';
+import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 
 const MapBeginPage = () => {
   const navigate = useNavigate();
@@ -95,9 +95,10 @@ const MapBeginPage = () => {
         if (!isMounted) return;
 
         const normalizedGroups = normalizeGroupMetadata(data?.groups, language);
+        const normalizedSubGroups = normalizeSubGroupMetadata(data?.subGroups, language);
 
         setGroups(normalizedGroups);
-        setSubGroups(data?.subGroups || {});
+        setSubGroups(normalizedSubGroups);
       })
       .catch((err) => {
         console.error('failed to fetch group metadata', err);

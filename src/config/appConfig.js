@@ -32,7 +32,7 @@ const defaultTileBaseUrl = inferHostedTileBaseUrl();
 const defaultRoutingRouteUrl = `${defaultApiBaseUrl}/api/v1/routing/route`;
 const defaultLanguagesUrl = `${defaultApiBaseUrl}/api/v1/languages`;
 const defaultLandmarkPlacesUrl = `${defaultApiBaseUrl}/api/v1/landmark-places`;
-const defaultGroupMetadataUrl = `${defaultApiBaseUrl}/api/v1/groups/metadata`;
+const defaultGroupMetadataUrl = `${defaultApiBaseUrl}/api/groups/metadata`;
 
 const appConfig = {
   apiBaseUrl: (import.meta?.env?.VITE_API_BASE_URL?.trim() || defaultApiBaseUrl).replace(/\/$/, ''),
