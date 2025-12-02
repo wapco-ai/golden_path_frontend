@@ -180,7 +180,7 @@
   "stepMoveToDoor": "{name} کی طرف جائیں",
   "stepPassConnection": "کنکشن پوائنٹ {title} سے گزریں",
   "stepEnterNextSahn": "{title} کنکشن کے ذریعے اگلے صحن میں داخل ہوں",
-  "stepPassDoor": "{name} سے گزریں",
+  "stepPassDoor": "{name} سے گزریں اور اگلے صحن/ایوان میں داخل ہوں",
   "stepArriveDestination": "{name} پر پہنچیں",
   "stepNumber": "قدم {num}",
   "qrScanInstruction": "QR کوڈ کو فریم کے اندر رکھیں",
