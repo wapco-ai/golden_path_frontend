@@ -32,22 +32,42 @@ const buildRequestBody = ({ origin, destination, mode, gender, lang, maxAlternat
 const mapSteps = (steps = []) => {
   return steps
     .filter(step => step?.coord?.lat != null && step?.coord?.lon != null)
-    .map((step, idx) => ({
-      id: idx + 1,
-      type: step.type,
-      title: step.title,
-      name: step.title || '',
-      coordinates: [step.coord.lat, step.coord.lon],
-      services: step.services || {},
-      instruction: step.title || ''
-    }));
+    .map((step, idx) => {
+      const nextStep = steps[idx + 1];
+      const start = [Number(step.coord.lat), Number(step.coord.lon)];
+      const end =
+        nextStep?.coord?.lat != null && nextStep?.coord?.lon != null
+          ? [Number(nextStep.coord.lat), Number(nextStep.coord.lon)]
+          : start;
+
+      return {
+        id: idx + 1,
+        type: step.type,
+        title: step.title,
+        name: step.title || '',
+        coordinates: [start, end],
+        services: step.services || {},
+        instruction: step.title || ''
+      };
+    });
 };
 
 const toGeoLine = (steps = []) => {
+  const getPoint = (coord) => {
+    if (Array.isArray(coord?.[0])) {
+      const [lat, lon] = coord[0];
+      return lat != null && lon != null ? [lon, lat] : null;
+    }
+    if (Array.isArray(coord) && coord.length === 2) {
+      const [lat, lon] = coord;
+      return lat != null && lon != null ? [lon, lat] : null;
+    }
+    return null;
+  };
+
   const coords = steps
-    .map(step => step.coordinates)
-    .filter(coord => Array.isArray(coord) && coord.length === 2)
-    .map(([lat, lon]) => [lon, lat]);
+    .map(step => getPoint(step.coordinates))
+    .filter(Boolean);
 
   return coords.length
     ? { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } }
