@@ -10,6 +10,7 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import '../styles/MapRouting.css';
 import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
+import { normalizeGroupMetadata } from '../utils/groupMetadata';
 import { fetchGroupMetadata } from '../services/groupService';
 
 const MapRoutingPage = () => {
@@ -79,11 +80,7 @@ const MapRoutingPage = () => {
       .then((data) => {
         if (!isMounted) return;
 
-        const metadataGroups = Array.isArray(data?.groups) ? data.groups : [];
-        const normalizedGroups = metadataGroups.map((group) => ({
-          ...group,
-          label: group.label?.[language] || group.label?.fa || group.value
-        }));
+        const normalizedGroups = normalizeGroupMetadata(data?.groups, language);
 
         setGroups(normalizedGroups);
         setSubGroups(data?.subGroups || {});
