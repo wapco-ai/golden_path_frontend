@@ -319,18 +319,33 @@ const RouteOverview = () => {
       }, 0);
     };
 
+    const toLngLat = (coord) => Array.isArray(coord) && coord.length >= 2
+      ? [coord[1], coord[0]]
+      : null;
+
+    const normalizeStepCoords = (step, idx) => {
+      const mappedCoords = Array.isArray(step?.coordinates?.[0])
+        ? step.coordinates.map(toLngLat).filter(Boolean)
+        : [];
+
+      if (mappedCoords.length >= 2) return mappedCoords;
+
+      const start = routeCoordinates[idx];
+      const end = routeCoordinates[idx + 1];
+      return [start, end].filter(Boolean);
+    };
+
     const buildFromSteps = () => (routeSteps || [])
       .map((step, idx) => {
-        const coords = step?.coordinates && step.coordinates.length > 0
-          ? step.coordinates
-          : (routeCoordinates[idx] ? [routeCoordinates[idx], routeCoordinates[idx + 1]].filter(Boolean) : []);
+        const coords = normalizeStepCoords(step, idx);
 
         if (!coords || coords.length < 2) return null;
 
+        const stepName = step?.name || step?.title;
         const base = step && step.type
           ? intl.formatMessage(
             { id: step.type },
-            { name: step.name, title: step.title, num: idx + 1 }
+            { name: stepName, title: step?.title, num: idx + 1 }
           )
           : step?.instruction
             ? step.instruction
@@ -347,17 +362,18 @@ const RouteOverview = () => {
           instruction,
           services: step?.services || {},
           distance: dist,
-          doorNames: step?.type === 'stepPassDoor' ? [step.name] : []
+          doorNames: step?.type === 'stepPassDoor' ? [stepName].filter(Boolean) : []
         };
       })
       .filter(Boolean);
 
     const segments = routeSteps?.length ? buildFromSteps() : routeCoordinates.slice(1).map((c, idx) => {
       const step = routeSteps?.[idx];
+      const stepName = step?.name || step?.title;
       const base = step && step.type
         ? intl.formatMessage(
           { id: step.type },
-          { name: step.name, title: step.title, num: idx + 1 }
+          { name: stepName, title: step?.title, num: idx + 1 }
         )
         : step?.instruction
           ? step.instruction
@@ -376,7 +392,7 @@ const RouteOverview = () => {
         instruction,
         services: step?.services || {},
         distance: dist,
-        doorNames: step?.type === 'stepPassDoor' ? [step.name] : []
+        doorNames: step?.type === 'stepPassDoor' ? [stepName].filter(Boolean) : []
       };
     }).filter(seg => Array.isArray(seg.coordinates) && seg.coordinates.length >= 2);
 
