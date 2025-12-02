@@ -44,14 +44,14 @@ import s41 from '/img/s41.jpg';
 import s42 from '/img/s42.jpg';
 import s43 from '/img/s43.jpg';
 import s44 from '/img/s44.jpg';
-import ic1 from '../assets/images/icons/ic1.png';
-import ic2 from '../assets/images/icons/ic2.png';
-import ic3 from '../assets/images/icons/ic3.png';
-import ic4 from '../assets/images/icons/ic4.png';
-import ic5 from '../assets/images/icons/ic5.png';
-import ic6 from '../assets/images/icons/ic6.png';
-import ic7 from '../assets/images/icons/ic7.png';
-import ic8 from '../assets/images/icons/ic8.png';
+import ic1 from '../assets/icons/ic1.png';
+import ic2 from '../assets/icons/ic2.png';
+import ic3 from '../assets/icons/ic3.png';
+import ic4 from '../assets/icons/ic4.png';
+import ic5 from '../assets/icons/ic5.png';
+import ic6 from '../assets/icons/ic6.png';
+import ic7 from '../assets/icons/ic7.png';
+import ic8 from '../assets/icons/ic8.png';
 
 export const groups = [
   {
