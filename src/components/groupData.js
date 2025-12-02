@@ -44,24 +44,14 @@ import s41 from '/img/s41.jpg';
 import s42 from '/img/s42.jpg';
 import s43 from '/img/s43.jpg';
 import s44 from '/img/s44.jpg';
-
-const createGroupIcon = (glyph, color) => {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="${glyph}">` +
-    `<rect width="64" height="64" rx="14" fill="${color}"/>` +
-    `<text x="32" y="40" text-anchor="middle" font-family="'Segoe UI', 'Vazirmatn', sans-serif" font-size="28" fill="#fff">${glyph}</text>` +
-    '</svg>';
-
-  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
-};
-
-const ic1 = createGroupIcon('س', '#4caf50');
-const ic2 = createGroupIcon('ا', '#2196f3');
-const ic3 = createGroupIcon('ر', '#9c27b0');
-const ic4 = createGroupIcon('م', '#ff9800');
-const ic5 = createGroupIcon('م', '#3f51b5');
-const ic6 = createGroupIcon('خ', '#607d8b');
-const ic7 = createGroupIcon('ف', '#00bcd4');
-const ic8 = createGroupIcon('ق', '#795548');
+import ic1 from '../assets/icons/ic1.png';
+import ic2 from '../assets/icons/ic2.png';
+import ic3 from '../assets/icons/ic3.png';
+import ic4 from '../assets/icons/ic4.png';
+import ic5 from '../assets/icons/ic5.png';
+import ic6 from '../assets/icons/ic6.png';
+import ic7 from '../assets/icons/ic7.png';
+import ic8 from '../assets/icons/ic8.png';
 
 export const groups = [
   {
