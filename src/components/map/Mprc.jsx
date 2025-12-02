@@ -73,7 +73,8 @@ const Mprc = ({
   onUserMove,
   groups = [],
   areaDoorsData,
-  areaDoorsStatus
+  areaDoorsStatus,
+  onDoorSelect
 }) => {
   const intl = useIntl();
   const [viewState, setViewState] = useState({
@@ -97,6 +98,13 @@ const Mprc = ({
       onUserMove();
     }
   }, [onUserMove]);
+
+  const handleDoorClick = useCallback((door, event) => {
+    event?.stopPropagation?.();
+    if (onDoorSelect) {
+      onDoorSelect(door);
+    }
+  }, [onDoorSelect]);
 
   const handleMapLoad = useCallback((event) => {
     initHaramVectorLayers(event?.target || event);
@@ -427,7 +435,10 @@ const Mprc = ({
 
         return (
           <Marker key={`door-${door?.doorId || door?.doorNo}`} longitude={lon} latitude={lat} anchor="center">
-            <div className="map-door-marker">
+            <div
+              className="map-door-marker"
+              onClick={(event) => handleDoorClick(door, event)}
+            >
               <span className="map-door-marker-number">{door?.doorNo}</span>
             </div>
           </Marker>

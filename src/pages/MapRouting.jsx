@@ -119,6 +119,17 @@ const MapRoutingPage = () => {
   const [geoData, setGeoData] = useState(null);
   const [geoResults, setGeoResults] = useState([]);
 
+  const getDoorCoordinates = (door) => {
+    if (!door?.coord4326) return null;
+    const [lon, lat] = door.coord4326;
+
+    if (typeof lat === 'number' && typeof lon === 'number') {
+      return [lat, lon];
+    }
+
+    return null;
+  };
+
   const getPolygonCenter = (coords) => {
     const pts = [];
     const collect = (c) => {
@@ -350,6 +361,11 @@ const MapRoutingPage = () => {
       setTempDestination(destination);
       setShowDestinationModal(false);
       setShowEntryModal(true);
+
+      const [lat, lon] = destination?.coordinates || [];
+      if (typeof lat === 'number' && typeof lon === 'number') {
+        requestAreaDoors(lat, lon);
+      }
     } else {
       // When setting origin manually, disable GPS tracking
       setIsTracking(false);
@@ -376,12 +392,12 @@ const MapRoutingPage = () => {
   const handleConfirmEntry = () => {
     if (tempDestination && selectedEntry) {
       const selectedDoor = mapEntryDoors.find((door) => door?.doorNo === selectedEntry);
-      // For now, all entries use the same coordinates as the destination
-      // In the future, you can map entry numbers to specific coordinates
+      const doorCoordinates = getDoorCoordinates(selectedDoor);
       const finalDestination = {
         ...tempDestination,
         entry: selectedEntry,
-        ...(selectedDoor ? { door: selectedDoor } : {})
+        ...(selectedDoor ? { door: selectedDoor } : {}),
+        ...(doorCoordinates ? { coordinates: doorCoordinates } : {})
       };
 
       setSelectedDestination(finalDestination);
@@ -658,6 +674,45 @@ const MapRoutingPage = () => {
     }
   }, [language]);
 
+  const handleDoorSelect = (door) => {
+    const entryNumber = door?.doorNo || door?.doorId || null;
+    const doorCoordinates = getDoorCoordinates(door);
+    const fallbackDestination = tempDestination || selectedDestination || null;
+
+    if (activeInput === 'destination') {
+      if (!fallbackDestination && !tempDestination) return;
+
+      const destinationWithDoor = {
+        ...(fallbackDestination || {}),
+        entry: entryNumber,
+        ...(door ? { door } : {}),
+        ...(doorCoordinates ? { coordinates: doorCoordinates } : {})
+      };
+
+      setSelectedDestination(destinationWithDoor);
+      addSearch(destinationWithDoor);
+      sessionStorage.setItem('currentDestination', JSON.stringify(destinationWithDoor));
+      setShowEntryModal(false);
+      setTempDestination(null);
+    } else {
+      const originWithDoor = {
+        ...(userLocation || {}),
+        entry: entryNumber,
+        ...(door ? { door } : {}),
+        ...(doorCoordinates ? { coordinates: doorCoordinates } : {})
+      };
+
+      setUserLocation(originWithDoor);
+      sessionStorage.setItem('currentOrigin', JSON.stringify(originWithDoor));
+      setShowEntryModal(false);
+      setTempDestination(null);
+    }
+
+    if (entryNumber) {
+      setSelectedEntry(entryNumber);
+    }
+  };
+
   const handleMapSelection = () => {
     setIsSelectingFromMap(true);
     setIsTracking(false);
@@ -805,6 +860,7 @@ const MapRoutingPage = () => {
           groups={groups}
           areaDoorsData={areaDoorsData}
           areaDoorsStatus={areaDoorsStatus}
+          onDoorSelect={handleDoorSelect}
         />
         {!isSelectingFromMap && (
           <button
@@ -1260,7 +1316,6 @@ const MapRoutingPage = () => {
               <div className="map-entries-grid">
                 {(mapEntryDoors.length ? mapEntryDoors : [1, 2, 3, 4]).map((entry) => {
                   const entryNumber = entry?.doorNo || entry;
-                  const label = entry?.label;
                   const destinationName = entry?.otherAreaName || entry?.toAreaName;
 
                   return (
@@ -1274,9 +1329,6 @@ const MapRoutingPage = () => {
                       </div>
                       {destinationName && (
                         <div className="map-entry-destination">{destinationName}</div>
-                      )}
-                      {label && (
-                        <div className="map-entry-label">{label}</div>
                       )}
                       {selectedEntry === entryNumber && (
                         <div className="map-entry-selected-indicator">
