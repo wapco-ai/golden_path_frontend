@@ -180,7 +180,7 @@
   "stepMoveToDoor": "اتجه نحو {name}",
   "stepPassConnection": "عبر نقطة الاتصال {title}",
   "stepEnterNextSahn": "ادخل الساحة التالية عبر {title}",
-  "stepPassDoor": "اعبر من {name}",
+  "stepPassDoor": "اعبر من {name} وادخل إلى الصحن/الإيوان التالي",
   "stepArriveDestination": "الوصول إلى {name}",
   "stepNumber": "الخطوة {num}",
   "qrScanInstruction": "ضع رمز QR داخل الإطار",
