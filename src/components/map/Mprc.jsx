@@ -5,7 +5,6 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
 import { useLangStore } from '../../store/langStore';
-import { groups } from '../groupData';
 import { getLocationTitleById } from '../../utils/getLocationTitle';
 import { loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
@@ -28,12 +27,16 @@ const nodeFunctionColors = {
   door: '#e53935'
 };
 
-const getCompositeIcon = (group, nodeFunction, size = 35, opacity = 1) => {
+const getCompositeIcon = (groups = [], group, nodeFunction, size = 35, opacity = 1) => {
   const color = nodeFunctionColors[nodeFunction] || groupColors[group] || '#999';
   let iconData =
     groups.find((g) => g.value === group) ||
     groups.find((g) => g.value === nodeFunction) ||
-    groups.find((g) => g.value === 'other');
+    groups.find((g) => g.value === 'other') || {
+      icon: 'other',
+      label: 'icon',
+      png: undefined
+    };
 
   return (
     <div
@@ -67,7 +70,8 @@ const Mprc = ({
   selectedCategory,
   userLocation,
   isTracking = true,
-  onUserMove
+  onUserMove,
+  groups = []
 }) => {
   const intl = useIntl();
   const [viewState, setViewState] = useState({
@@ -416,7 +420,7 @@ const Mprc = ({
         return (
           <Marker key={key} longitude={lng} latitude={lat} anchor="center">
             <div style={{ position: 'relative' }}>
-              {getCompositeIcon(group, nodeFunction, iconSize, iconOpacity)}
+              {getCompositeIcon(groups, group, nodeFunction, iconSize, iconOpacity)}
               {highlight && (
                 <div
                   style={{

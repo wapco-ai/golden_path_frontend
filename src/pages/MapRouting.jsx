@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import Mprc from '../components/map/Mprc';
-import { groups, subGroups } from '../components/groupData';
 import { useRouteStore } from '../store/routeStore';
 import { useLangStore } from '../store/langStore';
 import { getLocationTitleById } from '../utils/getLocationTitle';
@@ -11,6 +10,7 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import '../styles/MapRouting.css';
 import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
+import { fetchGroupMetadata } from '../services/groupService';
 
 const MapRoutingPage = () => {
   const navigate = useNavigate();
@@ -46,6 +46,8 @@ const MapRoutingPage = () => {
   const [showRouteInfoModal, setShowRouteInfoModal] = useState(false);
   const [selectedOption, setSelectedOption] = useState(null);
   const [selectedSubgroup, setSelectedSubgroup] = useState(null);
+  const [groups, setGroups] = useState([]);
+  const [subGroups, setSubGroups] = useState({});
 
   // Separate state for map categories and modal categories
   const [mapSelectedCategory, setMapSelectedCategory] = useState(null);
@@ -69,6 +71,31 @@ const MapRoutingPage = () => {
       });
     }
   }, [storedLat, storedLng, storedId, language]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchGroupMetadata({ language, withPng: true })
+      .then((data) => {
+        if (!isMounted) return;
+
+        const metadataGroups = Array.isArray(data?.groups) ? data.groups : [];
+        const normalizedGroups = metadataGroups.map((group) => ({
+          ...group,
+          label: group.label?.[language] || group.label?.fa || group.value
+        }));
+
+        setGroups(normalizedGroups);
+        setSubGroups(data?.subGroups || {});
+      })
+      .catch((err) => {
+        console.error('failed to fetch group metadata', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [language]);
 
   const setOriginStore = useRouteStore(state => state.setOrigin);
   const setDestinationStore = useRouteStore(state => state.setDestination);
@@ -726,6 +753,7 @@ const MapRoutingPage = () => {
           mapSelectedLocation={mapSelectedLocation}
           isTracking={isTracking}
           onUserMove={() => setIsTracking(false)}
+          groups={groups}
         />
         {!isSelectingFromMap && (
           <button
