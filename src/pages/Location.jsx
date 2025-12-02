@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation as useReactLocation } from 'react-router-dom';
 import axios from 'axios';
 import '../styles/Location.css';
-import { groups, subGroups } from '../components/groupData';
 import { FormattedMessage, useIntl } from 'react-intl';
 import localizeLocationData from '../utils/localizeLocationData.js';
 import { useRouteStore } from '../store/routeStore';
@@ -46,12 +45,6 @@ const getFileUrl = (fileKey) => {
 // const getThumbnailUrl = (thumbnailKey) => {
 //   return fileMap[thumbnailKey] || '/images/default-thumbnail.jpg';
 // };
-
-// Map subgroup labels to their values for easier lookup
-const labelToValueMap = Object.values(subGroups).flat().reduce((acc, sg) => {
-  acc[sg.label] = sg.value;
-  return acc;
-}, {});
 
 // Get subgroup label based on currently loaded geoData
 const getLocalizedSubgroupLabel = (geoData, value, fallback) => {
