@@ -1139,3 +1139,71 @@ body.modal-open {
 .search-bar-container.swiping {
   transition: none;
 }
+
+/* Add this to your CSS file */
+
+.modal-content-wrapper {
+  height: calc(100% - 30px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+/* When not expanded, disable scrolling */
+.search-bar-container:not(.expanded) .modal-content-wrapper {
+  overflow-y: hidden;
+}
+
+/* When fully expanded, enable scrolling with better control */
+.search-bar-container.fully-expanded .modal-content-wrapper {
+  overflow-y: auto;
+}
+
+/* Prevent text selection during drag */
+.modal-content-wrapper * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection in inputs and text areas */
+.modal-content-wrapper input,
+.modal-content-wrapper textarea {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Visual feedback when dragging */
+.search-bar-container.dragging .modal-content-wrapper,
+.search-bar-container .modal-content-wrapper.dragging {
+  pointer-events: none;
+}
+
+/* Add smooth transition for scroll */
+.modal-content-wrapper {
+  scroll-behavior: smooth;
+}
+
+/* Better scrollbar for modal content */
+.modal-content-wrapper::-webkit-scrollbar {
+  width: 4px;
+}
+
+.modal-content-wrapper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 2px;
+}
+
+.modal-content-wrapper::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 2px;
+}
+
+.modal-content-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
