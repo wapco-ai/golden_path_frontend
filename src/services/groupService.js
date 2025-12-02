@@ -1,7 +1,7 @@
 import appConfig from '../config/appConfig';
 
 export async function fetchGroupMetadata({ language = 'fa', only, withPng = true } = {}) {
-  const url = new URL('/api/groups/metadata', appConfig.apiBaseUrl);
+  const url = new URL('/api/v1/groups/metadata', appConfig.apiBaseUrl);
   const params = new URLSearchParams();
 
   if (language) {
