@@ -5,13 +5,14 @@ import { useIntl } from 'react-intl';
 import axios from 'axios';
 import { toJalaali } from 'jalaali-js';
 import Mpbc from '../components/map/Mpbc';
-import { groups, subGroups } from '../components/groupData';
 import { useRouteStore } from '../store/routeStore';
 import { useLangStore } from '../store/langStore';
 import { getLocationTitleById } from '../utils/getLocationTitle';
 import '../styles/MapBegin.css';
 import appConfig from '../config/appConfig';
 import { fetchLandmarkPlaces } from '../services/landmarkService';
+import { fetchGroupMetadata } from '../services/groupService';
+import { normalizeGroupMetadata } from '../utils/groupMetadata';
 
 const MapBeginPage = () => {
   const navigate = useNavigate();
@@ -65,6 +66,8 @@ const MapBeginPage = () => {
   const [scrollStartY, setScrollStartY] = useState(0);
   const [scrollStartScrollTop, setScrollStartScrollTop] = useState(0);
   const [preventMapCentering, setPreventMapCentering] = useState(false);
+  const [groups, setGroups] = useState([]);
+  const [subGroups, setSubGroups] = useState({});
   const clearMapSelection = () => {
     sessionStorage.removeItem('mapSelectedLat');
     sessionStorage.removeItem('mapSelectedLng');
@@ -83,6 +86,27 @@ const MapBeginPage = () => {
       });
     }
   }, [storedLat, storedLng, storedId, language]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchGroupMetadata({ language, withPng: true })
+      .then((data) => {
+        if (!isMounted) return;
+
+        const normalizedGroups = normalizeGroupMetadata(data?.groups, language);
+
+        setGroups(normalizedGroups);
+        setSubGroups(data?.subGroups || {});
+      })
+      .catch((err) => {
+        console.error('failed to fetch group metadata', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [language]);
 
   const setOriginStore = useRouteStore(state => state.setOrigin);
 
@@ -770,6 +794,8 @@ const MapBeginPage = () => {
           onUserMove={() => setIsTracking(false)}
           showImageMarkers={showImageMarkers}
           isQrCodeEntry={isQrCodeEntry}
+          groups={groups}
+          subGroups={subGroups}
         />
         <button
           className={`map-gps-button ${isTracking ? 'active' : ''}`}
