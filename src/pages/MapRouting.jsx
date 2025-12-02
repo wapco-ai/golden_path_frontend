@@ -10,7 +10,7 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import '../styles/MapRouting.css';
 import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
-import { normalizeGroupMetadata } from '../utils/groupMetadata';
+import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { fetchGroupMetadata } from '../services/groupService';
 
 const MapRoutingPage = () => {
@@ -81,9 +81,10 @@ const MapRoutingPage = () => {
         if (!isMounted) return;
 
         const normalizedGroups = normalizeGroupMetadata(data?.groups, language);
+        const normalizedSubGroups = normalizeSubGroupMetadata(data?.subGroups, language);
 
         setGroups(normalizedGroups);
-        setSubGroups(data?.subGroups || {});
+        setSubGroups(normalizedSubGroups);
       })
       .catch((err) => {
         console.error('failed to fetch group metadata', err);
@@ -147,7 +148,7 @@ const MapRoutingPage = () => {
       description: getLocalizedSubgroupDescription(
         geoData,
         sg.value,
-        intl.formatMessage({ id: sg.description || 'subgroupDefaultDesc' })
+        sg.description || intl.formatMessage({ id: 'subgroupDefaultDesc' })
       )
     }));
 
