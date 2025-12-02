@@ -41,7 +41,7 @@ const normalizeGroupPngPath = (group) => {
 
   const filename = /\.[a-zA-Z0-9]+$/.test(trimmed) ? trimmed : `${trimmed}.png`;
 
-  return withBasePath(`/img/${filename}`);
+  return withBasePath(`/assets/icons/${filename}`);
 };
 
 export const normalizeGroupMetadata = (groups, language) => {
