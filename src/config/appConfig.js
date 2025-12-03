@@ -7,7 +7,8 @@ const inferHostedBaseUrl = () => {
 
   // When running the PWA from a production host we want to hit the same origin.
   if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
-    return origin;
+    return 'http://185.238.46.59:8085';
+    // return origin;
   }
 
   return null;
@@ -22,7 +23,8 @@ const inferHostedTileBaseUrl = () => {
   const { origin, hostname } = window.location;
 
   if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
-    return `${origin.replace(/\/$/, '')}/tiles`;
+    // return `${origin.replace(/\/$/, '')}/tiles`;
+    return 'http://185.238.46.59:8085/tiles';
   }
   return 'http://185.238.46.59:8085/tiles';
   //return 'http://localhost:8080/tiles';
