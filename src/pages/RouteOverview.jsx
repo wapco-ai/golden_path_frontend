@@ -319,18 +319,33 @@ const RouteOverview = () => {
       }, 0);
     };
 
+    const toLngLat = (coord) => Array.isArray(coord) && coord.length >= 2
+      ? [coord[1], coord[0]]
+      : null;
+
+    const normalizeStepCoords = (step, idx) => {
+      const mappedCoords = Array.isArray(step?.coordinates?.[0])
+        ? step.coordinates.map(toLngLat).filter(Boolean)
+        : [];
+
+      if (mappedCoords.length >= 2) return mappedCoords;
+
+      const start = routeCoordinates[idx];
+      const end = routeCoordinates[idx + 1];
+      return [start, end].filter(Boolean);
+    };
+
     const buildFromSteps = () => (routeSteps || [])
       .map((step, idx) => {
-        const coords = step?.coordinates && step.coordinates.length > 0
-          ? step.coordinates
-          : (routeCoordinates[idx] ? [routeCoordinates[idx], routeCoordinates[idx + 1]].filter(Boolean) : []);
+        const coords = normalizeStepCoords(step, idx);
 
         if (!coords || coords.length < 2) return null;
 
+        const stepName = step?.name || step?.title;
         const base = step && step.type
           ? intl.formatMessage(
             { id: step.type },
-            { name: step.name, title: step.title, num: idx + 1 }
+            { name: stepName, title: step?.title, num: idx + 1 }
           )
           : step?.instruction
             ? step.instruction
@@ -347,17 +362,18 @@ const RouteOverview = () => {
           instruction,
           services: step?.services || {},
           distance: dist,
-          doorNames: step?.type === 'stepPassDoor' ? [step.name] : []
+          doorNames: step?.type === 'stepPassDoor' ? [stepName].filter(Boolean) : []
         };
       })
       .filter(Boolean);
 
     const segments = routeSteps?.length ? buildFromSteps() : routeCoordinates.slice(1).map((c, idx) => {
       const step = routeSteps?.[idx];
+      const stepName = step?.name || step?.title;
       const base = step && step.type
         ? intl.formatMessage(
           { id: step.type },
-          { name: step.name, title: step.title, num: idx + 1 }
+          { name: stepName, title: step?.title, num: idx + 1 }
         )
         : step?.instruction
           ? step.instruction
@@ -376,72 +392,29 @@ const RouteOverview = () => {
         instruction,
         services: step?.services || {},
         distance: dist,
-        doorNames: step?.type === 'stepPassDoor' ? [step.name] : []
+        doorNames: step?.type === 'stepPassDoor' ? [stepName].filter(Boolean) : []
       };
     }).filter(seg => Array.isArray(seg.coordinates) && seg.coordinates.length >= 2);
 
-    const segmentBearing = coords => {
-      if (!coords || coords.length < 2) return null;
-      return bearing(coords[0], coords[coords.length - 1]);
-    };
-    const angleDiff = (a, b) => {
-      const b1 = segmentBearing(a);
-      const b2 = segmentBearing(b);
-      if (b1 == null || b2 == null) return Infinity;
-      let diff = Math.abs(b1 - b2);
-      if (diff > 180) diff = 360 - diff;
-      return diff;
-    };
+    return segments
+      .filter(seg => seg?.coordinates && seg.coordinates.length >= 2)
+      .map((seg, idx) => {
+        const instr =
+          seg.doorNames && seg.doorNames.length > 1
+            ? intl.formatMessage(
+              { id: 'doorToDoor' },
+              { from: seg.doorNames[0], to: seg.doorNames[seg.doorNames.length - 1] }
+            )
+            : seg.instruction;
 
-    const merged = [];
-    for (let i = 0; i < segments.length; i++) {
-      const seg = segments[i];
-      if (!seg?.coordinates || seg.coordinates.length < 2) continue;
-      if (seg.distance >= 30) {
-        merged.push({ ...seg });
-        continue;
-      }
-
-      const prev = merged[merged.length - 1];
-      const next = segments[i + 1];
-      const diffPrev = prev ? angleDiff(prev.coordinates, seg.coordinates) : Infinity;
-      const diffNext = next ? angleDiff(seg.coordinates, next.coordinates) : Infinity;
-
-      if ((diffPrev <= diffNext && prev) || !next) {
-        // merge with previous segment
-        if (prev) {
-          prev.coordinates.push(seg.coordinates[1]);
-          prev.distance += seg.distance;
-          prev.doorNames = [...(prev.doorNames || []), ...(seg.doorNames || [])];
-        } else {
-          merged.push({ ...seg });
-        }
-      } else if (next) {
-        // merge with next segment
-        next.coordinates = [seg.coordinates[0], ...next.coordinates];
-        next.distance += seg.distance;
-        next.doorNames = [...(seg.doorNames || []), ...(next.doorNames || [])];
-      } else {
-        merged.push({ ...seg });
-      }
-    }
-
-    return merged.map((m, idx) => {
-      const instr =
-        m.doorNames && m.doorNames.length > 1
-          ? intl.formatMessage(
-            { id: 'doorToDoor' },
-            { from: m.doorNames[0], to: m.doorNames[m.doorNames.length - 1] }
-          )
-          : m.instruction;
-      return {
-        id: idx + 1,
-        coordinates: m.coordinates,
-        instruction: instr,
-        services: m.services,
-        distance: m.distance
-      };
-    });
+        return {
+          id: idx + 1,
+          coordinates: seg.coordinates,
+          instruction: instr,
+          services: seg.services,
+          distance: seg.distance
+        };
+      });
   }, [routeCoordinates, routeSteps, intl]);
 
   const [viewState, setViewState] = useState({

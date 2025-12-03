@@ -543,17 +543,31 @@ const RoutingPage = () => {
   useEffect(() => {
     if (!routeSteps || routeSteps.length === 0 || !routeGeo) return;
     const coords = routeGeo.geometry.coordinates;
+    const getStepCoords = (stepIndex) => {
+      const step = routeSteps[stepIndex];
+      if (Array.isArray(step?.coordinates?.[0])) {
+        return step.coordinates;
+      }
+      return coords.slice(stepIndex, stepIndex + 2);
+    };
+
     const steps = routeSteps.map((s, idx) => {
       let distance = 0;
-      if (idx > 0) {
+      const stepCoords = getStepCoords(idx);
+      if (Array.isArray(stepCoords?.[0]) && stepCoords.length >= 2) {
+        const [lng1, lat1] = stepCoords[0];
+        const [lng2, lat2] = stepCoords[stepCoords.length - 1];
+        distance = Math.hypot(lng2 - lng1, lat2 - lat1) * 100000;
+      } else if (idx > 0) {
         const [lng1, lat1] = coords[idx - 1];
         const [lng2, lat2] = coords[idx];
         distance = Math.hypot(lng2 - lng1, lat2 - lat1) * 100000;
       }
+      const stepName = s.name || s.title;
       const base = s.type
         ? intl.formatMessage(
           { id: s.type },
-          { name: s.name, title: s.title, num: idx + 1 }
+          { name: stepName, title: s.title, num: idx + 1 }
         )
         : s.instruction || '';
       const instruction = s.landmark
@@ -570,7 +584,7 @@ const RoutingPage = () => {
         instruction,
         distance: `${Math.round(distance)} ${intl.formatMessage({ id: 'meters' })}`,
         time: `${Math.max(1, Math.round(distance / 60))} ${intl.formatMessage({ id: 'minutesUnit' })}`,
-        coordinates: s.coordinates,
+        coordinates: stepCoords,
         services: s.services || {},
         direction
       };
@@ -604,7 +618,12 @@ const RoutingPage = () => {
       const altCoords = alt.geo.geometry.coordinates;
       const altSteps = alt.steps.map((st, i) => {
         let dist = 0;
-        if (i > 0) {
+        const stepCoords = Array.isArray(st.coordinates?.[0]) ? st.coordinates : altCoords.slice(i, i + 2);
+        if (Array.isArray(stepCoords?.[0]) && stepCoords.length >= 2) {
+          const [lng1, lat1] = stepCoords[0];
+          const [lng2, lat2] = stepCoords[stepCoords.length - 1];
+          dist = Math.hypot(lng2 - lng1, lat2 - lat1) * 100000;
+        } else if (i > 0) {
           const [lng1, lat1] = altCoords[i - 1];
           const [lng2, lat2] = altCoords[i];
           dist = Math.hypot(lng2 - lng1, lat2 - lat1) * 100000;
@@ -612,7 +631,7 @@ const RoutingPage = () => {
         const base = st.type
           ? intl.formatMessage(
             { id: st.type },
-            { name: st.name, title: st.title, num: i + 1 }
+            { name: st.name || st.title, title: st.title, num: i + 1 }
           )
           : st.instruction || '';
         const instruction = st.landmark
@@ -629,7 +648,7 @@ const RoutingPage = () => {
           instruction,
           distance: `${Math.round(dist)} ${intl.formatMessage({ id: 'meters' })}`,
           time: `${Math.max(1, Math.round(dist / 60))} ${intl.formatMessage({ id: 'minutesUnit' })}`,
-          coordinates: st.coordinates,
+          coordinates: stepCoords,
           direction
         };
       });
