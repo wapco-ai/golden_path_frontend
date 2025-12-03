@@ -75,6 +75,22 @@ const Amain = () => {
   const [selectedGenderAccess, setSelectedGenderAccess] = useState([]);
   const [timeRestrictions, setTimeRestrictions] = useState([]);
   const [prayerTimeRestrictions, setPrayerTimeRestrictions] = useState([]);
+  const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
+  const [selectedDateFilter, setSelectedDateFilter] = useState([]);
+  const [selectedJalaliDate, setSelectedJalaliDate] = useState(null);
+  const [calendarDate, setCalendarDate] = useState(() => {
+    const now = new Date();
+    const jalali = toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+    return { year: jalali.jy, month: jalali.jm, day: jalali.jd };
+  });
+  const [selectedRestrictionType, setSelectedRestrictionType] = useState(null);
+  const [restrictionFormOpen, setRestrictionFormOpen] = useState(false);
+  const [selectedGenderRestrictions, setSelectedGenderRestrictions] = useState([]);
+  const [timeRestrictionPairs, setTimeRestrictionPairs] = useState([
+    { start: '', end: '' }
+  ]);
+  const [limitAllHours, setLimitAllHours] = useState(false);
+
 
 
 
@@ -171,6 +187,27 @@ const Amain = () => {
     if (!userCultureOpen) {
       setActiveMenu('culturemanage');
     }
+  };
+
+  const handleSaveAllPlaceData = () => {
+    const placeData = {
+      name: placeName,
+      category: placeCategory,
+      subcategory: placeSubcategory,
+      function: placeFunction,
+      types: selectedPlaceTypes,
+      transport: selectedTransport,
+      genderAccess: selectedGenderAccess,
+      restrictions: timeRestrictions,
+      createdAt: new Date().toISOString()
+    };
+
+    console.log('Saving place data with restrictions:', placeData);
+    alert(`مکان جدید با ${timeRestrictions.length} محدودیت ثبت شد`);
+
+    // Close modal and reset
+    setIsAddPlaceModalOpen(false);
+    resetForm();
   };
 
   const getPageTitle = () => {
@@ -478,33 +515,286 @@ const Amain = () => {
       }, 100);
     }
   }, []);
+  // Add these helper functions in your Amain component
 
-  const addTimeRestriction = () => {
+  const getJalaliMonthName = (month) => {
+    const jalaliMonths = [
+      'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+      'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
+    ];
+    return jalaliMonths[month - 1] || '';
+  };
+
+  const handleDateFilterToggle = (filter) => {
+    // If it's "انتخاب از تقویم", just show the calendar, don't open form yet
+    if (filter === 'انتخاب از تقویم') {
+      setSelectedDateFilter(prev => [filter]);
+      // Keep isDateFilterOpen true to show calendar
+      setIsDateFilterOpen(true);
+      // Don't open restriction form yet
+      setRestrictionFormOpen(false);
+      setSelectedRestrictionType(null);
+      return;
+    }
+
+    // For other filters, open the form directly
+    if (filter === selectedRestrictionType && restrictionFormOpen) {
+      setSelectedRestrictionType(null);
+      setRestrictionFormOpen(false);
+      setIsDateFilterOpen(false);
+      return;
+    }
+
+    setSelectedDateFilter(prev => [filter]);
+    setSelectedRestrictionType(filter);
+    setRestrictionFormOpen(true);
+    setIsDateFilterOpen(false); // Close the date filter popup
+  };
+
+  const handlePrevMonth = () => {
+    setCalendarDate(prev => {
+      let newMonth = prev.month - 1;
+      let newYear = prev.year;
+      if (newMonth < 1) {
+        newMonth = 12;
+        newYear--;
+      }
+      return { ...prev, month: newMonth, year: newYear };
+    });
+  };
+
+  const handleNextMonth = () => {
+    setCalendarDate(prev => {
+      let newMonth = prev.month + 1;
+      let newYear = prev.year;
+      if (newMonth > 12) {
+        newMonth = 1;
+        newYear++;
+      }
+      return { ...prev, month: newMonth, year: newYear };
+    });
+  };
+
+  const renderJalaliCalendarDays = () => {
+    const { year, month } = calendarDate;
+
+    // Get current Jalali date
+    const now = new Date();
+    const today = toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+
+    // Get first day of month (day of week)
+    const firstDay = jalaliMonthStart(year, month);
+    const daysInMonth = jalaliMonthLength(year, month);
+
+    const days = [];
+
+    // Empty cells for days before start of month
+    for (let i = 0; i < firstDay; i++) {
+      days.push(<div key={`empty-${i}`} className="calendar-day empty"></div>);
+    }
+
+    // Days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const isToday = year === today.jy && month === today.jm && day === today.jd;
+      const isSelected = selectedJalaliDate &&
+        selectedJalaliDate.year === year &&
+        selectedJalaliDate.month === month &&
+        selectedJalaliDate.day === day;
+
+      days.push(
+        <div
+          key={`day-${day}`}
+          className={`calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`}
+          onClick={() => {
+            if (selectedDateFilter.includes('انتخاب از تقویم')) {
+              handleDaySelect(day);
+            }
+          }}
+        >
+          {day}
+        </div>
+      );
+    }
+
+    return days;
+  };
+
+  // Helper functions for Jalali calendar
+  const jalaliMonthStart = (year, month) => {
+    // Simplified calculation - in real app use a proper Jalali library
+    const mod = (year - (month < 7 ? 474 : 473)) % 2820;
+    return (mod + 38) * 682 % 2816 < 682 ? 1 : 0;
+  };
+
+  const jalaliMonthLength = (year, month) => {
+    // Simplified calculation - in real app use a proper Jalali library
+    if (month < 7) return 31;
+    if (month < 12) return 30;
+    return isLeapJalaliYear(year) ? 30 : 29;
+  };
+
+  const isLeapJalaliYear = (year) => {
+    // Jalali leap year calculation
+    const mod = year % 33;
+    return mod === 1 || mod === 5 || mod === 9 || mod === 13 || mod === 17 || mod === 22 || mod === 26 || mod === 30;
+  };
+
+  const handleDaySelect = (day) => {
+    setSelectedJalaliDate({
+      year: calendarDate.year,
+      month: calendarDate.month,
+      day: day
+    });
+
+    const jalaliMonths = [
+      'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+      'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
+    ];
+    const dateText = `${day} ${jalaliMonths[calendarDate.month - 1]} ${calendarDate.year}`;
+
+    // Set the restriction type with proper format
+    setSelectedRestrictionType(`روز ${dateText}`);
+
+    // Close the date filter popup
+    setIsDateFilterOpen(false);
+
+    // Open the restriction form
+    setRestrictionFormOpen(true);
+
+    // Reset time restriction pairs
+    setTimeRestrictionPairs([{ start: '', end: '' }]);
+    setLimitAllHours(false);
+    setSelectedGenderRestrictions([]);
+  };
+
+  const handleConfirmRestriction = () => {
+    if (!isRestrictionFormValid()) {
+      alert('لطفا اطلاعات محدودیت را به درستی تکمیل کنید');
+      return;
+    }
+
     const newRestriction = {
       id: Date.now(),
-      days: [],
-      startTime: '',
-      endTime: '',
-      gender: ''
+      date: getRestrictionTitle(),
+      gender: [...selectedGenderRestrictions],
+      timePairs: limitAllHours
+        ? [{ start: '00:00', end: '23:59' }]
+        : timeRestrictionPairs.filter(pair => pair.start && pair.end),
+      limitAllHours
     };
-    setTimeRestrictions([...timeRestrictions, newRestriction]);
+
+    setTimeRestrictions(prev => [...prev, newRestriction]);
+
+    // Reset form
+    handleCloseRestrictionForm();
   };
 
-  const removeTimeRestriction = (id) => {
-    setTimeRestrictions(timeRestrictions.filter(restriction => restriction.id !== id));
+  // Remove restriction
+  const removeRestriction = (index) => {
+    setTimeRestrictions(prev => prev.filter((_, i) => i !== index));
   };
 
-  const addPrayerTimeRestriction = () => {
-    const newRestriction = {
-      id: Date.now(),
-      prayerType: '',
-      appliesToAllDays: true
-    };
-    setPrayerTimeRestrictions([...prayerTimeRestrictions, newRestriction]);
+  // Format time for display
+  const formatTimeForDisplay = (time) => {
+    if (!time) return '';
+    const [hours, minutes] = time.split(':');
+    return `${hours}:${minutes}`;
   };
 
-  const removePrayerTimeRestriction = (id) => {
-    setPrayerTimeRestrictions(prayerTimeRestrictions.filter(restriction => restriction.id !== id));
+  const isRestrictionFormValid = () => {
+    // Check if at least one gender is selected
+    if (selectedGenderRestrictions.length === 0) {
+      return false;
+    }
+
+    // Check time restrictions if "limit all hours" is NOT selected
+    if (!limitAllHours) {
+      // Check if all time pairs have valid start and end times
+      const hasValidTimePairs = timeRestrictionPairs.every(pair =>
+        pair.start && pair.end && pair.start !== '' && pair.end !== ''
+      );
+
+      if (!hasValidTimePairs) {
+        return false;
+      }
+
+      // Check if start time is before end time for each pair
+      const hasValidTimeOrder = timeRestrictionPairs.every(pair => {
+        if (!pair.start || !pair.end) return false;
+
+        // Convert times to minutes for comparison
+        const startMinutes = convertTimeToMinutes(pair.start);
+        const endMinutes = convertTimeToMinutes(pair.end);
+
+        return startMinutes < endMinutes;
+      });
+
+      if (!hasValidTimeOrder) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  // Helper function to convert time string to minutes
+  const convertTimeToMinutes = (timeStr) => {
+    if (!timeStr) return 0;
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+
+  const getRestrictionTitle = () => {
+    if (!selectedRestrictionType) return '';
+
+    if (selectedRestrictionType === 'کل روزها') return 'کل روزها';
+    if (selectedRestrictionType === 'تمام این ماه') return 'این ماه';
+    if (selectedRestrictionType === 'کل این هفته') return 'این هفته';
+    if (selectedRestrictionType.startsWith('روز')) return selectedRestrictionType;
+
+    return selectedRestrictionType;
+  };
+
+  const handleAddTimeRestriction = () => {
+    setTimeRestrictionPairs([...timeRestrictionPairs, { start: '', end: '' }]);
+  };
+
+  const handleRemoveTimeRestriction = (index) => {
+    if (timeRestrictionPairs.length > 1) {
+      const newPairs = timeRestrictionPairs.filter((_, i) => i !== index);
+      setTimeRestrictionPairs(newPairs);
+    }
+  };
+
+  const handleTimeChange = (index, field, value) => {
+    const newPairs = [...timeRestrictionPairs];
+    newPairs[index][field] = value;
+    setTimeRestrictionPairs(newPairs);
+  };
+
+  const handleGenderRestrictionToggle = (gender) => {
+    if (selectedGenderRestrictions.includes(gender)) {
+      setSelectedGenderRestrictions(selectedGenderRestrictions.filter(g => g !== gender));
+    } else {
+      setSelectedGenderRestrictions([...selectedGenderRestrictions, gender]);
+    }
+  };
+
+  const handleCloseRestrictionForm = () => {
+    setRestrictionFormOpen(false);
+    setSelectedRestrictionType(null);
+    setSelectedGenderRestrictions([]);
+    setTimeRestrictionPairs([{ start: '', end: '' }]);
+    setLimitAllHours(false);
+    setSelectedDateFilter([]);
+    setSelectedJalaliDate(null);
+  };
+
+  const removeDateFilter = (filter) => {
+    setSelectedDateFilter(prev => prev.filter(f => f !== filter));
+    if (filter === 'انتخاب از تقویم') {
+      setSelectedJalaliDate(null);
+    }
   };
 
   const handlePageChange = (pageNumber) => {
@@ -1917,7 +2207,10 @@ const Amain = () => {
                     <div className="restriction-section">
                       <div className="restriction-header">
                         <span className="restriction-title">محدودیت بر اساس روز، ساعت و جنسیت</span>
-                        <button className="add-restriction-btn" onClick={addTimeRestriction}>
+                        <button
+                          className="add-restriction-btn"
+                          onClick={() => setIsDateFilterOpen(!isDateFilterOpen)}
+                        >
                           افزودن محدودیت
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#1E2023" />
@@ -1926,61 +2219,285 @@ const Amain = () => {
                         </button>
                       </div>
 
-                      {timeRestrictions.map((restriction, index) => (
-                        <div key={restriction.id} className="restriction-item">
-                          <div className="restriction-content">
-                            <div className="restriction-row">
-                              <div className="form-group compact">
-                                <label className="form-label">روزهای هفته</label>
-                                <select className="form-input compact" multiple>
-                                  <option value="saturday">شنبه</option>
-                                  <option value="sunday">یکشنبه</option>
-                                  <option value="monday">دوشنبه</option>
-                                  <option value="tuesday">سه شنبه</option>
-                                  <option value="wednesday">چهارشنبه</option>
-                                  <option value="thursday">پنجشنبه</option>
-                                  <option value="friday">جمعه</option>
-                                </select>
+                      {/* Display existing restrictions */}
+                      {timeRestrictions.length > 0 && (
+                        <div className="restrictions-display">
+                          {timeRestrictions.map((restriction, index) => (
+                            <div key={index} className="restriction-display-item">
+                              <div className="restriction-info">
+                                <span className="restriction-date">{restriction.date}</span>
+                                  <span className="restriction-gender">{restriction.gender.join('، ')}</span>
+                                  <span className="restriction-time">
+                                    {restriction.timePairs.map((pair, idx) => (
+                                      <span key={idx}>
+                                        {pair.start} الی {pair.end}
+                                        {idx < restriction.timePairs.length - 1 && '، '}
+                                      </span>
+                                    ))}
+                                  </span>
                               </div>
+                            </div>
+                          ))}
+                          <button
+                            className="remove-restriction-display-btn"
+                            onClick={() => removeRestriction(index)}
+                          >
+                            <svg width="75" height="32" viewBox="0 0 75 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <rect x="0.5" y="0.5" width="74" height="31" rx="5.5" stroke="#EA4335" />
+                              <path fillRule="evenodd" clipRule="evenodd" d="M15.4099 13.1678C15.6855 13.1494 15.9237 13.3579 15.9421 13.6334L16.2487 18.2328C16.3086 19.1314 16.3513 19.7566 16.445 20.227C16.5359 20.6833 16.6628 20.9249 16.8451 21.0954C17.0274 21.2659 17.2768 21.3765 17.7381 21.4368C18.2137 21.499 18.8404 21.5 19.741 21.5H20.2565C21.1571 21.5 21.7838 21.499 22.2594 21.4368C22.7207 21.3765 22.9701 21.2659 23.1524 21.0954C23.3347 20.9249 23.4616 20.6833 23.5525 20.227C23.6462 19.7566 23.6889 19.1314 23.7488 18.2328L24.0554 13.6334C24.0738 13.3579 24.312 13.1494 24.5876 13.1678C24.8631 13.1862 25.0716 13.4244 25.0532 13.7L24.7442 18.3345C24.6872 19.1896 24.6412 19.8804 24.5332 20.4224C24.421 20.986 24.23 21.4567 23.8356 21.8256C23.4412 22.1946 22.9588 22.3538 22.3891 22.4284C21.8411 22.5001 21.1488 22.5 20.2917 22.5H19.7058C18.8488 22.5 18.1565 22.5001 17.6084 22.4284C17.0387 22.3538 16.5563 22.1946 16.1619 21.8256C15.7675 21.4567 15.5766 20.986 15.4643 20.4224C15.3563 19.8804 15.3103 19.1896 15.2533 18.3344L14.9443 13.7C14.9259 13.4244 15.1344 13.1862 15.4099 13.1678Z" fill="#EA4335" />
+                              <path fillRule="evenodd" clipRule="evenodd" d="M18.9023 9.50003L18.8716 9.50001C18.7273 9.49992 18.6017 9.49984 18.483 9.51879C18.0141 9.59366 17.6084 9.8861 17.3891 10.3072C17.3336 10.4138 17.2939 10.5331 17.2484 10.67L17.2387 10.6991L17.174 10.8932C17.1613 10.9312 17.1578 10.9417 17.1547 10.9502C17.038 11.2729 16.7353 11.4911 16.3922 11.4998C16.3832 11.5 16.3721 11.5 16.3321 11.5H14.332C14.0559 11.5 13.832 11.7239 13.832 12C13.832 12.2762 14.0559 12.5 14.332 12.5L16.3378 12.5L16.349 12.5H23.6486L23.6597 12.5L25.6654 12.5C25.9416 12.5 26.1654 12.2762 26.1654 12C26.1654 11.7239 25.9416 11.5 25.6654 11.5H23.6654C23.6254 11.5 23.6143 11.5 23.6053 11.4998C23.2622 11.4911 22.9595 11.2729 22.8428 10.9501C22.8397 10.9417 22.8361 10.931 22.8235 10.8932L22.7588 10.6991L22.7491 10.67C22.7036 10.5331 22.6639 10.4138 22.6084 10.3072C22.3891 9.8861 21.9834 9.59366 21.5145 9.51879C21.3958 9.49984 21.2702 9.49992 21.1259 9.50001L21.0952 9.50003H18.9023ZM18.0951 11.2903C18.0689 11.3627 18.0385 11.4327 18.0041 11.5H21.9934C21.959 11.4327 21.9286 11.3627 21.9024 11.2903L21.8766 11.2148L21.8101 11.0153C21.7493 10.8329 21.7354 10.7958 21.7215 10.7691C21.6484 10.6287 21.5131 10.5312 21.3568 10.5063C21.3272 10.5015 21.2875 10.5 21.0952 10.5H18.9023C18.7101 10.5 18.6704 10.5015 18.6407 10.5063C18.4844 10.5312 18.3491 10.6287 18.276 10.7691C18.2622 10.7958 18.2482 10.8329 18.1874 11.0153L18.1208 11.2149C18.1108 11.2449 18.103 11.2683 18.0951 11.2903Z" fill="#EA4335" />
+                              <path d="M38.7759 20C37.7026 20 36.8953 19.9907 36.3539 19.972C35.8219 19.944 35.4253 19.9067 35.1639 19.86C34.9119 19.8133 34.6646 19.734 34.4219 19.622C33.9926 19.4353 33.6659 19.1647 33.4419 18.81C33.2273 18.4553 33.1199 18.04 33.1199 17.564C33.1199 17.2747 33.1619 16.9713 33.2459 16.654L33.7639 14.68L34.7859 14.988L34.2679 17.004C34.2119 17.228 34.1839 17.424 34.1839 17.592C34.1839 17.816 34.2353 18.0073 34.3379 18.166C34.4499 18.3153 34.6179 18.4413 34.8419 18.544C35.0006 18.6187 35.1826 18.6747 35.3879 18.712C35.6026 18.7493 35.9713 18.7773 36.4939 18.796C37.0166 18.8147 37.8006 18.824 38.8459 18.824H41.6319C42.1826 18.824 42.5933 18.8007 42.8639 18.754C43.1346 18.7073 43.3213 18.628 43.4239 18.516C43.5266 18.3947 43.5779 18.2173 43.5779 17.984C43.5779 17.844 43.5733 17.732 43.5639 17.648C43.0226 17.732 42.4346 17.774 41.7999 17.774C41.1186 17.774 40.5726 17.578 40.1619 17.186C39.7606 16.7847 39.5599 16.2387 39.5599 15.548C39.5599 15.0627 39.6486 14.61 39.8259 14.19C40.0126 13.77 40.2833 13.434 40.6379 13.182C41.0019 12.9207 41.4359 12.79 41.9399 12.79C42.6119 12.79 43.1719 13.042 43.6199 13.546C44.0773 14.05 44.3433 14.722 44.4179 15.562L44.5719 17.48C44.5906 17.76 44.5999 17.9513 44.5999 18.054C44.5999 18.53 44.5113 18.908 44.3339 19.188C44.1659 19.468 43.8626 19.6733 43.4239 19.804C42.9946 19.9347 42.3879 20 41.6039 20H38.8459H38.7759ZM40.5399 15.408C40.5399 15.8 40.6519 16.1127 40.8759 16.346C41.0999 16.57 41.4079 16.682 41.7999 16.682C42.3786 16.682 42.9339 16.6353 43.4659 16.542L43.3959 15.66C43.3306 15.0907 43.1626 14.652 42.8919 14.344C42.6306 14.0267 42.2993 13.868 41.8979 13.868C41.4779 13.868 41.1466 14.022 40.9039 14.33C40.6613 14.6287 40.5399 14.988 40.5399 15.408ZM41.2959 10.088H42.7099V11.488H41.2959V10.088ZM48.5068 20C47.8161 20 47.2655 19.8647 46.8548 19.594C46.4535 19.314 46.2295 18.95 46.1828 18.502C46.1361 18.306 46.1128 17.998 46.1128 17.578H47.0928C47.0928 17.8673 47.1115 18.1007 47.1488 18.278C47.1861 18.474 47.2981 18.614 47.4848 18.698C47.6808 18.782 47.9655 18.824 48.3388 18.824H49.1928C50.1728 18.824 50.6628 18.53 50.6628 17.942C50.6628 17.8767 50.6441 17.76 50.6068 17.592V17.564L49.5568 13.448L50.5928 13.168L51.6428 17.298C51.7361 17.662 51.8201 17.9467 51.8948 18.152C51.9788 18.348 52.0908 18.5113 52.2308 18.642C52.3708 18.7633 52.5575 18.824 52.7908 18.824H53.4768L53.5468 19.412L53.4768 20H52.7908C52.1655 20 51.6615 19.7387 51.2788 19.216C50.8308 19.7387 50.0888 20 49.0528 20H48.5068ZM49.1788 10.704H50.5788V12.104H49.1788V10.704ZM53.3362 18.824H53.5323C54.3629 18.824 55.0583 18.8053 55.6183 18.768C56.1783 18.7213 56.7523 18.614 57.3403 18.446L60.6303 17.564L57.7883 15.94C57.5083 15.772 57.2189 15.688 56.9203 15.688C56.6309 15.688 56.3556 15.772 56.0943 15.94C55.8329 16.0987 55.6229 16.3227 55.4642 16.612L55.2123 17.046L54.2883 16.472L54.5543 15.996C54.8156 15.52 55.1516 15.1513 55.5623 14.89C55.9823 14.6287 56.4303 14.498 56.9062 14.498C57.3916 14.498 57.8583 14.6333 58.3063 14.904L61.8763 17.06L61.7083 18.432L57.6063 19.594C56.9529 19.7713 56.3229 19.8833 55.7163 19.93C55.1096 19.9767 54.3769 20 53.5183 20H53.3362V18.824Z" fill="#EA4335" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
 
-                              <div className="time-inputs">
-                                <div className="form-group compact">
-                                  <label className="form-label">ساعت شروع</label>
-                                  <input type="time" className="form-input compact" />
+                      {/* Date Filter Popup */}
+                      {isDateFilterOpen && !restrictionFormOpen && (
+                        <div className={`date-filter-popup ${selectedDateFilter.includes('انتخاب از تقویم') ? 'calendar-selectable' : ''}`}>
+                          <div className="date-filter-content">
+                            {/* Filter by Date Section */}
+                            <div className="filter-section">
+                              <div className="date-filter-option2">
+                                <div className="filter-title">فیلتر بر اساس تاریخ</div>
+                                <div
+                                  className={`date-filter-option ${selectedDateFilter.includes('کل روزها') ? 'selected' : ''}`}
+                                  onClick={() => handleDateFilterToggle('کل روزها')}
+                                >
+                                  کل روزها
+                                </div>
+                                <div
+                                  className={`date-filter-option ${selectedDateFilter.includes('تمام این ماه') ? 'selected' : ''}`}
+                                  onClick={() => handleDateFilterToggle('تمام این ماه')}
+                                >
+                                  تمام این ماه
+                                </div>
+                                <div
+                                  className={`date-filter-option ${selectedDateFilter.includes('کل این هفته') ? 'selected' : ''}`}
+                                  onClick={() => handleDateFilterToggle('کل این هفته')}
+                                >
+                                  کل این هفته
+                                </div>
+                              </div>
+                              <div
+                                className={`calendar-select-option ${selectedDateFilter.includes('انتخاب از تقویم') ? 'selected' : ''}`}
+                                onClick={() => handleDateFilterToggle('انتخاب از تقویم')}
+                              >
+                                انتخاب از تقویم
+                              </div>
+                            </div>
+
+                            {/* Select from Calendar Section */}
+                            <div className="filter-section">
+                              <div className="jalali-calendar">
+                                {/* Calendar Header with Month/Year Selection */}
+                                <div className="calendar-header">
+                                  <div className="month-year-selector">
+                                    <select
+                                      value={calendarDate.month}
+                                      onChange={(e) => setCalendarDate(prev => ({ ...prev, month: parseInt(e.target.value) }))}
+                                      className="month-select"
+                                    >
+                                      {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                                        <option key={month} value={month}>
+                                          {getJalaliMonthName(month)}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <select
+                                      value={calendarDate.year}
+                                      onChange={(e) => setCalendarDate(prev => ({ ...prev, year: parseInt(e.target.value) }))}
+                                      className="year-select"
+                                    >
+                                      {Array.from({ length: 10 }, (_, i) => 1400 + i).map(year => (
+                                        <option key={year} value={year}>{year}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div className="calendar-nav">
+                                    <button
+                                      className="nav-btn prev"
+                                      onClick={handlePrevMonth}
+                                    >
+                                      ‹
+                                    </button>
+                                    <button
+                                      className="nav-btn next"
+                                      onClick={handleNextMonth}
+                                    >
+                                      ›
+                                    </button>
+                                  </div>
                                 </div>
 
-                                <div className="form-group compact">
-                                  <label className="form-label">ساعت پایان</label>
-                                  <input type="time" className="form-input compact" />
+                                {/* Day Names */}
+                                <div className="day-names">
+                                  <div className="day-name">ش</div>
+                                  <div className="day-name">یک</div>
+                                  <div className="day-name">دو</div>
+                                  <div className="day-name">سه</div>
+                                  <div className="day-name">چهار</div>
+                                  <div className="day-name">پنج</div>
+                                  <div className="day-name">ج</div>
                                 </div>
-                              </div>
 
-                              <div className="form-group compact">
-                                <label className="form-label">جنسیت</label>
-                                <select className="form-input compact">
-                                  <option value="">انتخاب کنید</option>
-                                  <option value="male">مردان</option>
-                                  <option value="female">بانوان</option>
-                                  <option value="both">هر دو</option>
-                                </select>
+                                {/* Calendar Days Grid */}
+                                <div className="calendar-days">
+                                  {renderJalaliCalendarDays()}
+                                </div>
                               </div>
                             </div>
                           </div>
-                          <button
-                            className="remove-restriction-btn"
-                            onClick={() => removeTimeRestriction(restriction.id)}
-                          >
-                            ×
-                          </button>
                         </div>
-                      ))}
+                      )}
+
+                      {/* Restriction Form (shown after selection) */}
+                      {restrictionFormOpen && selectedRestrictionType && (
+                        <div className="restriction-form-container">
+                          {/* Black header with title and close button */}
+                          <div className="restriction-form-header">
+                            <div className="restriction-title-black">
+                              <span className="restriction-label">محدودیت‌های</span>
+                              <span className="restriction-value">{getRestrictionTitle()}</span>
+                            </div>
+                            <button
+                              className="close-restriction-btn"
+                              onClick={handleCloseRestrictionForm}
+                            >
+                              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="0.5" y="0.5" width="31" height="31" rx="5.5" stroke="#EA4335" />
+                                <path fillRule="evenodd" clipRule="evenodd" d="M22.6654 16C22.6654 19.6819 19.6806 22.6666 15.9987 22.6666C12.3168 22.6666 9.33203 19.6819 9.33203 16C9.33203 12.3181 12.3168 9.33331 15.9987 9.33331C19.6806 9.33331 22.6654 12.3181 22.6654 16ZM13.9784 13.9797C14.1737 13.7845 14.4903 13.7845 14.6856 13.9797L15.9987 15.2929L17.3118 13.9798C17.507 13.7845 17.8236 13.7845 18.0189 13.9798C18.2142 14.175 18.2142 14.4916 18.0189 14.6869L16.7058 16L18.0189 17.3131C18.2141 17.5083 18.2141 17.8249 18.0189 18.0202C17.8236 18.2154 17.507 18.2154 17.3118 18.0202L15.9987 16.7071L14.6856 18.0202C14.4903 18.2154 14.1737 18.2154 13.9785 18.0202C13.7832 17.8249 13.7832 17.5083 13.9785 17.3131L15.2916 16L13.9784 14.6869C13.7832 14.4916 13.7832 14.175 13.9784 13.9797Z" fill="#EA4335" />
+                              </svg>
+                            </button>
+                          </div>
+
+                          {/* Gender Restrictions */}
+                          <div className="gender-restrictions-section">
+                            <div className="section-title3">محدودسازی جنسیتی برای تردد</div>
+                            <div className="gender-options">
+                              {['زنانه', 'مردانه', 'خانوادگی'].map((gender) => (
+                                <div
+                                  key={gender}
+                                  className={`gender-option ${selectedGenderRestrictions.includes(gender) ? 'selected' : ''}`}
+                                  onClick={() => handleGenderRestrictionToggle(gender)}
+                                >
+                                  <div className="gender-checkbox">
+                                    {selectedGenderRestrictions.includes(gender) ? (
+                                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
+                                        <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
+                                      </svg>
+                                    ) : (
+                                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" stroke="#D9D9D9" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                  <span>{gender}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Time Restrictions */}
+                          <div className="time-restrictions-section">
+                            <div className="section-title5">محدودسازی زمانی برای تردد
+                              <button
+                                className="add-time-btn"
+                                onClick={handleAddTimeRestriction}
+                                disabled={limitAllHours || timeRestrictionPairs.length >= 4}
+                              >
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path fillRule="evenodd" clipRule="evenodd" d="M10.0013 18.3333C14.6037 18.3333 18.3346 14.6023 18.3346 9.99996C18.3346 5.39759 14.6037 1.66663 10.0013 1.66663C5.39893 1.66663 1.66797 5.39759 1.66797 9.99996C1.66797 14.6023 5.39893 18.3333 10.0013 18.3333ZM10.6263 7.49996C10.6263 7.15478 10.3465 6.87496 10.0013 6.87496C9.65612 6.87496 9.3763 7.15478 9.3763 7.49996L9.3763 9.37498H7.5013C7.15612 9.37498 6.8763 9.6548 6.8763 9.99998C6.8763 10.3452 7.15612 10.625 7.5013 10.625H9.3763V12.5C9.3763 12.8451 9.65612 13.125 10.0013 13.125C10.3465 13.125 10.6263 12.8451 10.6263 12.5L10.6263 10.625H12.5013C12.8465 10.625 13.1263 10.3452 13.1263 9.99998C13.1263 9.6548 12.8465 9.37498 12.5013 9.37498H10.6263V7.49996Z" fill="#14C472" />
+                                </svg>
+                              </button>
+                            </div>
+
+                            {/* Time Restriction Pairs Grid with scrollable container when many items */}
+                            <div className={`time-pairs-scrollable-container ${timeRestrictionPairs.length > 2 ? 'scrollable' : ''}`}>
+                              <div className={`time-pairs-grid ${timeRestrictionPairs.length > 2 ? 'multi-row' : ''}`}>
+                                {timeRestrictionPairs.map((pair, index) => (
+                                  <div key={index} className="time-pair">
+                                    <div className="time-inputs">
+                                      <div className="time-input-group">
+                                        <label>شروع :</label>
+                                        <input
+                                          type="time"
+                                          value={pair.start}
+                                          onChange={(e) => handleTimeChange(index, 'start', e.target.value)}
+                                          disabled={limitAllHours}
+                                          className="time-input"
+                                        />
+                                      </div>
+                                      <div className="time-input-group">
+                                        <label>پایان :</label>
+                                        <input
+                                          type="time"
+                                          value={pair.end}
+                                          onChange={(e) => handleTimeChange(index, 'end', e.target.value)}
+                                          disabled={limitAllHours}
+                                          className="time-input"
+                                        />
+                                      </div>
+                                    </div>
+                                    {timeRestrictionPairs.length > 1 && (
+                                      <button
+                                        className="remove-time-btn"
+                                        onClick={() => handleRemoveTimeRestriction(index)}
+                                        disabled={limitAllHours}
+                                      >
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                          <path d="M9.45597 18.3333H10.13C12.4489 18.3333 13.6084 18.3333 14.3622 17.578C15.1161 16.8227 15.1932 15.5837 15.3475 13.1058L15.5697 9.53534C15.6534 8.19086 15.6953 7.51861 15.3171 7.09262C14.9389 6.66663 14.3002 6.66663 13.0229 6.66663H6.56301C5.28569 6.66663 4.64704 6.66663 4.26885 7.09262C3.89065 7.51861 3.9325 8.19086 4.0162 9.53535L4.23846 13.1058C4.39272 15.5837 4.46984 16.8227 5.22371 17.578C5.97758 18.3333 7.13704 18.3333 9.45597 18.3333Z" fill="#EA4335" />
+                                          <path d="M2.29297 5.13885C2.29297 4.75533 2.58079 4.44442 2.93583 4.44442L5.15603 4.44404C5.59716 4.43197 5.98632 4.12897 6.13642 3.68072C6.14037 3.66893 6.1449 3.6544 6.16118 3.60165L6.25685 3.29157C6.31539 3.10145 6.36639 2.93581 6.43776 2.78776C6.71971 2.20287 7.24137 1.79671 7.84419 1.69273C7.99678 1.6664 8.15837 1.66652 8.34385 1.66664H11.2422C11.4277 1.66652 11.5893 1.6664 11.7419 1.69273C12.3447 1.79671 12.8664 2.20287 13.1483 2.78776C13.2197 2.93581 13.2707 3.10145 13.3292 3.29157L13.4249 3.60165C13.4412 3.6544 13.4457 3.66893 13.4497 3.68072C13.5998 4.12897 14.0661 4.43234 14.5073 4.44442H16.6501C17.0052 4.44442 17.293 4.75533 17.293 5.13885C17.293 5.52238 17.0052 5.83329 16.6501 5.83329H2.93583C2.58079 5.83329 2.29297 5.52238 2.29297 5.13885Z" fill="#EA4335" />
+                                        </svg>
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="time-restrictions-footer">
+                              <div
+                                className="all-hours-option"
+                                onClick={() => {
+                                  setLimitAllHours(!limitAllHours);
+                                  if (!limitAllHours) {
+                                    setTimeRestrictionPairs([{ start: '', end: '' }]);
+                                  }
+                                }}
+                              >
+                                <div className="all-hours-checkbox">
+                                  {limitAllHours ? (
+                                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                      <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
+                                      <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
+                                    </svg>
+                                  ) : (
+                                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                      <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" stroke="#D9D9D9" />
+                                    </svg>
+                                  )}
+                                </div>
+                                <span>محدودیت برای تمام ساعات روز</span>
+                              </div>
+                              <button
+                                className="confirm-restriction-btn"
+                                onClick={handleConfirmRestriction}
+                                disabled={!isRestrictionFormValid()}
+                              >
+                                تایید و افزودن محدودیت زمانی
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Prayer Time Restrictions Section */}
+                    {/* Prayer Time Restrictions Section (unchanged) */}
                     <div className="restriction-section">
                       <div className="restriction-header">
                         <span className="restriction-title">محدودیت بر اساس اوقات شرعی (برای همه روزها)</span>
-                        <button className="add-restriction-btn" onClick={addPrayerTimeRestriction}>
+                        <button className="add-restriction-btn">
                           افزودن محدودیت
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#1E2023" />
@@ -1988,37 +2505,6 @@ const Amain = () => {
                           </svg>
                         </button>
                       </div>
-
-                      {prayerTimeRestrictions.map((restriction, index) => (
-                        <div key={restriction.id} className="restriction-item">
-                          <div className="restriction-content">
-                            <div className="restriction-row">
-                              <div className="form-group compact">
-                                <label className="form-label">نوع وقت شرعی</label>
-                                <select className="form-input compact">
-                                  <option value="">انتخاب کنید</option>
-                                  <option value="fajr">اذان صبح</option>
-                                  <option value="sunrise">طلوع آفتاب</option>
-                                  <option value="dhuhr">اذان ظهر</option>
-                                  <option value="asr">اذان عصر</option>
-                                  <option value="maghrib">اذان مغرب</option>
-                                  <option value="isha">اذان عشاء</option>
-                                </select>
-                              </div>
-
-                              <div className="prayer-time-info">
-                                <span className="prayer-time-note">این محدودیت برای همه روزهای هفته اعمال خواهد شد</span>
-                              </div>
-                            </div>
-                          </div>
-                          <button
-                            className="remove-restriction-btn"
-                            onClick={() => removePrayerTimeRestriction(restriction.id)}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
                     </div>
                   </div>
                 </div>
