@@ -1,10 +1,10 @@
 {
 	"name": "golden_path",
 	"private": true,
-	"version": "1.0.5.4",
+	"version": "2.0.1.4",
 	"type": "module",
 	"description": "GPS Validity PWA Application for location tracking",
-	"homepage": "https://wapco-ai.github.io/golden_path/",
+	"homepage": "https://wapco-ai.github.io/golden_path_backend/",
 	"scripts": {
 		"dev": "vite",
 		"build": "vite build",
@@ -55,12 +55,12 @@
 	"main": "eslint.config.js",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/wapco-ai/golden_path.git"
+		"url": "git+https://github.com/wapco-ai/golden_path_backend.git"
 	},
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
 	"bugs": {
-		"url": "https://github.com/wapco-ai/golden_path/issues"
+		"url": "https://github.com/wapco-ai/golden_path_backend/issues"
 	}
 }
