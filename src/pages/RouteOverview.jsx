@@ -180,13 +180,43 @@ const RouteOverview = () => {
       const middleCoord = routeCoordinates[Math.floor(routeCoordinates.length / 2)];
       const geo = middleCoord ? { lat: middleCoord[1], lng: middleCoord[0] } : undefined;
 
+      const getFirstImage = (place) => {
+        if (!place) return null;
+
+        if (Array.isArray(place.image) && place.image.length > 0) {
+          return place.image[0];
+        }
+
+        if (Array.isArray(place.images) && place.images.length > 0) {
+          return place.images[0];
+        }
+
+        if (typeof place.image === 'string' && place.image.trim()) {
+          return place.image;
+        }
+
+        if (typeof place.images === 'string' && place.images.trim()) {
+          return place.images;
+        }
+
+        return null;
+      };
+
       try {
         const data = await fetchLandmarkPlaces({ language, geo });
         const places = Array.isArray(data?.places?.landmarkPlaces)
           ? data.places.landmarkPlaces
           : [];
 
-        const annotated = places
+        const placesWithImages = places
+          .map((place) => {
+            const image = getFirstImage(place);
+            if (!image) return null;
+            return { ...place, image };
+          })
+          .filter(Boolean);
+
+        const annotated = placesWithImages
           .map((place, idx) => {
             const coord = extractPlaceCoordinates(place);
             if (!coord) return null;
