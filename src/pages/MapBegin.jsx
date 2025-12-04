@@ -68,6 +68,7 @@ const MapBeginPage = () => {
   const [preventMapCentering, setPreventMapCentering] = useState(false);
   const [groups, setGroups] = useState([]);
   const [subGroups, setSubGroups] = useState({});
+  const [landmarkPlaces, setLandmarkPlaces] = useState([]);
   const clearMapSelection = () => {
     sessionStorage.removeItem('mapSelectedLat');
     sessionStorage.removeItem('mapSelectedLng');
@@ -654,6 +655,8 @@ const MapBeginPage = () => {
           .sort((a, b) => parseNumber(a.distance, Number.POSITIVE_INFINITY) - parseNumber(b.distance, Number.POSITIVE_INFINITY))
           .slice(0, 10);
 
+        setLandmarkPlaces(landmarksWithImages);
+
         setRoutingData(prev => {
           const mergedPlaces = {
             ...(prev?.places || {}),
@@ -672,6 +675,8 @@ const MapBeginPage = () => {
       } catch (error) {
         console.error('Failed to load landmark places', error);
         toast.error(intl.formatMessage({ id: 'generalErrorMessage' }));
+
+        setLandmarkPlaces([]);
 
         setRoutingData(prev => ({
           ...prev,
@@ -828,6 +833,7 @@ const MapBeginPage = () => {
           isQrCodeEntry={isQrCodeEntry}
           groups={groups}
           subGroups={subGroups}
+          landmarkPlaces={landmarkPlaces}
         />
         <button
           className={`map-gps-button ${isTracking ? 'active' : ''}`}
