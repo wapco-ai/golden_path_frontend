@@ -466,13 +466,44 @@ const Mpbc = ({
         if (seenCoords.has(coordKey)) return null;
         seenCoords.add(coordKey);
 
-        return { key, coords, imageUrl, title: place.title || place.name || place.subGroup };
+        return { key, coords, imageUrl, title: place.title || place.name || place.subGroup, place };
       })
       .filter(Boolean);
 
-    return markers.map(({ key, coords, imageUrl, title }) => (
+    const normalizeImages = (place) => {
+      if (Array.isArray(place.image)) return place.image;
+      if (Array.isArray(place.images)) return place.images;
+
+      const firstImage = getFirstImage(place);
+      return firstImage ? [firstImage] : [];
+    };
+
+    return markers.map(({ key, coords, imageUrl, title, place }) => (
       <Marker key={key} longitude={coords.lng} latitude={coords.lat} anchor="center">
-        <div className="image-marker-container">
+        <div
+          className="image-marker-container"
+          onClick={(event) => {
+            event?.stopPropagation?.();
+
+            const feature = {
+              geometry: { type: 'Point', coordinates: [coords.lng, coords.lat] },
+              properties: {
+                ...place,
+                name: place.title || place.name || place.subGroup,
+                label: place.title || place.name || place.subGroup,
+                subGroupValue: place.subGroupValue || place.value || place.id,
+                img: normalizeImages(place),
+                isLandmark: true,
+                distance: place.distance,
+                time: place.time,
+                description: place.description,
+                address: place.address
+              }
+            };
+
+            onMapClick?.({ lat: coords.lat, lng: coords.lng }, feature);
+          }}
+        >
           <svg width="55" height="63" viewBox="0 0 55 63" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M54.6562 27.3281C54.6562 39.6299 46.5275 50.0319 35.3486 53.459C35.1079 53.8493 34.8535 54.2605 34.585 54.6924L33.1699 56.9687C30.7353 60.8845 29.5175 62.8418 27.7412 62.8418C25.9651 62.8417 24.7479 60.8842 22.3135 56.9687L20.8975 54.6924C20.6938 54.3648 20.4993 54.0485 20.3115 53.7451C8.61859 50.6476 8.59898e-05 39.9953 -1.19455e-06 27.3281C-5.34814e-07 12.2351 12.2351 -1.85429e-06 27.3281 -1.19455e-06C42.4211 0.000106671 54.6562 12.2352 54.6562 27.3281Z" fill="white" />
           </svg>
