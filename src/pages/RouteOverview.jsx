@@ -342,10 +342,11 @@ const RouteOverview = () => {
         if (!coords || coords.length < 2) return null;
 
         const stepName = step?.name || step?.title;
+        const stepTitle = step?.title || stepName || '';
         const base = step && step.type
           ? intl.formatMessage(
             { id: step.type },
-            { name: stepName, title: step?.title, num: idx + 1 }
+            { name: stepName, title: stepTitle, num: idx + 1 }
           )
           : step?.instruction
             ? step.instruction
@@ -370,10 +371,11 @@ const RouteOverview = () => {
     const segments = routeSteps?.length ? buildFromSteps() : routeCoordinates.slice(1).map((c, idx) => {
       const step = routeSteps?.[idx];
       const stepName = step?.name || step?.title;
+      const stepTitle = step?.title || stepName || '';
       const base = step && step.type
         ? intl.formatMessage(
           { id: step.type },
-          { name: stepName, title: step?.title, num: idx + 1 }
+          { name: stepName, title: stepTitle, num: idx + 1 }
         )
         : step?.instruction
           ? step.instruction
