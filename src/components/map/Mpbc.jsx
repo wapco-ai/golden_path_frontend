@@ -107,14 +107,14 @@ const Mpbc = ({
       place.latitude ??
       place?.location?.lat ??
       place?.geo?.lat ??
-      place?.coordinates?.[1] ??
+      place?.coordinates?.[0] ??
       place?.geometry?.coordinates?.[1];
     const lng =
       place.lng ??
       place.longitude ??
       place?.location?.lng ??
       place?.geo?.lng ??
-      place?.coordinates?.[0] ??
+      place?.coordinates?.[1] ??
       place?.geometry?.coordinates?.[0];
 
     if (lat == null || lng == null) return null;
