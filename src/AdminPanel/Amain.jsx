@@ -32,23 +32,9 @@ const Amain = () => {
   const rejectedDegrees = (commentStats.rejected / commentStats.total) * 360;
   const unknownDegrees = (unknownComments / commentStats.total) * 360;
   const [userManagementOpen, setUserManagementOpen] = useState(false);
-  const [userCultureOpen, setUserCultureOpen] = useState(false);
+  const [facManagementOpen, setfacManagementOpen] = useState(false);
   const [reportsManagementOpen, setReportsManagementOpen] = useState(false);
   const [users, setUsers] = useState([]);
-  const [selectedPlace, setSelectedPlace] = useState(null);
-  const [placeName, setPlaceName] = useState('');
-  const [placeAddress, setPlaceAddress] = useState('');
-  const [openingTime, setOpeningTime] = useState('');
-  const [closingTime, setClosingTime] = useState('');
-  const [shortDescription, setShortDescription] = useState('');
-  const [fullDescription, setFullDescription] = useState('');
-  const [mediaFiles, setMediaFiles] = useState([]);
-  const [additionalNotes, setAdditionalNotes] = useState('');
-  const [placeIcon, setPlaceIcon] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [existingPlaces, setExistingPlaces] = useState([]);
-  const [isEditing, setIsEditing] = useState(false);
-  const intl = useIntl();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -90,6 +76,14 @@ const Amain = () => {
     { start: '', end: '' }
   ]);
   const [limitAllHours, setLimitAllHours] = useState(false);
+  const [isPrayerDateFilterOpen, setIsPrayerDateFilterOpen] = useState(false);
+  const [prayerCalendarDate, setPrayerCalendarDate] = useState({ year: 1403, month: 1 });
+  const [prayerSelectedJalaliDate, setPrayerSelectedJalaliDate] = useState(null);
+  const [prayerRestrictionFormOpen, setPrayerRestrictionFormOpen] = useState(false);
+  const [selectedPrayerEvents, setSelectedPrayerEvents] = useState([]);
+  const [prayerBeforeMinutes, setPrayerBeforeMinutes] = useState('');
+  const [prayerAfterMinutes, setPrayerAfterMinutes] = useState('');
+  const [prayerTimeRestrictionsList, setPrayerTimeRestrictionsList] = useState([]);
 
 
 
@@ -182,12 +176,10 @@ const Amain = () => {
     setUserManagementOpen(!userManagementOpen);
   };
 
-  const toggleUserCulture = () => {
-    setUserCultureOpen(!userCultureOpen);
-    if (!userCultureOpen) {
-      setActiveMenu('culturemanage');
-    }
+  const togglefacManagement = () => {
+    setfacManagementOpen(!facManagementOpen);
   };
+
 
   const handleSaveAllPlaceData = () => {
     const placeData = {
@@ -278,7 +270,6 @@ const Amain = () => {
     }
   };
 
-  // Reset form function
   const resetForm = () => {
     setSelectedPlace(null);
     setPlaceName('');
@@ -299,19 +290,25 @@ const Amain = () => {
     setSelectedGenderAccess([]);
     setTimeRestrictions([]);
     setPrayerTimeRestrictions([]);
+
+    setSelectedRestrictionType(null);
+    setRestrictionFormOpen(false);
+    setSelectedGenderRestrictions([]);
+    setTimeRestrictionPairs([{ start: '', end: '' }]);
+    setLimitAllHours(false);
+    setSelectedDateFilter([]);
+    setSelectedJalaliDate(null);
+
+    setSelectedPrayerEvents([]);
+    setPrayerBeforeMinutes('');
+    setPrayerAfterMinutes('');
+    setPrayerSelectedJalaliDate(null);
+    setPrayerRestrictionFormOpen(false);
+    setIsPrayerDateFilterOpen(false);
+    setPrayerTimeRestrictionsList([]);
     setCurrentStep(1);
   };
 
-  // Handle media upload
-  const handleMediaUpload = (event) => {
-    const files = Array.from(event.target.files);
-    const validFiles = files.filter(file =>
-      file.type.startsWith('image/') ||
-      file.type.startsWith('video/') ||
-      file.type === 'image/gif'
-    );
-    setMediaFiles(prev => [...prev, ...validFiles]);
-  };
 
   // Map initialization effect
   useEffect(() => {
@@ -376,18 +373,7 @@ const Amain = () => {
     setIsMapFullscreen(false);
   };
 
-  // Handle icon upload
-  const handleIconUpload = (event) => {
-    const file = event.target.files[0];
-    if (file && file.type.startsWith('image/')) {
-      setPlaceIcon(file);
-    }
-  };
 
-  // Remove media file
-  const removeMediaFile = (index) => {
-    setMediaFiles(prev => prev.filter((_, i) => i !== index));
-  };
 
   // Search places
   const handleSearchPlaces = (e) => {
@@ -416,38 +402,6 @@ const Amain = () => {
     // Also reset window scroll
     window.scrollTo(0, 0);
   }, [activeMenu, currentReportView]);
-
-  // Save place data
-  const handleSavePlace = () => {
-    // Here you would typically send data to API
-    const placeData = {
-      name: placeName,
-      address: placeAddress,
-      openingHours: { open: openingTime, close: closingTime },
-      shortDescription,
-      fullDescription,
-      media: mediaFiles,
-      additionalNotes,
-      icon: placeIcon
-    };
-
-    console.log('Saving place data:', placeData);
-    // Add API call here
-    alert('اطلاعات با موفقیت ذخیره شد');
-  };
-
-  // Load place for editing
-  const handleEditPlace = (place) => {
-    setSelectedPlace(place);
-    setPlaceName(place.name || '');
-    setPlaceAddress(place.address || '');
-    setOpeningTime(place.openingHours?.open || '');
-    setClosingTime(place.openingHours?.close || '');
-    setShortDescription(place.shortDescription || '');
-    setFullDescription(place.fullDescription || '');
-    setAdditionalNotes(place.additionalNotes || '');
-    setIsEditing(true);
-  };
 
   const handleMenuClick = (menuName, breadcrumbLabel) => {
     setActiveMenu(menuName);
@@ -807,6 +761,87 @@ const Amain = () => {
     setCurrentPage(1); // Reset to first page when changing items per page
   };
 
+  const prayerEventsOptions = ['نماز صبح', 'نماز ظهر و عصر', 'نماز مغرب و عشاء'];
+
+  const togglePrayerEvent = (ev) => {
+    if (selectedPrayerEvents.includes(ev)) {
+      setSelectedPrayerEvents(selectedPrayerEvents.filter(e => e !== ev));
+    } else {
+      setSelectedPrayerEvents([...selectedPrayerEvents, ev]);
+    }
+  };
+
+  const handlePrayerPrevMonth = () => {
+    setPrayerCalendarDate(prev => {
+      let newMonth = prev.month - 1;
+      let newYear = prev.year;
+      if (newMonth < 1) {
+        newMonth = 12;
+        newYear--;
+      }
+      return { ...prev, month: newMonth, year: newYear };
+    });
+  };
+
+  const handlePrayerNextMonth = () => {
+    setPrayerCalendarDate(prev => {
+      let newMonth = prev.month + 1;
+      let newYear = prev.year;
+      if (newMonth > 12) {
+        newMonth = 1;
+        newYear++;
+      }
+      return { ...prev, month: newMonth, year: newYear };
+    });
+  };
+
+  // render days: nearly identical to renderJalaliCalendarDays but using prayerCalendarDate & prayerSelectedJalaliDate
+  const renderPrayerJalaliCalendarDays = () => {
+    const { year, month } = prayerCalendarDate;
+    const now = new Date();
+    const today = toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+
+    const firstDay = jalaliMonthStart(year, month);
+    const daysInMonth = jalaliMonthLength(year, month);
+    const days = [];
+
+    for (let i = 0; i < firstDay; i++) {
+      days.push(<div key={`p-empty-${i}`} className="calendar-day empty"></div>);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const isToday = year === today.jy && month === today.jm && day === today.jd;
+      const isSelected = prayerSelectedJalaliDate &&
+        prayerSelectedJalaliDate.year === year &&
+        prayerSelectedJalaliDate.month === month &&
+        prayerSelectedJalaliDate.day === day;
+
+      days.push(
+        <div
+          key={`p-day-${day}`}
+          className={`calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`}
+          onClick={() => {
+            // Same behaviour as the first calendar: set selected date, close calendar, open form
+            setPrayerSelectedJalaliDate({ year, month, day });
+            const jalaliMonths = [
+              'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+              'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
+            ];
+            const dateText = `${day} ${jalaliMonths[month - 1]} ${year}`;
+            // store selection as part of the restriction title — reusing the same approach
+            // We'll set restriction form open and close calendar
+            setIsPrayerDateFilterOpen(false);
+            setPrayerRestrictionFormOpen(true);
+          }}
+        >
+          {day}
+        </div>
+      );
+    }
+
+    return days;
+  };
+
   // Calculate pagination data
   const totalItems = filteredUsers.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -1015,8 +1050,11 @@ const Amain = () => {
             </div>
 
             <div
-              className={`menu-item ${activeMenu === 'facmanage' ? 'active' : ''}`}
-              onClick={() => handleMenuClick('facmanage', 'مدیریت امکانات')}
+                className={`menu-item ${activeMenu === 'facmanage' ? 'active' : ''}`}
+                onClick={() => {
+                  togglefacManagement();
+                  handleMenuClick('facmanage', 'مدیریت امکانات');
+                }}
             >
               <span className="menu-icon">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1026,47 +1064,30 @@ const Amain = () => {
 
               </span>
               <span>مدیریت امکانات</span>
-              <svg className="submenu-arrow" width="16" height="17" viewBox="0 0 16 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg className={`submenu-arrow ${facManagementOpen ? 'open' : ''}`} width="16" height="17" viewBox="0 0 16 17" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path fillRule="evenodd" clipRule="evenodd" d="M2.95363 5.98434C3.13334 5.77467 3.44899 5.75039 3.65866 5.9301L7.99993 9.65119L12.3412 5.9301C12.5509 5.75039 12.8665 5.77467 13.0462 5.98434C13.2259 6.194 13.2017 6.50965 12.992 6.68936L8.32532 10.6894C8.13808 10.8499 7.86178 10.8499 7.67453 10.6894L3.00787 6.68936C2.7982 6.50965 2.77392 6.194 2.95363 5.98434Z" fill="#858585" />
               </svg>
             </div>
-
-            <div className="menu-item with-submenu">
-              <div
-                className={`menu-item ${activeMenu === 'culturemanage' ? 'active' : ''}`}
-                onClick={() => {
-                  toggleUserCulture();
-                  handleMenuClick('culturemanage', 'مدیریت اطلاهات فرهنگی');
-                }}
-              >
-                <span className="menu-icon">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path fillRule="evenodd" clipRule="evenodd" d="M8.03259 0.833375H7.96676C7.52353 0.833351 7.1416 0.833331 6.83578 0.874448C6.50802 0.918514 6.19385 1.01789 5.93901 1.27272C5.68418 1.52755 5.58481 1.84172 5.54074 2.16948C5.49963 2.47531 5.49965 2.85722 5.49967 3.30046L5.49967 4.91873C5.34329 4.86346 5.17499 4.83338 4.99967 4.83338H2.99967C2.17125 4.83338 1.49967 5.50495 1.49967 6.33338V14.1667H1.33301C1.05687 14.1667 0.833008 14.3906 0.833008 14.6667C0.833008 14.9429 1.05687 15.1667 1.33301 15.1667H14.6663C14.9425 15.1667 15.1663 14.9429 15.1663 14.6667C15.1663 14.3906 14.9425 14.1667 14.6663 14.1667H14.4997V9.66671C14.4997 8.83828 13.8281 8.16671 12.9997 8.16671H10.9997C10.8244 8.16671 10.6561 8.19679 10.4997 8.25206L10.4997 3.30047C10.4997 2.85722 10.4997 2.47531 10.4586 2.16948C10.4145 1.84172 10.3152 1.52755 10.0603 1.27272C9.8055 1.01789 9.49133 0.918514 9.16357 0.874448C8.85775 0.833331 8.47582 0.833351 8.03259 0.833375ZM13.4997 14.1667V9.66671C13.4997 9.39057 13.2758 9.16671 12.9997 9.16671H10.9997C10.7235 9.16671 10.4997 9.39057 10.4997 9.66671V14.1667H13.4997ZM9.49967 14.1667V3.33338C9.49967 2.84784 9.49861 2.53398 9.46752 2.30273C9.43836 2.08586 9.39129 2.01789 9.35323 1.97982C9.31517 1.94176 9.24719 1.89469 9.03032 1.86553C8.79907 1.83444 8.48521 1.83338 7.99967 1.83338C7.51413 1.83338 7.20028 1.83444 6.96903 1.86553C6.75216 1.89469 6.68418 1.94176 6.64612 1.97982C6.60806 2.01789 6.56099 2.08586 6.53183 2.30273C6.50074 2.53398 6.49967 2.84784 6.49967 3.33338V14.1667H9.49967ZM5.49967 14.1667V6.33338C5.49967 6.05724 5.27582 5.83338 4.99967 5.83338H2.99967C2.72353 5.83338 2.49967 6.05724 2.49967 6.33338V14.1667H5.49967Z" fill="#858585" />
-                  </svg>
-
-                </span>
-                <span>مدیریت اطلاعات فرهنگی</span>
-                <svg className={`submenu-arrow ${userCultureOpen ? 'open' : ''}`} width="16" height="17" viewBox="0 0 16 17" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path fillRule="evenodd" clipRule="evenodd" d="M2.95363 5.98434C3.13334 5.77467 3.44899 5.75039 3.65866 5.9301L7.99993 9.65119L12.3412 5.9301C12.5509 5.75039 12.8665 5.77467 13.0462 5.98434C13.2259 6.194 13.2017 6.50965 12.992 6.68936L8.32532 10.6894C8.13808 10.8499 7.86178 10.8499 7.67453 10.6894L3.00787 6.68936C2.7982 6.50965 2.77392 6.194 2.95363 5.98434Z" fill="#858585" />
-                </svg>
-              </div>
-
-              {userCultureOpen && (
-                <div className="submenu-items">
-                  <div
-                    className={`submenu-item ${currentReportView === 'بارگذاری و ثبت محتوا' ? 'active' : ''}`}
-                    onClick={() => handleSubmenuClick('بارگذاری و ثبت محتوا')}
-                  >
-                    <div className="submenu-branch"></div>
-                    <span>بارگذاری و ثبت محتوا</span>
-                  </div>
-                  <div className="submenu-item">
-                    <div className="submenu-branch"></div>
-                    <span>ثبت ماهیت</span>
-                  </div>
+            {facManagementOpen && (
+              <div className="submenu-items">
+                <div className="submenu-item">
+                  <div className="submenu-branch"></div>
+                  <span> مدیریت دسته بندی‌ها </span>
                 </div>
-              )}
-            </div>
+                <div className="submenu-item">
+                  <div className="submenu-branch"></div>
+                  <span>مدیریت صفحات</span>
+                </div>
+                <div className="submenu-item">
+                  <div className="submenu-branch"></div>
+                  <span>مدیریت اطلاعات فرهنگی</span>
+                </div>
+                <div className="submenu-item">
+                  <div className="submenu-branch"></div>
+                  <span>مدیریت دیدگاه‌ها</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="sidebar-footer">
@@ -1207,202 +1228,7 @@ const Amain = () => {
 
 
 
-          {currentReportView === 'بارگذاری و ثبت محتوا' ? (
-            /* Content Upload Section */
-            <div className="content-upload-section">
-              <div className="upload-header">
-                <div className="search-existing">
-                  <div className="search-box-with-icon">
-                    <svg className="search-icon7" width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path fillRule="evenodd" clipRule="evenodd" d="M10.4167 2.29166C14.4438 2.29166 17.7084 5.55625 17.7084 9.58332C17.7084 13.6104 14.4438 16.875 10.4167 16.875C6.38963 16.875 3.12504 13.6104 3.12504 9.58332C3.12504 5.55625 6.38963 2.29166 10.4167 2.29166ZM18.9584 9.58332C18.9584 4.86589 15.1341 1.04166 10.4167 1.04166C5.69928 1.04166 1.87504 4.86589 1.87504 9.58332C1.87504 11.7171 2.65743 13.6681 3.95099 15.1652L1.22476 17.8914C0.980688 18.1355 0.980688 18.5312 1.22476 18.7753C1.46884 19.0193 1.86457 19.0193 2.10865 18.7753L4.83487 16.049C6.33192 17.3426 8.28295 18.125 10.4167 18.125C15.1341 18.125 18.9584 14.3008 18.9584 9.58332Z" fill="#858585" />
-                    </svg>
-                    <input
-                      type="text"
-                      placeholder="جستجوی مکان موجود برای ویرایش..."
-                      value={searchQuery}
-                      onChange={handleSearchPlaces}
-                      className="search-input7"
-                    />
-                  </div>
-                  <button className="new-place-btn" onClick={resetForm}>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M8 3.33333V12.6667" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-                      <path d="M3.33398 8H12.6673" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-                    </svg>
-                    مکان جدید
-                  </button>
-                </div>
-              </div>
-
-              <div className="upload-content">
-                <div className="form-section">
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label className="form-label">نام مکان *</label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        value={placeName}
-                        onChange={(e) => setPlaceName(e.target.value)}
-                        placeholder="نام مکان فرهنگی را وارد کنید"
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label">آدرس *</label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        value={placeAddress}
-                        onChange={(e) => setPlaceAddress(e.target.value)}
-                        placeholder="آدرس کامل مکان را وارد کنید"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label className="form-label">ساعت بازگشایی *</label>
-                      <input
-                        type="time"
-                        className="form-input"
-                        value={openingTime}
-                        onChange={(e) => setOpeningTime(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label">ساعت بسته شدن *</label>
-                      <input
-                        type="time"
-                        className="form-input"
-                        value={closingTime}
-                        onChange={(e) => setClosingTime(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">توضیح مختصر *</label>
-                    <textarea
-                      className="form-textarea short"
-                      value={shortDescription}
-                      onChange={(e) => setShortDescription(e.target.value)}
-                      placeholder="توضیح کوتاه درباره مکان (حداکثر 200 کاراکتر)"
-                      maxLength="200"
-                    />
-                    <div className="char-count">{shortDescription.length}/200</div>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">توضیح کامل *</label>
-                    <textarea
-                      className="form-textarea long"
-                      value={fullDescription}
-                      onChange={(e) => setFullDescription(e.target.value)}
-                      placeholder="توضیح کامل درباره مکان، تاریخچه و ویژگی‌ها"
-                      rows="4"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">آیکون مکان</label>
-                    <div className="icon-upload-area">
-                      {placeIcon ? (
-                        <div className="icon-preview">
-                          <img src={URL.createObjectURL(placeIcon)} alt="Place icon" />
-                          <button
-                            className="remove-icon"
-                            onClick={() => setPlaceIcon(null)}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ) : (
-                        <label className="upload-placeholder">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleIconUpload}
-                            className="file-input"
-                          />
-                          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M20 13.3333V26.6667" stroke="#858585" strokeWidth="2" strokeLinecap="round" />
-                            <path d="M13.333 20H26.6663" stroke="#858585" strokeWidth="2" strokeLinecap="round" />
-                          </svg>
-                          <span>آیکون مکان را انتخاب کنید</span>
-                          <small>فرمت‌های مجاز: JPG, PNG, SVG (حداکثر 2MB)</small>
-                        </label>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">مدیا (عکس، فیلم، GIF)</label>
-                    <div className="media-upload-area">
-                      <label className="media-upload-btn">
-                        <input
-                          type="file"
-                          multiple
-                          accept="image/*,video/*,image/gif"
-                          onChange={handleMediaUpload}
-                          className="file-input"
-                        />
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M10 4.16666V15.8333" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" />
-                          <path d="M4.16602 10H15.8327" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" />
-                        </svg>
-                        افزودن مدیا
-                      </label>
-
-                      {mediaFiles.length > 0 && (
-                        <div className="media-preview">
-                          {mediaFiles.map((file, index) => (
-                            <div key={index} className="media-item">
-                              {file.type.startsWith('image/') ? (
-                                <img src={URL.createObjectURL(file)} alt={`Media ${index}`} />
-                              ) : (
-                                <video controls>
-                                  <source src={URL.createObjectURL(file)} type={file.type} />
-                                </video>
-                              )}
-                              <button
-                                className="remove-media"
-                                onClick={() => removeMediaFile(index)}
-                              >
-                                ×
-                              </button>
-                              <span className="file-name">{file.name}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">توضیحات تکمیلی (بایدها و نبایدها)</label>
-                    <textarea
-                      className="form-textarea"
-                      value={additionalNotes}
-                      onChange={(e) => setAdditionalNotes(e.target.value)}
-                      placeholder="قوانین، بایدها و نبایدهای مکان (مانند: درآوردن کفش، پوشش مناسب و...)"
-                      rows="3"
-                    />
-                  </div>
-
-                  <div className="form-actions">
-                    <button className="cancel-btn" onClick={resetForm}>
-                      انصراف
-                    </button>
-                    <button className="save-btn" onClick={handleSavePlace}>
-                      {isEditing ? 'بروزرسانی اطلاعات' : 'ثبت مکان جدید'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : currentReportView === 'کاربران ثبت نام کرده' ? (
+          {currentReportView === 'کاربران ثبت نام کرده' ? (
             /* Registered Users Report View */
             <div className="reports-section">
               <div className="report-filters">
@@ -2502,7 +2328,16 @@ const Amain = () => {
                     <div className="restriction-section">
                       <div className="restriction-header">
                         <span className="restriction-title">محدودیت بر اساس اوقات شرعی (برای همه روزها)</span>
-                        <button className="add-restriction-btn">
+                        <button
+                          className="add-restriction-btn"
+                          onClick={() => {
+                            // open prayer calendar popup (independent)
+                            setIsPrayerDateFilterOpen(prev => !prev);
+                            // ensure other popups are closed (avoid conflicts)
+                            setIsDateFilterOpen(false);
+                            setRestrictionFormOpen(false);
+                          }}
+                        >
                           افزودن محدودیت
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#1E2023" />
@@ -2510,7 +2345,207 @@ const Amain = () => {
                           </svg>
                         </button>
                       </div>
+                      {prayerRestrictionFormOpen && (
+                        <div className="prayer-form">
+                          <div className="prayer-form-grid">
+                            <div className="form-column">
+                              <label className="form-label">انتخاب رویداد</label>
+                              <div className="prayer-event-grid">
+                                {prayerEventsOptions.map((ev) => (
+                                  <div
+                                    key={ev}
+                                    className={`prayer-event-option ${selectedPrayerEvents.includes(ev) ? 'selected' : ''}`}
+                                    onClick={() => togglePrayerEvent(ev)}
+                                  >
+                                    {selectedPrayerEvents.includes(ev) ? (
+                                      <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#0F71EF" /></svg>
+                                    ) : (
+                                      <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#fff" stroke="#D9D9D9" /></svg>
+                                    )}
+                                    <span className="event-label">{ev}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="form-column">
+                              <label className="form-label">محدودسازی زمانی برای تردد</label>
+                              <div className="minutes-inputs-grid">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  className="minute-input"
+                                  placeholder="دقیقه قبل از شروع: --"
+                                  value={prayerBeforeMinutes}
+                                  onChange={(e) => setPrayerBeforeMinutes(e.target.value)}
+                                />
+                                <input
+                                  type="number"
+                                  min="0"
+                                  className="minute-input"
+                                  placeholder="دقیقه قبل از پایان: --"
+                                  value={prayerAfterMinutes}
+                                  onChange={(e) => setPrayerAfterMinutes(e.target.value)}
+                                />
+                              </div>
+
+                              <div className="prayer-form-actions">
+                                <button
+                                  className="confirm-prayer-btn"
+                                  onClick={() => {
+                                    // Validation (simple)
+                                    if (selectedPrayerEvents.length === 0 || prayerBeforeMinutes === '' || prayerAfterMinutes === '') {
+                                      alert('لطفا همه فیلدها را تکمیل کنید');
+                                      return;
+                                    }
+                                    // Create new item
+                                    const title = selectedPrayerEvents.join(' و ') + ` : ${prayerBeforeMinutes} دقیقه قبل الی ${prayerAfterMinutes} دقیقه بعد`;
+                                    const newItem = {
+                                      id: Date.now(),
+                                      events: [...selectedPrayerEvents],
+                                      before: String(prayerBeforeMinutes),
+                                      after: String(prayerAfterMinutes),
+                                      date: prayerSelectedJalaliDate ? `روز ${prayerSelectedJalaliDate.day} ${getJalaliMonthName(prayerSelectedJalaliDate.month)} ${prayerSelectedJalaliDate.year}` : 'همه روزها',
+                                      title
+                                    };
+                                    setPrayerTimeRestrictionsList(prev => [...prev, newItem]);
+                                    // reset form
+                                    setSelectedPrayerEvents([]);
+                                    setPrayerBeforeMinutes('');
+                                    setPrayerAfterMinutes('');
+                                    setPrayerSelectedJalaliDate(null);
+                                    setPrayerRestrictionFormOpen(false);
+                                  }}
+                                >
+                                  تایید و افزودن محدودیت اوقات شرعی
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {isPrayerDateFilterOpen && !prayerRestrictionFormOpen && (
+                        <div className="prayer-date-filter-popup">
+                          <div className="date-filter-content">
+                            {/* Filter by Date Section (same options as first calendar) */}
+                            <div className="filter-section">
+                              <div className="date-filter-option2">
+                                <div className="filter-title">فیلتر بر اساس تاریخ</div>
+                                <div
+                                  className={`date-filter-option`}
+                                  onClick={() => {
+                                    // if admin wants "همه روزها" for prayer, we can set directly; keeping same behavior as original
+                                    setPrayerSelectedJalaliDate(null);
+                                    setPrayerRestrictionFormOpen(true);
+                                    setIsPrayerDateFilterOpen(false);
+                                  }}
+                                >
+                                  کل روزها
+                                </div>
+                                <div
+                                  className="date-filter-option"
+                                  onClick={() => {
+                                    // full month
+                                    setPrayerSelectedJalaliDate(null);
+                                    setPrayerRestrictionFormOpen(true);
+                                    setIsPrayerDateFilterOpen(false);
+                                  }}
+                                >
+                                  تمام این ماه
+                                </div>
+                                <div
+                                  className="date-filter-option"
+                                  onClick={() => {
+                                    setPrayerSelectedJalaliDate(null);
+                                    setPrayerRestrictionFormOpen(true);
+                                    setIsPrayerDateFilterOpen(false);
+                                  }}
+                                >
+                                  کل این هفته
+                                </div>
+                              </div>
+
+                              <div
+                                className="calendar-select-option selected"
+                              // ensure same look/feel; clicking stays in calendar mode below
+                              >
+                                انتخاب از تقویم
+                              </div>
+                            </div>
+
+                            {/* Calendar (Jalali) - uses prayerCalendarDate and renderPrayerJalaliCalendarDays */}
+                            <div className="filter-section">
+                              <div className="jalali-calendar">
+                                <div className="calendar-header">
+                                  <div className="month-year-selector">
+                                    <select
+                                      value={prayerCalendarDate.month}
+                                      onChange={(e) => setPrayerCalendarDate(prev => ({ ...prev, month: parseInt(e.target.value) }))}
+                                      className="month-select"
+                                    >
+                                      {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                                        <option key={month} value={month}>
+                                          {getJalaliMonthName(month)}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <select
+                                      value={prayerCalendarDate.year}
+                                      onChange={(e) => setPrayerCalendarDate(prev => ({ ...prev, year: parseInt(e.target.value) }))}
+                                      className="year-select"
+                                    >
+                                      {Array.from({ length: 10 }, (_, i) => 1400 + i).map(year => (
+                                        <option key={year} value={year}>{year}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+
+                                  <div className="calendar-nav">
+                                    <button className="nav-btn" onClick={handlePrayerPrevMonth}>‹</button>
+                                    <button className="nav-btn" onClick={handlePrayerNextMonth}>›</button>
+                                  </div>
+                                </div>
+
+                                <div className="day-names">
+                                  <div className="day-name">ش</div>
+                                  <div className="day-name">ی</div>
+                                  <div className="day-name">د</div>
+                                  <div className="day-name">س</div>
+                                  <div className="day-name">چ</div>
+                                  <div className="day-name">پ</div>
+                                  <div className="day-name">ج</div>
+                                </div>
+
+                                <div className="calendar-days">
+                                  {renderPrayerJalaliCalendarDays()}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
+                    {prayerTimeRestrictionsList.length > 0 && (
+                      <div className="prayer-restrictions-list">
+                        {prayerTimeRestrictionsList.map((item, idx) => (
+                          <div key={item.id} className="prayer-restriction-row">
+                            <div className="prayer-restriction-badge">
+                              <span className="prayer-restriction-text">{item.date} ، {item.title}</span>
+                            </div>
+                            <button className="remove-prayer-btn" onClick={() => {
+                              setPrayerTimeRestrictionsList(prev => prev.filter((_, i) => i !== idx));
+                            }}>
+                              حذف
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path fill-rule="evenodd" clip-rule="evenodd" d="M3.40994 5.1678C3.68547 5.14943 3.92372 5.3579 3.94209 5.63343L4.24872 10.2328C4.30862 11.1314 4.35131 11.7566 4.44502 12.227C4.53592 12.6833 4.66281 12.9249 4.84508 13.0954C5.02736 13.2659 5.2768 13.3765 5.73813 13.4368C6.21373 13.499 6.8404 13.5 7.74097 13.5H8.25654C9.1571 13.5 9.78377 13.499 10.2594 13.4368C10.7207 13.3765 10.9701 13.2659 11.1524 13.0954C11.3347 12.9249 11.4616 12.6833 11.5525 12.227C11.6462 11.7566 11.6889 11.1314 11.7488 10.2328L12.0554 5.63343C12.0738 5.3579 12.312 5.14943 12.5876 5.1678C12.8631 5.18617 13.0716 5.42442 13.0532 5.69995L12.7442 10.3345C12.6872 11.1896 12.6412 11.8804 12.5332 12.4224C12.421 12.986 12.23 13.4567 11.8356 13.8256C11.4412 14.1946 10.9588 14.3538 10.3891 14.4284C9.84105 14.5001 9.14876 14.5 8.2917 14.5H7.70581C6.84875 14.5 6.15646 14.5001 5.60843 14.4284C5.03866 14.3538 4.5563 14.1946 4.1619 13.8256C3.7675 13.4567 3.57656 12.986 3.46429 12.4224C3.35631 11.8804 3.31027 11.1896 3.25327 10.3344L2.94431 5.69995C2.92594 5.42442 3.13441 5.18617 3.40994 5.1678Z" fill="#EA4335" />
+                                <path fill-rule="evenodd" clip-rule="evenodd" d="M6.90226 1.50003L6.87161 1.50001C6.72734 1.49992 6.60166 1.49984 6.48298 1.51879C6.01412 1.59366 5.60838 1.8861 5.38909 2.30723C5.33358 2.41382 5.29391 2.53309 5.24838 2.66998L5.2387 2.69905L5.17397 2.89323C5.16131 2.93121 5.15778 2.94168 5.15471 2.95016C5.03797 3.2729 4.73529 3.49106 4.39219 3.49976C4.38317 3.49999 4.37212 3.50003 4.33209 3.50003H2.33203C2.05589 3.50003 1.83203 3.72388 1.83203 4.00003C1.83203 4.27617 2.05589 4.50003 2.33203 4.50003L4.3378 4.50003L4.34896 4.50003H11.6486L11.6597 4.50003L13.6654 4.50003C13.9416 4.50003 14.1654 4.27617 14.1654 4.00003C14.1654 3.72388 13.9416 3.50003 13.6654 3.50003H11.6654C11.6254 3.50003 11.6143 3.49999 11.6053 3.49976C11.2622 3.49106 10.9595 3.27289 10.8428 2.95014C10.8397 2.94172 10.8361 2.93102 10.8235 2.89323L10.7588 2.69905L10.7491 2.66996C10.7036 2.53307 10.6639 2.41382 10.6084 2.30723C10.3891 1.8861 9.98339 1.59366 9.51453 1.51879C9.39585 1.49984 9.27016 1.49992 9.1259 1.50001L9.09525 1.50003H6.90226ZM6.09508 3.29032C6.0689 3.36269 6.03847 3.43268 6.00413 3.50003H9.99338C9.95904 3.43268 9.92861 3.3627 9.90243 3.29033L9.87662 3.21477L9.81013 3.01528C9.74934 2.83294 9.73535 2.79575 9.72147 2.76909C9.64837 2.62872 9.51313 2.53124 9.35684 2.50628C9.32715 2.50154 9.28746 2.50003 9.09525 2.50003H6.90226C6.71005 2.50003 6.67035 2.50154 6.64067 2.50628C6.48438 2.53124 6.34914 2.62872 6.27604 2.76909C6.26216 2.79575 6.24816 2.83294 6.18738 3.01528L6.12085 3.21489C6.11083 3.24495 6.10303 3.26834 6.09508 3.29032Z" fill="#EA4335" />
+                              </svg>
+
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

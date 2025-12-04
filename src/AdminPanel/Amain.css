@@ -2537,9 +2537,10 @@ body {
   border: none;
   display: flex;
   gap: 12px;
+  padding-top: 18px;
   justify-content: flex-end;
   margin-top: 0px;
-  padding-top: 0px;
+  padding-top: 10px;
 }
 
 .modal-footer .cancel-btn {
@@ -3687,7 +3688,7 @@ body {
   }
 }
 
-restrictions-display {
+.restrictions-display {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -3695,6 +3696,9 @@ restrictions-display {
   max-height: 200px;
   overflow-y: auto;
   padding-right: 4px;
+  max-height: calc(60vh - 270px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
 }
 
 .restriction-display-item {
@@ -3746,4 +3750,194 @@ restrictions-display {
 
 .remove-restriction-display-btn:hover {
   opacity: 0.9;
+}
+
+/* ---------- Prayer Date Filter Popup (cloned styling, positioned slightly lower) ---------- */
+.prayer-date-filter-popup {
+  position: fixed;
+  top: 36%;        /* increased top to appear below the second add button */
+  left: 22%;
+  background: white;
+  border: 1px solid #D9D9D9;
+  border-radius: 8px;
+  z-index: 10002;
+  padding: 20px;
+  padding-bottom: 0px;
+  min-width: 400px;
+}
+
+/* Use same inner layout as .date-filter-content */
+.prayer-date-filter-popup .date-filter-content {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: 16px;
+  padding: 0px;
+}
+
+/* Reuse existing calendar styles (.jalali-calendar, .calendar-header, .calendar-days, .calendar-day, etc.)
+   They already exist in your CSS; the prayer popup reuses them.
+*/
+
+/* Prayer form styles (reuse classes from earlier assistant additions) */
+.prayer-form {
+  margin-top: 12px;
+  background: transparent;
+  padding: 6px 0 0 0;
+}
+
+.prayer-form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  width: 100%;
+}
+
+.form-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.prayer-event-grid {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.prayer-event-option {
+  flex: 1;
+  border: 1px solid #D9D9D9;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: row;
+  padding: 10px 0px;
+  align-items: center;
+  transition: all 0.18s ease;
+  background: white;
+  justify-content: center;
+  gap: 15px;
+}
+
+.prayer-event-option.selected {
+  background: #F5F6FF;
+  border-color: #0F71EF;
+}
+
+.minutes-inputs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.minute-input {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #D9D9D9;
+  font-size: 14px;
+  height: 44px;
+  outline: none;
+}
+
+.minute-input:focus {
+  border-color: #0F71EF;
+}
+
+.prayer-form-actions {
+  margin-top: 12px;
+  display:flex;
+ justify-content: flex-end;
+}
+
+.confirm-prayer-btn {
+  padding: 12px 18px;
+  border-radius: 8px;
+  background: #0F71EF;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.confirm-prayer-btn:disabled {
+  background: #F2F2F2;
+  color: #858585;
+  cursor: not-allowed;
+  border: 1px solid #D9D9D9;
+}
+
+/* saved list */
+.prayer-restrictions-list {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.prayer-restriction-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.remove-prayer-btn {
+  background: transparent;
+  color: #EA4335;
+  border: 1px solid #EA4335;
+  border-radius: 8px;
+  padding-right: 5px;
+  padding-left: 5px;
+  padding: 6px 6px 5px 6px;
+  cursor: pointer;
+  min-width: 72px;
+  font-weight: 500;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row;
+  gap: 4px;
+  margin-left: 10px;
+}
+
+.prayer-restriction-badge {
+  background: #1E2023;
+  color: white;
+  border-radius: 8px;
+  padding: 6px 18px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  box-shadow: none;
+}
+
+.prayer-restriction-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff;
+  direction: rtl;
+}
+
+/* position tweak on small screens */
+@media (max-width: 768px) {
+  .prayer-date-filter-popup {
+    left: 8%;
+    top: 40%;
+    min-width: 84%;
+  }
+  .prayer-form-grid {
+    flex-direction: column;
+  }
+  .prayer-event-option {
+    min-width: 100%;
+  }
+  .minutes-inputs-grid {
+    grid-template-columns: 1fr;
+  }
 }
