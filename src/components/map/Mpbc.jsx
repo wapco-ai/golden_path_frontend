@@ -501,6 +501,9 @@ const Mpbc = ({
               }
             };
 
+            // Ensure bubble shows landmark name on selection
+            setSelectedFeatureForBubble(feature);
+
             onMapClick?.({ lat: coords.lat, lng: coords.lng }, feature);
           }}
         >
