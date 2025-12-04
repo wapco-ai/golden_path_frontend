@@ -11,6 +11,7 @@ import useLocaleDigits from '../utils/useLocaleDigits';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import { useLangStore } from '../store/langStore';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
+import { fetchLandmarkPlaces } from '../services/landmarkService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { requestRouting } from '../services/routingService';
 import { loadGeoJsonData } from '../utils/loadGeoJsonData';
@@ -32,6 +33,7 @@ const RouteOverview = () => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [groups, setGroups] = useState([]);
   const [subGroups, setSubGroups] = useState({});
+  const [nearbyLandmarks, setNearbyLandmarks] = useState([]);
 
   const handleMapLoad = useCallback((event) => {
     initHaramVectorLayers(event?.target || event);
@@ -61,6 +63,22 @@ const RouteOverview = () => {
     if (ad < 100) return diff > 0 ? 'left' : 'right';
     return diff > 0 ? 'bend-left' : 'bend-right';
   };
+
+  const toMeters = useCallback((coord1, coord2) => {
+    if (!Array.isArray(coord1) || !Array.isArray(coord2)) return Infinity;
+    const [lng1, lat1] = coord1;
+    const [lng2, lat2] = coord2;
+    const R = 6371000;
+    const toRadVal = (deg) => (deg * Math.PI) / 180;
+    const dLat = toRadVal(lat2 - lat1);
+    const dLng = toRadVal(lng2 - lng1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRadVal(lat1)) * Math.cos(toRadVal(lat2)) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }, []);
 
   const {
     routeGeo,
@@ -110,6 +128,102 @@ const RouteOverview = () => {
       isMounted = false;
     };
   }, [language]);
+
+  const extractPlaceCoordinates = useCallback((place = {}) => {
+    const lat =
+      place.lat ??
+      place.latitude ??
+      place?.location?.lat ??
+      place?.geo?.lat ??
+      place?.coordinates?.[1] ??
+      place?.geometry?.coordinates?.[1];
+    const lng =
+      place.lng ??
+      place.longitude ??
+      place?.location?.lng ??
+      place?.geo?.lng ??
+      place?.coordinates?.[0] ??
+      place?.geometry?.coordinates?.[0];
+
+    if (lat == null || lng == null) return null;
+    return [Number(lng), Number(lat)];
+  }, []);
+
+  const findClosestRoutePoint = useCallback((targetCoord) => {
+    if (!Array.isArray(routeCoordinates) || routeCoordinates.length === 0) {
+      return { distance: Infinity, index: -1 };
+    }
+
+    let bestDistance = Infinity;
+    let bestIndex = -1;
+
+    routeCoordinates.forEach((coord, idx) => {
+      const dist = toMeters(targetCoord, coord);
+      if (dist < bestDistance) {
+        bestDistance = dist;
+        bestIndex = idx;
+      }
+    });
+
+    return { distance: bestDistance, index: bestIndex };
+  }, [routeCoordinates, toMeters]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchNearbyLandmarks = async () => {
+      if (!Array.isArray(routeCoordinates) || routeCoordinates.length === 0) {
+        setNearbyLandmarks([]);
+        return;
+      }
+
+      const middleCoord = routeCoordinates[Math.floor(routeCoordinates.length / 2)];
+      const geo = middleCoord ? { lat: middleCoord[1], lng: middleCoord[0] } : undefined;
+
+      try {
+        const data = await fetchLandmarkPlaces({ language, geo });
+        const places = Array.isArray(data?.places?.landmarkPlaces)
+          ? data.places.landmarkPlaces
+          : [];
+
+        const annotated = places
+          .map((place, idx) => {
+            const coord = extractPlaceCoordinates(place);
+            if (!coord) return null;
+            const { distance, index } = findClosestRoutePoint(coord);
+            return distance <= 30
+              ? { place, coord, distance, index, originalIndex: idx }
+              : null;
+          })
+          .filter(Boolean)
+          .sort((a, b) => a.index - b.index || a.distance - b.distance || a.originalIndex - b.originalIndex);
+
+        const uniqueByPoint = [];
+        const usedIndices = new Set();
+        annotated.forEach((item) => {
+          if (item.index >= 0 && !usedIndices.has(item.index)) {
+            usedIndices.add(item.index);
+            uniqueByPoint.push(item);
+          }
+        });
+
+        if (isMounted) {
+          setNearbyLandmarks(uniqueByPoint.slice(0, 6));
+        }
+      } catch (err) {
+        console.error('failed to fetch nearby landmarks for route overview', err);
+        if (isMounted) {
+          setNearbyLandmarks([]);
+        }
+      }
+    };
+
+    fetchNearbyLandmarks();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [language, routeCoordinates, extractPlaceCoordinates, findClosestRoutePoint]);
 
   useEffect(() => {
     const hasRouteData =
@@ -209,7 +323,7 @@ const RouteOverview = () => {
 
 
 
-  // Function to render image markers for subgroups with images along the route
+  // Function to render image markers for subgroups or nearby landmarks along the route
   // Function to render limited subgroup markers along the route
   const renderImageMarkers = () => {
     if (!routeCoordinates || routeCoordinates.length === 0) return null;
@@ -238,8 +352,18 @@ const RouteOverview = () => {
     // Only show markers at specific points along the route (not everywhere)
     const markerPositions = [];
 
-    // Place markers at strategic points: start, 1/3, 2/3, and end of route
-    if (routeCoordinates.length >= 4) {
+    // Prioritize landmarks that are close to the route
+    if (nearbyLandmarks.length > 0) {
+      nearbyLandmarks.forEach((item) => {
+        markerPositions.push({
+          coord: item.coord,
+          landmark: item.place
+        });
+      });
+    }
+
+    // If we don't have enough landmarks, fill remaining slots with subgroup data
+    if (markerPositions.length < 4 && routeCoordinates.length >= 4 && limitedSubgroups.length > 0) {
       const positions = [
         0, // start
         Math.floor(routeCoordinates.length / 3),
@@ -248,6 +372,7 @@ const RouteOverview = () => {
       ];
 
       positions.forEach((position, index) => {
+        if (markerPositions.length >= 4) return;
         if (limitedSubgroups[index] && routeCoordinates[position]) {
           markerPositions.push({
             subgroup: limitedSubgroups[index],
@@ -258,22 +383,58 @@ const RouteOverview = () => {
     }
 
     return markerPositions.map((item, idx) => {
-      const { subgroup, coord } = item;
-      const [lng, lat] = coord;
-      const hasImages = subgroup.img && (Array.isArray(subgroup.img) ? subgroup.img.length > 0 : true);
+      const [lng, lat] = item.coord;
+      const subgroup = item.subgroup;
+      const hasSubgroupImages = subgroup?.img && (Array.isArray(subgroup.img) ? subgroup.img.length > 0 : true);
+      const landmarkImage = Array.isArray(item.landmark?.image) ? item.landmark?.image[0] : item.landmark?.image;
+      const shouldShowLandmarkInIcon = Boolean(item.landmark);
+
+      const markerKey = item.landmark?.id
+        ? `landmark-${item.landmark.id}`
+        : subgroup?.value
+          ? `marker-${idx}-${subgroup.value}`
+          : `marker-${idx}`;
 
       return (
         <Marker
-          key={`marker-${idx}-${subgroup.value}`}
+          key={markerKey}
           longitude={lng}
           latitude={lat}
           anchor="center"
           onClick={(e) => {
-            e.originalEvent.stopPropagation();
-            handleSubgroupClick(subgroup);
+            if (subgroup) {
+              e.originalEvent.stopPropagation();
+              handleSubgroupClick(subgroup);
+            }
           }}
         >
-          {hasImages ? (
+          {shouldShowLandmarkInIcon ? (
+            <div className="icon-marker-container">
+              <div className="icon-marker-background">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="20" cy="20" r="19" fill="white" stroke="#0f71ef" strokeWidth="2" />
+                </svg>
+              </div>
+              <div className="icon-marker-content">
+                {landmarkImage ? (
+                  <div
+                    className="landmark-image"
+                    style={{ backgroundImage: `url(${landmarkImage})` }}
+                    aria-label={item.landmark?.title || item.landmark?.name || 'landmark'}
+                  />
+                ) : (
+                  <div className="subgroup-default-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#0f71ef">
+                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                      <circle cx="12" cy="12" r="9" fill="none" stroke="#0f71ef" strokeWidth="2" />
+                      <circle cx="12" cy="9" r="1" fill="#0f71ef" />
+                      <path d="M12 15l0 3" stroke="#0f71ef" strokeWidth="2" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : hasSubgroupImages ? (
             <div className="image-marker-container2">
               <svg width="55" height="63" viewBox="0 0 55 63" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M54.6562 27.3281C54.6562 39.6299 46.5275 50.0319 35.3486 53.459C35.1079 53.8493 34.8535 54.2605 34.585 54.6924L33.1699 56.9687C30.7353 60.8845 29.5175 62.8418 27.7412 62.8418C25.9651 62.8417 24.7479 60.8842 22.3135 56.9687L20.8975 54.6924C20.6938 54.3648 20.4993 54.0485 20.3115 53.7451C8.61859 50.6476 8.59898e-05 39.9953 -1.19455e-06 27.3281C-5.34814e-07 12.2351 12.2351 -1.85429e-06 27.3281 -1.19455e-06C42.4211 0.000106671 54.6562 12.2352 54.6562 27.3281Z" fill="white" />
