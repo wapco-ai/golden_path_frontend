@@ -329,6 +329,33 @@ const MapBeginPage = () => {
 
 
   const handleMapClick = (latlng, feature) => {
+    const isLandmarkSelection = feature?.properties?.isLandmark;
+
+    if (isLandmarkSelection) {
+      const landmark = feature.properties || {};
+      const images = Array.isArray(landmark.img)
+        ? landmark.img
+        : landmark.img
+          ? [landmark.img]
+          : [];
+
+      setSelectedLocation({
+        label: landmark.label || landmark.name || intl.formatMessage({ id: 'mapSelectedLocation' }),
+        img: images,
+        address: landmark.address,
+        distance: landmark.distance,
+        time: landmark.time,
+        description: landmark.description,
+        value: landmark.value || landmark.id || landmark.subGroupValue,
+        coordinates: [latlng.lat, latlng.lng]
+      });
+
+      setShowLocationDetails(true);
+      setShowRouting(true);
+      setExpandedSearch(false);
+      return;
+    }
+
     const locName = feature?.properties?.name || intl.formatMessage({ id: 'mapSelectedLocation' });
     const origin = {
       name: locName,
