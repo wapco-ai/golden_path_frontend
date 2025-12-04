@@ -1328,6 +1328,7 @@
   display: flex;
   align-items: flex-end;
   z-index: 2000;
+  pointer-events: none;
 }
 
 .map-entry-modal {
@@ -1339,6 +1340,7 @@
   max-height: 50vh;
   overflow-y: auto;
   animation: slideUp 0.3s ease-out;
+  pointer-events: auto;
 }
 
 @keyframes slideUp {
