@@ -679,6 +679,11 @@ const MapRoutingPage = () => {
     const doorCoordinates = getDoorCoordinates(door);
     const fallbackDestination = tempDestination || selectedDestination || null;
 
+    if (showEntryModal && activeInput === 'destination') {
+      setSelectedEntry(entryNumber);
+      return;
+    }
+
     if (activeInput === 'destination') {
       if (!fallbackDestination && !tempDestination) return;
 

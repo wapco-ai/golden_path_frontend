@@ -28,5 +28,4 @@ test
 *.bat
 package-lock.json
 src/config/appConfig.js
-
-src/config/appConfig.js
+/src/config
