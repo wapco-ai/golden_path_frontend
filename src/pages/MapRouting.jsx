@@ -158,23 +158,35 @@ const MapRoutingPage = () => {
     return null;
   };
 
-  const handleCategoryClickInModal = (category) => {
+  const handleCategoryClickInModal = async (category) => {
     setModalSelectedCategory(category);
-
-    // Localize the subgroups
-    const localized = (subGroups[category.value] || []).map(sg => ({
-      ...sg,
-      label: getLocalizedSubgroupLabel(geoData, sg.value, sg.label),
-      description: getLocalizedSubgroupDescription(
-        geoData,
-        sg.value,
-        sg.description || intl.formatMessage({ id: 'subgroupDefaultDesc' })
-      )
-    }));
-
-    setModalFilteredSubGroups(localized);
     setSearchQuery('');
     setIsSearching(true);
+
+    try {
+      const response = await fetchSubGroups({ language, groups: category.value, withImages: true });
+      const normalizedSubGroups = normalizeSubGroupMetadata(response?.subGroups, language);
+
+      setSubGroups((prev) => ({
+        ...prev,
+        ...normalizedSubGroups
+      }));
+
+      const localized = (normalizedSubGroups[category.value] || []).map((sg) => ({
+        ...sg,
+        label: getLocalizedSubgroupLabel(geoData, sg.value, sg.label),
+        description: getLocalizedSubgroupDescription(
+          geoData,
+          sg.value,
+          sg.description || intl.formatMessage({ id: 'subgroupDefaultDesc' })
+        )
+      }));
+
+      setModalFilteredSubGroups(localized);
+    } catch (err) {
+      console.error('failed to fetch sub groups for modal category', err);
+      setModalFilteredSubGroups([]);
+    }
   };
 
   // Add this function to clear search and go back to categories
