@@ -976,12 +976,12 @@ const FinalSearch = () => {
           />
         </div>
         <div className="info-details">
-          {/* <div className="info-time">
+          <div className="info-time">
             {getTransportIcon()}
             <span>
               {formatDigits(routeInfo.time)} <FormattedMessage id="minutesUnit" />
             </span>
-          </div> */}
+          </div>
           <div className="info-distance">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#181717" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path stroke="none" d="M0 0h24v24H0z" fill="none" />
