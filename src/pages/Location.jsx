@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation as useReactLocation } from 'react-router-dom';
 import '../styles/Location.css';
 import { FormattedMessage, useIntl } from 'react-intl';
@@ -115,6 +115,30 @@ const Location = () => {
   const setDestinationStore = useRouteStore(state => state.setDestination);
   const language = useLangStore(state => state.language);
 
+  const aboutTexts = useMemo(() => {
+    const extractFirstSentence = (text) => {
+      if (!text) return '';
+
+      const firstPeriodIndex = text.indexOf('.');
+      if (firstPeriodIndex !== -1) {
+        return text.slice(0, firstPeriodIndex + 1).trim();
+      }
+
+      return text;
+    };
+
+    const rawFull = (locationData?.about?.full ?? '').toString().trim();
+    const rawShort = (locationData?.about?.short ?? '').toString().trim();
+
+    const fullText = rawFull || rawShort;
+    const shortText = extractFirstSentence(rawShort || rawFull);
+
+    return {
+      short: shortText,
+      full: fullText
+    };
+  }, [locationData?.about]);
+
   const normalizeLocationId = (id) => {
     if (!id) return null;
 
@@ -136,6 +160,27 @@ const Location = () => {
     return paramsId || stateId || storedId;
   };
 
+  const extractContentBody = (place) => {
+    if (!place) return null;
+
+    if (place?.content?.body) {
+      return place.content.body;
+    }
+
+    if (place?.body) {
+      return place.body;
+    }
+
+    if (Array.isArray(place?.contents)) {
+      const contentWithBody = place.contents.find(item => item?.body);
+      if (contentWithBody?.body) {
+        return contentWithBody.body;
+      }
+    }
+
+    return null;
+  };
+
   const normalizeImages = (place) => {
     if (!place) return [];
 
@@ -151,6 +196,12 @@ const Location = () => {
   };
 
   const normalizeAbout = (place) => {
+    const contentBody = extractContentBody(place);
+
+    if (contentBody) {
+      return { short: contentBody, full: contentBody };
+    }
+
     if (typeof place?.about === 'string') {
       return { short: place.about, full: place.about };
     }
@@ -298,15 +349,12 @@ const Location = () => {
   };
 
   useEffect(() => {
-    if (!locationData?.about) {
+    if (!aboutTexts.full && !aboutTexts.short) {
       return;
     }
 
-    const shortAbout = locationData.about?.short ?? '';
-    const fullAbout = locationData.about?.full ?? '';
-
-    const trimmedShortAbout = shortAbout.trim();
-    const trimmedFullAbout = fullAbout.trim();
+    const trimmedShortAbout = aboutTexts.short.trim();
+    const trimmedFullAbout = aboutTexts.full.trim();
 
     const extractContinuation = (shortText, fullText) => {
       if (!fullText) {
@@ -425,7 +473,7 @@ const Location = () => {
       isCancelled = true;
       stopAboutSpeech();
     };
-  }, [intl, language, locationData, showFullAbout]);
+  }, [intl, language, aboutTexts, showFullAbout]);
 
   // Initialize carousel position
   useEffect(() => {
@@ -829,7 +877,7 @@ const Location = () => {
           </h3>
           <div className={`about-content ${showFullAbout ? 'expanded' : ''}`}>
             <p>
-              {showFullAbout ? locationData.about.full : locationData.about.short}
+              {showFullAbout ? aboutTexts.full : aboutTexts.short}
               {!showFullAbout && (
                 <button className="read-more" onClick={toggleAbout}>
                   <FormattedMessage id="readMore" />
