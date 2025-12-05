@@ -904,9 +904,9 @@ const MapRoutingPage = () => {
       {!isSelectingFromMap && (
         <div className="map-categories-scroll">
           <div className="map-categories-list">
-            {groups.map((category) => (
+            {groups.map((category, index) => (
               <div
-                key={category.value}
+                key={`${category.value}-${index}`}
                 className={`map-category-item ${mapSelectedCategory && mapSelectedCategory.value === category.value ? 'active' : ''}`}
                 onClick={() => handleCategoryClick(category)}
               >
@@ -1182,9 +1182,9 @@ const MapRoutingPage = () => {
             {!modalSelectedCategory && (
               <div className="map-categories-scroll2">
                 <div className="map-categories-list2">
-                  {groups.map((category) => (
+                  {groups.map((category, index) => (
                     <div
-                      key={category.value}
+                      key={`${category.value}-${index}`}
                       className={`map-category-item2 ${modalSelectedCategory && modalSelectedCategory.value === category.value ? 'active' : ''}`}
                       onClick={() => handleCategoryClickInModal(category)}
                     >
