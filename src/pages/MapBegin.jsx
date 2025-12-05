@@ -791,6 +791,18 @@ const MapBeginPage = () => {
     ? shrineEvents
     : routingData?.places?.shrineEvents || [];
 
+  const [isEventsModalOpen, setIsEventsModalOpen] = useState(false);
+
+  const openEventsModal = () => {
+    if (eventsToShow.length > 0) {
+      setIsEventsModalOpen(true);
+    }
+  };
+
+  const closeEventsModal = () => {
+    setIsEventsModalOpen(false);
+  };
+
   return (
     <div className="map-routing-page">
       {/* Header */}
@@ -994,7 +1006,7 @@ const MapBeginPage = () => {
                 <h2 className="shrine-events-title">
                   {intl.formatMessage({ id: 'shrineEventsTitle' })}
                 </h2>
-                <button className="view-all-events">
+                <button className="view-all-events" onClick={openEventsModal}>
                   {intl.formatMessage({ id: 'viewAll' })}
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path stroke="none" d="M0 0h24v24H0z" fill="none" />
@@ -1043,6 +1055,35 @@ const MapBeginPage = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {isEventsModalOpen && (
+            <div className="events-modal-overlay" onClick={closeEventsModal}>
+              <div className="events-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="events-modal-header">
+                  <h3>{intl.formatMessage({ id: 'shrineEventsTitle' })}</h3>
+                  <button className="close-modal-btn" onClick={closeEventsModal}>
+                    &times;
+                  </button>
+                </div>
+                <div className="events-modal-content">
+                  {eventsToShow.map((event, index) => (
+                    <div key={index} className="events-modal-item">
+                      <div className="events-modal-image" style={{ backgroundImage: `url(${event.image})` }} />
+                      <div className="events-modal-info">
+                        <h4>{event.title}</h4>
+                        <p>{event.description}</p>
+                        <div className="events-modal-meta">
+                          <span>{event.location}</span>
+                          <span className="modal-meta-divider">•</span>
+                          <span>{event.time}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
