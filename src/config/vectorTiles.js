@@ -145,7 +145,7 @@ export const haramVectorTileConfig = [
     type: 'symbol',
     minzoom: 16,
     maxzoom: 22,
-    visibleByDefault: true,
+    visibleByDefault: false,
     layout: {
       'text-field': ['get', 'label'],          // یا name_fa، بسته به پراپرتی MVT
       'text-font': ['Vazirmatn Regular'],     // دقیقا اسم فولدر glyphها
