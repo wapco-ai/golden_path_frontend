@@ -261,6 +261,19 @@ const RoutingPage = () => {
     }
   }, [setRouteGeo, setRouteSteps, setAlternativeRoutes, setOrigin, setDestination]);
 
+  useEffect(() => {
+    const coords = routeGeo?.geometry?.coordinates;
+    if (!coords?.length) return;
+
+    const [startLng, startLat] = coords[0];
+    const isUsingDefaultLocation =
+      !storedLat && !storedLng && userLocation?.[0] === 36.2880 && userLocation?.[1] === 59.6157;
+
+    if (isUsingDefaultLocation && (userLocation?.[0] !== startLat || userLocation?.[1] !== startLng)) {
+      setUserLocation([startLat, startLng]);
+    }
+  }, [routeGeo, storedLat, storedLng, userLocation]);
+
   // If QR coordinates are provided and stored route does not match, rebuild the route
   useEffect(() => {
     if (!storedLat || !storedLng) return;
