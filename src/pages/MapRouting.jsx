@@ -320,6 +320,9 @@ const MapRoutingPage = () => {
   }, [userLocation]);
 
   const handleSubgroupSelect = async (subgroup) => {
+    setSelectedSubgroup(subgroup);
+    setActiveInput('destination');
+
     let coordinates = null;
 
     // Try to get coordinates from geoData first
@@ -365,7 +368,7 @@ const MapRoutingPage = () => {
 
     console.log('Subgroup selected:', subgroup.label, 'Coordinates:', coordinates);
 
-    handleDestinationSelect(destination);
+    handleDestinationSelect(destination, { forceDestination: true });
   };
 
   const handleSubgroupSelectWithModal = (subgroup) => {
@@ -380,13 +383,17 @@ const MapRoutingPage = () => {
   };
 
   // UPDATED: Handle destination selection - show entry modal first
-  const handleDestinationSelect = (destination) => {
+  const handleDestinationSelect = (destination, options = {}) => {
+    const { forceDestination = false } = options;
+
     setAreaDoorsData(null);
     setAreaDoorsStatus(null);
     setAreaDoorsMessage('');
     setMapEntryDoors([]);
 
-    if (activeInput === 'destination') {
+    const isDestinationInput = activeInput === 'destination' || forceDestination;
+
+    if (isDestinationInput) {
       // Store the destination temporarily and show entry modal
       setTempDestination(destination);
       setShowDestinationModal(false);
@@ -1381,7 +1388,7 @@ const MapRoutingPage = () => {
                 <div className="map-entry-message">{areaDoorsMessage}</div>
               )}
               <div className="map-entries-grid">
-                {(mapEntryDoors.length ? mapEntryDoors : [1, 2, 3, 4]).map((entry) => {
+                {mapEntryDoors.map((entry) => {
                   const entryNumber = entry?.doorNo || entry;
                   const destinationName = entry?.otherAreaName || entry?.toAreaName;
 
