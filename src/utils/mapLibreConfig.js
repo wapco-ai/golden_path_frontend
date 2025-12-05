@@ -5,7 +5,7 @@ export const MAPLIBRE_GLYPHS_URL =
     .replace(/\/$/, '');
 
 export const DEFAULT_MAPLIBRE_RTL_PLUGIN_URL =
-  'https://unpkg.com/@maplibre/maplibre-gl-rtl-text@latest/dist/maplibre-gl-rtl-text.js';
+  'maplibre-gl-rtl-text.js';
 
 export const MAPLIBRE_RTL_PLUGIN_URL =
 
