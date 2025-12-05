@@ -20,6 +20,7 @@ const RoutingPage = () => {
   const routeMapRef = useRef(null);
   const audioRef = useRef(typeof Audio !== 'undefined' ? new Audio() : null);
   const audioUrlRef = useRef(null);
+  const hasShownTtsErrorRef = useRef(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(true);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(true);
   const [routeData, setRouteData] = useState(null);
@@ -165,7 +166,10 @@ const RoutingPage = () => {
       } catch (error) {
         if (!isCancelled) {
           console.error('Failed to play navigation audio', error);
-          toast.error(intl.formatMessage({ id: 'ttsPlaybackError' }));
+          if (!hasShownTtsErrorRef.current) {
+            toast.error(intl.formatMessage({ id: 'ttsPlaybackError' }));
+            hasShownTtsErrorRef.current = true;
+          }
         }
       }
     };
