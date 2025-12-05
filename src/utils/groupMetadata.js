@@ -68,6 +68,37 @@ const localizeField = (value, language) => {
   return '';
 };
 
+const extractCoordinates = (item) => {
+  if (!item) return null;
+
+  const directCoords = item.coordinates;
+  if (Array.isArray(directCoords) && directCoords.length >= 2) {
+    const [lat, lng] = directCoords;
+    if (typeof lat === 'number' && typeof lng === 'number') {
+      return [lat, lng];
+    }
+  }
+
+  const geo = item.geo;
+  if (geo) {
+    if (Array.isArray(geo) && geo.length >= 2) {
+      const [lat, lng] = geo;
+      if (typeof lat === 'number' && typeof lng === 'number') {
+        return [lat, lng];
+      }
+    }
+
+    if (typeof geo === 'object') {
+      const { lat, lng } = geo;
+      if (typeof lat === 'number' && typeof lng === 'number') {
+        return [lat, lng];
+      }
+    }
+  }
+
+  return null;
+};
+
 export const normalizeSubGroupMetadata = (subGroups, language) => {
   if (!subGroups || typeof subGroups !== 'object') {
     return {};
@@ -79,7 +110,8 @@ export const normalizeSubGroupMetadata = (subGroups, language) => {
         ...item,
         label: localizeField(item.label, language) || item.value,
         address: localizeField(item.address, language),
-        description: localizeField(item.description, language)
+        description: localizeField(item.description, language),
+        coordinates: extractCoordinates(item) || undefined
       }))
       : [];
 

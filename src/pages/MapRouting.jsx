@@ -344,6 +344,14 @@ const MapRoutingPage = () => {
       coordinates = subgroup.coordinates;
     }
 
+    // If still no coordinates, try the subgroup's geo field
+    if (!coordinates && subgroup.geo) {
+      const { lat, lng } = subgroup.geo;
+      if (typeof lat === 'number' && typeof lng === 'number') {
+        coordinates = [lat, lng];
+      }
+    }
+
     // If still no coordinates, try to find any feature with this subgroup value for coordinates
     if (!coordinates && geoData) {
       const anyFeature = geoData.features.find(
