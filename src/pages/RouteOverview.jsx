@@ -101,7 +101,15 @@ const RouteOverview = () => {
     setMapLoaded(false);
   }, [styleKey]);
 
+  const getSubgroupImages = (subgroup) => {
+    const imageSource = subgroup?.img;
+    if (!imageSource) return [];
+    if (Array.isArray(imageSource)) return imageSource.filter(Boolean);
+    return [imageSource];
+  };
+
   const handleSubgroupClick = (subgroup) => {
+    if (!getSubgroupImages(subgroup).length) return;
     setSelectedSubgroup(subgroup);
     setSelectedImageIndex(0);
   };
@@ -422,7 +430,8 @@ const RouteOverview = () => {
     return markerPositions.map((item, idx) => {
       const [lng, lat] = item.coord;
       const subgroup = item.subgroup;
-      const hasSubgroupImages = subgroup?.img && (Array.isArray(subgroup.img) ? subgroup.img.length > 0 : true);
+      const subgroupImages = getSubgroupImages(subgroup);
+      const hasSubgroupImages = subgroupImages.length > 0;
       const landmarkImage = Array.isArray(item.landmark?.image) ? item.landmark?.image[0] : item.landmark?.image;
       const shouldShowLandmarkInIcon = Boolean(item.landmark);
 
@@ -479,7 +488,7 @@ const RouteOverview = () => {
               <div
                 className="image-marker-content2"
                 style={{
-                  backgroundImage: `url(${Array.isArray(subgroup.img) ? subgroup.img[0] : subgroup.img})`
+                  backgroundImage: `url(${subgroupImages[0]})`
                 }}
               />
             </div>
@@ -948,33 +957,35 @@ const RouteOverview = () => {
           </div>
         </div>
       </div>
-      {selectedSubgroup && (
+      {selectedSubgroup && getSubgroupImages(selectedSubgroup).length > 0 && (
         <div className="subgroup-modal-overlay" onClick={handleCloseModal}>
           <div className="subgroup-modal-content" onClick={(e) => e.stopPropagation()}>
 
             <div className="modal-image-section">
-              <div
-                className="main-image2"
-                style={{
-                  backgroundImage: `url(${Array.isArray(selectedSubgroup.img)
-                    ? selectedSubgroup.img[selectedImageIndex]
-                    : selectedSubgroup.img
-                    })`
-                }}
-              >
-                {selectedSubgroup.img && Array.isArray(selectedSubgroup.img) && selectedSubgroup.img.length > 1 && (
-                  <div className="image-thumbnails2">
-                    {selectedSubgroup.img.slice(0, 3).map((img, index) => (
-                      <div
-                        key={index}
-                        className={`thumbnail2 ${index === selectedImageIndex ? 'active' : ''}`}
-                        style={{ backgroundImage: `url(${img})` }}
-                        onClick={() => setSelectedImageIndex(index)}
-                      />
-                    ))}
+              {(() => {
+                const images = getSubgroupImages(selectedSubgroup);
+                return (
+                  <div
+                    className="main-image2"
+                    style={{
+                      backgroundImage: `url(${images[selectedImageIndex] || images[0]})`
+                    }}
+                  >
+                    {images.length > 1 && (
+                      <div className="image-thumbnails2">
+                        {images.slice(0, 3).map((img, index) => (
+                          <div
+                            key={index}
+                            className={`thumbnail2 ${index === selectedImageIndex ? 'active' : ''}`}
+                            style={{ backgroundImage: `url(${img})` }}
+                            onClick={() => setSelectedImageIndex(index)}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                );
+              })()}
               <div className="image-fade3"></div>
             </div>
 
