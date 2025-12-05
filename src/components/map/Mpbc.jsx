@@ -9,6 +9,7 @@ import { loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
 import { getLocationTitleById } from '../../utils/getLocationTitle';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
 
+
 const groupColors = {
   sahn: '#4caf50',
   eyvan: '#2196f3',
