@@ -13,18 +13,6 @@ import { forwardRef, useImperativeHandle } from 'react';
 
 const TERRAIN_PROBE_URL = appConfig.terrainProbeUrl;
 
-const toRad = (deg) => (deg * Math.PI) / 180;
-const toDeg = (rad) => (rad * 180) / Math.PI;
-const computeBearing = (from, to) => {
-  const [lng1, lat1] = from;
-  const [lng2, lat2] = to;
-  const y = Math.sin(toRad(lng2 - lng1)) * Math.cos(toRad(lat2));
-  const x =
-    Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
-    Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(toRad(lng2 - lng1));
-  return (toDeg(Math.atan2(y, x)) + 360) % 360;
-};
-
 const RouteMap = forwardRef(({
   userLocation,
   routeSteps,
@@ -118,24 +106,6 @@ const RouteMap = forwardRef(({
     });
     return remove;
   }, []);
-
-  useEffect(() => {
-    const coords = routeGeo?.geometry?.coordinates;
-    if (!Array.isArray(coords) || coords.length < 2) return;
-
-    const [startLng, startLat] = coords[0];
-    const [nextLng, nextLat] = coords[1];
-    if (
-      !Number.isFinite(startLng) ||
-      !Number.isFinite(startLat) ||
-      !Number.isFinite(nextLng) ||
-      !Number.isFinite(nextLat)
-    ) {
-      return;
-    }
-
-    setHeading(computeBearing([startLng, startLat], [nextLng, nextLat]));
-  }, [routeGeo]);
 
   // Handle map resize when modal opens/closes
   useEffect(() => {
@@ -357,13 +327,13 @@ const RouteMap = forwardRef(({
       {/* User location marker - now using ArrowMarker with walking man icon */}
       {!isDrActive && isValidUserLocation && (
         <Marker longitude={userLocation[1]} latitude={userLocation[0]} anchor="center">
-          <ArrowMarker heading={heading} />
+          <ArrowMarker />
         </Marker>
       )}
 
       {isDrActive && drPosition && Number.isFinite(drPosition.lng) && Number.isFinite(drPosition.lat) && (
         <Marker longitude={drPosition.lng} latitude={drPosition.lat} anchor="center">
-          <ArrowMarker heading={heading} />
+          <ArrowMarker />
         </Marker>
       )}
 
