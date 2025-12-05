@@ -445,33 +445,37 @@ const Mprc = ({
       {selectedCategory && pointFeatures.map((feature, idx) => {
         const [lng, lat] = feature.geometry.coordinates;
         const { group, nodeFunction } = feature.properties || {};
-        const highlight =
-          selectedCategory &&
-          feature.properties &&
-          feature.properties[selectedCategory.property] === selectedCategory.value;
-        const hasFilter = !!selectedCategory;
-        const iconSize = hasFilter ? (highlight ? 40 : 25) : 35;
-        const iconOpacity = hasFilter ? (highlight ? 1 : 0.4) : 1;
+
+        const matchesSelectedCategory = Boolean(
+          feature.properties && (
+            feature.properties[selectedCategory.property] === selectedCategory.value ||
+            feature.properties.group === selectedCategory.value ||
+            feature.properties.nodeFunction === selectedCategory.value
+          )
+        );
+
+        if (!matchesSelectedCategory) {
+          return null;
+        }
+
         const rawId = feature.properties?.uniqueId;
         const key = rawId ? `${rawId}-${idx}` : idx;
 
         return (
           <Marker key={key} longitude={lng} latitude={lat} anchor="center">
             <div style={{ position: 'relative' }}>
-              {getCompositeIcon(groups, group, nodeFunction, iconSize, iconOpacity)}
-              {highlight && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: -4,
-                    left: -4,
-                    right: -4,
-                    bottom: -4,
-                    border: '2px solid #e53935',
-                    borderRadius: '50%'
-                  }}
-                />
-              )}
+              {getCompositeIcon(groups, group, nodeFunction, 40, 1)}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: -4,
+                  left: -4,
+                  right: -4,
+                  bottom: -4,
+                  border: '2px solid #e53935',
+                  borderRadius: '50%'
+                }}
+              />
             </div>
           </Marker>
         );
