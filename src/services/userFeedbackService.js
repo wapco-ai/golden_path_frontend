@@ -1,5 +1,27 @@
 import appConfig from '../config/appConfig.js';
 
+const createGuestFeedbackToken = () => {
+  if (typeof window === 'undefined') return null;
+
+  const storageKey = 'guestFeedbackToken';
+  const storedToken = window.sessionStorage?.getItem?.(storageKey) || window.localStorage?.getItem?.(storageKey);
+  if (storedToken) return storedToken;
+
+  const generateRandomId = () => {
+    if (typeof crypto !== 'undefined' && crypto?.randomUUID) {
+      return crypto.randomUUID();
+    }
+
+    return Math.random().toString(36).slice(2, 10);
+  };
+
+  const guestToken = `guest-feedback-${generateRandomId()}`;
+
+  window.sessionStorage?.setItem?.(storageKey, guestToken);
+
+  return guestToken;
+};
+
 const resolveAuthToken = (providedToken) => {
   if (providedToken) return providedToken;
 
@@ -15,7 +37,7 @@ const resolveAuthToken = (providedToken) => {
     if (localToken) return localToken;
   }
 
-  return null;
+  return createGuestFeedbackToken();
 };
 
 export const submitUserFeedback = async ({ poiId, comment, rating = 0, language, authToken } = {}) => {
