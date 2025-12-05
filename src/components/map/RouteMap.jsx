@@ -47,6 +47,21 @@ const RouteMap = forwardRef(({
   const [terrainAvailable, setTerrainAvailable] = useState(false);
   const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
 
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const toDeg = (rad) => (rad * 180) / Math.PI;
+
+  const calculateBearing = useCallback((from, to) => {
+    if (!Array.isArray(from) || !Array.isArray(to) || from.length < 2 || to.length < 2) return 0;
+
+    const [lng1, lat1] = from;
+    const [lng2, lat2] = to;
+    const y = Math.sin(toRad(lng2 - lng1)) * Math.cos(toRad(lat2));
+    const x =
+      Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+      Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(toRad(lng2 - lng1));
+    return (toDeg(Math.atan2(y, x)) + 360) % 360;
+  }, []);
+
   const handleMapLoad = useCallback((event) => {
     initHaramVectorLayers(event?.target || event);
   }, []);
@@ -190,6 +205,16 @@ const RouteMap = forwardRef(({
       mapRef.current.setCenter([userLocation[1], userLocation[0]]);
     }
   }, [drPosition, userLocation, isDrActive, isValidUserLocation]);
+
+  useEffect(() => {
+    if (!routeGeo || isDrActive) return;
+
+    const coords = routeGeo.geometry?.coordinates || [];
+    if (coords.length < 2) return;
+
+    const newHeading = calculateBearing(coords[0], coords[1]);
+    setHeading(newHeading);
+  }, [routeGeo, isDrActive, calculateBearing]);
 
   // Zoom to current segment when step changes
   useEffect(() => {
