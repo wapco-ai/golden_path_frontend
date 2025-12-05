@@ -542,7 +542,7 @@ const Mpbc = ({
       interactive={true}
     >
       {/* User location marker */}
-      {userCoords && isQrCodeEntry && (
+      {userCoords && (
         <Marker longitude={userCoords.lng} latitude={userCoords.lat} anchor="center">
           <div className="map-marker-origin">
             <div className="map-marker-origin-inner" />
