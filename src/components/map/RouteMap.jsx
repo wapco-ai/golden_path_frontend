@@ -23,7 +23,8 @@ const RouteMap = forwardRef(({
   routeGeo,
   alternativeRoutes = [],
   onSelectAlternativeRoute,
-  showAlternativeRoutes = false
+  showAlternativeRoutes = false,
+  initialHeading = null
 }, ref) => {
   const mapRef = useRef(null);
   const isValidUserLocation = Array.isArray(userLocation)
@@ -43,7 +44,7 @@ const RouteMap = forwardRef(({
   const [drPosition, setDrPosition] = useState(null);
   const [drGeoPath, setDrGeoPath] = useState([]);
   const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
-  const [heading, setHeading] = useState(0);
+  const [heading, setHeading] = useState(initialHeading || 0);
   const [terrainAvailable, setTerrainAvailable] = useState(false);
   const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
 
@@ -164,6 +165,13 @@ const RouteMap = forwardRef(({
 
   // Rotate map based on user heading with smoothing to avoid sudden jumps
   const lastHeading = useRef(null);
+  useEffect(() => {
+    if (initialHeading === null || initialHeading === undefined) return;
+    if (isDrActive) return;
+
+    setHeading(initialHeading);
+    lastHeading.current = null;
+  }, [initialHeading, isDrActive]);
   useEffect(() => {
     if (!mapRef.current) return;
 
