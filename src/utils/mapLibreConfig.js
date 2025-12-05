@@ -4,12 +4,8 @@ export const MAPLIBRE_GLYPHS_URL =
   (import.meta?.env?.VITE_MAPLIBRE_GLYPHS_URL?.trim() || '/fonts/{fontstack}/{range}.pbf')
     .replace(/\/$/, '');
 
-const REMOTE_MAPLIBRE_RTL_PLUGIN_URL =
+export const DEFAULT_MAPLIBRE_RTL_PLUGIN_URL =
   'https://unpkg.com/@maplibre/maplibre-gl-rtl-text@latest/dist/maplibre-gl-rtl-text.js';
-
-const LOCAL_MAPLIBRE_RTL_PLUGIN_URL = new URL('./mapbox-gl-rtl-text.js', import.meta.url).href;
-
-export const DEFAULT_MAPLIBRE_RTL_PLUGIN_URL = LOCAL_MAPLIBRE_RTL_PLUGIN_URL.replace(/\/$/, '');
 
 export const MAPLIBRE_RTL_PLUGIN_URL =
 
@@ -26,9 +22,9 @@ const attemptRTLTextPluginInitialization = (pluginUrl) => {
       if (error) {
         console.error(`${RTL_PLUGIN_ERROR_MESSAGE} (${pluginUrl})`, error);
 
-        if (pluginUrl !== REMOTE_MAPLIBRE_RTL_PLUGIN_URL) {
-          console.info('Falling back to remote MapLibre RTL text plugin URL.');
-          attemptRTLTextPluginInitialization(REMOTE_MAPLIBRE_RTL_PLUGIN_URL);
+        if (pluginUrl !== DEFAULT_MAPLIBRE_RTL_PLUGIN_URL) {
+          console.info('Falling back to default MapLibre RTL text plugin URL.');
+          attemptRTLTextPluginInitialization(DEFAULT_MAPLIBRE_RTL_PLUGIN_URL);
         }
         return;
       }
