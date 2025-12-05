@@ -80,7 +80,7 @@ const Mprc = ({
   const [viewState, setViewState] = useState({
     latitude: 36.2880,  // Original shrine coordinates
     longitude: 59.6157,
-    zoom: 16
+    zoom: 18
   });
   const [userCoords, setUserCoords] = useState(null);
   const [destCoords, setDestCoords] = useState(null);
@@ -110,14 +110,11 @@ const Mprc = ({
     initHaramVectorLayers(event?.target || event);
   }, []);
 
-  // Initialize with shrine location or QR code location if available
+  // Initialize map focus and user location based on QR entry or GPS tracking
   useEffect(() => {
     const storedLat = sessionStorage.getItem('qrLat');
     const storedLng = sessionStorage.getItem('qrLng');
     const storedId = sessionStorage.getItem('qrId');
-
-    // Original shrine coordinates
-    const shrineCoords = { lat: 36.2880, lng: 59.6157 };
 
     if (storedLat && storedLng) {
       const coords = {
@@ -146,7 +143,8 @@ const Mprc = ({
       return; // Skip GPS if QR code exists
     }
 
-    // GPS tracking
+    if (!isTracking) return undefined;
+
     const success = (pos) => {
       if (sessionStorage.getItem('qrLat') && sessionStorage.getItem('qrLng')) {
         return; // Don't override QR code location
@@ -160,32 +158,29 @@ const Mprc = ({
         name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
         coordinates: [c.lat, c.lng]
       });
+      setViewState((v) => ({
+        ...v,
+        latitude: c.lat,
+        longitude: c.lng,
+        zoom: 18
+      }));
     };
 
     const err = (e) => {
       console.error('Error getting location', e);
-      // Fallback to shrine location
-      setUserCoords(shrineCoords);
-      setUserLocation({
-        name: intl.formatMessage({ id: 'defaultBabRezaName' }),
-        coordinates: [shrineCoords.lat, shrineCoords.lng]
-      });
     };
 
-    let watchId;
-    if (isTracking) {
-      navigator.geolocation.getCurrentPosition(success, err, {
-        enableHighAccuracy: false,
-        timeout: 10000,
-        maximumAge: 60000
-      });
+    navigator.geolocation.getCurrentPosition(success, err, {
+      enableHighAccuracy: false,
+      timeout: 10000,
+      maximumAge: 60000
+    });
 
-      watchId = navigator.geolocation.watchPosition(success, err, {
-        enableHighAccuracy: false,
-        maximumAge: 0,
-        timeout: 10000
-      });
-    }
+    const watchId = navigator.geolocation.watchPosition(success, err, {
+      enableHighAccuracy: false,
+      maximumAge: 0,
+      timeout: 10000
+    });
 
     return () => {
       if (watchId) navigator.geolocation.clearWatch(watchId);

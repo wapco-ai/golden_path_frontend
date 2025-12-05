@@ -167,6 +167,11 @@
   color: #fff;
 }
 
+.map-gps-button.inactive {
+  background-color: #f2f2f2;
+  color: #9e9e9e;
+}
+
 /* Map marker styles */
 .map-marker-origin {
   width: 24px;

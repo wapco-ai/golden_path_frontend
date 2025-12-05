@@ -34,16 +34,13 @@ const MapRoutingPage = () => {
       name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
       coordinates: [parseFloat(storedLat), parseFloat(storedLng)]
     }
-    : {
-      name: intl.formatMessage({ id: 'defaultBabRezaName' }),
-      coordinates: [36.297, 59.6069]
-    };
+    : null;
   const [userLocation, setUserLocation] = useState(initialUserLocation);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeInput, setActiveInput] = useState(null);
   const [isGPSEnabled, setIsGPSEnabled] = useState(false);
   const [isSelectingFromMap, setIsSelectingFromMap] = useState(false);
-  const [isTracking, setIsTracking] = useState(true);
+  const [isTracking, setIsTracking] = useState(false);
   const [mapSelectedLocation, setMapSelectedLocation] = useState(null);
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [showRouteInfoModal, setShowRouteInfoModal] = useState(false);
@@ -556,12 +553,8 @@ const MapRoutingPage = () => {
       setSelectedDestination(destData);
       sessionStorage.setItem('currentDestination', JSON.stringify(destData));
 
-      const defaultOrigin = {
-        name: intl.formatMessage({ id: 'defaultBabRezaName' }),
-        coordinates: [36.297, 59.6069]
-      };
-      setUserLocation(defaultOrigin);
-      sessionStorage.setItem('currentOrigin', JSON.stringify(defaultOrigin));
+      setUserLocation(null);
+      sessionStorage.removeItem('currentOrigin');
 
       setIsTracking(false);
       return;
@@ -881,7 +874,7 @@ const MapRoutingPage = () => {
         />
         {!isSelectingFromMap && (
           <button
-            className={`map-gps-button ${isTracking ? 'active' : ''}`}
+            className={`map-gps-button ${isTracking ? 'active' : 'inactive'}`}
             onClick={() => setIsTracking((t) => !t)}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
