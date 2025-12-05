@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation as useReactLocation } from 'react-router-dom';
 import '../styles/Location.css';
 import { FormattedMessage, useIntl } from 'react-intl';
@@ -68,6 +68,33 @@ const getLocalizedSubgroupDescription = (geoData, value, fallback) => {
   return fallback;
 };
 
+const getLocalizedText = (value, language) => {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value[language] || value.fa || Object.values(value)[0] || '';
+  }
+  return value || '';
+};
+
+const getAboutBodyFromContents = (contents, language) => {
+  if (!Array.isArray(contents)) return '';
+
+  const contentWithBody = contents.find(content => content?.body);
+  if (!contentWithBody) return '';
+
+  return getLocalizedText(contentWithBody.body, language).trim();
+};
+
+const getShortTextUntilPeriod = (text) => {
+  if (!text) return '';
+
+  const trimmedText = text.trim();
+  const firstPeriodIndex = trimmedText.indexOf('.');
+
+  if (firstPeriodIndex === -1) return trimmedText;
+
+  return trimmedText.slice(0, firstPeriodIndex + 1);
+};
+
 const Location = () => {
   const navigate = useNavigate();
   const currentLocation = useReactLocation();
@@ -114,6 +141,31 @@ const Location = () => {
   const [geoData, setGeoData] = useState(null);
   const setDestinationStore = useRouteStore(state => state.setDestination);
   const language = useLangStore(state => state.language);
+
+  const aboutBody = useMemo(() => {
+    const contentBody = getAboutBodyFromContents(locationData?.contents, language);
+    const aboutFull = getLocalizedText(locationData?.about?.full, language);
+    const aboutShort = getLocalizedText(locationData?.about?.short, language);
+
+    return (contentBody || aboutFull || aboutShort || '').trim();
+  }, [language, locationData]);
+
+  const aboutShortText = useMemo(() => {
+    const primaryShort = getShortTextUntilPeriod(aboutBody);
+    if (primaryShort) return primaryShort;
+
+    const localizedShort = getLocalizedText(locationData?.about?.short, language);
+    if (localizedShort) return getShortTextUntilPeriod(localizedShort);
+
+    const localizedFull = getLocalizedText(locationData?.about?.full, language);
+    return getShortTextUntilPeriod(localizedFull);
+  }, [aboutBody, language, locationData]);
+
+  const hasMoreAbout = useMemo(() => {
+    if (!aboutBody || !aboutShortText) return false;
+
+    return aboutBody.trim() !== aboutShortText.trim();
+  }, [aboutBody, aboutShortText]);
 
   const normalizeLocationId = (id) => {
     if (!id) return null;
@@ -298,96 +350,10 @@ const Location = () => {
   };
 
   useEffect(() => {
-    if (!locationData?.about) {
-      return;
-    }
+    const textToSpeak = (showFullAbout ? aboutBody : aboutShortText)?.trim();
 
-    const shortAbout = locationData.about?.short ?? '';
-    const fullAbout = locationData.about?.full ?? '';
-
-    const trimmedShortAbout = shortAbout.trim();
-    const trimmedFullAbout = fullAbout.trim();
-
-    const extractContinuation = (shortText, fullText) => {
-      if (!fullText) {
-        return '';
-      }
-
-      const normalizedFull = fullText.trim();
-
-      if (!shortText) {
-        return normalizedFull;
-      }
-
-      const normalizedShort = shortText.trim();
-
-      if (!normalizedShort) {
-        return normalizedFull;
-      }
-
-      if (normalizedFull.startsWith(normalizedShort)) {
-        return normalizedFull.slice(normalizedShort.length).trim();
-      }
-
-      const directIndex = normalizedFull.indexOf(normalizedShort);
-      if (directIndex !== -1) {
-        const remainder = normalizedFull.slice(directIndex + normalizedShort.length).trim();
-        if (remainder) {
-          return remainder;
-        }
-      }
-
-      const isWhitespace = (char) => /\s/.test(char);
-      let fullIndex = 0;
-      let shortIndex = 0;
-
-      while (fullIndex < normalizedFull.length && shortIndex < normalizedShort.length) {
-        const fullChar = normalizedFull[fullIndex];
-        const shortChar = normalizedShort[shortIndex];
-
-        if (isWhitespace(fullChar) && isWhitespace(shortChar)) {
-          while (fullIndex < normalizedFull.length && isWhitespace(normalizedFull[fullIndex])) {
-            fullIndex += 1;
-          }
-          while (shortIndex < normalizedShort.length && isWhitespace(normalizedShort[shortIndex])) {
-            shortIndex += 1;
-          }
-          continue;
-        }
-
-        if (fullChar === shortChar) {
-          fullIndex += 1;
-          shortIndex += 1;
-          continue;
-        }
-
-        break;
-      }
-
-      if (shortIndex === normalizedShort.length) {
-        while (fullIndex < normalizedFull.length && isWhitespace(normalizedFull[fullIndex])) {
-          fullIndex += 1;
-        }
-        const remainder = normalizedFull.slice(fullIndex).trim();
-        if (remainder) {
-          return remainder;
-        }
-      }
-
-      return normalizedFull;
-    };
-
-    let textToSpeak;
-
-    if (showFullAbout) {
-      const continuation = extractContinuation(trimmedShortAbout, trimmedFullAbout);
-
-      textToSpeak = continuation || trimmedFullAbout || trimmedShortAbout || '';
-    } else {
-      textToSpeak = trimmedShortAbout || trimmedFullAbout || '';
-    }
-
-    if (!textToSpeak?.trim()) {
+    if (!textToSpeak) {
+      stopAboutSpeech();
       return;
     }
 
@@ -425,7 +391,7 @@ const Location = () => {
       isCancelled = true;
       stopAboutSpeech();
     };
-  }, [intl, language, locationData, showFullAbout]);
+  }, [aboutBody, aboutShortText, language, showFullAbout]);
 
   // Initialize carousel position
   useEffect(() => {
@@ -829,14 +795,14 @@ const Location = () => {
           </h3>
           <div className={`about-content ${showFullAbout ? 'expanded' : ''}`}>
             <p>
-              {showFullAbout ? locationData.about.full : locationData.about.short}
-              {!showFullAbout && (
+              {showFullAbout ? aboutBody : aboutShortText}
+              {!showFullAbout && hasMoreAbout && (
                 <button className="read-more" onClick={toggleAbout}>
                   <FormattedMessage id="readMore" />
                 </button>
               )}
             </p>
-            {showFullAbout && (
+            {showFullAbout && hasMoreAbout && (
               <div className="close-button-container">
                 <button className="read-more close-button" onClick={toggleAbout}>
                   <FormattedMessage id="close" />
