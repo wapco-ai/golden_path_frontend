@@ -73,13 +73,14 @@ const Mpbc = ({
   showImageMarkers = true,
   isQrCodeEntry = false,
   groups = [],
-  subGroups = {}
+  subGroups = {},
+  landmarkPlaces = []
 }) => {
   const intl = useIntl();
   const [viewState, setViewState] = useState({
     latitude: 36.2880,
     longitude: 59.6157,
-    zoom: 16
+    zoom: 18
   });
   const [userCoords, setUserCoords] = useState(null);
   const [destCoords, setDestCoords] = useState(null);
@@ -100,14 +101,53 @@ const Mpbc = ({
     initHaramVectorLayers(event?.target || event);
   }, []);
 
-  // Initialize with shrine location or QR code location if available
+  const extractPlaceCoordinates = useCallback((place = {}) => {
+    const lat =
+      place.lat ??
+      place.latitude ??
+      place?.location?.lat ??
+      place?.geo?.lat ??
+      place?.coordinates?.[0] ??
+      place?.geometry?.coordinates?.[1];
+    const lng =
+      place.lng ??
+      place.longitude ??
+      place?.location?.lng ??
+      place?.geo?.lng ??
+      place?.coordinates?.[1] ??
+      place?.geometry?.coordinates?.[0];
+
+    if (lat == null || lng == null) return null;
+    return { lat: Number(lat), lng: Number(lng) };
+  }, []);
+
+  const getFirstImage = useCallback((place) => {
+    if (!place) return null;
+
+    if (Array.isArray(place.image) && place.image.length > 0) {
+      return place.image[0];
+    }
+
+    if (Array.isArray(place.images) && place.images.length > 0) {
+      return place.images[0];
+    }
+
+    if (typeof place.image === 'string' && place.image.trim()) {
+      return place.image;
+    }
+
+    if (typeof place.images === 'string' && place.images.trim()) {
+      return place.images;
+    }
+
+    return null;
+  }, []);
+
+  // Initialize map focus and user location based on QR entry or GPS tracking
   useEffect(() => {
     const storedLat = sessionStorage.getItem('qrLat');
     const storedLng = sessionStorage.getItem('qrLng');
     const storedId = sessionStorage.getItem('qrId');
-
-    // Holy shrine coordinates as default
-    const shrineCoords = { lat: 36.2880, lng: 59.6157 };
 
     // Priority 1: QR code location
     if (storedLat && storedLng) {
@@ -138,41 +178,51 @@ const Mpbc = ({
       return;
     }
 
-    // Priority 2: Always use shrine location as default, even if GPS is available
-    setUserCoords(shrineCoords);
-    setUserLocation({
-      name: intl.formatMessage({ id: 'defaultBabRezaName' }),
-      coordinates: [shrineCoords.lat, shrineCoords.lng]
+    if (!isTracking) return undefined;
+
+    const success = (pos) => {
+      if (sessionStorage.getItem('qrLat') && sessionStorage.getItem('qrLng')) {
+        return; // Don't override QR code location
+      }
+
+      const c = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude
+      };
+
+      setUserCoords(c);
+      setUserLocation({
+        name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
+        coordinates: [c.lat, c.lng]
+      });
+
+      setViewState((v) => ({
+        ...v,
+        latitude: c.lat - 0.0004,
+        longitude: c.lng,
+        zoom: 18
+      }));
+    };
+
+    const err = (e) => {
+      console.error('Error getting GPS location', e);
+    };
+
+    navigator.geolocation.getCurrentPosition(success, err, {
+      enableHighAccuracy: false,
+      timeout: 10000,
+      maximumAge: 60000
     });
 
-    // Optional: Still get GPS for tracking but don't use it as primary location
-    if (isTracking) {
-      const success = (pos) => {
-        // We get GPS but don't update the main user location
-        // This can be used for other purposes like tracking movement
-        console.log('GPS location available but not used as primary:', pos.coords);
-      };
+    const watchId = navigator.geolocation.watchPosition(success, err, {
+      enableHighAccuracy: false,
+      maximumAge: 0,
+      timeout: 10000
+    });
 
-      const err = (e) => {
-        console.error('Error getting GPS location', e);
-      };
-
-      navigator.geolocation.getCurrentPosition(success, err, {
-        enableHighAccuracy: false,
-        timeout: 10000,
-        maximumAge: 60000
-      });
-
-      const watchId = navigator.geolocation.watchPosition(success, err, {
-        enableHighAccuracy: false,
-        maximumAge: 0,
-        timeout: 10000
-      });
-
-      return () => {
-        if (watchId) navigator.geolocation.clearWatch(watchId);
-      };
-    }
+    return () => {
+      if (watchId) navigator.geolocation.clearWatch(watchId);
+    };
   }, [setUserLocation, intl, isTracking]);
 
   useEffect(() => {
@@ -402,57 +452,79 @@ const Mpbc = ({
     )
     : [];
 
-  // Function to render image markers for subgroups with images
+  // Function to render image markers for landmarks with images
   const renderImageMarkers = () => {
-    if (!geoData) return null;
+    if (!showImageMarkers || !Array.isArray(landmarkPlaces) || landmarkPlaces.length === 0) {
+      return null;
+    }
 
-    const seenSubgroups = new Set();
+    const seenCoords = new Set();
 
-    return geoData.features
-      .filter(feature => {
-        if (feature.geometry.type !== 'Point') return false;
+    const markers = landmarkPlaces
+      .map((place, idx) => {
+        const coords = extractPlaceCoordinates(place);
+        const imageUrl = getFirstImage(place);
 
-        const { group, subGroupValue } = feature.properties || {};
-        const subgroup = subGroups[group]?.find(sg => sg.value === subGroupValue);
+        if (!coords || !imageUrl) return null;
 
-        const hasImage = subgroup && subgroup.img &&
-          (Array.isArray(subgroup.img) ? subgroup.img.length > 0 : true);
+        const key = place.id ? `landmark-${place.id}` : `landmark-${idx}`;
+        const coordKey = `${coords.lng.toFixed(6)}-${coords.lat.toFixed(6)}`;
 
-        if (!hasImage) return false;
+        if (seenCoords.has(coordKey)) return null;
+        seenCoords.add(coordKey);
 
-        // Skip if we've already seen this subgroup
-        if (seenSubgroups.has(subGroupValue)) return false;
-
-        seenSubgroups.add(subGroupValue);
-
-        if (!selectedCategory || group === selectedCategory.value) {
-          return true;
-        }
-
-        return false;
+        return { key, coords, imageUrl, title: place.title || place.name || place.subGroup, place };
       })
-      .map((feature, idx) => {
-        const [lng, lat] = feature.geometry.coordinates;
-        const { group, subGroupValue } = feature.properties || {};
-        const subgroup = subGroups[group]?.find(sg => sg.value === subGroupValue);
+      .filter(Boolean);
 
-        // Get the first image if it's an array, otherwise use the string
-        const imageUrl = Array.isArray(subgroup.img) ? subgroup.img[0] : subgroup.img;
+    const normalizeImages = (place) => {
+      if (Array.isArray(place.image)) return place.image;
+      if (Array.isArray(place.images)) return place.images;
 
-        return (
-          <Marker key={`image-${idx}`} longitude={lng} latitude={lat} anchor="center">
-            <div className="image-marker-container">
-              <svg width="55" height="63" viewBox="0 0 55 63" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M54.6562 27.3281C54.6562 39.6299 46.5275 50.0319 35.3486 53.459C35.1079 53.8493 34.8535 54.2605 34.585 54.6924L33.1699 56.9687C30.7353 60.8845 29.5175 62.8418 27.7412 62.8418C25.9651 62.8417 24.7479 60.8842 22.3135 56.9687L20.8975 54.6924C20.6938 54.3648 20.4993 54.0485 20.3115 53.7451C8.61859 50.6476 8.59898e-05 39.9953 -1.19455e-06 27.3281C-5.34814e-07 12.2351 12.2351 -1.85429e-06 27.3281 -1.19455e-06C42.4211 0.000106671 54.6562 12.2352 54.6562 27.3281Z" fill="white" />
-              </svg>
-              <div
-                className="image-marker-content"
-                style={{ backgroundImage: `url(${imageUrl})` }}
-              />
-            </div>
-          </Marker>
-        );
-      });
+      const firstImage = getFirstImage(place);
+      return firstImage ? [firstImage] : [];
+    };
+
+    return markers.map(({ key, coords, imageUrl, title, place }) => (
+      <Marker key={key} longitude={coords.lng} latitude={coords.lat} anchor="center">
+        <div
+          className="image-marker-container"
+          onClick={(event) => {
+            event?.stopPropagation?.();
+
+            const feature = {
+              geometry: { type: 'Point', coordinates: [coords.lng, coords.lat] },
+              properties: {
+                ...place,
+                name: place.title || place.name || place.subGroup,
+                label: place.title || place.name || place.subGroup,
+                subGroupValue: place.subGroupValue || place.value || place.id,
+                img: normalizeImages(place),
+                isLandmark: true,
+                distance: place.distance,
+                time: place.time,
+                description: place.description,
+                address: place.address
+              }
+            };
+
+            // Ensure bubble shows landmark name on selection
+            setSelectedFeatureForBubble(feature);
+
+            onMapClick?.({ lat: coords.lat, lng: coords.lng }, feature);
+          }}
+        >
+          <svg width="55" height="63" viewBox="0 0 55 63" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M54.6562 27.3281C54.6562 39.6299 46.5275 50.0319 35.3486 53.459C35.1079 53.8493 34.8535 54.2605 34.585 54.6924L33.1699 56.9687C30.7353 60.8845 29.5175 62.8418 27.7412 62.8418C25.9651 62.8417 24.7479 60.8842 22.3135 56.9687L20.8975 54.6924C20.6938 54.3648 20.4993 54.0485 20.3115 53.7451C8.61859 50.6476 8.59898e-05 39.9953 -1.19455e-06 27.3281C-5.34814e-07 12.2351 12.2351 -1.85429e-06 27.3281 -1.19455e-06C42.4211 0.000106671 54.6562 12.2352 54.6562 27.3281Z" fill="white" />
+          </svg>
+          <div
+            className="image-marker-content"
+            style={{ backgroundImage: `url(${imageUrl})` }}
+            aria-label={title || 'landmark'}
+          />
+        </div>
+      </Marker>
+    ));
   };
 
   return (
@@ -470,7 +542,7 @@ const Mpbc = ({
       interactive={true}
     >
       {/* User location marker */}
-      {userCoords && isQrCodeEntry && (
+      {userCoords && (
         <Marker longitude={userCoords.lng} latitude={userCoords.lat} anchor="center">
           <div className="map-marker-origin">
             <div className="map-marker-origin-inner" />

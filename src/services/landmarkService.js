@@ -1,10 +1,14 @@
 import appConfig from '../config/appConfig.js';
 
-export const fetchLandmarkPlaces = async ({ language = 'fa', geo } = {}) => {
+export const fetchLandmarkPlaces = async ({ language = 'fa', geo, poiId } = {}) => {
   const url = appConfig.landmarkPlacesUrl;
 
   const params = new URLSearchParams();
   params.set('language', language || 'fa');
+
+  if (poiId != null) {
+    params.set('poi_id', poiId);
+  }
 
   if (geo?.lat != null && geo?.lng != null) {
     params.set('geo[lat]', geo.lat);

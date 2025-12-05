@@ -25,6 +25,7 @@ const RouteOverview = () => {
 
   const mapRef = useRef(null);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [mapLoaded, setMapLoaded] = useState(false);
   const [directionArrow, setDirectionArrow] = useState('right');
   const [distance, setDistance] = useState('');
   const [time, setTime] = useState('');
@@ -37,6 +38,7 @@ const RouteOverview = () => {
 
   const handleMapLoad = useCallback((event) => {
     initHaramVectorLayers(event?.target || event);
+    setMapLoaded(true);
   }, []);
 
   const toRad = deg => (deg * Math.PI) / 180;
@@ -93,8 +95,21 @@ const RouteOverview = () => {
   } = useRouteStore();
   const routeCoordinates = routeGeo?.geometry?.coordinates || [];
   const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
+  const initialRouteFlyDone = useRef(false);
+
+  useEffect(() => {
+    setMapLoaded(false);
+  }, [styleKey]);
+
+  const getSubgroupImages = (subgroup) => {
+    const imageSource = subgroup?.img;
+    if (!imageSource) return [];
+    if (Array.isArray(imageSource)) return imageSource.filter(Boolean);
+    return [imageSource];
+  };
 
   const handleSubgroupClick = (subgroup) => {
+    if (!getSubgroupImages(subgroup).length) return;
     setSelectedSubgroup(subgroup);
     setSelectedImageIndex(0);
   };
@@ -135,14 +150,14 @@ const RouteOverview = () => {
       place.latitude ??
       place?.location?.lat ??
       place?.geo?.lat ??
-      place?.coordinates?.[1] ??
+      place?.coordinates?.[0] ??
       place?.geometry?.coordinates?.[1];
     const lng =
       place.lng ??
       place.longitude ??
       place?.location?.lng ??
       place?.geo?.lng ??
-      place?.coordinates?.[0] ??
+      place?.coordinates?.[1] ??
       place?.geometry?.coordinates?.[0];
 
     if (lat == null || lng == null) return null;
@@ -180,13 +195,43 @@ const RouteOverview = () => {
       const middleCoord = routeCoordinates[Math.floor(routeCoordinates.length / 2)];
       const geo = middleCoord ? { lat: middleCoord[1], lng: middleCoord[0] } : undefined;
 
+      const getFirstImage = (place) => {
+        if (!place) return null;
+
+        if (Array.isArray(place.image) && place.image.length > 0) {
+          return place.image[0];
+        }
+
+        if (Array.isArray(place.images) && place.images.length > 0) {
+          return place.images[0];
+        }
+
+        if (typeof place.image === 'string' && place.image.trim()) {
+          return place.image;
+        }
+
+        if (typeof place.images === 'string' && place.images.trim()) {
+          return place.images;
+        }
+
+        return null;
+      };
+
       try {
         const data = await fetchLandmarkPlaces({ language, geo });
         const places = Array.isArray(data?.places?.landmarkPlaces)
           ? data.places.landmarkPlaces
           : [];
 
-        const annotated = places
+        const placesWithImages = places
+          .map((place) => {
+            const image = getFirstImage(place);
+            if (!image) return null;
+            return { ...place, image };
+          })
+          .filter(Boolean);
+
+        const annotated = placesWithImages
           .map((place, idx) => {
             const coord = extractPlaceCoordinates(place);
             if (!coord) return null;
@@ -385,7 +430,8 @@ const RouteOverview = () => {
     return markerPositions.map((item, idx) => {
       const [lng, lat] = item.coord;
       const subgroup = item.subgroup;
-      const hasSubgroupImages = subgroup?.img && (Array.isArray(subgroup.img) ? subgroup.img.length > 0 : true);
+      const subgroupImages = getSubgroupImages(subgroup);
+      const hasSubgroupImages = subgroupImages.length > 0;
       const landmarkImage = Array.isArray(item.landmark?.image) ? item.landmark?.image[0] : item.landmark?.image;
       const shouldShowLandmarkInIcon = Boolean(item.landmark);
 
@@ -394,6 +440,10 @@ const RouteOverview = () => {
         : subgroup?.value
           ? `marker-${idx}-${subgroup.value}`
           : `marker-${idx}`;
+
+      // Skip markers that don't have any visual content to show
+      if (shouldShowLandmarkInIcon && !landmarkImage) return null;
+      if (!shouldShowLandmarkInIcon && !hasSubgroupImages) return null;
 
       return (
         <Marker
@@ -442,7 +492,7 @@ const RouteOverview = () => {
               <div
                 className="image-marker-content2"
                 style={{
-                  backgroundImage: `url(${Array.isArray(subgroup.img) ? subgroup.img[0] : subgroup.img})`
+                  backgroundImage: `url(${subgroupImages[0]})`
                 }}
               />
             </div>
@@ -591,6 +641,10 @@ const RouteOverview = () => {
     window.scrollTo(0, 0);
   }, []);
 
+  useEffect(() => {
+    initialRouteFlyDone.current = false;
+  }, [routeGeo]);
+
   const highlightGeo = useMemo(() => {
     const seg = routeData[currentSlide]?.coordinates;
     return seg ? { type: 'Feature', geometry: { type: 'LineString', coordinates: seg } } : null;
@@ -635,17 +689,57 @@ const RouteOverview = () => {
       setViewState({
         latitude: (lat1 + lat2) / 2,
         longitude: (lng1 + lng2) / 2,
-        zoom: isShort ? 17 : 18
+        zoom: isShort ? 21 : 20.5
       });
       setPopupCoord([(lng1 + lng2) / 2, (lat1 + lat2) / 2]);
       if (mapRef.current) {
-        const bounds = new maplibregl.LngLatBounds([lng1, lat1], [lng2, lat2]);
-        const options = { padding: 50, duration: 700 };
-        if (isShort) options.maxZoom = 17;
-        mapRef.current.fitBounds(bounds, options);
+        const bounds = coords.reduce((acc, point) => {
+          if (!Array.isArray(point) || point.length < 2) return acc;
+          if (!acc) return new maplibregl.LngLatBounds(point, point);
+          acc.extend(point);
+          return acc;
+        }, null);
+
+        const mapInstance = mapRef.current.getMap ? mapRef.current.getMap() : mapRef.current;
+        const options = {
+          padding: isShort ? 70 : 100,
+          duration: 800,
+          maxZoom: isShort ? 21 : 20.5
+        };
+
+        if (bounds && mapInstance?.fitBounds) {
+          mapInstance.fitBounds(bounds, options);
+        } else if (mapInstance?.flyTo) {
+          mapInstance.flyTo({
+            center: [(lng1 + lng2) / 2, (lat1 + lat2) / 2],
+            zoom: isShort ? 21 : 20.5,
+            duration: 800
+          });
+        }
       }
     }
   }, [currentSlide, routeData]);
+
+  useEffect(() => {
+    if (initialRouteFlyDone.current) return;
+    if (!mapLoaded) return;
+    if (!mapRef.current || !Array.isArray(routeCoordinates) || routeCoordinates.length < 2) return;
+
+    const mapInstance = mapRef.current.getMap ? mapRef.current.getMap() : mapRef.current;
+    if (!mapInstance?.fitBounds) return;
+
+    const bounds = routeCoordinates.reduce((acc, coord) => {
+      if (!Array.isArray(coord) || coord.length < 2) return acc;
+      if (!acc) return new maplibregl.LngLatBounds(coord, coord);
+      acc.extend(coord);
+      return acc;
+    }, null);
+
+    if (bounds) {
+      mapInstance.fitBounds(bounds, { padding: 80, duration: 800 });
+      initialRouteFlyDone.current = true;
+    }
+  }, [mapLoaded, routeCoordinates]);
 
   // Clear popup when no route data is available
   useEffect(() => {
@@ -867,33 +961,35 @@ const RouteOverview = () => {
           </div>
         </div>
       </div>
-      {selectedSubgroup && (
+      {selectedSubgroup && getSubgroupImages(selectedSubgroup).length > 0 && (
         <div className="subgroup-modal-overlay" onClick={handleCloseModal}>
           <div className="subgroup-modal-content" onClick={(e) => e.stopPropagation()}>
 
             <div className="modal-image-section">
-              <div
-                className="main-image2"
-                style={{
-                  backgroundImage: `url(${Array.isArray(selectedSubgroup.img)
-                    ? selectedSubgroup.img[selectedImageIndex]
-                    : selectedSubgroup.img
-                    })`
-                }}
-              >
-                {selectedSubgroup.img && Array.isArray(selectedSubgroup.img) && selectedSubgroup.img.length > 1 && (
-                  <div className="image-thumbnails2">
-                    {selectedSubgroup.img.slice(0, 3).map((img, index) => (
-                      <div
-                        key={index}
-                        className={`thumbnail2 ${index === selectedImageIndex ? 'active' : ''}`}
-                        style={{ backgroundImage: `url(${img})` }}
-                        onClick={() => setSelectedImageIndex(index)}
-                      />
-                    ))}
+              {(() => {
+                const images = getSubgroupImages(selectedSubgroup);
+                return (
+                  <div
+                    className="main-image2"
+                    style={{
+                      backgroundImage: `url(${images[selectedImageIndex] || images[0]})`
+                    }}
+                  >
+                    {images.length > 1 && (
+                      <div className="image-thumbnails2">
+                        {images.slice(0, 3).map((img, index) => (
+                          <div
+                            key={index}
+                            className={`thumbnail2 ${index === selectedImageIndex ? 'active' : ''}`}
+                            style={{ backgroundImage: `url(${img})` }}
+                            onClick={() => setSelectedImageIndex(index)}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                );
+              })()}
               <div className="image-fade3"></div>
             </div>
 

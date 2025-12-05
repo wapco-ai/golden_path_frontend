@@ -27,12 +27,9 @@ const MapBeginPage = () => {
       name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
       coordinates: [parseFloat(storedLat), parseFloat(storedLng)]
     }
-    : {
-      name: intl.formatMessage({ id: 'defaultBabRezaName' }),
-      coordinates: [36.2880, 59.6157]
-    };
+    : null;
   const [userLocation, setUserLocation] = useState(initialUserLocation);
-  const [isTracking, setIsTracking] = useState(true);
+  const [isTracking, setIsTracking] = useState(false);
   const [mapSelectedLocation, setMapSelectedLocation] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [showRouting, setShowRouting] = useState(false);
@@ -68,6 +65,7 @@ const MapBeginPage = () => {
   const [preventMapCentering, setPreventMapCentering] = useState(false);
   const [groups, setGroups] = useState([]);
   const [subGroups, setSubGroups] = useState({});
+  const [landmarkPlaces, setLandmarkPlaces] = useState([]);
   const clearMapSelection = () => {
     sessionStorage.removeItem('mapSelectedLat');
     sessionStorage.removeItem('mapSelectedLng');
@@ -176,33 +174,43 @@ const MapBeginPage = () => {
   //   }
   // }, [showLocationDetails, showRouting, isQrCodeEntry]);
 
+  const resolveLocationId = (location) => {
+    const rawId = location?.id || location?.value;
+    if (!rawId) return null;
+
+    const normalizedId = rawId.toLowerCase();
+    const idMappings = {
+      saghakhaneh: 'saqqakhaneh',
+      saghakhaneh_15: 'saqqakhaneh',
+      rozemonavare: 'rozemonavare_12'
+    };
+
+    return idMappings[normalizedId] || rawId;
+  };
+
   const handleCulturalInfo = () => {
-    // Check if the selected location is one of our two special places
-    const isRozemonavare = selectedLocation?.value === 'rozemonavare';
-    const isSaghakhaneh = selectedLocation?.value === 'saghakhaneh';
+    const locationId = resolveLocationId(selectedLocation);
+    const params = new URLSearchParams();
 
-    if (isRozemonavare || isSaghakhaneh) {
-      // For these two specific places, use their fixed coordinates and IDs
-      let lat, lng, id;
-
-      if (isRozemonavare) {
-        lat = 36.288005181401;
-        lng = 59.61569271248;
-        id = 'rozemonavare_12';
-      } else if (isSaghakhaneh) {
-        lat = 36.288464700649;
-        lng = 59.616118862511;
-        id = 'saghakhaneh_15';
+    if (selectedLocation?.coordinates) {
+      const [lat, lng] = selectedLocation.coordinates;
+      if (lat && lng) {
+        params.set('lat', lat);
+        params.set('lng', lng);
+        sessionStorage.setItem('mapSelectedLat', lat.toString());
+        sessionStorage.setItem('mapSelectedLng', lng.toString());
       }
-
-      // Navigate with both state and URL parameters
-      navigate(`/location?id=${id}&lat=${lat}&lng=${lng}`, {
-        state: { location: selectedLocation }
-      });
-    } else {
-      // For all other places, use the normal navigation
-      navigate('/location', { state: { location: selectedLocation } });
     }
+
+    if (locationId) {
+      params.set('id', locationId);
+      sessionStorage.setItem('mapSelectedId', locationId);
+    }
+
+    const queryString = params.toString();
+    const target = queryString ? `/location?${queryString}` : '/location';
+
+    navigate(target, { state: { location: selectedLocation } });
   };
 
   const handleModalTouchStart = (e) => {
@@ -328,6 +336,33 @@ const MapBeginPage = () => {
 
 
   const handleMapClick = (latlng, feature) => {
+    const isLandmarkSelection = feature?.properties?.isLandmark;
+
+    if (isLandmarkSelection) {
+      const landmark = feature.properties || {};
+      const images = Array.isArray(landmark.img)
+        ? landmark.img
+        : landmark.img
+          ? [landmark.img]
+          : [];
+
+      setSelectedLocation({
+        label: landmark.label || landmark.name || intl.formatMessage({ id: 'mapSelectedLocation' }),
+        img: images,
+        address: landmark.address,
+        distance: landmark.distance,
+        time: landmark.time,
+        description: landmark.description,
+        value: landmark.value || landmark.id || landmark.subGroupValue,
+        coordinates: [latlng.lat, latlng.lng]
+      });
+
+      setShowLocationDetails(true);
+      setShowRouting(true);
+      setExpandedSearch(false);
+      return;
+    }
+
     const locName = feature?.properties?.name || intl.formatMessage({ id: 'mapSelectedLocation' });
     const origin = {
       name: locName,
@@ -346,26 +381,19 @@ const MapBeginPage = () => {
     // CRITICAL FIX: Set flag to prevent map centering
     setPreventMapCentering(true);
 
-    // CRITICAL FIX: Only update user location if NOT entered via QR code
+    // CRITICAL FIX: Only update the origin store for navigation; keep the user location unchanged
     const isQrEntry = sessionStorage.getItem('qrLat') && sessionStorage.getItem('qrLng');
 
     if (!isQrEntry) {
-      // Only update user location if this is NOT a QR code entry
-      setUserLocation({
-        name: locName,
-        coordinates: [latlng.lat, latlng.lng]
-      });
-
-      // Update the store only for non-QR entries
       setOriginStore({
         name: origin.name,
         coordinates: origin.coordinates
       });
-    } else {
-      // For QR code entries, set the selected origin but don't change user location
+    } else if (userLocation) {
+      // For QR code entries, set the selected origin but keep the QR-based user location
       setOriginStore({
-        name: userLocation.name, // Keep QR location name
-        coordinates: userLocation.coordinates // Keep QR coordinates
+        name: userLocation.name,
+        coordinates: userLocation.coordinates
       });
     }
 
@@ -604,6 +632,28 @@ const MapBeginPage = () => {
         return Number.isFinite(numericValue) ? numericValue : fallback;
       };
 
+      const getFirstImage = (place) => {
+        if (!place) return null;
+
+        if (Array.isArray(place.image) && place.image.length > 0) {
+          return place.image[0];
+        }
+
+        if (Array.isArray(place.images) && place.images.length > 0) {
+          return place.images[0];
+        }
+
+        if (typeof place.image === 'string' && place.image.trim()) {
+          return place.image;
+        }
+
+        if (typeof place.images === 'string' && place.images.trim()) {
+          return place.images;
+        }
+
+        return null;
+      };
+
       try {
         const data = await fetchLandmarkPlaces({
           language,
@@ -614,7 +664,13 @@ const MapBeginPage = () => {
           ? data.places.landmarkPlaces
           : [];
 
-        const landmarksWithImages = apiLandmarks.filter(place => place?.image);
+        const landmarksWithImages = apiLandmarks
+          .map(place => {
+            const image = getFirstImage(place);
+            if (!image) return null;
+            return { ...place, image };
+          })
+          .filter(Boolean);
 
         const topRatedLandmarks = apiLandmarks
           .filter(place => place?.rate != null || place?.rating != null)
@@ -625,6 +681,8 @@ const MapBeginPage = () => {
           .filter(place => place?.distance != null)
           .sort((a, b) => parseNumber(a.distance, Number.POSITIVE_INFINITY) - parseNumber(b.distance, Number.POSITIVE_INFINITY))
           .slice(0, 10);
+
+        setLandmarkPlaces(landmarksWithImages);
 
         setRoutingData(prev => {
           const mergedPlaces = {
@@ -644,6 +702,8 @@ const MapBeginPage = () => {
       } catch (error) {
         console.error('Failed to load landmark places', error);
         toast.error(intl.formatMessage({ id: 'generalErrorMessage' }));
+
+        setLandmarkPlaces([]);
 
         setRoutingData(prev => ({
           ...prev,
@@ -731,6 +791,63 @@ const MapBeginPage = () => {
     ? shrineEvents
     : routingData?.places?.shrineEvents || [];
 
+  const [isEventsModalOpen, setIsEventsModalOpen] = useState(false);
+  const [activePlacesModal, setActivePlacesModal] = useState(null);
+
+  const openEventsModal = () => {
+    if (eventsToShow.length > 0) {
+      setIsEventsModalOpen(true);
+    }
+  };
+
+  const closeEventsModal = () => {
+    setIsEventsModalOpen(false);
+  };
+
+  const openPlacesModal = (type) => {
+    const places = routingData?.places?.[type];
+
+    if (Array.isArray(places) && places.length > 0) {
+      setActivePlacesModal(type);
+    }
+  };
+
+  const closePlacesModal = () => {
+    setActivePlacesModal(null);
+  };
+
+  const getPlacesForModal = () => {
+    if (!routingData?.places) return [];
+
+    switch (activePlacesModal) {
+      case 'landmarkPlaces':
+        return routingData.places.landmarkPlaces || [];
+      case 'mostVisited':
+        return routingData.places.mostVisited || [];
+      case 'nearest':
+        return routingData.places.nearest || [];
+      default:
+        return [];
+    }
+  };
+
+  const getPlacesModalTitle = () => {
+    switch (activePlacesModal) {
+      case 'landmarkPlaces':
+        return intl.formatMessage({ id: 'landmarkPlaces' });
+      case 'mostVisited':
+        return intl.formatMessage({ id: 'mostVisited' });
+      case 'nearest':
+        return intl.formatMessage({ id: 'nearMe' });
+      default:
+        return '';
+    }
+  };
+
+  const handlePlaceNavigation = (place) => {
+    navigate('/fs', { state: { place } });
+  };
+
   return (
     <div className="map-routing-page">
       {/* Header */}
@@ -800,11 +917,12 @@ const MapBeginPage = () => {
           isQrCodeEntry={isQrCodeEntry}
           groups={groups}
           subGroups={subGroups}
-        />
-        <button
-          className={`map-gps-button ${isTracking ? 'active' : ''}`}
-          onClick={() => setIsTracking((t) => !t)}
-        >
+        landmarkPlaces={landmarkPlaces}
+      />
+      <button
+        className={`map-gps-button ${isTracking ? 'active' : 'inactive'}`}
+        onClick={() => setIsTracking((t) => !t)}
+      >
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
             <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
@@ -933,7 +1051,7 @@ const MapBeginPage = () => {
                 <h2 className="shrine-events-title">
                   {intl.formatMessage({ id: 'shrineEventsTitle' })}
                 </h2>
-                <button className="view-all-events">
+                <button className="view-all-events" onClick={openEventsModal}>
                   {intl.formatMessage({ id: 'viewAll' })}
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path stroke="none" d="M0 0h24v24H0z" fill="none" />
@@ -985,6 +1103,115 @@ const MapBeginPage = () => {
               </div>
             </div>
           )}
+
+          {isEventsModalOpen && (
+            <div className="events-modal-overlay" onClick={closeEventsModal}>
+              <div className="events-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="events-modal-header">
+                  <h3>{intl.formatMessage({ id: 'shrineEventsTitle' })}</h3>
+                  <button className="close-modal-btn" onClick={closeEventsModal}>
+                    &times;
+                  </button>
+                </div>
+                <div className="events-modal-content">
+                  {eventsToShow.map((event, index) => (
+                    <div key={index} className="events-modal-item">
+                      <div className="events-modal-image" style={{ backgroundImage: `url(${event.image})` }} />
+                      <div className="events-modal-info">
+                        <h4>{event.title}</h4>
+                        <p>{event.description}</p>
+                        <div className="events-modal-meta">
+                          <span>{event.location}</span>
+                          <span className="modal-meta-divider">•</span>
+                          <span>{event.time}</span>
+                        </div>
+                        <div className="events-modal-actions">
+                          <button
+                            className="place-action-btn events-modal-nav-btn"
+                            onClick={() => navigate('/fs')}
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="currentColor"
+                            >
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path d="M11.092 2.581a1 1 0 0 1 1.754 -.116l.062 .116l8.005 17.365c.198 .566 .05 1.196 -.378 1.615a1.53 1.53 0 0 1 -1.459 .393l-7.077 -2.398l-6.899 2.338a1.535 1.535 0 0 1 -1.52 -.231l-.112 -.1c-.398 -.386 -.556 -.954 -.393 -1.556l.047 -.15l7.97 -17.276z" />
+                            </svg>
+                            {intl.formatMessage({ id: 'navigate' })}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activePlacesModal && (
+            <div className="events-modal-overlay" onClick={closePlacesModal}>
+              <div className="events-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="events-modal-header">
+                  <h3>{getPlacesModalTitle()}</h3>
+                  <button className="close-modal-btn" onClick={closePlacesModal}>
+                    &times;
+                  </button>
+                </div>
+                <div className="events-modal-content">
+                  {getPlacesForModal().map((place, index) => (
+                    <div key={`${activePlacesModal}-${index}`} className="events-modal-item">
+                      <div
+                        className="events-modal-image"
+                        style={place.image ? { backgroundImage: `url(${place.image})` } : {}}
+                      />
+                      <div className="events-modal-info">
+                        <h4>{place.title}</h4>
+                        {place.description && <p>{place.description}</p>}
+                        {(place.distance != null || place.time != null) && (
+                          <div className="events-modal-meta">
+                            {place.distance != null && (
+                              <span>
+                                {place.distance} {intl.formatMessage({ id: 'meter' })}
+                              </span>
+                            )}
+                            {place.distance != null && place.time != null && (
+                              <span className="modal-meta-divider">•</span>
+                            )}
+                            {place.time != null && (
+                              <span>
+                                {place.time} {intl.formatMessage({ id: 'walking' })}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        <div className="events-modal-actions">
+                          <button
+                            className="place-action-btn events-modal-nav-btn"
+                            onClick={() => handlePlaceNavigation(place)}
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="currentColor"
+                            >
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path d="M11.092 2.581a1 1 0 0 1 1.754 -.116l.062 .116l8.005 17.365c.198 .566 .05 1.196 -.378 1.615a1.53 1.53 0 0 1 -1.459 .393l-7.077 -2.398l-6.899 2.338a1.535 1.535 0 0 1 -1.52 -.231l-.112 -.1c-.398 -.386 -.556 -.954 -.393 -1.556l.047 -.15l7.97 -17.276z" />
+                            </svg>
+                            {intl.formatMessage({ id: 'navigate' })}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
           {/* Landmarks */}
           {routingData && (
             <div className="routing-places-section">
@@ -992,7 +1219,7 @@ const MapBeginPage = () => {
                 <h2 className="section-title6">
                   {intl.formatMessage({ id: 'landmarkPlaces' })}
                 </h2>
-                <button className="view-all-btn5">
+                <button className="view-all-btn5" onClick={() => openPlacesModal('landmarkPlaces')}>
                   {intl.formatMessage({ id: 'viewAll' })}
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path stroke="none" d="M0 0h24v24H0z" fill="none" />
@@ -1062,7 +1289,7 @@ const MapBeginPage = () => {
                 <h2 className="section-title6">
                   {intl.formatMessage({ id: 'mostVisited' })}
                 </h2>
-                <button className="view-all-btn5">
+                <button className="view-all-btn5" onClick={() => openPlacesModal('mostVisited')}>
                   {intl.formatMessage({ id: 'viewAll' })}
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path stroke="none" d="M0 0h24v24H0z" fill="none" />
@@ -1124,7 +1351,7 @@ const MapBeginPage = () => {
                 <h2 className="section-title6">
                   {intl.formatMessage({ id: 'nearMe' })}
                 </h2>
-                <button className="view-all-btn5">
+                <button className="view-all-btn5" onClick={() => openPlacesModal('nearest')}>
                   {intl.formatMessage({ id: 'viewAll' })}
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path stroke="none" d="M0 0h24v24H0z" fill="none" />

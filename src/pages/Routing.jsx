@@ -20,6 +20,7 @@ const RoutingPage = () => {
   const routeMapRef = useRef(null);
   const audioRef = useRef(typeof Audio !== 'undefined' ? new Audio() : null);
   const audioUrlRef = useRef(null);
+  const hasShownTtsErrorRef = useRef(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(true);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(true);
   const [routeData, setRouteData] = useState(null);
@@ -53,6 +54,8 @@ const RoutingPage = () => {
   const [drGeoPath, setDrGeoPath] = useState([]);
   const [showAlternativeRoutesOnMap, setShowAlternativeRoutesOnMap] = useState(false);
   const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
+  const [hasPreciseGps, setHasPreciseGps] = useState(false);
+  const [userHeading, setUserHeading] = useState(null);
   const navigate = useNavigate();
   const {
     origin,
@@ -76,6 +79,26 @@ const RoutingPage = () => {
     pitch: is3DView ? 60 : 0,
     isAlternativeRoutes: false
   });
+
+  const initialRouteCoordRef = useRef(null);
+  const PRECISE_GPS_ACCURACY_THRESHOLD = 25;
+
+  const updateUserLocationToRouteStart = useCallback(() => {
+    const startCoord = routeGeo?.geometry?.coordinates?.[0];
+    if (!Array.isArray(startCoord) || startCoord.length < 2) {
+      return false;
+    }
+
+    const [startLng, startLat] = startCoord;
+    const startKey = `${startLat},${startLng}`;
+
+    if (initialRouteCoordRef.current !== startKey) {
+      setUserLocation([startLat, startLng]);
+      initialRouteCoordRef.current = startKey;
+    }
+
+    return true;
+  }, [routeGeo]);
 
   useEffect(() => {
     return () => {
@@ -165,7 +188,10 @@ const RoutingPage = () => {
       } catch (error) {
         if (!isCancelled) {
           console.error('Failed to play navigation audio', error);
-          toast.error(intl.formatMessage({ id: 'ttsPlaybackError' }));
+          if (!hasShownTtsErrorRef.current) {
+            toast.error(intl.formatMessage({ id: 'ttsPlaybackError' }));
+            hasShownTtsErrorRef.current = true;
+          }
         }
       }
     };
@@ -498,9 +524,9 @@ const RoutingPage = () => {
     return `${hours}:${minutes}`;
   };
 
-  const toRad = (deg) => (deg * Math.PI) / 180;
-  const toDeg = (rad) => (rad * 180) / Math.PI;
-  const bearing = (from, to) => {
+  const toRad = useCallback((deg) => (deg * Math.PI) / 180, []);
+  const toDeg = useCallback((rad) => (rad * 180) / Math.PI, []);
+  const bearing = useCallback((from, to) => {
     const [lng1, lat1] = from;
     const [lng2, lat2] = to;
     const y = Math.sin(toRad(lng2 - lng1)) * Math.cos(toRad(lat2));
@@ -508,7 +534,7 @@ const RoutingPage = () => {
       Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
       Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(toRad(lng2 - lng1));
     return (toDeg(Math.atan2(y, x)) + 360) % 360;
-  };
+  }, [toDeg, toRad]);
 
   const computeTurn = (b1, b2) => {
     const diff = ((b1 - b2 + 540) % 360) - 180;
@@ -518,6 +544,22 @@ const RoutingPage = () => {
     if (ad < 100) return diff > 0 ? 'left' : 'right';
     return diff > 0 ? 'bend-left' : 'bend-right';
   };
+
+  useEffect(() => {
+    const coords = routeGeo?.geometry?.coordinates;
+    if (!Array.isArray(coords) || coords.length === 0) {
+      return;
+    }
+
+    if (!isDrActive && !hasPreciseGps) {
+      updateUserLocationToRouteStart();
+    }
+
+    if (coords.length > 1) {
+      const initialHeading = bearing(coords[0], coords[1]);
+      setUserHeading(initialHeading);
+    }
+  }, [bearing, hasPreciseGps, isDrActive, routeGeo, updateUserLocationToRouteStart]);
 
   // Load route data from JSON for initial display when no analyzed route exists
   useEffect(() => {
@@ -716,30 +758,48 @@ const RoutingPage = () => {
           enableHighAccuracy: true,
           timeout: 10000,
           maximumAge: 0
-        }
+        };
 
         const success = (position) => {
           if (sessionStorage.getItem('qrLat') && sessionStorage.getItem('qrLng')) {
             return;
           }
-          setUserLocation([position.coords.latitude, position.coords.longitude])
+
+          const accuracy = position.coords.accuracy;
+          const hasValidAccuracy = Number.isFinite(accuracy) && accuracy <= PRECISE_GPS_ACCURACY_THRESHOLD;
+
+          if (hasValidAccuracy) {
+            setHasPreciseGps(true);
+            setUserLocation([position.coords.latitude, position.coords.longitude]);
+          } else {
+            setHasPreciseGps(false);
+            const snappedToRoute = updateUserLocationToRouteStart();
+            if (!snappedToRoute) {
+              setUserLocation([36.2880, 59.6157]);
+            }
+          }
+
           advancedDeadReckoningService.processGpsData(
             { lat: position.coords.latitude, lng: position.coords.longitude },
-            position.coords.accuracy
-          )
-        }
+            accuracy
+          );
+        };
 
         const error = (err) => {
-          console.warn(`ERROR(${err.code}): ${err.message}`)
-          setUserLocation([36.2880, 59.6157])
-        }
+          console.warn(`ERROR(${err.code}): ${err.message}`);
+          setHasPreciseGps(false);
+          const snappedToRoute = updateUserLocationToRouteStart();
+          if (!snappedToRoute) {
+            setUserLocation([36.2880, 59.6157]);
+          }
+        };
 
-        const watchId = navigator.geolocation.watchPosition(success, error, options)
+        const watchId = navigator.geolocation.watchPosition(success, error, options);
 
-        return () => navigator.geolocation.clearWatch(watchId)
+        return () => navigator.geolocation.clearWatch(watchId);
       }
     }
-  }, [storedLat, storedLng])
+  }, [PRECISE_GPS_ACCURACY_THRESHOLD, storedLat, storedLng, updateUserLocationToRouteStart]);
 
   // Auto-advance steps when routing is active
   useEffect(() => {
@@ -1232,6 +1292,7 @@ const RoutingPage = () => {
           <RouteMap
             ref={routeMapRef}
             userLocation={userLocation}
+            userHeading={userHeading}
             routeSteps={routeData.steps}
             currentStep={currentStep}
             isInfoModalOpen={isInfoModalOpen}

@@ -1,6 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation as useReactLocation } from 'react-router-dom';
-import axios from 'axios';
 import '../styles/Location.css';
 import { FormattedMessage, useIntl } from 'react-intl';
 import localizeLocationData from '../utils/localizeLocationData.js';
@@ -12,6 +11,8 @@ import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import ttsService from '../services/ttsService';
+import { fetchLandmarkPlaces } from '../services/landmarkService';
+import { submitUserFeedback } from '../services/userFeedbackService';
 
 // Import video files
 import v1 from '/assets/videos/vid1.mp4';
@@ -84,7 +85,7 @@ const Location = () => {
     return new URLSearchParams(search);
   };
 
-  const locationId = getSearchParams().get('id');
+  const locationState = currentLocation.state?.location;
   const intl = useIntl();
   const formatDigits = useLocaleDigits();
   const [activeSlide, setActiveSlide] = useState(0);
@@ -106,6 +107,7 @@ const Location = () => {
   const [currentUserLocation, setCurrentUserLocation] = useState(null);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [isVideoFullscreen, setIsVideoFullscreen] = useState(false);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
   const carouselRef = useRef(null);
   const aboutContentRef = useRef(null);
@@ -114,6 +116,144 @@ const Location = () => {
   const [geoData, setGeoData] = useState(null);
   const setDestinationStore = useRouteStore(state => state.setDestination);
   const language = useLangStore(state => state.language);
+
+  const aboutTexts = useMemo(() => {
+    const extractFirstSentence = (text) => {
+      if (!text) return '';
+
+      const firstPeriodIndex = text.indexOf('.');
+      if (firstPeriodIndex !== -1) {
+        return text.slice(0, firstPeriodIndex + 1).trim();
+      }
+
+      return text;
+    };
+
+    const rawFull = (locationData?.about?.full ?? '').toString().trim();
+    const rawShort = (locationData?.about?.short ?? '').toString().trim();
+
+    const fullText = rawFull || rawShort;
+    const shortText = extractFirstSentence(rawShort || rawFull);
+
+    return {
+      short: shortText,
+      full: fullText
+    };
+  }, [locationData?.about]);
+
+  const normalizeLocationId = (id) => {
+    if (!id) return null;
+
+    const normalizedId = id.toString().toLowerCase();
+    const idMappings = {
+      saghakhaneh: 'saqqakhaneh',
+      saghakhaneh_15: 'saqqakhaneh',
+      rozemonavare: 'rozemonavare_12'
+    };
+
+    return idMappings[normalizedId] || id;
+  };
+
+  const getRequestedLocationId = () => {
+    const paramsId = normalizeLocationId(getSearchParams().get('id'));
+    const stateId = normalizeLocationId(locationState?.id || locationState?.value);
+    const storedId = normalizeLocationId(sessionStorage.getItem('mapSelectedId'));
+
+    return paramsId || stateId || storedId;
+  };
+
+  const extractContentBody = (place) => {
+    if (!place) return null;
+
+    if (place?.content?.body) {
+      return place.content.body;
+    }
+
+    if (place?.body) {
+      return place.body;
+    }
+
+    if (Array.isArray(place?.contents)) {
+      const contentWithBody = place.contents.find(item => item?.body);
+      if (contentWithBody?.body) {
+        return contentWithBody.body;
+      }
+    }
+
+    return null;
+  };
+
+  const normalizeImages = (place) => {
+    if (!place) return [];
+
+    if (Array.isArray(place.images)) return place.images;
+    if (Array.isArray(place.image)) return place.image;
+    if (Array.isArray(place.img)) return place.img;
+
+    if (typeof place.images === 'string' && place.images.trim()) return [place.images];
+    if (typeof place.image === 'string' && place.image.trim()) return [place.image];
+    if (typeof place.img === 'string' && place.img.trim()) return [place.img];
+
+    return [];
+  };
+
+  const normalizeAbout = (place) => {
+    const contentBody = extractContentBody(place);
+
+    if (contentBody) {
+      return { short: contentBody, full: contentBody };
+    }
+
+    if (typeof place?.about === 'string') {
+      return { short: place.about, full: place.about };
+    }
+
+    if (place?.about?.short || place?.about?.full) {
+      const short = place.about.short ?? place.about.full ?? '';
+      const full = place.about.full ?? place.about.short ?? '';
+
+      return { short: short || full, full: full || short };
+    }
+
+    const description = place?.description || '';
+    return { short: description, full: description };
+  };
+
+  const normalizePlaceData = (place) => {
+    if (!place) return null;
+
+    return {
+      ...place,
+      images: normalizeImages(place),
+      about: normalizeAbout(place),
+      location: place.location || place.address || place.label || '',
+      openingHours: place.openingHours ?? place.open_hours ?? place.hours ?? '',
+      contents: Array.isArray(place.contents) ? place.contents : [],
+      comments: Array.isArray(place.comments) ? place.comments : [],
+      views: place.views ?? place.view ?? 0,
+      averageRating: place.averageRating ?? place.rate ?? place.rating ?? 0
+    };
+  };
+
+  const findMatchingLocation = (places, requestedId) => {
+    if (!requestedId || !Array.isArray(places)) return null;
+
+    const normalizedRequestedId = normalizeLocationId(requestedId)?.toString().toLowerCase();
+
+    return places.find(place => {
+      const candidateIds = [
+        place?.id,
+        place?.value,
+        place?.subGroupValue,
+        place?.poi_id,
+        place?.poiId
+      ]
+        .map(id => normalizeLocationId(id)?.toString().toLowerCase())
+        .filter(Boolean);
+
+      return candidateIds.includes(normalizedRequestedId);
+    }) || null;
+  };
 
   useEffect(() => {
     // More flexible QR code detection - only need coordinates
@@ -211,15 +351,12 @@ const Location = () => {
   };
 
   useEffect(() => {
-    if (!locationData?.about) {
+    if (!aboutTexts.full && !aboutTexts.short) {
       return;
     }
 
-    const shortAbout = locationData.about?.short ?? '';
-    const fullAbout = locationData.about?.full ?? '';
-
-    const trimmedShortAbout = shortAbout.trim();
-    const trimmedFullAbout = fullAbout.trim();
+    const trimmedShortAbout = aboutTexts.short.trim();
+    const trimmedFullAbout = aboutTexts.full.trim();
 
     const extractContinuation = (shortText, fullText) => {
       if (!fullText) {
@@ -338,7 +475,7 @@ const Location = () => {
       isCancelled = true;
       stopAboutSpeech();
     };
-  }, [intl, language, locationData, showFullAbout]);
+  }, [intl, language, aboutTexts, showFullAbout]);
 
   // Initialize carousel position
   useEffect(() => {
@@ -397,26 +534,79 @@ const Location = () => {
     setHoverRating(0);
   };
 
-  const handleCommentSubmit = (e) => {
-    e.preventDefault();
-    if (comment.trim()) {
-      const newComment = {
-        author: intl.formatMessage({ id: 'defaultCommentAuthor' }),
-        text: comment,
-        date: ['fa', 'ur', 'ar'].includes(language)
-          ? new Date().toLocaleDateString('fa-IR')
-          : new Date().toLocaleDateString(),
-        rating: rating || 0
-      };
+  const formatCommentDate = (dateValue = new Date()) => {
+    const locale = ['fa', 'ur', 'ar'].includes(language) ? 'fa-IR' : 'en-US';
+    try {
+      return new Date(dateValue).toLocaleDateString(locale);
+    } catch {
+      return dateValue?.toString?.() || '';
+    }
+  };
 
-      setComments(prev => [newComment, ...prev]);
+  const buildDisplayComment = (apiResponse, fallbackComment) => {
+    const responseComment = apiResponse?.comment || apiResponse?.data || apiResponse || {};
+    const dateValue = responseComment?.date || responseComment?.created_at || responseComment?.createdAt;
+
+    return {
+      author: responseComment?.author || responseComment?.user || responseComment?.user_name || fallbackComment.author,
+      text: responseComment?.text ?? responseComment?.comment ?? fallbackComment.text,
+      date: dateValue ? formatCommentDate(dateValue) : fallbackComment.date,
+      rating: Number(responseComment?.rating ?? responseComment?.score ?? fallbackComment.rating ?? 0) || 0
+    };
+  };
+
+  const handleCommentSubmit = async (e) => {
+    e.preventDefault();
+    const trimmedComment = comment.trim();
+    if (!trimmedComment) return;
+
+    const poiId = normalizeLocationId(locationData?.id || locationData?.value || getRequestedLocationId());
+
+    if (!poiId) {
+      toast.error(intl.formatMessage({ id: 'commentSubmitMissingId' }));
+      return;
+    }
+
+    const pendingComment = {
+      author: intl.formatMessage({ id: 'defaultCommentAuthor' }),
+      text: trimmedComment,
+      date: formatCommentDate(),
+      rating: rating || 0
+    };
+
+    setIsSubmittingComment(true);
+
+    try {
+      const response = await submitUserFeedback({
+        poiId,
+        comment: trimmedComment,
+        rating: rating || 0,
+        language
+      });
+
+      const savedComment = buildDisplayComment(response, pendingComment);
+
+      setComments(prev => {
+        const updated = [savedComment, ...prev];
+        const average = updated.length
+          ? updated.reduce((sum, item) => sum + (item.rating || 0), 0) / updated.length
+          : 0;
+        setOverallRating(average);
+        return updated;
+      });
+
       setComment('');
       setViews(prev => prev + 1);
       setRating(0);
       setHoverRating(0);
       setShowCommentModal(false);
       document.body.style.overflow = 'auto';
-      calculateAverageRating();
+      toast.success(intl.formatMessage({ id: 'commentSubmitSuccess' }));
+    } catch (err) {
+      console.error('Failed to submit comment', err);
+      toast.error(intl.formatMessage({ id: 'commentSubmitError' }));
+    } finally {
+      setIsSubmittingComment(false);
     }
   };
 
@@ -586,36 +776,47 @@ const Location = () => {
   // In the Location component, modify the location data fetching to handle both cases
   useEffect(() => {
     const fetchLocationData = async () => {
+      setLoading(true);
+      setError(null);
+
       try {
-        const response = await axios.get(`./data/locationData.json`);
-        let data = response.data;
+        const requestedLocationId = getRequestedLocationId();
+        const apiResponse = await fetchLandmarkPlaces({
+          language,
+          poiId: requestedLocationId
+        });
 
-        // First try to get location from URL parameters (for our special places)
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlId = urlParams.get('id');
+        const apiLocations = Array.isArray(apiResponse?.places?.landmarkPlaces)
+          ? apiResponse.places.landmarkPlaces
+          : Array.isArray(apiResponse)
+            ? apiResponse
+            : [];
 
-        if (urlId && (urlId === 'rozemonavare_12' || urlId === 'saghakhaneh_15')) {
-          // Use the URL ID for our special places
-          data = Array.isArray(data) ? data.find(loc => loc.id === urlId) || data[0] : data;
-        } else {
-          // Use the normal location ID from state or props
-          data = Array.isArray(data) ? data.find(loc => loc.id === locationId) || data[0] : data;
+        const matchedLocation = findMatchingLocation(apiLocations, requestedLocationId)
+          || (apiLocations.length === 1 ? apiLocations[0] : null)
+          || findMatchingLocation([locationState], requestedLocationId)
+          || locationState;
+
+        const normalizedData = normalizePlaceData(matchedLocation);
+
+        if (!normalizedData) {
+          throw new Error(intl.formatMessage({ id: 'noDataFound' }));
         }
 
-        data = localizeLocationData(data, language);
-        setLocationData(data);
-        setComments(data.comments || []);
-        setViews(data.views || 0);
-        setOverallRating(data.averageRating || 0);
-        setLoading(false);
+        const localizedData = localizeLocationData(normalizedData, language);
+        setLocationData(localizedData);
+        setComments(localizedData.comments || []);
+        setViews(localizedData.views || 0);
+        setOverallRating(localizedData.averageRating || 0);
       } catch (err) {
         setError(err.message);
+      } finally {
         setLoading(false);
       }
     };
 
     fetchLocationData();
-  }, [locationId, language]);
+  }, [currentLocation, language, intl, locationState]);
 
   useEffect(() => {
     calculateAverageRating();
@@ -731,7 +932,7 @@ const Location = () => {
           </h3>
           <div className={`about-content ${showFullAbout ? 'expanded' : ''}`}>
             <p>
-              {showFullAbout ? locationData.about.full : locationData.about.short}
+              {showFullAbout ? aboutTexts.full : aboutTexts.short}
               {!showFullAbout && (
                 <button className="read-more" onClick={toggleAbout}>
                   <FormattedMessage id="readMore" />
@@ -957,8 +1158,14 @@ const Location = () => {
                 ></textarea>
               </div>
 
-              <button className="submit-comment" onClick={handleCommentSubmit}>
-                <FormattedMessage id="submitComment" />
+              <button
+                className="submit-comment"
+                onClick={handleCommentSubmit}
+                disabled={isSubmittingComment}
+              >
+                {isSubmittingComment
+                  ? intl.formatMessage({ id: 'commentSubmitting' })
+                  : <FormattedMessage id="submitComment" />}
               </button>
             </div>
           </div>

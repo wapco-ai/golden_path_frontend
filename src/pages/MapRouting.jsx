@@ -14,6 +14,7 @@ import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/grou
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { fetchAreaDoors } from '../services/areaDoorsService';
 import { getSessionFloor } from '../utils/sessionFloor';
+import { fetchLandmarkPlaces } from '../services/landmarkService';
 
 const MapRoutingPage = () => {
   const navigate = useNavigate();
@@ -34,16 +35,13 @@ const MapRoutingPage = () => {
       name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
       coordinates: [parseFloat(storedLat), parseFloat(storedLng)]
     }
-    : {
-      name: intl.formatMessage({ id: 'defaultBabRezaName' }),
-      coordinates: [36.297, 59.6069]
-    };
+    : null;
   const [userLocation, setUserLocation] = useState(initialUserLocation);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeInput, setActiveInput] = useState(null);
   const [isGPSEnabled, setIsGPSEnabled] = useState(false);
   const [isSelectingFromMap, setIsSelectingFromMap] = useState(false);
-  const [isTracking, setIsTracking] = useState(true);
+  const [isTracking, setIsTracking] = useState(false);
   const [mapSelectedLocation, setMapSelectedLocation] = useState(null);
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [showRouteInfoModal, setShowRouteInfoModal] = useState(false);
@@ -55,6 +53,9 @@ const MapRoutingPage = () => {
   const [areaDoorsStatus, setAreaDoorsStatus] = useState(null);
   const [areaDoorsMessage, setAreaDoorsMessage] = useState('');
   const [mapEntryDoors, setMapEntryDoors] = useState([]);
+  const [landmarkPlaces, setLandmarkPlaces] = useState([]);
+  const [showImageMarkers] = useState(true);
+  const [lastAreaDoorsCoords, setLastAreaDoorsCoords] = useState(null);
 
   // Separate state for map categories and modal categories
   const [mapSelectedCategory, setMapSelectedCategory] = useState(null);
@@ -104,6 +105,64 @@ const MapRoutingPage = () => {
     };
   }, [language]);
 
+  useEffect(() => {
+    const loadLandmarkPlaces = async () => {
+      const geoCoordinates = userLocation?.coordinates;
+      const geo = Array.isArray(geoCoordinates) && geoCoordinates.length >= 2
+        ? { lat: geoCoordinates[0], lng: geoCoordinates[1] }
+        : null;
+
+      const getFirstImage = (place) => {
+        if (!place) return null;
+
+        if (Array.isArray(place.image) && place.image.length > 0) {
+          return place.image[0];
+        }
+
+        if (Array.isArray(place.images) && place.images.length > 0) {
+          return place.images[0];
+        }
+
+        if (typeof place.image === 'string' && place.image.trim()) {
+          return place.image;
+        }
+
+        if (typeof place.images === 'string' && place.images.trim()) {
+          return place.images;
+        }
+
+        return null;
+      };
+
+      try {
+        const data = await fetchLandmarkPlaces({
+          language,
+          geo
+        });
+
+        const apiLandmarks = Array.isArray(data?.places?.landmarkPlaces)
+          ? data.places.landmarkPlaces
+          : [];
+
+        const landmarksWithImages = apiLandmarks
+          .map(place => {
+            const image = getFirstImage(place);
+            if (!image) return null;
+            return { ...place, image };
+          })
+          .filter(Boolean);
+
+        setLandmarkPlaces(landmarksWithImages);
+      } catch (error) {
+        console.error('Failed to load landmark places', error);
+        toast.error(intl.formatMessage({ id: 'generalErrorMessage' }));
+        setLandmarkPlaces([]);
+      }
+    };
+
+    loadLandmarkPlaces();
+  }, [language, userLocation, intl]);
+
   const setOriginStore = useRouteStore(state => state.setOrigin);
   const setDestinationStore = useRouteStore(state => state.setDestination);
   const recentSearches = useSearchStore(state => state.recentSearches);
@@ -148,6 +207,27 @@ const MapRoutingPage = () => {
     ];
   };
 
+  const getCategoryCenterCoordinates = (category) => {
+    if (!category) return null;
+
+    if (geoData?.features?.length) {
+      const matchedFeature = geoData.features.find(
+        (feature) => feature?.properties?.[category.property] === category.value
+      );
+
+      const center = getFeatureCenter(matchedFeature);
+      if (center && Array.isArray(center) && center.length >= 2) {
+        return [center[1], center[0]];
+      }
+    }
+
+    if (Array.isArray(category.coordinates) && category.coordinates.length >= 2) {
+      return category.coordinates;
+    }
+
+    return null;
+  };
+
   const getFeatureCenter = (feature) => {
     if (!feature) return null;
     const { geometry } = feature;
@@ -158,23 +238,35 @@ const MapRoutingPage = () => {
     return null;
   };
 
-  const handleCategoryClickInModal = (category) => {
+  const handleCategoryClickInModal = async (category) => {
     setModalSelectedCategory(category);
-
-    // Localize the subgroups
-    const localized = (subGroups[category.value] || []).map(sg => ({
-      ...sg,
-      label: getLocalizedSubgroupLabel(geoData, sg.value, sg.label),
-      description: getLocalizedSubgroupDescription(
-        geoData,
-        sg.value,
-        sg.description || intl.formatMessage({ id: 'subgroupDefaultDesc' })
-      )
-    }));
-
-    setModalFilteredSubGroups(localized);
     setSearchQuery('');
     setIsSearching(true);
+
+    try {
+      const response = await fetchSubGroups({ language, groups: category.value, withImages: true });
+      const normalizedSubGroups = normalizeSubGroupMetadata(response?.subGroups, language);
+
+      setSubGroups((prev) => ({
+        ...prev,
+        ...normalizedSubGroups
+      }));
+
+      const localized = (normalizedSubGroups[category.value] || []).map((sg) => ({
+        ...sg,
+        label: getLocalizedSubgroupLabel(geoData, sg.value, sg.label),
+        description: getLocalizedSubgroupDescription(
+          geoData,
+          sg.value,
+          sg.description || intl.formatMessage({ id: 'subgroupDefaultDesc' })
+        )
+      }));
+
+      setModalFilteredSubGroups(localized);
+    } catch (err) {
+      console.error('failed to fetch sub groups for modal category', err);
+      setModalFilteredSubGroups([]);
+    }
   };
 
   // Add this function to clear search and go back to categories
@@ -290,6 +382,9 @@ const MapRoutingPage = () => {
   }, [userLocation]);
 
   const handleSubgroupSelect = async (subgroup) => {
+    setSelectedSubgroup(subgroup);
+    setActiveInput('destination');
+
     let coordinates = null;
 
     // Try to get coordinates from geoData first
@@ -309,6 +404,14 @@ const MapRoutingPage = () => {
     // If no coordinates from geoData, check if subgroup has its own coordinates
     if (!coordinates && subgroup.coordinates) {
       coordinates = subgroup.coordinates;
+    }
+
+    // If still no coordinates, try the subgroup's geo field
+    if (!coordinates && subgroup.geo) {
+      const { lat, lng } = subgroup.geo;
+      if (typeof lat === 'number' && typeof lng === 'number') {
+        coordinates = [lat, lng];
+      }
     }
 
     // If still no coordinates, try to find any feature with this subgroup value for coordinates
@@ -335,7 +438,7 @@ const MapRoutingPage = () => {
 
     console.log('Subgroup selected:', subgroup.label, 'Coordinates:', coordinates);
 
-    handleDestinationSelect(destination);
+    handleDestinationSelect(destination, { forceDestination: true });
   };
 
   const handleSubgroupSelectWithModal = (subgroup) => {
@@ -350,13 +453,17 @@ const MapRoutingPage = () => {
   };
 
   // UPDATED: Handle destination selection - show entry modal first
-  const handleDestinationSelect = (destination) => {
+  const handleDestinationSelect = (destination, options = {}) => {
+    const { forceDestination = false } = options;
+
     setAreaDoorsData(null);
     setAreaDoorsStatus(null);
     setAreaDoorsMessage('');
     setMapEntryDoors([]);
 
-    if (activeInput === 'destination') {
+    const isDestinationInput = activeInput === 'destination' || forceDestination;
+
+    if (isDestinationInput) {
       // Store the destination temporarily and show entry modal
       setTempDestination(destination);
       setShowDestinationModal(false);
@@ -544,12 +651,8 @@ const MapRoutingPage = () => {
       setSelectedDestination(destData);
       sessionStorage.setItem('currentDestination', JSON.stringify(destData));
 
-      const defaultOrigin = {
-        name: intl.formatMessage({ id: 'defaultBabRezaName' }),
-        coordinates: [36.297, 59.6069]
-      };
-      setUserLocation(defaultOrigin);
-      sessionStorage.setItem('currentOrigin', JSON.stringify(defaultOrigin));
+      setUserLocation(null);
+      sessionStorage.removeItem('currentOrigin');
 
       setIsTracking(false);
       return;
@@ -588,24 +691,58 @@ const MapRoutingPage = () => {
     }
   };
 
-  const handleCategoryClick = (category) => {
-    setMapSelectedCategory((current) => {
-      if (current && current.value === category.value) {
-        setMapSelectedSubGroups([]);
-        return null;
-      } else {
-        const categorySubGroups = subGroups[category.value] || [];
-        const hasSubGroupsWithImages = categorySubGroups.some(sub => sub.img);
+  const handleCategoryClick = async (category) => {
+    const isSameCategory = mapSelectedCategory && mapSelectedCategory.value === category.value;
 
-        if (hasSubGroupsWithImages) {
-          setMapSelectedSubGroups(categorySubGroups);
-        } else {
-          setMapSelectedSubGroups([]);
-        }
+    if (isSameCategory) {
+      setMapSelectedCategory(null);
+      setMapSelectedSubGroups([]);
+      setAreaDoorsData(null);
+      setAreaDoorsStatus(null);
+      setAreaDoorsMessage('');
+      setMapEntryDoors([]);
+      return;
+    }
 
-        return category;
-      }
-    });
+    const categorySubGroups = subGroups[category.value] || [];
+    const hasSubGroupsWithImages = categorySubGroups.some(sub => sub.img);
+
+    if (hasSubGroupsWithImages) {
+      setMapSelectedSubGroups(categorySubGroups);
+    } else {
+      setMapSelectedSubGroups([]);
+    }
+
+    setMapSelectedCategory(category);
+    setActiveInput('destination');
+    setSelectedEntry(null);
+
+    const categoryCoordinates = getCategoryCenterCoordinates(category);
+
+    if (!categoryCoordinates) {
+      return;
+    }
+
+    const destination = {
+      name: intl.formatMessage({ id: category.label }),
+      location: intl.formatMessage({ id: category.label }),
+      coordinates: categoryCoordinates
+    };
+
+    setTempDestination(destination);
+
+    const result = await requestAreaDoors(categoryCoordinates[0], categoryCoordinates[1]);
+
+    if (result?.doors?.length) {
+      setShowEntryModal(true);
+      return;
+    }
+
+    setShowEntryModal(false);
+    setTempDestination(null);
+    setSelectedDestination(destination);
+    addSearch(destination);
+    sessionStorage.setItem('currentDestination', JSON.stringify(destination));
   };
 
   const handleSubGroupClick = (subGroup) => {
@@ -650,6 +787,7 @@ const MapRoutingPage = () => {
     setAreaDoorsMessage('');
     setMapEntryDoors([]);
     setAreaDoorsData(null);
+    setLastAreaDoorsCoords([lat, lon]);
 
     try {
       const floor = getSessionFloor();
@@ -665,14 +803,33 @@ const MapRoutingPage = () => {
         : null);
       setAreaDoorsMessage(response?.message || '');
       setMapEntryDoors(nextDoors);
+      return { status: response?.status || 'ok', doors: nextDoors };
     } catch (error) {
       console.error('failed to fetch area doors', error);
       setAreaDoorsStatus('error');
       setAreaDoorsData(null);
       setMapEntryDoors([]);
       setAreaDoorsMessage(error?.message || '');
+      return { status: 'error', doors: [] };
     }
   }, [language]);
+
+  useEffect(() => {
+    if (areaDoorsStatus === 'error' && tempDestination && lastAreaDoorsCoords) {
+      const destinationWithCoords = {
+        ...tempDestination,
+        coordinates: tempDestination.coordinates || lastAreaDoorsCoords
+      };
+
+      setSelectedDestination(destinationWithCoords);
+      addSearch(destinationWithCoords);
+      sessionStorage.setItem('currentDestination', JSON.stringify(destinationWithCoords));
+
+      setShowEntryModal(false);
+      setTempDestination(null);
+      setSelectedEntry(null);
+    }
+  }, [areaDoorsStatus, tempDestination, lastAreaDoorsCoords, addSearch]);
 
   const handleDoorSelect = (door) => {
     const entryNumber = door?.doorNo || door?.doorId || null;
@@ -740,9 +897,8 @@ const MapRoutingPage = () => {
 
       setMapSelectedLocation(location);
 
-      requestAreaDoors(latlng.lat, latlng.lng);
-
       if (activeInput === 'destination') {
+        requestAreaDoors(latlng.lat, latlng.lng);
         // Show entry modal for destination selected from map
         const destination = {
           name: locName,
@@ -752,6 +908,10 @@ const MapRoutingPage = () => {
         setTempDestination(destination);
         setShowEntryModal(true);
       } else {
+        setAreaDoorsData(null);
+        setAreaDoorsStatus(null);
+        setAreaDoorsMessage('');
+        setMapEntryDoors([]);
         setUserLocation({
           name: locName,
           coordinates: [latlng.lat, latlng.lng]
@@ -832,9 +992,9 @@ const MapRoutingPage = () => {
       {!isSelectingFromMap && (
         <div className="map-categories-scroll">
           <div className="map-categories-list">
-            {groups.map((category) => (
+            {groups.map((category, index) => (
               <div
-                key={category.value}
+                key={`${category.value}-${index}`}
                 className={`map-category-item ${mapSelectedCategory && mapSelectedCategory.value === category.value ? 'active' : ''}`}
                 onClick={() => handleCategoryClick(category)}
               >
@@ -866,10 +1026,12 @@ const MapRoutingPage = () => {
           areaDoorsData={areaDoorsData}
           areaDoorsStatus={areaDoorsStatus}
           onDoorSelect={handleDoorSelect}
+          landmarkPlaces={landmarkPlaces}
+          showImageMarkers={showImageMarkers}
         />
         {!isSelectingFromMap && (
           <button
-            className={`map-gps-button ${isTracking ? 'active' : ''}`}
+            className={`map-gps-button ${isTracking ? 'active' : 'inactive'}`}
             onClick={() => setIsTracking((t) => !t)}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1110,9 +1272,9 @@ const MapRoutingPage = () => {
             {!modalSelectedCategory && (
               <div className="map-categories-scroll2">
                 <div className="map-categories-list2">
-                  {groups.map((category) => (
+                  {groups.map((category, index) => (
                     <div
-                      key={category.value}
+                      key={`${category.value}-${index}`}
                       className={`map-category-item2 ${modalSelectedCategory && modalSelectedCategory.value === category.value ? 'active' : ''}`}
                       onClick={() => handleCategoryClickInModal(category)}
                     >
@@ -1247,8 +1409,8 @@ const MapRoutingPage = () => {
                     </p>
                   ) : (
                     <ul className="map-destination-list">
-                      {recentSearches.map((destination) => (
-                        <li key={destination.id} onClick={() => handleDestinationSelect(destination)}>
+                      {recentSearches.map((destination, index) => (
+                        <li key={`${destination.id || 'destination'}-${index}`} onClick={() => handleDestinationSelect(destination)}>
                           <div className="map-recent-icon">
                             <svg width="15" height="15" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
                               <path fillRule="evenodd" clipRule="evenodd" d="M2.96259 2.95683C5.17657 0.745974 8.77558 0.769482 11.0031 2.997C13.2316 5.22548 13.2541 8.82663 11.0404 11.0404C8.82667 13.2541 5.22552 13.2315 2.99704 11.0031C1.67644 9.68246 1.1311 7.88082 1.36528 6.17239C1.39809 5.933 1.61875 5.76554 1.85814 5.79835C2.09753 5.83117 2.265 6.05183 2.23218 6.29122C2.03386 7.73809 2.49541 9.26398 3.61577 10.3843C5.50841 12.277 8.5555 12.2878 10.4217 10.4216C12.2878 8.55546 12.277 5.50837 10.3844 3.61573C8.49269 1.72405 5.44775 1.71226 3.58132 3.57556L4.01749 3.57775C4.25911 3.57896 4.454 3.77582 4.45279 4.01745C4.45157 4.25907 4.25471 4.45396 4.01309 4.45275L2.52816 4.44529C2.28825 4.44408 2.09406 4.2499 2.09286 4.00999L2.0854 2.52506C2.08418 2.28343 2.27907 2.08657 2.5207 2.08536C2.76232 2.08414 2.95918 2.27904 2.9604 2.52066L2.96259 2.95683ZM7.00002 4.2291C7.24164 4.2291 7.43752 4.42498 7.43752 4.66661V6.81876L8.76773 8.14897C8.93859 8.31983 8.93859 8.59684 8.76773 8.7677C8.59688 8.93855 8.31986 8.93855 8.14901 8.7677L6.56251 7.1812V4.66661C6.56251 4.42498 6.75839 4.2291 7.00002 4.2291Z" fill="#858585" />
@@ -1270,8 +1432,8 @@ const MapRoutingPage = () => {
 
               {searchQuery && filteredDestinations.length > 0 && (
                 <ul className="map-destination-list">
-                  {filteredDestinations.map((destination) => (
-                    <li key={destination.id} onClick={() => handleDestinationSelect(destination)}>
+                  {filteredDestinations.map((destination, index) => (
+                    <li key={`${destination.id || 'destination'}-${index}`} onClick={() => handleDestinationSelect(destination)}>
                       <div className="map-recent-icon">
                         <svg width="15" height="15" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path fillRule="evenodd" clipRule="evenodd" d="M2.96259 2.95683C5.17657 0.745974 8.77558 0.769482 11.0031 2.997C13.2316 5.22548 13.2541 8.82663 11.0404 11.0404C8.82667 13.2541 5.22552 13.2315 2.99704 11.0031C1.67644 9.68246 1.1311 7.88082 1.36528 6.17239C1.39809 5.933 1.61875 5.76554 1.85814 5.79835C2.09753 5.83117 2.265 6.05183 2.23218 6.29122C2.03386 7.73809 2.49541 9.26398 3.61577 10.3843C5.50841 12.277 8.5555 12.2878 10.4217 10.4216C12.2878 8.55546 12.277 5.50837 10.3844 3.61573C8.49269 1.72405 5.44775 1.71226 3.58132 3.57556L4.01749 3.57775C4.25911 3.57896 4.454 3.77582 4.45279 4.01745C4.45157 4.25907 4.25471 4.45396 4.01309 4.45275L2.52816 4.44529C2.28825 4.44408 2.09406 4.2499 2.09286 4.00999L2.0854 2.52506C2.08418 2.28343 2.27907 2.08657 2.5207 2.08536C2.76232 2.08414 2.95918 2.27904 2.9604 2.52066L2.96259 2.95683ZM7.00002 4.2291C7.24164 4.2291 7.43752 4.42498 7.43752 4.66661V6.81876L8.76773 8.14897C8.93859 8.31983 8.93859 8.59684 8.76773 8.7677C8.59688 8.93855 8.31986 8.93855 8.14901 8.7677L6.56251 7.1812V4.66661C6.56251 4.42498 6.75839 4.2291 7.00002 4.2291Z" fill="#858585" />
@@ -1319,7 +1481,7 @@ const MapRoutingPage = () => {
                 <div className="map-entry-message">{areaDoorsMessage}</div>
               )}
               <div className="map-entries-grid">
-                {(mapEntryDoors.length ? mapEntryDoors : [1, 2, 3, 4]).map((entry) => {
+                {mapEntryDoors.map((entry) => {
                   const entryNumber = entry?.doorNo || entry;
                   const destinationName = entry?.otherAreaName || entry?.toAreaName;
 
