@@ -40,19 +40,36 @@ const resolveAuthToken = (providedToken) => {
   return createGuestFeedbackToken();
 };
 
-export const submitUserFeedback = async ({ poiId, comment, rating = 0, language, authToken } = {}) => {
-  if (!poiId) {
-    throw new Error('poiId is required to submit feedback');
+export const submitUserFeedback = async ({
+  targetType = 'poi',
+  targetId,
+  poiId,
+  title,
+  body,
+  comment,
+  rating = 0,
+  language,
+  lang,
+  authToken
+} = {}) => {
+  const resolvedTargetId = targetId ?? poiId;
+
+  if (!resolvedTargetId) {
+    throw new Error('targetId (or poiId) is required to submit feedback');
   }
 
   const token = resolveAuthToken(authToken);
+  const resolvedLanguage = language || lang;
+  const resolvedBody = body ?? comment ?? '';
+  const resolvedTitle = title || resolvedBody?.slice?.(0, 80) || '';
 
   const payload = {
-    poi_id: poiId,
-    comment,
+    targetType,
+    targetId: resolvedTargetId,
+    lang: resolvedLanguage,
     rating,
-    language,
-    lang: language
+    title: resolvedTitle,
+    body: resolvedBody
   };
 
   const headers = {
