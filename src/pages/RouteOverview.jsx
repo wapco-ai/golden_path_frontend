@@ -676,7 +676,7 @@ const RouteOverview = () => {
       setViewState({
         latitude: (lat1 + lat2) / 2,
         longitude: (lng1 + lng2) / 2,
-        zoom: isShort ? 19 : 18.5
+        zoom: isShort ? 21 : 20.5
       });
       setPopupCoord([(lng1 + lng2) / 2, (lat1 + lat2) / 2]);
       if (mapRef.current) {
@@ -691,7 +691,7 @@ const RouteOverview = () => {
         const options = {
           padding: isShort ? 70 : 100,
           duration: 800,
-          maxZoom: isShort ? 19 : 18.5
+          maxZoom: isShort ? 21 : 20.5
         };
 
         if (bounds && mapInstance?.fitBounds) {
@@ -699,7 +699,7 @@ const RouteOverview = () => {
         } else if (mapInstance?.flyTo) {
           mapInstance.flyTo({
             center: [(lng1 + lng2) / 2, (lat1 + lat2) / 2],
-            zoom: isShort ? 19 : 18.5,
+            zoom: isShort ? 21 : 20.5,
             duration: 800
           });
         }
