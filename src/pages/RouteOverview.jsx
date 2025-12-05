@@ -441,6 +441,10 @@ const RouteOverview = () => {
           ? `marker-${idx}-${subgroup.value}`
           : `marker-${idx}`;
 
+      // Skip markers that don't have any visual content to show
+      if (shouldShowLandmarkInIcon && !landmarkImage) return null;
+      if (!shouldShowLandmarkInIcon && !hasSubgroupImages) return null;
+
       return (
         <Marker
           key={markerKey}
