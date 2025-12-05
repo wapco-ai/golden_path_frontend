@@ -54,6 +54,7 @@ const RoutingPage = () => {
   const [drGeoPath, setDrGeoPath] = useState([]);
   const [showAlternativeRoutesOnMap, setShowAlternativeRoutesOnMap] = useState(false);
   const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
+  const [initialHeading, setInitialHeading] = useState(null);
   const navigate = useNavigate();
   const {
     origin,
@@ -522,6 +523,22 @@ const RoutingPage = () => {
     if (ad < 100) return diff > 0 ? 'left' : 'right';
     return diff > 0 ? 'bend-left' : 'bend-right';
   };
+
+  // Position the user marker at the start of the route and orient it toward the first step
+  useEffect(() => {
+    const coords = routeGeo?.geometry?.coordinates;
+    if (!Array.isArray(coords) || coords.length === 0) {
+      setInitialHeading(null);
+      return;
+    }
+
+    const [startLng, startLat] = coords[0];
+    setUserLocation([startLat, startLng]);
+
+    if (coords.length > 1) {
+      setInitialHeading(bearing(coords[0], coords[1]));
+    }
+  }, [routeGeo]);
 
   // Load route data from JSON for initial display when no analyzed route exists
   useEffect(() => {
@@ -1246,6 +1263,7 @@ const RoutingPage = () => {
             alternativeRoutes={routeData.alternativeRoutes}
             onSelectAlternativeRoute={handleSelectAlternativeRoute}
             showAlternativeRoutes={showAlternativeRoutesOnMap}
+            initialHeading={initialHeading}
           />
           {/* <DeadReckoningControls
             currentLocation={{ coords: { lat: userLocation[0], lng: userLocation[1] } }}
