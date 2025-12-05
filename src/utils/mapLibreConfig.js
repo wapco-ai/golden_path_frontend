@@ -4,33 +4,43 @@ export const MAPLIBRE_GLYPHS_URL =
   (import.meta?.env?.VITE_MAPLIBRE_GLYPHS_URL?.trim() || '/fonts/{fontstack}/{range}.pbf')
     .replace(/\/$/, '');
 
+export const DEFAULT_MAPLIBRE_RTL_PLUGIN_URL =
+  'https://unpkg.com/@maplibre/maplibre-gl-rtl-text@latest/dist/maplibre-gl-rtl-text.js';
+
 export const MAPLIBRE_RTL_PLUGIN_URL =
-  (import.meta?.env?.VITE_MAPLIBRE_RTL_PLUGIN_URL?.trim()
-    || 'https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.3.0/dist/mapbox-gl-rtl-text.js')
+
+  (import.meta?.env?.VITE_MAPLIBRE_RTL_PLUGIN_URL?.trim() || DEFAULT_MAPLIBRE_RTL_PLUGIN_URL)
     .replace(/\/$/, '');
 
 const RTL_PLUGIN_ERROR_MESSAGE = 'Failed to initialize MapLibre RTL text plugin';
 let rtlPluginInitialized = false;
+
+const attemptRTLTextPluginInitialization = (pluginUrl) => {
+  maplibregl.setRTLTextPlugin(
+    pluginUrl,
+    (error) => {
+      if (error) {
+        console.error(`${RTL_PLUGIN_ERROR_MESSAGE} (${pluginUrl})`, error);
+
+        if (pluginUrl !== DEFAULT_MAPLIBRE_RTL_PLUGIN_URL) {
+          console.info('Falling back to default MapLibre RTL text plugin URL.');
+          attemptRTLTextPluginInitialization(DEFAULT_MAPLIBRE_RTL_PLUGIN_URL);
+        }
+        return;
+      }
+
+      rtlPluginInitialized = true;
+    },
+    true
+  );
+};
 
 const initializeRTLTextPlugin = () => {
   if (rtlPluginInitialized || typeof maplibregl?.setRTLTextPlugin !== 'function') {
     return;
   }
 
-  try {
-    maplibregl.setRTLTextPlugin(
-      MAPLIBRE_RTL_PLUGIN_URL,
-      (error) => {
-        if (error) {
-          console.error(RTL_PLUGIN_ERROR_MESSAGE, error);
-        }
-      },
-      true
-    );
-    rtlPluginInitialized = true;
-  } catch (error) {
-    console.error(RTL_PLUGIN_ERROR_MESSAGE, error);
-  }
+  attemptRTLTextPluginInitialization(MAPLIBRE_RTL_PLUGIN_URL);
 };
 
 initializeRTLTextPlugin();
