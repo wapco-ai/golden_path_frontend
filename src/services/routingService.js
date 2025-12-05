@@ -29,7 +29,13 @@ const buildRequestBody = ({ origin, destination, mode, gender, lang, maxAlternat
   };
 };
 
-const mapSteps = (steps = []) => {
+const mapSteps = (steps = [], sahns = []) => {
+  const sahnTitles = Array.isArray(sahns)
+    ? sahns.map(sahn => sahn?.name).filter(Boolean)
+    : [];
+
+  let sahnIndex = 0;
+
   return steps
     .filter(step => step?.coord?.lat != null && step?.coord?.lon != null)
     .map((step, idx) => {
@@ -40,14 +46,26 @@ const mapSteps = (steps = []) => {
           ? [Number(nextStep.coord.lat), Number(nextStep.coord.lon)]
           : start;
 
+      let type = step.type;
+      let title = step.title;
+      let name = step.title || '';
+
+      if (step.type === 'stepPassDoor' && sahnTitles.length > 0) {
+        const sahnName = sahnTitles[Math.min(sahnIndex, sahnTitles.length - 1)];
+        type = 'stepPassSahn';
+        title = sahnName || title;
+        name = sahnName || name;
+        sahnIndex += 1;
+      }
+
       return {
         id: idx + 1,
-        type: step.type,
-        title: step.title,
-        name: step.title || '',
+        type,
+        title,
+        name,
         coordinates: [start, end],
         services: step.services || {},
-        instruction: step.title || ''
+        instruction: title || ''
       };
     });
 };
@@ -75,7 +93,8 @@ const toGeoLine = (steps = []) => {
 };
 
 const mapRoute = (route = {}, originName = '', destinationName = '') => {
-  const steps = mapSteps(route.steps || []);
+  const sahns = route.sahns || route.viaPoints || [];
+  const steps = mapSteps(route.steps || [], sahns);
   const geo = toGeoLine(steps);
   const distanceMeters =
     typeof route.distanceMeters === 'number'
@@ -85,11 +104,10 @@ const mapRoute = (route = {}, originName = '', destinationName = '') => {
         : null;
   const durationSeconds =
     typeof route.estimatedMinutes === 'number'
-      ? route.estimatedMinutes * 60
+    ? route.estimatedMinutes * 60
       : typeof route.duration_s === 'number'
         ? route.duration_s
         : null;
-  const sahns = route.sahns || route.viaPoints || [];
 
   return {
     geo,

@@ -181,6 +181,7 @@
   "stepMoveToDoor": "Head toward {name}",
   "stepPassConnection": "Pass connection {title}",
   "stepEnterNextSahn": "Enter next courtyard via {title}",
+  "stepPassSahn": "Pass courtyard {title}",
   "stepPassDoor": "From door {name}, enter the courtyard/portico {title}",
   "stepArriveDestination": "Arrive at {name}",
   "stepNumber": "Step {num}",
