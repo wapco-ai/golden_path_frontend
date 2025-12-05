@@ -84,7 +84,7 @@ const Location = () => {
     return new URLSearchParams(search);
   };
 
-  const locationId = getSearchParams().get('id');
+  const locationState = currentLocation.state?.location;
   const intl = useIntl();
   const formatDigits = useLocaleDigits();
   const [activeSlide, setActiveSlide] = useState(0);
@@ -114,6 +114,27 @@ const Location = () => {
   const [geoData, setGeoData] = useState(null);
   const setDestinationStore = useRouteStore(state => state.setDestination);
   const language = useLangStore(state => state.language);
+
+  const normalizeLocationId = (id) => {
+    if (!id) return null;
+
+    const normalizedId = id.toString().toLowerCase();
+    const idMappings = {
+      saghakhaneh: 'saqqakhaneh',
+      saghakhaneh_15: 'saqqakhaneh',
+      rozemonavare: 'rozemonavare_12'
+    };
+
+    return idMappings[normalizedId] || id;
+  };
+
+  const getRequestedLocationId = () => {
+    const paramsId = normalizeLocationId(getSearchParams().get('id'));
+    const stateId = normalizeLocationId(locationState?.id || locationState?.value);
+    const storedId = normalizeLocationId(sessionStorage.getItem('mapSelectedId'));
+
+    return paramsId || stateId || storedId;
+  };
 
   useEffect(() => {
     // More flexible QR code detection - only need coordinates
@@ -590,16 +611,14 @@ const Location = () => {
         const response = await axios.get(`./data/locationData.json`);
         let data = response.data;
 
-        // First try to get location from URL parameters (for our special places)
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlId = urlParams.get('id');
+        const requestedLocationId = getRequestedLocationId();
 
-        if (urlId && (urlId === 'rozemonavare_12' || urlId === 'saghakhaneh_15')) {
-          // Use the URL ID for our special places
-          data = Array.isArray(data) ? data.find(loc => loc.id === urlId) || data[0] : data;
-        } else {
-          // Use the normal location ID from state or props
-          data = Array.isArray(data) ? data.find(loc => loc.id === locationId) || data[0] : data;
+        if (Array.isArray(data)) {
+          const matchedLocation = requestedLocationId
+            ? data.find(loc => normalizeLocationId(loc.id) === requestedLocationId)
+            : null;
+
+          data = matchedLocation || data[0];
         }
 
         data = localizeLocationData(data, language);
@@ -615,7 +634,7 @@ const Location = () => {
     };
 
     fetchLocationData();
-  }, [locationId, language]);
+  }, [currentLocation, language]);
 
   useEffect(() => {
     calculateAverageRating();
