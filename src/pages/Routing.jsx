@@ -54,6 +54,7 @@ const RoutingPage = () => {
   const [drGeoPath, setDrGeoPath] = useState([]);
   const [showAlternativeRoutesOnMap, setShowAlternativeRoutesOnMap] = useState(false);
   const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
+  const [hasPreciseGps, setHasPreciseGps] = useState(false);
   const [userHeading, setUserHeading] = useState(null);
   const navigate = useNavigate();
   const {
@@ -80,6 +81,24 @@ const RoutingPage = () => {
   });
 
   const initialRouteCoordRef = useRef(null);
+  const PRECISE_GPS_ACCURACY_THRESHOLD = 25;
+
+  const updateUserLocationToRouteStart = useCallback(() => {
+    const startCoord = routeGeo?.geometry?.coordinates?.[0];
+    if (!Array.isArray(startCoord) || startCoord.length < 2) {
+      return false;
+    }
+
+    const [startLng, startLat] = startCoord;
+    const startKey = `${startLat},${startLng}`;
+
+    if (initialRouteCoordRef.current !== startKey) {
+      setUserLocation([startLat, startLng]);
+      initialRouteCoordRef.current = startKey;
+    }
+
+    return true;
+  }, [routeGeo]);
 
   useEffect(() => {
     return () => {
@@ -532,19 +551,15 @@ const RoutingPage = () => {
       return;
     }
 
-    const [startLng, startLat] = coords[0];
-    const startKey = `${startLat},${startLng}`;
-
-    if (initialRouteCoordRef.current !== startKey) {
-      setUserLocation([startLat, startLng]);
-      initialRouteCoordRef.current = startKey;
+    if (!isDrActive && !hasPreciseGps) {
+      updateUserLocationToRouteStart();
     }
 
     if (coords.length > 1) {
       const initialHeading = bearing(coords[0], coords[1]);
       setUserHeading(initialHeading);
     }
-  }, [bearing, routeGeo]);
+  }, [bearing, hasPreciseGps, isDrActive, routeGeo, updateUserLocationToRouteStart]);
 
   // Load route data from JSON for initial display when no analyzed route exists
   useEffect(() => {
@@ -743,30 +758,48 @@ const RoutingPage = () => {
           enableHighAccuracy: true,
           timeout: 10000,
           maximumAge: 0
-        }
+        };
 
         const success = (position) => {
           if (sessionStorage.getItem('qrLat') && sessionStorage.getItem('qrLng')) {
             return;
           }
-          setUserLocation([position.coords.latitude, position.coords.longitude])
+
+          const accuracy = position.coords.accuracy;
+          const hasValidAccuracy = Number.isFinite(accuracy) && accuracy <= PRECISE_GPS_ACCURACY_THRESHOLD;
+
+          if (hasValidAccuracy) {
+            setHasPreciseGps(true);
+            setUserLocation([position.coords.latitude, position.coords.longitude]);
+          } else {
+            setHasPreciseGps(false);
+            const snappedToRoute = updateUserLocationToRouteStart();
+            if (!snappedToRoute) {
+              setUserLocation([36.2880, 59.6157]);
+            }
+          }
+
           advancedDeadReckoningService.processGpsData(
             { lat: position.coords.latitude, lng: position.coords.longitude },
-            position.coords.accuracy
-          )
-        }
+            accuracy
+          );
+        };
 
         const error = (err) => {
-          console.warn(`ERROR(${err.code}): ${err.message}`)
-          setUserLocation([36.2880, 59.6157])
-        }
+          console.warn(`ERROR(${err.code}): ${err.message}`);
+          setHasPreciseGps(false);
+          const snappedToRoute = updateUserLocationToRouteStart();
+          if (!snappedToRoute) {
+            setUserLocation([36.2880, 59.6157]);
+          }
+        };
 
-        const watchId = navigator.geolocation.watchPosition(success, error, options)
+        const watchId = navigator.geolocation.watchPosition(success, error, options);
 
-        return () => navigator.geolocation.clearWatch(watchId)
+        return () => navigator.geolocation.clearWatch(watchId);
       }
     }
-  }, [storedLat, storedLng])
+  }, [PRECISE_GPS_ACCURACY_THRESHOLD, storedLat, storedLng, updateUserLocationToRouteStart]);
 
   // Auto-advance steps when routing is active
   useEffect(() => {
