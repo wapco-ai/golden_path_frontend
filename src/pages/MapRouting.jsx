@@ -52,6 +52,7 @@ const MapRoutingPage = () => {
   const [areaDoorsStatus, setAreaDoorsStatus] = useState(null);
   const [areaDoorsMessage, setAreaDoorsMessage] = useState('');
   const [mapEntryDoors, setMapEntryDoors] = useState([]);
+  const [lastAreaDoorsCoords, setLastAreaDoorsCoords] = useState(null);
 
   // Separate state for map categories and modal categories
   const [mapSelectedCategory, setMapSelectedCategory] = useState(null);
@@ -725,6 +726,7 @@ const MapRoutingPage = () => {
     setAreaDoorsMessage('');
     setMapEntryDoors([]);
     setAreaDoorsData(null);
+    setLastAreaDoorsCoords([lat, lon]);
 
     try {
       const floor = getSessionFloor();
@@ -750,6 +752,23 @@ const MapRoutingPage = () => {
       return { status: 'error', doors: [] };
     }
   }, [language]);
+
+  useEffect(() => {
+    if (areaDoorsStatus === 'error' && tempDestination && lastAreaDoorsCoords) {
+      const destinationWithCoords = {
+        ...tempDestination,
+        coordinates: tempDestination.coordinates || lastAreaDoorsCoords
+      };
+
+      setSelectedDestination(destinationWithCoords);
+      addSearch(destinationWithCoords);
+      sessionStorage.setItem('currentDestination', JSON.stringify(destinationWithCoords));
+
+      setShowEntryModal(false);
+      setTempDestination(null);
+      setSelectedEntry(null);
+    }
+  }, [areaDoorsStatus, tempDestination, lastAreaDoorsCoords, addSearch]);
 
   const handleDoorSelect = (door) => {
     const entryNumber = door?.doorNo || door?.doorId || null;
