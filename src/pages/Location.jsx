@@ -12,6 +12,7 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import ttsService from '../services/ttsService';
 import { fetchLandmarkPlaces } from '../services/landmarkService';
+import { submitUserFeedback } from '../services/userFeedbackService';
 
 // Import video files
 import v1 from '/assets/videos/vid1.mp4';
@@ -106,6 +107,7 @@ const Location = () => {
   const [currentUserLocation, setCurrentUserLocation] = useState(null);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [isVideoFullscreen, setIsVideoFullscreen] = useState(false);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
   const carouselRef = useRef(null);
   const aboutContentRef = useRef(null);
@@ -532,26 +534,79 @@ const Location = () => {
     setHoverRating(0);
   };
 
-  const handleCommentSubmit = (e) => {
-    e.preventDefault();
-    if (comment.trim()) {
-      const newComment = {
-        author: intl.formatMessage({ id: 'defaultCommentAuthor' }),
-        text: comment,
-        date: ['fa', 'ur', 'ar'].includes(language)
-          ? new Date().toLocaleDateString('fa-IR')
-          : new Date().toLocaleDateString(),
-        rating: rating || 0
-      };
+  const formatCommentDate = (dateValue = new Date()) => {
+    const locale = ['fa', 'ur', 'ar'].includes(language) ? 'fa-IR' : 'en-US';
+    try {
+      return new Date(dateValue).toLocaleDateString(locale);
+    } catch {
+      return dateValue?.toString?.() || '';
+    }
+  };
 
-      setComments(prev => [newComment, ...prev]);
+  const buildDisplayComment = (apiResponse, fallbackComment) => {
+    const responseComment = apiResponse?.comment || apiResponse?.data || apiResponse || {};
+    const dateValue = responseComment?.date || responseComment?.created_at || responseComment?.createdAt;
+
+    return {
+      author: responseComment?.author || responseComment?.user || responseComment?.user_name || fallbackComment.author,
+      text: responseComment?.text ?? responseComment?.comment ?? fallbackComment.text,
+      date: dateValue ? formatCommentDate(dateValue) : fallbackComment.date,
+      rating: Number(responseComment?.rating ?? responseComment?.score ?? fallbackComment.rating ?? 0) || 0
+    };
+  };
+
+  const handleCommentSubmit = async (e) => {
+    e.preventDefault();
+    const trimmedComment = comment.trim();
+    if (!trimmedComment) return;
+
+    const poiId = normalizeLocationId(locationData?.id || locationData?.value || getRequestedLocationId());
+
+    if (!poiId) {
+      toast.error(intl.formatMessage({ id: 'commentSubmitMissingId' }));
+      return;
+    }
+
+    const pendingComment = {
+      author: intl.formatMessage({ id: 'defaultCommentAuthor' }),
+      text: trimmedComment,
+      date: formatCommentDate(),
+      rating: rating || 0
+    };
+
+    setIsSubmittingComment(true);
+
+    try {
+      const response = await submitUserFeedback({
+        poiId,
+        comment: trimmedComment,
+        rating: rating || 0,
+        language
+      });
+
+      const savedComment = buildDisplayComment(response, pendingComment);
+
+      setComments(prev => {
+        const updated = [savedComment, ...prev];
+        const average = updated.length
+          ? updated.reduce((sum, item) => sum + (item.rating || 0), 0) / updated.length
+          : 0;
+        setOverallRating(average);
+        return updated;
+      });
+
       setComment('');
       setViews(prev => prev + 1);
       setRating(0);
       setHoverRating(0);
       setShowCommentModal(false);
       document.body.style.overflow = 'auto';
-      calculateAverageRating();
+      toast.success(intl.formatMessage({ id: 'commentSubmitSuccess' }));
+    } catch (err) {
+      console.error('Failed to submit comment', err);
+      toast.error(intl.formatMessage({ id: 'commentSubmitError' }));
+    } finally {
+      setIsSubmittingComment(false);
     }
   };
 
@@ -1103,8 +1158,14 @@ const Location = () => {
                 ></textarea>
               </div>
 
-              <button className="submit-comment" onClick={handleCommentSubmit}>
-                <FormattedMessage id="submitComment" />
+              <button
+                className="submit-comment"
+                onClick={handleCommentSubmit}
+                disabled={isSubmittingComment}
+              >
+                {isSubmittingComment
+                  ? intl.formatMessage({ id: 'commentSubmitting' })
+                  : <FormattedMessage id="submitComment" />}
               </button>
             </div>
           </div>
