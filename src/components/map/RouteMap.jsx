@@ -13,8 +13,9 @@ import { forwardRef, useImperativeHandle } from 'react';
 
 const TERRAIN_PROBE_URL = appConfig.terrainProbeUrl;
 
-const RouteMap = forwardRef(({
+const RouteMap = forwardRef(({ 
   userLocation,
+  userHeading,
   routeSteps,
   currentStep,
   isInfoModalOpen,
@@ -26,6 +27,7 @@ const RouteMap = forwardRef(({
   showAlternativeRoutes = false
 }, ref) => {
   const mapRef = useRef(null);
+  const lastHeading = useRef(null);
   const isValidUserLocation = Array.isArray(userLocation)
     && userLocation.length === 2
     && Number.isFinite(userLocation[0])
@@ -43,7 +45,7 @@ const RouteMap = forwardRef(({
   const [drPosition, setDrPosition] = useState(null);
   const [drGeoPath, setDrGeoPath] = useState([]);
   const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
-  const [heading, setHeading] = useState(0);
+  const [heading, setHeading] = useState(userHeading ?? 0);
   const [terrainAvailable, setTerrainAvailable] = useState(false);
   const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
 
@@ -107,6 +109,16 @@ const RouteMap = forwardRef(({
     return remove;
   }, []);
 
+  useEffect(() => {
+    if (!isDrActive && Number.isFinite(userHeading)) {
+      setHeading(userHeading);
+      lastHeading.current = userHeading;
+      if (mapRef.current) {
+        mapRef.current.setBearing(userHeading);
+      }
+    }
+  }, [isDrActive, userHeading]);
+
   // Handle map resize when modal opens/closes
   useEffect(() => {
     if (mapRef.current) {
@@ -163,7 +175,6 @@ const RouteMap = forwardRef(({
   }, []);
 
   // Rotate map based on user heading with smoothing to avoid sudden jumps
-  const lastHeading = useRef(null);
   useEffect(() => {
     if (!mapRef.current) return;
 

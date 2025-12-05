@@ -54,6 +54,7 @@ const RoutingPage = () => {
   const [drGeoPath, setDrGeoPath] = useState([]);
   const [showAlternativeRoutesOnMap, setShowAlternativeRoutesOnMap] = useState(false);
   const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
+  const [userHeading, setUserHeading] = useState(null);
   const navigate = useNavigate();
   const {
     origin,
@@ -77,6 +78,8 @@ const RoutingPage = () => {
     pitch: is3DView ? 60 : 0,
     isAlternativeRoutes: false
   });
+
+  const initialRouteCoordRef = useRef(null);
 
   useEffect(() => {
     return () => {
@@ -502,9 +505,9 @@ const RoutingPage = () => {
     return `${hours}:${minutes}`;
   };
 
-  const toRad = (deg) => (deg * Math.PI) / 180;
-  const toDeg = (rad) => (rad * 180) / Math.PI;
-  const bearing = (from, to) => {
+  const toRad = useCallback((deg) => (deg * Math.PI) / 180, []);
+  const toDeg = useCallback((rad) => (rad * 180) / Math.PI, []);
+  const bearing = useCallback((from, to) => {
     const [lng1, lat1] = from;
     const [lng2, lat2] = to;
     const y = Math.sin(toRad(lng2 - lng1)) * Math.cos(toRad(lat2));
@@ -512,7 +515,7 @@ const RoutingPage = () => {
       Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
       Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(toRad(lng2 - lng1));
     return (toDeg(Math.atan2(y, x)) + 360) % 360;
-  };
+  }, [toDeg, toRad]);
 
   const computeTurn = (b1, b2) => {
     const diff = ((b1 - b2 + 540) % 360) - 180;
@@ -522,6 +525,26 @@ const RoutingPage = () => {
     if (ad < 100) return diff > 0 ? 'left' : 'right';
     return diff > 0 ? 'bend-left' : 'bend-right';
   };
+
+  useEffect(() => {
+    const coords = routeGeo?.geometry?.coordinates;
+    if (!Array.isArray(coords) || coords.length === 0) {
+      return;
+    }
+
+    const [startLng, startLat] = coords[0];
+    const startKey = `${startLat},${startLng}`;
+
+    if (initialRouteCoordRef.current !== startKey) {
+      setUserLocation([startLat, startLng]);
+      initialRouteCoordRef.current = startKey;
+    }
+
+    if (coords.length > 1) {
+      const initialHeading = bearing(coords[0], coords[1]);
+      setUserHeading(initialHeading);
+    }
+  }, [bearing, routeGeo]);
 
   // Load route data from JSON for initial display when no analyzed route exists
   useEffect(() => {
@@ -1236,6 +1259,7 @@ const RoutingPage = () => {
           <RouteMap
             ref={routeMapRef}
             userLocation={userLocation}
+            userHeading={userHeading}
             routeSteps={routeData.steps}
             currentStep={currentStep}
             isInfoModalOpen={isInfoModalOpen}
