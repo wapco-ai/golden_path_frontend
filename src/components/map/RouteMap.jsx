@@ -97,6 +97,23 @@ const RouteMap = forwardRef(({
     ])
     : [];
 
+  const getSegmentBearing = useCallback((stepIndex = 0) => {
+    const coordinates = routeGeo?.geometry?.coordinates;
+    if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
+
+    const clampedIndex = Math.min(stepIndex, coordinates.length - 2);
+    const [startLng, startLat] = coordinates[clampedIndex];
+    const [endLng, endLat] = coordinates[clampedIndex + 1];
+
+    const toRad = Math.PI / 180;
+    const y = Math.sin((endLng - startLng) * toRad) * Math.cos(endLat * toRad);
+    const x =
+      Math.cos(startLat * toRad) * Math.sin(endLat * toRad) -
+      Math.sin(startLat * toRad) * Math.cos(endLat * toRad) * Math.cos((endLng - startLng) * toRad);
+
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  }, [routeGeo]);
+
   useEffect(() => {
     const remove = advancedDeadReckoningService.addListener(data => {
       setIsDrActive(data.isActive);
@@ -191,6 +208,19 @@ const RouteMap = forwardRef(({
     lastHeading.current = (lastHeading.current + diff * 0.2 + 360) % 360;
     mapRef.current.easeTo({ bearing: lastHeading.current, duration: 200 });
   }, [heading]);
+
+  // Align map bearing with route direction when no user heading is available
+  useEffect(() => {
+    if (!mapRef.current || isDrActive) return;
+    if (Number.isFinite(userHeading)) return;
+
+    const segmentBearing = getSegmentBearing(currentStep);
+    if (!Number.isFinite(segmentBearing)) return;
+
+    setHeading(segmentBearing);
+    lastHeading.current = segmentBearing;
+    mapRef.current.easeTo({ bearing: segmentBearing, duration: 300 });
+  }, [currentStep, getSegmentBearing, isDrActive, userHeading]);
 
   // Keep map centered on the user's location
   useEffect(() => {
