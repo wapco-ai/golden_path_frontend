@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
 import { useIntl } from 'react-intl';
-import maplibregl, { mapLibreTransformRequest } from '../../utils/mapLibreConfig';
+import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
 import { useLangStore } from '../../store/langStore';
@@ -479,7 +479,6 @@ const Mprc = ({
     <Map
       key={styleKey}
       mapLib={maplibregl}
-      transformRequest={mapLibreTransformRequest}
       mapStyle={mapStyle}
       styleDiffing={false}
       style={{ width: '100%', height: '100%' }}

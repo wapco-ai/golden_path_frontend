@@ -1,7 +1,7 @@
 // src/components/map/RouteMap.jsx
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
-import maplibregl, { mapLibreTransformRequest } from '../../utils/mapLibreConfig';
+import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
 import advancedDeadReckoningService from '../../services/AdvancedDeadReckoningService';
@@ -305,7 +305,6 @@ const RouteMap = forwardRef(({
       key={styleKey}
       ref={mapRef}
       mapLib={maplibregl}
-      transformRequest={mapLibreTransformRequest}
       mapStyle={mapStyle}
       styleDiffing={false}
       interactiveLayerIds={altLayerIds}

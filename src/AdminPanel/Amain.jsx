@@ -7,7 +7,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { toJalaali, toGregorian } from 'jalaali-js';
 import ReactDatePicker from 'react-datepicker';
 import { Helmet } from 'react-helmet';
-import maplibregl, { mapLibreTransformRequest } from '../utils/mapLibreConfig';
+import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 
@@ -478,7 +478,6 @@ const Amain = () => {
           style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
           center: [59.6161, 36.2908], // Imam Reza Shrine coordinates in Mashhad, Iran
           zoom: 15, // Increased zoom to show more detail
-          transformRequest: mapLibreTransformRequest
         });
 
         mapInstance.addControl(new maplibregl.NavigationControl());

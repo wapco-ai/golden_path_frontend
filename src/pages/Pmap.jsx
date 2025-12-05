@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import Map, { Marker } from 'react-map-gl';
-import maplibregl, { mapLibreTransformRequest } from '../utils/mapLibreConfig';
+import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useLangStore } from '../store/langStore';
 import { toast } from 'react-toastify';
@@ -351,7 +351,6 @@ const Pmap = () => {
         <Map
           key={styleKey}
           mapLib={maplibregl}
-          transformRequest={mapLibreTransformRequest}
           mapStyle={mapStyle}
           styleDiffing={false}
           style={{ width: '100%', height: '100%' }}
