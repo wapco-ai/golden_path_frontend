@@ -84,7 +84,36 @@ const Amain = () => {
   const [prayerBeforeMinutes, setPrayerBeforeMinutes] = useState('');
   const [prayerAfterMinutes, setPrayerAfterMinutes] = useState('');
   const [prayerTimeRestrictionsList, setPrayerTimeRestrictionsList] = useState([]);
+  const [categoryManagementOpen, setCategoryManagementOpen] = useState(false);
 
+  const [categories, setCategories] = useState([]);
+  const [expandedCategories, setExpandedCategories] = useState([]);
+  const [categorySearchTerm, setCategorySearchTerm] = useState('');
+  const [isCreateCategoryModalOpen, setIsCreateCategoryModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState(null);
+  const [newCategory, setNewCategory] = useState({
+    title: '',
+    description: '',
+    image: null,
+    status: 'active'
+  });
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [isEditCategoryModalOpen, setIsEditCategoryModalOpen] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState(null);
+  const [editCategoryData, setEditCategoryData] = useState({
+    title: '',
+    description: '',
+    icon: null,
+    status: 'active'
+  });
+  const [isIconUploaded, setIsIconUploaded] = useState(false);
+  const [culturalData, setCulturalData] = useState([]);
+  const [culturalSearchTerm, setCulturalSearchTerm] = useState('');
+  const [isDeleteCulturalModalOpen, setIsDeleteCulturalModalOpen] = useState(false);
+  const [culturalToDelete, setCulturalToDelete] = useState(null);
+  const [culturalCurrentPage, setCulturalCurrentPage] = useState(1);
+  const [culturalItemsPerPage, setCulturalItemsPerPage] = useState(7);
 
 
 
@@ -140,6 +169,120 @@ const Amain = () => {
     { day: 'پنجشنبه', value: 90, count: 225 },
     { day: 'جمعه', value: 50, count: 125 }
   ];
+
+  useEffect(() => {
+    // Sample cultural data
+    const sampleCulturalData = [
+      {
+        id: 1,
+        title: 'صحن انقلاب اسلامی',
+        address: 'حرم مطهر',
+        createdAt: '۱۸ مرداد ۱۴۰۴',
+        description: 'لورم ایس‌موم متن ساختم با تولید سادگی نامفهوم از صنعت چاپ',
+        status: 'active'
+      },
+      {
+        id: 2,
+        title: 'صحن آزادی',
+        address: 'حرم مطهر',
+        createdAt: '۲۰ مرداد ۱۴۰۴',
+        description: 'لورم ایس‌موم متن ساختم با تولید سادگی نامفهوم از صنعت چاپ',
+        status: 'active'
+      },
+      {
+        id: 3,
+        title: 'صحن امام حسن مجتبی (ع)',
+        address: 'حرم مطهر',
+        createdAt: '۲۲ مرداد ۱۴۰۴',
+        description: 'لورم ایس‌موم متن ساختم با تولید سادگی نامفهوم از صنعت چاپ',
+        status: 'active'
+      },
+      {
+        id: 4,
+        title: 'صحن جمهوری',
+        address: 'حرم مطهر',
+        createdAt: '۲۵ مرداد ۱۴۰۴',
+        description: 'لورم ایس‌موم متن ساختم با تولید سادگی نامفهوم از صنعت چاپ',
+        status: 'active'
+      },
+      {
+        id: 5,
+        title: 'رواق دارالحجه',
+        address: 'حرم مطهر',
+        createdAt: '۲۷ مرداد ۱۴۰۴',
+        description: 'لورم ایس‌موم متن ساختم با تولید سادگی نامفهوم از صنعت چاپ',
+        status: 'active'
+      },
+      {
+        id: 6,
+        title: 'رواق دارالولایه',
+        address: 'حرم مطهر',
+        createdAt: '۲۹ مرداد ۱۴۰۴',
+        description: 'لورم ایس‌موم متن ساختم با تولید سادگی نامفهوم از صنعت چاپ',
+        status: 'active'
+      },
+      {
+        id: 7,
+        title: 'مسجد بالاسر',
+        address: 'حرم مطهر',
+        createdAt: '۱ شهریور ۱۴۰۴',
+        description: 'لورم ایس‌موم متن ساختم با تولید سادگی نامفهوم از صنعت چاپ',
+        status: 'active'
+      },
+      {
+        id: 8,
+        title: 'مسجد طباطبایی',
+        address: 'حرم مطهر',
+        createdAt: '۳ شهریور ۱۴۰۴',
+        description: 'لورم ایس‌موم متن ساختم با تولید سادگی نامفهوم از صنعت چاپ',
+        status: 'active'
+      }
+    ];
+    setCulturalData(sampleCulturalData);
+  }, []);
+
+  // Add these handler functions with other handler functions
+  const handleDeleteCultural = (id) => {
+    setCulturalToDelete(id);
+    setIsDeleteCulturalModalOpen(true);
+  };
+
+  const confirmDeleteCultural = () => {
+    setCulturalData(culturalData.filter(item => item.id !== culturalToDelete));
+    setIsDeleteCulturalModalOpen(false);
+    setCulturalToDelete(null);
+  };
+
+  const handleCulturalPageChange = (pageNumber) => {
+    setCulturalCurrentPage(pageNumber);
+  };
+
+  const handleCulturalItemsPerPageChange = (value) => {
+    setCulturalItemsPerPage(parseInt(value));
+    setCulturalCurrentPage(1);
+  };
+
+  const getCulturalPageNumbers = () => {
+    const totalItems = filteredCulturalData.length;
+    const totalPages = Math.ceil(totalItems / culturalItemsPerPage);
+    const maxVisiblePages = 6;
+    const pages = [];
+
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      const startPage = Math.max(1, culturalCurrentPage - 2);
+      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+      for (let i = startPage; i <= endPage; i++) {
+        pages.push(i);
+      }
+    }
+
+    return pages;
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -202,30 +345,39 @@ const Amain = () => {
     resetForm();
   };
 
+  // Update the getPageTitle function (around line 155)
   const getPageTitle = () => {
     if (currentReportView === 'کاربران ثبت نام کرده') {
       return {
         title: 'گزارش کاربران ثبت نام کرده در نرم افزار مسیربایی حرم تا امروز',
-        description: 'آزمون آئینسوم متن ساختگی با تولید سادگی نامفهوم از صنعت استفاده از طراحان گرافیک است چاپگرها'
+        description: ''
       };
     }
 
-    if (currentReportView === 'بارگذاری و ثبت محتوا') {
+    if (currentReportView === 'مدیریت دسته بندی‌ها') {
       return {
-        title: 'بارگذاری و ثبت محتوای فرهنگی',
-        description: 'مدیریت و ثبت اطلاعات کامل مکان‌های فرهنگی شامل مشخصات، رسانه‌ها و اطلاعات تکمیلی'
+        title: 'مدیریت دسته بندی‌ها',
+        description: ''
+      };
+    }
+
+    if (currentReportView === 'مدیریت اطلاعات فرهنگی') {
+      return {
+        title: 'مدیریت اطلاعات فرهنگی',
+        description: ''
       };
     }
 
     if (activeMenu === 'mapmanage') {
       return {
         title: ' مدیریت نقشه و نقاط و مکان های حرم مطهر',
-        description: 'لورم ایسدوم متن ساختگی با تولید سادگی نامفهوم از صنعت استفاده از طراحان گرافیک است چاپگرها'
+        description: ''
       };
     }
+
     return {
       title: 'آمار و جزئیات کلی محصول مسیربایی حرم تا امروز',
-      description: 'لورم ایسدوم متن ساختگی با تولید سادگی نامفهوم از صنعت استفاده از طراحان گرافیک است چاپگرها'
+      description: ''
     };
   };
 
@@ -248,23 +400,16 @@ const Amain = () => {
   const handleSubmenuClick = (viewName) => {
     setCurrentReportView(viewName);
 
-    // Set the correct active menu based on which submenu was clicked
     if (viewName === 'کاربران ثبت نام کرده' ||
-      viewName === 'لاگ های مسیریابی کاربران' ||
-      viewName === 'نظرات ثبت شده کاربران') {
+      viewName === 'لاگ های مسیریابی کاربران') {
       setActiveMenu('reports');
       setBreadcrumbPath(['منوی اصلی', 'گزارشات', viewName]);
-    } else if (viewName === 'بارگذاری و ثبت محتوا' ||
-      viewName === 'ثبت ماهیت') {
-      setActiveMenu('culturemanage');
-      setBreadcrumbPath(['منوی اصلی', 'مدیریت اطلاعات فرهنگی', viewName]);
-
-      // Reset form when switching to content upload
-      if (viewName === 'بارگذاری و ثبت محتوا') {
-        resetForm();
-      }
+    } else if (viewName === 'مدیریت دسته بندی‌ها' ||
+      viewName === 'مدیریت اطلاعات فرهنگی') { // Added this line
+      setActiveMenu('facmanage');
+      setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات', viewName]);
+      resetCategoryForm();
     } else {
-      // For other submenus like user management
       setActiveMenu('usermanage');
       setBreadcrumbPath(['منوی اصلی', 'مدیریت کاربران', viewName]);
     }
@@ -354,6 +499,10 @@ const Amain = () => {
     }
   };
 
+  const toggleCategoryManagement = () => {
+    setCategoryManagementOpen(!categoryManagementOpen);
+  };
+
   const handleGPS = () => {
     if (map && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition((position) => {
@@ -411,12 +560,16 @@ const Amain = () => {
     } else if (menuName === 'mapmanage') {
       setCurrentReportView(null);
       setBreadcrumbPath(['منوی اصلی', breadcrumbLabel]);
+    } else if (menuName === 'facmanage') {
+      setCurrentReportView(null);
+      setBreadcrumbPath(['منوی اصلی', breadcrumbLabel]);
     } else {
       setCurrentReportView(null);
       const newPath = ['منوی اصلی', breadcrumbLabel];
       setBreadcrumbPath(newPath);
     }
   };
+
 
   const mapTypes = [
     'نمای خیابان',
@@ -593,6 +746,254 @@ const Amain = () => {
     return mod === 1 || mod === 5 || mod === 9 || mod === 13 || mod === 17 || mod === 22 || mod === 26 || mod === 30;
   };
 
+  const resetCategoryForm = () => {
+    setNewCategory({
+      title: '',
+      description: '',
+      image: null,
+      status: 'active'
+    });
+    setEditingCategory(null);
+  };
+
+  const handleCreateCategory = () => {
+    if (!newCategory.title.trim()) {
+      alert('عنوان دسته بندی الزامی است');
+      return;
+    }
+
+    const categoryData = {
+      id: Date.now(),
+      title: newCategory.title,
+      description: newCategory.description,
+      image: newCategory.image,
+      createdAt: formatJalaliDate(new Date()),
+      subcategories: [],
+      status: newCategory.status,
+      numSubcategories: 0
+    };
+
+    setCategories([...categories, categoryData]);
+
+    // Close modal and reset form
+    setIsCreateCategoryModalOpen(false);
+    resetCategoryForm();
+  };
+
+  const handleDeleteCategory = (id) => {
+    setCategoryToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteCategory = () => {
+    setCategories(categories.filter(cat => cat.id !== categoryToDelete));
+    setIsDeleteModalOpen(false);
+    setCategoryToDelete(null);
+  };
+
+  const toggleCategoryExpand = (id) => {
+    if (expandedCategories.includes(id)) {
+      setExpandedCategories(expandedCategories.filter(catId => catId !== id));
+    } else {
+      setExpandedCategories([...expandedCategories, id]);
+    }
+  };
+
+  const handleEditCategory = (category) => {
+    setEditingCategoryId(category.id);
+    setEditCategoryData({
+      title: category.title,
+      description: category.description || '',
+      icon: category.icon || null,
+      status: category.status || 'active'
+    });
+    setIsIconUploaded(!!category.icon);
+    setIsEditCategoryModalOpen(true);
+  };
+
+  const handleUpdateCategory = () => {
+    if (!editCategoryData.title.trim()) {
+      alert('عنوان دسته بندی الزامی است');
+      return;
+    }
+
+    setCategories(categories.map(category => {
+      if (category.id === editingCategoryId) {
+        return {
+          ...category,
+          title: editCategoryData.title,
+          description: editCategoryData.description,
+          icon: editCategoryData.icon,
+          status: editCategoryData.status
+        };
+      }
+      return category;
+    }));
+
+    // Reset form and close modal
+    setIsEditCategoryModalOpen(false);
+    setEditCategoryData({
+      title: '',
+      description: '',
+      icon: null,
+      status: 'active'
+    });
+    setEditingCategoryId(null);
+    setIsIconUploaded(false);
+  };
+
+  const handleIconUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
+        alert('فقط فایل‌های JPEG و PNG مجاز هستند');
+        return;
+      }
+
+      // Validate file size (max 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        alert('حجم فایل نباید بیشتر از ۲ مگابایت باشد');
+        return;
+      }
+
+      setEditCategoryData({ ...editCategoryData, icon: file });
+      setIsIconUploaded(true);
+    }
+  };
+
+  const handleAddSubcategoryInModal = () => {
+    const subcategoryTitle = prompt('عنوان زیرگروه را وارد کنید:');
+    if (!subcategoryTitle) return;
+
+    const newSubcategory = {
+      id: Date.now(),
+      title: subcategoryTitle,
+      parentId: editingCategoryId,
+      createdAt: formatJalaliDate(new Date()),
+      status: 'active'
+    };
+
+    const updatedCategories = categories.map(category => {
+      if (category.id === editingCategoryId) {
+        const existingSubcategories = category.subcategories || [];
+        return {
+          ...category,
+          subcategories: [...existingSubcategories, newSubcategory],
+          numSubcategories: existingSubcategories.length + 1
+        };
+      }
+      return category;
+    });
+
+    setCategories(updatedCategories);
+    alert('زیرگروه با موفقیت اضافه شد');
+  };
+
+  const handleAddSubcategory = (parentId) => {
+    const parentCategory = categories.find(cat => cat.id === parentId);
+    if (!parentCategory) return;
+
+    const subcategoryTitle = prompt('عنوان زیرگروه را وارد کنید:');
+    if (!subcategoryTitle) return;
+
+    const newSubcategory = {
+      id: Date.now(),
+      title: subcategoryTitle,
+      parentId: parentId,
+      createdAt: formatJalaliDate(new Date()),
+      status: 'active'
+    };
+
+    const updatedCategories = categories.map(cat => {
+      if (cat.id === parentId) {
+        return {
+          ...cat,
+          subcategories: [...(cat.subcategories || []), newSubcategory],
+          numSubcategories: (cat.subcategories || []).length + 1
+        };
+      }
+      return cat;
+    });
+
+    setCategories(updatedCategories);
+  };
+
+  const handleEditSubcategory = (subcategory) => {
+    const newTitle = prompt('عنوان جدید زیرگروه را وارد کنید:', subcategory.title);
+    if (!newTitle) return;
+
+    const updatedCategories = categories.map(cat => {
+      if (cat.id === subcategory.parentId) {
+        return {
+          ...cat,
+          subcategories: cat.subcategories.map(sub =>
+            sub.id === subcategory.id ? { ...sub, title: newTitle } : sub
+          )
+        };
+      }
+      return cat;
+    });
+
+    setCategories(updatedCategories);
+  };
+
+  const handleDeleteSubcategory = (subcategory) => {
+    const updatedCategories = categories.map(cat => {
+      if (cat.id === subcategory.parentId) {
+        return {
+          ...cat,
+          subcategories: cat.subcategories.filter(sub => sub.id !== subcategory.id),
+          numSubcategories: cat.subcategories.length - 1
+        };
+      }
+      return cat;
+    });
+
+    setCategories(updatedCategories);
+  };
+
+  // Initialize sample data
+  useEffect(() => {
+    // Sample categories data
+    const sampleCategories = [
+      {
+        id: 1,
+        title: 'صحن حرم',
+        description: 'لورم ایس‌موم متن ساختم با تولید...',
+        createdAt: '۱۸ مرداد ۱۴۰۴',
+        numSubcategories: 4,
+        status: 'active',
+        subcategories: [
+          { id: 11, title: 'صحن انقلاب اسلامی', parentId: 1, createdAt: '۱۸ مرداد ۱۴۰۴', status: 'active' },
+          { id: 12, title: 'صحن آزادی', parentId: 1, createdAt: '۱۸ مرداد ۱۴۰۴', status: 'active' },
+          { id: 13, title: 'صحن امام حسن مجتبی (ع)', parentId: 1, createdAt: '۱۸ مرداد ۱۴۰۴', status: 'active' },
+          { id: 14, title: 'صحن جمهوری', parentId: 1, createdAt: '۱۸ مرداد ۱۴۰۴', status: 'active' }
+        ]
+      },
+      {
+        id: 2,
+        title: 'رواق ها',
+        description: 'لورم ایس‌موم متن ساختم با تولید...',
+        createdAt: '۲۰ مرداد ۱۴۰۴',
+        numSubcategories: 2,
+        status: 'active',
+        subcategories: [
+          { id: 21, title: 'رواق دارالحجه', parentId: 2, createdAt: '۲۰ مرداد ۱۴۰۴', status: 'active' },
+          { id: 22, title: 'رواق دارالولایه', parentId: 2, createdAt: '۲۰ مرداد ۱۴۰۴', status: 'active' }
+        ]
+      }
+    ];
+
+    setCategories(sampleCategories);
+  }, []);
+
+  // Filter categories based on search
+  const filteredCategories = categories.filter(category =>
+    category.title.toLowerCase().includes(categorySearchTerm.toLowerCase()) ||
+    category.description.toLowerCase().includes(categorySearchTerm.toLowerCase())
+  );
+
   const handleDaySelect = (day) => {
     setSelectedJalaliDate({
       year: calendarDate.year,
@@ -750,6 +1151,12 @@ const Amain = () => {
       setSelectedJalaliDate(null);
     }
   };
+
+  const filteredCulturalData = culturalData.filter(item =>
+    item.title.toLowerCase().includes(culturalSearchTerm.toLowerCase()) ||
+    item.description.toLowerCase().includes(culturalSearchTerm.toLowerCase()) ||
+    item.address.toLowerCase().includes(culturalSearchTerm.toLowerCase())
+  );
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -986,10 +1393,6 @@ const Amain = () => {
                     <div className="submenu-branch"></div>
                     <span>لاگ های مسیریابی کاربران</span>
                   </div>
-                  <div className="submenu-item">
-                    <div className="submenu-branch"></div>
-                    <span>نظرات ثبت شده کاربران</span>
-                  </div>
                 </div>
               )}
             </div>
@@ -1050,11 +1453,11 @@ const Amain = () => {
             </div>
 
             <div
-                className={`menu-item ${activeMenu === 'facmanage' ? 'active' : ''}`}
-                onClick={() => {
-                  togglefacManagement();
-                  handleMenuClick('facmanage', 'مدیریت امکانات');
-                }}
+              className={`menu-item ${activeMenu === 'facmanage' ? 'active' : ''}`}
+              onClick={() => {
+                togglefacManagement();
+                handleMenuClick('facmanage', 'مدیریت امکانات');
+              }}
             >
               <span className="menu-icon">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1070,15 +1473,21 @@ const Amain = () => {
             </div>
             {facManagementOpen && (
               <div className="submenu-items">
-                <div className="submenu-item">
+                <div
+                  className={`submenu-item ${currentReportView === 'مدیریت دسته بندی‌ها' ? 'active' : ''}`}
+                  onClick={() => handleSubmenuClick('مدیریت دسته بندی‌ها')}
+                >
                   <div className="submenu-branch"></div>
-                  <span> مدیریت دسته بندی‌ها </span>
+                  <span>مدیریت دسته بندی‌ها</span>
                 </div>
                 <div className="submenu-item">
                   <div className="submenu-branch"></div>
                   <span>مدیریت صفحات</span>
                 </div>
-                <div className="submenu-item">
+                <div
+                  className={`submenu-item ${currentReportView === 'مدیریت اطلاعات فرهنگی' ? 'active' : ''}`}
+                  onClick={() => handleSubmenuClick('مدیریت اطلاعات فرهنگی')}
+                >
                   <div className="submenu-branch"></div>
                   <span>مدیریت اطلاعات فرهنگی</span>
                 </div>
@@ -1088,6 +1497,7 @@ const Amain = () => {
                 </div>
               </div>
             )}
+
           </div>
 
           <div className="sidebar-footer">
@@ -1228,7 +1638,193 @@ const Amain = () => {
 
 
 
-          {currentReportView === 'کاربران ثبت نام کرده' ? (
+
+          {currentReportView === 'مدیریت اطلاعات فرهنگی' ? (
+            /* Cultural Information Management Section */
+            <div className="cultural-management-section">
+              {/* Header with buttons */}
+              <div className="cultural-header-section">
+                <div className="cultural-header-left">
+                  <button className="new-cultural-btn">
+                    ایجاد اطلاعات فرهنگی
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path fillRule="evenodd" clipRule="evenodd" d="M10.0001 18.3334C14.6025 18.3334 18.3334 14.6024 18.3334 10C18.3334 5.39765 14.6025 1.66669 10.0001 1.66669C5.39771 1.66669 1.66675 5.39765 1.66675 10C1.66675 14.6024 5.39771 18.3334 10.0001 18.3334ZM10.6251 7.50002C10.6251 7.15484 10.3453 6.87502 10.0001 6.87502C9.6549 6.87502 9.37508 7.15484 9.37508 7.50002L9.37508 9.37504H7.50008C7.1549 9.37504 6.87508 9.65486 6.87508 10C6.87508 10.3452 7.1549 10.625 7.50008 10.625H9.37508V12.5C9.37508 12.8452 9.6549 13.125 10.0001 13.125C10.3453 13.125 10.6251 12.8452 10.6251 12.5L10.6251 10.625H12.5001C12.8453 10.625 13.1251 10.3452 13.1251 10C13.1251 9.65486 12.8453 9.37504 12.5001 9.37504H10.6251V7.50002Z" fill="white" />
+                    </svg>
+                  </button>
+                  <button className="export-cultural-btn">
+                    گرفتن خروجی
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path fillRule="evenodd" clipRule="evenodd" d="M3.69247 7.09327C3.91711 6.83119 4.31167 6.80084 4.57375 7.02548L10.0003 11.6768L15.4269 7.02548C15.689 6.80084 16.0836 6.83119 16.3082 7.09327C16.5328 7.35535 16.5025 7.74991 16.2404 7.97455L10.4071 12.9745C10.173 13.1752 9.82765 13.1752 9.59359 12.9745L3.76026 7.97455C3.49818 7.74991 3.46783 7.35535 3.69247 7.09327Z" fill="#1E2023" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="cultural-header-right">
+                  <div className="cultural-search-box">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="search-icon">
+                      <g clipPath="url(#clip0_367_7167)">
+                        <path fillRule="evenodd" clipRule="evenodd" d="M7.66658 1.83337C4.44492 1.83337 1.83325 4.44505 1.83325 7.66671C1.83325 10.8884 4.44492 13.5 7.66658 13.5C10.8882 13.5 13.4999 10.8884 13.4999 7.66671C13.4999 4.44505 10.8882 1.83337 7.66658 1.83337ZM0.833252 7.66671C0.833252 3.89276 3.89264 0.833374 7.66658 0.833374C11.4405 0.833374 14.4999 3.89276 14.4999 7.66671C14.4999 9.37372 13.874 10.9345 12.8392 12.1322L15.0201 14.3132C15.2154 14.5084 15.2154 14.825 15.0201 15.0203C14.8249 15.2155 14.5083 15.2155 14.313 15.0203L12.1321 12.8393C10.9344 13.8741 9.37359 14.5 7.66658 14.5C3.89264 14.5 0.833252 11.4407 0.833252 7.66671Z" fill="#858585" />
+                      </g>
+                      <defs>
+                        <clipPath id="clip0_367_7167">
+                          <rect width="16" height="16" fill="white" />
+                        </clipPath>
+                      </defs>
+                    </svg>
+                    <input
+                      type="text"
+                      placeholder="جستجوی موارد..."
+                      value={culturalSearchTerm}
+                      onChange={(e) => setCulturalSearchTerm(e.target.value)}
+                      className="cultural-search-input"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Table Section Header */}
+              <div className="cultural-table-header">
+                <div className="cultural-table-title">
+                  <h3>اطلاعات فرهنگی ایجاد شده در این‌پیشین</h3>
+                  <button className="refresh-btn">
+                    <svg width="18" height="18" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M11.047 5.99994C11.047 8.73518 8.8271 10.9551 6.09186 10.9551C3.35662 10.9551 1.68674 8.20002 1.68674 8.20002M1.68674 8.20002H3.92646M1.68674 8.20002V10.6776M1.13672 5.99994C1.13672 3.2647 3.3368 1.0448 6.09186 1.0448C9.39694 1.0448 11.047 3.79986 11.047 3.79986M11.047 3.79986V1.32229M11.047 3.79986H8.84692" stroke="#1E2023" strokeWidth="1.08112" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </div>
+                <p>لورم ایپسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است</p>
+              </div>
+
+              {/* Cultural Data Table */}
+              <div className="cultural-table-container">
+                <table className="cultural-table">
+                  <thead>
+                    <tr>
+                      <th>عنوان</th>
+                      <th>آدرس در حرم</th>
+                      <th>تاریخ ایجاد</th>
+                      <th>توضیحات</th>
+                      <th>عملیات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredCulturalData
+                      .slice(
+                        (culturalCurrentPage - 1) * culturalItemsPerPage,
+                        culturalCurrentPage * culturalItemsPerPage
+                      )
+                      .map(item => (
+                        <tr key={item.id}>
+                          <td>
+                            <div className="cultural-title-cell">
+                              <div className="cultural-icon-placeholder">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M19 7V5H5V7H19ZM19 11V9H5V11H19ZM19 15V13H5V15H19ZM19 19V17H5V19H19Z" fill="#858585" />
+                                </svg>
+                              </div>
+                              <strong>{item.title}</strong>
+                            </div>
+                          </td>
+                          <td>{item.address}</td>
+                          <td>{item.createdAt}</td>
+                          <td className="cultural-description-cell">{item.description}</td>
+                          <td>
+                            <div className="cultural-actions">
+                              <button className="edit-cultural-btn">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <g clipPath="url(#clip0_367_7217)">
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M7.96167 0.833374L8.99992 0.833374C9.27606 0.833374 9.49992 1.05723 9.49992 1.33337C9.49992 1.60952 9.27606 1.83337 8.99992 1.83337H7.99992C6.41444 1.83337 5.27562 1.83444 4.40897 1.95095C3.5567 2.06554 3.04289 2.28347 2.66312 2.66324C2.28335 3.04301 2.06542 3.55682 1.95083 4.40909C1.83431 5.27574 1.83325 6.41456 1.83325 8.00004C1.83325 9.58552 1.83431 10.7243 1.95083 11.591C2.06542 12.4433 2.28335 12.9571 2.66312 13.3368C3.04289 13.7166 3.5567 13.9345 4.40897 14.0491C5.27562 14.1656 6.41444 14.1667 7.99992 14.1667C9.5854 14.1667 10.7242 14.1656 11.5909 14.0491C12.4431 13.9345 12.957 13.7166 13.3367 13.3368C13.7165 12.9571 13.9344 12.4433 14.049 11.591C14.1655 10.7243 14.1666 9.58552 14.1666 8.00004V7.00004C14.1666 6.7239 14.3904 6.50004 14.6666 6.50004C14.9427 6.50004 15.1666 6.7239 15.1666 7.00004V8.03829C15.1666 9.57722 15.1666 10.7832 15.0401 11.7242C14.9106 12.6874 14.6404 13.4474 14.0438 14.044C13.4473 14.6405 12.6873 14.9107 11.7241 15.0402C10.7831 15.1667 9.5771 15.1667 8.03817 15.1667H7.96167C6.42274 15.1667 5.21671 15.1667 4.27572 15.0402C3.31257 14.9107 2.55255 14.6405 1.95601 14.044C1.35947 13.4474 1.08924 12.6874 0.95975 11.7242C0.833237 10.7832 0.833244 9.57722 0.833252 8.03829V7.96179C0.833244 6.42286 0.833237 5.21684 0.95975 4.27584C1.08924 3.31269 1.35947 2.55267 1.95601 1.95613C2.55255 1.35959 3.31257 1.08936 4.27572 0.959872C5.21671 0.833359 6.42274 0.833366 7.96167 0.833374ZM11.1803 1.51732C12.0922 0.605393 13.5707 0.605393 14.4826 1.51732C15.3946 2.42924 15.3946 3.90776 14.4826 4.81969L10.0506 9.25176C9.80306 9.49931 9.648 9.65438 9.47497 9.78934C9.27118 9.9483 9.05067 10.0846 8.81735 10.1958C8.61926 10.2902 8.41122 10.3595 8.07911 10.4702L6.14276 11.1156C5.78526 11.2348 5.39112 11.1418 5.12466 10.8753C4.8582 10.6088 4.76515 10.2147 4.88432 9.8572L5.52976 7.92086C5.64044 7.58874 5.70978 7.3807 5.80418 7.18261C5.91538 6.94929 6.05166 6.72878 6.21062 6.52499C6.34558 6.35195 6.50065 6.1969 6.74822 5.94937L11.1803 1.51732ZM13.7755 2.22442C13.2541 1.70302 12.4088 1.70302 11.8874 2.22442L11.6363 2.4755C11.6514 2.53941 11.6726 2.61555 11.7021 2.70048C11.7976 2.97586 11.9784 3.33852 12.3199 3.68004C12.6614 4.02156 13.0241 4.20235 13.2995 4.29789C13.3844 4.32735 13.4605 4.34853 13.5245 4.36366L13.7755 4.11258C14.2969 3.59118 14.2969 2.74582 13.7755 2.22442ZM12.7367 5.15143C12.3927 5.0035 11.992 4.76635 11.6128 4.38714C11.2336 4.00794 10.9965 3.60726 10.8485 3.26328L7.47826 6.63355C7.20058 6.91122 7.09168 7.02134 6.99913 7.14001C6.88484 7.28653 6.78685 7.44508 6.70691 7.61283C6.64216 7.74868 6.59237 7.89533 6.46819 8.26787L6.18026 9.13166L6.8683 9.8197L7.73209 9.53177C8.10463 9.40759 8.25128 9.35779 8.38713 9.29305C8.55488 9.21311 8.71342 9.11512 8.85995 9.00083C8.97862 8.90828 9.08874 8.79938 9.36641 8.5217L12.7367 5.15143Z" fill="#1E2023" />
+                                  </g>
+                                  <defs>
+                                    <clipPath id="clip0_367_7217">
+                                      <rect width="16" height="16" fill="white" />
+                                    </clipPath>
+                                  </defs>
+                                </svg>
+                              </button>
+                              <button className="delete-cultural-btn" onClick={() => handleDeleteCultural(item.id)}>
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path fillRule="evenodd" clipRule="evenodd" d="M3.41116 5.1678C3.68669 5.14943 3.92494 5.3579 3.94331 5.63343L4.24994 10.2328C4.30984 11.1314 4.35253 11.7566 4.44624 12.227C4.53714 12.6833 4.66403 12.9249 4.8463 13.0954C5.02858 13.2659 5.27802 13.3765 5.73935 13.4368C6.21496 13.499 6.84163 13.5 7.74219 13.5H8.25776C9.15832 13.5 9.78499 13.499 10.2606 13.4368C10.7219 13.3765 10.9714 13.2659 11.1536 13.0954C11.3359 12.9249 11.4628 12.6833 11.5537 12.227C11.6474 11.7566 11.6901 11.1314 11.75 10.2328L12.0566 5.63343C12.075 5.3579 12.3133 5.14943 12.5888 5.1678C12.8643 5.18617 13.0728 5.42442 13.0544 5.69995L12.7455 10.3345C12.6885 11.1896 12.6424 11.8804 12.5344 12.4224C12.4222 12.986 12.2312 13.4567 11.8368 13.8256C11.4424 14.1946 10.9601 14.3538 10.3903 14.4284C9.84227 14.5001 9.14998 14.5 8.29292 14.5H7.70703C6.84997 14.5 6.15768 14.5001 5.60965 14.4284C5.03988 14.3538 4.55752 14.1946 4.16312 13.8256C3.76872 13.4567 3.57778 12.986 3.46551 12.4224C3.35753 11.8804 3.31149 11.1896 3.25449 10.3344L2.94553 5.69995C2.92716 5.42442 3.13563 5.18617 3.41116 5.1678Z" fill="#1E2023" />
+                                  <path fillRule="evenodd" clipRule="evenodd" d="M6.90348 1.50003L6.87283 1.50001C6.72857 1.49992 6.60288 1.49984 6.4842 1.51879C6.01534 1.59366 5.60961 1.8861 5.39031 2.30723C5.3348 2.41382 5.29513 2.53309 5.2496 2.66998L5.23992 2.69905L5.17519 2.89323C5.16253 2.93121 5.159 2.94168 5.15593 2.95016C5.03919 3.2729 4.73651 3.49106 4.39341 3.49976C4.38439 3.49999 4.37334 3.50003 4.33331 3.50003H2.33325C2.05711 3.50003 1.83325 3.72388 1.83325 4.00003C1.83325 4.27617 2.05711 4.50003 2.33325 4.50003L4.33902 4.50003L4.35018 4.50003H11.6498L11.6609 4.50003L13.6666 4.50003C13.9428 4.50003 14.1666 4.27617 14.1666 4.00003C14.1666 3.72388 13.9428 3.50003 13.6666 3.50003H11.6666C11.6266 3.50003 11.6156 3.49999 11.6065 3.49976C11.2634 3.49106 10.9608 3.27289 10.844 2.95014C10.841 2.94172 10.8374 2.93102 10.8248 2.89323L10.76 2.69905L10.7503 2.66996C10.7048 2.53307 10.6651 2.41382 10.6096 2.30723C10.3903 1.8861 9.98461 1.59366 9.51575 1.51879C9.39707 1.49984 9.27138 1.49992 9.12712 1.50001L9.09647 1.50003H6.90348ZM6.0963 3.29032C6.07012 3.36269 6.03969 3.43268 6.00535 3.50003H9.9946C9.96026 3.43268 9.92983 3.3627 9.90365 3.29033L9.87784 3.21477L9.81135 3.01528C9.75057 2.83294 9.73657 2.79575 9.72269 2.76909C9.64959 2.62872 9.51435 2.53124 9.35806 2.50628C9.32837 2.50154 9.28868 2.50003 9.09647 2.50003H6.90348C6.71127 2.50003 6.67157 2.50154 6.64189 2.50628C6.4856 2.53124 6.35036 2.62872 6.27726 2.76909C6.26338 2.79575 6.24938 2.83294 6.1886 3.01528L6.12207 3.21489C6.11205 3.24495 6.10425 3.26834 6.0963 3.29032Z" fill="#1E2023" />
+                                </svg>
+                              </button>
+                              <button className="cultural-details-btn">
+                                <svg width="100" height="32" viewBox="0 0 100 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <rect x="0.25" y="0.25" width="99.5" height="31.5" rx="5.75" stroke="#D9D9D9" strokeWidth="0.5" />
+                                  <path fillRule="evenodd" clipRule="evenodd" d="M18.3254 10.9538C18.535 11.1335 18.5593 11.4491 18.3796 11.6588L14.6585 16L18.3796 20.3413C18.5593 20.551 18.535 20.8666 18.3254 21.0463C18.1157 21.2261 17.8001 21.2018 17.6204 20.9921L13.6204 16.3254C13.4599 16.1382 13.4599 15.8619 13.6204 15.6747L17.6204 11.008C17.8001 10.7983 18.1157 10.774 18.3254 10.9538Z" fill="#1E2023" />
+                                  <path d="M32.2572 19C32.0252 19 31.8252 18.976 31.6572 18.928C31.6812 19.112 31.6932 19.28 31.6932 19.432C31.6932 19.92 31.5812 20.324 31.3572 20.644C31.1332 20.964 30.8292 21.22 30.4452 21.412C30.0692 21.604 29.5932 21.78 29.0172 21.94L28.5252 22.084L28.2852 21.1L28.7892 20.956C29.2612 20.828 29.6252 20.708 29.8812 20.596C30.1452 20.492 30.3612 20.34 30.5292 20.14C30.6972 19.948 30.7812 19.684 30.7812 19.348C30.7812 19.284 30.7732 19.18 30.7572 19.036L30.2772 15.592L31.1772 15.448L31.2372 15.88C31.2532 16.008 31.2692 16.1 31.2852 16.156L31.4052 16.924C31.4532 17.22 31.5052 17.444 31.5612 17.596C31.6252 17.74 31.7092 17.844 31.8132 17.908C31.9172 17.964 32.0652 17.992 32.2572 17.992H32.3412L32.4012 18.496L32.3412 19H32.2572ZM32.2447 17.992H34.0807C34.8487 17.992 35.2087 17.692 35.1607 17.092V17.056L35.0287 15.58L35.9407 15.496L36.0727 16.972V17.044C36.1127 17.396 36.2087 17.644 36.3607 17.788C36.5207 17.924 36.7847 17.992 37.1527 17.992L37.2127 18.496L37.1527 19C36.4887 19 35.9847 18.804 35.6407 18.412C35.4647 18.604 35.2407 18.752 34.9687 18.856C34.7047 18.952 34.4087 19 34.0807 19H32.2447V17.992ZM32.5567 13.12H33.6247V14.188H32.5567V13.12ZM34.6807 13.12H35.7487V14.188H34.6807V13.12ZM43.3017 19C42.6857 19 42.1937 18.756 41.8257 18.268C41.4737 18.756 40.9537 19 40.2657 19C39.6577 19 39.1817 18.756 38.8377 18.268C38.4777 18.756 37.9657 19 37.3017 19H37.0377V17.992H37.3017C38.0297 17.992 38.3937 17.668 38.3937 17.02V15.532H39.2457V17.02C39.2697 17.244 39.3417 17.464 39.4617 17.68C39.5817 17.888 39.8497 17.992 40.2657 17.992C40.6977 17.992 40.9857 17.9 41.1297 17.716C41.2817 17.524 41.3577 17.292 41.3577 17.02V15.532H42.2097V17.02C42.2177 17.284 42.3057 17.508 42.4737 17.692C42.6417 17.876 42.8977 17.968 43.2417 17.968C43.6257 17.968 43.9057 17.9 44.0817 17.764C44.2657 17.62 44.3577 17.436 44.3577 17.212C44.3577 17.124 44.3457 17.04 44.3217 16.96L43.9257 15.484L44.7537 15.244L45.1497 16.72L45.1617 16.78C45.2577 17.14 45.4457 17.432 45.7257 17.656C46.0057 17.88 46.3257 17.992 46.6857 17.992L46.7457 18.496L46.6857 19C46.3417 19 46.0217 18.928 45.7257 18.784C45.4297 18.64 45.1737 18.44 44.9577 18.184C44.7977 18.432 44.5737 18.632 44.2857 18.784C44.0057 18.928 43.6777 19 43.3017 19ZM40.2057 13.108H41.3337V14.236H40.1937L40.2057 13.108ZM41.3217 11.608H42.3657V12.592H41.3217V11.608ZM42.3297 13.108H43.4577L43.4697 14.236H42.3177L42.3297 13.108ZM46.565 17.992H48.401C49.169 17.992 49.529 17.692 49.481 17.092V17.056L49.349 15.58L50.261 15.496L50.393 16.972V17.044C50.433 17.396 50.529 17.644 50.681 17.788C50.841 17.924 51.105 17.992 51.473 17.992L51.533 18.496L51.473 19C50.809 19 50.305 18.804 49.961 18.412C49.785 18.604 49.561 18.752 49.289 18.856C49.025 18.952 48.729 19 48.401 19H46.565V17.992ZM46.049 20.2H47.117V21.28H46.049V20.2ZM48.173 20.2H49.241V21.28H48.173V20.2ZM51.358 17.992H52.306C53.178 17.992 53.614 17.664 53.614 17.008C53.614 16.832 53.586 16.648 53.53 16.456L53.05 14.668L53.938 14.416L54.418 16.204C54.49 16.5 54.526 16.772 54.526 17.02C54.526 17.652 54.314 18.14 53.89 18.484C53.466 18.828 52.938 19 52.306 19H51.358V17.992ZM51.634 20.092H52.834V21.304H51.634V20.092ZM63.5911 19C62.6871 19 62.0071 18.992 61.5511 18.976C61.1031 18.952 60.7671 18.92 60.5431 18.88C60.3271 18.832 60.1191 18.764 59.9191 18.676C59.5511 18.516 59.2711 18.284 59.0791 17.98C58.8951 17.676 58.8031 17.32 58.8031 16.912C58.8031 16.664 58.8391 16.404 58.9111 16.132L59.3551 14.44L60.2311 14.704L59.7871 16.432C59.7391 16.624 59.7151 16.792 59.7151 16.936C59.7151 17.128 59.7591 17.292 59.8471 17.428C59.9431 17.556 60.0871 17.664 60.2791 17.752C60.4151 17.816 60.5711 17.864 60.7471 17.896C60.9311 17.928 61.2471 17.952 61.6951 17.968C62.1431 17.984 62.8151 17.992 63.7111 17.992H63.7231C64.6031 17.992 65.2671 17.984 65.7151 17.968C66.1631 17.944 66.4711 17.916 66.6391 17.884C66.8071 17.852 66.9631 17.808 67.1071 17.752C67.3071 17.664 67.4551 17.552 67.5511 17.416C67.6471 17.28 67.6951 17.108 67.6951 16.9C67.6951 16.724 67.6671 16.536 67.6111 16.336L67.1551 14.668L68.0311 14.416L68.4871 16.084C68.5671 16.372 68.6071 16.656 68.6071 16.936C68.6071 17.344 68.5111 17.7 68.3191 18.004C68.1351 18.3 67.8591 18.524 67.4911 18.676C67.2911 18.764 67.0751 18.832 66.8431 18.88C66.6191 18.92 66.2711 18.952 65.7991 18.976C65.3351 18.992 64.6431 19 63.7231 19H63.7111H63.5911ZM62.1031 13.804H63.1711V14.872H62.1031V13.804ZM64.2271 13.804H65.2951V14.872H64.2271V13.804ZM72.399 19C71.879 19 71.471 18.924 71.175 18.772C70.879 18.62 70.663 18.376 70.527 18.04C70.391 17.696 70.311 17.224 70.287 16.624L70.071 11.104L70.983 11.056L71.199 16.624C71.215 17.032 71.251 17.328 71.307 17.512C71.371 17.696 71.483 17.824 71.643 17.896C71.803 17.96 72.055 17.992 72.399 17.992H72.519L72.579 18.496L72.519 19H72.399ZM72.4048 17.992H74.2408C75.0088 17.992 75.3688 17.692 75.3208 17.092V17.056L75.1888 15.58L76.1008 15.496L76.2328 16.972V17.044C76.2728 17.396 76.3688 17.644 76.5208 17.788C76.6808 17.924 76.9448 17.992 77.3128 17.992L77.3728 18.496L77.3128 19C76.6488 19 76.1448 18.804 75.8008 18.412C75.6248 18.604 75.4008 18.752 75.1288 18.856C74.8648 18.952 74.5688 19 74.2408 19H72.4048V17.992ZM71.8888 20.2H72.9568V21.28H71.8888V20.2ZM74.0128 20.2H75.0808V21.28H74.0128V20.2ZM77.1978 17.992H78.1458C79.0178 17.992 79.4538 17.664 79.4538 17.008C79.4538 16.832 79.4258 16.648 79.3698 16.456L78.8898 14.668L79.7778 14.416L80.2578 16.204C80.3298 16.5 80.3658 16.772 80.3658 17.02C80.3658 17.652 80.1538 18.14 79.7298 18.484C79.3058 18.828 78.7778 19 78.1458 19H77.1978V17.992ZM78.3978 13.096C78.2298 12.928 78.1218 12.728 78.0738 12.496C78.0498 12.4 78.0378 12.304 78.0378 12.208C78.0378 11.888 78.1498 11.616 78.3738 11.392C78.6058 11.168 78.8898 11.056 79.2258 11.056C79.4418 11.056 79.7418 11.096 80.1258 11.176L80.0298 11.692C79.6858 11.628 79.4138 11.596 79.2138 11.596C79.0138 11.596 78.8458 11.66 78.7098 11.788C78.5818 11.908 78.5178 12.056 78.5178 12.232C78.5178 12.424 78.5818 12.584 78.7098 12.712C78.8458 12.832 79.0058 12.892 79.1898 12.892C79.2298 12.892 79.2818 12.884 79.3458 12.868L80.5578 12.58L80.6658 13.108L77.5098 13.864L77.4018 13.336L78.3978 13.096ZM84.0892 19C83.8572 19 83.6572 18.976 83.4892 18.928C83.5132 19.112 83.5252 19.28 83.5252 19.432C83.5252 19.92 83.4132 20.324 83.1892 20.644C82.9652 20.964 82.6612 21.22 82.2772 21.412C81.9012 21.604 81.4252 21.78 80.8492 21.94L80.3572 22.084L80.1172 21.1L80.6212 20.956C81.0932 20.828 81.4572 20.708 81.7132 20.596C81.9772 20.492 82.1932 20.34 82.3612 20.14C82.5292 19.948 82.6132 19.684 82.6132 19.348C82.6132 19.284 82.6052 19.18 82.5892 19.036L82.1092 15.592L83.0092 15.448L83.0692 15.88C83.0852 16.008 83.1012 16.1 83.1172 16.156L83.2372 16.924C83.2852 17.22 83.3372 17.444 83.3932 17.596C83.4572 17.74 83.5412 17.844 83.6452 17.908C83.7492 17.964 83.8972 17.992 84.0892 17.992H84.1732L84.2332 18.496L84.1732 19H84.0892ZM81.7972 12.892H83.0092V14.104H81.7972V12.892ZM84.0767 17.992H84.2447C84.9567 17.992 85.5527 17.976 86.0327 17.944C86.5127 17.904 87.0047 17.812 87.5087 17.668L90.3287 16.912L87.8927 15.52C87.6527 15.376 87.4047 15.304 87.1487 15.304C86.9007 15.304 86.6647 15.376 86.4407 15.52C86.2167 15.656 86.0367 15.848 85.9007 16.096L85.6847 16.468L84.8927 15.976L85.1207 15.568C85.3447 15.16 85.6327 14.844 85.9847 14.62C86.3447 14.396 86.7287 14.284 87.1367 14.284C87.5527 14.284 87.9527 14.4 88.3367 14.632L91.3967 16.48L91.2527 17.656L87.7367 18.652C87.1767 18.804 86.6367 18.9 86.1167 18.94C85.5967 18.98 84.9687 19 84.2327 19H84.0767V17.992ZM87.1967 20.008H88.3967V21.22H87.1967V20.008Z" fill="#1E2023" />
+                                </svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination Controls */}
+              <div className="pagination-container">
+                <div className="pagination-controls">
+                  <div className="btc">
+                    <button
+                      className={`pagination-btn ${culturalCurrentPage === 1 ? 'disabled' : ''}`}
+                      onClick={() => handleCulturalPageChange(1)}
+                      disabled={culturalCurrentPage === 1}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(180deg)' }}>
+                        <path fillRule="evenodd" clipRule="evenodd" d="M11.6584 2.95363C11.4487 2.77392 11.1331 2.7982 10.9534 3.00787L6.95337 7.67453C6.79287 7.86178 6.79287 8.13808 6.95337 8.32532L10.9534 12.992C11.1331 13.2017 11.4487 13.2259 11.6584 13.0462C11.8681 12.8665 11.8923 12.5509 11.7126 12.3412L7.99154 7.99993L11.7126 3.65866C11.8923 3.44899 11.8681 3.13334 11.6584 2.95363ZM8.9916 2.9537C8.78193 2.77399 8.46628 2.79827 8.28657 3.00793L4.28657 7.6746C4.12608 7.86185 4.12608 8.13815 4.28657 8.32539L8.28657 12.9921C8.46628 13.2017 8.78193 13.226 8.9916 13.0463C9.20126 12.8666 9.22554 12.5509 9.04583 12.3413L5.32474 8L9.04583 3.65873C9.22554 3.44906 9.20126 3.13341 8.9916 2.9537Z" fill={culturalCurrentPage === 1 ? "#C5C5C5" : "#0F71EF"} />
+                      </svg>
+                    </button>
+
+                    <button
+                      className={`pagination-btn ${culturalCurrentPage === 1 ? 'disabled' : ''}`}
+                      onClick={() => handleCulturalPageChange(culturalCurrentPage - 1)}
+                      disabled={culturalCurrentPage === 1}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(180deg)' }}>
+                        <path fillRule="evenodd" clipRule="evenodd" d="M10.3254 2.95375C10.1157 2.77404 9.80007 2.79832 9.62036 3.00799L5.62036 7.67465C5.45987 7.8619 5.45987 8.1382 5.62036 8.32544L9.62036 12.9921C9.80007 13.2018 10.1157 13.2261 10.3254 13.0463C10.535 12.8666 10.5593 12.551 10.3796 12.3413L6.65853 8.00005L10.3796 3.65878C10.5593 3.44912 10.535 3.13347 10.3254 2.95375Z" fill={culturalCurrentPage === 1 ? "#C5C5C5" : "#0F71EF"} />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div className="page-numbers">
+                    {getCulturalPageNumbers().map(page => (
+                      <button
+                        key={page}
+                        className={`page-number ${culturalCurrentPage === page ? 'active' : ''}`}
+                        onClick={() => handleCulturalPageChange(page)}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="btc">
+                    <button
+                      className={`pagination-btn ${culturalCurrentPage === Math.ceil(filteredCulturalData.length / culturalItemsPerPage) ? 'disabled' : ''}`}
+                      onClick={() => handleCulturalPageChange(culturalCurrentPage + 1)}
+                      disabled={culturalCurrentPage === Math.ceil(filteredCulturalData.length / culturalItemsPerPage)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path fillRule="evenodd" clipRule="evenodd" d="M10.3254 2.95375C10.1157 2.77404 9.80007 2.79832 9.62036 3.00799L5.62036 7.67465C5.45987 7.8619 5.45987 8.1382 5.62036 8.32544L9.62036 12.9921C9.80007 13.2018 10.1157 13.2261 10.3254 13.0463C10.535 12.8666 10.5593 12.551 10.3796 12.3413L6.65853 8.00005L10.3796 3.65878C10.5593 3.44912 10.535 3.13347 10.3254 2.95375Z" fill={culturalCurrentPage === Math.ceil(filteredCulturalData.length / culturalItemsPerPage) ? "#C5C5C5" : "#0F71EF"} />
+                      </svg>
+                    </button>
+
+                    <button
+                      className={`pagination-btn ${culturalCurrentPage === Math.ceil(filteredCulturalData.length / culturalItemsPerPage) ? 'disabled' : ''}`}
+                      onClick={() => handleCulturalPageChange(Math.ceil(filteredCulturalData.length / culturalItemsPerPage))}
+                      disabled={culturalCurrentPage === Math.ceil(filteredCulturalData.length / culturalItemsPerPage)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path fillRule="evenodd" clipRule="evenodd" d="M11.6584 2.95363C11.4487 2.77392 11.1331 2.7982 10.9534 3.00787L6.95337 7.67453C6.79287 7.86178 6.79287 8.13808 6.95337 8.32532L10.9534 12.992C11.1331 13.2017 11.4487 13.2259 11.6584 13.0462C11.8681 12.8665 11.8923 12.5509 11.7126 12.3412L7.99154 7.99993L11.7126 3.65866C11.8923 3.44899 11.8681 3.13334 11.6584 2.95363ZM8.9916 2.9537C8.78193 2.77399 8.46628 2.79827 8.28657 3.00793L4.28657 7.6746C4.12608 7.86185 4.12608 8.13815 4.28657 8.32539L8.28657 12.9921C8.46628 13.2017 8.78193 13.226 8.9916 13.0463C9.20126 12.8666 9.22554 12.5509 9.04583 12.3413L5.32474 8L9.04583 3.65873C9.22554 3.44906 9.20126 3.13341 8.9916 2.9537Z" fill={culturalCurrentPage === Math.ceil(filteredCulturalData.length / culturalItemsPerPage) ? "#C5C5C5" : "#0F71EF"} />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : currentReportView === 'کاربران ثبت نام کرده' ? (
             /* Registered Users Report View */
             <div className="reports-section">
               <div className="report-filters">
@@ -1282,6 +1878,188 @@ const Amain = () => {
                     </svg>
                   </button>
                 </div>
+              </div>
+            </div>
+          ) : currentReportView === 'مدیریت دسته بندی‌ها' ? (
+            /* Category Management Section */
+            <div className="category-management-section">
+              {/* Header with buttons */}
+              <div className="category-header-section">
+                <div className="category-header-left">
+                  <button className="new-category-btn" onClick={() => setIsCreateCategoryModalOpen(true)}>
+                    ایجاد دسته بندی جدید
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path fillRule="evenodd" clipRule="evenodd" d="M10.0003 18.3334C14.6027 18.3334 18.3337 14.6024 18.3337 10C18.3337 5.39765 14.6027 1.66669 10.0003 1.66669C5.39795 1.66669 1.66699 5.39765 1.66699 10C1.66699 14.6024 5.39795 18.3334 10.0003 18.3334ZM10.6253 7.50002C10.6253 7.15484 10.3455 6.87502 10.0003 6.87502C9.65515 6.87502 9.37533 7.15484 9.37533 7.50002L9.37532 9.37504H7.50033C7.15515 9.37504 6.87533 9.65486 6.87533 10C6.87533 10.3452 7.15515 10.625 7.50033 10.625H9.37532V12.5C9.37532 12.8452 9.65515 13.125 10.0003 13.125C10.3455 13.125 10.6253 12.8452 10.6253 12.5L10.6253 10.625H12.5003C12.8455 10.625 13.1253 10.3452 13.1253 10C13.1253 9.65486 12.8455 9.37504 12.5003 9.37504H10.6253V7.50002Z" fill="white" />
+                    </svg>
+                  </button>
+                  <button className="export-category-btn">
+                    گرفتن خروجی
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path fillRule="evenodd" clipRule="evenodd" d="M3.69247 7.09327C3.91711 6.83119 4.31167 6.80084 4.57375 7.02548L10.0003 11.6768L15.4269 7.02548C15.689 6.80084 16.0836 6.83119 16.3082 7.09327C16.5328 7.35535 16.5025 7.74991 16.2404 7.97455L10.4071 12.9745C10.173 13.1752 9.82765 13.1752 9.59359 12.9745L3.76026 7.97455C3.49818 7.74991 3.46783 7.35535 3.69247 7.09327Z" fill="#1E2023" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="category-header-right">
+                  <div className="category-search-box">
+                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="search-icon">
+                      <path fillRule="evenodd" clipRule="evenodd" d="M10.4167 2.29166C14.4438 2.29166 17.7084 5.55625 17.7084 9.58332C17.7084 13.6104 14.4438 16.875 10.4167 16.875C6.38963 16.875 3.12504 13.6104 3.12504 9.58332C3.12504 5.55625 6.38963 2.29166 10.4167 2.29166ZM18.9584 9.58332C18.9584 4.86589 15.1341 1.04166 10.4167 1.04166C5.69928 1.04166 1.87504 4.86589 1.87504 9.58332C1.87504 11.7171 2.65743 13.6681 3.95099 15.1652L1.22476 17.8914C0.980688 18.1355 0.980688 18.5312 1.22476 18.7753C1.46884 19.0193 1.86457 19.0193 2.10865 18.7753L4.83487 16.049C6.33192 17.3426 8.28295 18.125 10.4167 18.125C15.1341 18.125 18.9584 14.3008 18.9584 9.58332Z" fill="#858585" />
+                    </svg>
+                    <input
+                      type="text"
+                      placeholder="جستوجوی دسته بندی ..."
+                      value={categorySearchTerm}
+                      onChange={(e) => setCategorySearchTerm(e.target.value)}
+                      className="category-search-input"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Table Section Header */}
+              <div className="category-table-header">
+                <div className="category-table-title">
+                  <h3>دسته بندی های ایجاد شده در اپلیکیشن</h3>
+                  <button className="refresh-btn">
+                    <svg width="18" height="18" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M11.047 5.99994C11.047 8.73518 8.8271 10.9551 6.09186 10.9551C3.35662 10.9551 1.68674 8.20002 1.68674 8.20002M1.68674 8.20002H3.92646M1.68674 8.20002V10.6776M1.13672 5.99994C1.13672 3.2647 3.3368 1.0448 6.09186 1.0448C9.39694 1.0448 11.047 3.79986 11.047 3.79986M11.047 3.79986V1.32229M11.047 3.79986H8.84692" stroke="#1E2023" strokeWidth="1.08112" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </div>
+                <p>لورم ایپسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است</p>
+              </div>
+
+              {/* Categories Table */}
+              <div className="categories-table-container">
+                <table className="categories-table">
+                  <thead>
+                    <tr>
+                      <th>عنوان دسته بندی</th>
+                      <th>توضیحات دسته بندی</th>
+                      <th>تصویر دسته بندی</th>
+                      <th>تاریخ ایجاد</th>
+                      <th>تعداد زیر گروه</th>
+                      <th>وضعیت</th>
+                      <th>عملیات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredCategories.map(category => (
+                      <>
+                        <tr key={category.id}>
+                          <td>
+                            <div className="category-title-cell">
+                              <div className="category-expand-btn" onClick={() => toggleCategoryExpand(category.id)}>
+                                {expandedCategories.includes(category.id) ? (
+                                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M7.99967 14.1666C4.59392 14.1666 1.83301 11.4057 1.83301 7.99996C1.83301 4.5942 4.59392 1.83329 7.99967 1.83329C11.4054 1.83329 14.1663 4.5942 14.1663 7.99996C14.1663 11.4057 11.4054 14.1666 7.99967 14.1666ZM0.833008 7.99996C0.833008 11.958 4.04163 15.1666 7.99967 15.1666C11.9577 15.1666 15.1663 11.958 15.1663 7.99996C15.1663 4.04192 11.9577 0.833294 7.99967 0.833294C4.04163 0.833294 0.833008 4.04192 0.833008 7.99996ZM5.64612 9.35351C5.84138 9.54878 6.15797 9.54878 6.35323 9.35351L7.99967 7.70707L9.64612 9.35351C9.84138 9.54878 10.158 9.54878 10.3532 9.35351C10.5485 9.15825 10.5485 8.84167 10.3532 8.64641L8.35323 6.64641C8.15797 6.45114 7.84138 6.45114 7.64612 6.64641L5.64612 8.64641C5.45086 8.84167 5.45086 9.15825 5.64612 9.35351Z" fill="#0F71EF" />
+                                  </svg>
+                                ) : (
+                                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M7.99967 1.83337C4.59392 1.83337 1.83301 4.59428 1.83301 8.00004C1.83301 11.4058 4.59392 14.1667 7.99967 14.1667C11.4054 14.1667 14.1663 11.4058 14.1663 8.00004C14.1663 4.59428 11.4054 1.83337 7.99967 1.83337ZM0.833008 8.00004C0.833008 4.042 4.04163 0.833374 7.99967 0.833374C11.9577 0.833374 15.1663 4.042 15.1663 8.00004C15.1663 11.9581 11.9577 15.1667 7.99967 15.1667C4.04163 15.1667 0.833008 11.9581 0.833008 8.00004ZM5.64612 6.64649C5.84138 6.45122 6.15797 6.45122 6.35323 6.64649L7.99967 8.29293L9.64612 6.64649C9.84138 6.45122 10.158 6.45122 10.3532 6.64649C10.5485 6.84175 10.5485 7.15833 10.3532 7.35359L8.35323 9.35359C8.15797 9.54886 7.84138 9.54886 7.64612 9.35359L5.64612 7.35359C5.45086 7.15833 5.45086 6.84175 5.64612 6.64649Z" fill="#858585" />
+                                  </svg>
+                                )}
+                              </div>
+                              <div className="category-icon-placeholder"></div>
+                              <strong>{category.title}</strong>
+                            </div>
+                          </td>
+                          <td>{category.description}</td>
+                          <td>
+                            <div className="category-image-placeholder">
+                              {category.image ? 'تصویر موجود' : 'بدون تصویر'}
+                            </div>
+                          </td>
+                          <td>{category.createdAt}</td>
+                          <td>{category.numSubcategories}</td>
+                          <td>
+                            <span className={`status-badge ${category.status === 'active' ? 'active' : 'inactive'}`}>
+                              {category.status === 'active' ? 'فعال' : 'غیرفعال'}
+                              {category.status === 'active' ? (
+                                <svg width="65" height="32" viewBox="0 0 65 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <rect width="65" height="32" rx="6" fill="#14C472" fillOpacity="0.1" />
+                                  <path d="M17.3451 23.318C16.9344 23.4207 16.5191 23.472 16.0991 23.472C15.4084 23.472 14.8111 23.3133 14.3071 22.996C13.8031 22.6787 13.4157 22.2307 13.1451 21.652C12.8744 21.0733 12.7391 20.4013 12.7391 19.636C12.7391 18.7773 12.9117 17.844 13.2571 16.836L14.2791 17.228C13.9617 18.1427 13.8031 18.9593 13.8031 19.678C13.8031 20.4993 13.9991 21.1433 14.3911 21.61C14.7924 22.0767 15.3571 22.31 16.0851 22.31C16.4211 22.31 16.7617 22.2633 17.1071 22.17L17.3871 22.1C17.9657 21.96 18.4044 21.8247 18.7031 21.694C19.0017 21.5633 19.2397 21.3487 19.4171 21.05C19.5944 20.7607 19.6737 20.3453 19.6551 19.804L19.3051 10.788L20.3551 10.732L20.7051 19.748C20.7331 20.5507 20.6071 21.1853 20.3271 21.652C20.0471 22.1187 19.6691 22.464 19.1931 22.688C18.7171 22.9213 18.1011 23.1313 17.3451 23.318ZM25.2924 20C24.6857 20 24.2097 19.9113 23.8644 19.734C23.519 19.5567 23.267 19.272 23.1084 18.88C22.9497 18.4787 22.8564 17.928 22.8284 17.228L22.5764 10.788L23.6404 10.732L23.8924 17.228C23.911 17.704 23.953 18.0493 24.0184 18.264C24.093 18.4787 24.2237 18.628 24.4104 18.712C24.597 18.7867 24.891 18.824 25.2924 18.824H25.4324L25.5024 19.412L25.4324 20H25.2924ZM25.2991 18.824H25.5511C26.4191 18.824 27.2125 18.7493 27.9311 18.6L26.1531 16.234L26.4471 15.31L29.8491 14.82C29.9051 14.8107 29.9891 14.806 30.1011 14.806C30.4278 14.806 30.7218 14.89 30.9831 15.058C31.2538 15.226 31.4638 15.45 31.6131 15.73C31.7718 16.01 31.8511 16.3087 31.8511 16.626C31.8511 16.878 31.8045 17.116 31.7111 17.34C31.4965 17.872 31.0111 18.348 30.2551 18.768C30.6191 18.8053 31.3985 18.824 32.5931 18.824L32.6631 19.412L32.5931 20C31.4545 20 30.6098 19.972 30.0591 19.916C29.5178 19.8507 29.0651 19.692 28.7011 19.44C28.1785 19.6173 27.6371 19.7573 27.0771 19.86C26.5265 19.9533 26.0178 20 25.5511 20H25.2991V18.824ZM29.0651 18.292C29.5411 18.124 29.9331 17.9093 30.2411 17.648C30.5491 17.3867 30.7545 17.088 30.8571 16.752C30.8945 16.6773 30.9131 16.5887 30.9131 16.486C30.9131 16.2993 30.8385 16.1453 30.6891 16.024C30.5491 15.8933 30.3811 15.842 30.1851 15.87L27.4831 16.22L29.0651 18.292ZM32.4495 18.824H35.3055C35.8562 18.824 36.2669 18.8007 36.5375 18.754C36.8175 18.7073 37.0089 18.6233 37.1115 18.502C37.2142 18.3807 37.2655 18.1987 37.2655 17.956C37.2655 17.8253 37.2609 17.7227 37.2515 17.648C36.7102 17.732 36.1222 17.774 35.4875 17.774C34.7969 17.774 34.2509 17.5733 33.8495 17.172C33.4482 16.7613 33.2475 16.206 33.2475 15.506C33.2475 15.03 33.3362 14.5867 33.5135 14.176C33.7002 13.756 33.9709 13.42 34.3255 13.168C34.6802 12.916 35.1095 12.79 35.6135 12.79C36.2855 12.79 36.8502 13.042 37.3075 13.546C37.7649 14.05 38.0262 14.722 38.0915 15.562L38.2595 17.48C38.2782 17.7413 38.2875 17.9233 38.2875 18.026C38.2875 18.5113 38.1989 18.894 38.0215 19.174C37.8442 19.454 37.5362 19.664 37.0975 19.804C36.6682 19.9347 36.0615 20 35.2775 20H32.4495V18.824ZM34.2135 15.422C34.2135 15.8047 34.3255 16.1127 34.5495 16.346C34.7829 16.57 35.0955 16.682 35.4875 16.682C36.0382 16.682 36.5935 16.6353 37.1535 16.542L37.0695 15.66C37.0042 15.0907 36.8362 14.652 36.5655 14.344C36.3042 14.0267 35.9729 13.868 35.5715 13.868C35.1515 13.868 34.8202 14.022 34.5775 14.33C34.3349 14.638 34.2135 15.002 34.2135 15.422ZM34.8715 10.018H36.2855V11.418H34.8715V10.018Z" fill="#139B3C" />
+                                  <circle cx="50" cy="17" r="3" fill="#139B3C" />
+                                </svg>
+                              ) : (
+                                <span style={{ color: '#F44336', fontSize: '12px' }}>غیرفعال</span>
+                              )}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="category-actions">
+                              <button className="edit-btn" onClick={() => handleEditCategory(category)}>
+                                ویرایش
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <g clipPath="url(#clip0_367_3812)">
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M7.96142 0.833374L8.99967 0.833374C9.27582 0.833374 9.49967 1.05723 9.49967 1.33337C9.49967 1.60952 9.27582 1.83337 8.99967 1.83337H7.99967C6.41419 1.83337 5.27538 1.83444 4.40873 1.95095C3.55646 2.06554 3.04264 2.28347 2.66287 2.66324C2.2831 3.04301 2.06517 3.55682 1.95059 4.40909C1.83407 5.27574 1.83301 6.41456 1.83301 8.00004C1.83301 9.58552 1.83407 10.7243 1.95059 11.591C2.06517 12.4433 2.2831 12.9571 2.66287 13.3368C3.04264 13.7166 3.55646 13.9345 4.40873 14.0491C5.27538 14.1656 6.41419 14.1667 7.99967 14.1667C9.58516 14.1667 10.724 14.1656 11.5906 14.0491C12.4429 13.9345 12.9567 13.7166 13.3365 13.3368C13.7162 12.9571 13.9342 12.4433 14.0488 11.591C14.1653 10.7243 14.1663 9.58552 14.1663 8.00004V7.00004C14.1663 6.7239 14.3902 6.50004 14.6663 6.50004C14.9425 6.50004 15.1663 6.7239 15.1663 7.00004V8.03829C15.1664 9.57722 15.1664 10.7832 15.0398 11.7242C14.9104 12.6874 14.6401 13.4474 14.0436 14.044C13.447 14.6405 12.687 14.9107 11.7239 15.0402C10.7829 15.1667 9.57685 15.1667 8.03792 15.1667H7.96143C6.4225 15.1667 5.21647 15.1667 4.27548 15.0402C3.31232 14.9107 2.55231 14.6405 1.95577 14.044C1.35923 13.4474 1.089 12.6874 0.959506 11.7242C0.832993 10.7832 0.832999 9.57722 0.833008 8.03829V7.96179C0.832999 6.42286 0.832993 5.21684 0.959506 4.27584C1.089 3.31269 1.35923 2.55267 1.95577 1.95613C2.55231 1.35959 3.31232 1.08936 4.27548 0.959872C5.21647 0.833359 6.42249 0.833366 7.96142 0.833374ZM11.18 1.51732C12.092 0.605393 13.5705 0.605393 14.4824 1.51732C15.3943 2.42924 15.3943 3.90776 14.4824 4.81969L10.0503 9.25176C9.80281 9.49931 9.64776 9.65438 9.47473 9.78934C9.27093 9.9483 9.05042 10.0846 8.81711 10.1958C8.61902 10.2902 8.41097 10.3595 8.07887 10.4702L6.14251 11.1156C5.78502 11.2348 5.39088 11.1418 5.12442 10.8753C4.85795 10.6088 4.76491 10.2147 4.88408 9.8572L5.52952 7.92086C5.6402 7.58874 5.70953 7.3807 5.80394 7.18261C5.91513 6.94929 6.05141 6.72878 6.21037 6.52499C6.34533 6.35195 6.50041 6.1969 6.74797 5.94937L11.18 1.51732ZM13.7753 2.22442C13.2539 1.70302 12.4085 1.70302 11.8871 2.22442L11.6361 2.4755C11.6512 2.53941 11.6724 2.61555 11.7018 2.70048C11.7974 2.97586 11.9782 3.33852 12.3197 3.68004C12.6612 4.02156 13.0239 4.20235 13.2992 4.29789C13.3842 4.32735 13.4603 4.34853 13.5242 4.36366L13.7753 4.11258C14.2967 3.59118 14.2967 2.74582 13.7753 2.22442ZM12.7364 5.15143C12.3925 5.0035 11.9918 4.76635 11.6126 4.38714C11.2334 4.00794 10.9962 3.60726 10.8483 3.26328L7.47801 6.63355C7.20034 6.91122 7.09144 7.02134 6.99888 7.14001C6.88459 7.28653 6.78661 7.44508 6.70666 7.61283C6.64192 7.74868 6.59212 7.89533 6.46794 8.26787L6.18001 9.13166L6.86805 9.8197L7.73184 9.53177C8.10439 9.40759 8.25104 9.35779 8.38689 9.29305C8.55464 9.21311 8.71318 9.11512 8.85971 9.00083C8.97837 8.90828 9.08849 8.79938 9.36617 8.5217L12.7364 5.15143Z" fill="#1E2023" />
+                                  </g>
+                                  <defs>
+                                    <clipPath id="clip0_367_3812">
+                                      <rect width="16" height="16" fill="white" />
+                                    </clipPath>
+                                  </defs>
+                                </svg>
+                              </button>
+                              <button className="delete-btn" onClick={() => handleDeleteCategory(category.id)}>
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path fillRule="evenodd" clipRule="evenodd" d="M3.41092 5.1678C3.68645 5.14943 3.9247 5.3579 3.94307 5.63343L4.24969 10.2328C4.3096 11.1314 4.35228 11.7566 4.446 12.227C4.5369 12.6833 4.66379 12.9249 4.84606 13.0954C5.02834 13.2659 5.27777 13.3765 5.73911 13.4368C6.21471 13.499 6.84138 13.5 7.74194 13.5H8.25752C9.15808 13.5 9.78475 13.499 10.2604 13.4368C10.7217 13.3765 10.9711 13.2659 11.1534 13.0954C11.3357 12.9249 11.4626 12.6833 11.5535 12.227C11.6472 11.7566 11.6899 11.1314 11.7498 10.2328L12.0564 5.63343C12.0748 5.3579 12.313 5.14943 12.5885 5.1678C12.8641 5.18617 13.0725 5.42442 13.0542 5.69995L12.7452 10.3345C12.6882 11.1896 12.6422 11.8804 12.5342 12.4224C12.4219 12.986 12.231 13.4567 11.8366 13.8256C11.4422 14.1946 10.9598 14.3538 10.3901 14.4284C9.84203 14.5001 9.14973 14.5 8.29268 14.5H7.70679C6.84973 14.5 6.15743 14.5001 5.60941 14.4284C5.03964 14.3538 4.55727 14.1946 4.16288 13.8256C3.76848 13.4567 3.57753 12.986 3.46527 12.4224C3.35729 11.8804 3.31125 11.1896 3.25425 10.3344L2.94528 5.69995C2.92691 5.42442 3.13538 5.18617 3.41092 5.1678Z" fill="#1E2023" />
+                                  <path fillRule="evenodd" clipRule="evenodd" d="M6.90324 1.50003L6.87258 1.50001C6.72832 1.49992 6.60264 1.49984 6.48396 1.51879C6.01509 1.59366 5.60936 1.8861 5.39006 2.30723C5.33456 2.41382 5.29489 2.53309 5.24935 2.66998L5.23967 2.69905L5.17495 2.89323C5.16229 2.93121 5.15876 2.94168 5.15569 2.95016C5.03894 3.2729 4.73626 3.49106 4.39316 3.49976C4.38414 3.49999 4.37309 3.50003 4.33306 3.50003H2.33301C2.05687 3.50003 1.83301 3.72388 1.83301 4.00003C1.83301 4.27617 2.05687 4.50003 2.33301 4.50003L4.33877 4.50003L4.34993 4.50003H11.6495L11.6607 4.50003L13.6664 4.50003C13.9425 4.50003 14.1664 4.27617 14.1664 4.00003C14.1664 3.72388 13.9425 3.50003 13.6664 3.50003H11.6664C11.6264 3.50003 11.6153 3.49999 11.6063 3.49976C11.2632 3.49106 10.9605 3.27289 10.8438 2.95014C10.8407 2.94172 10.8371 2.93102 10.8245 2.89323L10.7598 2.69905L10.7501 2.66996C10.7046 2.53307 10.6649 2.41382 10.6094 2.30723C10.3901 1.8861 9.98437 1.59366 9.5155 1.51879C9.39682 1.49984 9.27114 1.49992 9.12688 1.50001L9.09622 1.50003H6.90324ZM6.09606 3.29032C6.06988 3.36269 6.03945 3.43268 6.00511 3.50003H9.99435C9.96001 3.43268 9.92959 3.3627 9.90341 3.29033L9.8776 3.21477L9.8111 3.01528C9.75032 2.83294 9.73633 2.79575 9.72245 2.76909C9.64935 2.62872 9.5141 2.53124 9.35781 2.50628C9.32813 2.50154 9.28843 2.50003 9.09622 2.50003H6.90324C6.71103 2.50003 6.67133 2.50154 6.64165 2.50628C6.48536 2.53124 6.35011 2.62872 6.27701 2.76909C6.26313 2.79575 6.24914 2.83294 6.18836 3.01528L6.12182 3.21489C6.1118 3.24495 6.10401 3.26834 6.09606 3.29032Z" fill="#1E2023" />
+                                </svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+
+                        {/* Subcategories rows when expanded */}
+                        {expandedCategories.includes(category.id) && category.subcategories && category.subcategories.map(subcategory => (
+                          <tr key={`sub-${subcategory.id}`} className="subcategory-row">
+                            <td>
+                              <div className="subcategory-title-cell">
+                                <div className="subcategory-branch"></div>
+                                <div className="category-icon-placeholder small"></div>
+                                <span>{subcategory.title}</span>
+                              </div>
+                            </td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>{subcategory.createdAt}</td>
+                            <td>0</td>
+                            <td>
+                              <span className={`status-badge ${subcategory.status === 'active' ? 'active' : 'inactive'}`}>
+                                {subcategory.status === 'active' ? 'فعال' : 'غیرفعال'}
+                              </span>
+                            </td>
+                            <td>
+                              <div className="category-actions">
+                                <button className="edit-icon-btn" onClick={() => handleEditSubcategory(subcategory)}>
+                                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    {/* Edit icon SVG - same as above but smaller */}
+                                    <g clipPath="url(#clip0_367_3812)">
+                                      <path fillRule="evenodd" clipRule="evenodd" d="M7.96142 0.833374L8.99967 0.833374C9.27582 0.833374 9.49967 1.05723 9.49967 1.33337C9.49967 1.60952 9.27582 1.83337 8.99967 1.83337H7.99967C6.41419 1.83337 5.27538 1.83444 4.40873 1.95095C3.55646 2.06554 3.04264 2.28347 2.66287 2.66324C2.2831 3.04301 2.06517 3.55682 1.95059 4.40909C1.83407 5.27574 1.83301 6.41456 1.83301 8.00004C1.83301 9.58552 1.83407 10.7243 1.95059 11.591C2.06517 12.4433 2.2831 12.9571 2.66287 13.3368C3.04264 13.7166 3.55646 13.9345 4.40873 14.0491C5.27538 14.1656 6.41419 14.1667 7.99967 14.1667C9.58516 14.1667 10.724 14.1656 11.5906 14.0491C12.4429 13.9345 12.9567 13.7166 13.3365 13.3368C13.7162 12.9571 13.9342 12.4433 14.0488 11.591C14.1653 10.7243 14.1663 9.58552 14.1663 8.00004V7.00004C14.1663 6.7239 14.3902 6.50004 14.6663 6.50004C14.9425 6.50004 15.1663 6.7239 15.1663 7.00004V8.03829C15.1664 9.57722 15.1664 10.7832 15.0398 11.7242C14.9104 12.6874 14.6401 13.4474 14.0436 14.044C13.447 14.6405 12.687 14.9107 11.7239 15.0402C10.7829 15.1667 9.57685 15.1667 8.03792 15.1667H7.96143C6.4225 15.1667 5.21647 15.1667 4.27548 15.0402C3.31232 14.9107 2.55231 14.6405 1.95577 14.044C1.35923 13.4474 1.089 12.6874 0.959506 11.7242C0.832993 10.7832 0.832999 9.57722 0.833008 8.03829V7.96179C0.832999 6.42286 0.832993 5.21684 0.959506 4.27584C1.089 3.31269 1.35923 2.55267 1.95577 1.95613C2.55231 1.35959 3.31232 1.08936 4.27548 0.959872C5.21647 0.833359 6.42249 0.833366 7.96142 0.833374ZM11.18 1.51732C12.092 0.605393 13.5705 0.605393 14.4824 1.51732C15.3943 2.42924 15.3943 3.90776 14.4824 4.81969L10.0503 9.25176C9.80281 9.49931 9.64776 9.65438 9.47473 9.78934C9.27093 9.9483 9.05042 10.0846 8.81711 10.1958C8.61902 10.2902 8.41097 10.3595 8.07887 10.4702L6.14251 11.1156C5.78502 11.2348 5.39088 11.1418 5.12442 10.8753C4.85795 10.6088 4.76491 10.2147 4.88408 9.8572L5.52952 7.92086C5.6402 7.58874 5.70953 7.3807 5.80394 7.18261C5.91513 6.94929 6.05141 6.72878 6.21037 6.52499C6.34533 6.35195 6.50041 6.1969 6.74797 5.94937L11.18 1.51732ZM13.7753 2.22442C13.2539 1.70302 12.4085 1.70302 11.8871 2.22442L11.6361 2.4755C11.6512 2.53941 11.6724 2.61555 11.7018 2.70048C11.7974 2.97586 11.9782 3.33852 12.3197 3.68004C12.6612 4.02156 13.0239 4.20235 13.2992 4.29789C13.3842 4.32735 13.4603 4.34853 13.5242 4.36366L13.7753 4.11258C14.2967 3.59118 14.2967 2.74582 13.7753 2.22442ZM12.7364 5.15143C12.3925 5.0035 11.9918 4.76635 11.6126 4.38714C11.2334 4.00794 10.9962 3.60726 10.8483 3.26328L7.47801 6.63355C7.20034 6.91122 7.09144 7.02134 6.99888 7.14001C6.88459 7.28653 6.78661 7.44508 6.70666 7.61283C6.64192 7.74868 6.59212 7.89533 6.46794 8.26787L6.18001 9.13166L6.86805 9.8197L7.73184 9.53177C8.10439 9.40759 8.25104 9.35779 8.38689 9.29305C8.55464 9.21311 8.71318 9.11512 8.85971 9.00083C8.97837 8.90828 9.08849 8.79938 9.36617 8.5217L12.7364 5.15143Z" fill="#1E2023" />
+                                    </g>
+                                    <defs>
+                                      <clipPath id="clip0_367_3812">
+                                        <rect width="16" height="16" fill="white" />
+                                      </clipPath>
+                                    </defs>
+                                  </svg>
+                                </button>
+                                <button className="delete-icon-btn" onClick={() => handleDeleteSubcategory(subcategory)}>
+                                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    {/* Delete icon SVG - same as above but smaller */}
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M3.41092 5.1678C3.68645 5.14943 3.9247 5.3579 3.94307 5.63343L4.24969 10.2328C4.3096 11.1314 4.35228 11.7566 4.446 12.227C4.5369 12.6833 4.66379 12.9249 4.84606 13.0954C5.02834 13.2659 5.27777 13.3765 5.73911 13.4368C6.21471 13.499 6.84138 13.5 7.74194 13.5H8.25752C9.15808 13.5 9.78475 13.499 10.2604 13.4368C10.7217 13.3765 10.9711 13.2659 11.1534 13.0954C11.3357 12.9249 11.4626 12.6833 11.5535 12.227C11.6472 11.7566 11.6899 11.1314 11.7498 10.2328L12.0564 5.63343C12.0748 5.3579 12.313 5.14943 12.5885 5.1678C12.8641 5.18617 13.0725 5.42442 13.0542 5.69995L12.7452 10.3345C12.6882 11.1896 12.6422 11.8804 12.5342 12.4224C12.4219 12.986 12.231 13.4567 11.8366 13.8256C11.4422 14.1946 10.9598 14.3538 10.3901 14.4284C9.84203 14.5001 9.14973 14.5 8.29268 14.5H7.70679C6.84973 14.5 6.15743 14.5001 5.60941 14.4284C5.03964 14.3538 4.55727 14.1946 4.16288 13.8256C3.76848 13.4567 3.57753 12.986 3.46527 12.4224C3.35729 11.8804 3.31125 11.1896 3.25425 10.3344L2.94528 5.69995C2.92691 5.42442 3.13538 5.18617 3.41092 5.1678Z" fill="#1E2023" />
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M6.90324 1.50003L6.87258 1.50001C6.72832 1.49992 6.60264 1.49984 6.48396 1.51879C6.01509 1.59366 5.60936 1.8861 5.39006 2.30723C5.33456 2.41382 5.29489 2.53309 5.24935 2.66998L5.23967 2.69905L5.17495 2.89323C5.16229 2.93121 5.15876 2.94168 5.15569 2.95016C5.03894 3.2729 4.73626 3.49106 4.39316 3.49976C4.38414 3.49999 4.37309 3.50003 4.33306 3.50003H2.33301C2.05687 3.50003 1.83301 3.72388 1.83301 4.00003C1.83301 4.27617 2.05687 4.50003 2.33301 4.50003L4.33877 4.50003L4.34993 4.50003H11.6495L11.6607 4.50003L13.6664 4.50003C13.9425 4.50003 14.1664 4.27617 14.1664 4.00003C14.1664 3.72388 13.9425 3.50003 13.6664 3.50003H11.6664C11.6264 3.50003 11.6153 3.49999 11.6063 3.49976C11.2632 3.49106 10.9605 3.27289 10.8438 2.95014C10.8407 2.94172 10.8371 2.93102 10.8245 2.89323L10.7598 2.69905L10.7501 2.66996C10.7046 2.53307 10.6649 2.41382 10.6094 2.30723C10.3901 1.8861 9.98437 1.59366 9.5155 1.51879C9.39682 1.49984 9.27114 1.49992 9.12688 1.50001L9.09622 1.50003H6.90324ZM6.09606 3.29032C6.06988 3.36269 6.03945 3.43268 6.00511 3.50003H9.99435C9.96001 3.43268 9.92959 3.3627 9.90341 3.29033L9.8776 3.21477L9.8111 3.01528C9.75032 2.83294 9.73633 2.79575 9.72245 2.76909C9.64935 2.62872 9.5141 2.53124 9.35781 2.50628C9.32813 2.50154 9.28843 2.50003 9.09622 2.50003H6.90324C6.71103 2.50003 6.67133 2.50154 6.64165 2.50628C6.48536 2.53124 6.35011 2.62872 6.27701 2.76909C6.26313 2.79575 6.24914 2.83294 6.18836 3.01528L6.12182 3.21489C6.1118 3.24495 6.10401 3.26834 6.09606 3.29032Z" fill="#1E2023" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           ) : activeMenu === 'mapmanage' ? (
@@ -1623,87 +2401,90 @@ const Amain = () => {
           )}
 
           {/* User Search and Table */}
-          <div className="users-section">
-            <div className="section-header">
-              <div className="section-header-top">
-                <div className="title-container">
-                  <div className="title-cell">
-                    <h3>آخرین کاربران ثبت نام شده در اپلیکیشن</h3>
-                    <button className="refresh-btn">
-                      <svg width="18" height="18" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M11.047 5.99994C11.047 8.73518 8.8271 10.9551 6.09186 10.9551C3.35662 10.9551 1.68674 8.20002 1.68674 8.20002M1.68674 8.20002H3.92646M1.68674 8.20002V10.6776M1.13672 5.99994C1.13672 3.2647 3.3368 1.0448 6.09186 1.0448C9.39694 1.0448 11.047 3.79986 11.047 3.79986M11.047 3.79986V1.32229M11.047 3.79986H8.84692" stroke="#1E2023" strokeWidth="1.08112" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                  </div>
-                  <p>لورم اپیسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است.</p>
-                </div>
-                <div className="left-container">
-                  <div className="search-box-with-icon">
-                    <svg className="search-icon7" width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path fillRule="evenodd" clipRule="evenodd" d="M10.4167 2.29166C14.4438 2.29166 17.7084 5.55625 17.7084 9.58332C17.7084 13.6104 14.4438 16.875 10.4167 16.875C6.38963 16.875 3.12504 13.6104 3.12504 9.58332C3.12504 5.55625 6.38963 2.29166 10.4167 2.29166ZM18.9584 9.58332C18.9584 4.86589 15.1341 1.04166 10.4167 1.04166C5.69928 1.04166 1.87504 4.86589 1.87504 9.58332C1.87504 11.7171 2.65743 13.6681 3.95099 15.1652L1.22476 17.8914C0.980688 18.1355 0.980688 18.5312 1.22476 18.7753C1.46884 19.0193 1.86457 19.0193 2.10865 18.7753L4.83487 16.049C6.33192 17.3426 8.28295 18.125 10.4167 18.125C15.1341 18.125 18.9584 14.3008 18.9584 9.58332Z" fill="#858585" />
-                    </svg>
-                    <input
-                      type="text"
-                      placeholder="جستجوی نام، نام خانوادگی و.."
-                      value={searchTerm}
-                      onChange={handleSearch}
-                      className="search-input7"
-                    />
-                  </div>
-
-                  {currentReportView !== 'کاربران ثبت نام کرده' && (
-                    <button className="seeInfo-btn">
-                      مشاهده همه گزارش
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-
-            <div className="users-table-container">
-              <table className="users-table">
-                <thead>
-                  <tr>
-                    <th>نام و نام خانوادگی</th>
-                    <th>شماره تماس</th>
-                    <th>تاریخ ثبت نام</th>
-                    <th>جنسیت</th>
-                    <th>مسیریابی موفق</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentUsers.map(user => (
-                    <tr key={user.id}>
-                      <td>
-                        <div className="user-profile-cell">
-                          <div className="profile-image-small"></div>
-                          <strong>{user.fullName}</strong>
-                        </div>
-                      </td>
-                      <td>{user.phone}</td>
-                      <td>{user.registerDate}</td>
-                      <td>{user.gender}</td>
-                      <td>
-                        <span className="success-count">{Math.floor(Math.random() * 5) + 1} بار</span>
-                      </td>
-                      <td>
-                        <button className="details-btn">
-                          جزئیات بیشتر
-                          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path fillRule="evenodd" clipRule="evenodd" d="M11.0176 3.63828C11.2404 3.82922 11.2662 4.1646 11.0752 4.38737L7.12156 8.99997L11.0752 13.6126C11.2662 13.8353 11.2404 14.1707 11.0176 14.3617C10.7948 14.5526 10.4595 14.5268 10.2685 14.304L6.01851 9.3457C5.84798 9.14675 5.84798 8.85318 6.01851 8.65424L10.2685 3.6959C10.4595 3.47314 10.7948 3.44734 11.0176 3.63828Z" fill="#1E2023" />
+          {currentReportView !== 'مدیریت اطلاعات فرهنگی' &&
+            currentReportView !== 'مدیریت دسته بندی‌ها' &&
+            activeMenu !== 'mapmanage' && (
+              <div className="users-section">
+                <div className="section-header">
+                  <div className="section-header-top">
+                    <div className="title-container">
+                      <div className="title-cell">
+                        <h3>آخرین کاربران ثبت نام شده در اپلیکیشن</h3>
+                        <button className="refresh-btn">
+                          <svg width="18" height="18" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M11.047 5.99994C11.047 8.73518 8.8271 10.9551 6.09186 10.9551C3.35662 10.9551 1.68674 8.20002 1.68674 8.20002M1.68674 8.20002H3.92646M1.68674 8.20002V10.6776M1.13672 5.99994C1.13672 3.2647 3.3368 1.0448 6.09186 1.0448C9.39694 1.0448 11.047 3.79986 11.047 3.79986M11.047 3.79986V1.32229M11.047 3.79986H8.84692" stroke="#1E2023" strokeWidth="1.08112" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                      <p>لورم اپیسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است.</p>
+                    </div>
+                    <div className="left-container">
+                      <div className="search-box-with-icon">
+                        <svg className="search-icon7" width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path fillRule="evenodd" clipRule="evenodd" d="M10.4167 2.29166C14.4438 2.29166 17.7084 5.55625 17.7084 9.58332C17.7084 13.6104 14.4438 16.875 10.4167 16.875C6.38963 16.875 3.12504 13.6104 3.12504 9.58332C3.12504 5.55625 6.38963 2.29166 10.4167 2.29166ZM18.9584 9.58332C18.9584 4.86589 15.1341 1.04166 10.4167 1.04166C5.69928 1.04166 1.87504 4.86589 1.87504 9.58332C1.87504 11.7171 2.65743 13.6681 3.95099 15.1652L1.22476 17.8914C0.980688 18.1355 0.980688 18.5312 1.22476 18.7753C1.46884 19.0193 1.86457 19.0193 2.10865 18.7753L4.83487 16.049C6.33192 17.3426 8.28295 18.125 10.4167 18.125C15.1341 18.125 18.9584 14.3008 18.9584 9.58332Z" fill="#858585" />
+                        </svg>
+                        <input
+                          type="text"
+                          placeholder="جستجوی نام، نام خانوادگی و.."
+                          value={searchTerm}
+                          onChange={handleSearch}
+                          className="search-input7"
+                        />
+                      </div>
 
-              {/* Add pagination controls */}
-              <div className="pagination-container">
-                {/* <div className="pagination-info">
+                      {currentReportView !== 'کاربران ثبت نام کرده' && (
+                        <button className="seeInfo-btn">
+                          مشاهده همه گزارش
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+
+                <div className="users-table-container">
+                  <table className="users-table">
+                    <thead>
+                      <tr>
+                        <th>نام و نام خانوادگی</th>
+                        <th>شماره تماس</th>
+                        <th>تاریخ ثبت نام</th>
+                        <th>جنسیت</th>
+                        <th>مسیریابی موفق</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {currentUsers.map(user => (
+                        <tr key={user.id}>
+                          <td>
+                            <div className="user-profile-cell">
+                              <div className="profile-image-small"></div>
+                              <strong>{user.fullName}</strong>
+                            </div>
+                          </td>
+                          <td>{user.phone}</td>
+                          <td>{user.registerDate}</td>
+                          <td>{user.gender}</td>
+                          <td>
+                            <span className="success-count">{Math.floor(Math.random() * 5) + 1} بار</span>
+                          </td>
+                          <td>
+                            <button className="details-btn">
+                              جزئیات بیشتر
+                              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path fillRule="evenodd" clipRule="evenodd" d="M11.0176 3.63828C11.2404 3.82922 11.2662 4.1646 11.0752 4.38737L7.12156 8.99997L11.0752 13.6126C11.2662 13.8353 11.2404 14.1707 11.0176 14.3617C10.7948 14.5526 10.4595 14.5268 10.2685 14.304L6.01851 9.3457C5.84798 9.14675 5.84798 8.85318 6.01851 8.65424L10.2685 3.6959C10.4595 3.47314 10.7948 3.44734 11.0176 3.63828Z" fill="#1E2023" />
+                              </svg>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {/* Add pagination controls */}
+                  <div className="pagination-container">
+                    {/* <div className="pagination-info">
                   <span>نمایش</span>
                   <select
                     value={itemsPerPage}
@@ -1718,66 +2499,67 @@ const Amain = () => {
                   <span>از {totalItems} مورد</span>
                 </div> */}
 
-                <div className="pagination-controls">
-                  <div className="btc">
-                    <button
-                      className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`}
-                      onClick={() => handlePageChange(1)}
-                      disabled={currentPage === 1}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(180deg)' }}>
-                        <path fillRule="evenodd" clipRule="evenodd" d="M11.6584 2.95363C11.4487 2.77392 11.1331 2.7982 10.9534 3.00787L6.95337 7.67453C6.79287 7.86178 6.79287 8.13808 6.95337 8.32532L10.9534 12.992C11.1331 13.2017 11.4487 13.2259 11.6584 13.0462C11.8681 12.8665 11.8923 12.5509 11.7126 12.3412L7.99154 7.99993L11.7126 3.65866C11.8923 3.44899 11.8681 3.13334 11.6584 2.95363ZM8.9916 2.9537C8.78193 2.77399 8.46628 2.79827 8.28657 3.00793L4.28657 7.6746C4.12608 7.86185 4.12608 8.13815 4.28657 8.32539L8.28657 12.9921C8.46628 13.2017 8.78193 13.226 8.9916 13.0463C9.20126 12.8666 9.22554 12.5509 9.04583 12.3413L5.32474 8L9.04583 3.65873C9.22554 3.44906 9.20126 3.13341 8.9916 2.9537Z" fill={currentPage === 1 ? "#C5C5C5" : "#0F71EF"} />
-                      </svg>
-                    </button>
+                    <div className="pagination-controls">
+                      <div className="btc">
+                        <button
+                          className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`}
+                          onClick={() => handlePageChange(1)}
+                          disabled={currentPage === 1}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(180deg)' }}>
+                            <path fillRule="evenodd" clipRule="evenodd" d="M11.6584 2.95363C11.4487 2.77392 11.1331 2.7982 10.9534 3.00787L6.95337 7.67453C6.79287 7.86178 6.79287 8.13808 6.95337 8.32532L10.9534 12.992C11.1331 13.2017 11.4487 13.2259 11.6584 13.0462C11.8681 12.8665 11.8923 12.5509 11.7126 12.3412L7.99154 7.99993L11.7126 3.65866C11.8923 3.44899 11.8681 3.13334 11.6584 2.95363ZM8.9916 2.9537C8.78193 2.77399 8.46628 2.79827 8.28657 3.00793L4.28657 7.6746C4.12608 7.86185 4.12608 8.13815 4.28657 8.32539L8.28657 12.9921C8.46628 13.2017 8.78193 13.226 8.9916 13.0463C9.20126 12.8666 9.22554 12.5509 9.04583 12.3413L5.32474 8L9.04583 3.65873C9.22554 3.44906 9.20126 3.13341 8.9916 2.9537Z" fill={currentPage === 1 ? "#C5C5C5" : "#0F71EF"} />
+                          </svg>
+                        </button>
 
-                    <button
-                      className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`}
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(180deg)' }}>
-                        <path fillRule="evenodd" clipRule="evenodd" d="M10.3254 2.95375C10.1157 2.77404 9.80007 2.79832 9.62036 3.00799L5.62036 7.67465C5.45987 7.8619 5.45987 8.1382 5.62036 8.32544L9.62036 12.9921C9.80007 13.2018 10.1157 13.2261 10.3254 13.0463C10.535 12.8666 10.5593 12.551 10.3796 12.3413L6.65853 8.00005L10.3796 3.65878C10.5593 3.44912 10.535 3.13347 10.3254 2.95375Z" fill={currentPage === 1 ? "#C5C5C5" : "#0F71EF"} />
-                      </svg>
-                    </button>
-                  </div>
+                        <button
+                          className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`}
+                          onClick={() => handlePageChange(currentPage - 1)}
+                          disabled={currentPage === 1}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(180deg)' }}>
+                            <path fillRule="evenodd" clipRule="evenodd" d="M10.3254 2.95375C10.1157 2.77404 9.80007 2.79832 9.62036 3.00799L5.62036 7.67465C5.45987 7.8619 5.45987 8.1382 5.62036 8.32544L9.62036 12.9921C9.80007 13.2018 10.1157 13.2261 10.3254 13.0463C10.535 12.8666 10.5593 12.551 10.3796 12.3413L6.65853 8.00005L10.3796 3.65878C10.5593 3.44912 10.535 3.13347 10.3254 2.95375Z" fill={currentPage === 1 ? "#C5C5C5" : "#0F71EF"} />
+                          </svg>
+                        </button>
+                      </div>
 
-                  <div className="page-numbers">
-                    {getPageNumbers().map(page => (
-                      <button
-                        key={page}
-                        className={`page-number ${currentPage === page ? 'active' : ''}`}
-                        onClick={() => handlePageChange(page)}
-                      >
-                        {page}
-                      </button>
-                    ))}
-                  </div>
+                      <div className="page-numbers">
+                        {getPageNumbers().map(page => (
+                          <button
+                            key={page}
+                            className={`page-number ${currentPage === page ? 'active' : ''}`}
+                            onClick={() => handlePageChange(page)}
+                          >
+                            {page}
+                          </button>
+                        ))}
+                      </div>
 
-                  <div className="btc">
-                    <button
-                      className={`pagination-btn ${currentPage === totalPages ? 'disabled' : ''}`}
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path fillRule="evenodd" clipRule="evenodd" d="M10.3254 2.95375C10.1157 2.77404 9.80007 2.79832 9.62036 3.00799L5.62036 7.67465C5.45987 7.8619 5.45987 8.1382 5.62036 8.32544L9.62036 12.9921C9.80007 13.2018 10.1157 13.2261 10.3254 13.0463C10.535 12.8666 10.5593 12.551 10.3796 12.3413L6.65853 8.00005L10.3796 3.65878C10.5593 3.44912 10.535 3.13347 10.3254 2.95375Z" fill={currentPage === totalPages ? "#C5C5C5" : "#0F71EF"} />
-                      </svg>
-                    </button>
+                      <div className="btc">
+                        <button
+                          className={`pagination-btn ${currentPage === totalPages ? 'disabled' : ''}`}
+                          onClick={() => handlePageChange(currentPage + 1)}
+                          disabled={currentPage === totalPages}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path fillRule="evenodd" clipRule="evenodd" d="M10.3254 2.95375C10.1157 2.77404 9.80007 2.79832 9.62036 3.00799L5.62036 7.67465C5.45987 7.8619 5.45987 8.1382 5.62036 8.32544L9.62036 12.9921C9.80007 13.2018 10.1157 13.2261 10.3254 13.0463C10.535 12.8666 10.5593 12.551 10.3796 12.3413L6.65853 8.00005L10.3796 3.65878C10.5593 3.44912 10.535 3.13347 10.3254 2.95375Z" fill={currentPage === totalPages ? "#C5C5C5" : "#0F71EF"} />
+                          </svg>
+                        </button>
 
-                    <button
-                      className={`pagination-btn ${currentPage === totalPages ? 'disabled' : ''}`}
-                      onClick={() => handlePageChange(totalPages)}
-                      disabled={currentPage === totalPages}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path fillRule="evenodd" clipRule="evenodd" d="M11.6584 2.95363C11.4487 2.77392 11.1331 2.7982 10.9534 3.00787L6.95337 7.67453C6.79287 7.86178 6.79287 8.13808 6.95337 8.32532L10.9534 12.992C11.1331 13.2017 11.4487 13.2259 11.6584 13.0462C11.8681 12.8665 11.8923 12.5509 11.7126 12.3412L7.99154 7.99993L11.7126 3.65866C11.8923 3.44899 11.8681 3.13334 11.6584 2.95363ZM8.9916 2.9537C8.78193 2.77399 8.46628 2.79827 8.28657 3.00793L4.28657 7.6746C4.12608 7.86185 4.12608 8.13815 4.28657 8.32539L8.28657 12.9921C8.46628 13.2017 8.78193 13.226 8.9916 13.0463C9.20126 12.8666 9.22554 12.5509 9.04583 12.3413L5.32474 8L9.04583 3.65873C9.22554 3.44906 9.20126 3.13341 8.9916 2.9537Z" fill={currentPage === totalPages ? "#C5C5C5" : "#0F71EF"} />
-                      </svg>
-                    </button>
+                        <button
+                          className={`pagination-btn ${currentPage === totalPages ? 'disabled' : ''}`}
+                          onClick={() => handlePageChange(totalPages)}
+                          disabled={currentPage === totalPages}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path fillRule="evenodd" clipRule="evenodd" d="M11.6584 2.95363C11.4487 2.77392 11.1331 2.7982 10.9534 3.00787L6.95337 7.67453C6.79287 7.86178 6.79287 8.13808 6.95337 8.32532L10.9534 12.992C11.1331 13.2017 11.4487 13.2259 11.6584 13.0462C11.8681 12.8665 11.8923 12.5509 11.7126 12.3412L7.99154 7.99993L11.7126 3.65866C11.8923 3.44899 11.8681 3.13334 11.6584 2.95363ZM8.9916 2.9537C8.78193 2.77399 8.46628 2.79827 8.28657 3.00793L4.28657 7.6746C4.12608 7.86185 4.12608 8.13815 4.28657 8.32539L8.28657 12.9921C8.46628 13.2017 8.78193 13.226 8.9916 13.0463C9.20126 12.8666 9.22554 12.5509 9.04583 12.3413L5.32474 8L9.04583 3.65873C9.22554 3.44906 9.20126 3.13341 8.9916 2.9537Z" fill={currentPage === totalPages ? "#C5C5C5" : "#0F71EF"} />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
+            )}
         </div>
       </div>
       {/* Add Place Modal */}
@@ -2592,7 +3374,324 @@ const Amain = () => {
           </div>
         </div>
       )}
+      {/* Edit Category Modal */}
+      {isEditCategoryModalOpen && (
+        <div className="modal-overlay">
+          <div className="edit-category-modal">
+            <div className="modal-header">
+              <h3>ویرایش دسته بندی <span className="category-name-highlight">{editCategoryData.title}</span></h3>
+              <button
+                className="close-modal-btn"
+                onClick={() => setIsEditCategoryModalOpen(false)}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M18 6L6 18M6 6L18 18" stroke="#1E2023" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="modal-content">
+              <div className="section-title">اطلاعات اولیه دسته بندی *</div>
+
+              <div className="form-group">
+                <label className="form-label">عنوان</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={editCategoryData.title}
+                  onChange={(e) => setEditCategoryData({ ...editCategoryData, title: e.target.value })}
+                  placeholder="عنوان دسته بندی"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">توضیحات دسته بندی</label>
+                <textarea
+                  className="form-textarea"
+                  value={editCategoryData.description}
+                  onChange={(e) => setEditCategoryData({ ...editCategoryData, description: e.target.value })}
+                  placeholder="توضیحات دسته بندی"
+                  rows="4"
+                />
+              </div>
+
+              <div className="divider"></div>
+
+              <div className="section-title">نماد و تصویر</div>
+
+              <div className="icon-upload-section">
+                <label className="icon-upload-label">تغییر نماد</label>
+                <div className="icon-upload-container">
+                  <div className="icon-preview">
+                    {editCategoryData.icon ? (
+                      <div className="icon-preview-image">
+                        <span>تصویر آپلود شده</span>
+                      </div>
+                    ) : (
+                      <div className="icon-placeholder">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M19 13H13V19H11V13H5V11H11V5H13V11H19V13Z" fill="#858585" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  <div className="icon-upload-actions">
+                    <input
+                      type="file"
+                      id="icon-upload"
+                      accept="image/jpeg,image/png"
+                      onChange={handleIconUpload}
+                      className="hidden-file-input"
+                    />
+                    <label htmlFor="icon-upload" className="upload-icon-btn">
+                      {isIconUploaded ? 'تغییر نماد' : 'ایجاد نماد'}
+                    </label>
+                    {isIconUploaded && (
+                      <button
+                        className="remove-icon-btn"
+                        onClick={() => {
+                          setEditCategoryData({ ...editCategoryData, icon: null });
+                          setIsIconUploaded(false);
+                        }}
+                      >
+                        حذف
+                      </button>
+                    )}
+                  </div>
+                  <div className="upload-hint">
+                    فرمت‌های مجاز: JPG, PNG | حداکثر حجم: ۲ مگابایت
+                  </div>
+                </div>
+              </div>
+
+              <div className="divider"></div>
+
+              <div className="section-title">زیر گروه‌های دسته بندی</div>
+
+              <div className="subcategory-section">
+                <div className="subcategory-actions">
+                  <button
+                    className="add-subcategory-btn"
+                    onClick={handleAddSubcategoryInModal}
+                  >
+                    ایجاد زیر گروه
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10 4.16669V15.8334M4.16667 10H15.8333" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                  <button className="view-subcategories-btn">
+                    مشاهده زیر گروه‌ها
+                  </button>
+                </div>
+              </div>
+
+              <div className="divider"></div>
+
+              <div className="section-title">وضعیت دسته بندی</div>
+
+              <div className="status-section">
+                <div className="status-options-horizontal">
+                  <div
+                    className={`status-option-horizontal ${editCategoryData.status === 'active' ? 'selected' : ''}`}
+                    onClick={() => setEditCategoryData({ ...editCategoryData, status: 'active' })}
+                  >
+                    <div className="status-radio-horizontal">
+                      {editCategoryData.status === 'active' && <div className="status-radio-dot"></div>}
+                    </div>
+                    <span>فعال می‌باشد</span>
+                  </div>
+                  <div
+                    className={`status-option-horizontal ${editCategoryData.status === 'inactive' ? 'selected' : ''}`}
+                    onClick={() => setEditCategoryData({ ...editCategoryData, status: 'inactive' })}
+                  >
+                    <div className="status-radio-horizontal">
+                      {editCategoryData.status === 'inactive' && <div className="status-radio-dot"></div>}
+                    </div>
+                    <span>غیرفعال سازی</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="cancel-btn"
+                onClick={() => setIsEditCategoryModalOpen(false)}
+              >
+                انصراف
+              </button>
+              <button
+                className="confirm-btn"
+                onClick={handleUpdateCategory}
+              >
+                تایید و ویرایش
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="modal-overlay">
+          <div className="delete-confirmation-modal">
+            <div className="modal-header">
+              <h3>حذف دسته بندی</h3>
+              <button className="close-modal-btn" onClick={() => setIsDeleteModalOpen(false)}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M18 6L6 18M6 6L18 18" stroke="#1E2023" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="modal-content">
+              <p>آیا از حذف این دسته بندی اطمینان دارید؟ این عمل قابل بازگشت نیست.</p>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="cancel-btn5"
+                onClick={() => setIsDeleteModalOpen(false)}
+              >
+                لغو
+              </button>
+              <button
+                className="confirm-btn delete-confirm-btn"
+                onClick={confirmDeleteCategory}
+              >
+                بله، حذف شود
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isCreateCategoryModalOpen && (
+        <div className="modal-overlay">
+          <div className="create-category-modal">
+            <div className="modal-header">
+              <h3>ایجاد دسته بندی جدید</h3>
+            </div>
+
+            <div className="modal-content">
+
+              <div className="form-group">
+                <label className="form-label"> اطلاعات اولیه دسته بندی </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder=" عنوان دسته بندی را بنویسید"
+                  value={newCategory.title}
+                  onChange={(e) => setNewCategory({ ...newCategory, title: e.target.value })}
+                />
+                <textarea
+                  className="form-textarea"
+                  placeholder=" توضیحات دسته بندی را بنویسید"
+                  value={newCategory.description}
+                  onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
+                  rows="3"
+                />
+                <div className="icon-upload-section-simple">
+                  <input
+                    type="file"
+                    id="new-icon-upload"
+                    accept="image/jpeg,image/png"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
+                          alert('فقط فایل‌های JPEG و PNG مجاز هستند');
+                          return;
+                        }
+                        if (file.size > 2 * 1024 * 1024) {
+                          alert('حجم فایل نباید بیشتر از ۲ مگابایت باشد');
+                          return;
+                        }
+                        setNewCategory({ ...newCategory, image: file });
+                      }
+                    }}
+                    className="hidden-file-input"
+                  />
+                  <label htmlFor="new-icon-upload" className="select-icon-btn">
+                    انتخاب نماد
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M16.6667 11.6667H11.6667V16.6667H8.33333V11.6667H3.33333V8.33333H8.33333V3.33333H11.6667V8.33333H16.6667V11.6667Z" fill="white" />
+                    </svg>
+                  </label>
+                  <div className="upload-hint">
+                    فرمت‌های مجاز: JPG, PNG | حداکثر حجم: ۲ مگابایت
+                  </div>
+                </div>
+              </div>
+              <input
+                type="text"
+                className="form-input"
+                placeholder=" برای دسته بندی زیر گروه ایجاد یا انتخاب کنید "
+              />
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="cancel-btn"
+                onClick={() => {
+                  setIsCreateCategoryModalOpen(false);
+                  resetCategoryForm();
+                }}
+              >
+                انصراف
+              </button>
+              <button
+                className="confirm-btn"
+                onClick={() => {
+                  setIsCreateCategoryModalOpen(false);
+                  resetCategoryForm();
+                  handleCreateCategory
+                }}
+                disabled={!newCategory.title.trim()}
+              >
+                تایید و ویرایش
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDeleteCulturalModalOpen && (
+        <div className="modal-overlay">
+          <div className="delete-confirmation-modal">
+            <div className="modal-header">
+              <h3>حذف اطلاعات فرهنگی</h3>
+              <button className="close-modal-btn" onClick={() => setIsDeleteCulturalModalOpen(false)}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M18 6L6 18M6 6L18 18" stroke="#1E2023" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="modal-content">
+              <p>آیا از حذف این اطلاعات فرهنگی اطمینان دارید؟ این عمل قابل بازگشت نیست.</p>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="cancel-btn5"
+                onClick={() => setIsDeleteCulturalModalOpen(false)}
+              >
+                لغو
+              </button>
+              <button
+                className="confirm-btn delete-confirm-btn"
+                onClick={confirmDeleteCultural}
+              >
+                بله، حذف شود
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
+
   );
 };
 
