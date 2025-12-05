@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import Map, { Marker, Source, Layer, Popup } from 'react-map-gl';
-import maplibregl from 'maplibre-gl';
+import maplibregl, { mapLibreTransformRequest } from '../utils/mapLibreConfig';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../hooks/useOfflineMapStyle';
 import '../styles/FinalSearch.css';
@@ -723,6 +723,7 @@ const FinalSearch = () => {
           key={styleKey}
           ref={mapRef}
           mapLib={maplibregl}
+          transformRequest={mapLibreTransformRequest}
           mapStyle={mapStyle}
           styleDiffing={false}
           style={{ width: '100%', height: '100%' }}

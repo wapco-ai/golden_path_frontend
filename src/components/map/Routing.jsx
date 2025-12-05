@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
-import maplibregl from 'maplibre-gl';
+import maplibregl, { mapLibreTransformRequest } from '../../utils/mapLibreConfig';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
 import useLocaleDigits from '../../utils/useLocaleDigits';
@@ -63,6 +63,7 @@ const Routing = ({ userLocation, routeSteps, currentStep }) => {
       <Map
         key={styleKey}
         mapLib={maplibregl}
+        transformRequest={mapLibreTransformRequest}
         mapStyle={mapStyle}
         styleDiffing={false}
         style={{ width: '100%', height: '100%' }}
