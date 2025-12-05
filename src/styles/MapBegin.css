@@ -1044,7 +1044,8 @@ body.modal-open {
   display: flex;
   flex-direction: row;
   gap: 10px;
-  max-height: 30px;
+  align-items: center;
+  flex-wrap: wrap;
   margin-bottom: 30px;
 }
 
@@ -1061,11 +1062,22 @@ body.modal-open {
   align-items: center;
   gap: 5px;
   background: none;
-  border: none;
+  border: 1px solid #0F71EF;
   color: #0F71EF;
   font-size: 0.9rem;
-  padding: 0;
+  padding: 8px 14px;
+  border-radius: 10px;
   font-family: 'Vazir', Tahoma, sans-serif;
+  cursor: pointer;
+  min-height: 40px;
+  line-height: 1.2;
+  touch-action: manipulation;
+}
+
+.cultural-info-btn:hover,
+.cultural-info-btn:focus-visible {
+  background-color: rgba(15, 113, 239, 0.08);
+  outline: none;
 }
 
 /* Search bar expansion states */
