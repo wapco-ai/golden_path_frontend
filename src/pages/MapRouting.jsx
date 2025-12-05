@@ -802,9 +802,8 @@ const MapRoutingPage = () => {
 
       setMapSelectedLocation(location);
 
-      requestAreaDoors(latlng.lat, latlng.lng);
-
       if (activeInput === 'destination') {
+        requestAreaDoors(latlng.lat, latlng.lng);
         // Show entry modal for destination selected from map
         const destination = {
           name: locName,
@@ -814,6 +813,10 @@ const MapRoutingPage = () => {
         setTempDestination(destination);
         setShowEntryModal(true);
       } else {
+        setAreaDoorsData(null);
+        setAreaDoorsStatus(null);
+        setAreaDoorsMessage('');
+        setMapEntryDoors([]);
         setUserLocation({
           name: locName,
           coordinates: [latlng.lat, latlng.lng]
