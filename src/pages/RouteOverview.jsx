@@ -93,6 +93,7 @@ const RouteOverview = () => {
   } = useRouteStore();
   const routeCoordinates = routeGeo?.geometry?.coordinates || [];
   const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
+  const initialRouteFlyDone = useRef(false);
 
   const handleSubgroupClick = (subgroup) => {
     setSelectedSubgroup(subgroup);
@@ -621,6 +622,10 @@ const RouteOverview = () => {
     window.scrollTo(0, 0);
   }, []);
 
+  useEffect(() => {
+    initialRouteFlyDone.current = false;
+  }, [routeGeo]);
+
   const highlightGeo = useMemo(() => {
     const seg = routeData[currentSlide]?.coordinates;
     return seg ? { type: 'Feature', geometry: { type: 'LineString', coordinates: seg } } : null;
@@ -665,17 +670,56 @@ const RouteOverview = () => {
       setViewState({
         latitude: (lat1 + lat2) / 2,
         longitude: (lng1 + lng2) / 2,
-        zoom: isShort ? 17 : 18
+        zoom: isShort ? 19 : 18.5
       });
       setPopupCoord([(lng1 + lng2) / 2, (lat1 + lat2) / 2]);
       if (mapRef.current) {
-        const bounds = new maplibregl.LngLatBounds([lng1, lat1], [lng2, lat2]);
-        const options = { padding: 50, duration: 700 };
-        if (isShort) options.maxZoom = 17;
-        mapRef.current.fitBounds(bounds, options);
+        const bounds = coords.reduce((acc, point) => {
+          if (!Array.isArray(point) || point.length < 2) return acc;
+          if (!acc) return new maplibregl.LngLatBounds(point, point);
+          acc.extend(point);
+          return acc;
+        }, null);
+
+        const mapInstance = mapRef.current.getMap ? mapRef.current.getMap() : mapRef.current;
+        const options = {
+          padding: isShort ? 70 : 100,
+          duration: 800,
+          maxZoom: isShort ? 19 : 18.5
+        };
+
+        if (bounds && mapInstance?.fitBounds) {
+          mapInstance.fitBounds(bounds, options);
+        } else if (mapInstance?.flyTo) {
+          mapInstance.flyTo({
+            center: [(lng1 + lng2) / 2, (lat1 + lat2) / 2],
+            zoom: isShort ? 19 : 18.5,
+            duration: 800
+          });
+        }
       }
     }
   }, [currentSlide, routeData]);
+
+  useEffect(() => {
+    if (initialRouteFlyDone.current) return;
+    if (!mapRef.current || !Array.isArray(routeCoordinates) || routeCoordinates.length < 2) return;
+
+    const mapInstance = mapRef.current.getMap ? mapRef.current.getMap() : mapRef.current;
+    if (!mapInstance?.fitBounds) return;
+
+    const bounds = routeCoordinates.reduce((acc, coord) => {
+      if (!Array.isArray(coord) || coord.length < 2) return acc;
+      if (!acc) return new maplibregl.LngLatBounds(coord, coord);
+      acc.extend(coord);
+      return acc;
+    }, null);
+
+    if (bounds) {
+      mapInstance.fitBounds(bounds, { padding: 80, duration: 800 });
+      initialRouteFlyDone.current = true;
+    }
+  }, [routeCoordinates]);
 
   // Clear popup when no route data is available
   useEffect(() => {
