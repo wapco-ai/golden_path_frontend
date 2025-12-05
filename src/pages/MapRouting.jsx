@@ -14,6 +14,7 @@ import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/grou
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { fetchAreaDoors } from '../services/areaDoorsService';
 import { getSessionFloor } from '../utils/sessionFloor';
+import { fetchLandmarkPlaces } from '../services/landmarkService';
 
 const MapRoutingPage = () => {
   const navigate = useNavigate();
@@ -52,6 +53,8 @@ const MapRoutingPage = () => {
   const [areaDoorsStatus, setAreaDoorsStatus] = useState(null);
   const [areaDoorsMessage, setAreaDoorsMessage] = useState('');
   const [mapEntryDoors, setMapEntryDoors] = useState([]);
+  const [landmarkPlaces, setLandmarkPlaces] = useState([]);
+  const [showImageMarkers] = useState(true);
   const [lastAreaDoorsCoords, setLastAreaDoorsCoords] = useState(null);
 
   // Separate state for map categories and modal categories
@@ -101,6 +104,64 @@ const MapRoutingPage = () => {
       isMounted = false;
     };
   }, [language]);
+
+  useEffect(() => {
+    const loadLandmarkPlaces = async () => {
+      const geoCoordinates = userLocation?.coordinates;
+      const geo = Array.isArray(geoCoordinates) && geoCoordinates.length >= 2
+        ? { lat: geoCoordinates[0], lng: geoCoordinates[1] }
+        : null;
+
+      const getFirstImage = (place) => {
+        if (!place) return null;
+
+        if (Array.isArray(place.image) && place.image.length > 0) {
+          return place.image[0];
+        }
+
+        if (Array.isArray(place.images) && place.images.length > 0) {
+          return place.images[0];
+        }
+
+        if (typeof place.image === 'string' && place.image.trim()) {
+          return place.image;
+        }
+
+        if (typeof place.images === 'string' && place.images.trim()) {
+          return place.images;
+        }
+
+        return null;
+      };
+
+      try {
+        const data = await fetchLandmarkPlaces({
+          language,
+          geo
+        });
+
+        const apiLandmarks = Array.isArray(data?.places?.landmarkPlaces)
+          ? data.places.landmarkPlaces
+          : [];
+
+        const landmarksWithImages = apiLandmarks
+          .map(place => {
+            const image = getFirstImage(place);
+            if (!image) return null;
+            return { ...place, image };
+          })
+          .filter(Boolean);
+
+        setLandmarkPlaces(landmarksWithImages);
+      } catch (error) {
+        console.error('Failed to load landmark places', error);
+        toast.error(intl.formatMessage({ id: 'generalErrorMessage' }));
+        setLandmarkPlaces([]);
+      }
+    };
+
+    loadLandmarkPlaces();
+  }, [language, userLocation, intl]);
 
   const setOriginStore = useRouteStore(state => state.setOrigin);
   const setDestinationStore = useRouteStore(state => state.setDestination);
@@ -965,6 +1026,8 @@ const MapRoutingPage = () => {
           areaDoorsData={areaDoorsData}
           areaDoorsStatus={areaDoorsStatus}
           onDoorSelect={handleDoorSelect}
+          landmarkPlaces={landmarkPlaces}
+          showImageMarkers={showImageMarkers}
         />
         {!isSelectingFromMap && (
           <button
