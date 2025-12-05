@@ -145,6 +145,27 @@ const MapRoutingPage = () => {
     ];
   };
 
+  const getCategoryCenterCoordinates = (category) => {
+    if (!category) return null;
+
+    if (geoData?.features?.length) {
+      const matchedFeature = geoData.features.find(
+        (feature) => feature?.properties?.[category.property] === category.value
+      );
+
+      const center = getFeatureCenter(matchedFeature);
+      if (center && Array.isArray(center) && center.length >= 2) {
+        return [center[1], center[0]];
+      }
+    }
+
+    if (Array.isArray(category.coordinates) && category.coordinates.length >= 2) {
+      return category.coordinates;
+    }
+
+    return null;
+  };
+
   const getFeatureCenter = (feature) => {
     if (!feature) return null;
     const { geometry } = feature;
@@ -593,24 +614,58 @@ const MapRoutingPage = () => {
     }
   };
 
-  const handleCategoryClick = (category) => {
-    setMapSelectedCategory((current) => {
-      if (current && current.value === category.value) {
-        setMapSelectedSubGroups([]);
-        return null;
-      } else {
-        const categorySubGroups = subGroups[category.value] || [];
-        const hasSubGroupsWithImages = categorySubGroups.some(sub => sub.img);
+  const handleCategoryClick = async (category) => {
+    const isSameCategory = mapSelectedCategory && mapSelectedCategory.value === category.value;
 
-        if (hasSubGroupsWithImages) {
-          setMapSelectedSubGroups(categorySubGroups);
-        } else {
-          setMapSelectedSubGroups([]);
-        }
+    if (isSameCategory) {
+      setMapSelectedCategory(null);
+      setMapSelectedSubGroups([]);
+      setAreaDoorsData(null);
+      setAreaDoorsStatus(null);
+      setAreaDoorsMessage('');
+      setMapEntryDoors([]);
+      return;
+    }
 
-        return category;
-      }
-    });
+    const categorySubGroups = subGroups[category.value] || [];
+    const hasSubGroupsWithImages = categorySubGroups.some(sub => sub.img);
+
+    if (hasSubGroupsWithImages) {
+      setMapSelectedSubGroups(categorySubGroups);
+    } else {
+      setMapSelectedSubGroups([]);
+    }
+
+    setMapSelectedCategory(category);
+    setActiveInput('destination');
+    setSelectedEntry(null);
+
+    const categoryCoordinates = getCategoryCenterCoordinates(category);
+
+    if (!categoryCoordinates) {
+      return;
+    }
+
+    const destination = {
+      name: intl.formatMessage({ id: category.label }),
+      location: intl.formatMessage({ id: category.label }),
+      coordinates: categoryCoordinates
+    };
+
+    setTempDestination(destination);
+
+    const result = await requestAreaDoors(categoryCoordinates[0], categoryCoordinates[1]);
+
+    if (result?.doors?.length) {
+      setShowEntryModal(true);
+      return;
+    }
+
+    setShowEntryModal(false);
+    setTempDestination(null);
+    setSelectedDestination(destination);
+    addSearch(destination);
+    sessionStorage.setItem('currentDestination', JSON.stringify(destination));
   };
 
   const handleSubGroupClick = (subGroup) => {
@@ -670,12 +725,14 @@ const MapRoutingPage = () => {
         : null);
       setAreaDoorsMessage(response?.message || '');
       setMapEntryDoors(nextDoors);
+      return { status: response?.status || 'ok', doors: nextDoors };
     } catch (error) {
       console.error('failed to fetch area doors', error);
       setAreaDoorsStatus('error');
       setAreaDoorsData(null);
       setMapEntryDoors([]);
       setAreaDoorsMessage(error?.message || '');
+      return { status: 'error', doors: [] };
     }
   }, [language]);
 
