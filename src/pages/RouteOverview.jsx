@@ -25,6 +25,7 @@ const RouteOverview = () => {
 
   const mapRef = useRef(null);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [mapLoaded, setMapLoaded] = useState(false);
   const [directionArrow, setDirectionArrow] = useState('right');
   const [distance, setDistance] = useState('');
   const [time, setTime] = useState('');
@@ -37,6 +38,7 @@ const RouteOverview = () => {
 
   const handleMapLoad = useCallback((event) => {
     initHaramVectorLayers(event?.target || event);
+    setMapLoaded(true);
   }, []);
 
   const toRad = deg => (deg * Math.PI) / 180;
@@ -94,6 +96,10 @@ const RouteOverview = () => {
   const routeCoordinates = routeGeo?.geometry?.coordinates || [];
   const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
   const initialRouteFlyDone = useRef(false);
+
+  useEffect(() => {
+    setMapLoaded(false);
+  }, [styleKey]);
 
   const handleSubgroupClick = (subgroup) => {
     setSelectedSubgroup(subgroup);
@@ -703,6 +709,7 @@ const RouteOverview = () => {
 
   useEffect(() => {
     if (initialRouteFlyDone.current) return;
+    if (!mapLoaded) return;
     if (!mapRef.current || !Array.isArray(routeCoordinates) || routeCoordinates.length < 2) return;
 
     const mapInstance = mapRef.current.getMap ? mapRef.current.getMap() : mapRef.current;
@@ -719,7 +726,7 @@ const RouteOverview = () => {
       mapInstance.fitBounds(bounds, { padding: 80, duration: 800 });
       initialRouteFlyDone.current = true;
     }
-  }, [routeCoordinates]);
+  }, [mapLoaded, routeCoordinates]);
 
   // Clear popup when no route data is available
   useEffect(() => {
