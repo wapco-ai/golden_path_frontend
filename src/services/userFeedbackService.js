@@ -25,10 +25,6 @@ export const submitUserFeedback = async ({ poiId, comment, rating = 0, language,
 
   const token = resolveAuthToken(authToken);
 
-  if (!token) {
-    throw new Error('Authentication token is required to submit feedback');
-  }
-
   const payload = {
     poi_id: poiId,
     comment,
@@ -37,13 +33,18 @@ export const submitUserFeedback = async ({ poiId, comment, rating = 0, language,
     lang: language
   };
 
+  const headers = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json'
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const response = await fetch(appConfig.userFeedbackUrl, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      Authorization: `Bearer ${token}`
-    },
+    headers,
     body: JSON.stringify(payload)
   });
 
