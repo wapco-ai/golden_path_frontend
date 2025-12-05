@@ -26,9 +26,19 @@ const RouteMap = forwardRef(({
   showAlternativeRoutes = false
 }, ref) => {
   const mapRef = useRef(null);
-  const center = userLocation && userLocation.length === 2
+  const isValidUserLocation = Array.isArray(userLocation)
+    && userLocation.length === 2
+    && Number.isFinite(userLocation[0])
+    && Number.isFinite(userLocation[1]);
+
+  const center = isValidUserLocation
     ? userLocation
     : [36.297, 59.606]; // Default to Imam Reza Shrine coordinates
+
+  const isValidStepCoordinates = (step) => Array.isArray(step?.coordinates)
+    && step.coordinates.length === 2
+    && Number.isFinite(step.coordinates[0])
+    && Number.isFinite(step.coordinates[1]);
 
   const [drPosition, setDrPosition] = useState(null);
   const [drGeoPath, setDrGeoPath] = useState([]);
@@ -102,7 +112,7 @@ const RouteMap = forwardRef(({
     if (mapRef.current) {
       const timeout = setTimeout(() => {
         mapRef.current.resize();
-        if (userLocation && userLocation.length === 2) {
+        if (isValidUserLocation) {
           mapRef.current.flyTo({
             center: [userLocation[1], userLocation[0]],
             zoom: is3DView ? 17 : 18,
@@ -176,10 +186,10 @@ const RouteMap = forwardRef(({
     if (!mapRef.current) return;
     if (isDrActive && drPosition) {
       mapRef.current.setCenter([drPosition.lng, drPosition.lat]);
-    } else if (!isDrActive && userLocation && userLocation.length === 2) {
+    } else if (!isDrActive && isValidUserLocation) {
       mapRef.current.setCenter([userLocation[1], userLocation[0]]);
     }
-  }, [drPosition, userLocation, isDrActive]);
+  }, [drPosition, userLocation, isDrActive, isValidUserLocation]);
 
   // Zoom to current segment when step changes
   useEffect(() => {
@@ -315,13 +325,13 @@ const RouteMap = forwardRef(({
       onError={handleMapError}
     >
       {/* User location marker - now using ArrowMarker with walking man icon */}
-      {!isDrActive && (
+      {!isDrActive && isValidUserLocation && (
         <Marker longitude={userLocation[1]} latitude={userLocation[0]} anchor="center">
           <ArrowMarker />
         </Marker>
       )}
 
-      {isDrActive && drPosition && (
+      {isDrActive && drPosition && Number.isFinite(drPosition.lng) && Number.isFinite(drPosition.lat) && (
         <Marker longitude={drPosition.lng} latitude={drPosition.lat} anchor="center">
           <ArrowMarker />
         </Marker>
@@ -344,7 +354,7 @@ const RouteMap = forwardRef(({
       )}
 
       {/* Current step marker -  using red destination pin */}
-      {routeSteps && routeSteps.length > 0 && (
+      {routeSteps && routeSteps.length > 0 && isValidStepCoordinates(routeSteps[routeSteps.length - 1]) && (
         <Marker
           longitude={routeSteps[routeSteps.length - 1].coordinates[1]}
           latitude={routeSteps[routeSteps.length - 1].coordinates[0]}
