@@ -579,7 +579,8 @@ const Location = () => {
     try {
       const response = await submitUserFeedback({
         poiId,
-        comment: trimmedComment,
+        title: trimmedComment.slice(0, 80),
+        body: trimmedComment,
         rating: rating || 0,
         language
       });
