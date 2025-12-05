@@ -6,7 +6,7 @@ export const MAPLIBRE_GLYPHS_URL =
 
 export const MAPLIBRE_RTL_PLUGIN_URL =
   (import.meta?.env?.VITE_MAPLIBRE_RTL_PLUGIN_URL?.trim()
-    || 'https://unpkg.com/@maplibre/maplibre-gl-rtl-text@latest/dist/maplibre-gl-rtl-text.js')
+    || 'https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.3.0/dist/mapbox-gl-rtl-text.js')
     .replace(/\/$/, '');
 
 const RTL_PLUGIN_ERROR_MESSAGE = 'Failed to initialize MapLibre RTL text plugin';
