@@ -665,7 +665,6 @@ const Location = () => {
 
   const calculateAverageRating = () => {
     if (comments.length === 0) {
-      setOverallRating(0);
       return;
     }
     const average = comments.reduce((sum, comment) => sum + (comment.rating || 0), 0) / comments.length;
