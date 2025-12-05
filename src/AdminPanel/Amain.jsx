@@ -21,9 +21,10 @@ const Amain = () => {
   const [map, setMap] = useState(null);
 
   const [mapViewState, setMapViewState] = useState({
-    longitude: 51.388,
-    latitude: 35.6892,
-    zoom: 12
+    longitude: 59.6161,
+    latitude: 36.2908,
+    center: [59.6159, 36.2875], 
+    zoom: 16
   });
   const [mapType, setMapType] = useState('نمای خیابان');
   const [isMapTypeOpen, setIsMapTypeOpen] = useState(false);
@@ -474,9 +475,9 @@ const Amain = () => {
       const initializeMap = () => {
         const mapInstance = new maplibregl.Map({
           container: 'map-container',
-          style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json', // Default style
-          center: [51.389, 35.6892], // Tehran coordinates
-          zoom: 10
+          style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+          center: [59.6161, 36.2908], // Imam Reza Shrine coordinates in Mashhad, Iran
+          zoom: 15 // Increased zoom to show more detail
         });
 
         mapInstance.addControl(new maplibregl.NavigationControl());
@@ -1655,56 +1656,46 @@ const Amain = () => {
             /* Cultural Information Management Section */
             <div className="cultural-management-section">
               {/* Header with buttons */}
-              <div className="cultural-header-section">
-                <div className="cultural-header-left">
-                  <button className="new-cultural-btn">
-                    ایجاد اطلاعات فرهنگی
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path fillRule="evenodd" clipRule="evenodd" d="M10.0001 18.3334C14.6025 18.3334 18.3334 14.6024 18.3334 10C18.3334 5.39765 14.6025 1.66669 10.0001 1.66669C5.39771 1.66669 1.66675 5.39765 1.66675 10C1.66675 14.6024 5.39771 18.3334 10.0001 18.3334ZM10.6251 7.50002C10.6251 7.15484 10.3453 6.87502 10.0001 6.87502C9.6549 6.87502 9.37508 7.15484 9.37508 7.50002L9.37508 9.37504H7.50008C7.1549 9.37504 6.87508 9.65486 6.87508 10C6.87508 10.3452 7.1549 10.625 7.50008 10.625H9.37508V12.5C9.37508 12.8452 9.6549 13.125 10.0001 13.125C10.3453 13.125 10.6251 12.8452 10.6251 12.5L10.6251 10.625H12.5001C12.8453 10.625 13.1251 10.3452 13.1251 10C13.1251 9.65486 12.8453 9.37504 12.5001 9.37504H10.6251V7.50002Z" fill="white" />
-                    </svg>
-                  </button>
-                  <button className="export-cultural-btn">
-                    گرفتن خروجی
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path fillRule="evenodd" clipRule="evenodd" d="M3.69247 7.09327C3.91711 6.83119 4.31167 6.80084 4.57375 7.02548L10.0003 11.6768L15.4269 7.02548C15.689 6.80084 16.0836 6.83119 16.3082 7.09327C16.5328 7.35535 16.5025 7.74991 16.2404 7.97455L10.4071 12.9745C10.173 13.1752 9.82765 13.1752 9.59359 12.9745L3.76026 7.97455C3.49818 7.74991 3.46783 7.35535 3.69247 7.09327Z" fill="#1E2023" />
-                    </svg>
-                  </button>
-                </div>
+              <div className="cultural-header-section9">
+                <button className="export-cultural-btn">
+                  گرفتن خروجی
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" clipRule="evenodd" d="M3.69247 7.09327C3.91711 6.83119 4.31167 6.80084 4.57375 7.02548L10.0003 11.6768L15.4269 7.02548C15.689 6.80084 16.0836 6.83119 16.3082 7.09327C16.5328 7.35535 16.5025 7.74991 16.2404 7.97455L10.4071 12.9745C10.173 13.1752 9.82765 13.1752 9.59359 12.9745L3.76026 7.97455C3.49818 7.74991 3.46783 7.35535 3.69247 7.09327Z" fill="#1E2023" />
+                  </svg>
+                </button>
+                <button className="new-cultural-btn">
+                  ایجاد اطلاعات فرهنگی
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" clipRule="evenodd" d="M10.0001 18.3334C14.6025 18.3334 18.3334 14.6024 18.3334 10C18.3334 5.39765 14.6025 1.66669 10.0001 1.66669C5.39771 1.66669 1.66675 5.39765 1.66675 10C1.66675 14.6024 5.39771 18.3334 10.0001 18.3334ZM10.6251 7.50002C10.6251 7.15484 10.3453 6.87502 10.0001 6.87502C9.6549 6.87502 9.37508 7.15484 9.37508 7.50002L9.37508 9.37504H7.50008C7.1549 9.37504 6.87508 9.65486 6.87508 10C6.87508 10.3452 7.1549 10.625 7.50008 10.625H9.37508V12.5C9.37508 12.8452 9.6549 13.125 10.0001 13.125C10.3453 13.125 10.6251 12.8452 10.6251 12.5L10.6251 10.625H12.5001C12.8453 10.625 13.1251 10.3452 13.1251 10C13.1251 9.65486 12.8453 9.37504 12.5001 9.37504H10.6251V7.50002Z" fill="white" />
+                  </svg>
+                </button>
 
-                <div className="cultural-header-right">
-                  <div className="cultural-search-box">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="search-icon">
-                      <g clipPath="url(#clip0_367_7167)">
-                        <path fillRule="evenodd" clipRule="evenodd" d="M7.66658 1.83337C4.44492 1.83337 1.83325 4.44505 1.83325 7.66671C1.83325 10.8884 4.44492 13.5 7.66658 13.5C10.8882 13.5 13.4999 10.8884 13.4999 7.66671C13.4999 4.44505 10.8882 1.83337 7.66658 1.83337ZM0.833252 7.66671C0.833252 3.89276 3.89264 0.833374 7.66658 0.833374C11.4405 0.833374 14.4999 3.89276 14.4999 7.66671C14.4999 9.37372 13.874 10.9345 12.8392 12.1322L15.0201 14.3132C15.2154 14.5084 15.2154 14.825 15.0201 15.0203C14.8249 15.2155 14.5083 15.2155 14.313 15.0203L12.1321 12.8393C10.9344 13.8741 9.37359 14.5 7.66658 14.5C3.89264 14.5 0.833252 11.4407 0.833252 7.66671Z" fill="#858585" />
-                      </g>
-                      <defs>
-                        <clipPath id="clip0_367_7167">
-                          <rect width="16" height="16" fill="white" />
-                        </clipPath>
-                      </defs>
-                    </svg>
-                    <input
-                      type="text"
-                      placeholder="جستجوی موارد..."
-                      value={culturalSearchTerm}
-                      onChange={(e) => setCulturalSearchTerm(e.target.value)}
-                      className="cultural-search-input"
-                    />
-                  </div>
-                </div>
               </div>
 
               {/* Table Section Header */}
-              <div className="cultural-table-header">
+              <div className="cultural-table-header9">
                 <div className="cultural-table-title">
-                  <h3>اطلاعات فرهنگی ایجاد شده در این‌پیشین</h3>
+                  <h3> اطلاعات فرهنگی ایجاد شده در اپلیکیشن </h3>
                   <button className="refresh-btn">
                     <svg width="18" height="18" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M11.047 5.99994C11.047 8.73518 8.8271 10.9551 6.09186 10.9551C3.35662 10.9551 1.68674 8.20002 1.68674 8.20002M1.68674 8.20002H3.92646M1.68674 8.20002V10.6776M1.13672 5.99994C1.13672 3.2647 3.3368 1.0448 6.09186 1.0448C9.39694 1.0448 11.047 3.79986 11.047 3.79986M11.047 3.79986V1.32229M11.047 3.79986H8.84692" stroke="#1E2023" strokeWidth="1.08112" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </button>
                 </div>
-                <p></p>
+                <div className="cultural-header-right">
+                  <div className="category-search-box">
+                    <svg className="search-icon7" width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path fillRule="evenodd" clipRule="evenodd" d="M10.4167 2.29166C14.4438 2.29166 17.7084 5.55625 17.7084 9.58332C17.7084 13.6104 14.4438 16.875 10.4167 16.875C6.38963 16.875 3.12504 13.6104 3.12504 9.58332C3.12504 5.55625 6.38963 2.29166 10.4167 2.29166ZM18.9584 9.58332C18.9584 4.86589 15.1341 1.04166 10.4167 1.04166C5.69928 1.04166 1.87504 4.86589 1.87504 9.58332C1.87504 11.7171 2.65743 13.6681 3.95099 15.1652L1.22476 17.8914C0.980688 18.1355 0.980688 18.5312 1.22476 18.7753C1.46884 19.0193 1.86457 19.0193 2.10865 18.7753L4.83487 16.049C6.33192 17.3426 8.28295 18.125 10.4167 18.125C15.1341 18.125 18.9584 14.3008 18.9584 9.58332Z" fill="#858585" />
+                    </svg>
+                    <input
+                      type="text"
+                      placeholder="جستجوی موارد ... "
+                      value={culturalSearchTerm}
+                      onChange={(e) => setCulturalSearchTerm(e.target.value)}
+                      className="cultural-search-input"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Cultural Data Table */}

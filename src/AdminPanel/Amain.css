@@ -5008,11 +5008,14 @@ body {
   border-color: #0F71EF;
 }
 
-.cultural-table-header {
-  background: #F5F6FF;
-  border-radius: 8px;
+.cultural-table-header9 {
   padding: 16px 24px;
   margin-bottom: 24px;
+  background-color: white;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  border-top: 1px solid #F2F2F2;
 }
 
 .cultural-table-title {
@@ -5020,6 +5023,9 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
+  display: flex;
+  background-color: white;
+  gap: 12px;
 }
 
 .cultural-table-title h3 {
@@ -5168,11 +5174,12 @@ body {
   padding: 24px;
 }
 
-.cultural-header-section {
+.cultural-header-section9 {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   margin-bottom: 24px;
+  gap: 12px;
 }
 
 .cultural-header-left {
@@ -5237,19 +5244,7 @@ body {
   height: 18px;
 }
 
-.cultural-search-input {
-  width: 100%;
-  padding: 12px 40px 12px 16px;
-  border: 1px solid #D9D9D9;
-  border-radius: 8px;
-  font-size: 14px;
-  background: white;
-}
 
-.cultural-search-input:focus {
-  outline: none;
-  border-color: #0F71EF;
-}
 
 .cultural-table-header {
   background: #F8F9FA;
