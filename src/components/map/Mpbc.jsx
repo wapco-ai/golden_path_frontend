@@ -23,17 +23,6 @@ const groupColors = {
   other: '#757575'
 };
 
-const buildGroupColorExpression = (colors, defaultColor) => {
-  const expression = ['match', ['get', 'group']];
-
-  Object.entries(colors).forEach(([group, color]) => {
-    expression.push(group, color);
-  });
-
-  expression.push(defaultColor);
-  return expression;
-};
-
 const nodeFunctionColors = {
   door: '#e53935'
 };
@@ -100,9 +89,6 @@ const Mpbc = ({
   const language = useLangStore((state) => state.language);
   const [selectedFeatureForBubble, setSelectedFeatureForBubble] = useState(null);
   const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
-  const polygonFillColorExpression = buildGroupColorExpression(groupColors, '#a0aec0');
-  const polygonLabelField = ['coalesce', ['get', 'label'], ['get', 'name'], ['get', 'subGroup'], ['get', 'subGroupValue']];
-  const showRangeLabels = viewState.zoom > 17;
 
   const onMove = useCallback((evt) => {
     setViewState(evt.viewState);
@@ -613,44 +599,7 @@ const Mpbc = ({
       {/* Building polygons */}
       {polygonFeatures.length > 0 && (
         <Source id="polygons" type="geojson" data={{ type: 'FeatureCollection', features: polygonFeatures }}>
-          <Layer
-            id="polygon-fill"
-            type="fill"
-            paint={{
-              'fill-color': polygonFillColorExpression,
-              'fill-opacity': 0.18,
-              'fill-outline-color': '#ffffff'
-            }}
-          />
-          <Layer
-            id="polygon-lines"
-            type="line"
-            paint={{
-              'line-color': '#1e3a8a',
-              'line-width': 1.8,
-              'line-dasharray': [2, 2],
-              'line-opacity': 0.7
-            }}
-          />
-          {showRangeLabels && (
-            <Layer
-              id="polygon-labels"
-              type="symbol"
-              minzoom={17}
-              layout={{
-                'text-field': polygonLabelField,
-                'text-size': 12,
-                'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
-                'text-allow-overlap': false,
-                'text-justify': 'center'
-              }}
-              paint={{
-                'text-color': '#0f172a',
-                'text-halo-color': '#ffffff',
-                'text-halo-width': 1.2
-              }}
-            />
-          )}
+          <Layer id="polygon-lines" type="line" paint={{ 'line-color': '#333', 'line-width': 2 }} />
         </Source>
       )}
 
@@ -719,4 +668,4 @@ const Mpbc = ({
   );
 };
 
-export default Mpbc;
+export default Mpbc; 
