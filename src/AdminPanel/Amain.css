@@ -1305,7 +1305,7 @@ body {
   gap: 20px;
   align-items: flex-end;
   flex-wrap: wrap;
-  
+
 }
 
 .filter-group {
@@ -1504,7 +1504,8 @@ body {
   flex-direction: row;
   width: 100vw;
   justify-content: space-between;
-  align-items: center;;
+  align-items: center;
+  ;
 }
 
 .btc {
@@ -1512,7 +1513,8 @@ body {
   gap: 8px;
   flex-direction: row;
   justify-content: space-between;
-  align-items: center;;
+  align-items: center;
+  ;
 }
 
 
@@ -1877,12 +1879,12 @@ body {
     grid-template-columns: 1fr;
     gap: 0;
   }
-  
+
   .search-existing {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .media-preview {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   }
@@ -1901,8 +1903,8 @@ body {
   margin-bottom: 0px;
   border: none;
   width: 79vw;
-  height: 70vh; 
-  min-height: 500px; 
+  height: 70vh;
+  min-height: 500px;
 }
 
 .map-container {
@@ -1918,7 +1920,8 @@ body {
 
 .map-instance {
   width: 100%;
-  height: 100%; /* This is crucial */
+  height: 100%;
+  /* This is crucial */
   border-radius: 12px;
 }
 
@@ -2113,7 +2116,8 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.zoom-in, .zoom-out {
+.zoom-in,
+.zoom-out {
   border-radius: 0;
   border-bottom: 1px solid #F2F2F2;
 }
@@ -2150,15 +2154,15 @@ body {
 }
 
 /* Hide charts and users table when in map management */
-.map-management-section ~ .users-section {
+.map-management-section~.users-section {
   display: none;
 }
 
-.content-upload-section ~ .users-section {
+.content-upload-section~.users-section {
   display: none;
 }
 
-.map-management-section ~ .charts-section {
+.map-management-section~.charts-section {
   display: none;
 }
 
@@ -2410,6 +2414,7 @@ body {
     opacity: 0;
     transform: translateY(-30px) scale(0.9);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -2495,7 +2500,7 @@ body {
 .step-intro {
   text-align: right;
   margin-bottom: 15px;
-  border:none;
+  border: none;
 }
 
 .step-intro h3 {
@@ -2613,10 +2618,12 @@ body {
   border-radius: 8px;
   font-size: 14px;
   font-family: 'Vazir', Tahoma, sans-serif;
-  resize: none; /* Changed from 'vertical' to 'none' */
+  resize: none;
+  /* Changed from 'vertical' to 'none' */
   transition: border-color 0.3s;
   min-height: 80px;
-  overflow-y: auto; /* Add scrollbar when content exceeds height */
+  overflow-y: auto;
+  /* Add scrollbar when content exceeds height */
 }
 
 .modal-content .form-textarea:focus {
@@ -2828,7 +2835,7 @@ body {
   .multi-select-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .radio-options-grid3 {
     flex-direction: column;
   }
@@ -3011,13 +3018,13 @@ body {
 /* Responsive Design */
 @media (max-width: 768px) {
 
-  
+
   .restriction-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
-  
+
   .add-restriction-btn {
     align-self: flex-start;
   }
@@ -3318,6 +3325,7 @@ body {
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -3522,7 +3530,7 @@ body {
     background-image: none;
     padding-right: 8px;
   }
-  
+
   .time-input::-moz-calendar-picker-indicator {
     opacity: 0.3;
     width: 20px;
@@ -3531,7 +3539,7 @@ body {
     cursor: pointer;
     filter: brightness(0.8);
   }
-  
+
   .time-input-group::before {
     content: '';
     position: absolute;
@@ -3681,7 +3689,7 @@ body {
   .time-pairs-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .gender-options {
     flex-direction: column;
   }
@@ -3754,7 +3762,8 @@ body {
 /* ---------- Prayer Date Filter Popup (cloned styling, positioned slightly lower) ---------- */
 .prayer-date-filter-popup {
   position: fixed;
-  top: 36%;        /* increased top to appear below the second add button */
+  top: 36%;
+  /* increased top to appear below the second add button */
   left: 22%;
   background: white;
   border: 1px solid #D9D9D9;
@@ -3851,8 +3860,8 @@ body {
 
 .prayer-form-actions {
   margin-top: 12px;
-  display:flex;
- justify-content: flex-end;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .confirm-prayer-btn {
@@ -3930,12 +3939,15 @@ body {
     top: 40%;
     min-width: 84%;
   }
+
   .prayer-form-grid {
     flex-direction: column;
   }
+
   .prayer-event-option {
     min-width: 100%;
   }
+
   .minutes-inputs-grid {
     grid-template-columns: 1fr;
   }
@@ -3944,23 +3956,20 @@ body {
 /* Category Management Section */
 .category-management-section {
   padding: 20px;
-  background: #F8F9FA;
+  background: white;
   border-radius: 12px;
 }
 
 .category-header-section {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   margin-bottom: 30px;
   padding-bottom: 20px;
   border-bottom: 1px solid #F2F2F2;
-}
-
-.category-header-left {
-  display: flex;
   gap: 12px;
 }
+
 
 .new-category-btn {
   display: flex;
@@ -4035,6 +4044,9 @@ body {
 
 .category-table-header {
   margin-bottom: 20px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
 }
 
 .category-table-title {
@@ -4165,6 +4177,8 @@ body {
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
+  width: 4vw;
+  justify-content: center;
 }
 
 .status-badge.active {
@@ -4219,7 +4233,8 @@ body {
   background: rgba(234, 67, 53, 0.2);
 }
 
-.edit-icon-btn, .delete-icon-btn {
+.edit-icon-btn,
+.delete-icon-btn {
   background: none;
   border: none;
   cursor: pointer;
@@ -4274,7 +4289,8 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 0px;
-  border: none;;
+  border: none;
+  ;
 }
 
 .create-category-modal .modal-header h3 {
@@ -4287,7 +4303,7 @@ body {
 .create-category-modal .modal-content {
   padding: 20px;
   margin-top: 0px;
-  
+
 }
 
 .create-category-modal .form-group {
@@ -4492,16 +4508,16 @@ body {
     gap: 16px;
     align-items: stretch;
   }
-  
+
   .category-search-box {
     width: 100%;
   }
-  
+
   .categories-table {
     display: block;
     overflow-x: auto;
   }
-  
+
   .create-category-modal,
   .delete-confirmation-modal {
     width: 100%;
@@ -4511,7 +4527,7 @@ body {
 /* Edit Category Modal Styles */
 .edit-category-modal {
   background: white;
-  border-radius: 8px;
+  border-radius: 14px;
   width: 90%;
   max-width: 600px;
   max-height: 90vh;
@@ -4520,10 +4536,13 @@ body {
 
 .edit-category-modal .modal-header {
   padding: 24px;
-  border-bottom: 1px solid #E5E5E5;
+  padding-bottom: 0px;
+  padding-top: 15pxpx;
+  border: none;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  margin: 0px;
 }
 
 .edit-category-modal .modal-header h3 {
@@ -4540,21 +4559,22 @@ body {
 
 .edit-category-modal .modal-content {
   padding: 24px;
+  margin-top: 14px;
 }
 
-.section-title {
-  font-size: 14px;
+.edit-category-modal .form-label {
   font-weight: 600;
-  color: #1E2023;
-  margin-bottom: 16px;
+}
+
+
+.section-title8 {
+  font-size: 12px;
+  color: #858585;
+  margin-bottom: 6px;
   display: block;
 }
 
-.divider {
-  height: 1px;
-  background: #E5E5E5;
-  margin: 24px 0;
-}
+
 
 .icon-upload-section {
   margin-bottom: 16px;
@@ -4571,6 +4591,9 @@ body {
   border: 1px solid #E5E5E5;
   border-radius: 8px;
   padding: 16px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
 }
 
 .icon-preview {
@@ -4610,6 +4633,10 @@ body {
   display: flex;
   gap: 12px;
   margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
 }
 
 .hidden-file-input {
@@ -4618,15 +4645,17 @@ body {
 
 .upload-icon-btn {
   padding: 8px 16px;
-  background: #0F71EF;
-  color: white;
-  border-radius: 6px;
+  background: #E7F1FE;
+  color: #0F71EF;
+  ;
+  border-radius: 25px;
   font-size: 14px;
   cursor: pointer;
   border: none;
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  width: 6vw;
 }
 
 .remove-icon-btn {
@@ -4637,12 +4666,6 @@ body {
   font-size: 14px;
   cursor: pointer;
   border: none;
-}
-
-.upload-hint {
-  font-size: 12px;
-  color: #858585;
-  margin-top: 8px;
 }
 
 .subcategory-section {
