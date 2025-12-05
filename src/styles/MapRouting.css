@@ -684,6 +684,20 @@
   border-radius: 50%;
   background-color: #f6f6f7;
   border: 7px solid #1E90FF;
+  box-shadow: 0 0 6px rgba(30, 144, 255, 0.45);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-marker-origin-inner {
+  width: 10px;
+  height: 10px;
+  background-color: #1E90FF;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(30, 144, 255, 0.5);
 }
 
 .map-marker-destination {
