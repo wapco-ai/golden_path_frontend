@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation as useReactLocation } from 'react-router-dom';
-import axios from 'axios';
 import '../styles/Location.css';
 import { FormattedMessage, useIntl } from 'react-intl';
 import localizeLocationData from '../utils/localizeLocationData.js';
@@ -12,6 +11,7 @@ import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import ttsService from '../services/ttsService';
+import { fetchLandmarkPlaces } from '../services/landmarkService';
 
 // Import video files
 import v1 from '/assets/videos/vid1.mp4';
@@ -134,6 +134,72 @@ const Location = () => {
     const storedId = normalizeLocationId(sessionStorage.getItem('mapSelectedId'));
 
     return paramsId || stateId || storedId;
+  };
+
+  const normalizeImages = (place) => {
+    if (!place) return [];
+
+    if (Array.isArray(place.images)) return place.images;
+    if (Array.isArray(place.image)) return place.image;
+    if (Array.isArray(place.img)) return place.img;
+
+    if (typeof place.images === 'string' && place.images.trim()) return [place.images];
+    if (typeof place.image === 'string' && place.image.trim()) return [place.image];
+    if (typeof place.img === 'string' && place.img.trim()) return [place.img];
+
+    return [];
+  };
+
+  const normalizeAbout = (place) => {
+    if (typeof place?.about === 'string') {
+      return { short: place.about, full: place.about };
+    }
+
+    if (place?.about?.short || place?.about?.full) {
+      const short = place.about.short ?? place.about.full ?? '';
+      const full = place.about.full ?? place.about.short ?? '';
+
+      return { short: short || full, full: full || short };
+    }
+
+    const description = place?.description || '';
+    return { short: description, full: description };
+  };
+
+  const normalizePlaceData = (place) => {
+    if (!place) return null;
+
+    return {
+      ...place,
+      images: normalizeImages(place),
+      about: normalizeAbout(place),
+      location: place.location || place.address || place.label || '',
+      openingHours: place.openingHours ?? place.open_hours ?? place.hours ?? '',
+      contents: Array.isArray(place.contents) ? place.contents : [],
+      comments: Array.isArray(place.comments) ? place.comments : [],
+      views: place.views ?? place.view ?? 0,
+      averageRating: place.averageRating ?? place.rate ?? place.rating ?? 0
+    };
+  };
+
+  const findMatchingLocation = (places, requestedId) => {
+    if (!requestedId || !Array.isArray(places)) return null;
+
+    const normalizedRequestedId = normalizeLocationId(requestedId)?.toString().toLowerCase();
+
+    return places.find(place => {
+      const candidateIds = [
+        place?.id,
+        place?.value,
+        place?.subGroupValue,
+        place?.poi_id,
+        place?.poiId
+      ]
+        .map(id => normalizeLocationId(id)?.toString().toLowerCase())
+        .filter(Boolean);
+
+      return candidateIds.includes(normalizedRequestedId);
+    }) || null;
   };
 
   useEffect(() => {
@@ -607,34 +673,47 @@ const Location = () => {
   // In the Location component, modify the location data fetching to handle both cases
   useEffect(() => {
     const fetchLocationData = async () => {
+      setLoading(true);
+      setError(null);
+
       try {
-        const response = await axios.get(`./data/locationData.json`);
-        let data = response.data;
-
         const requestedLocationId = getRequestedLocationId();
+        const apiResponse = await fetchLandmarkPlaces({
+          language,
+          poiId: requestedLocationId
+        });
 
-        if (Array.isArray(data)) {
-          const matchedLocation = requestedLocationId
-            ? data.find(loc => normalizeLocationId(loc.id) === requestedLocationId)
-            : null;
+        const apiLocations = Array.isArray(apiResponse?.places?.landmarkPlaces)
+          ? apiResponse.places.landmarkPlaces
+          : Array.isArray(apiResponse)
+            ? apiResponse
+            : [];
 
-          data = matchedLocation || data[0];
+        const matchedLocation = findMatchingLocation(apiLocations, requestedLocationId)
+          || (apiLocations.length === 1 ? apiLocations[0] : null)
+          || findMatchingLocation([locationState], requestedLocationId)
+          || locationState;
+
+        const normalizedData = normalizePlaceData(matchedLocation);
+
+        if (!normalizedData) {
+          throw new Error(intl.formatMessage({ id: 'noDataFound' }));
         }
 
-        data = localizeLocationData(data, language);
-        setLocationData(data);
-        setComments(data.comments || []);
-        setViews(data.views || 0);
-        setOverallRating(data.averageRating || 0);
-        setLoading(false);
+        const localizedData = localizeLocationData(normalizedData, language);
+        setLocationData(localizedData);
+        setComments(localizedData.comments || []);
+        setViews(localizedData.views || 0);
+        setOverallRating(localizedData.averageRating || 0);
       } catch (err) {
         setError(err.message);
+      } finally {
         setLoading(false);
       }
     };
 
     fetchLocationData();
-  }, [currentLocation, language]);
+  }, [currentLocation, language, intl, locationState]);
 
   useEffect(() => {
     calculateAverageRating();
