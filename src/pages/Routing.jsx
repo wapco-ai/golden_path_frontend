@@ -53,6 +53,7 @@ const RoutingPage = () => {
   const [drGeoPath, setDrGeoPath] = useState([]);
   const [showAlternativeRoutesOnMap, setShowAlternativeRoutesOnMap] = useState(false);
   const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
+  const [initialHeading, setInitialHeading] = useState(null);
   const navigate = useNavigate();
   const {
     origin,
@@ -518,6 +519,35 @@ const RoutingPage = () => {
     if (ad < 100) return diff > 0 ? 'left' : 'right';
     return diff > 0 ? 'bend-left' : 'bend-right';
   };
+
+  // Position the user marker at the start of the route and orient it toward the first step
+  useEffect(() => {
+    const coords = routeGeo?.geometry?.coordinates;
+    const hasGeoCoords = Array.isArray(coords) && coords.length > 0;
+
+    const hasSteps = Array.isArray(routeSteps) && routeSteps.length > 0;
+    const getStepCoord = (index) => {
+      const step = routeSteps[index];
+      if (!Array.isArray(step?.coordinates) || step.coordinates.length !== 2) return null;
+      const [lat, lng] = step.coordinates;
+      return [lng, lat];
+    };
+
+    const startLngLat = hasSteps ? getStepCoord(0) : (hasGeoCoords ? coords[0] : null);
+    const nextLngLat = hasSteps ? getStepCoord(1) : (hasGeoCoords && coords.length > 1 ? coords[1] : null);
+
+    if (!startLngLat) {
+      setInitialHeading(null);
+      return;
+    }
+
+    setUserLocation([startLngLat[1], startLngLat[0]]);
+    if (nextLngLat) {
+      setInitialHeading(bearing(startLngLat, nextLngLat));
+    } else {
+      setInitialHeading(null);
+    }
+  }, [routeGeo, routeSteps]);
 
   // Load route data from JSON for initial display when no analyzed route exists
   useEffect(() => {
@@ -1242,6 +1272,7 @@ const RoutingPage = () => {
             alternativeRoutes={routeData.alternativeRoutes}
             onSelectAlternativeRoute={handleSelectAlternativeRoute}
             showAlternativeRoutes={showAlternativeRoutesOnMap}
+            initialHeading={initialHeading}
           />
           {/* <DeadReckoningControls
             currentLocation={{ coords: { lat: userLocation[0], lng: userLocation[1] } }}
