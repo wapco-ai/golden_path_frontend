@@ -4253,7 +4253,7 @@ body {
 
 /* Subcategory Row */
 .subcategory-row {
-  background: #F8F9FA;
+  background: rgba(255, 255, 255, 0.419)FA;
 }
 
 .subcategory-row td {
