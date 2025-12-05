@@ -539,6 +539,21 @@ const RoutingPage = () => {
       .catch(error => console.error('Error loading route data:', error));
   }, [routeSteps.length, routeGeo]);
 
+  useEffect(() => {
+    const coords = routeGeo?.geometry?.coordinates;
+    if (!Array.isArray(coords) || coords.length === 0) return;
+
+    const [startLng, startLat] = coords[0];
+    if (!Number.isFinite(startLng) || !Number.isFinite(startLat)) return;
+
+    setUserLocation(prev => {
+      if (Array.isArray(prev) && prev[0] === startLat && prev[1] === startLng) {
+        return prev;
+      }
+      return [startLat, startLng];
+    });
+  }, [routeGeo]);
+
   // Build route data from stored steps
   useEffect(() => {
     if (!routeSteps || routeSteps.length === 0 || !routeGeo) return;

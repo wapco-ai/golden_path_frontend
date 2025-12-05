@@ -1,7 +1,15 @@
 import React from 'react';
 
-const ArrowMarker = () => (
-  <div style={{ position: 'relative', width: '80px', height: '80px' }}>
+const ArrowMarker = ({ heading = 0 }) => (
+  <div
+    style={{
+      position: 'relative',
+      width: '80px',
+      height: '80px',
+      transform: `rotate(${heading}deg)`,
+      transition: 'transform 0.3s ease'
+    }}
+  >
     <svg width="80" height="80" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <filter id="soft-shadow" x="-50%" y="-50%" width="200%" height="200%">
