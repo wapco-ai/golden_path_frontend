@@ -34,7 +34,7 @@ const defaultLanguagesUrl = `${defaultApiBaseUrl}/api/v1/languages`;
 const defaultLandmarkPlacesUrl = `${defaultApiBaseUrl}/api/v1/landmark-places`;
 const defaultGroupMetadataUrl = `${defaultApiBaseUrl}/api/v1/groups/metadata`;
 const defaultGroupSubGroupsUrl = `${defaultApiBaseUrl}/api/v1/groups/subgroups`;
-const defaultUserFeedbackUrl = `${defaultApiBaseUrl}/api/v1/user-feedback`;
+const defaultUserFeedbackUrl = `${defaultApiBaseUrl}/api/v1/feedbacks`;
 
 const appConfig = {
   apiBaseUrl: (import.meta?.env?.VITE_API_BASE_URL?.trim() || defaultApiBaseUrl).replace(/\/$/, ''),
