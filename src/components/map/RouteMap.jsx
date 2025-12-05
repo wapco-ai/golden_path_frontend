@@ -1,5 +1,5 @@
 // src/components/map/RouteMap.jsx
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -45,7 +45,7 @@ const RouteMap = forwardRef(({
   const [drPosition, setDrPosition] = useState(null);
   const [drGeoPath, setDrGeoPath] = useState([]);
   const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
-  const [heading, setHeading] = useState(Number.isFinite(userHeading) ? userHeading : null);
+  const [heading, setHeading] = useState(userHeading ?? 0);
   const [terrainAvailable, setTerrainAvailable] = useState(false);
   const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
 
@@ -119,34 +119,6 @@ const RouteMap = forwardRef(({
     }
   }, [isDrActive, userHeading]);
 
-  const segmentBearing = useMemo(() => {
-    if (!routeGeo || !routeGeo.geometry?.coordinates) return null;
-    const coords = routeGeo.geometry.coordinates;
-    const nextIdx = Math.min(currentStep + 1, coords.length - 1);
-    if (coords.length < 2 || currentStep >= coords.length || nextIdx === currentStep) return null;
-
-    const [startLng, startLat] = coords[currentStep];
-    const [endLng, endLat] = coords[nextIdx];
-    const startLatRad = (startLat * Math.PI) / 180;
-    const endLatRad = (endLat * Math.PI) / 180;
-    const dLng = ((endLng - startLng) * Math.PI) / 180;
-
-    const y = Math.sin(dLng) * Math.cos(endLatRad);
-    const x = Math.cos(startLatRad) * Math.sin(endLatRad) -
-      Math.sin(startLatRad) * Math.cos(endLatRad) * Math.cos(dLng);
-
-    const brng = (Math.atan2(y, x) * 180) / Math.PI;
-    return (brng + 360) % 360;
-  }, [routeGeo, currentStep]);
-
-  useEffect(() => {
-    if (!isDrActive && !Number.isFinite(userHeading) && heading === null && segmentBearing !== null) {
-      setHeading(segmentBearing);
-      lastHeading.current = segmentBearing;
-      mapRef.current?.setBearing(segmentBearing);
-    }
-  }, [currentStep, heading, isDrActive, segmentBearing, userHeading]);
-
   // Handle map resize when modal opens/closes
   useEffect(() => {
     if (mapRef.current) {
@@ -204,7 +176,7 @@ const RouteMap = forwardRef(({
 
   // Rotate map based on user heading with smoothing to avoid sudden jumps
   useEffect(() => {
-    if (!mapRef.current || heading === null) return;
+    if (!mapRef.current) return;
 
     if (lastHeading.current === null) {
       lastHeading.current = heading;
@@ -328,8 +300,6 @@ const RouteMap = forwardRef(({
     </svg>
   );
 
-  const markerOrientation = heading ?? segmentBearing ?? 0;
-
   return (
     <Map
       key={styleKey}
@@ -368,17 +338,13 @@ const RouteMap = forwardRef(({
       {/* User location marker - now using ArrowMarker with walking man icon */}
       {!isDrActive && isValidUserLocation && (
         <Marker longitude={userLocation[1]} latitude={userLocation[0]} anchor="center">
-          <div style={{ transform: `rotate(${markerOrientation}deg)` }}>
-            <ArrowMarker />
-          </div>
+          <ArrowMarker />
         </Marker>
       )}
 
       {isDrActive && drPosition && Number.isFinite(drPosition.lng) && Number.isFinite(drPosition.lat) && (
         <Marker longitude={drPosition.lng} latitude={drPosition.lat} anchor="center">
-          <div style={{ transform: `rotate(${markerOrientation}deg)` }}>
-            <ArrowMarker />
-          </div>
+          <ArrowMarker />
         </Marker>
       )}
 
