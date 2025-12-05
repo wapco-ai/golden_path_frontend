@@ -371,26 +371,19 @@ const MapBeginPage = () => {
     // CRITICAL FIX: Set flag to prevent map centering
     setPreventMapCentering(true);
 
-    // CRITICAL FIX: Only update user location if NOT entered via QR code
+    // CRITICAL FIX: Only update the origin store for navigation; keep the user location unchanged
     const isQrEntry = sessionStorage.getItem('qrLat') && sessionStorage.getItem('qrLng');
 
     if (!isQrEntry) {
-      // Only update user location if this is NOT a QR code entry
-      setUserLocation({
-        name: locName,
-        coordinates: [latlng.lat, latlng.lng]
-      });
-
-      // Update the store only for non-QR entries
       setOriginStore({
         name: origin.name,
         coordinates: origin.coordinates
       });
-    } else {
-      // For QR code entries, set the selected origin but don't change user location
+    } else if (userLocation) {
+      // For QR code entries, set the selected origin but keep the QR-based user location
       setOriginStore({
-        name: userLocation.name, // Keep QR location name
-        coordinates: userLocation.coordinates // Keep QR coordinates
+        name: userLocation.name,
+        coordinates: userLocation.coordinates
       });
     }
 
