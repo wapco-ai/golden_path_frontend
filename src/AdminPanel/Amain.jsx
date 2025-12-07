@@ -139,6 +139,26 @@ const Amain = () => {
   const [culturalMap, setCulturalMap] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [currentMarker, setCurrentMarker] = useState(null);
+  const [isTitleLanguageModalOpen, setIsTitleLanguageModalOpen] = useState(false);
+  const [titleForModal, setTitleForModal] = useState(''); // Current title field value
+  const [currentTitleField, setCurrentTitleField] = useState(null); // Track which modal's title field is active
+  const [languageTitles, setLanguageTitles] = useState({
+    persian: '',
+    english: '',
+    urdu: '',
+    arabic: ''
+  });
+
+  // For cultural modal description
+  const [isDescriptionLanguageModalOpen, setIsDescriptionLanguageModalOpen] = useState(false);
+  const [descriptionForModal, setDescriptionForModal] = useState('');
+  const [currentDescriptionField, setCurrentDescriptionField] = useState(null);
+  const [languageDescriptions, setLanguageDescriptions] = useState({
+    persian: '',
+    english: '',
+    urdu: '',
+    arabic: ''
+  });
 
 
 
@@ -434,6 +454,25 @@ const Amain = () => {
     setPlaceAddress('');
     setSelectedLocation(null);
 
+    setIsTitleLanguageModalOpen(false);
+    setIsDescriptionLanguageModalOpen(false);
+    setLanguageTitles({
+      persian: '',
+      english: '',
+      urdu: '',
+      arabic: ''
+    });
+    setLanguageDescriptions({
+      persian: '',
+      english: '',
+      urdu: '',
+      arabic: ''
+    });
+    setTitleForModal('');
+    setDescriptionForModal('');
+    setCurrentTitleField(null);
+    setCurrentDescriptionField(null);
+
     // Remove marker
     if (currentMarker) {
       currentMarker.remove();
@@ -557,6 +596,7 @@ const Amain = () => {
     return mapInstance;
   };
 
+  // Update the validation in handleSaveCulturalData
   const handleSaveCulturalData = () => {
     if (selectedCulturalTypes.length === 0) {
       setCulturalTypeError(true);
@@ -564,10 +604,19 @@ const Amain = () => {
       return;
     }
 
+    // Additional validation for language titles/descriptions
+    if (!culturalTitle || !culturalDescription) {
+      alert('لطفا عنوان و توضیحات را وارد کنید');
+      return;
+    }
+
     const newCulturalItem = {
       id: Date.now(),
       title: culturalTitle,
       description: culturalDescription,
+      // Add language-specific data if needed
+      titles: { ...languageTitles },
+      descriptions: { ...languageDescriptions },
       address: 'حرم مطهر',
       createdAt: formatJalaliDate(new Date()),
       status: 'active',
@@ -616,6 +665,97 @@ const Amain = () => {
     }
   };
 
+  // Add these with other handler functions
+  const openTitleLanguageModal = (fieldValue, fieldType = 'title') => {
+    setTitleForModal(fieldValue);
+    setCurrentTitleField(fieldType);
+
+    // If we're opening from cultural description field
+    if (fieldType === 'description') {
+      setDescriptionForModal(fieldValue);
+      setIsDescriptionLanguageModalOpen(true);
+    } else {
+      setIsTitleLanguageModalOpen(true);
+    }
+
+    // Reset language data
+    if (fieldType === 'title') {
+      setLanguageTitles({
+        persian: '',
+        english: '',
+        urdu: '',
+        arabic: ''
+      });
+    } else {
+      setLanguageDescriptions({
+        persian: '',
+        english: '',
+        urdu: '',
+        arabic: ''
+      });
+    }
+  };
+
+  const handleSaveLanguageTitles = () => {
+    // Validate all 4 languages are filled
+    const { persian, english, urdu, arabic } = languageTitles;
+
+    if (!persian.trim() || !english.trim() || !urdu.trim() || !arabic.trim()) {
+      alert('لطفا عنوان را برای هر ۴ زبان وارد کنید');
+      return;
+    }
+
+    // Combine titles (for display in the main field)
+    const combinedTitle = persian; // We'll show Persian title in the main field
+    setTitleForModal(combinedTitle);
+
+    // Update the appropriate field based on currentTitleField
+    if (currentTitleField === 'placeName') {
+      setPlaceName(combinedTitle);
+    } else if (currentTitleField === 'culturalTitle') {
+      setCulturalTitle(combinedTitle);
+    }
+
+    setIsTitleLanguageModalOpen(false);
+    // You might want to store all language titles in your data object here
+  };
+
+  const handleSaveLanguageDescriptions = () => {
+    // Validate all 4 languages are filled
+    const { persian, english, urdu, arabic } = languageDescriptions;
+
+    if (!persian.trim() || !english.trim() || !urdu.trim() || !arabic.trim()) {
+      alert('لطفا توضیحات را برای هر ۴ زبان وارد کنید');
+      return;
+    }
+
+    // Combine descriptions (for display in the main field)
+    const combinedDescription = persian; // We'll show Persian description in the main field
+    setDescriptionForModal(combinedDescription);
+
+    // Update the appropriate field
+    if (currentDescriptionField === 'culturalDescription') {
+      setCulturalDescription(combinedDescription);
+    }
+
+    setIsDescriptionLanguageModalOpen(false);
+    // You might want to store all language descriptions in your data object here
+  };
+
+  const handleLanguageTitleChange = (language, value) => {
+    setLanguageTitles(prev => ({
+      ...prev,
+      [language]: value
+    }));
+  };
+
+  const handleLanguageDescriptionChange = (language, value) => {
+    setLanguageDescriptions(prev => ({
+      ...prev,
+      [language]: value
+    }));
+  };
+
   const resetForm = () => {
     setSelectedPlace(null);
     setPlaceName('');
@@ -655,6 +795,25 @@ const Amain = () => {
     setIsPrayerDateFilterOpen(false);
     setPrayerTimeRestrictionsList([]);
     setCurrentStep(1);
+
+    setIsTitleLanguageModalOpen(false);
+    setIsDescriptionLanguageModalOpen(false);
+    setLanguageTitles({
+      persian: '',
+      english: '',
+      urdu: '',
+      arabic: ''
+    });
+    setLanguageDescriptions({
+      persian: '',
+      english: '',
+      urdu: '',
+      arabic: ''
+    });
+    setTitleForModal('');
+    setDescriptionForModal('');
+    setCurrentTitleField(null);
+    setCurrentDescriptionField(null);
   };
 
 
@@ -2786,17 +2945,31 @@ const Amain = () => {
 
                   <div className="form-section">
                     <div className="form-group">
-
                       <label className="form-label">نام و توضیحات این مکان</label>
 
+                      <div className="title-input-with-language">
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="نام نقطه و مکان"
+                          value={placeName}
+                          onChange={(e) => setPlaceName(e.target.value)}
+                          onClick={() => openTitleLanguageModal(placeName, 'placeName')}
+                          readOnly // Make it read-only to force using language modal
+                        />
+                        <button
+                          className="language-input-btn"
+                          type="button"
+                          onClick={() => openTitleLanguageModal(placeName, 'placeName')}
+                        >
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M10 18.3333C14.6024 18.3333 18.3333 14.6024 18.3333 10C18.3333 5.39763 14.6024 1.66667 10 1.66667C5.39763 1.66667 1.66667 5.39763 1.66667 10C1.66667 14.6024 5.39763 18.3333 10 18.3333Z"  strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M6.66699 2.5H7.50033C6.242 6.83667 6.242 13.1633 7.50033 17.5H6.66699"  strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M12.5 2.5C13.7583 6.83667 13.7583 13.1633 12.5 17.5"  strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                      </div>
 
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="نام نقطه و مکان"
-                        value={placeName}
-                        onChange={(e) => setPlaceName(e.target.value)}
-                      />
                       <textarea
                         className="form-textarea"
                         placeholder="توضیحات بیشتر درباره این نقطه و مکان ..."
@@ -3568,8 +3741,10 @@ const Amain = () => {
                 className="confirm-btn"
                 onClick={() => {
                   if (currentStep === 1) {
-                    // Validate step 1 - REMOVED language validation
+                    // Validate step 1
                     if (placeName && placeCategory && placeSubcategory && placeFunction) {
+                      // Check if placeName was set through language modal (has all 4 languages)
+                      // You might want to add additional validation here
                       setCurrentStep(2);
                     } else {
                       alert('لطفا تمام فیلدهای ضروری را پر کنید');
@@ -3929,24 +4104,54 @@ const Amain = () => {
                   </div>
 
                   <div className="form-section">
-                    {/* Title and Details Section with Language Dropdown */}
                     <div className="form-group">
-                      <label className="form-label">عنوان و جزئیات </label>
+                      <label className="form-label">عنوان و جزئیات</label>
 
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="عنوان اطلاعات فرهنگی را بنویسید"
-                        value={culturalTitle}
-                        onChange={(e) => setCulturalTitle(e.target.value)}
-                      />
-                      <textarea
-                        className="form-textarea"
-                        placeholder="درباره این اطلاعات فرهنگی بنویسید"
-                        value={culturalDescription}
-                        onChange={(e) => setCulturalDescription(e.target.value)}
-                        rows="3"
-                      />
+                      <div className="title-input-with-language">
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="عنوان اطلاعات فرهنگی را بنویسید"
+                          value={culturalTitle}
+                          onChange={(e) => setCulturalTitle(e.target.value)}
+                          onClick={() => openTitleLanguageModal(culturalTitle, 'culturalTitle')}
+                          readOnly
+                        />
+                        <button
+                          className="language-input-btn"
+                          type="button"
+                          onClick={() => openTitleLanguageModal(culturalTitle, 'culturalTitle')}
+                        >
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M10 18.3333C14.6024 18.3333 18.3333 14.6024 18.3333 10C18.3333 5.39763 14.6024 1.66667 10 1.66667C5.39763 1.66667 1.66667 5.39763 1.66667 10C1.66667 14.6024 5.39763 18.3333 10 18.3333Z" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M6.66699 2.5H7.50033C6.242 6.83667 6.242 13.1633 7.50033 17.5H6.66699" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M12.5 2.5C13.7583 6.83667 13.7583 13.1633 12.5 17.5" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      <div className="description-input-with-language">
+                        <textarea
+                          className="form-textarea"
+                          placeholder="درباره این اطلاعات فرهنگی بنویسید"
+                          value={culturalDescription}
+                          onChange={(e) => setCulturalDescription(e.target.value)}
+                          onClick={() => openTitleLanguageModal(culturalDescription, 'description')}
+                          readOnly
+                          rows="3"
+                        />
+                        <button
+                          className="language-input-btn"
+                          type="button"
+                          onClick={() => openTitleLanguageModal(culturalDescription, 'description')}
+                        >
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M10 18.3333C14.6024 18.3333 18.3333 14.6024 18.3333 10C18.3333 5.39763 14.6024 1.66667 10 1.66667C5.39763 1.66667 1.66667 5.39763 1.66667 10C1.66667 14.6024 5.39763 18.3333 10 18.3333Z" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M6.66699 2.5H7.50033C6.242 6.83667 6.242 13.1633 7.50033 17.5H6.66699" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M12.5 2.5C13.7583 6.83667 13.7583 13.1633 12.5 17.5" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
 
                     {/* Display Settings Section */}
@@ -4099,6 +4304,161 @@ const Amain = () => {
                 onClick={culturalStep === 4 ? handleSaveCulturalData : handleCulturalNextStep}
               >
                 {culturalStep === 4 ? 'تایید و ثبت اطلاعات' : 'تایید و مرحله بعد'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {isTitleLanguageModalOpen && (
+        <div className="modal-overlay">
+          <div className="language-modal">
+            <div className="modal-header">
+              <h3>ورود عنوان </h3>
+            </div>
+
+            <div className="modal-content">
+              <div className="language-fields">
+                <div className="language-field">
+                  <label className="language-label">فارسی</label>
+                  <input
+                    type="text"
+                    className="language-input"
+                    value={languageTitles.persian}
+                    onChange={(e) => handleLanguageTitleChange('persian', e.target.value)}
+                    placeholder="عنوان به زبان فارسی"
+                  />
+                </div>
+
+                <div className="language-field">
+                  <label className="language-label">انگلیسی</label>
+                  <input
+                    type="text"
+                    className="language-input"
+                    value={languageTitles.english}
+                    onChange={(e) => handleLanguageTitleChange('english', e.target.value)}
+                    placeholder="Title in English"
+                  />
+                </div>
+
+                <div className="language-field">
+                  <label className="language-label">عربی</label>
+                  <input
+                    type="text"
+                    className="language-input"
+                    value={languageTitles.arabic}
+                    onChange={(e) => handleLanguageTitleChange('arabic', e.target.value)}
+                    placeholder="العنوان باللغة العربية"
+                    dir="rtl"
+                  />
+                </div>
+
+                <div className="language-field">
+                  <label className="language-label">اردو</label>
+                  <input
+                    type="text"
+                    className="language-input"
+                    value={languageTitles.urdu}
+                    onChange={(e) => handleLanguageTitleChange('urdu', e.target.value)}
+                    placeholder="عنوان اردو میں"
+                    dir="rtl"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="cancel-btn5"
+                onClick={() => setIsTitleLanguageModalOpen(false)}
+              >
+                انصراف
+              </button>
+              <button
+                className="confirm-btn"
+                onClick={handleSaveLanguageTitles}
+              >
+                تایید و ثبت
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Language Description Modal (for cultural info) */}
+      {isDescriptionLanguageModalOpen && (
+        <div className="modal-overlay">
+          <div className="language-modal">
+            <div className="modal-header">
+              <h3>ورود توضیحات به ۴ زبان</h3>
+              <button className="close-modal-btn" onClick={() => setIsDescriptionLanguageModalOpen(false)}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M18 6L6 18M6 6L18 18" stroke="#1E2023" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="modal-content">
+              <div className="language-fields">
+                <div className="language-field">
+                  <label className="language-label">فارسی</label>
+                  <textarea
+                    className="language-textarea"
+                    value={languageDescriptions.persian}
+                    onChange={(e) => handleLanguageDescriptionChange('persian', e.target.value)}
+                    placeholder="توضیحات به زبان فارسی"
+                    rows="3"
+                  />
+                </div>
+
+                <div className="language-field">
+                  <label className="language-label">انگلیسی</label>
+                  <textarea
+                    className="language-textarea"
+                    value={languageDescriptions.english}
+                    onChange={(e) => handleLanguageDescriptionChange('english', e.target.value)}
+                    placeholder="Description in English"
+                    rows="3"
+                  />
+                </div>
+
+                <div className="language-field">
+                  <label className="language-label">عربی</label>
+                  <textarea
+                    className="language-textarea"
+                    value={languageDescriptions.arabic}
+                    onChange={(e) => handleLanguageDescriptionChange('arabic', e.target.value)}
+                    placeholder="الوصف باللغة العربية"
+                    dir="rtl"
+                    rows="3"
+                  />
+                </div>
+
+                <div className="language-field">
+                  <label className="language-label">اردو</label>
+                  <textarea
+                    className="language-textarea"
+                    value={languageDescriptions.urdu}
+                    onChange={(e) => handleLanguageDescriptionChange('urdu', e.target.value)}
+                    placeholder="تفصیل اردو میں"
+                    dir="rtl"
+                    rows="3"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="cancel-btn5"
+                onClick={() => setIsDescriptionLanguageModalOpen(false)}
+              >
+                انصراف
+              </button>
+              <button
+                className="confirm-btn"
+                onClick={handleSaveLanguageDescriptions}
+              >
+                تایید و ثبت
               </button>
             </div>
           </div>

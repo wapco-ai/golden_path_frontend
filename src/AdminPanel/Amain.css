@@ -5657,3 +5657,156 @@ body {
 .maplibregl-marker {
   cursor: pointer;
 }
+
+/* Language Input Button */
+.title-input-with-language,
+.description-input-with-language {
+  position: relative;
+  width: 100%;
+}
+
+.language-input-btn {
+  position: absolute;
+  left: 10px;
+  top: 40%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  stroke: #858585;
+  transition: transform 0.4s;
+}
+
+.language-input-btn:hover svg {
+  transform: scale(1.1);
+  stroke: #0F71EF;
+}
+
+/* Adjust input padding to make space for button */
+.title-input-with-language .form-input,
+.description-input-with-language .form-textarea {
+  padding-left: 50px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Language Modal */
+.language-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border-radius: 12px;
+  width: 500px;
+  max-width: 90%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  z-index: 10002;
+}
+
+.language-modal .modal-header {
+  border: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.language-modal .modal-header h3 {
+  margin: 0px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1E2023;
+}
+
+.language-modal .modal-content {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.language-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.language-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.language-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1E2023;
+}
+
+.language-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #D9D9D9;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1E2023;
+  background: white;
+  transition: border-color 0.3s;
+}
+
+.language-input:focus {
+  outline: none;
+  border-color: #0F71EF;
+}
+
+.language-textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #D9D9D9;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1E2023;
+  background: white;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.3s;
+  font-family: inherit;
+}
+
+.language-textarea:focus {
+  outline: none;
+  border-color: #0F71EF;
+}
+
+.language-modal .modal-footer {
+  padding: 20px;
+  border-top: 1px solid #E5E5E5;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* Make sure language modal appears above other modals */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+}
+
+/* RTL support for Arabic and Urdu inputs */
+[dir="rtl"] {
+  text-align: right;
+}
