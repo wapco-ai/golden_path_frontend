@@ -11,6 +11,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useAdminLoginService } from './adminLoginServiceContext';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
+import { haramAdminVectorTileConfig } from '../config/vectorTiles';
 
 
 const Amain = () => {
@@ -820,7 +821,7 @@ const Amain = () => {
 
         mapInstance.addControl(new maplibregl.NavigationControl());
         mapInstance.on('load', (event) => {
-          initHaramVectorLayers(event);
+          initHaramVectorLayers(event, haramAdminVectorTileConfig);
         });
         setMap(mapInstance);
 
