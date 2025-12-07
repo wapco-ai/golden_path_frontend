@@ -216,6 +216,133 @@ export const haramVectorTileConfig = [
       'line-cap': 'round'
     }
   }
+]
+export const haramAdminVectorTileConfig = [
+  {
+    id: 'areas-outline',
+    titleFa: 'مرز محدوده‌ها',
+    table: 'public.fn_areas_mvt',
+    sourceId: 'fn_areas_mvt',
+    sourceLayer: AREAS_VECTOR_LAYER_NAME,
+    tileUrlFactory: buildAreasTileUrlFactory(),
+    type: 'line',
+    minzoom: 14,
+    maxzoom: 22,
+    visibleByDefault: true,
+    paint: {
+      'line-color': '#d1c2fa',
+      'line-width': 2
+    },
+    layout: {
+      'line-cap': 'round',
+      'line-join': 'round'
+    }
+  },
+  {
+    id: 'areas-fill',
+    titleFa: 'رنگ محدوده‌ها',
+    table: 'public.fn_areas_mvt',
+    sourceId: 'fn_areas_mvt',
+    sourceLayer: 'areas',
+    tileUrlFactory: buildAreasTileUrlFactory(),
+    type: 'fill',
+    minzoom: 14,
+    maxzoom: 22,
+    visibleByDefault: false,
+    paint: {
+      'fill-color': [
+        'match',
+        ['get', 'area_type'],
+        'sahn', '#fff5cc',
+        'ravaq', '#e6f2ff',
+        'eyvan', '#ffe6e6',
+        'masjed', '#e8e0ff',
+      /* default */ '#dddddd'
+      ],
+      'fill-opacity': 0.35
+    }
+  },
+  {
+    id: 'areas-labels',
+    titleFa: 'نام محدوده‌ها',
+    table: 'public.fn_areas_mvt',
+    sourceId: 'fn_areas_mvt',
+    sourceLayer: AREAS_VECTOR_LAYER_NAME, // باید همونی باشه که در areas-outline استفاده می‌کنی
+    tileUrlFactory: buildAreasTileUrlFactory(),
+    type: 'symbol',
+    minzoom: 16,
+    maxzoom: 22,
+    visibleByDefault: false,
+    layout: {
+      'text-field': ['get', 'label'],          // یا name_fa، بسته به پراپرتی MVT
+      'text-font': ['Vazirmatn Regular'],     // دقیقا اسم فولدر glyphها
+      'text-size': 13,
+      'text-anchor': 'center',
+      'text-allow-overlap': true
+    },
+    paint: {
+      'text-color': '#222222',
+      'text-halo-color': '#ffffff',
+      'text-halo-width': 1.2
+    }
+  },
+  ,
+  {
+    id: 'doors',
+    titleFa: 'درب‌ها',
+    table: 'public.fn_doors_mvt',
+    sourceId: 'fn_doors_mvt',
+    sourceLayer: DOORS_VECTOR_LAYER_NAME,
+    tileUrlFactory: buildDoorsTileUrlFactory(),
+    type: 'line',
+    minzoom: 15,
+    maxzoom: 22,
+    visibleByDefault: true,
+    paint: {
+      'line-color': '#ff3b30',
+      'line-width': 2
+    }
+  },
+  {
+    id: 'mesh-triangles-ground',
+    titleFa: 'مش‌بندی محدوده‌های طبقه همکف',
+    table: MESH_TRIANGLES_SOURCE_LAYER,
+    sourceId: 'vw_mesh_triangles',
+    sourceLayer: MESH_TRIANGLES_SOURCE_LAYER,
+    tileUrl: MESH_TRIANGLES_TILE_BASE,
+    type: 'line',
+    minzoom: 15,
+    maxzoom: 22,
+    visibleByDefault: false,
+    paint: {
+      'line-color': '#ffddcc',
+      'line-width': 0.15
+    },
+    layout: {
+      'line-join': 'round',
+      'line-cap': 'round'
+    }
+  },
+  {
+    id: 'routing_edges_static-ground',
+    titleFa: 'گراف مسیریابی',
+    table: MESH_TRIANGLES_SOURCE_LAYER,
+    sourceId: 'routing_edges_static',
+    sourceLayer: ROUTING_EDGES_STATIC_SOURCE_LAYER,
+    tileUrl: ROUTING_EDGES_STATIC_BASE,
+    type: 'line',
+    minzoom: 15,
+    maxzoom: 22,
+    visibleByDefault: false,
+    paint: {
+      'line-color': '#ffddcc',
+      'line-width': 0.15
+    },
+    layout: {
+      'line-join': 'round',
+      'line-cap': 'round'
+    }
+  }
 ];
 
 export default haramVectorTileConfig;
