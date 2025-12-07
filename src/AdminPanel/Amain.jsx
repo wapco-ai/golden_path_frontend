@@ -12,6 +12,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { useAdminLoginService } from './adminLoginServiceContext';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import { haramAdminVectorTileConfig } from '../config/vectorTiles';
+import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
 
 
 const Amain = () => {
@@ -991,6 +992,23 @@ const Amain = () => {
     'منفی ۱'
   ];
 
+  const floorLabelToValue = (label) => {
+    switch (label) {
+    case 'منفی ۱':
+      return -1;
+    case 'همکف':
+    default:
+      return 0;
+    }
+  };
+
+  const floorValueToLabel = (value) => {
+    if (value === -1) {
+      return 'منفی ۱';
+    }
+    return 'همکف';
+  };
+
   const formatJalaliDate = (date) => {
     const jalali = toJalaali(date.getFullYear(), date.getMonth() + 1, date.getDate());
 
@@ -1020,6 +1038,25 @@ const Amain = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isCalendarOpen]);
+
+  useEffect(() => {
+    const initialFloor = getSessionFloor();
+    setMapFloor(floorValueToLabel(initialFloor));
+
+    const unsubscribe = subscribeToSessionFloor((floor) => {
+      setMapFloor(floorValueToLabel(floor));
+    });
+
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    setSessionFloor(floorLabelToValue(mapFloor));
+  }, [mapFloor]);
 
   useEffect(() => {
     // Chrome rendering fix
