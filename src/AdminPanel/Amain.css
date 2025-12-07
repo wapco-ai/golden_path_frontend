@@ -2510,6 +2510,13 @@ body {
   margin: 0 0 8px 0;
 }
 
+.step-intro3 h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1E2023;
+  margin-bottom: 30px;
+}
+
 /* Dropdown Group */
 .dropdown-group {
   display: flex;

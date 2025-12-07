@@ -3114,7 +3114,7 @@ const Amain = () => {
 
               {currentStep === 3 && (
                 <div className="step-content step3-content">
-                  <div className="step-intro">
+                  <div className="step-intro3">
                     <h3>فرم و فرایند ایجاد و افزودن یک نقطه و مکان جدید</h3>
                   </div>
 
