@@ -18,8 +18,9 @@ const MESH_TRIANGLES_SOURCE_LAYER = 'public.vw_mesh_triangles';
 const MESH_TRIANGLES_TILE_BASE = `${TILE_BASE_URL}/${MESH_TRIANGLES_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
 const ROUTING_EDGES_STATIC_SOURCE_LAYER = 'public.routing_edges_static';
 const ROUTING_EDGES_STATIC_BASE = `${TILE_BASE_URL}/${ROUTING_EDGES_STATIC_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
-const DOORS_ACCESS_POINT_SOURCE_LAYER = 'public.fn_door_access_points_mvt ';
+const DOORS_ACCESS_POINT_SOURCE_LAYER = 'public.fn_door_access_points_mvt';
 const DOORS_ACCESS_POINT_BASE = `${TILE_BASE_URL}/${DOORS_ACCESS_POINT_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
+const buildDoorAccessPointsTileUrlFactory = () => buildFloorOnlyTileUrlFactory(DOORS_ACCESS_POINT_BASE);
 
 const normalizeFloorValue = (floor) => {
   if (typeof floor === 'number' && !Number.isNaN(floor)) {
@@ -250,22 +251,23 @@ export const haramAdminVectorTileConfig = [
   },
   {
     id: 'doorsAccessPoint',
-    titleFa: 'نقاط اتثال دربها',
+    titleFa: 'نقاط اتصال درب‌ها',
     table: DOORS_ACCESS_POINT_SOURCE_LAYER,
-    sourceId: 'fn_door_access_points_mvt ',
+    sourceId: 'fn_door_access_points_mvt',
     sourceLayer: DOORS_ACCESS_POINT_SOURCE_LAYER,
-    tileUrl: DOORS_ACCESS_POINT_BASE,
-    type: 'line',
+    tileUrlFactory: buildDoorAccessPointsTileUrlFactory(),
+    type: 'circle',
     minzoom: 15,
     maxzoom: 22,
     visibleByDefault: true,
     paint: {
-      'line-color': '#ffddcc',
-      'line-width': 0.15
+      'circle-color': '#ff7f50',
+      'circle-radius': 5,
+      'circle-stroke-color': '#ffffff',
+      'circle-stroke-width': 1.5
     },
     layout: {
-      'line-join': 'round',
-      'line-cap': 'round'
+      'circle-allow-overlap': true
     }
   },
   {

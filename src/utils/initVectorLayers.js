@@ -42,12 +42,19 @@ const defaultPaintByType = {
     'line-color': '#0f172a',
     'line-width': 1
   },
+  circle: {
+    'circle-color': '#0f172a',
+    'circle-radius': 4,
+    'circle-stroke-color': '#ffffff',
+    'circle-stroke-width': 1
+  },
   symbol: {}
 };
 
 const defaultLayoutByType = {
   fill: {},
   line: {},
+  circle: {},
   symbol: {
     'icon-image': 'marker-15',
     'icon-size': 1
