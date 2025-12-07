@@ -151,7 +151,7 @@ export const haramVectorTileConfig = [
       'text-font': ['Vazirmatn Regular'],     // دقیقا اسم فولدر glyphها
       'text-size': 13,
       'text-anchor': 'center',
-      'text-allow-overlap': false
+      'text-allow-overlap': true
     },
     paint: {
       'text-color': '#222222',
