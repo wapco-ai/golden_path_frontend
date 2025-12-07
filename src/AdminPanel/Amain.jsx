@@ -126,16 +126,12 @@ const Amain = () => {
   const [culturalToDelete, setCulturalToDelete] = useState(null);
   const [culturalCurrentPage, setCulturalCurrentPage] = useState(1);
   const [culturalItemsPerPage, setCulturalItemsPerPage] = useState(7);
-  const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState('');
   const [locationRoofType, setLocationRoofType] = useState('');
   const [locationStatus, setLocationStatus] = useState('');
   const [isAddCulturalModalOpen, setIsAddCulturalModalOpen] = useState(false);
   const [culturalStep, setCulturalStep] = useState(1);
   const [culturalTitle, setCulturalTitle] = useState('');
   const [culturalDescription, setCulturalDescription] = useState('');
-  const [culturalSelectedLanguage, setCulturalSelectedLanguage] = useState('');
-  const [isCulturalLanguageDropdownOpen, setIsCulturalLanguageDropdownOpen] = useState(false);
   const [showUserComments, setShowUserComments] = useState('نمایش');
   const [showMultimedia, setShowMultimedia] = useState('نمایش');
   const [selectedCulturalTypes, setSelectedCulturalTypes] = useState([]);
@@ -432,7 +428,6 @@ const Amain = () => {
     setCulturalStep(1);
     setCulturalTitle('');
     setCulturalDescription('');
-    setCulturalSelectedLanguage('');
     setShowUserComments('نمایش');
     setShowMultimedia('نمایش');
     setSelectedCulturalTypes([]);
@@ -455,8 +450,8 @@ const Amain = () => {
 
   const handleCulturalNextStep = () => {
     if (culturalStep === 1) {
-      if (!culturalTitle.trim() || !culturalSelectedLanguage) {
-        alert('لطفا عنوان و زبان را انتخاب کنید');
+      if (!culturalTitle.trim()) { // REMOVED language check
+        alert('لطفا عنوان را وارد کنید');
         return;
       }
 
@@ -641,10 +636,8 @@ const Amain = () => {
     setTimeRestrictions([]);
     setPrayerTimeRestrictions([]);
 
-    setSelectedLanguage('');
     setLocationRoofType('');
     setLocationStatus('');
-    setIsLanguageDropdownOpen(false);
 
     setSelectedRestrictionType(null);
     setRestrictionFormOpen(false);
@@ -800,20 +793,6 @@ const Amain = () => {
     return `${jalali.jd} ${jalaliMonths[jalali.jm - 1]} ${jalali.jy}`;
   };
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (isCulturalLanguageDropdownOpen &&
-        !event.target.closest('.language-dropdown') &&
-        !event.target.closest('.language-selector')) {
-        setIsCulturalLanguageDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isCulturalLanguageDropdownOpen]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -1163,20 +1142,6 @@ const Amain = () => {
     setCategories(updatedCategories);
   };
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (isLanguageDropdownOpen &&
-        !event.target.closest('.language-dropdown') &&
-        !event.target.closest('.language-selector')) {
-        setIsLanguageDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isLanguageDropdownOpen]);
 
   const handleDeleteSubcategory = (subcategory) => {
     const updatedCategories = categories.map(cat => {
@@ -2821,62 +2786,9 @@ const Amain = () => {
 
                   <div className="form-section">
                     <div className="form-group">
-                      <div className="form-header-with-language">
-                        <label className="form-label">نام و توضیحات این مکان</label>
-                        <div className="language-dropdown">
-                          <div className="language-selector"
-                            onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)}
-                          >
-                            <span className={`language-placeholder ${selectedLanguage ? 'selected' : ''}`}>
-                              {selectedLanguage || 'زبان'}
-                            </span>
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                              <path fillRule="evenodd" clipRule="evenodd" d="M3.64645 5.64645C3.84171 5.45118 4.15829 5.45118 4.35355 5.64645L8 9.29289L11.6464 5.64645C11.8417 5.45118 12.1583 5.45118 12.3536 5.64645C12.5488 5.84171 12.5488 6.15829 12.3536 6.35355L8.35355 10.3536C8.15829 10.5488 7.84171 10.5488 7.64645 10.3536L3.64645 6.35355C3.45118 6.15829 3.45118 5.84171 3.64645 5.64645Z" fill="#1E2023" />
-                            </svg>
-                          </div>
 
-                          {isLanguageDropdownOpen && (
-                            <div className="language-dropdown-menu">
-                              <div
-                                className={`language-option ${selectedLanguage === 'فارسی' ? 'selected' : ''}`}
-                                onClick={() => {
-                                  setSelectedLanguage('فارسی');
-                                  setIsLanguageDropdownOpen(false);
-                                }}
-                              >
-                                فارسی
-                              </div>
-                              <div
-                                className={`language-option ${selectedLanguage === 'انگلیسی' ? 'selected' : ''}`}
-                                onClick={() => {
-                                  setSelectedLanguage('انگلیسی');
-                                  setIsLanguageDropdownOpen(false);
-                                }}
-                              >
-                                انگلیسی
-                              </div>
-                              <div
-                                className={`language-option ${selectedLanguage === 'عربی' ? 'selected' : ''}`}
-                                onClick={() => {
-                                  setSelectedLanguage('عربی');
-                                  setIsLanguageDropdownOpen(false);
-                                }}
-                              >
-                                عربی
-                              </div>
-                              <div
-                                className={`language-option ${selectedLanguage === 'اردو' ? 'selected' : ''}`}
-                                onClick={() => {
-                                  setSelectedLanguage('اردو');
-                                  setIsLanguageDropdownOpen(false);
-                                }}
-                              >
-                                اردو
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                      <label className="form-label">نام و توضیحات این مکان</label>
+
 
                       <input
                         type="text"
@@ -3656,11 +3568,11 @@ const Amain = () => {
                 className="confirm-btn"
                 onClick={() => {
                   if (currentStep === 1) {
-                    // Validate step 1 - now includes language
-                    if (placeName && placeCategory && placeSubcategory && placeFunction && selectedLanguage) {
+                    // Validate step 1 - REMOVED language validation
+                    if (placeName && placeCategory && placeSubcategory && placeFunction) {
                       setCurrentStep(2);
                     } else {
-                      alert('لطفا تمام فیلدهای ضروری را پر کنید (شامل زبان)');
+                      alert('لطفا تمام فیلدهای ضروری را پر کنید');
                     }
                   } else if (currentStep === 2) {
                     // Validate step 2 - now includes location type and status
@@ -4019,63 +3931,7 @@ const Amain = () => {
                   <div className="form-section">
                     {/* Title and Details Section with Language Dropdown */}
                     <div className="form-group">
-                      <div className="form-header-with-language">
-                        <label className="form-label">عنوان و جزئیات </label>
-                        <div className="language-dropdown">
-                          <div
-                            className="language-selector"
-                            onClick={() => setIsCulturalLanguageDropdownOpen(!isCulturalLanguageDropdownOpen)}
-                          >
-                            <span className={`language-placeholder ${culturalSelectedLanguage ? 'selected' : ''}`}>
-                              {culturalSelectedLanguage || 'زبان'}
-                            </span>
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                              <path fillRule="evenodd" clipRule="evenodd" d="M3.64645 5.64645C3.84171 5.45118 4.15829 5.45118 4.35355 5.64645L8 9.29289L11.6464 5.64645C11.8417 5.45118 12.1583 5.45118 12.3536 5.64645C12.5488 5.84171 12.5488 6.15829 12.3536 6.35355L8.35355 10.3536C8.15829 10.5488 7.84171 10.5488 7.64645 10.3536L3.64645 6.35355C3.45118 6.15829 3.45118 5.84171 3.64645 5.64645Z" fill="#1E2023" />
-                            </svg>
-                          </div>
-
-                          {isCulturalLanguageDropdownOpen && (
-                            <div className="language-dropdown-menu">
-                              <div
-                                className={`language-option ${culturalSelectedLanguage === 'فارسی' ? 'selected' : ''}`}
-                                onClick={() => {
-                                  setCulturalSelectedLanguage('فارسی');
-                                  setIsCulturalLanguageDropdownOpen(false);
-                                }}
-                              >
-                                فارسی
-                              </div>
-                              <div
-                                className={`language-option ${culturalSelectedLanguage === 'انگلیسی' ? 'selected' : ''}`}
-                                onClick={() => {
-                                  setCulturalSelectedLanguage('انگلیسی');
-                                  setIsCulturalLanguageDropdownOpen(false);
-                                }}
-                              >
-                                انگلیسی
-                              </div>
-                              <div
-                                className={`language-option ${culturalSelectedLanguage === 'عربی' ? 'selected' : ''}`}
-                                onClick={() => {
-                                  setCulturalSelectedLanguage('عربی');
-                                  setIsCulturalLanguageDropdownOpen(false);
-                                }}
-                              >
-                                عربی
-                              </div>
-                              <div
-                                className={`language-option ${culturalSelectedLanguage === 'اردو' ? 'selected' : ''}`}
-                                onClick={() => {
-                                  setCulturalSelectedLanguage('اردو');
-                                  setIsCulturalLanguageDropdownOpen(false);
-                                }}
-                              >
-                                اردو
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                      <label className="form-label">عنوان و جزئیات </label>
 
                       <input
                         type="text"
