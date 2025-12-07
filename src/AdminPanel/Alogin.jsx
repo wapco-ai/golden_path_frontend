@@ -4,6 +4,13 @@ import '../AdminPanel/Alogin.css';
 import logo from '../assets/images/logo3.png';
 import statsImage from '../assets/images/img1.png'; // Add this import
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
+import {
+  ADMIN_REFRESH_TOKEN_KEY,
+  clearTokens,
+  loginAdmin,
+  refreshAdminSession
+} from '../services/adminAuthService';
 
 const Alogin = () => {
   const [username, setUsername] = useState('');
@@ -12,14 +19,43 @@ const Alogin = () => {
   const [usernameError, setUsernameError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [activeSlide, setActiveSlide] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginError, setLoginError] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  useEffect(() => {
+    const savedRefreshToken = localStorage.getItem(ADMIN_REFRESH_TOKEN_KEY);
+
+    if (!savedRefreshToken) {
+      return undefined;
+    }
+
+    let isActive = true;
+    const controller = new AbortController();
+
+    refreshAdminSession({ refreshToken: savedRefreshToken, signal: controller.signal })
+      .then(() => {
+        if (isActive) {
+          navigate('/amain');
+        }
+      })
+      .catch(() => {
+        clearTokens();
+      });
+
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
+  }, [navigate]);
+
+  const handleLogin = async (e) => {
     e.preventDefault();
 
     // Reset errors
     setUsernameError('');
     setPasswordError('');
+    setLoginError('');
 
     // Simple validation for demo purposes
     if (!username.trim()) {
@@ -32,10 +68,18 @@ const Alogin = () => {
       return;
     }
 
-    // For demo purposes, any non-empty credentials will work
-    // In real app, you would validate against backend
-    if (username.trim() && password.trim()) {
-      navigate('/Amain');
+    setIsSubmitting(true);
+
+    try {
+      await loginAdmin({ usernameOrEmail: username.trim(), password: password.trim() });
+      toast.success('با موفقیت وارد شدید');
+      navigate('/amain');
+    } catch (error) {
+      const message = error?.message || 'در ورود خطایی رخ داد';
+      setLoginError(message);
+      toast.error(message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -73,6 +117,8 @@ const Alogin = () => {
               <h1>ورود به داشبورد مدیریتی</h1>
               <p>برای ورود به داشبورد مدیریتی فاوا رضوی (مسیریابی حرم مطهر)<br />نام کاربری و رمز عبور خودتان را وارد نمایید.</p>
             </div>
+
+            {loginError && <div className="error-message4">{loginError}</div>}
 
             <form className="login-form" onSubmit={handleLogin}>
               <div className="form-group">
@@ -142,8 +188,8 @@ const Alogin = () => {
                 <a href="#" className="forgot-link"> بازیابی رمز عبور</a>
               </div>
 
-              <button type="submit" className="login-button">
-                ورود
+              <button type="submit" className="login-button" disabled={isSubmitting}>
+                {isSubmitting ? 'در حال ورود...' : 'ورود'}
               </button>
             </form>
 
