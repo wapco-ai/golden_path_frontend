@@ -32,6 +32,8 @@ const Amain = () => {
   });
   const [mapType, setMapType] = useState('نمای خیابان');
   const [isMapTypeOpen, setIsMapTypeOpen] = useState(false);
+  const [mapFloor, setMapFloor] = useState('همکف');
+  const [isMapFloorOpen, setIsMapFloorOpen] = useState(false);
   const unknownComments = commentStats.total - commentStats.approved - commentStats.rejected;
   const approvedDegrees = (commentStats.approved / commentStats.total) * 360;
   const rejectedDegrees = (commentStats.rejected / commentStats.total) * 360;
@@ -982,6 +984,11 @@ const Amain = () => {
     'نمای ترکیبی',
     'نمای شب',
     'نمای ساده'
+  ];
+
+  const mapFloors = [
+    'همکف',
+    'منفی ۱'
   ];
 
   const formatJalaliDate = (date) => {
@@ -2541,7 +2548,7 @@ const Amain = () => {
                     </button>
                   )}
                   <div className="map-type-selector">
-                    <div className="map-type-display" onClick={() => setIsMapTypeOpen(!isMapTypeOpen)}>
+                    <div className="map-type-display" onClick={() => { setIsMapTypeOpen(!isMapTypeOpen); setIsMapFloorOpen(false); }}>
                       <span className="stgi">نوع نقشه
                         <div className="date-separator2"></div>
                       </span>
@@ -2563,6 +2570,35 @@ const Amain = () => {
                             }}
                           >
                             {type}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="map-type-selector">
+                    <div className="map-type-display" onClick={() => { setIsMapFloorOpen(!isMapFloorOpen); setIsMapTypeOpen(false); }}>
+                      <span className="stgi">طبقه نقشه
+                        <div className="date-separator2"></div>
+                      </span>
+                      <span>{mapFloor}</span>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path fillRule="evenodd" clipRule="evenodd" d="M3.64645 5.64645C3.84171 5.45118 4.15829 5.45118 4.35355 5.64645L8 9.29289L11.6464 5.64645C11.8417 5.45118 12.1583 5.45118 12.3536 5.64645C12.5488 5.84171 12.5488 6.15829 12.3536 6.35355L8.35355 10.3536C8.15829 10.5488 7.84171 10.5488 7.64645 10.3536L3.64645 6.35355C3.45118 6.15829 3.45118 5.84171 3.64645 5.64645Z" fill="#1E2023" />
+                      </svg>
+                    </div>
+
+                    {isMapFloorOpen && (
+                      <div className="map-type-dropdown">
+                        {mapFloors.map(floor => (
+                          <div
+                            key={floor}
+                            className="map-type-option"
+                            onClick={() => {
+                              setMapFloor(floor);
+                              setIsMapFloorOpen(false);
+                            }}
+                          >
+                            {floor}
                           </div>
                         ))}
                       </div>
