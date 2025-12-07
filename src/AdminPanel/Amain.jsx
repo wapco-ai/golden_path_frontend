@@ -6,7 +6,6 @@ import logo from '../assets/images/logo2.png';
 import 'react-datepicker/dist/react-datepicker.css';
 import { toJalaali, toGregorian } from 'jalaali-js';
 import ReactDatePicker from 'react-datepicker';
-import { Helmet } from 'react-helmet';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useAdminLoginService } from './adminLoginServiceContext';
@@ -176,6 +175,47 @@ const Amain = () => {
   });
   const [isAddressLanguageModalOpen, setIsAddressLanguageModalOpen] = useState(false);
   const [currentAddressField, setCurrentAddressField] = useState(null);
+
+  useEffect(() => {
+    document.title = 'Admin Panel';
+
+    const metaConfigs = [
+      {
+        name: 'viewport',
+        content: 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'
+      },
+      { name: 'theme-color', content: '#000000' },
+      { name: 'apple-mobile-web-app-capable', content: 'yes' },
+      { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' }
+    ];
+
+    const metaState = metaConfigs.map(({ name, content }) => {
+      let element = document.querySelector(`meta[name="${name}"]`);
+      if (!element) {
+        element = document.createElement('meta');
+        element.setAttribute('name', name);
+        document.head.appendChild(element);
+        return { element, previousContent: null, created: true, content };
+      }
+
+      const previousContent = element.getAttribute('content');
+      return { element, previousContent, created: false, content };
+    });
+
+    metaState.forEach(({ element, content }) => {
+      element.setAttribute('content', content);
+    });
+
+    return () => {
+      metaState.forEach(({ element, previousContent, created }) => {
+        if (created) {
+          element.remove();
+        } else if (previousContent !== null) {
+          element.setAttribute('content', previousContent);
+        }
+      });
+    };
+  }, []);
 
 
 
@@ -1745,13 +1785,6 @@ const Amain = () => {
 
   return (
     <div className={`admin-panel admin-panel-isolated ${isMapFullscreen ? 'map-fullscreen' : ''}`}>
-      <Helmet>
-        <title>Admin Panel</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-        <meta name="theme-color" content="#000000" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-      </Helmet>
       {/* Header */}
       <div className="admin-header">
         <div className="header-right">
