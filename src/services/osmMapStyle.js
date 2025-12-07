@@ -1,3 +1,5 @@
+// import { MAPLIBRE_GLYPHS_URL } from '../utils/mapLibreConfig';
+
 export const BASE_RASTER_SOURCE_ID = 'carto-voyager-base';
 
 export const CARTO_VOYAGER_STYLE_URL = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
@@ -5,6 +7,7 @@ export const CARTO_VOYAGER_STYLE_URL = 'https://basemaps.cartocdn.com/gl/voyager
 export const offlineFallbackStyle = {
   version: 8,
   name: 'offline-fallback',
+  // glyphs: MAPLIBRE_GLYPHS_URL,
   sources: {},
   layers: [
     {
