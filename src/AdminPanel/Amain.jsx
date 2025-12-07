@@ -2498,7 +2498,7 @@ const Amain = () => {
                     </div>
                     <div className="date-separator3"></div>
                     <div
-                      className={`action-button poi_management ${isLocationMarkerMode ? 'selected' : ''}`}
+                      className={`action-button doors_management ${isLocationMarkerMode ? 'selected' : ''}`}
                       onClick={handleLocationMarkerSelect}
                     >
                       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
