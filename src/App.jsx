@@ -17,6 +17,7 @@ import Pfp from './pages/Pfp';
 import Pmap from './pages/Pmap';
 import Amain from './AdminPanel/Amain';
 import Alogin from './AdminPanel/Alogin';
+import { AdminLoginServiceProvider } from './AdminPanel/adminLoginServiceContext';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { ToastContainer, toast } from 'react-toastify';
@@ -148,7 +149,9 @@ function App() {
         rtl={isRTL}
         toastClassName="custom-toast"
       />
-      <AppContent />
+      <AdminLoginServiceProvider>
+        <AppContent />
+      </AdminLoginServiceProvider>
     </Router>
   );
 }
