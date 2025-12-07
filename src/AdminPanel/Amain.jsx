@@ -927,6 +927,26 @@ const Amain = () => {
     setCurrentStep(1);
     setIsLocationMarkerMode(false);
   };
+
+  useEffect(() => {
+    if (!map || !isLocationMarkerMode) return;
+
+    const keepMarkerCentered = () => {
+      const center = map.getCenter();
+
+      if (locationMarker) {
+        locationMarker.setLngLat(center);
+      }
+
+      setSelectedLocation(center);
+    };
+
+    map.on('move', keepMarkerCentered);
+
+    return () => {
+      map.off('move', keepMarkerCentered);
+    };
+  }, [map, isLocationMarkerMode, locationMarker]);
   useEffect(() => {
     // Reset scroll position when menu changes
     if (contentRef.current) {
