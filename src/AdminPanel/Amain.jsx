@@ -1,5 +1,5 @@
 // src/pages/Amain.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useIntl } from 'react-intl';
 import '../AdminPanel/Amain.css';
 import logo from '../assets/images/logo2.png';
@@ -9,9 +9,11 @@ import ReactDatePicker from 'react-datepicker';
 import { Helmet } from 'react-helmet';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { useAdminLoginService } from './adminLoginServiceContext';
 
 
 const Amain = () => {
+  const { adminProfile, isLoadingProfile, logout } = useAdminLoginService();
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [commentStats, setCommentStats] = useState({
     total: 152,
@@ -1605,6 +1607,12 @@ const Amain = () => {
   const endIndex = startIndex + itemsPerPage;
   const currentUsers = filteredUsers.slice(startIndex, endIndex);
 
+  const adminDisplayName = adminProfile?.fullName || adminProfile?.name || adminProfile?.username || adminProfile?.email || 'ادمین';
+
+  const handleLogout = useCallback(() => {
+    logout();
+  }, [logout]);
+
   // Generate page numbers to display
   const getPageNumbers = () => {
     const pages = [];
@@ -1645,7 +1653,7 @@ const Amain = () => {
             <div className="profile-image"></div>
             <div className="profile-info">
               <div className="admin-name" >
-                <span>مصطفی شاملو</span>
+                <span>{isLoadingProfile ? 'در حال بارگذاری...' : adminDisplayName}</span>
                 <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path fillRule="evenodd" clipRule="evenodd" d="M3.6921 7.09327C3.91674 6.83119 4.3113 6.80084 4.57338 7.02548L9.99997 11.6768L15.4266 7.02548C15.6886 6.80084 16.0832 6.83119 16.3078 7.09327C16.5325 7.35535 16.5021 7.74991 16.24 7.97455L10.4067 12.9745C10.1727 13.1752 9.82728 13.1752 9.59323 12.9745L3.75989 7.97455C3.49781 7.74991 3.46746 7.35535 3.6921 7.09327Z" fill="#1E2023" />
                 </svg>
@@ -1889,19 +1897,32 @@ const Amain = () => {
               </span>
               <span>پشتیبانی</span>
             </div>
-            <div className="menu-item">
-              <span className="menu-icon9">
-                <svg width="16" height="18" viewBox="0 0 16 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <div className="menu-item">
+                <span className="menu-icon9">
+                  <svg width="16" height="18" viewBox="0 0 16 18" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M8.84615 1.44869C8.84615 1.11945 8.57925 0.852539 8.25 0.852539C7.92075 0.852539 7.65385 1.11945 7.65385 1.44869V4.62818C7.65385 4.95743 7.92075 5.22433 8.25 5.22433C8.57925 5.22433 8.84615 4.95743 8.84615 4.62818V1.44869Z" fill="#EA4335" />
                   <path d="M5.69997 3.35383C6.00326 3.22568 6.14524 2.87594 6.0171 2.57266C5.88896 2.26937 5.53922 2.12738 5.23593 2.25552C2.45405 3.43088 0.5 6.18526 0.5 9.39741C0.5 13.6776 3.96979 17.1474 8.25 17.1474C12.5302 17.1474 16 13.6776 16 9.39741C16 6.18526 14.0459 3.43088 11.2641 2.25552C10.9608 2.12738 10.611 2.26937 10.4829 2.57266C10.3548 2.87594 10.4967 3.22568 10.8 3.35383C13.1561 4.34928 14.8077 6.68116 14.8077 9.39741C14.8077 13.0191 11.8717 15.9551 8.25 15.9551C4.62829 15.9551 1.69231 13.0191 1.69231 9.39741C1.69231 6.68116 3.34389 4.34928 5.69997 3.35383Z" fill="#EA4335" />
                   <path d="M8.84615 1.44869C8.84615 1.11945 8.57925 0.852539 8.25 0.852539C7.92075 0.852539 7.65385 1.11945 7.65385 1.44869V4.62818C7.65385 4.95743 7.92075 5.22433 8.25 5.22433C8.57925 5.22433 8.84615 4.95743 8.84615 4.62818V1.44869Z" stroke="#EA4335" strokeWidth="0.2" strokeLinecap="round" />
                   <path d="M5.69997 3.35383C6.00326 3.22568 6.14524 2.87594 6.0171 2.57266C5.88896 2.26937 5.53922 2.12738 5.23593 2.25552C2.45405 3.43088 0.5 6.18526 0.5 9.39741C0.5 13.6776 3.96979 17.1474 8.25 17.1474C12.5302 17.1474 16 13.6776 16 9.39741C16 6.18526 14.0459 3.43088 11.2641 2.25552C10.9608 2.12738 10.611 2.26937 10.4829 2.57266C10.3548 2.87594 10.4967 3.22568 10.8 3.35383C13.1561 4.34928 14.8077 6.68116 14.8077 9.39741C14.8077 13.0191 11.8717 15.9551 8.25 15.9551C4.62829 15.9551 1.69231 13.0191 1.69231 9.39741C1.69231 6.68116 3.34389 4.34928 5.69997 3.35383Z" stroke="#EA4335" strokeWidth="0.2" strokeLinecap="round" />
                 </svg>
 
-              </span>
-              <span className="menu-item-exit">خروج از حساب</span>
+                </span>
+                <span
+                  className="menu-item-exit"
+                  onClick={handleLogout}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      handleLogout();
+                    }
+                  }}
+                >
+                  خروج از حساب
+                </span>
+              </div>
             </div>
-          </div>
         </div>
 
         {/* Main Content */}
