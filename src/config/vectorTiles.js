@@ -265,9 +265,6 @@ export const haramAdminVectorTileConfig = [
       'circle-radius': 5,
       'circle-stroke-color': '#ffffff',
       'circle-stroke-width': 1.5
-    },
-    layout: {
-      'circle-allow-overlap': true
     }
   },
   {
