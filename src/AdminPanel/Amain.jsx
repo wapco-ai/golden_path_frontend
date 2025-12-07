@@ -161,6 +161,14 @@ const Amain = () => {
     urdu: ''
   });
 
+  const [languageAddresses, setLanguageAddresses] = useState({
+    english: '',
+    arabic: '',
+    urdu: ''
+  });
+  const [isAddressLanguageModalOpen, setIsAddressLanguageModalOpen] = useState(false);
+  const [currentAddressField, setCurrentAddressField] = useState(null);
+
 
 
   // Sample data for demonstration
@@ -390,6 +398,22 @@ const Amain = () => {
     resetForm();
   };
 
+  const openAddressLanguageModal = (fieldType = 'address') => {
+    setCurrentAddressField(fieldType);
+    setIsAddressLanguageModalOpen(true);
+  };
+
+  const handleSaveLanguageAddresses = () => {
+    setIsAddressLanguageModalOpen(false);
+  };
+
+  const handleLanguageAddressChange = (language, value) => {
+    setLanguageAddresses(prev => ({
+      ...prev,
+      [language]: value
+    }));
+  };
+
   // Update the getPageTitle function (around line 155)
   const getPageTitle = () => {
     if (currentReportView === 'کاربران ثبت نام کرده') {
@@ -455,8 +479,11 @@ const Amain = () => {
     setPlaceAddress('');
     setSelectedLocation(null);
 
+    // Reset all language states
     setIsTitleLanguageModalOpen(false);
     setIsDescriptionLanguageModalOpen(false);
+    setIsAddressLanguageModalOpen(false);
+
     setLanguageTitles({
       english: '',
       arabic: '',
@@ -467,8 +494,15 @@ const Amain = () => {
       arabic: '',
       urdu: ''
     });
+    setLanguageAddresses({
+      english: '',
+      arabic: '',
+      urdu: ''
+    });
+
     setCurrentTitleField(null);
     setCurrentDescriptionField(null);
+    setCurrentAddressField(null);
     setTitleForModal('');
     setDescriptionForModal('');
 
@@ -595,7 +629,7 @@ const Amain = () => {
     return mapInstance;
   };
 
-  // Update the validation in handleSaveCulturalData
+
   const handleSaveCulturalData = () => {
     if (selectedCulturalTypes.length === 0) {
       setCulturalTypeError(true);
@@ -603,19 +637,28 @@ const Amain = () => {
       return;
     }
 
-    // Additional validation for language titles/descriptions
-    if (!culturalTitle || !culturalDescription) {
-      alert('لطفا عنوان و توضیحات را وارد کنید');
+    // Only validate Persian fields
+    if (!culturalTitle.trim()) {
+      alert('لطفا عنوان فارسی را وارد کنید');
+      return;
+    }
+
+    if (!culturalDescription.trim()) {
+      alert('لطفا توضیحات فارسی را وارد کنید');
       return;
     }
 
     const newCulturalItem = {
       id: Date.now(),
-      title: culturalTitle,
-      description: culturalDescription,
-      // Add language-specific data if needed
-      titles: { ...languageTitles },
-      descriptions: { ...languageDescriptions },
+      title: culturalTitle, // Persian title
+      description: culturalDescription, // Persian description
+      // Store other language translations if entered
+      englishTitle: languageTitles.english || '',
+      arabicTitle: languageTitles.arabic || '',
+      urduTitle: languageTitles.urdu || '',
+      englishDescription: languageDescriptions.english || '',
+      arabicDescription: languageDescriptions.arabic || '',
+      urduDescription: languageDescriptions.urdu || '',
       address: 'حرم مطهر',
       createdAt: formatJalaliDate(new Date()),
       status: 'active',
@@ -1720,7 +1763,7 @@ const Amain = () => {
 
 
             <div className="menu-item with-submenu">
-              <div
+              {/* <div
                 className={`menu-item ${activeMenu === 'usermanage' ? 'active' : ''}`}
                 onClick={() => {
                   toggleUserManagement();
@@ -1742,7 +1785,7 @@ const Amain = () => {
                 <svg className={`submenu-arrow ${userManagementOpen ? 'open' : ''}`} width="16" height="17" viewBox="0 0 16 17" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path fillRule="evenodd" clipRule="evenodd" d="M2.95363 5.98434C3.13334 5.77467 3.44899 5.75039 3.65866 5.9301L7.99993 9.65119L12.3412 5.9301C12.5509 5.75039 12.8665 5.77467 13.0462 5.98434C13.2259 6.194 13.2017 6.50965 12.992 6.68936L8.32532 10.6894C8.13808 10.8499 7.86178 10.8499 7.67453 10.6894L3.00787 6.68936C2.7982 6.50965 2.77392 6.194 2.95363 5.98434Z" fill="#858585" />
                 </svg>
-              </div>
+              </div> */}
 
               {userManagementOpen && (
                 <div className="submenu-items">
@@ -3682,10 +3725,8 @@ const Amain = () => {
                 className="confirm-btn"
                 onClick={() => {
                   if (currentStep === 1) {
-                    // Validate step 1
+                    // Validate step 1 - only Persian fields are mandatory
                     if (placeName && placeCategory && placeSubcategory && placeFunction) {
-                      // Check if placeName was set through language modal (has all 4 languages)
-                      // You might want to add additional validation here
                       setCurrentStep(2);
                     } else {
                       alert('لطفا تمام فیلدهای ضروری را پر کنید');
@@ -4171,7 +4212,6 @@ const Amain = () => {
                   </div>
                 </div>
               )}
-
               {culturalStep === 2 && (
                 <div className="step-content">
                   <div className="step-intro">
@@ -4181,13 +4221,30 @@ const Amain = () => {
                   <div className="form-section">
                     <div className="form-group">
                       <label className="form-label"> آدرس و موقعیت جغرافیایی در حرم </label>
-                      <textarea
-                        className="form-textarea"
-                        placeholder="آدرس اطلاعات فرهنگی را بنویسید"
-                        value={placeAddress}
-                        onChange={(e) => setPlaceAddress(e.target.value)}
-                        rows="2"
-                      />
+
+                      {/* Address field with language button */}
+                      <div className="address-input-with-language">
+                        <textarea
+                          className="form-textarea"
+                          placeholder="آدرس اطلاعات فرهنگی را بنویسید"
+                          value={placeAddress}
+                          onChange={(e) => setPlaceAddress(e.target.value)}
+                          rows="2"
+                        />
+                        <button
+                          className="language-input-btn"
+                          type="button"
+                          onClick={() => openAddressLanguageModal('culturalAddress')}
+                          title="ورود آدرس به زبان‌های دیگر"
+                        >
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M10 18.3333C14.6024 18.3333 18.3333 14.6024 18.3333 10C18.3333 5.39763 14.6024 1.66667 10 1.66667C5.39763 1.66667 1.66667 5.39763 1.66667 10C1.66667 14.6024 5.39763 18.3333 10 18.3333Z" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M6.66699 2.5H7.50033C6.242 6.83667 6.242 13.1633 7.50033 17.5H6.66699" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M12.5 2.5C13.7583 6.83667 13.7583 13.1633 12.5 17.5" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                      </div>
+
                       <div className="map-instruction">
                         <span>برای انتخاب موقعیت دقیق، روی نقشه کلیک کنید</span>
                         {selectedLocation && (
@@ -4375,6 +4432,69 @@ const Amain = () => {
                 onClick={handleSaveLanguageDescriptions}
               >
                 تایید و ثبت
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {isAddressLanguageModalOpen && (
+        <div className="modal-overlay">
+          <div className="language-modal">
+            <div className="modal-header">
+              <h3>ورود آدرس به سایر زبان‌ها</h3>
+            </div>
+
+            <div className="modal-content">
+              <div className="language-fields">
+                <div className="language-field">
+                  <label className="language-label">انگلیسی</label>
+                  <textarea
+                    className="language-textarea"
+                    value={languageAddresses.english}
+                    onChange={(e) => handleLanguageAddressChange('english', e.target.value)}
+                    placeholder="Address in English"
+                    rows="2"
+                  />
+                </div>
+
+                <div className="language-field">
+                  <label className="language-label">عربی</label>
+                  <textarea
+                    className="language-textarea"
+                    value={languageAddresses.arabic}
+                    onChange={(e) => handleLanguageAddressChange('arabic', e.target.value)}
+                    placeholder="العنوان باللغة العربية"
+                    dir="rtl"
+                    rows="2"
+                  />
+                </div>
+
+                <div className="language-field">
+                  <label className="language-label">اردو</label>
+                  <textarea
+                    className="language-textarea"
+                    value={languageAddresses.urdu}
+                    onChange={(e) => handleLanguageAddressChange('urdu', e.target.value)}
+                    placeholder="پتہ اردو میں"
+                    dir="rtl"
+                    rows="2"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="cancel-btn5"
+                onClick={() => setIsAddressLanguageModalOpen(false)}
+              >
+                انصراف
+              </button>
+              <button
+                className="confirm-btn"
+                onClick={handleSaveLanguageAddresses}
+              >
+                ذخیره زبان‌های دیگر
               </button>
             </div>
           </div>

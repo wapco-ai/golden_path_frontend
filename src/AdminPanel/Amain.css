@@ -5695,6 +5695,10 @@ body {
   z-index: 1;
 }
 
+.address-input-with-language {
+  position: relative;
+  margin-bottom: 16px;
+}
 
 /* Language Modal */
 .language-modal {
