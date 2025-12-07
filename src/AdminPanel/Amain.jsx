@@ -1607,7 +1607,16 @@ const Amain = () => {
   const endIndex = startIndex + itemsPerPage;
   const currentUsers = filteredUsers.slice(startIndex, endIndex);
 
-  const adminDisplayName = adminProfile?.fullName || adminProfile?.name || adminProfile?.username || adminProfile?.email || 'ادمین';
+  const adminDisplayName =
+    adminProfile?.fullName ||
+    adminProfile?.name ||
+    adminProfile?.username ||
+    adminProfile?.email ||
+    adminProfile?.user?.fullName ||
+    adminProfile?.user?.name ||
+    adminProfile?.user?.username ||
+    adminProfile?.user?.email ||
+    'ادمین';
 
   const handleLogout = useCallback(() => {
     logout();
