@@ -24,7 +24,7 @@ export const AdminLoginServiceProvider = ({ children }) => {
 
     try {
       const profile = await fetchCurrentAdmin({});
-      setAdminProfile(profile?.admin || profile || null);
+      setAdminProfile(profile?.admin || profile?.user || profile || null);
     } catch (error) {
       setAdminProfile(null);
     } finally {
