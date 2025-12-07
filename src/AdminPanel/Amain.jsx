@@ -130,6 +130,19 @@ const Amain = () => {
   const [selectedLanguage, setSelectedLanguage] = useState('');
   const [locationRoofType, setLocationRoofType] = useState('');
   const [locationStatus, setLocationStatus] = useState('');
+  const [isAddCulturalModalOpen, setIsAddCulturalModalOpen] = useState(false);
+  const [culturalStep, setCulturalStep] = useState(1);
+  const [culturalTitle, setCulturalTitle] = useState('');
+  const [culturalDescription, setCulturalDescription] = useState('');
+  const [culturalSelectedLanguage, setCulturalSelectedLanguage] = useState('');
+  const [isCulturalLanguageDropdownOpen, setIsCulturalLanguageDropdownOpen] = useState(false);
+  const [showUserComments, setShowUserComments] = useState('نمایش');
+  const [showMultimedia, setShowMultimedia] = useState('نمایش');
+  const [selectedCulturalTypes, setSelectedCulturalTypes] = useState([]);
+  const [culturalTypeError, setCulturalTypeError] = useState(false);
+  const [culturalMap, setCulturalMap] = useState(null);
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [currentMarker, setCurrentMarker] = useState(null);
 
 
 
@@ -396,6 +409,184 @@ const Amain = () => {
     };
   };
 
+  // Add with other handler functions
+  const handleCulturalTypeToggle = (type) => {
+    if (selectedCulturalTypes.includes(type)) {
+      setSelectedCulturalTypes(selectedCulturalTypes.filter(t => t !== type));
+    } else {
+      setSelectedCulturalTypes([...selectedCulturalTypes, type]);
+    }
+  };
+
+  const openAddCulturalModal = () => {
+    setIsAddCulturalModalOpen(true);
+    setCulturalStep(1);
+  };
+
+  const closeAddCulturalModal = () => {
+    setIsAddCulturalModalOpen(false);
+    resetCulturalForm();
+  };
+
+  const resetCulturalForm = () => {
+    setCulturalStep(1);
+    setCulturalTitle('');
+    setCulturalDescription('');
+    setCulturalSelectedLanguage('');
+    setShowUserComments('نمایش');
+    setShowMultimedia('نمایش');
+    setSelectedCulturalTypes([]);
+    setPlaceAddress('');
+    setSelectedLocation(null);
+
+    // Remove marker
+    if (currentMarker) {
+      currentMarker.remove();
+      setCurrentMarker(null);
+    }
+
+    // Clean up map
+    if (culturalMap) {
+      culturalMap.remove();
+      setCulturalMap(null);
+    }
+  };
+
+
+  const handleCulturalNextStep = () => {
+    if (culturalStep === 1) {
+      if (!culturalTitle.trim() || !culturalSelectedLanguage) {
+        alert('لطفا عنوان و زبان را انتخاب کنید');
+        return;
+      }
+
+      if (selectedCulturalTypes.length === 0) {
+        setCulturalTypeError(true);
+        alert('لطفا حداقل یک نوع مکان را انتخاب کنید');
+        return;
+      }
+
+      setCulturalTypeError(false);
+      setCulturalStep(2);
+
+      // Initialize map after DOM is ready
+      setTimeout(() => {
+        initializeCulturalMap();
+      }, 100);
+
+    } else if (culturalStep === 2) {
+      // Validate step 2
+      if (!placeAddress.trim()) {
+        alert('لطفا آدرس را وارد کنید');
+        return;
+      }
+
+      if (!selectedLocation) {
+        alert('لطفا یک نقطه روی نقشه انتخاب کنید');
+        return;
+      }
+
+      setCulturalStep(3);
+    } else if (culturalStep === 3) {
+      setCulturalStep(4);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAddCulturalModalOpen) {
+      // Clean up when modal closes
+      if (currentMarker) {
+        currentMarker.remove();
+        setCurrentMarker(null);
+      }
+      if (culturalMap) {
+        culturalMap.remove();
+        setCulturalMap(null);
+      }
+    }
+  }, [isAddCulturalModalOpen]);
+
+  // Helper function to create custom marker element
+  const createMarkerElement = () => {
+    const el = document.createElement('div');
+    el.innerHTML = `
+    <svg width="24" height="41" viewBox="0 0 24 41" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M12 0C5.37258 0 0 6.00388 0 12.75C0 19.4433 3.82999 26.7186 9.8056 29.5117C11.1986 30.1628 12.8014 30.1628 14.1944 29.5117C20.17 26.7186 24 19.4433 24 12.75C24 6.00388 18.6274 0 12 0ZM12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" fill="#EA4335"/>
+      <path d="M12.0088 22.5685C7.15256 22.5687 3.21582 26.5061 3.21582 31.3624C3.21606 36.2185 7.15271 40.1552 12.0088 40.1554C16.8651 40.1554 20.8025 36.2187 20.8027 31.3624C20.8027 26.506 16.8652 22.5685 12.0088 22.5685Z" stroke="#EA4335" stroke-width="1.50419"/>
+    </svg>
+  `;
+    el.style.cursor = 'pointer';
+    el.style.width = '24px';
+    el.style.height = '41px';
+    return el;
+  };
+
+  // Map initialization function for cultural modal - FIXED VERSION
+  const initializeCulturalMap = () => {
+    if (!document.getElementById('cultural-map-container')) return null;
+
+    const mapInstance = new maplibregl.Map({
+      container: 'cultural-map-container',
+      style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+      center: [59.6161, 36.2908],
+      zoom: 16,
+    });
+
+    mapInstance.addControl(new maplibregl.NavigationControl());
+
+    // Keep track of the marker
+    let marker = null;
+
+    // Add click event to map
+    mapInstance.on('click', (e) => {
+      const coordinates = e.lngLat;
+      setSelectedLocation(coordinates);
+
+      // Remove existing marker if it exists
+      if (marker) {
+        marker.remove();
+      }
+
+      // Create new marker
+      marker = new maplibregl.Marker({
+        element: createMarkerElement()
+      })
+        .setLngLat([coordinates.lng, coordinates.lat])
+        .addTo(mapInstance);
+
+      // Store the marker in state
+      setCurrentMarker(marker);
+    });
+
+    setCulturalMap(mapInstance);
+    return mapInstance;
+  };
+
+  const handleSaveCulturalData = () => {
+    if (selectedCulturalTypes.length === 0) {
+      setCulturalTypeError(true);
+      alert('لطفا حداقل یک نوع مکان را انتخاب کنید');
+      return;
+    }
+
+    const newCulturalItem = {
+      id: Date.now(),
+      title: culturalTitle,
+      description: culturalDescription,
+      address: 'حرم مطهر',
+      createdAt: formatJalaliDate(new Date()),
+      status: 'active',
+      culturalTypes: [...selectedCulturalTypes],
+      displaySettings: {
+        userComments: showUserComments === 'نمایش',
+        multimedia: showMultimedia === 'نمایش'
+      }
+    };
+
+    setCulturalData(prev => [...prev, newCulturalItem]);
+    closeAddCulturalModal();
+  };
+
   const toggleReportsManagement = () => {
     setReportsManagementOpen(!reportsManagementOpen);
   };
@@ -608,6 +799,21 @@ const Amain = () => {
 
     return `${jalali.jd} ${jalaliMonths[jalali.jm - 1]} ${jalali.jy}`;
   };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isCulturalLanguageDropdownOpen &&
+        !event.target.closest('.language-dropdown') &&
+        !event.target.closest('.language-selector')) {
+        setIsCulturalLanguageDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isCulturalLanguageDropdownOpen]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -1684,7 +1890,7 @@ const Amain = () => {
                     <path fillRule="evenodd" clipRule="evenodd" d="M3.69247 7.09327C3.91711 6.83119 4.31167 6.80084 4.57375 7.02548L10.0003 11.6768L15.4269 7.02548C15.689 6.80084 16.0836 6.83119 16.3082 7.09327C16.5328 7.35535 16.5025 7.74991 16.2404 7.97455L10.4071 12.9745C10.173 13.1752 9.82765 13.1752 9.59359 12.9745L3.76026 7.97455C3.49818 7.74991 3.46783 7.35535 3.69247 7.09327Z" fill="#1E2023" />
                   </svg>
                 </button>
-                <button className="new-cultural-btn">
+                <button className="new-cultural-btn" onClick={openAddCulturalModal}>
                   ایجاد اطلاعات فرهنگی
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path fillRule="evenodd" clipRule="evenodd" d="M10.0001 18.3334C14.6025 18.3334 18.3334 14.6024 18.3334 10C18.3334 5.39765 14.6025 1.66669 10.0001 1.66669C5.39771 1.66669 1.66675 5.39765 1.66675 10C1.66675 14.6024 5.39771 18.3334 10.0001 18.3334ZM10.6251 7.50002C10.6251 7.15484 10.3453 6.87502 10.0001 6.87502C9.6549 6.87502 9.37508 7.15484 9.37508 7.50002L9.37508 9.37504H7.50008C7.1549 9.37504 6.87508 9.65486 6.87508 10C6.87508 10.3452 7.1549 10.625 7.50008 10.625H9.37508V12.5C9.37508 12.8452 9.6549 13.125 10.0001 13.125C10.3453 13.125 10.6251 12.8452 10.6251 12.5L10.6251 10.625H12.5001C12.8453 10.625 13.1251 10.3452 13.1251 10C13.1251 9.65486 12.8453 9.37504 12.5001 9.37504H10.6251V7.50002Z" fill="white" />
@@ -3763,6 +3969,280 @@ const Amain = () => {
                 onClick={confirmDeleteCultural}
               >
                 بله، حذف شود
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Add Cultural Information Modal */}
+      {isAddCulturalModalOpen && (
+        <div className="modal-overlay">
+          <div className="add-place-modal">
+            {/* Modal Header - SAME as map manage modal */}
+            <div className="modal-header">
+              <div className="step-text">
+                مرحله {culturalStep} از ۴ :
+                <span className="step-title">
+                  {culturalStep === 1 && 'اطلاعات کلی و نمایش اطلاعات'}
+                  {culturalStep === 2 && 'اطلاعات و جزئیات تکمیلی مکان'}
+                  {culturalStep === 3 && 'مرحله سوم اطلاعات'}
+                  {culturalStep === 4 && 'مرحله چهارم اطلاعات'}
+                </span>
+              </div>
+              <div className="step-progress">
+                <div className={`step-circle ${culturalStep >= 1 ? 'active' : ''}`}>
+                  {culturalStep > 1 ? '✓' : '۱'}
+                </div>
+                <div className={`step-line ${culturalStep >= 2 ? 'active' : ''}`}></div>
+                <div className={`step-circle ${culturalStep >= 2 ? 'active' : ''}`}>
+                  {culturalStep > 2 ? '✓' : '۲'}
+                </div>
+                <div className={`step-line ${culturalStep >= 3 ? 'active' : ''}`}></div>
+                <div className={`step-circle ${culturalStep >= 3 ? 'active' : ''}`}>
+                  {culturalStep > 3 ? '✓' : '۳'}
+                </div>
+                <div className={`step-line ${culturalStep >= 4 ? 'active' : ''}`}></div>
+                <div className={`step-circle ${culturalStep >= 4 ? 'active' : ''}`}>
+                  {culturalStep > 4 ? '✓' : '۴'}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="modal-content">
+              {culturalStep === 1 && (
+                <div className="step-content">
+                  <div className="step-intro">
+                    <h3>فرم ایجاد و افزودن اطلاعات فرهنگی جدید</h3>
+                  </div>
+
+                  <div className="form-section">
+                    {/* Title and Details Section with Language Dropdown */}
+                    <div className="form-group">
+                      <div className="form-header-with-language">
+                        <label className="form-label">عنوان و جزئیات </label>
+                        <div className="language-dropdown">
+                          <div
+                            className="language-selector"
+                            onClick={() => setIsCulturalLanguageDropdownOpen(!isCulturalLanguageDropdownOpen)}
+                          >
+                            <span className={`language-placeholder ${culturalSelectedLanguage ? 'selected' : ''}`}>
+                              {culturalSelectedLanguage || 'زبان'}
+                            </span>
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                              <path fillRule="evenodd" clipRule="evenodd" d="M3.64645 5.64645C3.84171 5.45118 4.15829 5.45118 4.35355 5.64645L8 9.29289L11.6464 5.64645C11.8417 5.45118 12.1583 5.45118 12.3536 5.64645C12.5488 5.84171 12.5488 6.15829 12.3536 6.35355L8.35355 10.3536C8.15829 10.5488 7.84171 10.5488 7.64645 10.3536L3.64645 6.35355C3.45118 6.15829 3.45118 5.84171 3.64645 5.64645Z" fill="#1E2023" />
+                            </svg>
+                          </div>
+
+                          {isCulturalLanguageDropdownOpen && (
+                            <div className="language-dropdown-menu">
+                              <div
+                                className={`language-option ${culturalSelectedLanguage === 'فارسی' ? 'selected' : ''}`}
+                                onClick={() => {
+                                  setCulturalSelectedLanguage('فارسی');
+                                  setIsCulturalLanguageDropdownOpen(false);
+                                }}
+                              >
+                                فارسی
+                              </div>
+                              <div
+                                className={`language-option ${culturalSelectedLanguage === 'انگلیسی' ? 'selected' : ''}`}
+                                onClick={() => {
+                                  setCulturalSelectedLanguage('انگلیسی');
+                                  setIsCulturalLanguageDropdownOpen(false);
+                                }}
+                              >
+                                انگلیسی
+                              </div>
+                              <div
+                                className={`language-option ${culturalSelectedLanguage === 'عربی' ? 'selected' : ''}`}
+                                onClick={() => {
+                                  setCulturalSelectedLanguage('عربی');
+                                  setIsCulturalLanguageDropdownOpen(false);
+                                }}
+                              >
+                                عربی
+                              </div>
+                              <div
+                                className={`language-option ${culturalSelectedLanguage === 'اردو' ? 'selected' : ''}`}
+                                onClick={() => {
+                                  setCulturalSelectedLanguage('اردو');
+                                  setIsCulturalLanguageDropdownOpen(false);
+                                }}
+                              >
+                                اردو
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="عنوان اطلاعات فرهنگی را بنویسید"
+                        value={culturalTitle}
+                        onChange={(e) => setCulturalTitle(e.target.value)}
+                      />
+                      <textarea
+                        className="form-textarea"
+                        placeholder="درباره این اطلاعات فرهنگی بنویسید"
+                        value={culturalDescription}
+                        onChange={(e) => setCulturalDescription(e.target.value)}
+                        rows="3"
+                      />
+                    </div>
+
+                    {/* Display Settings Section */}
+                    <div className="form-group">
+                      <label className="form-label">نمایش و عدم نمایش اطلاعات به کاربر</label>
+
+                      <div className="display-section">
+
+                        {/* دیدگاه‌های کاربران */}
+                        <div className="display-option">
+                          <span className="option-label">دیدگاه‌های کاربران</span>
+                          <div className="display-toggle">
+                            <div
+                              className={`toggle-option2 ${showUserComments === 'نمایش' ? 'selected' : ''}`}
+                              onClick={() => setShowUserComments('نمایش')}
+                            >
+                              نمایش
+                            </div>
+                            <div
+                              className={`toggle-option ${showUserComments === 'عدم نمایش' ? 'selected' : ''}`}
+                              onClick={() => setShowUserComments('عدم نمایش')}
+                            >
+                              عدم نمایش
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* چند رسانه‌ای‌ها */}
+                        <div className="display-option">
+                          <span className="option-label">چند رسانه‌ای‌ها</span>
+                          <div className="display-toggle">
+                            <div
+                              className={`toggle-option2 ${showMultimedia === 'نمایش' ? 'selected' : ''}`}
+                              onClick={() => setShowMultimedia('نمایش')}
+                            >
+                              نمایش
+                            </div>
+                            <div
+                              className={`toggle-option ${showMultimedia === 'عدم نمایش' ? 'selected' : ''}`}
+                              onClick={() => setShowMultimedia('عدم نمایش')}
+                            >
+                              عدم نمایش
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Cultural Type Selection (New Section) */}
+                    <div className="form-group">
+                      <label className="form-label">نوع این مکان *</label>
+                      <div className="cultural-type-grid10">
+                        {['زیراتی', 'فرهنگی', 'خدماتی', 'تاریخی', 'معماری'].map((type) => (
+                          <div
+                            key={type}
+                            className={`cultural-type-option10 ${selectedCulturalTypes.includes(type) ? 'selected' : ''}`}
+                            onClick={() => handleCulturalTypeToggle(type)}
+                          >
+                            <div className="cultural-type-checkbox10">
+                              {selectedCulturalTypes.includes(type) ? (
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
+                                  <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
+                                </svg>
+                              ) : (
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" stroke="#D9D9D9" />
+                                </svg>
+                              )}
+                            </div>
+                            <span>{type}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {culturalStep === 2 && (
+                <div className="step-content">
+                  <div className="step-intro">
+                    <h3> فرم ایجاد و افزودن اطلاعات فرهنگی جدید </h3>
+                  </div>
+
+                  <div className="form-section">
+                    <div className="form-group">
+                      <label className="form-label"> آدرس و موقعیت جغرافیایی در حرم </label>
+                      <textarea
+                        className="form-textarea"
+                        placeholder="آدرس اطلاعات فرهنگی را بنویسید"
+                        value={placeAddress}
+                        onChange={(e) => setPlaceAddress(e.target.value)}
+                        rows="2"
+                      />
+                      <div className="map-instruction">
+                        <span>برای انتخاب موقعیت دقیق، روی نقشه کلیک کنید</span>
+                        {selectedLocation && (
+                          <div className="selected-coordinates">
+                            <span>موقعیت انتخاب شده:</span>
+                            <span className="coordinates-value">
+                              {selectedLocation.lat.toFixed(6)}°N, {selectedLocation.lng.toFixed(6)}°E
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="cultural-map-container">
+                        <div id="cultural-map-container" className="cultural-map-instance"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {culturalStep === 3 && (
+                <div className="step-content">
+                  <div className="step-intro">
+                    <h3>مرحله سوم - اطلاعات اضافی</h3>
+                  </div>
+                  <div className="form-section">
+                    {/* Empty for now - will be filled later */}
+                    <p>این مرحله بعداً تکمیل خواهد شد</p>
+                  </div>
+                </div>
+              )}
+
+              {culturalStep === 4 && (
+                <div className="step-content">
+                  <div className="step-intro">
+                    <h3>مرحله چهارم - نهایی‌سازی</h3>
+                  </div>
+                  <div className="form-section">
+                    {/* Empty for now - will be filled later */}
+                    <p>این مرحله بعداً تکمیل خواهد شد</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="modal-footer">
+              <button
+                className="cancel-btn11"
+                onClick={closeAddCulturalModal}
+              >
+                انصراف و بستن
+              </button>
+              <button
+                className="confirm-btn"
+                onClick={culturalStep === 4 ? handleSaveCulturalData : handleCulturalNextStep}
+              >
+                {culturalStep === 4 ? 'تایید و ثبت اطلاعات' : 'تایید و مرحله بعد'}
               </button>
             </div>
           </div>
