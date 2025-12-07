@@ -10,6 +10,7 @@ import { Helmet } from 'react-helmet';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useAdminLoginService } from './adminLoginServiceContext';
+import { initHaramVectorLayers } from '../utils/initVectorLayers';
 
 
 const Amain = () => {
@@ -817,6 +818,9 @@ const Amain = () => {
         });
 
         mapInstance.addControl(new maplibregl.NavigationControl());
+        mapInstance.on('load', (event) => {
+          initHaramVectorLayers(event);
+        });
         setMap(mapInstance);
 
         return () => {
