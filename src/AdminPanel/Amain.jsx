@@ -55,6 +55,7 @@ const Amain = () => {
   const contentRef = useRef(null);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [isLocationMarkerMode, setIsLocationMarkerMode] = useState(false);
+  const [locationMarker, setLocationMarker] = useState(null);
   const [isAddPlaceModalOpen, setIsAddPlaceModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [placeName, setPlaceName] = useState('');
@@ -836,6 +837,11 @@ const Amain = () => {
       if (map) {
         map.remove();
         setMap(null);
+
+        if (locationMarker) {
+          locationMarker.remove();
+          setLocationMarker(null);
+        }
       }
     }
   }, [activeMenu]);
@@ -885,10 +891,35 @@ const Amain = () => {
 
   const handleLocationMarkerSelect = () => {
     setIsLocationMarkerMode(true);
+
+    if (!map) return;
+
+    const center = map.getCenter();
+
+    setSelectedLocation(center);
+
+    if (locationMarker) {
+      locationMarker.setLngLat(center);
+    } else {
+      const marker = new maplibregl.Marker({ color: '#1E2023' })
+        .setLngLat(center)
+        .addTo(map);
+      setLocationMarker(marker);
+    }
+
+    map.flyTo({
+      center,
+      zoom: Math.max(map.getZoom(), 16)
+    });
   };
 
   const handleCancelLocationMarker = () => {
     setIsLocationMarkerMode(false);
+
+    if (locationMarker) {
+      locationMarker.remove();
+      setLocationMarker(null);
+    }
   };
 
   const handleAddPlaceToMarker = () => {
@@ -2467,7 +2498,7 @@ const Amain = () => {
                     </div>
                     <div className="date-separator3"></div>
                     <div
-                      className={`action-button ${isLocationMarkerMode ? 'selected' : ''}`}
+                      className={`action-button poi_management ${isLocationMarkerMode ? 'selected' : ''}`}
                       onClick={handleLocationMarkerSelect}
                     >
                       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
