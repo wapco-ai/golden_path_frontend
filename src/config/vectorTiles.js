@@ -18,6 +18,8 @@ const MESH_TRIANGLES_SOURCE_LAYER = 'public.vw_mesh_triangles';
 const MESH_TRIANGLES_TILE_BASE = `${TILE_BASE_URL}/${MESH_TRIANGLES_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
 const ROUTING_EDGES_STATIC_SOURCE_LAYER = 'public.routing_edges_static';
 const ROUTING_EDGES_STATIC_BASE = `${TILE_BASE_URL}/${ROUTING_EDGES_STATIC_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
+const DOORS_ACCESS_POINT_SOURCE_LAYER = 'public.fn_door_access_points_mvt ';
+const DOORS_ACCESS_POINT_BASE = `${TILE_BASE_URL}/${DOORS_ACCESS_POINT_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
 
 const normalizeFloorValue = (floor) => {
   if (typeof floor === 'number' && !Number.isNaN(floor)) {
@@ -175,46 +177,6 @@ export const haramVectorTileConfig = [
       'line-color': '#ff3b30',
       'line-width': 2
     }
-  },
-  {
-    id: 'mesh-triangles-ground',
-    titleFa: 'مش‌بندی محدوده‌های طبقه همکف',
-    table: MESH_TRIANGLES_SOURCE_LAYER,
-    sourceId: 'vw_mesh_triangles',
-    sourceLayer: MESH_TRIANGLES_SOURCE_LAYER,
-    tileUrl: MESH_TRIANGLES_TILE_BASE,
-    type: 'line',
-    minzoom: 15,
-    maxzoom: 22,
-    visibleByDefault: false,
-    paint: {
-      'line-color': '#ffddcc',
-      'line-width': 0.15
-    },
-    layout: {
-      'line-join': 'round',
-      'line-cap': 'round'
-    }
-  },
-  {
-    id: 'routing_edges_static-ground',
-    titleFa: 'گراف مسیریابی',
-    table: MESH_TRIANGLES_SOURCE_LAYER,
-    sourceId: 'routing_edges_static',
-    sourceLayer: ROUTING_EDGES_STATIC_SOURCE_LAYER,
-    tileUrl: ROUTING_EDGES_STATIC_BASE,
-    type: 'line',
-    minzoom: 15,
-    maxzoom: 22,
-    visibleByDefault: false,
-    paint: {
-      'line-color': '#ffddcc',
-      'line-width': 0.15
-    },
-    layout: {
-      'line-join': 'round',
-      'line-cap': 'round'
-    }
   }
 ]
 export const haramAdminVectorTileConfig = [
@@ -286,7 +248,26 @@ export const haramAdminVectorTileConfig = [
       'text-halo-width': 1.2
     }
   },
-  ,
+  {
+    id: 'doorsAccessPoint',
+    titleFa: 'نقاط اتثال دربها',
+    table: DOORS_ACCESS_POINT_SOURCE_LAYER,
+    sourceId: 'fn_door_access_points_mvt ',
+    sourceLayer: DOORS_ACCESS_POINT_SOURCE_LAYER,
+    tileUrl: DOORS_ACCESS_POINT_BASE,
+    type: 'line',
+    minzoom: 15,
+    maxzoom: 22,
+    visibleByDefault: true,
+    paint: {
+      'line-color': '#ffddcc',
+      'line-width': 0.15
+    },
+    layout: {
+      'line-join': 'round',
+      'line-cap': 'round'
+    }
+  },
   {
     id: 'doors',
     titleFa: 'درب‌ها',
