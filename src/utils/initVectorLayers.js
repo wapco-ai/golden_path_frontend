@@ -9,7 +9,7 @@ const resolveTileUrlResolver = (layerCfg) => {
   return () => staticUrl;
 };
 
-const sourceMeta = haramVectorTileConfig.reduce((acc, layerCfg) => {
+const buildSourceMeta = (vectorTileConfig) => vectorTileConfig.reduce((acc, layerCfg) => {
   const existing = acc[layerCfg.sourceId];
   const isDynamic = typeof layerCfg.tileUrlFactory === 'function';
   const tileUrlResolver = resolveTileUrlResolver(layerCfg);
@@ -64,7 +64,7 @@ const resolveMap = (mapOrRef) => {
   return mapOrRef;
 };
 
-const ensureSourcesAndLayers = (map) => {
+const ensureSourcesAndLayers = (map, vectorTileConfig, sourceMeta) => {
   if (!map || typeof map.addSource !== 'function') {
     return;
   }
@@ -90,7 +90,7 @@ const ensureSourcesAndLayers = (map) => {
     });
   });
 
-  haramVectorTileConfig.forEach((layerCfg) => {
+  vectorTileConfig.forEach((layerCfg) => {
     if (map.getLayer(layerCfg.id)) {
       return;
     }
@@ -120,7 +120,7 @@ const ensureSourcesAndLayers = (map) => {
   });
 };
 
-const ensureFloorSync = (map) => {
+const ensureFloorSync = (map, sourceMeta) => {
   if (!map) {
     return;
   }
@@ -149,17 +149,19 @@ const ensureFloorSync = (map) => {
   }
 };
 
-export const initHaramVectorLayers = (mapOrEventTarget) => {
+export const initHaramVectorLayers = (mapOrEventTarget, vectorTileConfig = haramVectorTileConfig) => {
   const map = resolveMap(mapOrEventTarget?.target || mapOrEventTarget);
   if (!map) {
     return;
   }
 
-  ensureSourcesAndLayers(map);
-  ensureFloorSync(map);
+  const sourceMeta = buildSourceMeta(vectorTileConfig);
+
+  ensureSourcesAndLayers(map, vectorTileConfig, sourceMeta);
+  ensureFloorSync(map, sourceMeta);
 
   if (!map[FLAG_KEY] && typeof map.on === 'function') {
     map[FLAG_KEY] = true;
-    map.on('styledata', () => ensureSourcesAndLayers(map));
+    map.on('styledata', () => ensureSourcesAndLayers(map, vectorTileConfig, sourceMeta));
   }
 };
