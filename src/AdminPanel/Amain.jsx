@@ -23,7 +23,7 @@ const Amain = () => {
   const [mapViewState, setMapViewState] = useState({
     longitude: 59.6161,
     latitude: 36.2908,
-    center: [59.6159, 36.2875], 
+    center: [59.6159, 36.2875],
     zoom: 16
   });
   const [mapType, setMapType] = useState('نمای خیابان');
@@ -69,7 +69,6 @@ const Amain = () => {
   const [placeCategory, setPlaceCategory] = useState('');
   const [placeSubcategory, setPlaceSubcategory] = useState('');
   const [placeFunction, setPlaceFunction] = useState('');
-  const [selectedPlaceTypes, setSelectedPlaceTypes] = useState([]);
   const [selectedTransport, setSelectedTransport] = useState([]);
   const [selectedGenderAccess, setSelectedGenderAccess] = useState([]);
   const [timeRestrictions, setTimeRestrictions] = useState([]);
@@ -127,6 +126,10 @@ const Amain = () => {
   const [culturalToDelete, setCulturalToDelete] = useState(null);
   const [culturalCurrentPage, setCulturalCurrentPage] = useState(1);
   const [culturalItemsPerPage, setCulturalItemsPerPage] = useState(7);
+  const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState('');
+  const [locationRoofType, setLocationRoofType] = useState('');
+  const [locationStatus, setLocationStatus] = useState('');
 
 
 
@@ -343,7 +346,6 @@ const Amain = () => {
       category: placeCategory,
       subcategory: placeSubcategory,
       function: placeFunction,
-      types: selectedPlaceTypes,
       transport: selectedTransport,
       genderAccess: selectedGenderAccess,
       restrictions: timeRestrictions,
@@ -443,11 +445,15 @@ const Amain = () => {
     setPlaceCategory('');
     setPlaceSubcategory('');
     setPlaceFunction('');
-    setSelectedPlaceTypes([]);
     setSelectedTransport([]);
     setSelectedGenderAccess([]);
     setTimeRestrictions([]);
     setPrayerTimeRestrictions([]);
+
+    setSelectedLanguage('');
+    setLocationRoofType('');
+    setLocationStatus('');
+    setIsLanguageDropdownOpen(false);
 
     setSelectedRestrictionType(null);
     setRestrictionFormOpen(false);
@@ -950,6 +956,21 @@ const Amain = () => {
 
     setCategories(updatedCategories);
   };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isLanguageDropdownOpen &&
+        !event.target.closest('.language-dropdown') &&
+        !event.target.closest('.language-selector')) {
+        setIsLanguageDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isLanguageDropdownOpen]);
 
   const handleDeleteSubcategory = (subcategory) => {
     const updatedCategories = categories.map(cat => {
@@ -2594,7 +2615,63 @@ const Amain = () => {
 
                   <div className="form-section">
                     <div className="form-group">
-                      <label className="form-label">نام و توضیحات این مکان </label>
+                      <div className="form-header-with-language">
+                        <label className="form-label">نام و توضیحات این مکان</label>
+                        <div className="language-dropdown">
+                          <div className="language-selector"
+                            onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)}
+                          >
+                            <span className={`language-placeholder ${selectedLanguage ? 'selected' : ''}`}>
+                              {selectedLanguage || 'زبان'}
+                            </span>
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                              <path fillRule="evenodd" clipRule="evenodd" d="M3.64645 5.64645C3.84171 5.45118 4.15829 5.45118 4.35355 5.64645L8 9.29289L11.6464 5.64645C11.8417 5.45118 12.1583 5.45118 12.3536 5.64645C12.5488 5.84171 12.5488 6.15829 12.3536 6.35355L8.35355 10.3536C8.15829 10.5488 7.84171 10.5488 7.64645 10.3536L3.64645 6.35355C3.45118 6.15829 3.45118 5.84171 3.64645 5.64645Z" fill="#1E2023" />
+                            </svg>
+                          </div>
+
+                          {isLanguageDropdownOpen && (
+                            <div className="language-dropdown-menu">
+                              <div
+                                className={`language-option ${selectedLanguage === 'فارسی' ? 'selected' : ''}`}
+                                onClick={() => {
+                                  setSelectedLanguage('فارسی');
+                                  setIsLanguageDropdownOpen(false);
+                                }}
+                              >
+                                فارسی
+                              </div>
+                              <div
+                                className={`language-option ${selectedLanguage === 'انگلیسی' ? 'selected' : ''}`}
+                                onClick={() => {
+                                  setSelectedLanguage('انگلیسی');
+                                  setIsLanguageDropdownOpen(false);
+                                }}
+                              >
+                                انگلیسی
+                              </div>
+                              <div
+                                className={`language-option ${selectedLanguage === 'عربی' ? 'selected' : ''}`}
+                                onClick={() => {
+                                  setSelectedLanguage('عربی');
+                                  setIsLanguageDropdownOpen(false);
+                                }}
+                              >
+                                عربی
+                              </div>
+                              <div
+                                className={`language-option ${selectedLanguage === 'اردو' ? 'selected' : ''}`}
+                                onClick={() => {
+                                  setSelectedLanguage('اردو');
+                                  setIsLanguageDropdownOpen(false);
+                                }}
+                              >
+                                اردو
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
                       <input
                         type="text"
                         className="form-input"
@@ -2680,25 +2757,57 @@ const Amain = () => {
                   <div className="form-section">
                     {/* Place Type Section */}
                     <div className="form-group">
-                      <label className="form-label">نوع این مکان </label>
-                      <div className="multi-select-grid">
-                        {['زیارتی', 'فرهنگی', 'خدماتی', 'تاریخی', 'معماری'].map((type) => (
-                          <div
-                            key={type}
-                            className={`select-option ${selectedPlaceTypes.includes(type) ? 'selected' : ''}`}
-                            onClick={() => {
-                              if (selectedPlaceTypes.includes(type)) {
-                                setSelectedPlaceTypes(selectedPlaceTypes.filter(t => t !== type));
-                              } else {
-                                setSelectedPlaceTypes([...selectedPlaceTypes, type]);
-                              }
-                            }}
-                          >
-                            <div className="option-content">
-                              <span>{type}</span>
+                      <label className="form-label">نوع و موقعیت این مکان </label>
+                      <div className="location-type-grid">
+                        {/* Roof Type */}
+                        <div className="location-type-section">
+                          <div className="location-type-label">نوع پوشش</div>
+                          <div className="location-type-options">
+                            <div
+                              className={`location-type-option ${locationRoofType === 'مسقف' ? 'selected' : ''}`}
+                              onClick={() => setLocationRoofType('مسقف')}
+                            >
+                              <div className="location-type-radio">
+                                {locationRoofType === 'مسقف' && <div className="location-type-radio-dot"></div>}
+                              </div>
+                              <span>مسقف</span>
+                            </div>
+                            <div
+                              className={`location-type-option ${locationRoofType === 'غیر مسقف' ? 'selected' : ''}`}
+                              onClick={() => setLocationRoofType('غیر مسقف')}
+                            >
+                              <div className="location-type-radio">
+                                {locationRoofType === 'غیر مسقف' && <div className="location-type-radio-dot"></div>}
+                              </div>
+                              <span>غیر مسقف</span>
                             </div>
                           </div>
-                        ))}
+                        </div>
+
+                        {/* Status */}
+                        <div className="location-type-section">
+                          <div className="location-type-label">وضعیت</div>
+                          <div className="location-type-options">
+                            <div
+                              className={`location-type-option ${locationStatus === 'فعال' ? 'selected' : ''}`}
+                              onClick={() => setLocationStatus('فعال')}
+                            >
+                              <div className="location-type-radio">
+                                {locationStatus === 'فعال' && <div className="location-type-radio-dot"></div>}
+                              </div>
+                              <span>فعال</span>
+                            </div>
+                            <div
+                              className={`location-type-option ${locationStatus === 'غیر فعال' ? 'selected' : ''}`}
+                              onClick={() => setLocationStatus('غیر فعال')}
+                            >
+                              <div className="location-type-radio">
+                                {locationStatus === 'غیر فعال' && <div className="location-type-radio-dot"></div>}
+                              </div>
+                              <span>غیر فعال</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -3341,20 +3450,20 @@ const Amain = () => {
                 className="confirm-btn"
                 onClick={() => {
                   if (currentStep === 1) {
-                    // Validate step 1
-                    if (placeName && placeCategory && placeSubcategory && placeFunction) {
+                    // Validate step 1 - now includes language
+                    if (placeName && placeCategory && placeSubcategory && placeFunction && selectedLanguage) {
                       setCurrentStep(2);
                     } else {
-                      alert('لطفا تمام فیلدهای ضروری را پر کنید');
+                      alert('لطفا تمام فیلدهای ضروری را پر کنید (شامل زبان)');
                     }
                   } else if (currentStep === 2) {
-                    // Validate step 2
-                    if (selectedPlaceTypes.length === 0) {
-                      alert('لطفا حداقل یک نوع مکان را انتخاب کنید');
-                    } else if (selectedTransport.length === 0) {
+                    // Validate step 2 - now includes location type and status
+                    if (selectedTransport.length === 0) {
                       alert('لطفا حداقل یک نوع تردد را انتخاب کنید');
                     } else if (selectedGenderAccess.length === 0) {
                       alert('لطفا حداقل یک جنسیت تردد را انتخاب کنید');
+                    } else if (!locationRoofType || !locationStatus) {
+                      alert('لطفا نوع پوشش و وضعیت مکان را انتخاب کنید');
                     } else {
                       setCurrentStep(3);
                     }
