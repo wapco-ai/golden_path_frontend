@@ -124,6 +124,10 @@ const ensureSourcesAndLayers = (map, vectorTileConfig, sourceMeta) => {
     }
 
     map.addLayer(layer);
+    const layerNameForLog = layerCfg?.sourceLayer || layerCfg?.id;
+    if (layerNameForLog) {
+      console.log(`Haram vector layer loaded: ${layerNameForLog}`);
+    }
   });
 };
 
