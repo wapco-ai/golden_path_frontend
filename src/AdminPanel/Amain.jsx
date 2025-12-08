@@ -11,9 +11,53 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { distance as turfDistance } from '@turf/turf';
 import { useAdminLoginService } from './adminLoginServiceContext';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
-import { haramAdminVectorTileConfig } from '../config/vectorTiles';
+import { DOORS_ACCESS_POINT_LAYER_NAME, haramAdminVectorTileConfig } from '../config/vectorTiles';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
 
+
+const DOOR_ACCESS_LAYER_ID = 'doors-access-point';
+const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
+
+const logDoorAccessPointDebugInfo = (mapInstance) => {
+  if (!mapInstance) return;
+
+  const logPrefix = 'fn_door_access_points_mvt debug';
+  const source = mapInstance.getSource(DOOR_ACCESS_SOURCE_ID);
+  const layerExists = Boolean(mapInstance.getLayer(DOOR_ACCESS_LAYER_ID));
+
+  console.log(`${logPrefix} | layer present: ${layerExists}, source present: ${Boolean(source)}`);
+
+  if (source) {
+    const tileTemplates = source.tiles || source._options?.tiles;
+    console.log(`${logPrefix} | tile templates:`, tileTemplates);
+  }
+
+  mapInstance.once('sourcedata', (event) => {
+    if (event?.sourceId !== DOOR_ACCESS_SOURCE_ID || !event.isSourceLoaded) return;
+
+    const sourceFeatures = mapInstance.querySourceFeatures(DOOR_ACCESS_SOURCE_ID, {
+      sourceLayer: DOORS_ACCESS_POINT_LAYER_NAME
+    });
+
+    console.log(`${logPrefix} | source features loaded`, {
+      featureCount: sourceFeatures.length,
+      sample: sourceFeatures.slice(0, 5).map((feature) => feature?.properties)
+    });
+  });
+
+  mapInstance.once('idle', () => {
+    const renderedFeatures = mapInstance.queryRenderedFeatures({ layers: [DOOR_ACCESS_LAYER_ID] }) || [];
+    const sample = renderedFeatures.slice(0, 5).map((feature) => ({
+      coordinates: feature?.geometry?.coordinates,
+      properties: feature?.properties
+    }));
+
+    console.log(`${logPrefix} | rendered feature snapshot`, {
+      featureCount: renderedFeatures.length,
+      sample
+    });
+  });
+};
 
 const Amain = () => {
   const { adminProfile, isLoadingProfile, logout } = useAdminLoginService();
@@ -1349,6 +1393,7 @@ const Amain = () => {
         mapInstance.on('load', (event) => {
           initHaramVectorLayers(event, haramAdminVectorTileConfig);
           console.log('Haram vector layers loaded successfully in Amain map');
+          logDoorAccessPointDebugInfo(mapInstance);
         });
         setMap(mapInstance);
 
