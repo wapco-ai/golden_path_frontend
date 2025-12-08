@@ -81,6 +81,16 @@ const Amain = () => {
   }, {});
 
   const [layerVisibility, setLayerVisibility] = useState(buildInitialLayerVisibility);
+  const applyLayerVisibility = useCallback((mapInstance, visibilityState = layerVisibility) => {
+    const targetMap = mapInstance || map;
+    if (!targetMap) return;
+
+    haramAdminVectorTileConfig.forEach((layer) => {
+      if (targetMap.getLayer(layer.id)) {
+        targetMap.setLayoutProperty(layer.id, 'visibility', visibilityState?.[layer.id] ? 'visible' : 'none');
+      }
+    });
+  }, [layerVisibility, map]);
   const [isLayerListOpen, setIsLayerListOpen] = useState(false);
   const [mapFloor, setMapFloor] = useState('همکف');
   const [isMapFloorOpen, setIsMapFloorOpen] = useState(false);
@@ -1763,17 +1773,6 @@ const Amain = () => {
       setBreadcrumbPath(newPath);
     }
   };
-  const applyLayerVisibility = useCallback((mapInstance, visibilityState = layerVisibility) => {
-    const targetMap = mapInstance || map;
-    if (!targetMap) return;
-
-    haramAdminVectorTileConfig.forEach((layer) => {
-      if (targetMap.getLayer(layer.id)) {
-        targetMap.setLayoutProperty(layer.id, 'visibility', visibilityState?.[layer.id] ? 'visible' : 'none');
-      }
-    });
-  }, [layerVisibility, map]);
-
   const handleLayerToggle = (layerId) => {
     setLayerVisibility((prev) => {
       const nextState = { ...prev, [layerId]: !prev[layerId] };
