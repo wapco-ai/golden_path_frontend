@@ -174,6 +174,8 @@ body {
   border-radius: 50%;
   background: #e0e0e0;
   border: 1px solid black;
+  justify-content: center;
+  align-items: center;
 }
 
 .profile-info {
@@ -5797,7 +5799,7 @@ body {
   gap: 12px;
 }
 
-/* Make sure language modal appears above other modals */
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -5814,4 +5816,158 @@ body {
 /* RTL support for Arabic and Urdu inputs */
 [dir="rtl"] {
   text-align: right;
+}
+
+/* Avatar Upload Modal Styles */
+.avatar-upload-modal {
+  background: white;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.avatar-upload-area {
+  padding: 20px;
+  text-align: center;
+}
+
+.avatar-preview {
+  width: 200px;
+  height: 200px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px dashed #D9D9D9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F8F8F8;
+}
+
+.avatar-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-preview-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #858585;
+}
+
+.avatar-preview-placeholder svg {
+  margin-bottom: 10px;
+  color: #858585;
+}
+
+.upload-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.hidden-file-input {
+  display: none;
+}
+
+.upload-btn {
+  background: #0F71EF;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s;
+}
+
+.upload-btn:hover {
+  background: #0D5DCC;
+}
+
+.remove-btn {
+  background: #EA4335;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s;
+}
+
+.remove-btn:hover {
+  background: #D32F2F;
+}
+
+.upload-instructions {
+  background: #F8F8F8;
+  padding: 15px;
+  border-radius: 8px;
+  text-align: right;
+  font-size: 12px;
+  color: #666;
+  margin-top: 20px;
+}
+
+.upload-instructions p {
+  margin: 5px 0;
+}
+
+.default-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid black;
+  background: #F2F2F2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.default-avatar svg {
+  color: #858585;
+}
+
+.admin-avatar-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Make the admin profile clickable */
+.admin-profile {
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+
+.admin-profile:hover {
+  opacity: 0.8;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .avatar-preview {
+    width: 150px;
+    height: 150px;
+  }
+  
+  .upload-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .upload-btn,
+  .remove-btn {
+    width: 200px;
+  }
 }
