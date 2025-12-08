@@ -1964,8 +1964,8 @@ body {
 
 .map-control-bottom-right {
   position: absolute;
-  bottom: 20px;
-  right: 20px;
+  bottom: 60px;
+  left: 0px;
   z-index: 1000;
 }
 
@@ -2394,10 +2394,6 @@ body {
   left: 30px;
 }
 
-.admin-panel.map-fullscreen .map-control-bottom-right {
-  bottom: 30px;
-  right: 30px;
-}
 
 .admin-panel.map-fullscreen .map-control-bottom-left {
   bottom: 30px;
@@ -2471,8 +2467,8 @@ body {
 }
 
 .admin-panel.map-fullscreen .map-control-bottom-right {
-  bottom: 20px;
-  right: 20px;
+  bottom: 60px;
+  left: 0px;
 }
 
 .admin-panel.map-fullscreen .map-control-bottom-left {
@@ -7065,4 +7061,52 @@ body {
   .save-edit-btn {
     width: 100%;
   }
+}
+
+.sub-buttons1 {
+  display: flex;
+  gap: 6px;
+  position: absolute;
+  left: 120%;
+  top: 40%;
+  flex-direction: row-reverse;
+}
+
+.sub-buttons2 {
+  display: flex;
+  gap: 6px;
+  position: absolute;
+  left: 120%;
+  top: 55%;
+  flex-direction: row-reverse;
+}
+
+.sub-buttons3 {
+  display: flex;
+  gap: 6px;
+  position: absolute;
+  left: 120%;
+  top: 70%;
+  flex-direction: row-reverse;
+}
+
+.sub-buttons4 {
+  display: flex;
+  gap: 6px;
+  position: absolute;
+  left: 120%;
+  top: 85%;
+  flex-direction: row-reverse;
+}
+
+.sub-btn {
+  width: 30px;
+  height: 30px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
