@@ -6,12 +6,10 @@ import logo from '../assets/images/logo2.png';
 import 'react-datepicker/dist/react-datepicker.css';
 import { toJalaali, toGregorian } from 'jalaali-js';
 import ReactDatePicker from 'react-datepicker';
+import { Helmet } from 'react-helmet';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useAdminLoginService } from './adminLoginServiceContext';
-import { initHaramVectorLayers } from '../utils/initVectorLayers';
-import { haramAdminVectorTileConfig } from '../config/vectorTiles';
-import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
 
 
 const Amain = () => {
@@ -32,8 +30,6 @@ const Amain = () => {
   });
   const [mapType, setMapType] = useState('نمای خیابان');
   const [isMapTypeOpen, setIsMapTypeOpen] = useState(false);
-  const [mapFloor, setMapFloor] = useState('همکف');
-  const [isMapFloorOpen, setIsMapFloorOpen] = useState(false);
   const unknownComments = commentStats.total - commentStats.approved - commentStats.rejected;
   const approvedDegrees = (commentStats.approved / commentStats.total) * 360;
   const rejectedDegrees = (commentStats.rejected / commentStats.total) * 360;
@@ -58,7 +54,6 @@ const Amain = () => {
   const contentRef = useRef(null);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [isLocationMarkerMode, setIsLocationMarkerMode] = useState(false);
-  const [locationMarker, setLocationMarker] = useState(null);
   const [isAddPlaceModalOpen, setIsAddPlaceModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [placeName, setPlaceName] = useState('');
@@ -176,46 +171,31 @@ const Amain = () => {
   const [isAddressLanguageModalOpen, setIsAddressLanguageModalOpen] = useState(false);
   const [currentAddressField, setCurrentAddressField] = useState(null);
 
-  useEffect(() => {
-    document.title = 'Admin Panel';
-
-    const metaConfigs = [
-      {
-        name: 'viewport',
-        content: 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'
-      },
-      { name: 'theme-color', content: '#000000' },
-      { name: 'apple-mobile-web-app-capable', content: 'yes' },
-      { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' }
-    ];
-
-    const metaState = metaConfigs.map(({ name, content }) => {
-      let element = document.querySelector(`meta[name="${name}"]`);
-      if (!element) {
-        element = document.createElement('meta');
-        element.setAttribute('name', name);
-        document.head.appendChild(element);
-        return { element, previousContent: null, created: true, content };
-      }
-
-      const previousContent = element.getAttribute('content');
-      return { element, previousContent, created: false, content };
-    });
-
-    metaState.forEach(({ element, content }) => {
-      element.setAttribute('content', content);
-    });
-
-    return () => {
-      metaState.forEach(({ element, previousContent, created }) => {
-        if (created) {
-          element.remove();
-        } else if (previousContent !== null) {
-          element.setAttribute('content', previousContent);
-        }
-      });
-    };
-  }, []);
+  const [culturalTimeRestrictions, setCulturalTimeRestrictions] = useState([]);
+  const [culturalPrayerTimeRestrictions, setCulturalPrayerTimeRestrictions] = useState([]);
+  const [isCulturalDateFilterOpen, setIsCulturalDateFilterOpen] = useState(false);
+  const [culturalSelectedDateFilter, setCulturalSelectedDateFilter] = useState([]);
+  const [culturalSelectedJalaliDate, setCulturalSelectedJalaliDate] = useState(null);
+  const [culturalCalendarDate, setCulturalCalendarDate] = useState(() => {
+    const now = new Date();
+    const jalali = toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+    return { year: jalali.jy, month: jalali.jm, day: jalali.jd };
+  });
+  const [culturalSelectedRestrictionType, setCulturalSelectedRestrictionType] = useState(null);
+  const [culturalRestrictionFormOpen, setCulturalRestrictionFormOpen] = useState(false);
+  const [culturalSelectedGenderRestrictions, setCulturalSelectedGenderRestrictions] = useState([]);
+  const [culturalTimeRestrictionPairs, setCulturalTimeRestrictionPairs] = useState([
+    { start: '', end: '' }
+  ]);
+  const [culturalLimitAllHours, setCulturalLimitAllHours] = useState(false);
+  const [isCulturalPrayerDateFilterOpen, setIsCulturalPrayerDateFilterOpen] = useState(false);
+  const [culturalPrayerCalendarDate, setCulturalPrayerCalendarDate] = useState({ year: 1403, month: 1 });
+  const [culturalPrayerSelectedJalaliDate, setCulturalPrayerSelectedJalaliDate] = useState(null);
+  const [culturalPrayerRestrictionFormOpen, setCulturalPrayerRestrictionFormOpen] = useState(false);
+  const [culturalSelectedPrayerEvents, setCulturalSelectedPrayerEvents] = useState([]);
+  const [culturalPrayerBeforeMinutes, setCulturalPrayerBeforeMinutes] = useState('');
+  const [culturalPrayerAfterMinutes, setCulturalPrayerAfterMinutes] = useState('');
+  const [culturalPrayerTimeRestrictionsList, setCulturalPrayerTimeRestrictionsList] = useState([]);
 
 
 
@@ -527,7 +507,7 @@ const Amain = () => {
     setPlaceAddress('');
     setSelectedLocation(null);
 
-    // Reset all language states
+
     setIsTitleLanguageModalOpen(false);
     setIsDescriptionLanguageModalOpen(false);
     setIsAddressLanguageModalOpen(false);
@@ -554,23 +534,44 @@ const Amain = () => {
     setTitleForModal('');
     setDescriptionForModal('');
 
-    // Remove marker
     if (currentMarker) {
       currentMarker.remove();
       setCurrentMarker(null);
     }
 
-    // Clean up map
     if (culturalMap) {
       culturalMap.remove();
       setCulturalMap(null);
     }
-  };
 
+    setCulturalTimeRestrictions([]);
+    setCulturalPrayerTimeRestrictions([]);
+    setIsCulturalDateFilterOpen(false);
+    setCulturalSelectedDateFilter([]);
+    setCulturalSelectedJalaliDate(null);
+    setCulturalCalendarDate(() => {
+      const now = new Date();
+      const jalali = toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+      return { year: jalali.jy, month: jalali.jm, day: jalali.jd };
+    });
+    setCulturalSelectedRestrictionType(null);
+    setCulturalRestrictionFormOpen(false);
+    setCulturalSelectedGenderRestrictions([]);
+    setCulturalTimeRestrictionPairs([{ start: '', end: '' }]);
+    setCulturalLimitAllHours(false);
+    setIsCulturalPrayerDateFilterOpen(false);
+    setCulturalPrayerCalendarDate({ year: 1403, month: 1 });
+    setCulturalPrayerSelectedJalaliDate(null);
+    setCulturalPrayerRestrictionFormOpen(false);
+    setCulturalSelectedPrayerEvents([]);
+    setCulturalPrayerBeforeMinutes('');
+    setCulturalPrayerAfterMinutes('');
+    setCulturalPrayerTimeRestrictionsList([]);
+  };
 
   const handleCulturalNextStep = () => {
     if (culturalStep === 1) {
-      if (!culturalTitle.trim()) { // REMOVED language check
+      if (!culturalTitle.trim()) {
         alert('لطفا عنوان را وارد کنید');
         return;
       }
@@ -584,13 +585,11 @@ const Amain = () => {
       setCulturalTypeError(false);
       setCulturalStep(2);
 
-      // Initialize map after DOM is ready
       setTimeout(() => {
         initializeCulturalMap();
       }, 100);
 
     } else if (culturalStep === 2) {
-      // Validate step 2
       if (!placeAddress.trim()) {
         alert('لطفا آدرس را وارد کنید');
         return;
@@ -620,6 +619,290 @@ const Amain = () => {
       }
     }
   }, [isAddCulturalModalOpen]);
+
+  // Cultural restriction handlers
+  const handleCulturalDateFilterToggle = (filter) => {
+    if (filter === 'انتخاب از تقویم') {
+      setCulturalSelectedDateFilter([filter]);
+      setIsCulturalDateFilterOpen(true);
+      setCulturalRestrictionFormOpen(false);
+      setCulturalSelectedRestrictionType(null);
+      return;
+    }
+
+    if (filter === culturalSelectedRestrictionType && culturalRestrictionFormOpen) {
+      setCulturalSelectedRestrictionType(null);
+      setCulturalRestrictionFormOpen(false);
+      setIsCulturalDateFilterOpen(false);
+      return;
+    }
+
+    setCulturalSelectedDateFilter([filter]);
+    setCulturalSelectedRestrictionType(filter);
+    setCulturalRestrictionFormOpen(true);
+    setIsCulturalDateFilterOpen(false);
+  };
+
+  const handleCulturalPrevMonth = () => {
+    setCulturalCalendarDate(prev => {
+      let newMonth = prev.month - 1;
+      let newYear = prev.year;
+      if (newMonth < 1) {
+        newMonth = 12;
+        newYear--;
+      }
+      return { ...prev, month: newMonth, year: newYear };
+    });
+  };
+
+  const handleCulturalNextMonth = () => {
+    setCulturalCalendarDate(prev => {
+      let newMonth = prev.month + 1;
+      let newYear = prev.year;
+      if (newMonth > 12) {
+        newMonth = 1;
+        newYear++;
+      }
+      return { ...prev, month: newMonth, year: newYear };
+    });
+  };
+
+  const handleCulturalDaySelect = (day) => {
+    setCulturalSelectedJalaliDate({
+      year: culturalCalendarDate.year,
+      month: culturalCalendarDate.month,
+      day: day
+    });
+
+    const jalaliMonths = [
+      'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+      'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
+    ];
+    const dateText = `${day} ${jalaliMonths[culturalCalendarDate.month - 1]} ${culturalCalendarDate.year}`;
+
+    setCulturalSelectedRestrictionType(`روز ${dateText}`);
+    setIsCulturalDateFilterOpen(false);
+    setCulturalRestrictionFormOpen(true);
+    setCulturalTimeRestrictionPairs([{ start: '', end: '' }]);
+    setCulturalLimitAllHours(false);
+    setCulturalSelectedGenderRestrictions([]);
+  };
+
+  const renderCulturalJalaliCalendarDays = () => {
+    const { year, month } = culturalCalendarDate;
+    const now = new Date();
+    const today = toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+
+    const firstDay = jalaliMonthStart(year, month);
+    const daysInMonth = jalaliMonthLength(year, month);
+    const days = [];
+
+    for (let i = 0; i < firstDay; i++) {
+      days.push(<div key={`cult-empty-${i}`} className="calendar-day empty"></div>);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const isToday = year === today.jy && month === today.jm && day === today.jd;
+      const isSelected = culturalSelectedJalaliDate &&
+        culturalSelectedJalaliDate.year === year &&
+        culturalSelectedJalaliDate.month === month &&
+        culturalSelectedJalaliDate.day === day;
+
+      days.push(
+        <div
+          key={`cult-day-${day}`}
+          className={`calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`}
+          onClick={() => handleCulturalDaySelect(day)}
+        >
+          {day}
+        </div>
+      );
+    }
+
+    return days;
+  };
+
+  const handleCulturalAddTimeRestriction = () => {
+    setCulturalTimeRestrictionPairs([...culturalTimeRestrictionPairs, { start: '', end: '' }]);
+  };
+
+  const handleCulturalRemoveTimeRestriction = (index) => {
+    if (culturalTimeRestrictionPairs.length > 1) {
+      const newPairs = culturalTimeRestrictionPairs.filter((_, i) => i !== index);
+      setCulturalTimeRestrictionPairs(newPairs);
+    }
+  };
+
+  const handleCulturalTimeChange = (index, field, value) => {
+    const newPairs = [...culturalTimeRestrictionPairs];
+    newPairs[index][field] = value;
+    setCulturalTimeRestrictionPairs(newPairs);
+  };
+
+  const handleCulturalGenderRestrictionToggle = (gender) => {
+    if (culturalSelectedGenderRestrictions.includes(gender)) {
+      setCulturalSelectedGenderRestrictions(culturalSelectedGenderRestrictions.filter(g => g !== gender));
+    } else {
+      setCulturalSelectedGenderRestrictions([...culturalSelectedGenderRestrictions, gender]);
+    }
+  };
+
+  const isCulturalRestrictionFormValid = () => {
+    if (culturalSelectedGenderRestrictions.length === 0) {
+      return false;
+    }
+
+    if (!culturalLimitAllHours) {
+      const hasValidTimePairs = culturalTimeRestrictionPairs.every(pair =>
+        pair.start && pair.end && pair.start !== '' && pair.end !== ''
+      );
+
+      if (!hasValidTimePairs) {
+        return false;
+      }
+
+      const hasValidTimeOrder = culturalTimeRestrictionPairs.every(pair => {
+        if (!pair.start || !pair.end) return false;
+        const startMinutes = convertTimeToMinutes(pair.start);
+        const endMinutes = convertTimeToMinutes(pair.end);
+        return startMinutes < endMinutes;
+      });
+
+      if (!hasValidTimeOrder) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const getCulturalRestrictionTitle = () => {
+    if (!culturalSelectedRestrictionType) return '';
+
+    if (culturalSelectedRestrictionType === 'کل روزها') return 'کل روزها';
+    if (culturalSelectedRestrictionType === 'تمام این ماه') return 'این ماه';
+    if (culturalSelectedRestrictionType === 'کل این هفته') return 'این هفته';
+    if (culturalSelectedRestrictionType.startsWith('روز')) return culturalSelectedRestrictionType;
+
+    return culturalSelectedRestrictionType;
+  };
+
+  const handleCulturalConfirmRestriction = () => {
+    if (!isCulturalRestrictionFormValid()) {
+      alert('لطفا اطلاعات محدودیت را به درستی تکمیل کنید');
+      return;
+    }
+
+    const newRestriction = {
+      id: Date.now(),
+      date: getCulturalRestrictionTitle(),
+      gender: [...culturalSelectedGenderRestrictions],
+      timePairs: culturalLimitAllHours
+        ? [{ start: '00:00', end: '23:59' }]
+        : culturalTimeRestrictionPairs.filter(pair => pair.start && pair.end),
+      limitAllHours: culturalLimitAllHours
+    };
+
+    setCulturalTimeRestrictions(prev => [...prev, newRestriction]);
+    handleCulturalCloseRestrictionForm();
+  };
+
+  const handleCulturalCloseRestrictionForm = () => {
+    setCulturalRestrictionFormOpen(false);
+    setCulturalSelectedRestrictionType(null);
+    setCulturalSelectedGenderRestrictions([]);
+    setCulturalTimeRestrictionPairs([{ start: '', end: '' }]);
+    setCulturalLimitAllHours(false);
+    setCulturalSelectedDateFilter([]);
+    setCulturalSelectedJalaliDate(null);
+  };
+
+  const removeCulturalRestriction = (index) => {
+    setCulturalTimeRestrictions(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Prayer restriction handlers for cultural modal
+  const handleCulturalPrayerPrevMonth = () => {
+    setCulturalPrayerCalendarDate(prev => {
+      let newMonth = prev.month - 1;
+      let newYear = prev.year;
+      if (newMonth < 1) {
+        newMonth = 12;
+        newYear--;
+      }
+      return { ...prev, month: newMonth, year: newYear };
+    });
+  };
+
+  const handleCulturalPrayerNextMonth = () => {
+    setCulturalPrayerCalendarDate(prev => {
+      let newMonth = prev.month + 1;
+      let newYear = prev.year;
+      if (newMonth > 12) {
+        newMonth = 1;
+        newYear++;
+      }
+      return { ...prev, month: newMonth, year: newYear };
+    });
+  };
+
+  const renderCulturalPrayerJalaliCalendarDays = () => {
+    const { year, month } = culturalPrayerCalendarDate;
+    const now = new Date();
+    const today = toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+
+    const firstDay = jalaliMonthStart(year, month);
+    const daysInMonth = jalaliMonthLength(year, month);
+    const days = [];
+
+    for (let i = 0; i < firstDay; i++) {
+      days.push(<div key={`cult-p-empty-${i}`} className="calendar-day empty"></div>);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const isToday = year === today.jy && month === today.jm && day === today.jd;
+      const isSelected = culturalPrayerSelectedJalaliDate &&
+        culturalPrayerSelectedJalaliDate.year === year &&
+        culturalPrayerSelectedJalaliDate.month === month &&
+        culturalPrayerSelectedJalaliDate.day === day;
+
+      days.push(
+        <div
+          key={`cult-p-day-${day}`}
+          className={`calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`}
+          onClick={() => {
+            setCulturalPrayerSelectedJalaliDate({ year, month, day });
+            const jalaliMonths = [
+              'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+              'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
+            ];
+            const dateText = `${day} ${jalaliMonths[month - 1]} ${year}`;
+            setIsCulturalPrayerDateFilterOpen(false);
+            setCulturalPrayerRestrictionFormOpen(true);
+          }}
+        >
+          {day}
+        </div>
+      );
+    }
+
+    return days;
+  };
+
+  const toggleCulturalPrayerEvent = (ev) => {
+    if (culturalSelectedPrayerEvents.includes(ev)) {
+      setCulturalSelectedPrayerEvents(culturalSelectedPrayerEvents.filter(e => e !== ev));
+    } else {
+      setCulturalSelectedPrayerEvents([...culturalSelectedPrayerEvents, ev]);
+    }
+  };
+
+  const removeCulturalDateFilter = (filter) => {
+    setCulturalSelectedDateFilter(prev => prev.filter(f => f !== filter));
+    if (filter === 'انتخاب از تقویم') {
+      setCulturalSelectedJalaliDate(null);
+    }
+  };
 
   // Helper function to create custom marker element
   const createMarkerElement = () => {
@@ -863,9 +1146,6 @@ const Amain = () => {
         });
 
         mapInstance.addControl(new maplibregl.NavigationControl());
-        mapInstance.on('load', (event) => {
-          initHaramVectorLayers(event, haramAdminVectorTileConfig);
-        });
         setMap(mapInstance);
 
         return () => {
@@ -881,11 +1161,6 @@ const Amain = () => {
       if (map) {
         map.remove();
         setMap(null);
-
-        if (locationMarker) {
-          locationMarker.remove();
-          setLocationMarker(null);
-        }
       }
     }
   }, [activeMenu]);
@@ -935,35 +1210,10 @@ const Amain = () => {
 
   const handleLocationMarkerSelect = () => {
     setIsLocationMarkerMode(true);
-
-    if (!map) return;
-
-    const center = map.getCenter();
-
-    setSelectedLocation(center);
-
-    if (locationMarker) {
-      locationMarker.setLngLat(center);
-    } else {
-      const marker = new maplibregl.Marker({ color: '#1E2023' })
-        .setLngLat(center)
-        .addTo(map);
-      setLocationMarker(marker);
-    }
-
-    map.flyTo({
-      center,
-      zoom: Math.max(map.getZoom(), 16)
-    });
   };
 
   const handleCancelLocationMarker = () => {
     setIsLocationMarkerMode(false);
-
-    if (locationMarker) {
-      locationMarker.remove();
-      setLocationMarker(null);
-    }
   };
 
   const handleAddPlaceToMarker = () => {
@@ -971,26 +1221,6 @@ const Amain = () => {
     setCurrentStep(1);
     setIsLocationMarkerMode(false);
   };
-
-  useEffect(() => {
-    if (!map || !isLocationMarkerMode) return;
-
-    const keepMarkerCentered = () => {
-      const center = map.getCenter();
-
-      if (locationMarker) {
-        locationMarker.setLngLat(center);
-      }
-
-      setSelectedLocation(center);
-    };
-
-    map.on('move', keepMarkerCentered);
-
-    return () => {
-      map.off('move', keepMarkerCentered);
-    };
-  }, [map, isLocationMarkerMode, locationMarker]);
   useEffect(() => {
     // Reset scroll position when menu changes
     if (contentRef.current) {
@@ -1027,28 +1257,6 @@ const Amain = () => {
     'نمای ساده'
   ];
 
-  const mapFloors = [
-    'همکف',
-    'منفی ۱'
-  ];
-
-  const floorLabelToValue = (label) => {
-    switch (label) {
-    case 'منفی ۱':
-      return -1;
-    case 'همکف':
-    default:
-      return 0;
-    }
-  };
-
-  const floorValueToLabel = (value) => {
-    if (value === -1) {
-      return 'منفی ۱';
-    }
-    return 'همکف';
-  };
-
   const formatJalaliDate = (date) => {
     const jalali = toJalaali(date.getFullYear(), date.getMonth() + 1, date.getDate());
 
@@ -1078,25 +1286,6 @@ const Amain = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isCalendarOpen]);
-
-  useEffect(() => {
-    const initialFloor = getSessionFloor();
-    setMapFloor(floorValueToLabel(initialFloor));
-
-    const unsubscribe = subscribeToSessionFloor((floor) => {
-      setMapFloor(floorValueToLabel(floor));
-    });
-
-    return () => {
-      if (typeof unsubscribe === 'function') {
-        unsubscribe();
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    setSessionFloor(floorLabelToValue(mapFloor));
-  }, [mapFloor]);
 
   useEffect(() => {
     // Chrome rendering fix
@@ -1747,16 +1936,7 @@ const Amain = () => {
   const endIndex = startIndex + itemsPerPage;
   const currentUsers = filteredUsers.slice(startIndex, endIndex);
 
-  const adminDisplayName =
-    adminProfile?.fullName ||
-    adminProfile?.name ||
-    adminProfile?.username ||
-    adminProfile?.email ||
-    adminProfile?.user?.fullName ||
-    adminProfile?.user?.name ||
-    adminProfile?.user?.username ||
-    adminProfile?.user?.email ||
-    'ادمین';
+  const adminDisplayName = adminProfile?.fullName || adminProfile?.name || adminProfile?.username || adminProfile?.email || 'ادمین';
 
   const handleLogout = useCallback(() => {
     logout();
@@ -1785,6 +1965,13 @@ const Amain = () => {
 
   return (
     <div className={`admin-panel admin-panel-isolated ${isMapFullscreen ? 'map-fullscreen' : ''}`}>
+      <Helmet>
+        <title>Admin Panel</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <meta name="theme-color" content="#000000" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+      </Helmet>
       {/* Header */}
       <div className="admin-header">
         <div className="header-right">
@@ -2039,32 +2226,32 @@ const Amain = () => {
               </span>
               <span>پشتیبانی</span>
             </div>
-              <div className="menu-item">
-                <span className="menu-icon9">
-                  <svg width="16" height="18" viewBox="0 0 16 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <div className="menu-item">
+              <span className="menu-icon9">
+                <svg width="16" height="18" viewBox="0 0 16 18" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M8.84615 1.44869C8.84615 1.11945 8.57925 0.852539 8.25 0.852539C7.92075 0.852539 7.65385 1.11945 7.65385 1.44869V4.62818C7.65385 4.95743 7.92075 5.22433 8.25 5.22433C8.57925 5.22433 8.84615 4.95743 8.84615 4.62818V1.44869Z" fill="#EA4335" />
                   <path d="M5.69997 3.35383C6.00326 3.22568 6.14524 2.87594 6.0171 2.57266C5.88896 2.26937 5.53922 2.12738 5.23593 2.25552C2.45405 3.43088 0.5 6.18526 0.5 9.39741C0.5 13.6776 3.96979 17.1474 8.25 17.1474C12.5302 17.1474 16 13.6776 16 9.39741C16 6.18526 14.0459 3.43088 11.2641 2.25552C10.9608 2.12738 10.611 2.26937 10.4829 2.57266C10.3548 2.87594 10.4967 3.22568 10.8 3.35383C13.1561 4.34928 14.8077 6.68116 14.8077 9.39741C14.8077 13.0191 11.8717 15.9551 8.25 15.9551C4.62829 15.9551 1.69231 13.0191 1.69231 9.39741C1.69231 6.68116 3.34389 4.34928 5.69997 3.35383Z" fill="#EA4335" />
                   <path d="M8.84615 1.44869C8.84615 1.11945 8.57925 0.852539 8.25 0.852539C7.92075 0.852539 7.65385 1.11945 7.65385 1.44869V4.62818C7.65385 4.95743 7.92075 5.22433 8.25 5.22433C8.57925 5.22433 8.84615 4.95743 8.84615 4.62818V1.44869Z" stroke="#EA4335" strokeWidth="0.2" strokeLinecap="round" />
                   <path d="M5.69997 3.35383C6.00326 3.22568 6.14524 2.87594 6.0171 2.57266C5.88896 2.26937 5.53922 2.12738 5.23593 2.25552C2.45405 3.43088 0.5 6.18526 0.5 9.39741C0.5 13.6776 3.96979 17.1474 8.25 17.1474C12.5302 17.1474 16 13.6776 16 9.39741C16 6.18526 14.0459 3.43088 11.2641 2.25552C10.9608 2.12738 10.611 2.26937 10.4829 2.57266C10.3548 2.87594 10.4967 3.22568 10.8 3.35383C13.1561 4.34928 14.8077 6.68116 14.8077 9.39741C14.8077 13.0191 11.8717 15.9551 8.25 15.9551C4.62829 15.9551 1.69231 13.0191 1.69231 9.39741C1.69231 6.68116 3.34389 4.34928 5.69997 3.35383Z" stroke="#EA4335" strokeWidth="0.2" strokeLinecap="round" />
                 </svg>
 
-                </span>
-                <span
-                  className="menu-item-exit"
-                  onClick={handleLogout}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      handleLogout();
-                    }
-                  }}
-                >
-                  خروج از حساب
-                </span>
-              </div>
+              </span>
+              <span
+                className="menu-item-exit"
+                onClick={handleLogout}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    handleLogout();
+                  }
+                }}
+              >
+                خروج از حساب
+              </span>
             </div>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -2248,13 +2435,6 @@ const Amain = () => {
                                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                                   <path fillRule="evenodd" clipRule="evenodd" d="M3.41116 5.1678C3.68669 5.14943 3.92494 5.3579 3.94331 5.63343L4.24994 10.2328C4.30984 11.1314 4.35253 11.7566 4.44624 12.227C4.53714 12.6833 4.66403 12.9249 4.8463 13.0954C5.02858 13.2659 5.27802 13.3765 5.73935 13.4368C6.21496 13.499 6.84163 13.5 7.74219 13.5H8.25776C9.15832 13.5 9.78499 13.499 10.2606 13.4368C10.7219 13.3765 10.9714 13.2659 11.1536 13.0954C11.3359 12.9249 11.4628 12.6833 11.5537 12.227C11.6474 11.7566 11.6901 11.1314 11.75 10.2328L12.0566 5.63343C12.075 5.3579 12.3133 5.14943 12.5888 5.1678C12.8643 5.18617 13.0728 5.42442 13.0544 5.69995L12.7455 10.3345C12.6885 11.1896 12.6424 11.8804 12.5344 12.4224C12.4222 12.986 12.2312 13.4567 11.8368 13.8256C11.4424 14.1946 10.9601 14.3538 10.3903 14.4284C9.84227 14.5001 9.14998 14.5 8.29292 14.5H7.70703C6.84997 14.5 6.15768 14.5001 5.60965 14.4284C5.03988 14.3538 4.55752 14.1946 4.16312 13.8256C3.76872 13.4567 3.57778 12.986 3.46551 12.4224C3.35753 11.8804 3.31149 11.1896 3.25449 10.3344L2.94553 5.69995C2.92716 5.42442 3.13563 5.18617 3.41116 5.1678Z" fill="#1E2023" />
                                   <path fillRule="evenodd" clipRule="evenodd" d="M6.90348 1.50003L6.87283 1.50001C6.72857 1.49992 6.60288 1.49984 6.4842 1.51879C6.01534 1.59366 5.60961 1.8861 5.39031 2.30723C5.3348 2.41382 5.29513 2.53309 5.2496 2.66998L5.23992 2.69905L5.17519 2.89323C5.16253 2.93121 5.159 2.94168 5.15593 2.95016C5.03919 3.2729 4.73651 3.49106 4.39341 3.49976C4.38439 3.49999 4.37334 3.50003 4.33331 3.50003H2.33325C2.05711 3.50003 1.83325 3.72388 1.83325 4.00003C1.83325 4.27617 2.05711 4.50003 2.33325 4.50003L4.33902 4.50003L4.35018 4.50003H11.6498L11.6609 4.50003L13.6666 4.50003C13.9428 4.50003 14.1666 4.27617 14.1666 4.00003C14.1666 3.72388 13.9428 3.50003 13.6666 3.50003H11.6666C11.6266 3.50003 11.6156 3.49999 11.6065 3.49976C11.2634 3.49106 10.9608 3.27289 10.844 2.95014C10.841 2.94172 10.8374 2.93102 10.8248 2.89323L10.76 2.69905L10.7503 2.66996C10.7048 2.53307 10.6651 2.41382 10.6096 2.30723C10.3903 1.8861 9.98461 1.59366 9.51575 1.51879C9.39707 1.49984 9.27138 1.49992 9.12712 1.50001L9.09647 1.50003H6.90348ZM6.0963 3.29032C6.07012 3.36269 6.03969 3.43268 6.00535 3.50003H9.9946C9.96026 3.43268 9.92983 3.3627 9.90365 3.29033L9.87784 3.21477L9.81135 3.01528C9.75057 2.83294 9.73657 2.79575 9.72269 2.76909C9.64959 2.62872 9.51435 2.53124 9.35806 2.50628C9.32837 2.50154 9.28868 2.50003 9.09647 2.50003H6.90348C6.71127 2.50003 6.67157 2.50154 6.64189 2.50628C6.4856 2.53124 6.35036 2.62872 6.27726 2.76909C6.26338 2.79575 6.24938 2.83294 6.1886 3.01528L6.12207 3.21489C6.11205 3.24495 6.10425 3.26834 6.0963 3.29032Z" fill="#1E2023" />
-                                </svg>
-                              </button>
-                              <button className="cultural-details-btn">
-                                <svg width="100" height="32" viewBox="0 0 100 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <rect x="0.25" y="0.25" width="99.5" height="31.5" rx="5.75" stroke="#D9D9D9" strokeWidth="0.5" />
-                                  <path fillRule="evenodd" clipRule="evenodd" d="M18.3254 10.9538C18.535 11.1335 18.5593 11.4491 18.3796 11.6588L14.6585 16L18.3796 20.3413C18.5593 20.551 18.535 20.8666 18.3254 21.0463C18.1157 21.2261 17.8001 21.2018 17.6204 20.9921L13.6204 16.3254C13.4599 16.1382 13.4599 15.8619 13.6204 15.6747L17.6204 11.008C17.8001 10.7983 18.1157 10.774 18.3254 10.9538Z" fill="#1E2023" />
-                                  <path d="M32.2572 19C32.0252 19 31.8252 18.976 31.6572 18.928C31.6812 19.112 31.6932 19.28 31.6932 19.432C31.6932 19.92 31.5812 20.324 31.3572 20.644C31.1332 20.964 30.8292 21.22 30.4452 21.412C30.0692 21.604 29.5932 21.78 29.0172 21.94L28.5252 22.084L28.2852 21.1L28.7892 20.956C29.2612 20.828 29.6252 20.708 29.8812 20.596C30.1452 20.492 30.3612 20.34 30.5292 20.14C30.6972 19.948 30.7812 19.684 30.7812 19.348C30.7812 19.284 30.7732 19.18 30.7572 19.036L30.2772 15.592L31.1772 15.448L31.2372 15.88C31.2532 16.008 31.2692 16.1 31.2852 16.156L31.4052 16.924C31.4532 17.22 31.5052 17.444 31.5612 17.596C31.6252 17.74 31.7092 17.844 31.8132 17.908C31.9172 17.964 32.0652 17.992 32.2572 17.992H32.3412L32.4012 18.496L32.3412 19H32.2572ZM32.2447 17.992H34.0807C34.8487 17.992 35.2087 17.692 35.1607 17.092V17.056L35.0287 15.58L35.9407 15.496L36.0727 16.972V17.044C36.1127 17.396 36.2087 17.644 36.3607 17.788C36.5207 17.924 36.7847 17.992 37.1527 17.992L37.2127 18.496L37.1527 19C36.4887 19 35.9847 18.804 35.6407 18.412C35.4647 18.604 35.2407 18.752 34.9687 18.856C34.7047 18.952 34.4087 19 34.0807 19H32.2447V17.992ZM32.5567 13.12H33.6247V14.188H32.5567V13.12ZM34.6807 13.12H35.7487V14.188H34.6807V13.12ZM43.3017 19C42.6857 19 42.1937 18.756 41.8257 18.268C41.4737 18.756 40.9537 19 40.2657 19C39.6577 19 39.1817 18.756 38.8377 18.268C38.4777 18.756 37.9657 19 37.3017 19H37.0377V17.992H37.3017C38.0297 17.992 38.3937 17.668 38.3937 17.02V15.532H39.2457V17.02C39.2697 17.244 39.3417 17.464 39.4617 17.68C39.5817 17.888 39.8497 17.992 40.2657 17.992C40.6977 17.992 40.9857 17.9 41.1297 17.716C41.2817 17.524 41.3577 17.292 41.3577 17.02V15.532H42.2097V17.02C42.2177 17.284 42.3057 17.508 42.4737 17.692C42.6417 17.876 42.8977 17.968 43.2417 17.968C43.6257 17.968 43.9057 17.9 44.0817 17.764C44.2657 17.62 44.3577 17.436 44.3577 17.212C44.3577 17.124 44.3457 17.04 44.3217 16.96L43.9257 15.484L44.7537 15.244L45.1497 16.72L45.1617 16.78C45.2577 17.14 45.4457 17.432 45.7257 17.656C46.0057 17.88 46.3257 17.992 46.6857 17.992L46.7457 18.496L46.6857 19C46.3417 19 46.0217 18.928 45.7257 18.784C45.4297 18.64 45.1737 18.44 44.9577 18.184C44.7977 18.432 44.5737 18.632 44.2857 18.784C44.0057 18.928 43.6777 19 43.3017 19ZM40.2057 13.108H41.3337V14.236H40.1937L40.2057 13.108ZM41.3217 11.608H42.3657V12.592H41.3217V11.608ZM42.3297 13.108H43.4577L43.4697 14.236H42.3177L42.3297 13.108ZM46.565 17.992H48.401C49.169 17.992 49.529 17.692 49.481 17.092V17.056L49.349 15.58L50.261 15.496L50.393 16.972V17.044C50.433 17.396 50.529 17.644 50.681 17.788C50.841 17.924 51.105 17.992 51.473 17.992L51.533 18.496L51.473 19C50.809 19 50.305 18.804 49.961 18.412C49.785 18.604 49.561 18.752 49.289 18.856C49.025 18.952 48.729 19 48.401 19H46.565V17.992ZM46.049 20.2H47.117V21.28H46.049V20.2ZM48.173 20.2H49.241V21.28H48.173V20.2ZM51.358 17.992H52.306C53.178 17.992 53.614 17.664 53.614 17.008C53.614 16.832 53.586 16.648 53.53 16.456L53.05 14.668L53.938 14.416L54.418 16.204C54.49 16.5 54.526 16.772 54.526 17.02C54.526 17.652 54.314 18.14 53.89 18.484C53.466 18.828 52.938 19 52.306 19H51.358V17.992ZM51.634 20.092H52.834V21.304H51.634V20.092ZM63.5911 19C62.6871 19 62.0071 18.992 61.5511 18.976C61.1031 18.952 60.7671 18.92 60.5431 18.88C60.3271 18.832 60.1191 18.764 59.9191 18.676C59.5511 18.516 59.2711 18.284 59.0791 17.98C58.8951 17.676 58.8031 17.32 58.8031 16.912C58.8031 16.664 58.8391 16.404 58.9111 16.132L59.3551 14.44L60.2311 14.704L59.7871 16.432C59.7391 16.624 59.7151 16.792 59.7151 16.936C59.7151 17.128 59.7591 17.292 59.8471 17.428C59.9431 17.556 60.0871 17.664 60.2791 17.752C60.4151 17.816 60.5711 17.864 60.7471 17.896C60.9311 17.928 61.2471 17.952 61.6951 17.968C62.1431 17.984 62.8151 17.992 63.7111 17.992H63.7231C64.6031 17.992 65.2671 17.984 65.7151 17.968C66.1631 17.944 66.4711 17.916 66.6391 17.884C66.8071 17.852 66.9631 17.808 67.1071 17.752C67.3071 17.664 67.4551 17.552 67.5511 17.416C67.6471 17.28 67.6951 17.108 67.6951 16.9C67.6951 16.724 67.6671 16.536 67.6111 16.336L67.1551 14.668L68.0311 14.416L68.4871 16.084C68.5671 16.372 68.6071 16.656 68.6071 16.936C68.6071 17.344 68.5111 17.7 68.3191 18.004C68.1351 18.3 67.8591 18.524 67.4911 18.676C67.2911 18.764 67.0751 18.832 66.8431 18.88C66.6191 18.92 66.2711 18.952 65.7991 18.976C65.3351 18.992 64.6431 19 63.7231 19H63.7111H63.5911ZM62.1031 13.804H63.1711V14.872H62.1031V13.804ZM64.2271 13.804H65.2951V14.872H64.2271V13.804ZM72.399 19C71.879 19 71.471 18.924 71.175 18.772C70.879 18.62 70.663 18.376 70.527 18.04C70.391 17.696 70.311 17.224 70.287 16.624L70.071 11.104L70.983 11.056L71.199 16.624C71.215 17.032 71.251 17.328 71.307 17.512C71.371 17.696 71.483 17.824 71.643 17.896C71.803 17.96 72.055 17.992 72.399 17.992H72.519L72.579 18.496L72.519 19H72.399ZM72.4048 17.992H74.2408C75.0088 17.992 75.3688 17.692 75.3208 17.092V17.056L75.1888 15.58L76.1008 15.496L76.2328 16.972V17.044C76.2728 17.396 76.3688 17.644 76.5208 17.788C76.6808 17.924 76.9448 17.992 77.3128 17.992L77.3728 18.496L77.3128 19C76.6488 19 76.1448 18.804 75.8008 18.412C75.6248 18.604 75.4008 18.752 75.1288 18.856C74.8648 18.952 74.5688 19 74.2408 19H72.4048V17.992ZM71.8888 20.2H72.9568V21.28H71.8888V20.2ZM74.0128 20.2H75.0808V21.28H74.0128V20.2ZM77.1978 17.992H78.1458C79.0178 17.992 79.4538 17.664 79.4538 17.008C79.4538 16.832 79.4258 16.648 79.3698 16.456L78.8898 14.668L79.7778 14.416L80.2578 16.204C80.3298 16.5 80.3658 16.772 80.3658 17.02C80.3658 17.652 80.1538 18.14 79.7298 18.484C79.3058 18.828 78.7778 19 78.1458 19H77.1978V17.992ZM78.3978 13.096C78.2298 12.928 78.1218 12.728 78.0738 12.496C78.0498 12.4 78.0378 12.304 78.0378 12.208C78.0378 11.888 78.1498 11.616 78.3738 11.392C78.6058 11.168 78.8898 11.056 79.2258 11.056C79.4418 11.056 79.7418 11.096 80.1258 11.176L80.0298 11.692C79.6858 11.628 79.4138 11.596 79.2138 11.596C79.0138 11.596 78.8458 11.66 78.7098 11.788C78.5818 11.908 78.5178 12.056 78.5178 12.232C78.5178 12.424 78.5818 12.584 78.7098 12.712C78.8458 12.832 79.0058 12.892 79.1898 12.892C79.2298 12.892 79.2818 12.884 79.3458 12.868L80.5578 12.58L80.6658 13.108L77.5098 13.864L77.4018 13.336L78.3978 13.096ZM84.0892 19C83.8572 19 83.6572 18.976 83.4892 18.928C83.5132 19.112 83.5252 19.28 83.5252 19.432C83.5252 19.92 83.4132 20.324 83.1892 20.644C82.9652 20.964 82.6612 21.22 82.2772 21.412C81.9012 21.604 81.4252 21.78 80.8492 21.94L80.3572 22.084L80.1172 21.1L80.6212 20.956C81.0932 20.828 81.4572 20.708 81.7132 20.596C81.9772 20.492 82.1932 20.34 82.3612 20.14C82.5292 19.948 82.6132 19.684 82.6132 19.348C82.6132 19.284 82.6052 19.18 82.5892 19.036L82.1092 15.592L83.0092 15.448L83.0692 15.88C83.0852 16.008 83.1012 16.1 83.1172 16.156L83.2372 16.924C83.2852 17.22 83.3372 17.444 83.3932 17.596C83.4572 17.74 83.5412 17.844 83.6452 17.908C83.7492 17.964 83.8972 17.992 84.0892 17.992H84.1732L84.2332 18.496L84.1732 19H84.0892ZM81.7972 12.892H83.0092V14.104H81.7972V12.892ZM84.0767 17.992H84.2447C84.9567 17.992 85.5527 17.976 86.0327 17.944C86.5127 17.904 87.0047 17.812 87.5087 17.668L90.3287 16.912L87.8927 15.52C87.6527 15.376 87.4047 15.304 87.1487 15.304C86.9007 15.304 86.6647 15.376 86.4407 15.52C86.2167 15.656 86.0367 15.848 85.9007 16.096L85.6847 16.468L84.8927 15.976L85.1207 15.568C85.3447 15.16 85.6327 14.844 85.9847 14.62C86.3447 14.396 86.7287 14.284 87.1367 14.284C87.5527 14.284 87.9527 14.4 88.3367 14.632L91.3967 16.48L91.2527 17.656L87.7367 18.652C87.1767 18.804 86.6367 18.9 86.1167 18.94C85.5967 18.98 84.9687 19 84.2327 19H84.0767V17.992ZM87.1967 20.008H88.3967V21.22H87.1967V20.008Z" fill="#1E2023" />
                                 </svg>
                               </button>
                             </div>
@@ -2596,7 +2776,7 @@ const Amain = () => {
                     </div>
                     <div className="date-separator3"></div>
                     <div
-                      className={`action-button doors_management ${isLocationMarkerMode ? 'selected' : ''}`}
+                      className={`action-button ${isLocationMarkerMode ? 'selected' : ''}`}
                       onClick={handleLocationMarkerSelect}
                     >
                       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -2618,7 +2798,7 @@ const Amain = () => {
                     </button>
                   )}
                   <div className="map-type-selector">
-                    <div className="map-type-display" onClick={() => { setIsMapTypeOpen(!isMapTypeOpen); setIsMapFloorOpen(false); }}>
+                    <div className="map-type-display" onClick={() => setIsMapTypeOpen(!isMapTypeOpen)}>
                       <span className="stgi">نوع نقشه
                         <div className="date-separator2"></div>
                       </span>
@@ -2640,35 +2820,6 @@ const Amain = () => {
                             }}
                           >
                             {type}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="map-type-selector">
-                    <div className="map-type-display" onClick={() => { setIsMapFloorOpen(!isMapFloorOpen); setIsMapTypeOpen(false); }}>
-                      <span className="stgi">طبقه نقشه
-                        <div className="date-separator2"></div>
-                      </span>
-                      <span>{mapFloor}</span>
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path fillRule="evenodd" clipRule="evenodd" d="M3.64645 5.64645C3.84171 5.45118 4.15829 5.45118 4.35355 5.64645L8 9.29289L11.6464 5.64645C11.8417 5.45118 12.1583 5.45118 12.3536 5.64645C12.5488 5.84171 12.5488 6.15829 12.3536 6.35355L8.35355 10.3536C8.15829 10.5488 7.84171 10.5488 7.64645 10.3536L3.64645 6.35355C3.45118 6.15829 3.45118 5.84171 3.64645 5.64645Z" fill="#1E2023" />
-                      </svg>
-                    </div>
-
-                    {isMapFloorOpen && (
-                      <div className="map-type-dropdown">
-                        {mapFloors.map(floor => (
-                          <div
-                            key={floor}
-                            className="map-type-option"
-                            onClick={() => {
-                              setMapFloor(floor);
-                              setIsMapFloorOpen(false);
-                            }}
-                          >
-                            {floor}
                           </div>
                         ))}
                       </div>
@@ -4457,13 +4608,523 @@ const Amain = () => {
                 </div>
               )}
               {culturalStep === 3 && (
-                <div className="step-content">
-                  <div className="step-intro">
-                    <h3>مرحله سوم - اطلاعات اضافی</h3>
+                <div className="step-content step3-content">
+                  <div className="step-intro3">
+                    <h3>فرم ایجاد و افزودن اطلاعات فرهنگی جدید</h3>
                   </div>
+
                   <div className="form-section">
-                    {/* Empty for now - will be filled later */}
-                    <p>این مرحله بعداً تکمیل خواهد شد</p>
+                    {/* Time-based Restrictions Section */}
+                    <div className="restriction-section">
+                      <div className="restriction-header">
+                        <span className="restriction-title">محدودیت بر اساس روز، ساعت و جنسیت</span>
+                        <button
+                          className="add-restriction-btn"
+                          onClick={() => setIsCulturalDateFilterOpen(!isCulturalDateFilterOpen)}
+                        >
+                          افزودن محدودیت
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#1E2023" />
+                            <path d="M10 15.625C9.65833 15.625 9.375 15.3417 9.375 15V5C9.375 4.65833 9.65833 4.375 10 4.375C10.3417 4.375 10.625 4.65833 10.625 5V15C10.625 15.3417 10.3417 15.625 10 15.625Z" fill="#1E2023" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {/* Display existing restrictions */}
+                      {culturalTimeRestrictions.length > 0 && (
+                        <div className="restrictions-display">
+                          {culturalTimeRestrictions.map((restriction, index) => (
+                            <div key={index} className="restriction-display-item">
+                              <div className="restriction-info">
+                                <span className="restriction-date">محدودیت های {restriction.date} ،</span>
+                                <span className="restriction-gender">{restriction.gender.join('، ')} ،</span>
+                                <span className="restriction-time">
+                                  {restriction.timePairs.map((pair, idx) => (
+                                    <span key={idx}>
+                                      {pair.start} الی {pair.end}
+                                      {idx < restriction.timePairs.length - 1 && '، '}
+                                    </span>
+                                  ))}
+                                </span>
+                              </div>
+                              <button
+                                className="remove-restriction-display-btn"
+                                onClick={() => removeCulturalRestriction(index)}
+                              >
+                                <svg width="75" height="32" viewBox="0 0 75 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <rect x="0.5" y="0.5" width="74" height="31" rx="5.5" stroke="#EA4335" />
+                                  <path fillRule="evenodd" clipRule="evenodd" d="M15.4099 13.1678C15.6855 13.1494 15.9237 13.3579 15.9421 13.6334L16.2487 18.2328C16.3086 19.1314 16.3513 19.7566 16.445 20.227C16.5359 20.6833 16.6628 20.9249 16.8451 21.0954C17.0274 21.2659 17.2768 21.3765 17.7381 21.4368C18.2137 21.499 18.8404 21.5 19.741 21.5H20.2565C21.1571 21.5 21.7838 21.499 22.2594 21.4368C22.7207 21.3765 22.9701 21.2659 23.1524 21.0954C23.3347 20.9249 23.4616 20.6833 23.5525 20.227C23.6462 19.7566 23.6889 19.1314 23.7488 18.2328L24.0554 13.6334C24.0738 13.3579 24.312 13.1494 24.5876 13.1678C24.8631 13.1862 25.0716 13.4244 25.0532 13.7L24.7442 18.3345C24.6872 19.1896 24.6412 19.8804 24.5332 20.4224C24.421 20.986 24.23 21.4567 23.8356 21.8256C23.4412 22.1946 22.9588 22.3538 22.3891 22.4284C21.8411 22.5001 21.1488 22.5 20.2917 22.5H19.7058C18.8488 22.5 18.1565 22.5001 17.6084 22.4284C17.0387 22.3538 16.5563 22.1946 16.1619 21.8256C15.7675 21.4567 15.5766 20.986 15.4643 20.4224C15.3563 19.8804 15.3103 19.1896 15.2533 18.3344L14.9443 13.7C14.9259 13.4244 15.1344 13.1862 15.4099 13.1678Z" fill="#EA4335" />
+                                  <path fillRule="evenodd" clipRule="evenodd" d="M18.9023 9.50003L18.8716 9.50001C18.7273 9.49992 18.6017 9.49984 18.483 9.51879C18.0141 9.59366 17.6084 9.8861 17.3891 10.3072C17.3336 10.4138 17.2939 10.5331 17.2484 10.67L17.2387 10.6991L17.174 10.8932C17.1613 10.9312 17.1578 10.9417 17.1547 10.9502C17.038 11.2729 16.7353 11.4911 16.3922 11.4998C16.3832 11.5 16.3721 11.5 16.3321 11.5H14.332C14.0559 11.5 13.832 11.7239 13.832 12C13.832 12.2762 14.0559 12.5 14.332 12.5L16.3378 12.5L16.349 12.5H23.6486L23.6597 12.5L25.6654 12.5C25.9416 12.5 26.1654 12.2762 26.1654 12C26.1654 11.7239 25.9416 11.5 25.6654 11.5H23.6654C23.6254 11.5 23.6143 11.5 23.6053 11.4998C23.2622 11.4911 22.9595 11.2729 22.8428 10.9501C22.8397 10.9417 22.8361 10.931 22.8235 10.8932L22.7588 10.6991L22.7491 10.67C22.7036 10.5331 22.6639 10.4138 22.6084 10.3072C22.3891 9.8861 21.9834 9.59366 21.5145 9.51879C21.3958 9.49984 21.2702 9.49992 21.1259 9.50001L21.0952 9.50003H18.9023ZM18.0951 11.2903C18.0689 11.3627 18.0385 11.4327 18.0041 11.5H21.9934C21.959 11.4327 21.9286 11.3627 21.9024 11.2903L21.8766 11.2148L21.8101 11.0153C21.7493 10.8329 21.7354 10.7958 21.7215 10.7691C21.6484 10.6287 21.5131 10.5312 21.3568 10.5063C21.3272 10.5015 21.2875 10.5 21.0952 10.5H18.9023C18.7101 10.5 18.6704 10.5015 18.6407 10.5063C18.4844 10.5312 18.3491 10.6287 18.276 10.7691C18.2622 10.7958 18.2482 10.8329 18.1874 11.0153L18.1208 11.2149C18.1108 11.2449 18.103 11.2683 18.0951 11.2903Z" fill="#EA4335" />
+                                  <path d="M38.7759 20C37.7026 20 36.8953 19.9907 36.3539 19.972C35.8219 19.944 35.4253 19.9067 35.1639 19.86C34.9119 19.8133 34.6646 19.734 34.4219 19.622C33.9926 19.4353 33.6659 19.1647 33.4419 18.81C33.2273 18.4553 33.1199 18.04 33.1199 17.564C33.1199 17.2747 33.1619 16.9713 33.2459 16.654L33.7639 14.68L34.7859 14.988L34.2679 17.004C34.2119 17.228 34.1839 17.424 34.1839 17.592C34.1839 17.816 34.2353 18.0073 34.3379 18.166C34.4499 18.3153 34.6179 18.4413 34.8419 18.544C35.0006 18.6187 35.1826 18.6747 35.3879 18.712C35.6026 18.7493 35.9713 18.7773 36.4939 18.796C37.0166 18.8147 37.8006 18.824 38.8459 18.824H41.6319C42.1826 18.824 42.5933 18.8007 42.8639 18.754C43.1346 18.7073 43.3213 18.628 43.4239 18.516C43.5266 18.3947 43.5779 18.2173 43.5779 17.984C43.5779 17.844 43.5733 17.732 43.5639 17.648C43.0226 17.732 42.4346 17.774 41.7999 17.774C41.1186 17.774 40.5726 17.578 40.1619 17.186C39.7606 16.7847 39.5599 16.2387 39.5599 15.548C39.5599 15.0627 39.6486 14.61 39.8259 14.19C40.0126 13.77 40.2833 13.434 40.6379 13.182C41.0019 12.9207 41.4359 12.79 41.9399 12.79C42.6119 12.79 43.1719 13.042 43.6199 13.546C44.0773 14.05 44.3433 14.722 44.4179 15.562L44.5719 17.48C44.5906 17.76 44.5999 17.9513 44.5999 18.054C44.5999 18.53 44.5113 18.908 44.3339 19.188C44.1659 19.468 43.8626 19.6733 43.4239 19.804C42.9946 19.9347 42.3879 20 41.6039 20H38.8459H38.7759ZM40.5399 15.408C40.5399 15.8 40.6519 16.1127 40.8759 16.346C41.0999 16.57 41.4079 16.682 41.7999 16.682C42.3786 16.682 42.9339 16.6353 43.4659 16.542L43.3959 15.66C43.3306 15.0907 43.1626 14.652 42.8919 14.344C42.6306 14.0267 42.2993 14.868 41.8979 13.868C41.4779 13.868 41.1466 14.022 40.9039 14.33C40.6613 14.6287 40.5399 14.988 40.5399 15.408ZM41.2959 10.088H42.7099V11.488H41.2959V10.088ZM48.5068 20C47.8161 20 47.2655 19.8647 46.8548 19.594C46.4535 19.314 46.2295 18.95 46.1828 18.502C46.1361 18.306 46.1128 17.998 46.1128 17.578H47.0928C47.0928 17.8673 47.1115 18.1007 47.1488 18.278C47.1861 18.474 47.2981 18.614 47.4848 18.698C47.6808 18.782 47.9655 18.824 48.3388 18.824H49.1928C50.1728 18.824 50.6628 18.53 50.6628 17.942C50.6628 17.8767 50.6441 17.76 50.6068 17.592V17.564L49.5568 13.448L50.5928 13.168L51.6428 17.298C51.7361 17.662 51.8201 17.9467 51.8948 18.152C51.9788 18.348 52.0908 18.5113 52.2308 18.642C52.3708 18.7633 52.5575 18.824 52.7908 18.824H53.4768L53.5468 19.412L53.4768 20H52.7908C52.1655 20 51.6615 19.7387 51.2788 19.216C50.8308 19.7387 50.0888 20 49.0528 20H48.5068ZM49.1788 10.704H50.5788V12.104H49.1788V10.704ZM53.3362 18.824H53.5323C54.3629 18.824 55.0583 18.8053 55.6183 18.768C56.1783 18.7213 56.7523 18.614 57.3403 18.446L60.6303 17.564L57.7883 15.94C57.5083 15.772 57.2189 15.688 56.9203 15.688C56.6309 15.688 56.3556 15.772 56.0943 15.94C55.8329 16.0987 55.6229 16.3227 55.4642 16.612L55.2123 17.046L54.2883 16.472L54.5543 15.996C54.8156 15.52 55.1516 15.1513 55.5623 14.89C55.9823 14.6287 56.4303 14.498 56.9062 14.498C57.3916 14.498 57.8583 14.6333 58.3063 14.904L61.8763 17.06L61.7083 18.432L57.6063 19.594C56.9529 19.7713 56.3229 19.8833 55.7163 19.93C55.1096 19.9767 54.3769 20 53.5183 20H53.3362V18.824Z" fill="#EA4335" />
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Date Filter Popup */}
+                      {isCulturalDateFilterOpen && !culturalRestrictionFormOpen && (
+                        <div className={`date-filter-popup ${culturalSelectedDateFilter.includes('انتخاب از تقویم') ? 'calendar-selectable' : ''}`}>
+                          <div className="date-filter-content">
+                            {/* Filter by Date Section */}
+                            <div className="filter-section">
+                              <div className="date-filter-option2">
+                                <div className="filter-title">فیلتر بر اساس تاریخ</div>
+                                <div
+                                  className={`date-filter-option ${culturalSelectedDateFilter.includes('کل روزها') ? 'selected' : ''}`}
+                                  onClick={() => handleCulturalDateFilterToggle('کل روزها')}
+                                >
+                                  کل روزها
+                                </div>
+                                <div
+                                  className={`date-filter-option ${culturalSelectedDateFilter.includes('تمام این ماه') ? 'selected' : ''}`}
+                                  onClick={() => handleCulturalDateFilterToggle('تمام این ماه')}
+                                >
+                                  تمام این ماه
+                                </div>
+                                <div
+                                  className={`date-filter-option ${culturalSelectedDateFilter.includes('کل این هفته') ? 'selected' : ''}`}
+                                  onClick={() => handleCulturalDateFilterToggle('کل این هفته')}
+                                >
+                                  کل این هفته
+                                </div>
+                              </div>
+                              <div
+                                className={`calendar-select-option ${culturalSelectedDateFilter.includes('انتخاب از تقویم') ? 'selected' : ''}`}
+                                onClick={() => handleCulturalDateFilterToggle('انتخاب از تقویم')}
+                              >
+                                انتخاب از تقویم
+                              </div>
+                            </div>
+
+                            {/* Select from Calendar Section */}
+                            <div className="filter-section">
+                              <div className="jalali-calendar">
+                                {/* Calendar Header with Month/Year Selection */}
+                                <div className="calendar-header">
+                                  <div className="month-year-selector">
+                                    <select
+                                      value={culturalCalendarDate.month}
+                                      onChange={(e) => setCulturalCalendarDate(prev => ({ ...prev, month: parseInt(e.target.value) }))}
+                                      className="month-select"
+                                    >
+                                      {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                                        <option key={month} value={month}>
+                                          {getJalaliMonthName(month)}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <select
+                                      value={culturalCalendarDate.year}
+                                      onChange={(e) => setCulturalCalendarDate(prev => ({ ...prev, year: parseInt(e.target.value) }))}
+                                      className="year-select"
+                                    >
+                                      {Array.from({ length: 10 }, (_, i) => 1400 + i).map(year => (
+                                        <option key={year} value={year}>{year}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div className="calendar-nav">
+                                    <button
+                                      className="nav-btn prev"
+                                      onClick={handleCulturalPrevMonth}
+                                    >
+                                      ‹
+                                    </button>
+                                    <button
+                                      className="nav-btn next"
+                                      onClick={handleCulturalNextMonth}
+                                    >
+                                      ›
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Day Names */}
+                                <div className="day-names">
+                                  <div className="day-name">ش</div>
+                                  <div className="day-name">یک</div>
+                                  <div className="day-name">دو</div>
+                                  <div className="day-name">سه</div>
+                                  <div className="day-name">چهار</div>
+                                  <div className="day-name">پنج</div>
+                                  <div className="day-name">ج</div>
+                                </div>
+
+                                {/* Calendar Days Grid */}
+                                <div className="calendar-days">
+                                  {renderCulturalJalaliCalendarDays()}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Restriction Form (shown after selection) */}
+                      {culturalRestrictionFormOpen && culturalSelectedRestrictionType && (
+                        <div className="restriction-form-container">
+                          {/* Black header with title and close button */}
+                          <div className="restriction-form-header">
+                            <div className="restriction-title-black">
+                              <span className="restriction-label">محدودیت‌های</span>
+                              <span className="restriction-value">{getCulturalRestrictionTitle()}</span>
+                            </div>
+                            <button
+                              className="close-restriction-btn"
+                              onClick={handleCulturalCloseRestrictionForm}
+                            >
+                              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="0.5" y="0.5" width="31" height="31" rx="5.5" stroke="#EA4335" />
+                                <path fillRule="evenodd" clipRule="evenodd" d="M22.6654 16C22.6654 19.6819 19.6806 22.6666 15.9987 22.6666C12.3168 22.6666 9.33203 19.6819 9.33203 16C9.33203 12.3181 12.3168 9.33331 15.9987 9.33331C19.6806 9.33331 22.6654 12.3181 22.6654 16ZM13.9784 13.9797C14.1737 13.7845 14.4903 13.7845 14.6856 13.9797L15.9987 15.2929L17.3118 13.9798C17.507 13.7845 17.8236 13.7845 18.0189 13.9798C18.2142 14.175 18.2142 14.4916 18.0189 14.6869L16.7058 16L18.0189 17.3131C18.2141 17.5083 18.2141 17.8249 18.0189 18.0202C17.8236 18.2154 17.507 18.2154 17.3118 18.0202L15.9987 16.7071L14.6856 18.0202C14.4903 18.2154 14.1737 18.2154 13.9785 18.0202C13.7832 17.8249 13.7832 17.5083 13.9785 17.3131L15.2916 16L13.9784 14.6869C13.7832 14.4916 13.7832 14.175 13.9784 13.9797Z" fill="#EA4335" />
+                              </svg>
+                            </button>
+                          </div>
+
+                          {/* Gender Restrictions */}
+                          <div className="gender-restrictions-section">
+                            <div className="section-title3">محدودسازی جنسیتی برای تردد</div>
+                            <div className="gender-options">
+                              {['زنانه', 'مردانه', 'خانوادگی'].map((gender) => (
+                                <div
+                                  key={gender}
+                                  className={`gender-option ${culturalSelectedGenderRestrictions.includes(gender) ? 'selected' : ''}`}
+                                  onClick={() => handleCulturalGenderRestrictionToggle(gender)}
+                                >
+                                  <div className="gender-checkbox">
+                                    {culturalSelectedGenderRestrictions.includes(gender) ? (
+                                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
+                                        <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
+                                      </svg>
+                                    ) : (
+                                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" stroke="#D9D9D9" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                  <span>{gender}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Time Restrictions */}
+                          <div className="time-restrictions-section">
+                            <div className="section-title5">محدودسازی زمانی برای تردد
+                              <button
+                                className="add-time-btn"
+                                onClick={handleCulturalAddTimeRestriction}
+                                disabled={culturalLimitAllHours || culturalTimeRestrictionPairs.length >= 4}
+                              >
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path fillRule="evenodd" clipRule="evenodd" d="M10.0013 18.3333C14.6037 18.3333 18.3346 14.6023 18.3346 9.99996C18.3346 5.39759 14.6037 1.66663 10.0013 1.66663C5.39893 1.66663 1.66797 5.39759 1.66797 9.99996C1.66797 14.6023 5.39893 18.3333 10.0013 18.3333ZM10.6263 7.49996C10.6263 7.15478 10.3465 6.87496 10.0013 6.87496C9.65612 6.87496 9.3763 7.15478 9.3763 7.49996L9.3763 9.37498H7.5013C7.15612 9.37498 6.8763 9.6548 6.8763 9.99998C6.8763 10.3452 7.15612 10.625 7.5013 10.625H9.3763V12.5C9.3763 12.8451 9.65612 13.125 10.0013 13.125C10.3465 13.125 10.6263 12.8451 10.6263 12.5L10.6263 10.625H12.5013C12.8465 10.625 13.1263 10.3452 13.1263 9.99998C13.1263 9.6548 12.8465 9.37498 12.5013 9.37498H10.6263V7.49996Z" fill="#14C472" />
+                                </svg>
+                              </button>
+                            </div>
+
+                            {/* Time Restriction Pairs Grid with scrollable container when many items */}
+                            <div className={`time-pairs-scrollable-container ${culturalTimeRestrictionPairs.length > 2 ? 'scrollable' : ''}`}>
+                              <div className={`time-pairs-grid ${culturalTimeRestrictionPairs.length > 2 ? 'multi-row' : ''}`}>
+                                {culturalTimeRestrictionPairs.map((pair, index) => (
+                                  <div key={index} className="time-pair">
+                                    <div className="time-inputs">
+                                      <div className="time-input-group">
+                                        <label>شروع:</label>
+                                        <input
+                                          type="time"
+                                          value={pair.start}
+                                          onChange={(e) => handleCulturalTimeChange(index, 'start', e.target.value)}
+                                          disabled={culturalLimitAllHours}
+                                          className="time-input"
+                                          style={{
+                                            WebkitAppearance: 'none',
+                                            MozAppearance: 'textfield'
+                                          }}
+                                        />
+                                      </div>
+                                      <div className="time-input-group">
+                                        <label>پایان :</label>
+                                        <input
+                                          type="time"
+                                          value={pair.end}
+                                          onChange={(e) => handleCulturalTimeChange(index, 'end', e.target.value)}
+                                          disabled={culturalLimitAllHours}
+                                          className="time-input"
+                                        />
+                                      </div>
+                                    </div>
+                                    {culturalTimeRestrictionPairs.length > 1 && (
+                                      <button
+                                        className="remove-time-btn"
+                                        onClick={() => handleCulturalRemoveTimeRestriction(index)}
+                                        disabled={culturalLimitAllHours}
+                                      >
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                          <path d="M9.45597 18.3333H10.13C12.4489 18.3333 13.6084 18.3333 14.3622 17.578C15.1161 16.8227 15.1932 15.5837 15.3475 13.1058L15.5697 9.53534C15.6534 8.19086 15.6953 7.51861 15.3171 7.09262C14.9389 6.66663 14.3002 6.66663 13.0229 6.66663H6.56301C5.28569 6.66663 4.64704 6.66663 4.26885 7.09262C3.89065 7.51861 3.9325 8.19086 4.0162 9.53535L4.23846 13.1058C4.39272 15.5837 4.46984 16.8227 5.22371 17.578C5.97758 18.3333 7.13704 18.3333 9.45597 18.3333Z" fill="#EA4335" />
+                                          <path d="M2.29297 5.13885C2.29297 4.75533 2.58079 4.44442 2.93583 4.44442L5.15603 4.44404C5.59716 4.43197 5.98632 4.12897 6.13642 3.68072C6.14037 3.66893 6.1449 3.6544 6.16118 3.60165L6.25685 3.29157C6.31539 3.10145 6.36639 2.93581 6.43776 2.78776C6.71971 2.20287 7.24137 1.79671 7.84419 1.69273C7.99678 1.6664 8.15837 1.66652 8.34385 1.66664H11.2422C11.4277 1.66652 11.5893 1.6664 11.7419 1.69273C12.3447 1.79671 12.8664 2.20287 13.1483 2.78776C13.2197 2.93581 13.2707 3.10145 13.3292 3.29157L13.4249 3.60165C13.4412 3.6544 13.4457 3.66893 13.4497 3.68072C13.5998 4.12897 14.0661 4.43234 14.5073 4.44442H16.6501C17.0052 4.44442 17.293 4.75533 17.293 5.13885C17.293 5.52238 17.0052 5.83329 16.6501 5.83329H2.93583C2.58079 5.83329 2.29297 5.52238 2.29297 5.13885Z" fill="#EA4335" />
+                                        </svg>
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="time-restrictions-footer">
+                              <div
+                                className="all-hours-option"
+                                onClick={() => {
+                                  setCulturalLimitAllHours(!culturalLimitAllHours);
+                                  if (!culturalLimitAllHours) {
+                                    setCulturalTimeRestrictionPairs([{ start: '', end: '' }]);
+                                  }
+                                }}
+                              >
+                                <div className="all-hours-checkbox">
+                                  {culturalLimitAllHours ? (
+                                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                      <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
+                                      <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
+                                    </svg>
+                                  ) : (
+                                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                      <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" stroke="#D9D9D9" />
+                                    </svg>
+                                  )}
+                                </div>
+                                <span>محدودیت برای تمام ساعات روز</span>
+                              </div>
+                              <button
+                                className="confirm-restriction-btn"
+                                onClick={handleCulturalConfirmRestriction}
+                                disabled={!isCulturalRestrictionFormValid()}
+                              >
+                                تایید و افزودن محدودیت زمانی
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Prayer Time Restrictions Section */}
+                    <div className="restriction-section">
+                      <div className="restriction-header">
+                        <span className="restriction-title">محدودیت بر اساس اوقات شرعی (برای همه روزها)</span>
+                        <button
+                          className="add-restriction-btn"
+                          onClick={() => {
+                            setIsCulturalPrayerDateFilterOpen(prev => !prev);
+                            setIsCulturalDateFilterOpen(false);
+                            setCulturalRestrictionFormOpen(false);
+                          }}
+                        >
+                          افزودن محدودیت
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#1E2023" />
+                            <path d="M10 15.625C9.65833 15.625 9.375 15.3417 9.375 15V5C9.375 4.65833 9.65833 4.375 10 4.375C10.3417 4.375 10.625 4.65833 10.625 5V15C10.625 15.3417 10.3417 15.625 10 15.625Z" fill="#1E2023" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {culturalPrayerRestrictionFormOpen && (
+                        <div className="prayer-form">
+                          {/* Prayer form content - same as in map manage modal */}
+                          <div className="prayer-form-grid">
+                            <div className="form-column">
+                              <label className="form-label">انتخاب رویداد</label>
+                              <div className="prayer-event-grid">
+                                {prayerEventsOptions.map((ev) => (
+                                  <div
+                                    key={ev}
+                                    className={`prayer-event-option ${culturalSelectedPrayerEvents.includes(ev) ? 'selected' : ''}`}
+                                    onClick={() => toggleCulturalPrayerEvent(ev)}
+                                  >
+                                    {culturalSelectedPrayerEvents.includes(ev) ? (
+                                      <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#0F71EF" /></svg>
+                                    ) : (
+                                      <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#fff" stroke="#D9D9D9" /></svg>
+                                    )}
+                                    <span className="event-label">{ev}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="form-column">
+                              <label className="form-label">محدودسازی زمانی برای تردد</label>
+                              <div className="minutes-inputs-grid">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  className="minute-input"
+                                  placeholder="دقیقه قبل از شروع: --"
+                                  value={culturalPrayerBeforeMinutes}
+                                  onChange={(e) => setCulturalPrayerBeforeMinutes(e.target.value)}
+                                />
+                                <input
+                                  type="number"
+                                  min="0"
+                                  className="minute-input"
+                                  placeholder="دقیقه قبل از پایان: --"
+                                  value={culturalPrayerAfterMinutes}
+                                  onChange={(e) => setCulturalPrayerAfterMinutes(e.target.value)}
+                                />
+                              </div>
+
+                              <div className="prayer-form-actions">
+                                <button
+                                  className="confirm-prayer-btn"
+                                  onClick={() => {
+                                    if (culturalSelectedPrayerEvents.length === 0 || culturalPrayerBeforeMinutes === '' || culturalPrayerAfterMinutes === '') {
+                                      alert('لطفا همه فیلدها را تکمیل کنید');
+                                      return;
+                                    }
+                                    const title = culturalSelectedPrayerEvents.join(' و ') + ` : ${culturalPrayerBeforeMinutes} دقیقه قبل الی ${culturalPrayerAfterMinutes} دقیقه بعد`;
+                                    const newItem = {
+                                      id: Date.now(),
+                                      events: [...culturalSelectedPrayerEvents],
+                                      before: String(culturalPrayerBeforeMinutes),
+                                      after: String(culturalPrayerAfterMinutes),
+                                      date: culturalPrayerSelectedJalaliDate ? `روز ${culturalPrayerSelectedJalaliDate.day} ${getJalaliMonthName(culturalPrayerSelectedJalaliDate.month)} ${culturalPrayerSelectedJalaliDate.year}` : 'همه روزها',
+                                      title
+                                    };
+                                    setCulturalPrayerTimeRestrictionsList(prev => [...prev, newItem]);
+                                    setCulturalSelectedPrayerEvents([]);
+                                    setCulturalPrayerBeforeMinutes('');
+                                    setCulturalPrayerAfterMinutes('');
+                                    setCulturalPrayerSelectedJalaliDate(null);
+                                    setCulturalPrayerRestrictionFormOpen(false);
+                                  }}
+                                >
+                                  تایید و افزودن محدودیت اوقات شرعی
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {isCulturalPrayerDateFilterOpen && !culturalPrayerRestrictionFormOpen && (
+                        <div className="prayer-date-filter-popup">
+                          <div className="date-filter-content">
+                            {/* Filter by Date Section */}
+                            <div className="filter-section">
+                              <div className="date-filter-option2">
+                                <div className="filter-title">فیلتر بر اساس تاریخ</div>
+                                <div
+                                  className={`date-filter-option`}
+                                  onClick={() => {
+                                    setCulturalPrayerSelectedJalaliDate(null);
+                                    setCulturalPrayerRestrictionFormOpen(true);
+                                    setIsCulturalPrayerDateFilterOpen(false);
+                                  }}
+                                >
+                                  کل روزها
+                                </div>
+                                <div
+                                  className="date-filter-option"
+                                  onClick={() => {
+                                    setCulturalPrayerSelectedJalaliDate(null);
+                                    setCulturalPrayerRestrictionFormOpen(true);
+                                    setIsCulturalPrayerDateFilterOpen(false);
+                                  }}
+                                >
+                                  تمام این ماه
+                                </div>
+                                <div
+                                  className="date-filter-option"
+                                  onClick={() => {
+                                    setCulturalPrayerSelectedJalaliDate(null);
+                                    setCulturalPrayerRestrictionFormOpen(true);
+                                    setIsCulturalPrayerDateFilterOpen(false);
+                                  }}
+                                >
+                                  کل این هفته
+                                </div>
+                              </div>
+
+                              <div
+                                className="calendar-select-option selected"
+                              >
+                                انتخاب از تقویم
+                              </div>
+                            </div>
+
+                            {/* Calendar (Jalali) */}
+                            <div className="filter-section">
+                              <div className="jalali-calendar">
+                                <div className="calendar-header">
+                                  <div className="month-year-selector">
+                                    <select
+                                      value={culturalPrayerCalendarDate.month}
+                                      onChange={(e) => setCulturalPrayerCalendarDate(prev => ({ ...prev, month: parseInt(e.target.value) }))}
+                                      className="month-select"
+                                    >
+                                      {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                                        <option key={month} value={month}>
+                                          {getJalaliMonthName(month)}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <select
+                                      value={culturalPrayerCalendarDate.year}
+                                      onChange={(e) => setCulturalPrayerCalendarDate(prev => ({ ...prev, year: parseInt(e.target.value) }))}
+                                      className="year-select"
+                                    >
+                                      {Array.from({ length: 10 }, (_, i) => 1400 + i).map(year => (
+                                        <option key={year} value={year}>{year}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+
+                                  <div className="calendar-nav">
+                                    <button className="nav-btn" onClick={handleCulturalPrayerPrevMonth}>‹</button>
+                                    <button className="nav-btn" onClick={handleCulturalPrayerNextMonth}>›</button>
+                                  </div>
+                                </div>
+
+                                <div className="day-names">
+                                  <div className="day-name">ش</div>
+                                  <div className="day-name">ی</div>
+                                  <div className="day-name">د</div>
+                                  <div className="day-name">س</div>
+                                  <div className="day-name">چ</div>
+                                  <div className="day-name">پ</div>
+                                  <div className="day-name">ج</div>
+                                </div>
+
+                                <div className="calendar-days">
+                                  {renderCulturalPrayerJalaliCalendarDays()}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {culturalPrayerTimeRestrictionsList.length > 0 && (
+                        <div className="prayer-restrictions-list">
+                          {culturalPrayerTimeRestrictionsList.map((item, idx) => (
+                            <div key={item.id} className="prayer-restriction-row">
+                              <div className="prayer-restriction-badge">
+                                <span className="prayer-restriction-text">{item.date} ، {item.title}</span>
+                              </div>
+                              <button className="remove-prayer-btn" onClick={() => {
+                                setCulturalPrayerTimeRestrictionsList(prev => prev.filter((_, i) => i !== idx));
+                              }}>
+                                حذف
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path fill-rule="evenodd" clip-rule="evenodd" d="M3.40994 5.1678C3.68547 5.14943 3.92372 5.3579 3.94209 5.63343L4.24872 10.2328C4.30862 11.1314 4.35131 11.7566 4.44502 12.227C4.53592 12.6833 4.66281 12.9249 4.84508 13.0954C5.02736 13.2659 5.2768 13.3765 5.73813 13.4368C6.21373 13.499 6.8404 13.5 7.74097 13.5H8.25654C9.1571 13.5 9.78377 13.499 10.2594 13.4368C10.7207 13.3765 10.9701 13.2659 11.1524 13.0954C11.3347 12.9249 11.4616 12.6833 11.5525 12.227C11.6462 11.7566 11.6889 11.1314 11.7488 10.2328L12.0554 5.63343C12.0738 5.3579 12.312 5.14943 12.5876 5.1678C12.8631 5.18617 13.0716 5.42442 13.0532 5.69995L12.7442 10.3345C12.6872 11.1896 12.6412 11.8804 12.5332 12.4224C12.421 12.986 12.23 13.4567 11.8356 13.8256C11.4412 14.1946 10.9588 14.3538 10.3891 14.4284C9.84105 14.5001 9.14876 14.5 8.2917 14.5H7.70581C6.84875 14.5 6.15646 14.5001 5.60843 14.4284C5.03866 14.3538 4.5563 14.1946 4.1619 13.8256C3.7675 13.4567 3.57656 12.986 3.46429 12.4224C3.35631 11.8804 3.31027 11.1896 3.25327 10.3344L2.94431 5.69995C2.92594 5.42442 3.13441 5.18617 3.40994 5.1678Z" fill="#EA4335" />
+                                  <path fill-rule="evenodd" clip-rule="evenodd" d="M6.90226 1.50003L6.87161 1.50001C6.72734 1.49992 6.60166 1.49984 6.48298 1.51879C6.01412 1.59366 5.60838 1.8861 5.38909 2.30723C5.33358 2.41382 5.29391 2.53309 5.24838 2.66998L5.2387 2.69905L5.17397 2.89323C5.16131 2.93121 5.15778 2.94168 5.15471 2.95016C5.03797 3.2729 4.73529 3.49106 4.39219 3.49976C4.38317 3.49999 4.37212 3.50003 4.33209 3.50003H2.33203C2.05589 3.50003 1.83203 3.72388 1.83203 4.00003C1.83203 4.27617 2.05589 4.50003 2.33203 4.50003L4.3378 4.50003L4.34896 4.50003H11.6486L11.6597 4.50003L13.6654 4.50003C13.9416 4.50003 14.1654 4.27617 14.1654 4.00003C14.1654 3.72388 13.9416 3.50003 13.6654 3.50003H11.6654C11.6254 3.50003 11.6143 3.49999 11.6053 3.49976C11.2622 3.49106 10.9595 3.27289 10.8428 2.95014C10.8397 2.94172 10.8361 2.93102 10.8235 2.89323L10.7588 2.69905L10.7491 2.66996C10.7036 2.53307 10.6639 2.41382 10.6084 2.30723C10.3891 1.8861 9.98339 1.59366 9.51453 1.51879C9.39585 1.49984 9.27016 1.49992 9.1259 1.50001L9.09525 1.50003H6.90226ZM6.09508 3.29032C6.0689 3.36269 6.03847 3.43268 6.00413 3.50003H9.99338C9.95904 3.43268 9.92861 3.3627 9.90243 3.29033L9.87662 3.21477L9.81013 3.01528C9.74934 2.83294 9.73535 2.79575 9.72147 2.76909C9.64837 2.62872 9.51313 2.53124 9.35684 2.50628C9.32715 2.50154 9.28746 2.50003 9.09525 2.50003H6.90226C6.71005 2.50003 6.67035 2.50154 6.64067 2.50628C6.48438 2.53124 6.34914 2.62872 6.27604 2.76909C6.26216 2.79575 6.24816 2.83294 6.18738 3.01528L6.12085 3.21489C6.11083 3.24495 6.10303 3.26834 6.09508 3.29032Z" fill="#EA4335" />
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

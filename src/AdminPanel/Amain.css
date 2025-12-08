@@ -3105,8 +3105,8 @@ body {
 /* Date Filter Popup Styles */
 .date-filter-popup {
   position: fixed;
-  top: 32%;
-  left: 22%;
+  top: 28%;
+  left: 35%;
   background: white;
   border: 1px solid #D9D9D9;
   border-radius: 8px;
@@ -3834,9 +3834,9 @@ body {
 /* ---------- Prayer Date Filter Popup (cloned styling, positioned slightly lower) ---------- */
 .prayer-date-filter-popup {
   position: fixed;
-  top: 36%;
+  top: 28%;
   /* increased top to appear below the second add button */
-  left: 22%;
+  left: 35%;
   background: white;
   border: 1px solid #D9D9D9;
   border-radius: 8px;
