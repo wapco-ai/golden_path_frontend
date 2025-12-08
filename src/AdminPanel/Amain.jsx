@@ -1783,6 +1783,11 @@ const Amain = () => {
     setSelectedEditableFeature(null);
   };
 
+  const handleEditableLayerSelect = (layerId) => {
+    setActiveEditableLayerId(layerId);
+    setSelectedEditableFeature(null);
+  };
+
 
 
   // Search places
@@ -1915,6 +1920,46 @@ const Amain = () => {
       applyLayerVisibility(map, nextState);
       return nextState;
     });
+  };
+
+  const handleAddPlaceConfirm = () => {
+    if (currentStep === 1) {
+      if (placeName && placeCategory && placeSubcategory && placeFunction) {
+        setCurrentStep(2);
+      } else {
+        alert('لطفا تمام فیلدهای ضروری را پر کنید');
+      }
+    } else if (currentStep === 2) {
+      if (selectedTransport.length === 0) {
+        alert('لطفا حداقل یک نوع تردد را انتخاب کنید');
+      } else if (selectedGenderAccess.length === 0) {
+        alert('لطفا حداقل یک جنسیت تردد را انتخاب کنید');
+      } else if (!locationStatus) {
+        alert('لطفا وضعیت مکان را انتخاب کنید');
+      } else {
+        setCurrentStep(3);
+      }
+    } else if (currentStep === 3) {
+      const payload = {
+        name: placeName,
+        category: placeCategory,
+        subcategory: placeSubcategory,
+        function: placeFunction,
+        address: placeAddress,
+        locationStatus,
+        transports: selectedTransport,
+        genderAccess: selectedGenderAccess,
+        timeRestrictions,
+        prayerTimeRestrictions: prayerTimeRestrictionsList,
+        notes: additionalNotes
+      };
+
+      console.log('Submitting new place', payload);
+      setIsAddPlaceModalOpen(false);
+      resetForm();
+      setCurrentStep(1);
+      alert('اطلاعات مکان با موفقیت ثبت شد');
+    }
   };
 
   const activeLayerCount = Object.values(layerVisibility).filter(Boolean).length;
@@ -3917,46 +3962,6 @@ const Amain = () => {
               <div className="map-container">
                 <div id="map-container" className="map-instance"></div>
 
-                <div className="editable-layer-indicator">
-                  <div className="editable-layer-header">
-                    <span className="editable-layer-title">لایه فعال برای ویرایش</span>
-                    <span className="editable-layer-subtitle">برای جلوگیری از سردرگمی در نقشه</span>
-                  </div>
-                  <select
-                    className="editable-layer-select"
-                    value={activeEditableLayerId}
-                    onChange={handleEditableLayerChange}
-                  >
-                    {editableLayerOptions.map((layerOption) => (
-                      <option key={layerOption.id} value={layerOption.id}>
-                        {layerOption.label}
-                      </option>
-                    ))}
-                  </select>
-                  {selectedEditableFeature && (
-                    <div className="selected-feature-hint">
-                      <div className="selected-feature-row">
-                        <span className="selected-feature-label">لایه انتخابی:</span>
-                        <span className="selected-feature-value">{activeEditableLayer?.label || activeEditableLayerId}</span>
-                      </div>
-                      {selectedFeatureProperties && (
-                        <div className="selected-feature-row">
-                          <span className="selected-feature-label">مشخصات:</span>
-                          <span className="selected-feature-value">{JSON.stringify(selectedFeatureProperties)}</span>
-                        </div>
-                      )}
-                      {selectedFeatureCoordinates && Array.isArray(selectedFeatureCoordinates) && (
-                        <div className="selected-feature-row">
-                          <span className="selected-feature-label">مختصات:</span>
-                          <span className="selected-feature-value">
-                            {selectedFeatureCoordinates.map((coord) => Number(coord).toFixed(5)).join(', ')}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
                 {/* Top Left - Map Type Selector */}
                 <div className="map-control-top-left">
                   <div className="action-buttons-group">
@@ -4027,6 +4032,10 @@ const Amain = () => {
 
                     {isLayerListOpen && (
                       <div className="map-type-dropdown layers-dropdown">
+                        <div className="active-editable-layer-info">
+                          <span className="active-layer-label">لایه فعال برای ویرایش:</span>
+                          <span className="active-layer-value">{activeEditableLayer?.label || activeEditableLayerId}</span>
+                        </div>
                         {haramAdminVectorTileConfig.map(layer => (
                           <label
                             key={layer.id}
@@ -4037,13 +4046,53 @@ const Amain = () => {
                               <span className="layer-title">{layer.titleFa || layer.id}</span>
                               <span className="layer-subtitle">{layer.id}</span>
                             </div>
-                            <input
-                              type="checkbox"
-                              checked={!!layerVisibility[layer.id]}
-                              onChange={() => handleLayerToggle(layer.id)}
-                            />
+                            <div className="layer-actions">
+                              <button
+                                type="button"
+                                className={`edit-layer-btn ${activeEditableLayerId === layer.id ? 'active' : ''}`}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleEditableLayerSelect(layer.id);
+                                }}
+                                title="فعال سازی ویرایش این لایه"
+                              >
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M1.3335 11.6667V14.6667H4.3335L12.1568 6.84335L9.15683 3.84335L1.3335 11.6667Z" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
+                                  <path d="M8.3335 4.66667L11.3335 7.66667" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
+                                  <path d="M10.3335 2L13.3335 5L11.5002 6.83333L8.50016 3.83333L10.3335 2Z" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
+                                </svg>
+                              </button>
+                              <input
+                                type="checkbox"
+                                checked={!!layerVisibility[layer.id]}
+                                onChange={() => handleLayerToggle(layer.id)}
+                              />
+                            </div>
                           </label>
                         ))}
+                        {selectedEditableFeature && (
+                          <div className="selected-feature-hint">
+                            <div className="selected-feature-row">
+                              <span className="selected-feature-label">لایه انتخابی:</span>
+                              <span className="selected-feature-value">{activeEditableLayer?.label || activeEditableLayerId}</span>
+                            </div>
+                            {selectedFeatureProperties && (
+                              <div className="selected-feature-row">
+                                <span className="selected-feature-label">مشخصات:</span>
+                                <span className="selected-feature-value">{JSON.stringify(selectedFeatureProperties)}</span>
+                              </div>
+                            )}
+                            {selectedFeatureCoordinates && Array.isArray(selectedFeatureCoordinates) && (
+                              <div className="selected-feature-row">
+                                <span className="selected-feature-label">مختصات:</span>
+                                <span className="selected-feature-value">
+                                  {selectedFeatureCoordinates.map((coord) => Number(coord).toFixed(5)).join(', ')}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -4632,31 +4681,6 @@ const Amain = () => {
                     <div className="form-group">
                       <label className="form-label">نوع و موقعیت این مکان </label>
                       <div className="location-type-grid">
-                        {/* Roof Type */}
-                        <div className="location-type-section">
-                          <div className="location-type-label">نوع پوشش</div>
-                          <div className="location-type-options">
-                            <div
-                              className={`location-type-option ${locationRoofType === 'مسقف' ? 'selected' : ''}`}
-                              onClick={() => setLocationRoofType('مسقف')}
-                            >
-                              <div className="location-type-radio">
-                                {locationRoofType === 'مسقف' && <div className="location-type-radio-dot"></div>}
-                              </div>
-                              <span>مسقف</span>
-                            </div>
-                            <div
-                              className={`location-type-option ${locationRoofType === 'غیر مسقف' ? 'selected' : ''}`}
-                              onClick={() => setLocationRoofType('غیر مسقف')}
-                            >
-                              <div className="location-type-radio">
-                                {locationRoofType === 'غیر مسقف' && <div className="location-type-radio-dot"></div>}
-                              </div>
-                              <span>غیر مسقف</span>
-                            </div>
-                          </div>
-                        </div>
-
                         {/* Status */}
                         <div className="location-type-section">
                           <div className="location-type-label">وضعیت</div>
@@ -5321,27 +5345,7 @@ const Amain = () => {
               </button>
               <button
                 className="confirm-btn"
-                onClick={() => {
-                  if (currentStep === 1) {
-                    // Validate step 1 - only Persian fields are mandatory
-                    if (placeName && placeCategory && placeSubcategory && placeFunction) {
-                      setCurrentStep(2);
-                    } else {
-                      alert('لطفا تمام فیلدهای ضروری را پر کنید');
-                    }
-                  } else if (currentStep === 2) {
-                    // Validate step 2 - now includes location type and status
-                    if (selectedTransport.length === 0) {
-                      alert('لطفا حداقل یک نوع تردد را انتخاب کنید');
-                    } else if (selectedGenderAccess.length === 0) {
-                      alert('لطفا حداقل یک جنسیت تردد را انتخاب کنید');
-                    } else if (!locationRoofType || !locationStatus) {
-                      alert('لطفا نوع پوشش و وضعیت مکان را انتخاب کنید');
-                    } else {
-                      setCurrentStep(3);
-                    }
-                  }
-                }}
+                onClick={handleAddPlaceConfirm}
               >
                 {currentStep === 3 ? 'تایید اطلاعات و ثبت این مکان ' : 'تایید اطلاعات و مرحله بعد'}
               </button>
