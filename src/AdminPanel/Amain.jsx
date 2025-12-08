@@ -30,6 +30,7 @@ const Amain = () => {
     center: [59.6159, 36.2875],
     zoom: 16
   });
+  const [hasZoomedToDoorAccessPoints, setHasZoomedToDoorAccessPoints] = useState(false);
   const [mapType, setMapType] = useState('نمای خیابان');
   const [isMapTypeOpen, setIsMapTypeOpen] = useState(false);
   const [mapFloor, setMapFloor] = useState('همکف');
@@ -1378,6 +1379,54 @@ const Amain = () => {
       map.zoomIn();
     }
   };
+
+  useEffect(() => {
+    if (!map) {
+      setHasZoomedToDoorAccessPoints(false);
+      return;
+    }
+
+    const doorAccessSourceId = 'fn_door_access_points_mvt';
+    const doorAccessSourceLayer = 'fn_door_access_points_mvt';
+
+    const zoomToDoorAccessPoints = () => {
+      const features = map.querySourceFeatures(doorAccessSourceId, {
+        sourceLayer: doorAccessSourceLayer
+      });
+
+      if (!features?.length) return;
+
+      const bounds = new maplibregl.LngLatBounds();
+
+      features.forEach((feature) => {
+        const [lng, lat] = feature?.geometry?.coordinates || [];
+        if (typeof lng === 'number' && typeof lat === 'number') {
+          bounds.extend([lng, lat]);
+        }
+      });
+
+      if (bounds.isEmpty()) return;
+
+      const center = bounds.getCenter();
+      map.easeTo({ center, zoom: 16 });
+      setHasZoomedToDoorAccessPoints(true);
+    };
+
+    const handleSourceData = (event) => {
+      if (hasZoomedToDoorAccessPoints) return;
+      if (event?.sourceId !== doorAccessSourceId) return;
+      if (!map.getSource(doorAccessSourceId)) return;
+      if (!map.isSourceLoaded(doorAccessSourceId)) return;
+
+      zoomToDoorAccessPoints();
+    };
+
+    map.on('sourcedata', handleSourceData);
+
+    return () => {
+      map.off('sourcedata', handleSourceData);
+    };
+  }, [map, hasZoomedToDoorAccessPoints]);
 
   const handleZoomOut = () => {
     if (map) {
