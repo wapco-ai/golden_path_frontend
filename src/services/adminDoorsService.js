@@ -49,7 +49,7 @@ export const createDoor = async ({
 };
 
 export const getDoorInfo = async (id, { signal } = {}) => {
-  const response = await fetch(`${DOORS_BASE_URL}/${id}`, {
+  const response = await fetch(`${DOORS_BASE_URL}/${id}/info`, {
     method: 'GET',
     headers: buildAuthHeaders(),
     signal
@@ -65,7 +65,7 @@ export const getDoorInfo = async (id, { signal } = {}) => {
 };
 
 export const updateDoorInfo = async (id, payload, { signal } = {}) => {
-  const response = await fetch(`${DOORS_BASE_URL}/${id}`, {
+  const response = await fetch(`${DOORS_BASE_URL}/${id}/info`, {
     method: 'PUT',
     headers: buildAuthHeaders(),
     body: JSON.stringify(payload || {}),
