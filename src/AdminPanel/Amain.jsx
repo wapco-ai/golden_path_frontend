@@ -75,8 +75,13 @@ const Amain = () => {
     center: [59.6159, 36.2875],
     zoom: 16
   });
-  const [mapType, setMapType] = useState('نمای خیابان');
-  const [isMapTypeOpen, setIsMapTypeOpen] = useState(false);
+  const buildInitialLayerVisibility = () => haramAdminVectorTileConfig.reduce((acc, layer) => {
+    acc[layer.id] = !!layer.visibleByDefault;
+    return acc;
+  }, {});
+
+  const [layerVisibility, setLayerVisibility] = useState(buildInitialLayerVisibility);
+  const [isLayerListOpen, setIsLayerListOpen] = useState(false);
   const [mapFloor, setMapFloor] = useState('همکف');
   const [isMapFloorOpen, setIsMapFloorOpen] = useState(false);
   const unknownComments = commentStats.total - commentStats.approved - commentStats.rejected;
@@ -1527,6 +1532,7 @@ const Amain = () => {
           initHaramVectorLayers(event, haramAdminVectorTileConfig);
           console.log('Haram vector layers loaded successfully in Amain map');
           logDoorAccessPointDebugInfo(mapInstance);
+          applyLayerVisibility(mapInstance);
         });
         setMap(mapInstance);
 
@@ -1551,6 +1557,22 @@ const Amain = () => {
       }
     }
   }, [activeMenu]);
+
+  useEffect(() => {
+    if (!map || activeMenu !== 'mapmanage') return undefined;
+
+    if (map.isStyleLoaded()) {
+      applyLayerVisibility(map);
+      return undefined;
+    }
+
+    const handleLoad = () => applyLayerVisibility(map);
+    map.once('load', handleLoad);
+
+    return () => {
+      map.off('load', handleLoad);
+    };
+  }, [map, activeMenu, layerVisibility, applyLayerVisibility]);
 
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
@@ -1741,15 +1763,26 @@ const Amain = () => {
       setBreadcrumbPath(newPath);
     }
   };
+  const applyLayerVisibility = useCallback((mapInstance, visibilityState = layerVisibility) => {
+    const targetMap = mapInstance || map;
+    if (!targetMap) return;
 
+    haramAdminVectorTileConfig.forEach((layer) => {
+      if (targetMap.getLayer(layer.id)) {
+        targetMap.setLayoutProperty(layer.id, 'visibility', visibilityState?.[layer.id] ? 'visible' : 'none');
+      }
+    });
+  }, [layerVisibility, map]);
 
-  const mapTypes = [
-    'نمای خیابان',
-    'نمای ماهواره',
-    'نمای ترکیبی',
-    'نمای شب',
-    'نمای ساده'
-  ];
+  const handleLayerToggle = (layerId) => {
+    setLayerVisibility((prev) => {
+      const nextState = { ...prev, [layerId]: !prev[layerId] };
+      applyLayerVisibility(map, nextState);
+      return nextState;
+    });
+  };
+
+  const activeLayerCount = Object.values(layerVisibility).filter(Boolean).length;
 
   const mapFloors = [
     'همکف',
@@ -3807,36 +3840,41 @@ const Amain = () => {
                     </button>
                   )}
                   <div className="map-type-selector">
-                    <div className="map-type-display" onClick={() => { setIsMapTypeOpen(!isMapTypeOpen); setIsMapFloorOpen(false); }}>
-                      <span className="stgi">نوع نقشه
+                    <div className="map-type-display" onClick={() => { setIsLayerListOpen(!isLayerListOpen); setIsMapFloorOpen(false); }}>
+                      <span className="stgi">لایه‌های نقشه
                         <div className="date-separator2"></div>
                       </span>
-                      <span>{mapType}</span>
+                      <span>{activeLayerCount} لایه فعال</span>
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                         <path fillRule="evenodd" clipRule="evenodd" d="M3.64645 5.64645C3.84171 5.45118 4.15829 5.45118 4.35355 5.64645L8 9.29289L11.6464 5.64645C11.8417 5.45118 12.1583 5.45118 12.3536 5.64645C12.5488 5.84171 12.5488 6.15829 12.3536 6.35355L8.35355 10.3536C8.15829 10.5488 7.84171 10.5488 7.64645 10.3536L3.64645 6.35355C3.45118 6.15829 3.45118 5.84171 3.64645 5.64645Z" fill="#1E2023" />
                       </svg>
                     </div>
 
-                    {isMapTypeOpen && (
-                      <div className="map-type-dropdown">
-                        {mapTypes.map(type => (
-                          <div
-                            key={type}
-                            className="map-type-option"
-                            onClick={() => {
-                              setMapType(type);
-                              setIsMapTypeOpen(false);
-                            }}
+                    {isLayerListOpen && (
+                      <div className="map-type-dropdown layers-dropdown">
+                        {haramAdminVectorTileConfig.map(layer => (
+                          <label
+                            key={layer.id}
+                            className="map-type-option layer-toggle"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            {type}
-                          </div>
+                            <div className="layer-info">
+                              <span className="layer-title">{layer.titleFa || layer.id}</span>
+                              <span className="layer-subtitle">{layer.id}</span>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={!!layerVisibility[layer.id]}
+                              onChange={() => handleLayerToggle(layer.id)}
+                            />
+                          </label>
                         ))}
                       </div>
                     )}
                   </div>
 
                   <div className="map-type-selector">
-                    <div className="map-type-display" onClick={() => { setIsMapFloorOpen(!isMapFloorOpen); setIsMapTypeOpen(false); }}>
+                    <div className="map-type-display" onClick={() => { setIsMapFloorOpen(!isMapFloorOpen); setIsLayerListOpen(false); }}>
                       <span className="stgi">طبقه نقشه
                         <div className="date-separator2"></div>
                       </span>
