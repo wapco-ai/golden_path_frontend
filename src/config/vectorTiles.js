@@ -19,6 +19,8 @@ const MESH_TRIANGLES_TILE_BASE = `${TILE_BASE_URL}/${MESH_TRIANGLES_SOURCE_LAYER
 const ROUTING_EDGES_STATIC_SOURCE_LAYER = 'public.routing_edges_static';
 const ROUTING_EDGES_STATIC_BASE = `${TILE_BASE_URL}/${ROUTING_EDGES_STATIC_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
 const DOORS_ACCESS_POINT_SOURCE_LAYER = 'public.fn_door_access_points_mvt';
+// The MVT layer name returned by the function omits the schema prefix
+const DOORS_ACCESS_POINT_LAYER_NAME = 'fn_door_access_points_mvt';
 const DOORS_ACCESS_POINT_BASE = `${TILE_BASE_URL}/${DOORS_ACCESS_POINT_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
 const buildDoorAccessPointsTileUrlFactory = () => buildFloorOnlyTileUrlFactory(DOORS_ACCESS_POINT_BASE);
 
@@ -182,6 +184,24 @@ export const haramVectorTileConfig = [
 ]
 export const haramAdminVectorTileConfig = [
   {
+    id: 'doors-access-point',
+    titleFa: 'نقاط اتصال درب‌ها',
+    table: DOORS_ACCESS_POINT_SOURCE_LAYER,
+    sourceId: 'fn_door_access_points_mvt',
+    sourceLayer: DOORS_ACCESS_POINT_LAYER_NAME,
+    tileUrlFactory: buildDoorAccessPointsTileUrlFactory(),
+    type: 'circle',
+    minzoom: 15,
+    maxzoom: 22,
+    visibleByDefault: true,
+    paint: {
+      'circle-color': '#ff0000',
+      'circle-radius': 10,
+      'circle-stroke-color': '#ffffff',
+      'circle-stroke-width': 1.5
+    }
+  },
+  {
     id: 'areas-outline',
     titleFa: 'مرز محدوده‌ها',
     table: 'public.fn_areas_mvt',
@@ -247,24 +267,6 @@ export const haramAdminVectorTileConfig = [
       'text-color': '#222222',
       'text-halo-color': '#ffffff',
       'text-halo-width': 1.2
-    }
-  },
-  {
-    id: 'doorsAccessPoint',
-    titleFa: 'نقاط اتصال درب‌ها',
-    table: DOORS_ACCESS_POINT_SOURCE_LAYER,
-    sourceId: 'fn_door_access_points_mvt',
-    sourceLayer: DOORS_ACCESS_POINT_SOURCE_LAYER,
-    tileUrlFactory: buildDoorAccessPointsTileUrlFactory(),
-    type: 'circle',
-    minzoom: 15,
-    maxzoom: 22,
-    visibleByDefault: true,
-    paint: {
-      'circle-color': '#ff7f50',
-      'circle-radius': 50,
-      'circle-stroke-color': '#ffffff',
-      // 'circle-stroke-width': 1.5
     }
   },
   {

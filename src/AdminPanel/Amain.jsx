@@ -1340,8 +1340,8 @@ const Amain = () => {
         const mapInstance = new maplibregl.Map({
           container: 'map-container',
           style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
-          center: [59.6161, 36.2908], // Imam Reza Shrine coordinates in Mashhad, Iran
-          zoom: 15, // Increased zoom to show more detail
+          center: [59.6161, 36.2888], // Imam Reza Shrine coordinates in Mashhad, Iran
+          zoom: 16, // Increased zoom to show more detail
         });
 
         mapInstance.addControl(new maplibregl.NavigationControl());
