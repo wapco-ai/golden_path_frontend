@@ -1683,11 +1683,13 @@ const Amain = () => {
         return;
       }
 
-      const searchRadiusPx = 4000;
+      const searchRadiusPx = 40000;
       const boundingBox = [
         [point.x - searchRadiusPx, point.y - searchRadiusPx],
         [point.x + searchRadiusPx, point.y + searchRadiusPx]
       ];
+      console.log('Point coordinates:', point);
+      console.log('Active Layer:', activeEditableLayer);
 
       const nearbyFeatures = map
         .queryRenderedFeatures(boundingBox, { layers: [activeEditableLayer.id] })
