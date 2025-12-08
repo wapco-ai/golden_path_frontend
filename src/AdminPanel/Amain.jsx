@@ -8,6 +8,7 @@ import { toJalaali, toGregorian } from 'jalaali-js';
 import ReactDatePicker from 'react-datepicker';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { distance as turfDistance } from '@turf/turf';
 import { useAdminLoginService } from './adminLoginServiceContext';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import { haramAdminVectorTileConfig } from '../config/vectorTiles';
@@ -1372,6 +1373,68 @@ const Amain = () => {
       }
     }
   }, [activeMenu]);
+
+  useEffect(() => {
+    if (!map || activeMenu !== 'mapmanage') return undefined;
+
+    const handleMapClick = (event) => {
+      const { lngLat, point } = event;
+
+      const searchRadiusPx = 40;
+      const boundingBox = [
+        [point.x - searchRadiusPx, point.y - searchRadiusPx],
+        [point.x + searchRadiusPx, point.y + searchRadiusPx]
+      ];
+
+      const doorAccessFeatures = map
+        .queryRenderedFeatures(boundingBox, { layers: ['doors-access-point'] })
+        .filter((feature) => feature?.source === 'fn_door_access_points_mvt');
+
+      if (!doorAccessFeatures.length) {
+        console.log('هیچ درب fn_door_access_points_mvt در نزدیکی محل کلیک پیدا نشد.');
+        return;
+      }
+
+      const clickCoordinates = [lngLat.lng, lngLat.lat];
+
+      const featuresWithDistance = doorAccessFeatures
+        .map((feature) => {
+          const [featureLng, featureLat] = feature?.geometry?.coordinates || [];
+
+          if (typeof featureLng !== 'number' || typeof featureLat !== 'number') {
+            return null;
+          }
+
+          const distanceMeters = turfDistance(
+            clickCoordinates,
+            [featureLng, featureLat],
+            { units: 'kilometers' }
+          ) * 1000;
+
+          return { feature, distanceMeters };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.distanceMeters - b.distanceMeters);
+
+      if (!featuresWithDistance.length) {
+        console.log('داده معتبر برای درب‌های fn_door_access_points_mvt یافت نشد.');
+        return;
+      }
+
+      const nearestDoor = featuresWithDistance[0];
+
+      console.log('نزدیک‌ترین درب fn_door_access_points_mvt:', {
+        distanceMeters: Number(nearestDoor.distanceMeters.toFixed(2)),
+        clickLocation: clickCoordinates,
+        coordinates: nearestDoor.feature.geometry?.coordinates,
+        properties: nearestDoor.feature.properties
+      });
+    };
+
+    map.on('click', handleMapClick);
+
+    return () => map.off('click', handleMapClick);
+  }, [map, activeMenu]);
 
   const handleZoomIn = () => {
     if (map) {
