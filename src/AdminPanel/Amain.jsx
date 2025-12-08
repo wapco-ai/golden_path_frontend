@@ -134,6 +134,8 @@ const Amain = () => {
   const [isLocationMarkerMode, setIsLocationMarkerMode] = useState(false);
   const [isCreatingDoor, setIsCreatingDoor] = useState(false);
   const [locationMarker, setLocationMarker] = useState(null);
+  const [activeEditableLayerId, setActiveEditableLayerId] = useState(editableLayerOptions[0]?.id || '');
+  const [selectedEditableFeature, setSelectedEditableFeature] = useState(null);
   const activeEditableLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
   const selectedFeatureProperties = selectedEditableFeature?.features?.[0]?.properties;
   const selectedFeatureCoordinates = selectedEditableFeature?.features?.[0]?.geometry?.coordinates;
