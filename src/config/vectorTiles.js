@@ -262,9 +262,9 @@ export const haramAdminVectorTileConfig = [
     visibleByDefault: true,
     paint: {
       'circle-color': '#ff7f50',
-      'circle-radius': 5,
+      'circle-radius': 50,
       'circle-stroke-color': '#ffffff',
-      'circle-stroke-width': 1.5
+      // 'circle-stroke-width': 1.5
     }
   },
   {
