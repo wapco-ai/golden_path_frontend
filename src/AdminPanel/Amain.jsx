@@ -149,6 +149,7 @@ const Amain = () => {
   const [lastCreatedDoorId, setLastCreatedDoorId] = useState(null);
   const [lastCreatedAccessPointId, setLastCreatedAccessPointId] = useState(null);
   const [isSavingDoorInfo, setIsSavingDoorInfo] = useState(false);
+  const [isLoadingDoorInfo, setIsLoadingDoorInfo] = useState(false);
   const [isDoorMoveMode, setIsDoorMoveMode] = useState(false);
   const [isAddPlaceModalOpen, setIsAddPlaceModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
@@ -1791,6 +1792,10 @@ const Amain = () => {
 
       setSelectedEditableFeature(selectedFeatureCollection);
 
+      if (activeEditableLayer.id === DOOR_ACCESS_LAYER_ID) {
+        setOpenSubMenu(4);
+      }
+
       console.log('نزدیک‌ترین فیچر انتخابی:', {
         layerId: activeEditableLayer.id,
         distanceMeters: Number(nearestDoor.distanceMeters.toFixed(2)),
@@ -1918,12 +1923,12 @@ const Amain = () => {
         bidirectional: true
       });
 
+      const newDoorId = response?.door?.id || null;
+      const newAccessPointId = response?.door_access_point?.id || null;
+
       toast.success('درب جدید با موفقیت ثبت شد');
       console.log('door creation response', response);
-      setLastCreatedDoorId(response?.door?.id || null);
-      setLastCreatedAccessPointId(response?.door_access_point?.id || null);
-      setIsAddPlaceModalOpen(true);
-      setCurrentStep(1);
+      await openDoorInfoModal(newDoorId, newAccessPointId);
     } catch (error) {
       toast.error(error?.message || 'ثبت درب ناموفق بود');
     } finally {
@@ -1986,6 +1991,79 @@ const Amain = () => {
     });
   };
 
+  const mapApiTimeRestrictionsToForm = (apiRestrictions = []) => apiRestrictions.map((restriction, index) => ({
+    id: restriction?.id || index,
+    date: Array.isArray(restriction?.date_scope)
+      ? restriction.date_scope.join(', ')
+      : restriction?.date_scope || restriction?.date || 'نامشخص',
+    gender: restriction?.gender || [],
+    timePairs: Array.isArray(restriction?.time_ranges)
+      ? restriction.time_ranges.map((range) => ({
+        start: range?.start || '',
+        end: range?.end || ''
+      }))
+      : [],
+    limitAllHours: Boolean(restriction?.all_hours)
+  }));
+
+  const mapApiPrayerRestrictionsToForm = (apiRestrictions = []) => apiRestrictions.map((restriction, index) => ({
+    id: restriction?.id || index,
+    events: restriction?.events || [],
+    before: restriction?.before_minutes ?? restriction?.before ?? '',
+    after: restriction?.after_minutes ?? restriction?.after ?? '',
+    date: restriction?.date || '',
+    title: restriction?.title || ''
+  }));
+
+  const buildTimeRestrictionsPayload = () => timeRestrictions.map((restriction) => ({
+    date_scope: Array.isArray(restriction?.date_scope)
+      ? restriction.date_scope
+      : restriction?.date
+        ? [restriction.date]
+        : [],
+    gender: restriction?.gender || [],
+    time_ranges: Array.isArray(restriction?.timePairs)
+      ? restriction.timePairs.map((pair) => ({
+        start: pair?.start || '',
+        end: pair?.end || ''
+      }))
+      : [],
+    all_hours: Boolean(restriction?.limitAllHours)
+  }));
+
+  const buildPrayerRestrictionsPayload = () => prayerTimeRestrictionsList.map((restriction) => ({
+    events: restriction?.events || [],
+    before_minutes: restriction?.before_minutes
+      ?? (restriction?.before !== undefined ? Number(restriction.before) : undefined)
+      ?? (restriction?.beforeMinutes !== undefined ? Number(restriction.beforeMinutes) : undefined)
+      ?? (restriction?.before ? Number(restriction.before) : 0),
+    after_minutes: restriction?.after_minutes
+      ?? (restriction?.after !== undefined ? Number(restriction.after) : undefined)
+      ?? (restriction?.afterMinutes !== undefined ? Number(restriction.afterMinutes) : undefined)
+      ?? (restriction?.after ? Number(restriction.after) : 0),
+    date: restriction?.date || null
+  }));
+
+  const buildDoorInfoPayload = () => ({
+    basic_info: {
+      title: {
+        fa: placeName,
+        en: languageTitles.english,
+        ar: languageTitles.arabic,
+        ur: languageTitles.urdu
+      },
+      description: fullDescription || shortDescription
+    },
+    operational: {
+      status: locationStatus === 'غیر فعال' ? 'inactive' : 'active',
+      transport_modes: selectedTransport,
+      gender_access: selectedGenderAccess
+    },
+    time_restrictions: buildTimeRestrictionsPayload(),
+    prayer_restrictions: buildPrayerRestrictionsPayload(),
+    notes: additionalNotes
+  });
+
   const handleAddPlaceConfirm = async () => {
     if (currentStep === 1) {
       if (placeName && placeCategory && placeSubcategory && placeFunction) {
@@ -2009,21 +2087,7 @@ const Amain = () => {
         return;
       }
 
-      const payload = {
-        name: placeName,
-        category: placeCategory,
-        subcategory: placeSubcategory,
-        function: placeFunction,
-        address: placeAddress,
-        locationStatus,
-        transports: selectedTransport,
-        genderAccess: selectedGenderAccess,
-        timeRestrictions,
-        prayerTimeRestrictions: prayerTimeRestrictionsList,
-        notes: additionalNotes,
-        door_id: lastCreatedDoorId,
-        door_access_point_id: lastCreatedAccessPointId
-      };
+      const payload = buildDoorInfoPayload();
 
       try {
         setIsSavingDoorInfo(true);
@@ -2040,24 +2104,47 @@ const Amain = () => {
     }
   };
 
-  const fillDoorInfoForm = (doorInfo = {}) => {
-    setPlaceName(doorInfo?.name || '');
-    setFullDescription(doorInfo?.description || '');
+  function fillDoorInfoForm(doorInfo = {}) {
+    const basicInfo = doorInfo?.basic_info || {};
+    const operational = doorInfo?.operational || {};
+
+    setPlaceName(basicInfo?.title?.fa || '');
+    setLanguageTitles({
+      english: basicInfo?.title?.en || '',
+      arabic: basicInfo?.title?.ar || '',
+      urdu: basicInfo?.title?.ur || ''
+    });
+    setFullDescription(basicInfo?.description || '');
     setPlaceCategory(doorInfo?.category || '');
     setPlaceSubcategory(doorInfo?.subcategory || '');
     setPlaceFunction(doorInfo?.function || '');
     setPlaceAddress(doorInfo?.address || '');
-    setLocationStatus(doorInfo?.is_open === false ? 'غیر فعال' : doorInfo?.locationStatus || 'فعال');
-    setSelectedTransport(Array.isArray(doorInfo?.modes) ? doorInfo.modes : (doorInfo?.transports || []));
-    setSelectedGenderAccess(
-      doorInfo?.allowed_gender
-        ? [doorInfo.allowed_gender]
-        : (Array.isArray(doorInfo?.genderAccess) ? doorInfo.genderAccess : [])
-    );
-    setTimeRestrictions(doorInfo?.timeRestrictions || []);
-    setPrayerTimeRestrictionsList(doorInfo?.prayerTimeRestrictions || []);
+    setLocationStatus(operational?.status === 'inactive' ? 'غیر فعال' : 'فعال');
+    setSelectedTransport(Array.isArray(operational?.transport_modes) ? operational.transport_modes : []);
+    setSelectedGenderAccess(Array.isArray(operational?.gender_access) ? operational.gender_access : []);
+    setTimeRestrictions(mapApiTimeRestrictionsToForm(doorInfo?.time_restrictions));
+    setPrayerTimeRestrictionsList(mapApiPrayerRestrictionsToForm(doorInfo?.prayer_restrictions));
     setAdditionalNotes(doorInfo?.notes || '');
-  };
+  }
+
+  async function openDoorInfoModal(doorId, accessPointId = null) {
+    setLastCreatedDoorId(doorId || null);
+    setLastCreatedAccessPointId(accessPointId || null);
+    setIsAddPlaceModalOpen(true);
+    setCurrentStep(1);
+
+    if (!doorId) return;
+
+    try {
+      setIsLoadingDoorInfo(true);
+      const info = await getDoorInfo(doorId);
+      fillDoorInfoForm(info);
+    } catch (error) {
+      toast.error(error?.message || 'دریافت اطلاعات درب ناموفق بود');
+    } finally {
+      setIsLoadingDoorInfo(false);
+    }
+  }
 
   const handleDoorDelete = async () => {
     if (!selectedDoorId) {
@@ -2065,7 +2152,7 @@ const Amain = () => {
       return;
     }
 
-    const confirmDelete = window.confirm('آیا از حذف این درب مطمئن هستید؟ این عملیات قابل بازگشت نیست.');
+    const confirmDelete = window.confirm(`آیا از حذف درب انتخاب‌شده (شناسه ${selectedDoorId}) مطمئن هستید؟ این عملیات قابل بازگشت نیست.`);
     if (!confirmDelete) return;
 
     try {
@@ -2094,19 +2181,7 @@ const Amain = () => {
       return;
     }
 
-    try {
-      const info = await getDoorInfo(selectedDoorId);
-      const doorData = info?.door || {};
-      const accessPoint = Array.isArray(info?.access_points) ? info.access_points[0] : null;
-
-      setLastCreatedDoorId(doorData?.id || selectedDoorId);
-      setLastCreatedAccessPointId(accessPoint?.id || selectedDoorAccessPointId || null);
-      fillDoorInfoForm({ ...doorData, ...doorData?.attrs });
-      setCurrentStep(1);
-      setIsAddPlaceModalOpen(true);
-    } catch (error) {
-      toast.error(error?.message || 'دریافت اطلاعات درب ناموفق بود');
-    }
+    await openDoorInfoModal(selectedDoorId, selectedDoorAccessPointId || null);
   };
 
   const activeLayerCount = Object.values(layerVisibility).filter(Boolean).length;
@@ -5667,10 +5742,12 @@ const Amain = () => {
               <button
                 className="confirm-btn"
                 onClick={handleAddPlaceConfirm}
-                disabled={isSavingDoorInfo}
+                disabled={isSavingDoorInfo || isLoadingDoorInfo}
               >
                 {isSavingDoorInfo
                   ? 'در حال ذخیره اطلاعات...'
+                  : isLoadingDoorInfo
+                    ? 'در حال بارگذاری اطلاعات...'
                   : currentStep === 3
                     ? 'تایید اطلاعات و ثبت این مکان '
                     : 'تایید اطلاعات و مرحله بعد'}
