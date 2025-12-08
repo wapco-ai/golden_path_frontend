@@ -766,7 +766,7 @@ const Amain = () => {
     setSelectedCulturalTypes([]);
     setPlaceAddress('');
     setSelectedLocation(null);
-    
+
     setIsEditingCultural(false);
 
     setProfileImages([]);
@@ -1106,16 +1106,16 @@ const Amain = () => {
 
   const initializeEditMap = () => {
     if (!document.getElementById('edit-cultural-map-container')) return null;
-  
+
     const mapInstance = new maplibregl.Map({
       container: 'edit-cultural-map-container',
       style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
       center: editingCulturalData?.location ? [editingCulturalData.location.lng, editingCulturalData.location.lat] : [59.6161, 36.2908],
       zoom: 16,
     });
-  
+
     mapInstance.addControl(new maplibregl.NavigationControl());
-  
+
     // Add existing marker if location exists
     if (editingCulturalData?.location) {
       const marker = new maplibregl.Marker({
@@ -1126,27 +1126,27 @@ const Amain = () => {
       setCurrentMarker(marker);
       setSelectedLocation(editingCulturalData.location);
     }
-  
+
     // Add click event to map for new location selection
     mapInstance.on('click', (e) => {
       const coordinates = e.lngLat;
       setSelectedLocation(coordinates);
-  
+
       // Remove existing marker if it exists
       if (currentMarker) {
         currentMarker.remove();
       }
-  
+
       // Create new marker
       const newMarker = new maplibregl.Marker({
         element: createMarkerElement()
       })
         .setLngLat([coordinates.lng, coordinates.lat])
         .addTo(mapInstance);
-  
+
       setCurrentMarker(newMarker);
     });
-  
+
     setCulturalMap(mapInstance);
     return mapInstance;
   };
@@ -1680,11 +1680,13 @@ const Amain = () => {
         return;
       }
 
-      const searchRadiusPx = 4000;
+      const searchRadiusPx = 40000;
       const boundingBox = [
         [point.x - searchRadiusPx, point.y - searchRadiusPx],
         [point.x + searchRadiusPx, point.y + searchRadiusPx]
       ];
+      console.log('Point coordinates:', point);
+      console.log('Active Layer:', activeEditableLayer);
 
       const nearbyFeatures = map
         .queryRenderedFeatures(boundingBox, { layers: [activeEditableLayer.id] })

@@ -316,7 +316,7 @@ export const haramAdminVectorTileConfig = [
     id: 'doors-access-point',
     titleFa: 'نقاط اتصال درب‌ها',
     table: DOORS_ACCESS_POINT_SOURCE_LAYER,
-    sourceId: 'fn_door_access_points_mvt',
+    sourceId: 'door_access_points',
     sourceLayer: DOORS_ACCESS_POINT_LAYER_NAME,
     tileUrlFactory: buildDoorAccessPointsTileUrlFactory(),
     type: 'circle',
