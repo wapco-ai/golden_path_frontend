@@ -1969,6 +1969,76 @@ body {
   z-index: 1000;
 }
 
+.editable-layer-indicator {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  padding: 12px 16px;
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editable-layer-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.editable-layer-title {
+  font-weight: 700;
+  color: #1e2023;
+}
+
+.editable-layer-subtitle {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.editable-layer-select {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+  background: #ffffff;
+  color: #111827;
+}
+
+.selected-feature-hint {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.selected-feature-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 12px;
+  color: #1f2937;
+}
+
+.selected-feature-label {
+  font-weight: 600;
+  color: #374151;
+}
+
+.selected-feature-value {
+  direction: ltr;
+  text-align: left;
+  color: #111827;
+}
+
 /* Map Type Selector */
 .map-type-selector {
   position: relative;

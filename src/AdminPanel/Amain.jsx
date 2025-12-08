@@ -17,6 +17,17 @@ import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../ut
 
 const DOOR_ACCESS_LAYER_ID = 'doors-access-point';
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
+const SELECTED_EDITABLE_FEATURE_SOURCE_ID = 'selected-editable-feature-source';
+const SELECTED_EDITABLE_FEATURE_LAYER_ID = 'selected-editable-feature-layer';
+
+const editableLayerOptions = [
+  {
+    id: DOOR_ACCESS_LAYER_ID,
+    sourceId: DOOR_ACCESS_SOURCE_ID,
+    label: 'درب‌ها',
+    highlightColor: '#f97316'
+  }
+];
 
 const logDoorAccessPointDebugInfo = (mapInstance) => {
   if (!mapInstance) return;
@@ -118,7 +129,12 @@ const Amain = () => {
   const contentRef = useRef(null);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [isLocationMarkerMode, setIsLocationMarkerMode] = useState(false);
+  const [activeEditableLayerId, setActiveEditableLayerId] = useState(DOOR_ACCESS_LAYER_ID);
+  const [selectedEditableFeature, setSelectedEditableFeature] = useState(null);
   const [locationMarker, setLocationMarker] = useState(null);
+  const activeEditableLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
+  const selectedFeatureProperties = selectedEditableFeature?.features?.[0]?.properties;
+  const selectedFeatureCoordinates = selectedEditableFeature?.features?.[0]?.geometry?.coordinates;
   const [isAddPlaceModalOpen, setIsAddPlaceModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [placeName, setPlaceName] = useState('');
@@ -1585,10 +1601,80 @@ const Amain = () => {
   }, [map, activeMenu, layerVisibility, applyLayerVisibility]);
 
   useEffect(() => {
+    if (activeMenu !== 'mapmanage') {
+      setSelectedEditableFeature(null);
+    }
+  }, [activeMenu]);
+
+  useEffect(() => {
+    setSelectedEditableFeature(null);
+  }, [activeEditableLayerId]);
+
+  useEffect(() => {
+    if (!map || activeMenu !== 'mapmanage') return undefined;
+
+    const ensureHighlightLayer = () => {
+      const activeLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
+      const highlightColor = activeLayer?.highlightColor || '#3b82f6';
+
+      if (!map.getSource(SELECTED_EDITABLE_FEATURE_SOURCE_ID)) {
+        map.addSource(SELECTED_EDITABLE_FEATURE_SOURCE_ID, {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+      }
+
+      if (!map.getLayer(SELECTED_EDITABLE_FEATURE_LAYER_ID)) {
+        map.addLayer({
+          id: SELECTED_EDITABLE_FEATURE_LAYER_ID,
+          type: 'circle',
+          source: SELECTED_EDITABLE_FEATURE_SOURCE_ID,
+          paint: {
+            'circle-radius': 9,
+            'circle-color': highlightColor,
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-width': 3
+          }
+        });
+      } else {
+        map.setPaintProperty(SELECTED_EDITABLE_FEATURE_LAYER_ID, 'circle-color', highlightColor);
+      }
+    };
+
+    if (map.isStyleLoaded()) {
+      ensureHighlightLayer();
+      return undefined;
+    }
+
+    map.once('load', ensureHighlightLayer);
+    return () => {
+      map.off('load', ensureHighlightLayer);
+    };
+  }, [map, activeMenu, activeEditableLayerId]);
+
+  useEffect(() => {
+    if (!map) return undefined;
+
+    const source = map.getSource(SELECTED_EDITABLE_FEATURE_SOURCE_ID);
+    if (source?.setData) {
+      source.setData(selectedEditableFeature || { type: 'FeatureCollection', features: [] });
+    }
+
+    return undefined;
+  }, [map, selectedEditableFeature]);
+
+  useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
 
     const handleMapClick = (event) => {
       const { lngLat, point } = event;
+
+      const activeEditableLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
+
+      if (!activeEditableLayer) {
+        console.warn('هیچ لایه قابل ویرایشی انتخاب نشده است.');
+        return;
+      }
 
       const searchRadiusPx = 4000;
       const boundingBox = [
@@ -1596,18 +1682,18 @@ const Amain = () => {
         [point.x + searchRadiusPx, point.y + searchRadiusPx]
       ];
 
-      const doorAccessFeatures = map
-        .queryRenderedFeatures(boundingBox, { layers: ['doors-access-point'] })
-        .filter((feature) => feature?.source === 'fn_door_access_points_mvt');
+      const nearbyFeatures = map
+        .queryRenderedFeatures(boundingBox, { layers: [activeEditableLayer.id] })
+        .filter((feature) => !activeEditableLayer.sourceId || feature?.source === activeEditableLayer.sourceId);
 
-      if (!doorAccessFeatures.length) {
-        console.log('هیچ درب fn_door_access_points_mvt در نزدیکی محل کلیک پیدا نشد.');
+      if (!nearbyFeatures.length) {
+        console.log('هیچ فیچری در لایه انتخابی در نزدیکی محل کلیک پیدا نشد.');
         return;
       }
 
       const clickCoordinates = [lngLat.lng, lngLat.lat];
 
-      const featuresWithDistance = doorAccessFeatures
+      const featuresWithDistance = nearbyFeatures
         .map((feature) => {
           const [featureLng, featureLat] = feature?.geometry?.coordinates || [];
 
@@ -1627,13 +1713,20 @@ const Amain = () => {
         .sort((a, b) => a.distanceMeters - b.distanceMeters);
 
       if (!featuresWithDistance.length) {
-        console.log('داده معتبر برای درب‌های fn_door_access_points_mvt یافت نشد.');
+        console.log('داده معتبر برای فیچرهای نزدیک یافت نشد.');
         return;
       }
 
       const nearestDoor = featuresWithDistance[0];
+      const selectedFeatureCollection = {
+        type: 'FeatureCollection',
+        features: [nearestDoor.feature]
+      };
 
-      console.log('نزدیک‌ترین درب fn_door_access_points_mvt:', {
+      setSelectedEditableFeature(selectedFeatureCollection);
+
+      console.log('نزدیک‌ترین فیچر انتخابی:', {
+        layerId: activeEditableLayer.id,
         distanceMeters: Number(nearestDoor.distanceMeters.toFixed(2)),
         clickLocation: clickCoordinates,
         coordinates: nearestDoor.feature.geometry?.coordinates,
@@ -1644,7 +1737,7 @@ const Amain = () => {
     map.on('click', handleMapClick);
 
     return () => map.off('click', handleMapClick);
-  }, [map, activeMenu]);
+  }, [map, activeMenu, activeEditableLayerId]);
 
   const handleZoomIn = () => {
     if (map) {
@@ -1679,6 +1772,11 @@ const Amain = () => {
 
   const handleExitFullscreenMap = () => {
     setIsMapFullscreen(false);
+  };
+
+  const handleEditableLayerChange = (event) => {
+    setActiveEditableLayerId(event.target.value);
+    setSelectedEditableFeature(null);
   };
 
 
@@ -3780,6 +3878,46 @@ const Amain = () => {
             <div className="map-management-section">
               <div className="map-container">
                 <div id="map-container" className="map-instance"></div>
+
+                <div className="editable-layer-indicator">
+                  <div className="editable-layer-header">
+                    <span className="editable-layer-title">لایه فعال برای ویرایش</span>
+                    <span className="editable-layer-subtitle">برای جلوگیری از سردرگمی در نقشه</span>
+                  </div>
+                  <select
+                    className="editable-layer-select"
+                    value={activeEditableLayerId}
+                    onChange={handleEditableLayerChange}
+                  >
+                    {editableLayerOptions.map((layerOption) => (
+                      <option key={layerOption.id} value={layerOption.id}>
+                        {layerOption.label}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedEditableFeature && (
+                    <div className="selected-feature-hint">
+                      <div className="selected-feature-row">
+                        <span className="selected-feature-label">لایه انتخابی:</span>
+                        <span className="selected-feature-value">{activeEditableLayer?.label || activeEditableLayerId}</span>
+                      </div>
+                      {selectedFeatureProperties && (
+                        <div className="selected-feature-row">
+                          <span className="selected-feature-label">مشخصات:</span>
+                          <span className="selected-feature-value">{JSON.stringify(selectedFeatureProperties)}</span>
+                        </div>
+                      )}
+                      {selectedFeatureCoordinates && Array.isArray(selectedFeatureCoordinates) && (
+                        <div className="selected-feature-row">
+                          <span className="selected-feature-label">مختصات:</span>
+                          <span className="selected-feature-value">
+                            {selectedFeatureCoordinates.map((coord) => Number(coord).toFixed(5)).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 {/* Top Left - Map Type Selector */}
                 <div className="map-control-top-left">
