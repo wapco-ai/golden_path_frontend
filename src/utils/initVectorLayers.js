@@ -46,7 +46,7 @@ const defaultPaintByType = {
     'circle-color': '#0f172a',
     'circle-radius': 4,
     'circle-stroke-color': '#ffffff',
-    'circle-stroke-width': 1
+    // 'circle-stroke-width': 1
   },
   symbol: {}
 };
