@@ -1347,6 +1347,7 @@ const Amain = () => {
         mapInstance.addControl(new maplibregl.NavigationControl());
         mapInstance.on('load', (event) => {
           initHaramVectorLayers(event, haramAdminVectorTileConfig);
+          console.log('Haram vector layers loaded successfully in Amain map');
         });
         setMap(mapInstance);
 
