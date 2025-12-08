@@ -254,6 +254,10 @@ const Amain = () => {
   const [textFiles, setTextFiles] = useState([]);
   const [primaryImage, setPrimaryImage] = useState(null);
 
+  const [isEditingCultural, setIsEditingCultural] = useState(false);
+  const [editingCulturalId, setEditingCulturalId] = useState(null);
+  const [editingCulturalData, setEditingCulturalData] = useState(null);
+
   useEffect(() => {
     document.title = 'Admin Panel';
 
@@ -597,6 +601,72 @@ const Amain = () => {
     }));
   };
 
+  const handleEditCultural = (id) => {
+    const itemToEdit = culturalData.find(item => item.id === id);
+    if (!itemToEdit) return;
+
+    setEditingCulturalId(id);
+    setEditingCulturalData({ ...itemToEdit });
+
+    // Set up the form data for editing
+    setCulturalTitle(itemToEdit.title);
+    setCulturalDescription(itemToEdit.description || '');
+    setPlaceAddress(itemToEdit.address || '');
+
+    // Set cultural types if they exist
+    if (itemToEdit.culturalTypes) {
+      setSelectedCulturalTypes([...itemToEdit.culturalTypes]);
+    }
+
+    // Set other fields if they exist in the data
+    if (itemToEdit.files) {
+      setProfileImages(itemToEdit.files.images || []);
+      setAudioFiles(itemToEdit.files.audio || []);
+      setTextFiles(itemToEdit.files.documents || []);
+      setPrimaryImage(itemToEdit.primaryImage || null);
+    }
+
+    setIsEditingCultural(true);
+  };
+
+  const handleSaveEditCultural = () => {
+    if (!editingCulturalId || !culturalTitle.trim()) {
+      alert('لطفا عنوان را وارد کنید');
+      return;
+    }
+
+    const updatedCulturalData = culturalData.map(item => {
+      if (item.id === editingCulturalId) {
+        return {
+          ...item,
+          title: culturalTitle,
+          description: culturalDescription,
+          address: placeAddress,
+          culturalTypes: [...selectedCulturalTypes],
+          primaryImage: primaryImage?.url || item.primaryImage,
+          files: {
+            images: profileImages,
+            audio: audioFiles,
+            documents: textFiles
+          },
+          updatedAt: formatJalaliDate(new Date())
+        };
+      }
+      return item;
+    });
+
+    setCulturalData(updatedCulturalData);
+    handleCancelEditCultural();
+    alert('اطلاعات فرهنگی با موفقیت ویرایش شد');
+  };
+
+  const handleCancelEditCultural = () => {
+    setIsEditingCultural(false);
+    setEditingCulturalId(null);
+    setEditingCulturalData(null);
+    resetCulturalForm();
+  };
+
   // Update the getPageTitle function (around line 155)
   const getPageTitle = () => {
     if (currentReportView === 'کاربران ثبت نام کرده') {
@@ -613,9 +683,9 @@ const Amain = () => {
       };
     }
 
-    if (currentReportView === 'مدیریت اطلاعات فرهنگی') {
+    if (isEditingCultural && editingCulturalData) {
       return {
-        title: 'مدیریت اطلاعات فرهنگی',
+        title: `ویرایش اطلاعات فرهنگی ${editingCulturalData.title}`,
         description: ''
       };
     }
@@ -661,6 +731,8 @@ const Amain = () => {
     setSelectedCulturalTypes([]);
     setPlaceAddress('');
     setSelectedLocation(null);
+    
+    setIsEditingCultural(false);
 
     setProfileImages([]);
     setAudioFiles([]);
@@ -997,6 +1069,62 @@ const Amain = () => {
     });
   };
 
+  const initializeEditMap = () => {
+    if (!document.getElementById('edit-cultural-map-container')) return null;
+  
+    const mapInstance = new maplibregl.Map({
+      container: 'edit-cultural-map-container',
+      style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+      center: editingCulturalData?.location ? [editingCulturalData.location.lng, editingCulturalData.location.lat] : [59.6161, 36.2908],
+      zoom: 16,
+    });
+  
+    mapInstance.addControl(new maplibregl.NavigationControl());
+  
+    // Add existing marker if location exists
+    if (editingCulturalData?.location) {
+      const marker = new maplibregl.Marker({
+        element: createMarkerElement()
+      })
+        .setLngLat([editingCulturalData.location.lng, editingCulturalData.location.lat])
+        .addTo(mapInstance);
+      setCurrentMarker(marker);
+      setSelectedLocation(editingCulturalData.location);
+    }
+  
+    // Add click event to map for new location selection
+    mapInstance.on('click', (e) => {
+      const coordinates = e.lngLat;
+      setSelectedLocation(coordinates);
+  
+      // Remove existing marker if it exists
+      if (currentMarker) {
+        currentMarker.remove();
+      }
+  
+      // Create new marker
+      const newMarker = new maplibregl.Marker({
+        element: createMarkerElement()
+      })
+        .setLngLat([coordinates.lng, coordinates.lat])
+        .addTo(mapInstance);
+  
+      setCurrentMarker(newMarker);
+    });
+  
+    setCulturalMap(mapInstance);
+    return mapInstance;
+  };
+
+  useEffect(() => {
+    if (isEditingCultural && editingCulturalData) {
+      // Initialize edit map after a short delay to ensure DOM is ready
+      setTimeout(() => {
+        initializeEditMap();
+      }, 100);
+    }
+  }, [isEditingCultural, editingCulturalData]);
+
   const handleCulturalPrayerNextMonth = () => {
     setCulturalPrayerCalendarDate(prev => {
       let newMonth = prev.month + 1;
@@ -1241,9 +1369,9 @@ const Amain = () => {
         documents: textFiles
       }
     };
-  
+
     setCulturalData(prev => [newCulturalItem, ...prev]);
-    
+
     closeAddCulturalModal();
     alert('اطلاعات فرهنگی با موفقیت ثبت شد');
   };
@@ -1266,15 +1394,20 @@ const Amain = () => {
 
   const handleSubmenuClick = (viewName) => {
     setCurrentReportView(viewName);
+    setIsEditingCultural(false); // Reset edit mode
 
     if (viewName === 'کاربران ثبت نام کرده' ||
       viewName === 'لاگ های مسیریابی کاربران') {
       setActiveMenu('reports');
       setBreadcrumbPath(['منوی اصلی', 'گزارشات', viewName]);
     } else if (viewName === 'مدیریت دسته بندی‌ها' ||
-      viewName === 'مدیریت اطلاعات فرهنگی') { // Added this line
+      viewName === 'مدیریت اطلاعات فرهنگی') {
       setActiveMenu('facmanage');
-      setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات', viewName]);
+      if (isEditingCultural && editingCulturalData) {
+        setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات', 'مدیریت اطلاعات فرهنگی', `ویرایش اطلاعات فرهنگی ${editingCulturalData.title}`]);
+      } else {
+        setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات', viewName]);
+      }
       resetCategoryForm();
     } else {
       setActiveMenu('usermanage');
@@ -2764,7 +2897,419 @@ const Amain = () => {
 
 
 
-          {currentReportView === 'مدیریت اطلاعات فرهنگی' ? (
+          {isEditingCultural && editingCulturalData ? (
+            /* Edit Cultural Information Page */
+            <div className="edit-cultural-page">
+              {/* Page Header */}
+              <div className="page-header-edit">
+                <div className="header-title-section">
+                  <h2 className="page-title-edit">ویرایش اطلاعات فرهنگی {editingCulturalData.title}</h2>
+                  <div className="breadcrumb-edit">
+                    <span className="breadcrumb-item">منوی اصلی</span>
+                    <span className="breadcrumb-separator">/</span>
+                    <span className="breadcrumb-item">مدیریت امکانات‌</span>
+                    <span className="breadcrumb-separator">/</span>
+                    <span className="breadcrumb-item">مدیریت اطلاعات فرهنگی</span>
+                    <span className="breadcrumb-separator">/</span>
+                    <span className="breadcrumb-item active">ویرایش اطلاعات فرهنگی {editingCulturalData.title}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Edit Form Container */}
+              <div className="edit-form-container">
+                {/* Left Side - Media Files */}
+                <div className="edit-left-section">
+                  {/* Profile Images and Videos Section */}
+                  <div className="edit-media-section">
+                    <div className="edit-section-header">
+                      <span className="edit-section-title">تصاویر و ویدئوهای پروفایل اطلاعات فرهنگی</span>
+                      <label className="add-file-btn">
+                        <input
+                          type="file"
+                          accept="image/*,video/*"
+                          multiple
+                          onChange={(e) => handleFileUpload(e, 'image')}
+                          className="file-input-hidden"
+                        />
+                        افزودن فایل
+                        <svg width="25" height="25" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          {/* ... SVG for add file ... */}
+                        </svg>
+                      </label>
+                    </div>
+
+                    {/* Primary Image Display */}
+                    {primaryImage && (
+                      <div className="primary-image-section-edit">
+                        <div className="primary-image-label">تصویر اصلی</div>
+                        <div className="primary-image-container-edit">
+                          {primaryImage.type.startsWith('image/') ? (
+                            <img
+                              src={primaryImage.url}
+                              alt={primaryImage.name}
+                              className="primary-image-edit"
+                            />
+                          ) : primaryImage.type.startsWith('video/') ? (
+                            <video controls className="primary-image-edit">
+                              <source src={primaryImage.url} type={primaryImage.type} />
+                            </video>
+                          ) : null}
+                          <button
+                            className="remove-file-btn-edit"
+                            onClick={() => handleRemoveFile(primaryImage.id, 'image')}
+                          >
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#EA4335" />
+                              <path d="M10 15.625C9.65833 15.625 9.375 15.3417 9.375 15V5C9.375 4.65833 9.65833 4.375 10 4.375C10.3417 4.375 10.625 4.65833 10.625 5V15C10.625 15.3417 10.3417 15.625 10 15.625Z" fill="#EA4335" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Profile Images Grid */}
+                    {profileImages.length > 0 && (
+                      <div className="profile-images-grid-edit">
+                        {profileImages.map((file) => (
+                          <div
+                            key={file.id}
+                            className={`profile-image-item-edit ${file.id === primaryImage?.id ? 'primary' : ''}`}
+                          >
+                            {file.type.startsWith('image/') ? (
+                              <img
+                                src={file.url}
+                                alt={file.name}
+                                className="media-preview-edit"
+                              />
+                            ) : file.type.startsWith('video/') ? (
+                              <video controls className="media-preview-edit">
+                                <source src={file.url} type={file.type} />
+                              </video>
+                            ) : null}
+
+                            <div className="profile-image-actions-edit">
+                              {file.type.startsWith('image/') && file.id !== primaryImage?.id && (
+                                <button
+                                  className="set-primary-btn-edit"
+                                  onClick={() => handleSetPrimaryImage(file.id)}
+                                >
+                                  اصلی
+                                </button>
+                              )}
+                              <button
+                                className="remove-file-btn-small-edit"
+                                onClick={() => handleRemoveFile(file.id, 'image')}
+                              >
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#EA4335" />
+                                  <path d="M10 15.625C9.65833 15.625 9.375 15.3417 9.375 15V5C9.375 4.65833 9.65833 4.375 10 4.375C10.3417 4.375 10.625 4.65833 10.625 5V15C10.625 15.3417 10.3417 15.625 10 15.625Z" fill="#EA4335" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Display Settings Section */}
+                  <div className="edit-display-section">
+                    <div className="edit-section-header">
+                      <span className="edit-section-title">نمایش و عدم نمایش اطلاعات به کاربر</span>
+                    </div>
+
+                    <div className="display-options-edit">
+                      {/* دیدگاه‌های کاربران */}
+                      <div className="display-option-edit">
+                        <span className="option-label-edit">دیدگاه‌های کاربران</span>
+                        <div className="display-toggle-edit">
+                          <div
+                            className={`toggle-option2-edit ${showUserComments === 'نمایش' ? 'selected' : ''}`}
+                            onClick={() => setShowUserComments('نمایش')}
+                          >
+                            نمایش
+                          </div>
+                          <div
+                            className={`toggle-option-edit ${showUserComments === 'عدم نمایش' ? 'selected' : ''}`}
+                            onClick={() => setShowUserComments('عدم نمایش')}
+                          >
+                            عدم نمایش
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* چند رسانه‌ای‌ها */}
+                      <div className="display-option-edit">
+                        <span className="option-label-edit">چند رسانه‌ای‌ها</span>
+                        <div className="display-toggle-edit">
+                          <div
+                            className={`toggle-option2-edit ${showMultimedia === 'نمایش' ? 'selected' : ''}`}
+                            onClick={() => setShowMultimedia('نمایش')}
+                          >
+                            نمایش
+                          </div>
+                          <div
+                            className={`toggle-option-edit ${showMultimedia === 'عدم نمایش' ? 'selected' : ''}`}
+                            onClick={() => setShowMultimedia('عدم نمایش')}
+                          >
+                            عدم نمایش
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Text and Audio Files Section */}
+                  <div className="edit-files-section">
+                    {/* Audio Files */}
+                    <div className="edit-file-subsection">
+                      <div className="edit-section-header">
+                        <span className="edit-section-title">فایل‌های صوتی</span>
+                        <label className="add-file-btn-small">
+                          <input
+                            type="file"
+                            accept="audio/*"
+                            multiple
+                            onChange={(e) => handleFileUpload(e, 'audio')}
+                            className="file-input-hidden"
+                          />
+                          افزودن فایل صوتی
+                        </label>
+                      </div>
+
+                      {audioFiles.length > 0 && (
+                        <div className="audio-files-list-edit">
+                          {audioFiles.map((audio) => (
+                            <div key={audio.id} className="audio-file-item-edit">
+                              <div className="audio-file-info-edit">
+                                <div className="audio-icon-edit">
+                                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" fill="#0F71EF" />
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C9.79086 2 8 3.79086 8 6V12C8 14.2091 9.79086 16 12 16C14.2091 16 16 14.2091 16 12V6C16 3.79086 14.2091 2 12 2ZM14 12C14 13.1046 13.1046 14 12 14C10.8954 14 10 13.1046 10 12C10 10.8954 10.8954 10 12 10C13.1046 10 14 10.8954 14 12Z" fill="#0F71EF" />
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M19 10C19.5523 10 20 10.4477 20 11V12C20 16.4183 16.4183 20 12 20C7.58172 20 4 16.4183 4 12V11C4 10.4477 4.44772 10 5 10C5.55228 10 6 10.4477 6 11V12C6 15.3137 8.68629 18 12 18C15.3137 18 18 15.3137 18 12V11C18 10.4477 18.4477 10 19 10Z" fill="#0F71EF" />
+                                  </svg>
+                                </div>
+                                <span className="audio-file-name-edit">{audio.name}</span>
+                              </div>
+                              <button
+                                className="remove-audio-btn-edit"
+                                onClick={() => handleRemoveFile(audio.id, 'audio')}
+                              >
+                                حذف
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Text Files */}
+                    <div className="edit-file-subsection">
+                      <div className="edit-section-header">
+                        <span className="edit-section-title">فایل‌های متنی</span>
+                        <label className="add-file-btn-small">
+                          <input
+                            type="file"
+                            accept=".pdf"
+                            multiple
+                            onChange={(e) => handleFileUpload(e, 'text')}
+                            className="file-input-hidden"
+                          />
+                          افزودن فایل متنی
+                        </label>
+                      </div>
+
+                      {textFiles.length > 0 && (
+                        <div className="text-files-list-edit">
+                          {textFiles.map((textFile) => (
+                            <div key={textFile.id} className="text-file-item-edit">
+                              <div className="text-file-info-edit">
+                                <div className="pdf-icon-edit">
+                                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M6 2C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2H6Z" fill="#EA4335" />
+                                    <path d="M14 2V8H20" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                    <path d="M9 12H15M9 16H15M7 8H8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                </div>
+                                <span className="text-file-name-edit">{textFile.name}</span>
+                              </div>
+                              <button
+                                className="remove-text-btn-edit"
+                                onClick={() => handleRemoveFile(textFile.id, 'text')}
+                              >
+                                حذف
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Side - Form Fields */}
+                <div className="edit-right-section">
+                  {/* Title and Details */}
+                  <div className="edit-form-section">
+                    <h3 className="edit-form-title">عنوان و جزئیات</h3>
+
+                    <div className="edit-form-group">
+                      <label className="edit-form-label">عنوان</label>
+                      <div className="title-input-with-language-edit">
+                        <input
+                          type="text"
+                          className="edit-form-input"
+                          placeholder="عنوان اطلاعات فرهنگی را بنویسید"
+                          value={culturalTitle}
+                          onChange={(e) => setCulturalTitle(e.target.value)}
+                        />
+                        <button
+                          className="language-input-btn-edit"
+                          type="button"
+                          onClick={() => openTitleLanguageModal('culturalTitle')}
+                          title="ورود عنوان به زبان‌های دیگر"
+                        >
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M10 18.3333C14.6024 18.3333 18.3333 14.6024 18.3333 10C18.3333 5.39763 14.6024 1.66667 10 1.66667C5.39763 1.66667 1.66667 5.39763 1.66667 10C1.66667 14.6024 5.39763 18.3333 10 18.3333Z" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M6.66699 2.5H7.50033C6.242 6.83667 6.242 13.1633 7.50033 17.5H6.66699" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M12.5 2.5C13.7583 6.83667 13.7583 13.1633 12.5 17.5" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="edit-form-group">
+                      <label className="edit-form-label">توضیحات</label>
+                      <div className="description-input-with-language-edit">
+                        <textarea
+                          className="edit-form-textarea"
+                          placeholder="درباره این مکان اطلاعات فرهنگی بنویسید"
+                          value={culturalDescription}
+                          onChange={(e) => setCulturalDescription(e.target.value)}
+                          rows="4"
+                        />
+                        <button
+                          className="language-input-btn-edit"
+                          type="button"
+                          onClick={() => openTitleLanguageModal('description')}
+                          title="ورود توضیحات به زبان‌های دیگر"
+                        >
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M10 18.3333C14.6024 18.3333 18.3333 14.6024 18.3333 10C18.3333 5.39763 14.6024 1.66667 10 1.66667C5.39763 1.66667 1.66667 5.39763 1.66667 10C1.66667 14.6024 5.39763 18.3333 10 18.3333Z" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M6.66699 2.5H7.50033C6.242 6.83667 6.242 13.1633 7.50033 17.5H6.66699" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M12.5 2.5C13.7583 6.83667 13.7583 13.1633 12.5 17.5" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Address and Location */}
+                  <div className="edit-form-section">
+                    <h3 className="edit-form-title">آدرس و موقعیت اطلاعات فرهنگی</h3>
+
+                    <div className="edit-form-group">
+                      <label className="edit-form-label">آدرس</label>
+                      <div className="address-input-with-language-edit">
+                        <textarea
+                          className="edit-form-textarea"
+                          placeholder="آدرس اطلاعات فرهنگی را بنویسید"
+                          value={placeAddress}
+                          onChange={(e) => setPlaceAddress(e.target.value)}
+                          rows="2"
+                        />
+                        <button
+                          className="language-input-btn-edit"
+                          type="button"
+                          onClick={() => openAddressLanguageModal('culturalAddress')}
+                          title="ورود آدرس به زبان‌های دیگر"
+                        >
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M10 18.3333C14.6024 18.3333 18.3333 14.6024 18.3333 10C18.3333 5.39763 14.6024 1.66667 10 1.66667C5.39763 1.66667 1.66667 5.39763 1.66667 10C1.66667 14.6024 5.39763 18.3333 10 18.3333Z" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M6.66699 2.5H7.50033C6.242 6.83667 6.242 13.1633 7.50033 17.5H6.66699" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M12.5 2.5C13.7583 6.83667 13.7583 13.1633 12.5 17.5" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="edit-form-group">
+                      <label className="edit-form-label">موقعیت جغرافیایی</label>
+                      <div className="edit-map-container">
+                        <div id="edit-cultural-map-container" className="edit-map-instance"></div>
+                        {selectedLocation && (
+                          <div className="selected-coordinates-edit">
+                            <span>موقعیت انتخاب شده:</span>
+                            <span className="coordinates-value-edit">
+                              {selectedLocation.lat.toFixed(6)}°N, {selectedLocation.lng.toFixed(6)}°E
+                            </span>
+                          </div>
+                        )}
+                        <button
+                          className="select-location-btn-edit"
+                          onClick={() => {
+                            if (!culturalMap) {
+                              initializeEditMap();
+                            }
+                          }}
+                        >
+                          انتخاب موقعیت روی نقشه
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Cultural Type Selection */}
+                  <div className="edit-form-section">
+                    <h3 className="edit-form-title">نوع این مکان</h3>
+                    <div className="cultural-type-grid-edit">
+                      {['زیراتی', 'فرهنگی', 'خدماتی', 'تاریخی', 'معماری'].map((type) => (
+                        <div
+                          key={type}
+                          className={`cultural-type-option-edit ${selectedCulturalTypes.includes(type) ? 'selected' : ''}`}
+                          onClick={() => handleCulturalTypeToggle(type)}
+                        >
+                          <div className="cultural-type-checkbox-edit">
+                            {selectedCulturalTypes.includes(type) ? (
+                              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
+                                <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
+                              </svg>
+                            ) : (
+                              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" stroke="#D9D9D9" />
+                              </svg>
+                            )}
+                          </div>
+                          <span>{type}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {culturalTypeError && (
+                      <div className="error-message-edit">لطفا حداقل یک نوع مکان را انتخاب کنید</div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="edit-action-buttons">
+                    <button
+                      className="cancel-edit-btn"
+                      onClick={handleCancelEditCultural}
+                    >
+                      انصراف
+                    </button>
+                    <button
+                      className="save-edit-btn"
+                      onClick={handleSaveEditCultural}
+                    >
+                      ثبت تغییرات
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : currentReportView === 'مدیریت اطلاعات فرهنگی' ? (
             /* Cultural Information Management Section */
             <div className="cultural-management-section">
               {/* Header with buttons */}
@@ -2876,7 +3421,11 @@ const Amain = () => {
                           </td>
                           <td>
                             <div className="cultural-actions">
-                              <button className="edit-cultural-btn" title="ویرایش">
+                              <button
+                                className="edit-cultural-btn"
+                                title="ویرایش"
+                                onClick={() => handleEditCultural(item.id)}
+                              >
                                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                                   <g clipPath="url(#clip0_367_7217)">
                                     <path fillRule="evenodd" clipRule="evenodd" d="M7.96167 0.833374L8.99992 0.833374C9.27606 0.833374 9.49992 1.05723 9.49992 1.33337C9.49992 1.60952 9.27606 1.83337 8.99992 1.83337H7.99992C6.41444 1.83337 5.27562 1.83444 4.40897 1.95095C3.5567 2.06554 3.04289 2.28347 2.66312 2.66324C2.28335 3.04301 2.06542 3.55682 1.95083 4.40909C1.83431 5.27574 1.83325 6.41456 1.83325 8.00004C1.83325 9.58552 1.83431 10.7243 1.95083 11.591C2.06542 12.4433 2.28335 12.9571 2.66312 13.3368C3.04289 13.7166 3.5567 13.9345 4.40897 14.0491C5.27562 14.1656 6.41444 14.1667 7.99992 14.1667C9.5854 14.1667 10.7242 14.1656 11.5909 14.0491C12.4431 13.9345 12.957 13.7166 13.3367 13.3368C13.7165 12.9571 13.9344 12.4433 14.049 11.591C14.1655 10.7243 14.1666 9.58552 14.1666 8.00004V7.00004C14.1666 6.7239 14.3904 6.50004 14.6666 6.50004C14.9427 6.50004 15.1666 6.7239 15.1666 7.00004V8.03829C15.1666 9.57722 15.1666 10.7832 15.0401 11.7242C14.9106 12.6874 14.6404 13.4474 14.0438 14.044C13.4473 14.6405 12.6873 14.9107 11.7241 15.0402C10.7831 15.1667 9.5771 15.1667 8.03817 15.1667H7.96167C6.42274 15.1667 5.21671 15.1667 4.27572 15.0402C3.31257 14.9107 2.55255 14.6405 1.95601 14.044C1.35947 13.4474 1.08924 12.6874 0.95975 11.7242C0.833237 10.7832 0.833244 9.57722 0.833252 8.03829V7.96179C0.833244 6.42286 0.833237 5.21684 0.95975 4.27584C1.08924 3.31269 1.35947 2.55267 1.95601 1.95613C2.55255 1.35959 3.31257 1.08936 4.27572 0.959872C5.21671 0.833359 6.42274 0.833366 7.96167 0.833374ZM11.1803 1.51732C12.0922 0.605393 13.5707 0.605393 14.4826 1.51732C15.3946 2.42924 15.3946 3.90776 14.4826 4.81969L10.0506 9.25176C9.80306 9.49931 9.648 9.65438 9.47497 9.78934C9.27118 9.9483 9.05067 10.0846 8.81735 10.1958C8.61926 10.2902 8.41122 10.3595 8.07911 10.4702L6.14276 11.1156C5.78526 11.2348 5.39112 11.1418 5.12466 10.8753C4.8582 10.6088 4.76515 10.2147 4.88432 9.8572L5.52976 7.92086C5.64044 7.58874 5.70978 7.3807 5.80418 7.18261C5.91538 6.94929 6.05166 6.72878 6.21062 6.52499C6.34558 6.35195 6.50065 6.1969 6.74822 5.94937L11.1803 1.51732ZM13.7755 2.22442C13.2541 1.70302 12.4088 1.70302 11.8874 2.22442L11.6363 2.4755C11.6514 2.53941 11.6726 2.61555 11.7021 2.70048C11.7976 2.97586 11.9784 3.33852 12.3199 3.68004C12.6614 4.02156 13.0241 4.20235 13.2995 4.29789C13.3844 4.32735 13.4605 4.34853 13.5245 4.36366L13.7755 4.11258C14.2969 3.59118 14.2969 2.74582 13.7755 2.22442ZM12.7367 5.15143C12.3927 5.0035 11.992 4.76635 11.6128 4.38714C11.2336 4.00794 10.9965 3.60726 10.8485 3.26328L7.47826 6.63355C7.20058 6.91122 7.09168 7.02134 6.99913 7.14001C6.88484 7.28653 6.78685 7.44508 6.70691 7.61283C6.64216 7.74868 6.59237 7.89533 6.46819 8.26787L6.18026 9.13166L6.8683 9.8197L7.73209 9.53177C8.10463 9.40759 8.25128 9.35779 8.38713 9.29305C8.55488 9.21311 8.71342 9.11512 8.85995 9.00083C8.97862 8.90828 9.08874 8.79938 9.36641 8.5217L12.7367 5.15143Z" fill="#1E2023" />
@@ -3100,7 +3649,6 @@ const Amain = () => {
                                   </svg>
                                 )}
                               </div>
-                              <div className="category-icon-placeholder"></div>
                               <strong>{category.title}</strong>
                             </div>
                           </td>
@@ -5731,7 +6279,7 @@ const Amain = () => {
                             onChange={(e) => handleFileUpload(e, 'audio')}
                             className="file-input-hidden"
                           />
-                          افزودن فایل صوتی 
+                          افزودن فایل صوتی
                         </label>
                       </div>
 
