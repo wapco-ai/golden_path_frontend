@@ -2029,6 +2029,41 @@ body {
   border-bottom: 1px solid #F2F2F2;
 }
 
+.layers-dropdown {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.layer-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: default;
+}
+
+.layer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.layer-title {
+  font-weight: 600;
+}
+
+.layer-subtitle {
+  font-size: 12px;
+  color: #858585;
+}
+
+.layer-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #0F71EF;
+  cursor: pointer;
+}
+
 .map-type-option:hover {
   background: #F5F6FF;
   color: #0F71EF;
