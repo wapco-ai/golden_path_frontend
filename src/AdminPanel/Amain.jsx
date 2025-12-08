@@ -204,6 +204,10 @@ const Amain = () => {
   const [culturalPrayerBeforeMinutes, setCulturalPrayerBeforeMinutes] = useState('');
   const [culturalPrayerAfterMinutes, setCulturalPrayerAfterMinutes] = useState('');
   const [culturalPrayerTimeRestrictionsList, setCulturalPrayerTimeRestrictionsList] = useState([]);
+  const [profileImages, setProfileImages] = useState([]);
+  const [audioFiles, setAudioFiles] = useState([]);
+  const [textFiles, setTextFiles] = useState([]);
+  const [primaryImage, setPrimaryImage] = useState(null);
 
   useEffect(() => {
     document.title = 'Admin Panel';
@@ -613,7 +617,11 @@ const Amain = () => {
     setPlaceAddress('');
     setSelectedLocation(null);
 
-    // Reset all language states
+    setProfileImages([]);
+    setAudioFiles([]);
+    setTextFiles([]);
+    setPrimaryImage(null);
+
     setIsTitleLanguageModalOpen(false);
     setIsDescriptionLanguageModalOpen(false);
     setIsAddressLanguageModalOpen(false);
@@ -956,6 +964,96 @@ const Amain = () => {
     });
   };
 
+  const handleFileUpload = (event, fileType) => {
+    const files = Array.from(event.target.files);
+
+    files.forEach(file => {
+      // Check file type and add to appropriate state
+      if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+        // For images and videos
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const newFile = {
+            id: Date.now() + Math.random(),
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            url: e.target.result,
+            isPrimary: profileImages.length === 0 && !primaryImage // First image becomes primary
+          };
+
+          setProfileImages(prev => [...prev, newFile]);
+
+          // Set as primary if it's the first image
+          if (profileImages.length === 0 && !primaryImage && file.type.startsWith('image/')) {
+            setPrimaryImage(newFile);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+      else if (file.type.startsWith('audio/')) {
+        // For audio files
+        const audioUrl = URL.createObjectURL(file);
+        setAudioFiles(prev => [...prev, {
+          id: Date.now() + Math.random(),
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          url: audioUrl
+        }]);
+      }
+      else if (file.type === 'application/pdf') {
+        // For PDF files
+        const pdfUrl = URL.createObjectURL(file);
+        setTextFiles(prev => [...prev, {
+          id: Date.now() + Math.random(),
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          url: pdfUrl
+        }]);
+      }
+    });
+
+    // Reset file input
+    event.target.value = '';
+  };
+
+  // Set primary image handler
+  const handleSetPrimaryImage = (imageId) => {
+    const image = profileImages.find(img => img.id === imageId);
+    if (image) {
+      setPrimaryImage(image);
+    }
+  };
+
+  const handleRemoveFile = (fileId, fileType) => {
+    if (fileType === 'image') {
+      const fileToRemove = profileImages.find(img => img.id === fileId);
+      if (fileToRemove) {
+        setProfileImages(prev => prev.filter(img => img.id !== fileId));
+
+        // If removing primary image, set another image as primary or null
+        if (primaryImage && primaryImage.id === fileId) {
+          const remainingImages = profileImages.filter(img => img.id !== fileId);
+          setPrimaryImage(remainingImages.length > 0 ? remainingImages[0] : null);
+        }
+      }
+    } else if (fileType === 'audio') {
+      const fileToRemove = audioFiles.find(audio => audio.id === fileId);
+      if (fileToRemove && fileToRemove.url) {
+        URL.revokeObjectURL(fileToRemove.url);
+      }
+      setAudioFiles(prev => prev.filter(audio => audio.id !== fileId));
+    } else if (fileType === 'text') {
+      const fileToRemove = textFiles.find(text => text.id === fileId);
+      if (fileToRemove && fileToRemove.url) {
+        URL.revokeObjectURL(fileToRemove.url);
+      }
+      setTextFiles(prev => prev.filter(text => text.id !== fileId));
+    }
+  };
+
   const renderCulturalPrayerJalaliCalendarDays = () => {
     const { year, month } = culturalPrayerCalendarDate;
     const now = new Date();
@@ -1078,40 +1176,31 @@ const Amain = () => {
       return;
     }
 
-    // Only validate Persian fields
     if (!culturalTitle.trim()) {
       alert('لطفا عنوان فارسی را وارد کنید');
       return;
     }
 
-    if (!culturalDescription.trim()) {
-      alert('لطفا توضیحات فارسی را وارد کنید');
-      return;
-    }
-
     const newCulturalItem = {
       id: Date.now(),
-      title: culturalTitle, // Persian title
-      description: culturalDescription, // Persian description
-      // Store other language translations if entered
-      englishTitle: languageTitles.english || '',
-      arabicTitle: languageTitles.arabic || '',
-      urduTitle: languageTitles.urdu || '',
-      englishDescription: languageDescriptions.english || '',
-      arabicDescription: languageDescriptions.arabic || '',
-      urduDescription: languageDescriptions.urdu || '',
-      address: 'حرم مطهر',
+      title: culturalTitle,
+      address: placeAddress || 'حرم مطهر',
       createdAt: formatJalaliDate(new Date()),
+      description: culturalDescription || '',
       status: 'active',
       culturalTypes: [...selectedCulturalTypes],
-      displaySettings: {
-        userComments: showUserComments === 'نمایش',
-        multimedia: showMultimedia === 'نمایش'
+      primaryImage: primaryImage?.url || null,
+      files: {
+        images: profileImages,
+        audio: audioFiles,
+        documents: textFiles
       }
     };
-
-    setCulturalData(prev => [...prev, newCulturalItem]);
+  
+    setCulturalData(prev => [newCulturalItem, ...prev]);
+    
     closeAddCulturalModal();
+    alert('اطلاعات فرهنگی با موفقیت ثبت شد');
   };
 
   const toggleReportsManagement = () => {
@@ -2634,20 +2723,51 @@ const Amain = () => {
                         <tr key={item.id}>
                           <td>
                             <div className="cultural-title-cell">
-                              <div className="cultural-icon-placeholder">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <path d="M19 7V5H5V7H19ZM19 11V9H5V11H19ZM19 15V13H5V15H19ZM19 19V17H5V19H19Z" fill="#858585" />
-                                </svg>
+                              <div className="cultural-avatar">
+                                {item.primaryImage ? (
+                                  <img
+                                    src={item.primaryImage}
+                                    alt={item.title}
+                                    className="cultural-avatar-img"
+                                  />
+                                ) : (
+                                  <div className="cultural-avatar-placeholder">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                      <path d="M19 7V5H5V7H19ZM19 11V9H5V11H19ZM19 15V13H5V15H19ZM19 19V17H5V19H19Z" fill="#858585" />
+                                    </svg>
+                                  </div>
+                                )}
                               </div>
-                              <strong>{item.title}</strong>
+                              <div className="cultural-title-text">
+                                <strong>{item.title}</strong>
+                                {item.culturalTypes && item.culturalTypes.length > 0 && (
+                                  <div className="cultural-types">
+                                    {item.culturalTypes.slice(0, 2).map((type, index) => (
+                                      <span key={index} className="cultural-type">{type}</span>
+                                    ))}
+                                    {item.culturalTypes.length > 2 && (
+                                      <span className="cultural-type-more">+{item.culturalTypes.length - 2}</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </td>
                           <td>{item.address}</td>
                           <td>{item.createdAt}</td>
-                          <td className="cultural-description-cell">{item.description}</td>
+                          <td className="cultural-description-cell">
+                            {item.description ? (
+                              <div className="truncated-description">
+                                {item.description.split(/\s+/).slice(0, 7).join(' ')}
+                                {item.description.split(/\s+/).length > 7 && '...'}
+                              </div>
+                            ) : (
+                              <span className="no-description">بدون توضیح</span>
+                            )}
+                          </td>
                           <td>
                             <div className="cultural-actions">
-                              <button className="edit-cultural-btn">
+                              <button className="edit-cultural-btn" title="ویرایش">
                                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                                   <g clipPath="url(#clip0_367_7217)">
                                     <path fillRule="evenodd" clipRule="evenodd" d="M7.96167 0.833374L8.99992 0.833374C9.27606 0.833374 9.49992 1.05723 9.49992 1.33337C9.49992 1.60952 9.27606 1.83337 8.99992 1.83337H7.99992C6.41444 1.83337 5.27562 1.83444 4.40897 1.95095C3.5567 2.06554 3.04289 2.28347 2.66312 2.66324C2.28335 3.04301 2.06542 3.55682 1.95083 4.40909C1.83431 5.27574 1.83325 6.41456 1.83325 8.00004C1.83325 9.58552 1.83431 10.7243 1.95083 11.591C2.06542 12.4433 2.28335 12.9571 2.66312 13.3368C3.04289 13.7166 3.5567 13.9345 4.40897 14.0491C5.27562 14.1656 6.41444 14.1667 7.99992 14.1667C9.5854 14.1667 10.7242 14.1656 11.5909 14.0491C12.4431 13.9345 12.957 13.7166 13.3367 13.3368C13.7165 12.9571 13.9344 12.4433 14.049 11.591C14.1655 10.7243 14.1666 9.58552 14.1666 8.00004V7.00004C14.1666 6.7239 14.3904 6.50004 14.6666 6.50004C14.9427 6.50004 15.1666 6.7239 15.1666 7.00004V8.03829C15.1666 9.57722 15.1666 10.7832 15.0401 11.7242C14.9106 12.6874 14.6404 13.4474 14.0438 14.044C13.4473 14.6405 12.6873 14.9107 11.7241 15.0402C10.7831 15.1667 9.5771 15.1667 8.03817 15.1667H7.96167C6.42274 15.1667 5.21671 15.1667 4.27572 15.0402C3.31257 14.9107 2.55255 14.6405 1.95601 14.044C1.35947 13.4474 1.08924 12.6874 0.95975 11.7242C0.833237 10.7832 0.833244 9.57722 0.833252 8.03829V7.96179C0.833244 6.42286 0.833237 5.21684 0.95975 4.27584C1.08924 3.31269 1.35947 2.55267 1.95601 1.95613C2.55255 1.35959 3.31257 1.08936 4.27572 0.959872C5.21671 0.833359 6.42274 0.833366 7.96167 0.833374ZM11.1803 1.51732C12.0922 0.605393 13.5707 0.605393 14.4826 1.51732C15.3946 2.42924 15.3946 3.90776 14.4826 4.81969L10.0506 9.25176C9.80306 9.49931 9.648 9.65438 9.47497 9.78934C9.27118 9.9483 9.05067 10.0846 8.81735 10.1958C8.61926 10.2902 8.41122 10.3595 8.07911 10.4702L6.14276 11.1156C5.78526 11.2348 5.39112 11.1418 5.12466 10.8753C4.8582 10.6088 4.76515 10.2147 4.88432 9.8572L5.52976 7.92086C5.64044 7.58874 5.70978 7.3807 5.80418 7.18261C5.91538 6.94929 6.05166 6.72878 6.21062 6.52499C6.34558 6.35195 6.50065 6.1969 6.74822 5.94937L11.1803 1.51732ZM13.7755 2.22442C13.2541 1.70302 12.4088 1.70302 11.8874 2.22442L11.6363 2.4755C11.6514 2.53941 11.6726 2.61555 11.7021 2.70048C11.7976 2.97586 11.9784 3.33852 12.3199 3.68004C12.6614 4.02156 13.0241 4.20235 13.2995 4.29789C13.3844 4.32735 13.4605 4.34853 13.5245 4.36366L13.7755 4.11258C14.2969 3.59118 14.2969 2.74582 13.7755 2.22442ZM12.7367 5.15143C12.3927 5.0035 11.992 4.76635 11.6128 4.38714C11.2336 4.00794 10.9965 3.60726 10.8485 3.26328L7.47826 6.63355C7.20058 6.91122 7.09168 7.02134 6.99913 7.14001C6.88484 7.28653 6.78685 7.44508 6.70691 7.61283C6.64216 7.74868 6.59237 7.89533 6.46819 8.26787L6.18026 9.13166L6.8683 9.8197L7.73209 9.53177C8.10463 9.40759 8.25128 9.35779 8.38713 9.29305C8.55488 9.21311 8.71342 9.11512 8.85995 9.00083C8.97862 8.90828 9.08874 8.79938 9.36641 8.5217L12.7367 5.15143Z" fill="#1E2023" />
@@ -2659,17 +2779,14 @@ const Amain = () => {
                                   </defs>
                                 </svg>
                               </button>
-                              <button className="delete-cultural-btn" onClick={() => handleDeleteCultural(item.id)}>
+                              <button
+                                className="delete-cultural-btn"
+                                onClick={() => handleDeleteCultural(item.id)}
+                                title="حذف"
+                              >
                                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                                   <path fillRule="evenodd" clipRule="evenodd" d="M3.41116 5.1678C3.68669 5.14943 3.92494 5.3579 3.94331 5.63343L4.24994 10.2328C4.30984 11.1314 4.35253 11.7566 4.44624 12.227C4.53714 12.6833 4.66403 12.9249 4.8463 13.0954C5.02858 13.2659 5.27802 13.3765 5.73935 13.4368C6.21496 13.499 6.84163 13.5 7.74219 13.5H8.25776C9.15832 13.5 9.78499 13.499 10.2606 13.4368C10.7219 13.3765 10.9714 13.2659 11.1536 13.0954C11.3359 12.9249 11.4628 12.6833 11.5537 12.227C11.6474 11.7566 11.6901 11.1314 11.75 10.2328L12.0566 5.63343C12.075 5.3579 12.3133 5.14943 12.5888 5.1678C12.8643 5.18617 13.0728 5.42442 13.0544 5.69995L12.7455 10.3345C12.6885 11.1896 12.6424 11.8804 12.5344 12.4224C12.4222 12.986 12.2312 13.4567 11.8368 13.8256C11.4424 14.1946 10.9601 14.3538 10.3903 14.4284C9.84227 14.5001 9.14998 14.5 8.29292 14.5H7.70703C6.84997 14.5 6.15768 14.5001 5.60965 14.4284C5.03988 14.3538 4.55752 14.1946 4.16312 13.8256C3.76872 13.4567 3.57778 12.986 3.46551 12.4224C3.35753 11.8804 3.31149 11.1896 3.25449 10.3344L2.94553 5.69995C2.92716 5.42442 3.13563 5.18617 3.41116 5.1678Z" fill="#1E2023" />
                                   <path fillRule="evenodd" clipRule="evenodd" d="M6.90348 1.50003L6.87283 1.50001C6.72857 1.49992 6.60288 1.49984 6.4842 1.51879C6.01534 1.59366 5.60961 1.8861 5.39031 2.30723C5.3348 2.41382 5.29513 2.53309 5.2496 2.66998L5.23992 2.69905L5.17519 2.89323C5.16253 2.93121 5.159 2.94168 5.15593 2.95016C5.03919 3.2729 4.73651 3.49106 4.39341 3.49976C4.38439 3.49999 4.37334 3.50003 4.33331 3.50003H2.33325C2.05711 3.50003 1.83325 3.72388 1.83325 4.00003C1.83325 4.27617 2.05711 4.50003 2.33325 4.50003L4.33902 4.50003L4.35018 4.50003H11.6498L11.6609 4.50003L13.6666 4.50003C13.9428 4.50003 14.1666 4.27617 14.1666 4.00003C14.1666 3.72388 13.9428 3.50003 13.6666 3.50003H11.6666C11.6266 3.50003 11.6156 3.49999 11.6065 3.49976C11.2634 3.49106 10.9608 3.27289 10.844 2.95014C10.841 2.94172 10.8374 2.93102 10.8248 2.89323L10.76 2.69905L10.7503 2.66996C10.7048 2.53307 10.6651 2.41382 10.6096 2.30723C10.3903 1.8861 9.98461 1.59366 9.51575 1.51879C9.39707 1.49984 9.27138 1.49992 9.12712 1.50001L9.09647 1.50003H6.90348ZM6.0963 3.29032C6.07012 3.36269 6.03969 3.43268 6.00535 3.50003H9.9946C9.96026 3.43268 9.92983 3.3627 9.90365 3.29033L9.87784 3.21477L9.81135 3.01528C9.75057 2.83294 9.73657 2.79575 9.72269 2.76909C9.64959 2.62872 9.51435 2.53124 9.35806 2.50628C9.32837 2.50154 9.28868 2.50003 9.09647 2.50003H6.90348C6.71127 2.50003 6.67157 2.50154 6.64189 2.50628C6.4856 2.53124 6.35036 2.62872 6.27726 2.76909C6.26338 2.79575 6.24938 2.83294 6.1886 3.01528L6.12207 3.21489C6.11205 3.24495 6.10425 3.26834 6.0963 3.29032Z" fill="#1E2023" />
-                                </svg>
-                              </button>
-                              <button className="cultural-details-btn">
-                                <svg width="100" height="32" viewBox="0 0 100 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <rect x="0.25" y="0.25" width="99.5" height="31.5" rx="5.75" stroke="#D9D9D9" strokeWidth="0.5" />
-                                  <path fillRule="evenodd" clipRule="evenodd" d="M18.3254 10.9538C18.535 11.1335 18.5593 11.4491 18.3796 11.6588L14.6585 16L18.3796 20.3413C18.5593 20.551 18.535 20.8666 18.3254 21.0463C18.1157 21.2261 17.8001 21.2018 17.6204 20.9921L13.6204 16.3254C13.4599 16.1382 13.4599 15.8619 13.6204 15.6747L17.6204 11.008C17.8001 10.7983 18.1157 10.774 18.3254 10.9538Z" fill="#1E2023" />
-                                  <path d="M32.2572 19C32.0252 19 31.8252 18.976 31.6572 18.928C31.6812 19.112 31.6932 19.28 31.6932 19.432C31.6932 19.92 31.5812 20.324 31.3572 20.644C31.1332 20.964 30.8292 21.22 30.4452 21.412C30.0692 21.604 29.5932 21.78 29.0172 21.94L28.5252 22.084L28.2852 21.1L28.7892 20.956C29.2612 20.828 29.6252 20.708 29.8812 20.596C30.1452 20.492 30.3612 20.34 30.5292 20.14C30.6972 19.948 30.7812 19.684 30.7812 19.348C30.7812 19.284 30.7732 19.18 30.7572 19.036L30.2772 15.592L31.1772 15.448L31.2372 15.88C31.2532 16.008 31.2692 16.1 31.2852 16.156L31.4052 16.924C31.4532 17.22 31.5052 17.444 31.5612 17.596C31.6252 17.74 31.7092 17.844 31.8132 17.908C31.9172 17.964 32.0652 17.992 32.2572 17.992H32.3412L32.4012 18.496L32.3412 19H32.2572ZM32.2447 17.992H34.0807C34.8487 17.992 35.2087 17.692 35.1607 17.092V17.056L35.0287 15.58L35.9407 15.496L36.0727 16.972V17.044C36.1127 17.396 36.2087 17.644 36.3607 17.788C36.5207 17.924 36.7847 17.992 37.1527 17.992L37.2127 18.496L37.1527 19C36.4887 19 35.9847 18.804 35.6407 18.412C35.4647 18.604 35.2407 18.752 34.9687 18.856C34.7047 18.952 34.4087 19 34.0807 19H32.2447V17.992ZM32.5567 13.12H33.6247V14.188H32.5567V13.12ZM34.6807 13.12H35.7487V14.188H34.6807V13.12ZM43.3017 19C42.6857 19 42.1937 18.756 41.8257 18.268C41.4737 18.756 40.9537 19 40.2657 19C39.6577 19 39.1817 18.756 38.8377 18.268C38.4777 18.756 37.9657 19 37.3017 19H37.0377V17.992H37.3017C38.0297 17.992 38.3937 17.668 38.3937 17.02V15.532H39.2457V17.02C39.2697 17.244 39.3417 17.464 39.4617 17.68C39.5817 17.888 39.8497 17.992 40.2657 17.992C40.6977 17.992 40.9857 17.9 41.1297 17.716C41.2817 17.524 41.3577 17.292 41.3577 17.02V15.532H42.2097V17.02C42.2177 17.284 42.3057 17.508 42.4737 17.692C42.6417 17.876 42.8977 17.968 43.2417 17.968C43.6257 17.968 43.9057 17.9 44.0817 17.764C44.2657 17.62 44.3577 17.436 44.3577 17.212C44.3577 17.124 44.3457 17.04 44.3217 16.96L43.9257 15.484L44.7537 15.244L45.1497 16.72L45.1617 16.78C45.2577 17.14 45.4457 17.432 45.7257 17.656C46.0057 17.88 46.3257 17.992 46.6857 17.992L46.7457 18.496L46.6857 19C46.3417 19 46.0217 18.928 45.7257 18.784C45.4297 18.64 45.1737 18.44 44.9577 18.184C44.7977 18.432 44.5737 18.632 44.2857 18.784C44.0057 18.928 43.6777 19 43.3017 19ZM40.2057 13.108H41.3337V14.236H40.1937L40.2057 13.108ZM41.3217 11.608H42.3657V12.592H41.3217V11.608ZM42.3297 13.108H43.4577L43.4697 14.236H42.3177L42.3297 13.108ZM46.565 17.992H48.401C49.169 17.992 49.529 17.692 49.481 17.092V17.056L49.349 15.58L50.261 15.496L50.393 16.972V17.044C50.433 17.396 50.529 17.644 50.681 17.788C50.841 17.924 51.105 17.992 51.473 17.992L51.533 18.496L51.473 19C50.809 19 50.305 18.804 49.961 18.412C49.785 18.604 49.561 18.752 49.289 18.856C49.025 18.952 48.729 19 48.401 19H46.565V17.992ZM46.049 20.2H47.117V21.28H46.049V20.2ZM48.173 20.2H49.241V21.28H48.173V20.2ZM51.358 17.992H52.306C53.178 17.992 53.614 17.664 53.614 17.008C53.614 16.832 53.586 16.648 53.53 16.456L53.05 14.668L53.938 14.416L54.418 16.204C54.49 16.5 54.526 16.772 54.526 17.02C54.526 17.652 54.314 18.14 53.89 18.484C53.466 18.828 52.938 19 52.306 19H51.358V17.992ZM51.634 20.092H52.834V21.304H51.634V20.092ZM63.5911 19C62.6871 19 62.0071 18.992 61.5511 18.976C61.1031 18.952 60.7671 18.92 60.5431 18.88C60.3271 18.832 60.1191 18.764 59.9191 18.676C59.5511 18.516 59.2711 18.284 59.0791 17.98C58.8951 17.676 58.8031 17.32 58.8031 16.912C58.8031 16.664 58.8391 16.404 58.9111 16.132L59.3551 14.44L60.2311 14.704L59.7871 16.432C59.7391 16.624 59.7151 16.792 59.7151 16.936C59.7151 17.128 59.7591 17.292 59.8471 17.428C59.9431 17.556 60.0871 17.664 60.2791 17.752C60.4151 17.816 60.5711 17.864 60.7471 17.896C60.9311 17.928 61.2471 17.952 61.6951 17.968C62.1431 17.984 62.8151 17.992 63.7111 17.992H63.7231C64.6031 17.992 65.2671 17.984 65.7151 17.968C66.1631 17.944 66.4711 17.916 66.6391 17.884C66.8071 17.852 66.9631 17.808 67.1071 17.752C67.3071 17.664 67.4551 17.552 67.5511 17.416C67.6471 17.28 67.6951 17.108 67.6951 16.9C67.6951 16.724 67.6671 16.536 67.6111 16.336L67.1551 14.668L68.0311 14.416L68.4871 16.084C68.5671 16.372 68.6071 16.656 68.6071 16.936C68.6071 17.344 68.5111 17.7 68.3191 18.004C68.1351 18.3 67.8591 18.524 67.4911 18.676C67.2911 18.764 67.0751 18.832 66.8431 18.88C66.6191 18.92 66.2711 18.952 65.7991 18.976C65.3351 18.992 64.6431 19 63.7231 19H63.7111H63.5911ZM62.1031 13.804H63.1711V14.872H62.1031V13.804ZM64.2271 13.804H65.2951V14.872H64.2271V13.804ZM72.399 19C71.879 19 71.471 18.924 71.175 18.772C70.879 18.62 70.663 18.376 70.527 18.04C70.391 17.696 70.311 17.224 70.287 16.624L70.071 11.104L70.983 11.056L71.199 16.624C71.215 17.032 71.251 17.328 71.307 17.512C71.371 17.696 71.483 17.824 71.643 17.896C71.803 17.96 72.055 17.992 72.399 17.992H72.519L72.579 18.496L72.519 19H72.399ZM72.4048 17.992H74.2408C75.0088 17.992 75.3688 17.692 75.3208 17.092V17.056L75.1888 15.58L76.1008 15.496L76.2328 16.972V17.044C76.2728 17.396 76.3688 17.644 76.5208 17.788C76.6808 17.924 76.9448 17.992 77.3128 17.992L77.3728 18.496L77.3128 19C76.6488 19 76.1448 18.804 75.8008 18.412C75.6248 18.604 75.4008 18.752 75.1288 18.856C74.8648 18.952 74.5688 19 74.2408 19H72.4048V17.992ZM71.8888 20.2H72.9568V21.28H71.8888V20.2ZM74.0128 20.2H75.0808V21.28H74.0128V20.2ZM77.1978 17.992H78.1458C79.0178 17.992 79.4538 17.664 79.4538 17.008C79.4538 16.832 79.4258 16.648 79.3698 16.456L78.8898 14.668L79.7778 14.416L80.2578 16.204C80.3298 16.5 80.3658 16.772 80.3658 17.02C80.3658 17.652 80.1538 18.14 79.7298 18.484C79.3058 18.828 78.7778 19 78.1458 19H77.1978V17.992ZM78.3978 13.096C78.2298 12.928 78.1218 12.728 78.0738 12.496C78.0498 12.4 78.0378 12.304 78.0378 12.208C78.0378 11.888 78.1498 11.616 78.3738 11.392C78.6058 11.168 78.8898 11.056 79.2258 11.056C79.4418 11.056 79.7418 11.096 80.1258 11.176L80.0298 11.692C79.6858 11.628 79.4138 11.596 79.2138 11.596C79.0138 11.596 78.8458 11.66 78.7098 11.788C78.5818 11.908 78.5178 12.056 78.5178 12.232C78.5178 12.424 78.5818 12.584 78.7098 12.712C78.8458 12.832 79.0058 12.892 79.1898 12.892C79.2298 12.892 79.2818 12.884 79.3458 12.868L80.5578 12.58L80.6658 13.108L77.5098 13.864L77.4018 13.336L78.3978 13.096ZM84.0892 19C83.8572 19 83.6572 18.976 83.4892 18.928C83.5132 19.112 83.5252 19.28 83.5252 19.432C83.5252 19.92 83.4132 20.324 83.1892 20.644C82.9652 20.964 82.6612 21.22 82.2772 21.412C81.9012 21.604 81.4252 21.78 80.8492 21.94L80.3572 22.084L80.1172 21.1L80.6212 20.956C81.0932 20.828 81.4572 20.708 81.7132 20.596C81.9772 20.492 82.1932 20.34 82.3612 20.14C82.5292 19.948 82.6132 19.684 82.6132 19.348C82.6132 19.284 82.6052 19.18 82.5892 19.036L82.1092 15.592L83.0092 15.448L83.0692 15.88C83.0852 16.008 83.1012 16.1 83.1172 16.156L83.2372 16.924C83.2852 17.22 83.3372 17.444 83.3932 17.596C83.4572 17.74 83.5412 17.844 83.6452 17.908C83.7492 17.964 83.8972 17.992 84.0892 17.992H84.1732L84.2332 18.496L84.1732 19H84.0892ZM81.7972 12.892H83.0092V14.104H81.7972V12.892ZM84.0767 17.992H84.2447C84.9567 17.992 85.5527 17.976 86.0327 17.944C86.5127 17.904 87.0047 17.812 87.5087 17.668L90.3287 16.912L87.8927 15.52C87.6527 15.376 87.4047 15.304 87.1487 15.304C86.9007 15.304 86.6647 15.376 86.4407 15.52C86.2167 15.656 86.0367 15.848 85.9007 16.096L85.6847 16.468L84.8927 15.976L85.1207 15.568C85.3447 15.16 85.6327 14.844 85.9847 14.62C86.3447 14.396 86.7287 14.284 87.1367 14.284C87.5527 14.284 87.9527 14.4 88.3367 14.632L91.3967 16.48L91.2527 17.656L87.7367 18.652C87.1767 18.804 86.6367 18.9 86.1167 18.94C85.5967 18.98 84.9687 19 84.2327 19H84.0767V17.992ZM87.1967 20.008H88.3967V21.22H87.1967V20.008Z" fill="#1E2023" />
                                 </svg>
                               </button>
                             </div>
@@ -5395,11 +5512,195 @@ const Amain = () => {
               {culturalStep === 4 && (
                 <div className="step-content">
                   <div className="step-intro">
-                    <h3>مرحله چهارم - نهایی‌سازی</h3>
+                    <h3>مرحله چهارم - آپلود تصاویر و فایل‌های اطلاعات فرهنگی</h3>
                   </div>
+
                   <div className="form-section">
-                    {/* Empty for now - will be filled later */}
-                    <p>این مرحله بعداً تکمیل خواهد شد</p>
+                    {/* Profile Images and Videos Section */}
+                    <div className="file-upload-section">
+                      <div className="file-section-header">
+                        <span className="file-section-title">تصاویر و ویدئوهای پروفایل مربوط به اطلاعات فرهنگی</span>
+                        <label className="add-file-btn">
+                          <input
+                            type="file"
+                            accept="image/*,video/*"
+                            multiple
+                            onChange={(e) => handleFileUpload(e, 'image')}
+                            className="file-input-hidden"
+                          />
+                          افزودن فایل
+                          <svg width="25" height="25" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M22.2824 0H18.8284C17.8063 0 17.0544 0.42296 16.7137 1.17489C16.5257 1.51561 16.4435 1.91507 16.4435 2.38502V5.8392C16.4435 7.33131 17.3363 8.22422 18.8284 8.22422H22.2824C22.7523 8.22422 23.1517 8.14198 23.4924 7.954C24.2443 7.61328 24.6672 6.86135 24.6672 5.8392V2.38502C24.6672 0.892916 23.7744 0 22.2824 0ZM23.3867 4.61731C23.2692 4.7348 23.093 4.81705 22.905 4.82879H21.2485V5.42799L21.2603 6.46189C21.2485 6.66162 21.178 6.82611 21.037 6.96709C20.9196 7.08458 20.7433 7.16682 20.5554 7.16682C20.1677 7.16682 19.8505 6.8496 19.8505 6.46189V4.81705L18.2057 4.82879C18.0177 4.82571 17.8384 4.74885 17.7065 4.61477C17.5747 4.4807 17.5008 4.30017 17.5008 4.11211C17.5008 3.7244 17.818 3.40718 18.2057 3.40718L19.2396 3.41893H19.8505V1.77408C19.8505 1.38637 20.1677 1.0574 20.5554 1.0574C20.9431 1.0574 21.2603 1.38637 21.2603 1.77408L21.2485 2.60825V3.40718H22.905C23.2927 3.40718 23.6099 3.7244 23.6099 4.11211C23.5979 4.3017 23.5188 4.48081 23.3867 4.61731ZM8.22089 11.0216C8.96245 11.0216 9.67365 10.727 10.198 10.2026C10.7224 9.67824 11.017 8.96701 11.017 8.2254C11.017 7.48379 10.7224 6.77256 10.198 6.24816C9.67365 5.72376 8.96245 5.42916 8.22089 5.42916C7.47932 5.42916 6.76812 5.72376 6.24376 6.24816C5.71939 6.77256 5.4248 7.48379 5.4248 8.2254C5.4248 8.96701 5.71939 9.67824 6.24376 10.2026C6.76812 10.727 7.47932 11.0216 8.22089 11.0216Z" fill="#0F71EF" />
+                            <path d="M22.2864 8.2209H21.7342V13.6371L21.5815 13.5079C20.6652 12.7207 19.1849 12.7207 18.2685 13.5079L13.3812 17.7023C12.4649 18.4894 10.9846 18.4894 10.0682 17.7023L9.6688 17.3733C8.83467 16.6449 7.50712 16.5744 6.56727 17.2088L2.17342 20.1578C1.91496 19.4998 1.76224 18.7362 1.76224 17.8432V7.99767C1.76224 4.68449 3.51272 2.9339 6.82573 2.9339H16.4475V2.38171C16.4475 1.91175 16.5298 1.51229 16.7177 1.17157H6.82573C2.54937 1.17157 0 3.72108 0 7.99767V17.8432C0 19.1239 0.223216 20.24 0.657901 21.1799C1.66825 23.4122 3.82993 24.6693 6.82573 24.6693H16.6708C20.9471 24.6693 23.4965 22.1198 23.4965 17.8432V7.95068C23.1558 8.13866 22.7563 8.2209 22.2864 8.2209Z" fill="#0F71EF" />
+                          </svg>
+                        </label>
+                      </div>
+
+                      {/* Primary Image Display */}
+                      {primaryImage && (
+                        <div className="primary-image-section">
+                          <div className="primary-image-label">تصویر اصلی</div>
+                          <div className="primary-image-container">
+                            {primaryImage.type.startsWith('image/') ? (
+                              <img
+                                src={primaryImage.url}
+                                alt={primaryImage.name}
+                                className="primary-image"
+                              />
+                            ) : primaryImage.type.startsWith('video/') ? (
+                              <video controls className="primary-image">
+                                <source src={primaryImage.url} type={primaryImage.type} />
+                              </video>
+                            ) : null}
+                            <button
+                              className="remove-file-btn"
+                              onClick={() => handleRemoveFile(primaryImage.id, 'image')}
+                            >
+                              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#EA4335" />
+                                <path d="M10 15.625C9.65833 15.625 9.375 15.3417 9.375 15V5C9.375 4.65833 9.65833 4.375 10 4.375C10.3417 4.375 10.625 4.65833 10.625 5V15C10.625 15.3417 10.3417 15.625 10 15.625Z" fill="#EA4335" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Profile Images Grid */}
+                      {profileImages.length > 0 && (
+                        <div className="profile-images-grid">
+                          {profileImages.map((file) => (
+                            <div
+                              key={file.id}
+                              className={`profile-image-item ${file.id === primaryImage?.id ? 'primary' : ''}`}
+                            >
+                              {file.type.startsWith('image/') ? (
+                                <img
+                                  src={file.url}
+                                  alt={file.name}
+                                  className="media-preview"
+                                />
+                              ) : file.type.startsWith('video/') ? (
+                                <video className="media-preview">
+                                  <source src={file.url} type={file.type} />
+                                </video>
+                              ) : null}
+
+                              <div className="profile-image-actions">
+                                {file.type.startsWith('image/') && file.id !== primaryImage?.id && (
+                                  <button
+                                    className="set-primary-btn"
+                                    onClick={() => handleSetPrimaryImage(file.id)}
+                                  >
+                                    اصلی
+                                  </button>
+                                )}
+                                <button
+                                  className="remove-file-btn-small"
+                                  onClick={() => handleRemoveFile(file.id, 'image')}
+                                >
+                                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#EA4335" />
+                                    <path d="M10 15.625C9.65833 15.625 9.375 15.3417 9.375 15V5C9.375 4.65833 9.65833 4.375 10 4.375C10.3417 4.375 10.625 4.65833 10.625 5V15C10.625 15.3417 10.3417 15.625 10 15.625Z" fill="#EA4335" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Audio Files Section */}
+                    <div className="file-upload-section">
+                      <div className="file-section-header">
+                        <span className="file-section-title">فایل‌های صوتی مربوط به اطلاعات فرهنگی</span>
+                        <label className="add-file-btn">
+                          <input
+                            type="file"
+                            accept="audio/*"
+                            multiple
+                            onChange={(e) => handleFileUpload(e, 'audio')}
+                            className="file-input-hidden"
+                          />
+                          افزودن فایل صوتی 
+                        </label>
+                      </div>
+
+                      {/* Audio Files List */}
+                      {audioFiles.length > 0 && (
+                        <div className="audio-files-list">
+                          {audioFiles.map((audio) => (
+                            <div key={audio.id} className="audio-file-item">
+                              <div className="audio-file-info">
+                                <div className="audio-icon">
+                                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" fill="#0F71EF" />
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C9.79086 2 8 3.79086 8 6V12C8 14.2091 9.79086 16 12 16C14.2091 16 16 14.2091 16 12V6C16 3.79086 14.2091 2 12 2ZM14 12C14 13.1046 13.1046 14 12 14C10.8954 14 10 13.1046 10 12C10 10.8954 10.8954 10 12 10C13.1046 10 14 10.8954 14 12Z" fill="#0F71EF" />
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M19 10C19.5523 10 20 10.4477 20 11V12C20 16.4183 16.4183 20 12 20C7.58172 20 4 16.4183 4 12V11C4 10.4477 4.44772 10 5 10C5.55228 10 6 10.4477 6 11V12C6 15.3137 8.68629 18 12 18C15.3137 18 18 15.3137 18 12V11C18 10.4477 18.4477 10 19 10Z" fill="#0F71EF" />
+                                  </svg>
+                                </div>
+                                <span className="audio-file-name">{audio.name}</span>
+                              </div>
+                              <button
+                                className="remove-audio-btn"
+                                onClick={() => handleRemoveFile(audio.id, 'audio')}
+                              >
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#EA4335" />
+                                  <path d="M10 15.625C9.65833 15.625 9.375 15.3417 9.375 15V5C9.375 4.65833 9.65833 4.375 10 4.375C10.3417 4.375 10.625 4.65833 10.625 5V15C10.625 15.3417 10.3417 15.625 10 15.625Z" fill="#EA4335" />
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Text Files Section */}
+                    <div className="file-upload-section">
+                      <div className="file-section-header">
+                        <span className="file-section-title">فایل‌های متنی مربوط اطلاعات فرهنگی</span>
+                        <label className="add-file-btn">
+                          <input
+                            type="file"
+                            accept=".pdf"
+                            multiple
+                            onChange={(e) => handleFileUpload(e, 'text')}
+                            className="file-input-hidden"
+                          />
+                          افزودن فایل متنی
+                        </label>
+                      </div>
+
+                      {/* Text Files List */}
+                      {textFiles.length > 0 && (
+                        <div className="text-files-list">
+                          {textFiles.map((textFile) => (
+                            <div key={textFile.id} className="text-file-item">
+                              <div className="text-file-info">
+                                <div className="pdf-icon">
+                                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M6 2C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2H6Z" fill="#EA4335" />
+                                    <path d="M14 2V8H20" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                    <path d="M9 12H15M9 16H15M7 8H8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                </div>
+                                <span className="text-file-name">{textFile.name}</span>
+                              </div>
+                              <button
+                                className="remove-text-btn"
+                                onClick={() => handleRemoveFile(textFile.id, 'text')}
+                              >
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#1E2023" />
+                                  <path d="M10 15.625C9.65833 15.625 9.375 15.3417 9.375 15V5C9.375 4.65833 9.65833 4.375 10 4.375C10.3417 4.375 10.625 4.65833 10.625 5V15C10.625 15.3417 10.3417 15.625 10 15.625Z" fill="#1E2023" />
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
