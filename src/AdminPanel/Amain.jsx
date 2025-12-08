@@ -23,6 +23,28 @@ const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
 const SELECTED_EDITABLE_FEATURE_SOURCE_ID = 'selected-editable-feature-source';
 const SELECTED_EDITABLE_FEATURE_LAYER_ID = 'selected-editable-feature-layer';
 
+const GENDER_OPTIONS = [
+  { value: 'female', label: 'بانوان' },
+  { value: 'male', label: 'مردان' },
+  { value: 'family', label: 'خانوادگی' }
+];
+
+const TRANSPORT_OPTIONS = [
+  { value: 'wheelchair', label: 'ویلچر', icon: 'wheelchair' },
+  { value: 'van', label: 'ون برقی', icon: 'electric' },
+  { value: 'walk', label: 'به صورت پیاده', icon: 'walking' }
+];
+
+const getGenderLabel = (value) => GENDER_OPTIONS.find((option) => option.value === value)?.label || value;
+const normalizeGenderValue = (value) => GENDER_OPTIONS.find((option) => option.value === value)?.value
+  || GENDER_OPTIONS.find((option) => option.label === value)?.value
+  || value;
+
+const getTransportLabel = (value) => TRANSPORT_OPTIONS.find((option) => option.value === value)?.label || value;
+const normalizeTransportValue = (value) => TRANSPORT_OPTIONS.find((option) => option.value === value)?.value
+  || TRANSPORT_OPTIONS.find((option) => option.label === value)?.value
+  || value;
+
 const editableLayerOptions = [
   {
     id: DOOR_ACCESS_LAYER_ID,
@@ -1996,7 +2018,9 @@ const Amain = () => {
     date: Array.isArray(restriction?.date_scope)
       ? restriction.date_scope.join(', ')
       : restriction?.date_scope || restriction?.date || 'نامشخص',
-    gender: restriction?.gender || [],
+    gender: Array.isArray(restriction?.gender)
+      ? restriction.gender.map(normalizeGenderValue).filter(Boolean)
+      : [],
     timePairs: Array.isArray(restriction?.time_ranges)
       ? restriction.time_ranges.map((range) => ({
         start: range?.start || '',
@@ -2021,7 +2045,9 @@ const Amain = () => {
       : restriction?.date
         ? [restriction.date]
         : [],
-    gender: restriction?.gender || [],
+    gender: Array.isArray(restriction?.gender)
+      ? restriction.gender.map(normalizeGenderValue).filter(Boolean)
+      : [],
     time_ranges: Array.isArray(restriction?.timePairs)
       ? restriction.timePairs.map((pair) => ({
         start: pair?.start || '',
@@ -2056,8 +2082,8 @@ const Amain = () => {
     },
     operational: {
       status: locationStatus === 'غیر فعال' ? 'inactive' : 'active',
-      transport_modes: selectedTransport,
-      gender_access: selectedGenderAccess
+      transport_modes: selectedTransport.map(normalizeTransportValue).filter(Boolean),
+      gender_access: selectedGenderAccess.map(normalizeGenderValue).filter(Boolean)
     },
     time_restrictions: buildTimeRestrictionsPayload(),
     prayer_restrictions: buildPrayerRestrictionsPayload(),
@@ -2120,8 +2146,12 @@ const Amain = () => {
     setPlaceFunction(doorInfo?.function || '');
     setPlaceAddress(doorInfo?.address || '');
     setLocationStatus(operational?.status === 'inactive' ? 'غیر فعال' : 'فعال');
-    setSelectedTransport(Array.isArray(operational?.transport_modes) ? operational.transport_modes : []);
-    setSelectedGenderAccess(Array.isArray(operational?.gender_access) ? operational.gender_access : []);
+    setSelectedTransport(Array.isArray(operational?.transport_modes)
+      ? operational.transport_modes.map(normalizeTransportValue).filter(Boolean)
+      : []);
+    setSelectedGenderAccess(Array.isArray(operational?.gender_access)
+      ? operational.gender_access.map(normalizeGenderValue).filter(Boolean)
+      : []);
     setTimeRestrictions(mapApiTimeRestrictionsToForm(doorInfo?.time_restrictions));
     setPrayerTimeRestrictionsList(mapApiPrayerRestrictionsToForm(doorInfo?.prayer_restrictions));
     setAdditionalNotes(doorInfo?.notes || '');
@@ -5108,11 +5138,7 @@ const Amain = () => {
                     <div className="form-group">
                       <label className="form-label">نوع تردد زائرین محترم از این مکان</label>
                       <div className="radio-options-grid2"> {/* Keep original class */}
-                        {[
-                          { value: 'electric_car', label: 'ویلچر ', icon: 'electric' },
-                          { value: 'wheelchair', label: 'ون برقی', icon: 'wheelchair' },
-                          { value: 'walking', label: 'به صورت پیاده', icon: 'walking' }
-                        ].map((transport) => (
+                        {TRANSPORT_OPTIONS.map((transport) => (
                           <div
                             key={transport.value}
                             className={`radio-option2 ${selectedTransport.includes(transport.value) ? 'selected' : ''}`}
@@ -5164,21 +5190,21 @@ const Amain = () => {
                     <div className="form-group">
                       <label className="form-label">جنسیت تردد زائرین محترم از این مکان</label>
                       <div className="radio-options-grid3"> {/* Keep original class */}
-                        {['بانوان', 'مردان', 'خانوادگی'].map((gender) => (
+                        {GENDER_OPTIONS.map((genderOption) => (
                           <div
-                            key={gender}
-                            className={`radio-option3 ${selectedGenderAccess.includes(gender) ? 'selected' : ''}`}
+                            key={genderOption.value}
+                            className={`radio-option3 ${selectedGenderAccess.includes(genderOption.value) ? 'selected' : ''}`}
                             onClick={() => {
-                              if (selectedGenderAccess.includes(gender)) {
-                                setSelectedGenderAccess(selectedGenderAccess.filter(g => g !== gender));
+                              if (selectedGenderAccess.includes(genderOption.value)) {
+                                setSelectedGenderAccess(selectedGenderAccess.filter(g => g !== genderOption.value));
                               } else {
-                                setSelectedGenderAccess([...selectedGenderAccess, gender]);
+                                setSelectedGenderAccess([...selectedGenderAccess, genderOption.value]);
                               }
                             }}
                           >
                             <div className="option-content5">
                               <div className="radio-container">
-                                {selectedGenderAccess.includes(gender) ? (
+                                {selectedGenderAccess.includes(genderOption.value) ? (
                                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                                     <rect x="0.5" y="0.5" width="15" height="15" rx="7.5" stroke="white" />
                                     <circle cx="8.00065" cy="8.00004" r="4.00065" fill="white" />
@@ -5189,7 +5215,7 @@ const Amain = () => {
                                   </svg>
                                 )}
                               </div>
-                              <span>مسیر مناسب {gender}</span>
+                              <span>مسیر مناسب {genderOption.label}</span>
                             </div>
                           </div>
                         ))}
@@ -5229,7 +5255,7 @@ const Amain = () => {
                             <div key={index} className="restriction-display-item">
                               <div className="restriction-info">
                                 <span className="restriction-date">محدودیت های {restriction.date} ،</span>
-                                <span className="restriction-gender">{restriction.gender.join('، ')} ،</span>
+                                <span className="restriction-gender">{restriction.gender.map(getGenderLabel).join('، ')} ،</span>
                                 <span className="restriction-time">
                                   {restriction.timePairs.map((pair, idx) => (
                                     <span key={idx}>
@@ -5378,14 +5404,14 @@ const Amain = () => {
                           <div className="gender-restrictions-section">
                             <div className="section-title3">محدودسازی جنسیتی برای تردد</div>
                             <div className="gender-options">
-                              {['زنانه', 'مردانه', 'خانوادگی'].map((gender) => (
+                              {GENDER_OPTIONS.map((genderOption) => (
                                 <div
-                                  key={gender}
-                                  className={`gender-option ${selectedGenderRestrictions.includes(gender) ? 'selected' : ''}`}
-                                  onClick={() => handleGenderRestrictionToggle(gender)}
+                                  key={genderOption.value}
+                                  className={`gender-option ${selectedGenderRestrictions.includes(genderOption.value) ? 'selected' : ''}`}
+                                  onClick={() => handleGenderRestrictionToggle(genderOption.value)}
                                 >
                                   <div className="gender-checkbox">
-                                    {selectedGenderRestrictions.includes(gender) ? (
+                                    {selectedGenderRestrictions.includes(genderOption.value) ? (
                                       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                                         <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
                                         <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
@@ -5396,7 +5422,7 @@ const Amain = () => {
                                       </svg>
                                     )}
                                   </div>
-                                  <span>{gender}</span>
+                                  <span>{genderOption.label}</span>
                                 </div>
                               ))}
                             </div>
