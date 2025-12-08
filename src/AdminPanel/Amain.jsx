@@ -1,6 +1,7 @@
 // src/pages/Amain.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useIntl } from 'react-intl';
+import { toast } from 'react-toastify';
 import '../AdminPanel/Amain.css';
 import logo from '../assets/images/logo2.png';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -13,6 +14,8 @@ import { useAdminLoginService } from './adminLoginServiceContext';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import { DOORS_ACCESS_POINT_LAYER_NAME, haramAdminVectorTileConfig } from '../config/vectorTiles';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
+import { createDoor } from '../services/adminDoorsService';
+import { convertLngLatToUtm32640 } from '../utils/utm';
 
 
 const DOOR_ACCESS_LAYER_ID = 'doors-access-point';
@@ -118,6 +121,7 @@ const Amain = () => {
   const contentRef = useRef(null);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [isLocationMarkerMode, setIsLocationMarkerMode] = useState(false);
+  const [isCreatingDoor, setIsCreatingDoor] = useState(false);
   const [locationMarker, setLocationMarker] = useState(null);
   const [isAddPlaceModalOpen, setIsAddPlaceModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
@@ -1695,20 +1699,21 @@ const Amain = () => {
     if (!map) return;
 
     const center = map.getCenter();
+    const centerCoordinates = { lng: center.lng, lat: center.lat };
 
-    setSelectedLocation(center);
+    setSelectedLocation(centerCoordinates);
 
     if (locationMarker) {
-      locationMarker.setLngLat(center);
+      locationMarker.setLngLat(centerCoordinates);
     } else {
       const marker = new maplibregl.Marker({ color: '#1E2023' })
-        .setLngLat(center)
+        .setLngLat(centerCoordinates)
         .addTo(map);
       setLocationMarker(marker);
     }
 
     map.flyTo({
-      center,
+      center: centerCoordinates,
       zoom: Math.max(map.getZoom(), 16)
     });
   };
@@ -1722,10 +1727,42 @@ const Amain = () => {
     }
   };
 
-  const handleAddPlaceToMarker = () => {
-    setIsAddPlaceModalOpen(true);
-    setCurrentStep(1);
-    setIsLocationMarkerMode(false);
+  const handleAddPlaceToMarker = async () => {
+    if (!selectedLocation || typeof selectedLocation.lng !== 'number' || typeof selectedLocation.lat !== 'number') {
+      toast.error('لطفاً ابتدا نشانگر را روی نقطه مدنظر قرار دهید');
+      return;
+    }
+
+    const floor = floorLabelToValue(mapFloor);
+
+    try {
+      setIsCreatingDoor(true);
+
+      const { x, y } = convertLngLatToUtm32640({
+        lng: selectedLocation.lng,
+        lat: selectedLocation.lat
+      });
+
+      const response = await createDoor({
+        x,
+        y,
+        floor,
+        allowed_gender: 'both',
+        is_open: true,
+        modes: ['walk', 'wheelchair'],
+        bidirectional: true
+      });
+
+      toast.success('درب جدید با موفقیت ثبت شد');
+      console.log('door creation response', response);
+      setIsAddPlaceModalOpen(true);
+      setCurrentStep(1);
+    } catch (error) {
+      toast.error(error?.message || 'ثبت درب ناموفق بود');
+    } finally {
+      setIsCreatingDoor(false);
+      setIsLocationMarkerMode(false);
+    }
   };
 
   useEffect(() => {
@@ -1733,12 +1770,13 @@ const Amain = () => {
 
     const keepMarkerCentered = () => {
       const center = map.getCenter();
+      const centerCoordinates = { lng: center.lng, lat: center.lat };
 
       if (locationMarker) {
-        locationMarker.setLngLat(center);
+        locationMarker.setLngLat(centerCoordinates);
       }
 
-      setSelectedLocation(center);
+      setSelectedLocation(centerCoordinates);
     };
 
     map.on('move', keepMarkerCentered);
@@ -3909,11 +3947,15 @@ const Amain = () => {
                       <button className="cancel-marker-btn" onClick={handleCancelLocationMarker}>
                         لغو
                       </button>
-                      <button className="add-place-btn" onClick={handleAddPlaceToMarker}>
+                      <button
+                        className="add-place-btn"
+                        onClick={handleAddPlaceToMarker}
+                        disabled={isCreatingDoor}
+                      >
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path fillRule="evenodd" clipRule="evenodd" d="M2.70898 8.4527C2.70898 4.37019 5.96316 1.04163 10.0007 1.04163C14.0381 1.04163 17.2923 4.37019 17.2923 8.4527C17.2923 10.4236 16.7306 12.5399 15.7377 14.3682C14.746 16.1942 13.297 17.781 11.4844 18.6282C10.5428 19.0683 9.45851 19.0683 8.51689 18.6282C6.70429 17.781 5.25533 16.1942 4.26361 14.3682C3.27067 12.5399 2.70898 10.4236 2.70898 8.4527ZM10.0007 2.29163C6.67435 2.29163 3.95898 5.03953 3.95898 8.4527C3.95898 10.2003 4.46118 12.1128 5.36207 13.7716C6.26418 15.4327 7.539 16.7913 9.04619 17.4958C9.65236 17.7791 10.3489 17.7791 10.9551 17.4958C12.4623 16.7913 13.7371 15.4327 14.6392 13.7716C15.5401 12.1128 16.0423 10.2003 16.0423 8.4527C16.0423 5.03953 13.327 2.29163 10.0007 2.29163ZM10.0007 5.62496C10.3458 5.62496 10.6257 5.90478 10.6257 6.24996V7.70829H12.084C12.4292 7.70829 12.709 7.98811 12.709 8.33329C12.709 8.67847 12.4292 8.95829 12.084 8.95829H10.6257V10.4166C10.6257 10.7618 10.3458 11.0416 10.0007 11.0416C9.65547 11.0416 9.37565 10.7618 9.37565 10.4166V8.95829H7.91732C7.57214 8.95829 7.29232 8.67847 7.29232 8.33329C7.29232 7.98811 7.57214 7.70829 7.91732 7.70829H9.37565V6.24996C9.37565 5.90478 9.65547 5.62496 10.0007 5.62496Z" fill="white" />
                         </svg>
-                        افزودن مکان روی نشانگر تنظیم شده
+                        {isCreatingDoor ? 'در حال ثبت درب...' : 'افزودن مکان روی نشانگر تنظیم شده'}
                       </button>
                     </div>
                   ) : (
