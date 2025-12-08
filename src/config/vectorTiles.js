@@ -324,10 +324,10 @@ export const haramAdminVectorTileConfig = [
     maxzoom: 22,
     visibleByDefault: true,
     paint: {
-      // 'circle-color': '#ff0000',
-      'circle-radius': 300,
-      // 'circle-stroke-color': '#ffffff',
-      // 'circle-stroke-width': 1.5
+      'circle-color': '#ff0000',
+      'circle-radius': 5,
+      'circle-stroke-color': '#ffffff',
+      'circle-stroke-width': 1.5
     }
   }
 ];

@@ -1380,7 +1380,7 @@ const Amain = () => {
     const handleMapClick = (event) => {
       const { lngLat, point } = event;
 
-      const searchRadiusPx = 40;
+      const searchRadiusPx = 4000;
       const boundingBox = [
         [point.x - searchRadiusPx, point.y - searchRadiusPx],
         [point.x + searchRadiusPx, point.y + searchRadiusPx]
