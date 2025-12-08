@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
 import { useIntl } from 'react-intl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { distance as turfDistance } from '@turf/turf';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
 import { useLangStore } from '../../store/langStore';
 import { getLocationTitleById } from '../../utils/getLocationTitle';
@@ -79,6 +80,7 @@ const Mprc = ({
   landmarkPlaces = []
 }) => {
   const intl = useIntl();
+  const mapRef = useRef(null);
   const [viewState, setViewState] = useState({
     latitude: 36.2880,  // Original shrine coordinates
     longitude: 59.6157,
@@ -294,6 +296,45 @@ const Mprc = ({
   }, [selectedDestination]);
 
   const handleClick = (e) => {
+    const map = mapRef.current?.getMap?.();
+    if (map && e?.point && e?.lngLat) {
+      try {
+        const padding = 8;
+        const searchBox = [
+          [e.point.x - padding, e.point.y - padding],
+          [e.point.x + padding, e.point.y + padding]
+        ];
+
+        const nearbyDoors = map.queryRenderedFeatures(searchBox, { layers: ['fn_door_access_points_mvt'] }) || [];
+
+        if (nearbyDoors.length) {
+          const clickCoords = [e.lngLat.lng, e.lngLat.lat];
+          let closestDoor = null;
+          let minDistance = Infinity;
+
+          nearbyDoors.forEach((feature) => {
+            const [doorLng, doorLat] = feature?.geometry?.coordinates || [];
+            if (typeof doorLng !== 'number' || typeof doorLat !== 'number') return;
+
+            const distanceMeters = turfDistance(clickCoords, [doorLng, doorLat], { units: 'meters' });
+            if (distanceMeters < minDistance) {
+              minDistance = distanceMeters;
+              closestDoor = feature;
+            }
+          });
+
+          if (closestDoor) {
+            console.log('Nearest fn_door_access_points_mvt feature:', closestDoor);
+            console.log('Distance to door (m):', Number(minDistance.toFixed(2)));
+          }
+        } else {
+          console.log('No fn_door_access_points_mvt features near click');
+        }
+      } catch (err) {
+        console.error('Failed to query fn_door_access_points_mvt layer', err);
+      }
+    }
+
     if (isSelectingLocation) {
       const { lng, lat } = e.lngLat;
       const c = { lat, lng };
@@ -482,6 +523,7 @@ const Mprc = ({
       mapStyle={mapStyle}
       styleDiffing={false}
       style={{ width: '100%', height: '100%' }}
+      ref={mapRef}
       {...viewState}
       onMove={onMove}
       onLoad={handleMapLoad}
