@@ -162,7 +162,24 @@ export const haramVectorTileConfig = [
       'text-halo-width': 1.2
     }
   },
-  ,
+  {
+    id: 'doorsAccessPoint',
+    titleFa: 'نقاط اتصال درب‌ها',
+    table: DOORS_ACCESS_POINT_SOURCE_LAYER,
+    sourceId: 'fn_door_access_points_mvt',
+    sourceLayer: DOORS_ACCESS_POINT_SOURCE_LAYER,
+    tileUrlFactory: buildDoorAccessPointsTileUrlFactory(),
+    type: 'circle',
+    minzoom: 15,
+    maxzoom: 22,
+    visibleByDefault: true,
+    paint: {
+      'circle-color': '#ff7f50',
+      'circle-radius': 50,
+      'circle-stroke-color': '#ffffff',
+      // 'circle-stroke-width': 1.5
+    }
+  },
   {
     id: 'doors',
     titleFa: 'درب‌ها',
