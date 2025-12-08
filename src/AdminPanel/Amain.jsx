@@ -14,7 +14,7 @@ import { useAdminLoginService } from './adminLoginServiceContext';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import { DOORS_ACCESS_POINT_LAYER_NAME, haramAdminVectorTileConfig } from '../config/vectorTiles';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
-import { createDoor } from '../services/adminDoorsService';
+import { createDoor, deleteDoor, getDoorInfo, moveDoor, updateDoorInfo } from '../services/adminDoorsService';
 import { convertLngLatToUtm32640 } from '../utils/utm';
 
 
@@ -139,6 +139,17 @@ const Amain = () => {
   const activeEditableLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
   const selectedFeatureProperties = selectedEditableFeature?.features?.[0]?.properties;
   const selectedFeatureCoordinates = selectedEditableFeature?.features?.[0]?.geometry?.coordinates;
+  const selectedDoorId = selectedFeatureProperties?.door_id
+    || selectedFeatureProperties?.doorId
+    || selectedFeatureProperties?.doorID
+    || selectedFeatureProperties?.doorid
+    || selectedFeatureProperties?.id;
+  const selectedDoorAccessPointId = selectedFeatureProperties?.id;
+  const showDoorTools = activeEditableLayerId === DOOR_ACCESS_LAYER_ID && !!selectedDoorId && !!selectedEditableFeature;
+  const [lastCreatedDoorId, setLastCreatedDoorId] = useState(null);
+  const [lastCreatedAccessPointId, setLastCreatedAccessPointId] = useState(null);
+  const [isSavingDoorInfo, setIsSavingDoorInfo] = useState(false);
+  const [isDoorMoveMode, setIsDoorMoveMode] = useState(false);
   const [isAddPlaceModalOpen, setIsAddPlaceModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [placeName, setPlaceName] = useState('');
@@ -1618,6 +1629,16 @@ const Amain = () => {
   }, [activeEditableLayerId]);
 
   useEffect(() => {
+    if (activeEditableLayerId === DOOR_ACCESS_LAYER_ID && selectedDoorId) {
+      setOpenSubMenu(4);
+    }
+  }, [activeEditableLayerId, selectedDoorId]);
+
+  useEffect(() => {
+    setIsDoorMoveMode(false);
+  }, [selectedDoorId]);
+
+  useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
 
     const ensureHighlightLayer = () => {
@@ -1673,13 +1694,49 @@ const Amain = () => {
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
 
-    const handleMapClick = (event) => {
+    const handleMapClick = async (event) => {
       const { lngLat, point } = event;
 
       const activeEditableLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
 
       if (!activeEditableLayer) {
         console.warn('هیچ لایه قابل ویرایشی انتخاب نشده است.');
+        return;
+      }
+
+      if (isDoorMoveMode && activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && selectedDoorId) {
+        try {
+          const floor = floorLabelToValue(mapFloor);
+          const { x, y } = convertLngLatToUtm32640({ lng: lngLat.lng, lat: lngLat.lat });
+
+          const moveResponse = await moveDoor(selectedDoorId, { x, y, floor });
+          const movedProperties = {
+            ...(selectedFeatureProperties || {}),
+            door_id: selectedDoorId,
+            id: selectedDoorAccessPointId || selectedDoorId
+          };
+
+          const movedFeature = {
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                geometry: {
+                  type: 'Point',
+                  coordinates: [lngLat.lng, lngLat.lat]
+                },
+                properties: movedProperties
+              }
+            ]
+          };
+
+          setSelectedEditableFeature(movedFeature);
+          toast.success(moveResponse?.message || 'درب با موفقیت جابجا شد');
+        } catch (error) {
+          toast.error(error?.message || 'جابجایی درب ناموفق بود');
+        } finally {
+          setIsDoorMoveMode(false);
+        }
         return;
       }
 
@@ -1863,6 +1920,8 @@ const Amain = () => {
 
       toast.success('درب جدید با موفقیت ثبت شد');
       console.log('door creation response', response);
+      setLastCreatedDoorId(response?.door?.id || null);
+      setLastCreatedAccessPointId(response?.door_access_point?.id || null);
       setIsAddPlaceModalOpen(true);
       setCurrentStep(1);
     } catch (error) {
@@ -1927,7 +1986,7 @@ const Amain = () => {
     });
   };
 
-  const handleAddPlaceConfirm = () => {
+  const handleAddPlaceConfirm = async () => {
     if (currentStep === 1) {
       if (placeName && placeCategory && placeSubcategory && placeFunction) {
         setCurrentStep(2);
@@ -1945,6 +2004,11 @@ const Amain = () => {
         setCurrentStep(3);
       }
     } else if (currentStep === 3) {
+      if (!lastCreatedDoorId) {
+        toast.error('شناسه درب برای ثبت اطلاعات در دسترس نیست');
+        return;
+      }
+
       const payload = {
         name: placeName,
         category: placeCategory,
@@ -1956,14 +2020,92 @@ const Amain = () => {
         genderAccess: selectedGenderAccess,
         timeRestrictions,
         prayerTimeRestrictions: prayerTimeRestrictionsList,
-        notes: additionalNotes
+        notes: additionalNotes,
+        door_id: lastCreatedDoorId,
+        door_access_point_id: lastCreatedAccessPointId
       };
 
-      console.log('Submitting new place', payload);
-      setIsAddPlaceModalOpen(false);
-      resetForm();
+      try {
+        setIsSavingDoorInfo(true);
+        const response = await updateDoorInfo(lastCreatedDoorId, payload);
+        toast.success(response?.message || 'اطلاعات مکان با موفقیت ثبت شد');
+        setIsAddPlaceModalOpen(false);
+        resetForm();
+        setCurrentStep(1);
+      } catch (error) {
+        toast.error(error?.message || 'ثبت اطلاعات مکان ناموفق بود');
+      } finally {
+        setIsSavingDoorInfo(false);
+      }
+    }
+  };
+
+  const fillDoorInfoForm = (doorInfo = {}) => {
+    setPlaceName(doorInfo?.name || '');
+    setFullDescription(doorInfo?.description || '');
+    setPlaceCategory(doorInfo?.category || '');
+    setPlaceSubcategory(doorInfo?.subcategory || '');
+    setPlaceFunction(doorInfo?.function || '');
+    setPlaceAddress(doorInfo?.address || '');
+    setLocationStatus(doorInfo?.is_open === false ? 'غیر فعال' : doorInfo?.locationStatus || 'فعال');
+    setSelectedTransport(Array.isArray(doorInfo?.modes) ? doorInfo.modes : (doorInfo?.transports || []));
+    setSelectedGenderAccess(
+      doorInfo?.allowed_gender
+        ? [doorInfo.allowed_gender]
+        : (Array.isArray(doorInfo?.genderAccess) ? doorInfo.genderAccess : [])
+    );
+    setTimeRestrictions(doorInfo?.timeRestrictions || []);
+    setPrayerTimeRestrictionsList(doorInfo?.prayerTimeRestrictions || []);
+    setAdditionalNotes(doorInfo?.notes || '');
+  };
+
+  const handleDoorDelete = async () => {
+    if (!selectedDoorId) {
+      toast.error('هیچ دربی برای حذف انتخاب نشده است');
+      return;
+    }
+
+    const confirmDelete = window.confirm('آیا از حذف این درب مطمئن هستید؟ این عملیات قابل بازگشت نیست.');
+    if (!confirmDelete) return;
+
+    try {
+      await deleteDoor(selectedDoorId);
+      toast.success('درب با موفقیت حذف شد');
+      setSelectedEditableFeature(null);
+      setOpenSubMenu(null);
+    } catch (error) {
+      toast.error(error?.message || 'حذف درب ناموفق بود');
+    }
+  };
+
+  const handleDoorMoveStart = () => {
+    if (!selectedDoorId) {
+      toast.error('هیچ دربی برای جابجایی انتخاب نشده است');
+      return;
+    }
+
+    toast.info('مختصات جدید درب را روی نقشه انتخاب کنید');
+    setIsDoorMoveMode(true);
+  };
+
+  const handleDoorEdit = async () => {
+    if (!selectedDoorId) {
+      toast.error('هیچ دربی برای ویرایش انتخاب نشده است');
+      return;
+    }
+
+    try {
+      const info = await getDoorInfo(selectedDoorId);
+      const doorData = info?.door || {};
+      const accessPoint = Array.isArray(info?.access_points) ? info.access_points[0] : null;
+
+      setLastCreatedDoorId(doorData?.id || selectedDoorId);
+      setLastCreatedAccessPointId(accessPoint?.id || selectedDoorAccessPointId || null);
+      fillDoorInfoForm({ ...doorData, ...doorData?.attrs });
       setCurrentStep(1);
-      alert('اطلاعات مکان با موفقیت ثبت شد');
+      setIsAddPlaceModalOpen(true);
+    } catch (error) {
+      toast.error(error?.message || 'دریافت اطلاعات درب ناموفق بود');
     }
   };
 
@@ -4146,9 +4288,9 @@ const Amain = () => {
                         <path fillRule="evenodd" clipRule="evenodd" d="M2.70898 8.4527C2.70898 4.37019 5.96316 1.04163 10.0007 1.04163C14.0381 1.04163 17.2923 4.37019 17.2923 8.4527C17.2923 10.4236 16.7306 12.5399 15.7377 14.3682C14.746 16.1942 13.297 17.781 11.4844 18.6282C10.5428 19.0683 9.45851 19.0683 8.51689 18.6282C6.70429 17.781 5.25533 16.1942 4.26361 14.3682C3.27067 12.5399 2.70898 10.4236 2.70898 8.4527ZM10.0007 2.29163C6.67435 2.29163 3.95898 5.03953 3.95898 8.4527C3.95898 10.2003 4.46118 12.1128 5.36207 13.7716C6.26418 15.4327 7.539 16.7913 9.04619 17.4958C9.65236 17.7791 10.3489 17.7791 10.9551 17.4958C12.4623 16.7913 13.7371 15.4327 14.6392 13.7716C15.5401 12.1128 16.0423 10.2003 16.0423 8.4527C16.0423 5.03953 13.327 2.29163 10.0007 2.29163ZM10.0007 5.62496C10.3458 5.62496 10.6257 5.90478 10.6257 6.24996V7.70829H12.084C12.4292 7.70829 12.709 7.98811 12.709 8.33329C12.709 8.67847 12.4292 8.95829 12.084 8.95829H10.6257V10.4166C10.6257 10.7618 10.3458 11.0416 10.0007 11.0416C9.65547 11.0416 9.37565 10.7618 9.37565 10.4166V8.95829H7.91732C7.57214 8.95829 7.29232 8.67847 7.29232 8.33329C7.29232 7.98811 7.57214 7.70829 7.91732 7.70829H9.37565V6.24996C9.37565 5.90478 9.65547 5.62496 10.0007 5.62496Z" fill={isLocationMarkerMode ? "white" : "#1E2023"} />
                       </svg>
                     </div>
-                    {openSubMenu === 4 && (
+                    {openSubMenu === 4 && showDoorTools && (
                       <div className="sub-buttons4">
-                        <button className="sub-btn">
+                        <button className="sub-btn" onClick={handleDoorMoveStart}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-drag-drop">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M19 11v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2" />
@@ -4162,7 +4304,7 @@ const Amain = () => {
                             <path d="M3 15l0 .01" />
                           </svg>
                         </button>
-                        <button className="sub-btn">
+                        <button className="sub-btn" onClick={handleDoorEdit}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
@@ -4170,7 +4312,7 @@ const Amain = () => {
                             <path d="M16 5l3 3" />
                           </svg>
                         </button>
-                        <button className="sub-btn">
+                        <button className="sub-btn" onClick={handleDoorDelete}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M4 7l16 0" />
@@ -5525,8 +5667,13 @@ const Amain = () => {
               <button
                 className="confirm-btn"
                 onClick={handleAddPlaceConfirm}
+                disabled={isSavingDoorInfo}
               >
-                {currentStep === 3 ? 'تایید اطلاعات و ثبت این مکان ' : 'تایید اطلاعات و مرحله بعد'}
+                {isSavingDoorInfo
+                  ? 'در حال ذخیره اطلاعات...'
+                  : currentStep === 3
+                    ? 'تایید اطلاعات و ثبت این مکان '
+                    : 'تایید اطلاعات و مرحله بعد'}
               </button>
             </div>
           </div>
