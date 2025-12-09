@@ -5669,7 +5669,7 @@ body {
 
 /* Display Toggle Options */
 .display-option {
-  flex:1;
+  flex: 1;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -6086,7 +6086,7 @@ body {
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid white;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Make the admin profile clickable */
@@ -6105,12 +6105,12 @@ body {
     width: 150px;
     height: 150px;
   }
-  
+
   .upload-actions {
     flex-direction: column;
     align-items: center;
   }
-  
+
   .upload-btn,
   .remove-btn {
     width: 200px;
@@ -6426,7 +6426,7 @@ body {
   max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap; 
+  white-space: nowrap;
 }
 
 .truncated-description {
@@ -6476,48 +6476,10 @@ body {
 /* Edit Cultural Page Styles */
 .edit-cultural-page {
   padding: 20px;
-  background-color: #f8f9fa;
+  background-color: white;
   min-height: calc(100vh - 80px);
 }
 
-.page-header-edit {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 30px;
-}
-
-.header-title-section {
-  flex: 1;
-}
-
-.page-title-edit {
-  font-size: 24px;
-  font-weight: 600;
-  color: #1E2023;
-  margin-bottom: 10px;
-}
-
-.breadcrumb-edit {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: #666;
-}
-
-.breadcrumb-item {
-  color: #666;
-}
-
-.breadcrumb-separator {
-  color: #999;
-}
-
-.breadcrumb-item.active {
-  color: #0F71EF;
-  font-weight: 500;
-}
 
 /* Edit Form Container */
 .edit-form-container {
@@ -6534,13 +6496,26 @@ body {
   gap: 20px;
 }
 
+.edit-media-section {
+ max-height: calc(88vh - 100px) !important;
+ overflow-y: auto !important;
+ overflow-x: hidden !important;
+ border: 1px solid #D9D9D9;
+
+}
+
+.edit-files-section {
+  border: 1px solid #D9D9D9;
+  display: flex;
+  gap: 16px;
+}
+
 .edit-media-section,
 .edit-display-section,
 .edit-files-section {
   background: white;
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .edit-section-header {
@@ -6548,15 +6523,18 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .edit-section-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1E2023;
+  font-size: 14px;
+  font-weight: 500;
+  color: #393A3D;
+
 }
 
-.add-file-btn {
+.add-file-btn12 {
   background: #E8F0FE;
   color: #0F71EF;
   border: none;
@@ -6564,13 +6542,15 @@ body {
   border-radius: 8px;
   cursor: pointer;
   display: flex;
+  flex-direction: row;
+  justify-content: center;
   align-items: center;
   gap: 8px;
   font-size: 14px;
   transition: background-color 0.2s;
 }
 
-.add-file-btn:hover {
+.add-file-btn12:hover {
   background: #D2E3FC;
 }
 
@@ -6579,6 +6559,7 @@ body {
   color: #0F71EF;
   border: none;
   padding: 6px 12px;
+  width: 10vw;
   border-radius: 6px;
   cursor: pointer;
   display: flex;
@@ -6586,6 +6567,8 @@ body {
   gap: 6px;
   font-size: 13px;
   transition: background-color 0.2s;
+  justify-content: center;
+  display: flex;
 }
 
 .add-file-btn-small:hover {
@@ -6627,7 +6610,7 @@ body {
   position: absolute;
   top: 10px;
   right: 10px;
-  background: rgba(234, 67, 53, 0.9);
+  background: #EA4335;
   color: white;
   border: none;
   border-radius: 4px;
@@ -6641,7 +6624,7 @@ body {
 }
 
 .remove-file-btn-edit:hover {
-  background: #EA4335;
+  background: #d60419;
 }
 
 /* Profile Images Grid */
@@ -6722,6 +6705,10 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border: 1px solid #D9D9D9;
+  padding: 4px;
+  padding-right: 16px;
+  border-radius: 8px;
 }
 
 .option-label-edit {
@@ -6758,6 +6745,9 @@ body {
 /* Audio and Text Files */
 .edit-file-subsection {
   margin-bottom: 20px;
+  max-height: calc(80vh - 100px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
 }
 
 .edit-file-subsection:last-child {
@@ -6826,15 +6816,14 @@ body {
   flex: 2;
   display: flex;
   flex-direction: column;
-  gap: 20px;
 }
 
 .edit-form-section {
   background: white;
   border-radius: 12px;
   padding: 25px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
+
 
 .edit-form-title {
   font-size: 18px;
@@ -6842,7 +6831,6 @@ body {
   color: #1E2023;
   margin-bottom: 20px;
   padding-bottom: 10px;
-  border-bottom: 1px solid #E0E0E0;
 }
 
 .edit-form-group {
@@ -6860,6 +6848,7 @@ body {
   margin-bottom: 8px;
   font-weight: 500;
 }
+
 
 .title-input-with-language-edit,
 .description-input-with-language-edit,
@@ -6899,6 +6888,20 @@ body {
 }
 
 .language-input-btn-edit {
+  position: absolute;
+  right: 12px;
+  top: 32%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.language-input-btn-edit1 {
   position: absolute;
   right: 12px;
   top: 50%;
@@ -7042,7 +7045,7 @@ body {
   .edit-form-container {
     flex-direction: column;
   }
-  
+
   .edit-left-section,
   .edit-right-section {
     width: 100%;
@@ -7054,19 +7057,19 @@ body {
     flex-direction: column;
     gap: 15px;
   }
-  
+
   .profile-images-grid-edit {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   }
-  
+
   .cultural-type-grid-edit {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .edit-action-buttons {
     flex-direction: column;
   }
-  
+
   .cancel-edit-btn,
   .save-edit-btn {
     width: 100%;
@@ -7253,7 +7256,7 @@ body {
   .orientation-options-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .image-preview-container {
     height: 150px;
   }
