@@ -3585,15 +3585,21 @@ const Amain = () => {
   });
 
   const mapApiPrayerRestrictionsToForm = (apiRestrictions = []) => apiRestrictions.map((restriction, index) => {
-    const derivedIsoDate = buildPrayerDateIso(restriction?.date) || restriction?.date || null;
+    const derivedIsoScope = Array.isArray(restriction?.date_scope) && restriction.date_scope.length
+      ? restriction.date_scope
+      : buildDateScopeIso(restriction?.date);
+
+    const dateLabel = derivedIsoScope?.length
+      ? derivedIsoScope.join(' / ')
+      : restriction?.date || 'همه روزها';
 
     return {
       id: restriction?.id || index,
       events: restriction?.events || [],
       before: restriction?.before_minutes ?? restriction?.before ?? '',
       after: restriction?.after_minutes ?? restriction?.after ?? '',
-      date: restriction?.date || '',
-      isoDate: derivedIsoDate,
+      date: dateLabel,
+      isoDateScope: derivedIsoScope?.length ? derivedIsoScope : [],
       title: restriction?.title || ''
     };
   });
@@ -3624,23 +3630,29 @@ const Amain = () => {
     return payload;
   };
 
-  const buildPrayerRestrictionsPayload = () => prayerTimeRestrictionsList.map((restriction) => ({
-    events: restriction?.events || [],
-    before_minutes: restriction?.before_minutes
-      ?? (restriction?.before !== undefined ? Number(restriction.before) : undefined)
-      ?? (restriction?.beforeMinutes !== undefined ? Number(restriction.beforeMinutes) : undefined)
-      ?? (restriction?.before ? Number(restriction.before) : 0),
-    after_minutes: restriction?.after_minutes
-      ?? (restriction?.after !== undefined ? Number(restriction.after) : undefined)
-      ?? (restriction?.afterMinutes !== undefined ? Number(restriction.afterMinutes) : undefined)
-      ?? (restriction?.after ? Number(restriction.after) : 0),
-    date: restriction?.isoDate || buildPrayerDateIso(restriction?.date),
-    title: restriction?.title
-      ?? restriction?.label
-      ?? (restriction?.events?.length
-        ? `${restriction.events.join(' و ')} : ${restriction.before || 0} دقیقه قبل الی ${restriction.after || 0} دقیقه بعد`
-        : '')
-  }));
+  const buildPrayerRestrictionsPayload = () => prayerTimeRestrictionsList.map((restriction) => {
+    const dateScope = restriction?.isoDateScope?.length
+      ? restriction.isoDateScope
+      : buildDateScopeIso(restriction?.date);
+
+    return {
+      events: restriction?.events || [],
+      before_minutes: restriction?.before_minutes
+        ?? (restriction?.before !== undefined ? Number(restriction.before) : undefined)
+        ?? (restriction?.beforeMinutes !== undefined ? Number(restriction.beforeMinutes) : undefined)
+        ?? (restriction?.before ? Number(restriction.before) : 0),
+      after_minutes: restriction?.after_minutes
+        ?? (restriction?.after !== undefined ? Number(restriction.after) : undefined)
+        ?? (restriction?.afterMinutes !== undefined ? Number(restriction.afterMinutes) : undefined)
+        ?? (restriction?.after ? Number(restriction.after) : 0),
+      date_scope: dateScope,
+      title: restriction?.title
+        ?? restriction?.label
+        ?? (restriction?.events?.length
+          ? `${restriction.events.join(' و ')} : ${restriction.before || 0} دقیقه قبل الی ${restriction.after || 0} دقیقه بعد`
+          : '')
+    };
+  });
 
   const buildDoorInfoPayload = () => {
     const selectedSubGroup = subGroupOptions.find((subGroup) => subGroup.value === placeSubcategory);
@@ -3977,7 +3989,7 @@ const Amain = () => {
   };
 
   const buildDateScopeIso = (dateLabel, jalaliSelection = null, jalaliEndSelection = null) => {
-    if (!dateLabel || dateLabel === 'کل روزها') return [];
+    if (!dateLabel || dateLabel === 'کل روزها' || dateLabel === 'همه روزها') return [];
 
     const isIsoDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
 
@@ -7612,14 +7624,15 @@ const Amain = () => {
                                     }
                                     // Create new item
                                     const title = selectedPrayerEvents.join(' و ') + ` : ${prayerBeforeMinutes} دقیقه قبل الی ${prayerAfterMinutes} دقیقه بعد`;
+                                    const dateLabel = getPrayerDateLabel();
                                     const newItem = {
                                       id: Date.now(),
                                       events: [...selectedPrayerEvents],
                                       before: String(prayerBeforeMinutes),
                                       after: String(prayerAfterMinutes),
-                                      date: getPrayerDateLabel(),
-                                      isoDate: buildPrayerDateIso(
-                                        getPrayerDateLabel(),
+                                      date: dateLabel,
+                                      isoDateScope: buildDateScopeIso(
+                                        dateLabel,
                                         prayerSelectedJalaliDate,
                                         prayerSelectedJalaliEndDate
                                       ),
