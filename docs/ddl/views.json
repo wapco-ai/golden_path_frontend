@@ -553,5 +553,40 @@
         "is_updatable": "NO",
         "view_definition": " SELECT e.id,\n    e.floor,\n    e.src,\n    e.dst,\n    e.geom,\n    e.base_cost,\n    e.base_cost AS cost,\n    e.door_id\n   FROM ((routing_edges_static e\n     LEFT JOIN v_doors_live d ON ((e.door_id = d.id)))\n     LEFT JOIN v_temp_block_areas_active b ON (((b.floor = e.floor) AND st_intersects(e.geom, b.geom))))\n  WHERE ((COALESCE(d.is_open_effective, true) = true) AND (b.id IS NULL));",
         "is_insertable_into": "NO"
+    },
+    {
+        "schema": "public",
+        "columns": [
+            {
+                "data_type": "bigint",
+                "column_name": "poi_id",
+                "is_nullable": "YES",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "bigint",
+                "column_name": "rating_count",
+                "is_nullable": "YES",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "numeric",
+                "column_name": "rating_avg",
+                "is_nullable": "YES",
+                "ordinal_position": 3
+            },
+            {
+                "data_type": "timestamp with time zone",
+                "column_name": "last_review_at",
+                "is_nullable": "YES",
+                "ordinal_position": 4
+            }
+        ],
+        "full_ddl": "CREATE OR REPLACE VIEW public.poi_ratings AS\n SELECT target_id AS poi_id,\n    count(*) FILTER (WHERE (rating IS NOT NULL)) AS rating_count,\n    (avg(rating) FILTER (WHERE (rating IS NOT NULL)))::numeric(3,2) AS rating_avg,\n    max(created_at) AS last_review_at\n   FROM user_feedbacks\n  WHERE ((target_type = 'poi'::feedback_target_enum) AND (status = 'approved'::feedback_status_enum))\n  GROUP BY target_id;",
+        "view_name": "poi_ratings",
+        "check_option": "NONE",
+        "is_updatable": "NO",
+        "view_definition": " SELECT target_id AS poi_id,\n    count(*) FILTER (WHERE (rating IS NOT NULL)) AS rating_count,\n    (avg(rating) FILTER (WHERE (rating IS NOT NULL)))::numeric(3,2) AS rating_avg,\n    max(created_at) AS last_review_at\n   FROM user_feedbacks\n  WHERE ((target_type = 'poi'::feedback_target_enum) AND (status = 'approved'::feedback_status_enum))\n  GROUP BY target_id;",
+        "is_insertable_into": "NO"
     }
 ]

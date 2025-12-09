@@ -19,6 +19,7 @@ const MESH_TRIANGLES_TILE_BASE = `${TILE_BASE_URL}/${MESH_TRIANGLES_SOURCE_LAYER
 const ROUTING_EDGES_STATIC_SOURCE_LAYER = 'public.routing_edges_static';
 const ROUTING_EDGES_STATIC_BASE = `${TILE_BASE_URL}/${ROUTING_EDGES_STATIC_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
 const DOORS_ACCESS_POINT_SOURCE_LAYER = 'public.fn_door_access_points_mvt';
+export const DOOR_ACCESS_LAYER_ID = 'doors-access-point';
 // The MVT layer name returned by the function omits the schema prefix
 export const DOORS_ACCESS_POINT_LAYER_NAME = 'door_access_points';
 const DOORS_ACCESS_POINT_BASE = `${TILE_BASE_URL}/${DOORS_ACCESS_POINT_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
@@ -190,7 +191,7 @@ export const haramVectorTileConfig = [
 export const haramAdminVectorTileConfig = [
   {
     id: 'areas-outline',
-    titleFa: 'مرز محدوده‌ها',
+    titleFa: 'محدوده‌ها',
     table: 'public.fn_areas_mvt',
     sourceId: 'fn_areas_mvt',
     sourceLayer: AREAS_VECTOR_LAYER_NAME,
@@ -209,54 +210,6 @@ export const haramAdminVectorTileConfig = [
     }
   },
   {
-    id: 'areas-fill',
-    titleFa: 'رنگ محدوده‌ها',
-    table: 'public.fn_areas_mvt',
-    sourceId: 'fn_areas_mvt',
-    sourceLayer: 'areas',
-    tileUrlFactory: buildAreasTileUrlFactory(),
-    type: 'fill',
-    minzoom: 14,
-    maxzoom: 22,
-    visibleByDefault: false,
-    paint: {
-      'fill-color': [
-        'match',
-        ['get', 'area_type'],
-        'sahn', '#fff5cc',
-        'ravaq', '#e6f2ff',
-        'eyvan', '#ffe6e6',
-        'masjed', '#e8e0ff',
-      /* default */ '#dddddd'
-      ],
-      'fill-opacity': 0.35
-    }
-  },
-  {
-    id: 'areas-labels',
-    titleFa: 'نام محدوده‌ها',
-    table: 'public.fn_areas_mvt',
-    sourceId: 'fn_areas_mvt',
-    sourceLayer: AREAS_VECTOR_LAYER_NAME, // باید همونی باشه که در areas-outline استفاده می‌کنی
-    tileUrlFactory: buildAreasTileUrlFactory(),
-    type: 'symbol',
-    minzoom: 16,
-    maxzoom: 22,
-    visibleByDefault: false,
-    layout: {
-      'text-field': ['get', 'label'],          // یا name_fa، بسته به پراپرتی MVT
-      'text-font': ['Vazirmatn Regular'],     // دقیقا اسم فولدر glyphها
-      'text-size': 13,
-      'text-anchor': 'center',
-      'text-allow-overlap': true
-    },
-    paint: {
-      'text-color': '#222222',
-      'text-halo-color': '#ffffff',
-      'text-halo-width': 1.2
-    }
-  },
-  {
     id: 'doors',
     titleFa: 'درب‌ها',
     table: 'public.fn_doors_mvt',
@@ -270,26 +223,6 @@ export const haramAdminVectorTileConfig = [
     paint: {
       'line-color': '#ff3b30',
       'line-width': 2
-    }
-  },
-  {
-    id: 'mesh-triangles-ground',
-    titleFa: 'مش‌بندی محدوده‌های طبقه همکف',
-    table: MESH_TRIANGLES_SOURCE_LAYER,
-    sourceId: 'vw_mesh_triangles',
-    sourceLayer: MESH_TRIANGLES_SOURCE_LAYER,
-    tileUrl: MESH_TRIANGLES_TILE_BASE,
-    type: 'line',
-    minzoom: 15,
-    maxzoom: 22,
-    visibleByDefault: false,
-    paint: {
-      'line-color': '#ffddcc',
-      'line-width': 0.15
-    },
-    layout: {
-      'line-join': 'round',
-      'line-cap': 'round'
     }
   },
   {
@@ -313,7 +246,7 @@ export const haramAdminVectorTileConfig = [
     }
   },
   {
-    id: 'doors-access-point',
+    id: DOOR_ACCESS_LAYER_ID,
     titleFa: 'نقاط اتصال درب‌ها',
     table: DOORS_ACCESS_POINT_SOURCE_LAYER,
     sourceId: 'door_access_points',
@@ -331,5 +264,28 @@ export const haramAdminVectorTileConfig = [
     }
   }
 ];
+
+export const layerEditSettings = {
+  'areas-outline': {
+    enabled: true,
+    highlightColor: '#0f172a',
+    requiredPermission: 'map:edit:areas'
+  },
+  doors: {
+    enabled: false,
+    highlightColor: '#f43f5e',
+    requiredPermission: 'map:edit:doors'
+  },
+  'routing_edges_static-ground': {
+    enabled: false,
+    highlightColor: '#0ea5e9',
+    requiredPermission: 'map:edit:routing'
+  },
+  [DOOR_ACCESS_LAYER_ID]: {
+    enabled: true,
+    highlightColor: '#f97316',
+    requiredPermission: 'map:edit:doors'
+  }
+};
 
 export default haramVectorTileConfig;

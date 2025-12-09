@@ -2171,6 +2171,19 @@ body {
   border-color: #0f71ef;
 }
 
+.edit-layer-btn.disabled,
+.edit-layer-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+}
+
+.edit-layer-btn.disabled svg path,
+.edit-layer-btn:disabled svg path {
+  stroke: #9ca3af;
+}
+
 .edit-layer-btn.active {
   background: #0f71ef;
   border-color: #0f71ef;

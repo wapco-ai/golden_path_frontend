@@ -1,5 +1,5 @@
 // src/pages/Amain.jsx
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useIntl } from 'react-intl';
 import { toast } from 'react-toastify';
 import '../AdminPanel/Amain.css';
@@ -9,28 +9,83 @@ import { toJalaali, toGregorian } from 'jalaali-js';
 import ReactDatePicker from 'react-datepicker';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { distance as turfDistance } from '@turf/turf';
+import { centroid as turfCentroid, distance as turfDistance } from '@turf/turf';
 import { useAdminLoginService } from './adminLoginServiceContext';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
-import { DOORS_ACCESS_POINT_LAYER_NAME, haramAdminVectorTileConfig } from '../config/vectorTiles';
+import {
+  DOOR_ACCESS_LAYER_ID,
+  DOORS_ACCESS_POINT_LAYER_NAME,
+  haramAdminVectorTileConfig,
+  layerEditSettings
+} from '../config/vectorTiles';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
-import { createDoor } from '../services/adminDoorsService';
+import { createDoor, deleteDoor, getDoorInfo, moveDoor, updateDoorInfo } from '../services/adminDoorsService';
 import { convertLngLatToUtm32640 } from '../utils/utm';
+import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
+import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
+import { getLanguageName } from '../utils/languageNames';
 
 
-const DOOR_ACCESS_LAYER_ID = 'doors-access-point';
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
 const SELECTED_EDITABLE_FEATURE_SOURCE_ID = 'selected-editable-feature-source';
 const SELECTED_EDITABLE_FEATURE_LAYER_ID = 'selected-editable-feature-layer';
 
-const editableLayerOptions = [
-  {
-    id: DOOR_ACCESS_LAYER_ID,
-    sourceId: DOOR_ACCESS_SOURCE_ID,
-    label: 'درب‌ها',
-    highlightColor: '#f97316'
-  }
+const GENDER_OPTIONS = [
+  { value: 'female', label: 'بانوان' },
+  { value: 'male', label: 'مردان' },
+  { value: 'family', label: 'خانوادگی' }
 ];
+
+const TRANSPORT_OPTIONS = [
+  { value: 'wheelchair', label: 'ویلچر', icon: 'wheelchair' },
+  { value: 'van', label: 'ون برقی', icon: 'electric' },
+  { value: 'walk', label: 'به صورت پیاده', icon: 'walking' }
+];
+
+const getGenderLabel = (value) => GENDER_OPTIONS.find((option) => option.value === value)?.label || value;
+const normalizeGenderValue = (value) => GENDER_OPTIONS.find((option) => option.value === value)?.value
+  || GENDER_OPTIONS.find((option) => option.label === value)?.value
+  || value;
+
+const getTransportLabel = (value) => TRANSPORT_OPTIONS.find((option) => option.value === value)?.label || value;
+const normalizeTransportValue = (value) => TRANSPORT_OPTIONS.find((option) => option.value === value)?.value
+  || TRANSPORT_OPTIONS.find((option) => option.label === value)?.value
+  || value;
+
+const dedupeByValue = (items = []) => {
+  const seen = new Set();
+  return items.filter((item) => {
+    const value = item?.value;
+
+    if (!value) return true;
+    if (seen.has(value)) return false;
+
+    seen.add(value);
+    return true;
+  });
+};
+
+const getFeatureCenterCoordinates = (feature) => {
+  const geometry = feature?.geometry;
+
+  if (!geometry) return null;
+
+  if (geometry.type === 'Point') return geometry.coordinates;
+  if (geometry.type === 'MultiPoint') return geometry.coordinates?.[0];
+
+  try {
+    const centroid = turfCentroid(feature);
+    const coordinates = centroid?.geometry?.coordinates;
+
+    if (Array.isArray(coordinates) && coordinates.length >= 2) {
+      return coordinates;
+    }
+  } catch (error) {
+    console.error('خطا در محاسبه مرکز هندسی فیچر:', error);
+  }
+
+  return null;
+};
 
 const logDoorAccessPointDebugInfo = (mapInstance) => {
   if (!mapInstance) return;
@@ -82,6 +137,37 @@ const Amain = () => {
     rejected: 46
   });
   const [map, setMap] = useState(null);
+  const userPermissions = useMemo(
+    () => adminProfile?.permissions || adminProfile?.user?.permissions || [],
+    [adminProfile]
+  );
+  const editableLayerOptions = useMemo(
+    () => haramAdminVectorTileConfig.map((layer) => {
+      const settings = layerEditSettings[layer.id] || {};
+
+      return {
+        id: layer.id,
+        sourceId: layer.sourceId,
+        label: layer.titleFa || layer.id,
+        highlightColor: settings.highlightColor || '#3b82f6',
+        isEditable: settings.enabled !== false,
+        requiredPermission: settings.requiredPermission || null
+      };
+    }),
+    []
+  );
+  const canUserEditLayer = useCallback(
+    (layer) => {
+      if (!layer?.isEditable) return false;
+      if (!layer?.requiredPermission) return true;
+
+      const permissions = Array.isArray(userPermissions) ? userPermissions : [];
+      if (!permissions.length) return true;
+
+      return permissions.includes(layer.requiredPermission);
+    },
+    [userPermissions]
+  );
 
   const [mapViewState, setMapViewState] = useState({
     longitude: 59.6161,
@@ -134,11 +220,44 @@ const Amain = () => {
   const [isLocationMarkerMode, setIsLocationMarkerMode] = useState(false);
   const [isCreatingDoor, setIsCreatingDoor] = useState(false);
   const [locationMarker, setLocationMarker] = useState(null);
-  const [activeEditableLayerId, setActiveEditableLayerId] = useState(editableLayerOptions[0]?.id || '');
+  const [activeEditableLayerId, setActiveEditableLayerId] = useState('');
+  const hasUserClearedEditableLayer = useRef(false);
   const [selectedEditableFeature, setSelectedEditableFeature] = useState(null);
-  const activeEditableLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
+  const activeEditableLayer = useMemo(() => {
+    const selectedLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
+
+    if (!canUserEditLayer(selectedLayer)) {
+      return null;
+    }
+
+    return selectedLayer;
+  }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
   const selectedFeatureProperties = selectedEditableFeature?.features?.[0]?.properties;
   const selectedFeatureCoordinates = selectedEditableFeature?.features?.[0]?.geometry?.coordinates;
+  const selectedDoorId = selectedFeatureProperties?.door_id
+    || selectedFeatureProperties?.doorId
+    || selectedFeatureProperties?.doorID
+    || selectedFeatureProperties?.doorid
+    || selectedFeatureProperties?.id;
+  const selectedDoorAccessPointId = selectedFeatureProperties?.id;
+  const showDoorTools = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && !!selectedDoorId && !!selectedEditableFeature;
+  const [lastCreatedDoorId, setLastCreatedDoorId] = useState(null);
+  const [lastCreatedAccessPointId, setLastCreatedAccessPointId] = useState(null);
+  const [isSavingDoorInfo, setIsSavingDoorInfo] = useState(false);
+  const [isLoadingDoorInfo, setIsLoadingDoorInfo] = useState(false);
+  const [isDoorMoveMode, setIsDoorMoveMode] = useState(false);
+  const intl = useIntl();
+  const language = intl?.locale || 'fa';
+  const translateLabel = useCallback(
+    (labelKey) => {
+      if (!labelKey || typeof labelKey !== 'string') return labelKey;
+
+      return intl?.messages?.[labelKey]
+        ? intl.formatMessage({ id: labelKey })
+        : labelKey;
+    },
+    [intl]
+  );
   const [isAddPlaceModalOpen, setIsAddPlaceModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [placeName, setPlaceName] = useState('');
@@ -156,6 +275,10 @@ const Amain = () => {
   const [placeCategory, setPlaceCategory] = useState('');
   const [placeSubcategory, setPlaceSubcategory] = useState('');
   const [placeFunction, setPlaceFunction] = useState('');
+  const [groupOptions, setGroupOptions] = useState([]);
+  const [subGroupOptions, setSubGroupOptions] = useState([]);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+  const [isLoadingSubGroups, setIsLoadingSubGroups] = useState(false);
   const [selectedTransport, setSelectedTransport] = useState([]);
   const [selectedGenderAccess, setSelectedGenderAccess] = useState([]);
   const [timeRestrictions, setTimeRestrictions] = useState([]);
@@ -596,6 +719,70 @@ const Amain = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isPieChartFilterOpen, isBarChartFilterOpen]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const languageGroup = getLanguageName(language);
+
+    setIsLoadingGroups(true);
+    fetchGroupMetadata({ language, withPng: false, group: languageGroup })
+      .then((groupData) => {
+        if (!isMounted) return;
+        const normalizedGroups = normalizeGroupMetadata(groupData?.groups, language);
+        const translatedGroups = normalizedGroups.map((group) => ({
+          ...group,
+          label: translateLabel(group.label)
+        }));
+        setGroupOptions(dedupeByValue(translatedGroups));
+      })
+      .catch((error) => {
+        console.error('Failed to load group metadata', error);
+        toast.error('بارگذاری گروه‌ها با مشکل مواجه شد');
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setIsLoadingGroups(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [language, translateLabel]);
+
+  useEffect(() => {
+    if (!placeCategory) {
+      setSubGroupOptions([]);
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoadingSubGroups(true);
+    setSubGroupOptions([]);
+
+    fetchSubGroups({ language, groups: [placeCategory], withImages: false })
+      .then((subGroupData) => {
+        if (!isMounted) return;
+        const normalized = normalizeSubGroupMetadata(subGroupData?.subGroups, language);
+        const translatedSubGroups = (normalized[placeCategory] || []).map((subGroup) => ({
+          ...subGroup,
+          label: translateLabel(subGroup.label)
+        }));
+        setSubGroupOptions(dedupeByValue(translatedSubGroups));
+      })
+      .catch((error) => {
+        console.error('Failed to load sub groups', error);
+        toast.error('بارگذاری زیرگروه‌ها با مشکل مواجه شد');
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setIsLoadingSubGroups(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [language, placeCategory, translateLabel]);
 
   const toggleUserManagement = () => {
     setUserManagementOpen(!userManagementOpen);
@@ -1741,6 +1928,7 @@ const Amain = () => {
     setPlaceCategory('');
     setPlaceSubcategory('');
     setPlaceFunction('');
+    setSubGroupOptions([]);
     setSelectedTransport([]);
     setSelectedGenderAccess([]);
     setTimeRestrictions([]);
@@ -1876,15 +2064,52 @@ const Amain = () => {
   }, [activeMenu]);
 
   useEffect(() => {
+    const activeLayerOption = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
+
+    if (activeEditableLayerId && !canUserEditLayer(activeLayerOption)) {
+      setActiveEditableLayerId('');
+      setSelectedEditableFeature(null);
+      hasUserClearedEditableLayer.current = false;
+      return;
+    }
+
+    if (!activeEditableLayerId && !hasUserClearedEditableLayer.current) {
+      const firstAvailable = editableLayerOptions.find((layer) => canUserEditLayer(layer));
+
+      if (firstAvailable) {
+        setActiveEditableLayerId(firstAvailable.id);
+        hasUserClearedEditableLayer.current = false;
+      }
+    }
+  }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
+
+  useEffect(() => {
     setSelectedEditableFeature(null);
   }, [activeEditableLayerId]);
+
+  useEffect(() => {
+    if (activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && selectedDoorId) {
+      setOpenSubMenu(4);
+    }
+  }, [activeEditableLayer, selectedDoorId]);
+
+  useEffect(() => {
+    setIsDoorMoveMode(false);
+  }, [selectedDoorId]);
 
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
 
     const ensureHighlightLayer = () => {
-      const activeLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
-      const highlightColor = activeLayer?.highlightColor || '#3b82f6';
+      if (!activeEditableLayer) {
+        if (map.getLayer(SELECTED_EDITABLE_FEATURE_LAYER_ID)) {
+          map.setLayoutProperty(SELECTED_EDITABLE_FEATURE_LAYER_ID, 'visibility', 'none');
+        }
+
+        return;
+      }
+
+      const highlightColor = activeEditableLayer?.highlightColor || '#3b82f6';
 
       if (!map.getSource(SELECTED_EDITABLE_FEATURE_SOURCE_ID)) {
         map.addSource(SELECTED_EDITABLE_FEATURE_SOURCE_ID, {
@@ -1907,6 +2132,7 @@ const Amain = () => {
         });
       } else {
         map.setPaintProperty(SELECTED_EDITABLE_FEATURE_LAYER_ID, 'circle-color', highlightColor);
+        map.setLayoutProperty(SELECTED_EDITABLE_FEATURE_LAYER_ID, 'visibility', 'visible');
       }
     };
 
@@ -1919,7 +2145,80 @@ const Amain = () => {
     return () => {
       map.off('load', ensureHighlightLayer);
     };
-  }, [map, activeMenu, activeEditableLayerId]);
+  }, [map, activeMenu, activeEditableLayer]);
+
+  useEffect(() => {
+    if (!map || activeMenu !== 'mapmanage') return undefined;
+
+    const selectNearestFeature = () => {
+      if (!activeEditableLayer) {
+        setSelectedEditableFeature(null);
+        return;
+      }
+
+      const center = map.getCenter();
+      const centerPoint = map.project(center);
+      const searchRadiusPx = 40000;
+      const boundingBox = [
+        [centerPoint.x - searchRadiusPx, centerPoint.y - searchRadiusPx],
+        [centerPoint.x + searchRadiusPx, centerPoint.y + searchRadiusPx]
+      ];
+
+      const nearbyFeatures = map
+        .queryRenderedFeatures(boundingBox, { layers: [activeEditableLayer.id] })
+        .filter((feature) => !activeEditableLayer.sourceId || feature?.source === activeEditableLayer.sourceId);
+
+      if (!nearbyFeatures.length) {
+        setSelectedEditableFeature(null);
+        return;
+      }
+
+      const centerCoordinates = [center.lng, center.lat];
+      const featuresWithDistance = nearbyFeatures
+        .map((feature) => {
+          const featureCoordinates = getFeatureCenterCoordinates(feature);
+
+          if (!featureCoordinates) {
+            return null;
+          }
+
+          const distanceMeters = turfDistance(
+            centerCoordinates,
+            featureCoordinates,
+            { units: 'kilometers' }
+          ) * 1000;
+
+          return { feature, distanceMeters };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.distanceMeters - b.distanceMeters);
+
+      if (!featuresWithDistance.length) {
+        setSelectedEditableFeature(null);
+        return;
+      }
+
+      const nearestFeature = featuresWithDistance[0];
+      const selectedFeatureCollection = {
+        type: 'FeatureCollection',
+        features: [nearestFeature.feature]
+      };
+
+      setSelectedEditableFeature(selectedFeatureCollection);
+
+      if (activeEditableLayer.id === DOOR_ACCESS_LAYER_ID) {
+        setOpenSubMenu(4);
+      }
+    };
+
+    if (map.isStyleLoaded()) {
+      selectNearestFeature();
+      return undefined;
+    }
+
+    map.once('load', selectNearestFeature);
+    return () => map.off('load', selectNearestFeature);
+  }, [map, activeMenu, activeEditableLayer]);
 
   useEffect(() => {
     if (!map) return undefined;
@@ -1935,13 +2234,47 @@ const Amain = () => {
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
 
-    const handleMapClick = (event) => {
+    const handleMapClick = async (event) => {
       const { lngLat, point } = event;
-
-      const activeEditableLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
 
       if (!activeEditableLayer) {
         console.warn('هیچ لایه قابل ویرایشی انتخاب نشده است.');
+        return;
+      }
+
+      if (isDoorMoveMode && activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && selectedDoorId) {
+        try {
+          const floor = floorLabelToValue(mapFloor);
+          const { x, y } = convertLngLatToUtm32640({ lng: lngLat.lng, lat: lngLat.lat });
+
+          const moveResponse = await moveDoor(selectedDoorId, { x, y, floor });
+          const movedProperties = {
+            ...(selectedFeatureProperties || {}),
+            door_id: selectedDoorId,
+            id: selectedDoorAccessPointId || selectedDoorId
+          };
+
+          const movedFeature = {
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                geometry: {
+                  type: 'Point',
+                  coordinates: [lngLat.lng, lngLat.lat]
+                },
+                properties: movedProperties
+              }
+            ]
+          };
+
+          setSelectedEditableFeature(movedFeature);
+          toast.success(moveResponse?.message || 'درب با موفقیت جابجا شد');
+        } catch (error) {
+          toast.error(error?.message || 'جابجایی درب ناموفق بود');
+        } finally {
+          setIsDoorMoveMode(false);
+        }
         return;
       }
 
@@ -1966,15 +2299,15 @@ const Amain = () => {
 
       const featuresWithDistance = nearbyFeatures
         .map((feature) => {
-          const [featureLng, featureLat] = feature?.geometry?.coordinates || [];
+          const featureCoordinates = getFeatureCenterCoordinates(feature);
 
-          if (typeof featureLng !== 'number' || typeof featureLat !== 'number') {
+          if (!featureCoordinates) {
             return null;
           }
 
           const distanceMeters = turfDistance(
             clickCoordinates,
-            [featureLng, featureLat],
+            featureCoordinates,
             { units: 'kilometers' }
           ) * 1000;
 
@@ -1996,6 +2329,10 @@ const Amain = () => {
 
       setSelectedEditableFeature(selectedFeatureCollection);
 
+      if (activeEditableLayer.id === DOOR_ACCESS_LAYER_ID) {
+        setOpenSubMenu(4);
+      }
+
       console.log('نزدیک‌ترین فیچر انتخابی:', {
         layerId: activeEditableLayer.id,
         distanceMeters: Number(nearestDoor.distanceMeters.toFixed(2)),
@@ -2008,7 +2345,7 @@ const Amain = () => {
     map.on('click', handleMapClick);
 
     return () => map.off('click', handleMapClick);
-  }, [map, activeMenu, activeEditableLayerId]);
+  }, [map, activeMenu, activeEditableLayer]);
 
   const handleZoomIn = () => {
     if (map) {
@@ -2051,7 +2388,20 @@ const Amain = () => {
   };
 
   const handleEditableLayerSelect = (layerId) => {
-    setActiveEditableLayerId(layerId);
+    const layerOption = editableLayerOptions.find((layer) => layer.id === layerId);
+
+    if (!canUserEditLayer(layerOption)) return;
+
+    setActiveEditableLayerId((current) => {
+      const isSameLayer = current === layerId;
+      hasUserClearedEditableLayer.current = isSameLayer;
+
+      if (!isSameLayer) {
+        hasUserClearedEditableLayer.current = false;
+      }
+
+      return isSameLayer ? '' : layerId;
+    });
     setSelectedEditableFeature(null);
   };
 
@@ -2123,10 +2473,12 @@ const Amain = () => {
         bidirectional: true
       });
 
+      const newDoorId = response?.door?.id || null;
+      const newAccessPointId = response?.door_access_point?.id || null;
+
       toast.success('درب جدید با موفقیت ثبت شد');
       console.log('door creation response', response);
-      setIsAddPlaceModalOpen(true);
-      setCurrentStep(1);
+      await openDoorInfoModal(newDoorId, newAccessPointId);
     } catch (error) {
       toast.error(error?.message || 'ثبت درب ناموفق بود');
     } finally {
@@ -2204,7 +2556,94 @@ const Amain = () => {
     });
   };
 
-  const handleAddPlaceConfirm = () => {
+  const mapApiTimeRestrictionsToForm = (apiRestrictions = []) => apiRestrictions.map((restriction, index) => ({
+    id: restriction?.id || index,
+    date: Array.isArray(restriction?.date_scope)
+      ? restriction.date_scope.join(', ')
+      : restriction?.date_scope || restriction?.date || 'نامشخص',
+    gender: Array.isArray(restriction?.gender)
+      ? restriction.gender.map(normalizeGenderValue).filter(Boolean)
+      : [],
+    timePairs: Array.isArray(restriction?.time_ranges)
+      ? restriction.time_ranges.map((range) => ({
+        start: range?.start || '',
+        end: range?.end || ''
+      }))
+      : [],
+    limitAllHours: Boolean(restriction?.all_hours)
+  }));
+
+  const mapApiPrayerRestrictionsToForm = (apiRestrictions = []) => apiRestrictions.map((restriction, index) => ({
+    id: restriction?.id || index,
+    events: restriction?.events || [],
+    before: restriction?.before_minutes ?? restriction?.before ?? '',
+    after: restriction?.after_minutes ?? restriction?.after ?? '',
+    date: restriction?.date || '',
+    title: restriction?.title || ''
+  }));
+
+  const buildTimeRestrictionsPayload = () => timeRestrictions.map((restriction) => ({
+    date_scope: Array.isArray(restriction?.date_scope)
+      ? restriction.date_scope
+      : restriction?.date
+        ? [restriction.date]
+        : [],
+    gender: Array.isArray(restriction?.gender)
+      ? restriction.gender.map(normalizeGenderValue).filter(Boolean)
+      : [],
+    time_ranges: Array.isArray(restriction?.timePairs)
+      ? restriction.timePairs.map((pair) => ({
+        start: pair?.start || '',
+        end: pair?.end || ''
+      }))
+      : [],
+    all_hours: Boolean(restriction?.limitAllHours)
+  }));
+
+  const buildPrayerRestrictionsPayload = () => prayerTimeRestrictionsList.map((restriction) => ({
+    events: restriction?.events || [],
+    before_minutes: restriction?.before_minutes
+      ?? (restriction?.before !== undefined ? Number(restriction.before) : undefined)
+      ?? (restriction?.beforeMinutes !== undefined ? Number(restriction.beforeMinutes) : undefined)
+      ?? (restriction?.before ? Number(restriction.before) : 0),
+    after_minutes: restriction?.after_minutes
+      ?? (restriction?.after !== undefined ? Number(restriction.after) : undefined)
+      ?? (restriction?.afterMinutes !== undefined ? Number(restriction.afterMinutes) : undefined)
+      ?? (restriction?.after ? Number(restriction.after) : 0),
+    date: restriction?.date || null
+  }));
+
+  const buildDoorInfoPayload = () => {
+    const selectedSubGroup = subGroupOptions.find((subGroup) => subGroup.value === placeSubcategory);
+
+    return {
+      basic_info: {
+        title: {
+          fa: placeName,
+          en: languageTitles.english,
+          ar: languageTitles.arabic,
+          ur: languageTitles.urdu
+        },
+        description: fullDescription || shortDescription
+      },
+      grouping: {
+        group_id: placeCategory || null,
+        sub_group_id: selectedSubGroup?.value || null,
+        sub_group_label: selectedSubGroup?.label
+      },
+      operational: {
+        status: locationStatus === 'غیر فعال' ? 'inactive' : 'active',
+        transport_modes: selectedTransport.map(normalizeTransportValue).filter(Boolean),
+        gender_access: selectedGenderAccess.map(normalizeGenderValue).filter(Boolean),
+        place_function: placeFunction || null
+      },
+      time_restrictions: buildTimeRestrictionsPayload(),
+      prayer_restrictions: buildPrayerRestrictionsPayload(),
+      notes: additionalNotes
+    };
+  };
+
+  const handleAddPlaceConfirm = async () => {
     if (currentStep === 1) {
       if (placeName && placeCategory && placeSubcategory && placeFunction) {
         setCurrentStep(2);
@@ -2222,26 +2661,111 @@ const Amain = () => {
         setCurrentStep(3);
       }
     } else if (currentStep === 3) {
-      const payload = {
-        name: placeName,
-        category: placeCategory,
-        subcategory: placeSubcategory,
-        function: placeFunction,
-        address: placeAddress,
-        locationStatus,
-        transports: selectedTransport,
-        genderAccess: selectedGenderAccess,
-        timeRestrictions,
-        prayerTimeRestrictions: prayerTimeRestrictionsList,
-        notes: additionalNotes
-      };
+      if (!lastCreatedDoorId) {
+        toast.error('شناسه درب برای ثبت اطلاعات در دسترس نیست');
+        return;
+      }
 
-      console.log('Submitting new place', payload);
-      setIsAddPlaceModalOpen(false);
-      resetForm();
-      setCurrentStep(1);
-      alert('اطلاعات مکان با موفقیت ثبت شد');
+      const payload = buildDoorInfoPayload();
+
+      try {
+        setIsSavingDoorInfo(true);
+        const response = await updateDoorInfo(lastCreatedDoorId, payload);
+        toast.success(response?.message || 'اطلاعات مکان با موفقیت ثبت شد');
+        setIsAddPlaceModalOpen(false);
+        resetForm();
+        setCurrentStep(1);
+      } catch (error) {
+        toast.error(error?.message || 'ثبت اطلاعات مکان ناموفق بود');
+      } finally {
+        setIsSavingDoorInfo(false);
+      }
     }
+  };
+
+  function fillDoorInfoForm(doorInfo = {}) {
+    const basicInfo = doorInfo?.basic_info || {};
+    const operational = doorInfo?.operational || {};
+    const grouping = doorInfo?.grouping || {};
+
+    setPlaceName(basicInfo?.title?.fa || '');
+    setLanguageTitles({
+      english: basicInfo?.title?.en || '',
+      arabic: basicInfo?.title?.ar || '',
+      urdu: basicInfo?.title?.ur || ''
+    });
+    setFullDescription(basicInfo?.description || '');
+    setPlaceCategory(grouping?.group_id || doorInfo?.category || '');
+    setPlaceSubcategory(grouping?.sub_group_id || doorInfo?.subcategory || '');
+    setPlaceFunction(operational?.place_function || doorInfo?.function || '');
+    setPlaceAddress(doorInfo?.address || '');
+    setLocationStatus(operational?.status === 'inactive' ? 'غیر فعال' : 'فعال');
+    setSelectedTransport(Array.isArray(operational?.transport_modes)
+      ? operational.transport_modes.map(normalizeTransportValue).filter(Boolean)
+      : []);
+    setSelectedGenderAccess(Array.isArray(operational?.gender_access)
+      ? operational.gender_access.map(normalizeGenderValue).filter(Boolean)
+      : []);
+    setTimeRestrictions(mapApiTimeRestrictionsToForm(doorInfo?.time_restrictions));
+    setPrayerTimeRestrictionsList(mapApiPrayerRestrictionsToForm(doorInfo?.prayer_restrictions));
+    setAdditionalNotes(doorInfo?.notes || '');
+  }
+
+  async function openDoorInfoModal(doorId, accessPointId = null) {
+    setLastCreatedDoorId(doorId || null);
+    setLastCreatedAccessPointId(accessPointId || null);
+    setIsAddPlaceModalOpen(true);
+    setCurrentStep(1);
+
+    if (!doorId) return;
+
+    try {
+      setIsLoadingDoorInfo(true);
+      const info = await getDoorInfo(doorId);
+      fillDoorInfoForm(info);
+    } catch (error) {
+      toast.error(error?.message || 'دریافت اطلاعات درب ناموفق بود');
+    } finally {
+      setIsLoadingDoorInfo(false);
+    }
+  }
+
+  const handleDoorDelete = async () => {
+    if (!selectedDoorId) {
+      toast.error('هیچ دربی برای حذف انتخاب نشده است');
+      return;
+    }
+
+    const confirmDelete = window.confirm(`آیا از حذف درب انتخاب‌شده (شناسه ${selectedDoorId}) مطمئن هستید؟ این عملیات قابل بازگشت نیست.`);
+    if (!confirmDelete) return;
+
+    try {
+      await deleteDoor(selectedDoorId);
+      toast.success('درب با موفقیت حذف شد');
+      setSelectedEditableFeature(null);
+      setOpenSubMenu(null);
+    } catch (error) {
+      toast.error(error?.message || 'حذف درب ناموفق بود');
+    }
+  };
+
+  const handleDoorMoveStart = () => {
+    if (!selectedDoorId) {
+      toast.error('هیچ دربی برای جابجایی انتخاب نشده است');
+      return;
+    }
+
+    toast.info('مختصات جدید درب را روی نقشه انتخاب کنید');
+    setIsDoorMoveMode(true);
+  };
+
+  const handleDoorEdit = async () => {
+    if (!selectedDoorId) {
+      toast.error('هیچ دربی برای ویرایش انتخاب نشده است');
+      return;
+    }
+
+    await openDoorInfoModal(selectedDoorId, selectedDoorAccessPointId || null);
   };
 
   const activeLayerCount = Object.values(layerVisibility).filter(Boolean).length;
@@ -4441,9 +4965,9 @@ const Amain = () => {
                         <path fillRule="evenodd" clipRule="evenodd" d="M2.70898 8.4527C2.70898 4.37019 5.96316 1.04163 10.0007 1.04163C14.0381 1.04163 17.2923 4.37019 17.2923 8.4527C17.2923 10.4236 16.7306 12.5399 15.7377 14.3682C14.746 16.1942 13.297 17.781 11.4844 18.6282C10.5428 19.0683 9.45851 19.0683 8.51689 18.6282C6.70429 17.781 5.25533 16.1942 4.26361 14.3682C3.27067 12.5399 2.70898 10.4236 2.70898 8.4527ZM10.0007 2.29163C6.67435 2.29163 3.95898 5.03953 3.95898 8.4527C3.95898 10.2003 4.46118 12.1128 5.36207 13.7716C6.26418 15.4327 7.539 16.7913 9.04619 17.4958C9.65236 17.7791 10.3489 17.7791 10.9551 17.4958C12.4623 16.7913 13.7371 15.4327 14.6392 13.7716C15.5401 12.1128 16.0423 10.2003 16.0423 8.4527C16.0423 5.03953 13.327 2.29163 10.0007 2.29163ZM10.0007 5.62496C10.3458 5.62496 10.6257 5.90478 10.6257 6.24996V7.70829H12.084C12.4292 7.70829 12.709 7.98811 12.709 8.33329C12.709 8.67847 12.4292 8.95829 12.084 8.95829H10.6257V10.4166C10.6257 10.7618 10.3458 11.0416 10.0007 11.0416C9.65547 11.0416 9.37565 10.7618 9.37565 10.4166V8.95829H7.91732C7.57214 8.95829 7.29232 8.67847 7.29232 8.33329C7.29232 7.98811 7.57214 7.70829 7.91732 7.70829H9.37565V6.24996C9.37565 5.90478 9.65547 5.62496 10.0007 5.62496Z" fill={isLocationMarkerMode ? "white" : "#1E2023"} />
                       </svg>
                     </div>
-                    {openSubMenu === 4 && (
+                    {openSubMenu === 4 && showDoorTools && (
                       <div className="sub-buttons4">
-                        <button className="sub-btn">
+                        <button className="sub-btn" onClick={handleDoorMoveStart}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-drag-drop">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M19 11v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2" />
@@ -4457,7 +4981,7 @@ const Amain = () => {
                             <path d="M3 15l0 .01" />
                           </svg>
                         </button>
-                        <button className="sub-btn">
+                        <button className="sub-btn" onClick={handleDoorEdit}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
@@ -4465,7 +4989,7 @@ const Amain = () => {
                             <path d="M16 5l3 3" />
                           </svg>
                         </button>
-                        <button className="sub-btn">
+                        <button className="sub-btn" onClick={handleDoorDelete}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M4 7l16 0" />
@@ -4507,48 +5031,62 @@ const Amain = () => {
                       <div className="map-type-dropdown layers-dropdown">
                         <div className="active-editable-layer-info">
                           <span className="active-layer-label">لایه فعال برای ویرایش:</span>
-                          <span className="active-layer-value">{activeEditableLayer?.label || activeEditableLayerId}</span>
+                          <span className="active-layer-value">{activeEditableLayer?.label || 'هیچ‌کدام'}</span>
                         </div>
-                        {haramAdminVectorTileConfig.map(layer => (
-                          <label
-                            key={layer.id}
-                            className="map-type-option layer-toggle"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <div className="layer-info">
-                              <span className="layer-title">{layer.titleFa || layer.id}</span>
-                              <span className="layer-subtitle">{layer.id}</span>
-                            </div>
-                            <div className="layer-actions">
-                              <button
-                                type="button"
-                                className={`edit-layer-btn ${activeEditableLayerId === layer.id ? 'active' : ''}`}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleEditableLayerSelect(layer.id);
-                                }}
-                                title="فعال سازی ویرایش این لایه"
-                              >
-                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <path d="M1.3335 11.6667V14.6667H4.3335L12.1568 6.84335L9.15683 3.84335L1.3335 11.6667Z" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
-                                  <path d="M8.3335 4.66667L11.3335 7.66667" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
-                                  <path d="M10.3335 2L13.3335 5L11.5002 6.83333L8.50016 3.83333L10.3335 2Z" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
-                                </svg>
-                              </button>
-                              <input
-                                type="checkbox"
-                                checked={!!layerVisibility[layer.id]}
-                                onChange={() => handleLayerToggle(layer.id)}
-                              />
-                            </div>
-                          </label>
-                        ))}
+                        {haramAdminVectorTileConfig.map(layer => {
+                          const layerOption = editableLayerOptions.find((option) => option.id === layer.id);
+                          const isLayerActive = activeEditableLayer?.id === layer.id;
+                          const isLayerSelectable = canUserEditLayer(layerOption);
+                          const editButtonTitle = !layerOption?.isEditable
+                            ? 'ویرایش برای این لایه غیرفعال است'
+                            : !isLayerSelectable
+                              ? 'دسترسی لازم برای ویرایش این لایه را ندارید'
+                              : isLayerActive
+                                ? 'غیرفعال کردن ویرایش این لایه'
+                                : 'فعال‌سازی ویرایش این لایه';
+
+                          return (
+                            <label
+                              key={layer.id}
+                              className="map-type-option layer-toggle"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="layer-info">
+                                <span className="layer-title">{layer.titleFa || layer.id}</span>
+                                <span className="layer-subtitle">{layer.id}</span>
+                              </div>
+                              <div className="layer-actions">
+                                <button
+                                  type="button"
+                                  className={`edit-layer-btn ${isLayerActive ? 'active' : ''} ${!isLayerSelectable ? 'disabled' : ''}`}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleEditableLayerSelect(layer.id);
+                                  }}
+                                  disabled={!isLayerSelectable}
+                                  title={editButtonTitle}
+                                >
+                                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M1.3335 11.6667V14.6667H4.3335L12.1568 6.84335L9.15683 3.84335L1.3335 11.6667Z" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
+                                    <path d="M8.3335 4.66667L11.3335 7.66667" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
+                                    <path d="M10.3335 2L13.3335 5L11.5002 6.83333L8.50016 3.83333L10.3335 2Z" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
+                                  </svg>
+                                </button>
+                                <input
+                                  type="checkbox"
+                                  checked={!!layerVisibility[layer.id]}
+                                  onChange={() => handleLayerToggle(layer.id)}
+                                />
+                              </div>
+                            </label>
+                          );
+                        })}
                         {selectedEditableFeature && (
                           <div className="selected-feature-hint">
                             <div className="selected-feature-row">
                               <span className="selected-feature-label">لایه انتخابی:</span>
-                              <span className="selected-feature-value">{activeEditableLayer?.label || activeEditableLayerId}</span>
+                              <span className="selected-feature-value">{activeEditableLayer?.label || 'هیچ‌کدام'}</span>
                             </div>
                             {selectedFeatureProperties && (
                               <div className="selected-feature-row">
@@ -5091,15 +5629,18 @@ const Amain = () => {
                           <select
                             className="form-input"
                             value={placeCategory}
-                            onChange={(e) => setPlaceCategory(e.target.value)}
+                            onChange={(e) => {
+                              setPlaceCategory(e.target.value);
+                              setPlaceSubcategory('');
+                            }}
+                            disabled={isLoadingGroups}
                           >
                             <option value="" disabled>گروه اصلی</option>
-                            <option value="حرم">حرم مطهر</option>
-                            <option value="صحن">صحن ها</option>
-                            <option value="رواق">رواق ها</option>
-                            <option value="مسجد">مساجد</option>
-                            <option value="مدرسه">مدارس علمیه</option>
-                            <option value="موزه">موزه ها</option>
+                            {groupOptions.map((group) => (
+                              <option key={group.value} value={group.value}>
+                                {group.label}
+                              </option>
+                            ))}
                           </select>
                         </div>
 
@@ -5108,16 +5649,14 @@ const Amain = () => {
                             className="form-input"
                             value={placeSubcategory}
                             onChange={(e) => setPlaceSubcategory(e.target.value)}
-                            disabled={!placeCategory}
+                            disabled={!placeCategory || isLoadingSubGroups}
                           >
                             <option value="" disabled>زیرگروه</option>
-                            <option value="صحن-انقلاب">صحن انقلاب اسلامی</option>
-                            <option value="صحن-قدس">صحن قدس</option>
-                            <option value="صحن-جمهوری">صحن جمهوری اسلامی</option>
-                            <option value="رواق-امام">رواق امام خمینی</option>
-                            <option value="رواق-دارالحجه">رواق دارالحجه</option>
-                            <option value="رواق-دارالولایه">رواق دارالولایه</option>
-                            <option value="رواق-کوثر">رواق کوثر</option>
+                            {subGroupOptions.map((subGroup) => (
+                              <option key={subGroup.value} value={subGroup.value}>
+                                {subGroup.label}
+                              </option>
+                            ))}
                           </select>
                         </div>
 
@@ -5129,13 +5668,8 @@ const Amain = () => {
                             disabled={!placeSubcategory}
                           >
                             <option value="" disabled>کارکرد گروه</option>
-                            <option value="عبادی">عبادی</option>
-                            <option value="فرهنگی">فرهنگی</option>
-                            <option value="خدماتی">خدماتی</option>
-                            <option value="امکانات">امکانات رفاهی</option>
-                            <option value="اطلاعات">مرکز اطلاعات</option>
-                            <option value="زیارتی">زیارتی</option>
-                            <option value="سیاحتی">سیاحتی</option>
+                            <option value="door">درب</option>
+                            <option value="connection-point">نقطه اتصال</option>
                           </select>
                         </div>
                       </div>
@@ -5186,11 +5720,7 @@ const Amain = () => {
                     <div className="form-group">
                       <label className="form-label">نوع تردد زائرین محترم از این مکان</label>
                       <div className="radio-options-grid2"> {/* Keep original class */}
-                        {[
-                          { value: 'electric_car', label: 'ویلچر ', icon: 'electric' },
-                          { value: 'wheelchair', label: 'ون برقی', icon: 'wheelchair' },
-                          { value: 'walking', label: 'به صورت پیاده', icon: 'walking' }
-                        ].map((transport) => (
+                        {TRANSPORT_OPTIONS.map((transport) => (
                           <div
                             key={transport.value}
                             className={`radio-option2 ${selectedTransport.includes(transport.value) ? 'selected' : ''}`}
@@ -5242,21 +5772,21 @@ const Amain = () => {
                     <div className="form-group">
                       <label className="form-label">جنسیت تردد زائرین محترم از این مکان</label>
                       <div className="radio-options-grid3"> {/* Keep original class */}
-                        {['بانوان', 'مردان', 'خانوادگی'].map((gender) => (
+                        {GENDER_OPTIONS.map((genderOption) => (
                           <div
-                            key={gender}
-                            className={`radio-option3 ${selectedGenderAccess.includes(gender) ? 'selected' : ''}`}
+                            key={genderOption.value}
+                            className={`radio-option3 ${selectedGenderAccess.includes(genderOption.value) ? 'selected' : ''}`}
                             onClick={() => {
-                              if (selectedGenderAccess.includes(gender)) {
-                                setSelectedGenderAccess(selectedGenderAccess.filter(g => g !== gender));
+                              if (selectedGenderAccess.includes(genderOption.value)) {
+                                setSelectedGenderAccess(selectedGenderAccess.filter(g => g !== genderOption.value));
                               } else {
-                                setSelectedGenderAccess([...selectedGenderAccess, gender]);
+                                setSelectedGenderAccess([...selectedGenderAccess, genderOption.value]);
                               }
                             }}
                           >
                             <div className="option-content5">
                               <div className="radio-container">
-                                {selectedGenderAccess.includes(gender) ? (
+                                {selectedGenderAccess.includes(genderOption.value) ? (
                                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                                     <rect x="0.5" y="0.5" width="15" height="15" rx="7.5" stroke="white" />
                                     <circle cx="8.00065" cy="8.00004" r="4.00065" fill="white" />
@@ -5267,7 +5797,7 @@ const Amain = () => {
                                   </svg>
                                 )}
                               </div>
-                              <span>مسیر مناسب {gender}</span>
+                              <span>مسیر مناسب {genderOption.label}</span>
                             </div>
                           </div>
                         ))}
@@ -5307,7 +5837,7 @@ const Amain = () => {
                             <div key={index} className="restriction-display-item">
                               <div className="restriction-info">
                                 <span className="restriction-date">محدودیت های {restriction.date} ،</span>
-                                <span className="restriction-gender">{restriction.gender.join('، ')} ،</span>
+                                <span className="restriction-gender">{restriction.gender.map(getGenderLabel).join('، ')} ،</span>
                                 <span className="restriction-time">
                                   {restriction.timePairs.map((pair, idx) => (
                                     <span key={idx}>
@@ -5456,14 +5986,14 @@ const Amain = () => {
                           <div className="gender-restrictions-section">
                             <div className="section-title3">محدودسازی جنسیتی برای تردد</div>
                             <div className="gender-options">
-                              {['زنانه', 'مردانه', 'خانوادگی'].map((gender) => (
+                              {GENDER_OPTIONS.map((genderOption) => (
                                 <div
-                                  key={gender}
-                                  className={`gender-option ${selectedGenderRestrictions.includes(gender) ? 'selected' : ''}`}
-                                  onClick={() => handleGenderRestrictionToggle(gender)}
+                                  key={genderOption.value}
+                                  className={`gender-option ${selectedGenderRestrictions.includes(genderOption.value) ? 'selected' : ''}`}
+                                  onClick={() => handleGenderRestrictionToggle(genderOption.value)}
                                 >
                                   <div className="gender-checkbox">
-                                    {selectedGenderRestrictions.includes(gender) ? (
+                                    {selectedGenderRestrictions.includes(genderOption.value) ? (
                                       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                                         <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
                                         <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
@@ -5474,7 +6004,7 @@ const Amain = () => {
                                       </svg>
                                     )}
                                   </div>
-                                  <span>{gender}</span>
+                                  <span>{genderOption.label}</span>
                                 </div>
                               ))}
                             </div>
@@ -5820,8 +6350,15 @@ const Amain = () => {
               <button
                 className="confirm-btn"
                 onClick={handleAddPlaceConfirm}
+                disabled={isSavingDoorInfo || isLoadingDoorInfo}
               >
-                {currentStep === 3 ? 'تایید اطلاعات و ثبت این مکان ' : 'تایید اطلاعات و مرحله بعد'}
+                {isSavingDoorInfo
+                  ? 'در حال ذخیره اطلاعات...'
+                  : isLoadingDoorInfo
+                    ? 'در حال بارگذاری اطلاعات...'
+                  : currentStep === 3
+                    ? 'تایید اطلاعات و ثبت این مکان '
+                    : 'تایید اطلاعات و مرحله بعد'}
               </button>
             </div>
           </div>
