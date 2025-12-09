@@ -2336,14 +2336,6 @@ const Amain = () => {
   }, [map, activeMenu, activeEditableLayer]);
 
   useEffect(() => {
-    buildVertexMarkers();
-
-    return () => {
-      clearVertexMarkers();
-    };
-  }, [buildVertexMarkers, clearVertexMarkers, selectedEditableFeature, isAreaEditMode]);
-
-  useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
 
     const selectNearestFeature = () => {
@@ -2661,6 +2653,14 @@ const Amain = () => {
 
     vertexMarkersRef.current = newMarkers;
   }, [map, isAreaEditMode, clearVertexMarkers, selectedEditableFeature, activeEditableLayer, rebuildSelectionFromVertices]);
+
+  useEffect(() => {
+    buildVertexMarkers();
+
+    return () => {
+      clearVertexMarkers();
+    };
+  }, [buildVertexMarkers, clearVertexMarkers, selectedEditableFeature, isAreaEditMode]);
 
   const handleAreaEditModeToggle = () => {
     if (!selectedEditableFeature) {
