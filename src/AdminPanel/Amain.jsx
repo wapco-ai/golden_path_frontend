@@ -2907,21 +2907,31 @@ const Amain = () => {
     title: restriction?.title || ''
   }));
 
-  const buildTimeRestrictionsPayload = () => timeRestrictions.map((restriction) => ({
-    date_scope: restriction?.isoDateScope?.length
-      ? restriction.isoDateScope
-      : buildDateScopeIso(restriction?.date),
-    gender: Array.isArray(restriction?.gender)
-      ? restriction.gender.map(normalizeGenderValue).filter(Boolean)
-      : [],
-    time_ranges: Array.isArray(restriction?.timePairs)
-      ? restriction.timePairs.map((pair) => ({
-        start: pair?.start || '',
-        end: pair?.end || ''
-      }))
-      : [],
-    all_hours: Boolean(restriction?.limitAllHours)
-  }));
+  const buildTimeRestrictionsPayload = () => {
+    const payload = timeRestrictions.map((restriction) => ({
+      date_scope: restriction?.isoDateScope?.length
+        ? restriction.isoDateScope
+        : buildDateScopeIso(restriction?.date),
+      gender: Array.isArray(restriction?.gender)
+        ? restriction.gender.map(normalizeGenderValue).filter(Boolean)
+        : [],
+      time_ranges: Array.isArray(restriction?.timePairs)
+        ? restriction.timePairs.map((pair) => ({
+          start: pair?.start || '',
+          end: pair?.end || ''
+        }))
+        : [],
+      all_hours: Boolean(restriction?.limitAllHours)
+    }));
+
+    const hasEmptyDateScope = payload.some((restriction) => !restriction.date_scope?.length);
+
+    if (hasEmptyDateScope) {
+      throw new Error('تاریخ محدودیت‌های زمانی باید به فرمت میلادی ISO-8601 ارسال شود');
+    }
+
+    return payload;
+  };
 
   const buildPrayerRestrictionsPayload = () => prayerTimeRestrictionsList.map((restriction) => ({
     events: restriction?.events || [],
@@ -2995,7 +3005,14 @@ const Amain = () => {
         return;
       }
 
-      const payload = buildDoorInfoPayload();
+      let payload;
+
+      try {
+        payload = buildDoorInfoPayload();
+      } catch (error) {
+        toast.error(error?.message || 'تاریخ محدودیت‌های زمانی به درستی انتخاب نشده است');
+        return;
+      }
 
       try {
         setIsSavingDoorInfo(true);
@@ -3677,10 +3694,17 @@ const Amain = () => {
       return;
     }
 
+    const restrictionIsoScope = buildDateScopeIso(getRestrictionTitle(), selectedJalaliDate);
+
+    if (!restrictionIsoScope.length) {
+      alert('لطفا تاریخ محدودیت را از تقویم یا گزینه‌های موجود انتخاب کنید');
+      return;
+    }
+
     const newRestriction = {
       id: Date.now(),
       date: getRestrictionTitle(),
-      isoDateScope: buildDateScopeIso(getRestrictionTitle(), selectedJalaliDate),
+      isoDateScope: restrictionIsoScope,
       gender: [...selectedGenderRestrictions],
       timePairs: limitAllHours
         ? [{ start: '00:00', end: '23:59' }]
