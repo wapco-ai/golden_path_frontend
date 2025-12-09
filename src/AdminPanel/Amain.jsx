@@ -18,6 +18,7 @@ import { createDoor, deleteDoor, getDoorInfo, moveDoor, updateDoorInfo } from '.
 import { convertLngLatToUtm32640 } from '../utils/utm';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
+import { getLanguageName } from '../utils/languageNames';
 
 
 const DOOR_ACCESS_LAYER_ID = 'doors-access-point';
@@ -639,8 +640,10 @@ const Amain = () => {
   useEffect(() => {
     let isMounted = true;
 
+    const languageGroup = getLanguageName(language);
+
     setIsLoadingGroups(true);
-    fetchGroupMetadata({ language, withPng: false })
+    fetchGroupMetadata({ language, withPng: false, group: languageGroup })
       .then((groupData) => {
         if (!isMounted) return;
         const normalizedGroups = normalizeGroupMetadata(groupData?.groups, language);

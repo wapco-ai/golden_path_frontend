@@ -3,13 +3,18 @@ import appConfig from '../config/appConfig';
 export async function fetchGroupMetadata({
   language = 'fa',
   only,
-  withPng = true
+  withPng = true,
+  group
 } = {}) {
   const url = new URL(appConfig.groupMetadataUrl);
   const params = new URLSearchParams();
 
   if (language) {
     params.set('language', language);
+  }
+
+  if (group) {
+    params.set('group', group);
   }
 
   if (typeof withPng !== 'undefined') {
