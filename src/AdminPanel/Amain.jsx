@@ -29,6 +29,8 @@ import { getLanguageName } from '../utils/languageNames';
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
 const SELECTED_EDITABLE_FEATURE_SOURCE_ID = 'selected-editable-feature-source';
 const SELECTED_EDITABLE_FEATURE_LAYER_ID = 'selected-editable-feature-layer';
+const SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID = 'selected-editable-feature-line';
+const SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID = 'selected-editable-feature-fill';
 
 const GENDER_OPTIONS = [
   { value: 'female', label: 'بانوان' },
@@ -82,6 +84,70 @@ const getFeatureCenterCoordinates = (feature) => {
     }
   } catch (error) {
     console.error('خطا در محاسبه مرکز هندسی فیچر:', error);
+  }
+
+  return null;
+};
+
+const extractEditableVertices = (geometry = {}) => {
+  if (!geometry?.type || !geometry?.coordinates) return [];
+
+  if (geometry.type === 'Point') return [geometry.coordinates];
+  if (geometry.type === 'MultiPoint') return geometry.coordinates;
+  if (geometry.type === 'LineString') return geometry.coordinates;
+
+  if (geometry.type === 'Polygon') {
+    const outerRing = geometry.coordinates?.[0] || [];
+    if (!outerRing.length) return [];
+
+    const withoutClosingPoint = outerRing.length > 1
+      && outerRing[0][0] === outerRing[outerRing.length - 1][0]
+      && outerRing[0][1] === outerRing[outerRing.length - 1][1]
+      ? outerRing.slice(0, -1)
+      : outerRing;
+
+    return withoutClosingPoint;
+  }
+
+  if (geometry.type === 'MultiPolygon') {
+    const firstPolygon = geometry.coordinates?.[0]?.[0] || [];
+    if (!firstPolygon.length) return [];
+
+    const withoutClosingPoint = firstPolygon.length > 1
+      && firstPolygon[0][0] === firstPolygon[firstPolygon.length - 1][0]
+      && firstPolygon[0][1] === firstPolygon[firstPolygon.length - 1][1]
+      ? firstPolygon.slice(0, -1)
+      : firstPolygon;
+
+    return withoutClosingPoint;
+  }
+
+  return [];
+};
+
+const rebuildGeometryFromVertices = (geometryType, vertices = []) => {
+  if (!Array.isArray(vertices) || vertices.length === 0) return null;
+
+  if (geometryType === 'Point') {
+    return { type: 'Point', coordinates: vertices[0] };
+  }
+
+  if (geometryType === 'MultiPoint') {
+    return { type: 'MultiPoint', coordinates: vertices };
+  }
+
+  if (geometryType === 'LineString') {
+    return { type: 'LineString', coordinates: vertices };
+  }
+
+  if (geometryType === 'Polygon') {
+    const closedRing = [...vertices, vertices[0]];
+    return { type: 'Polygon', coordinates: [closedRing] };
+  }
+
+  if (geometryType === 'MultiPolygon') {
+    const closedRing = [...vertices, vertices[0]];
+    return { type: 'MultiPolygon', coordinates: [[closedRing]] };
   }
 
   return null;
@@ -219,6 +285,9 @@ const Amain = () => {
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [isLocationMarkerMode, setIsLocationMarkerMode] = useState(false);
   const [isCreatingDoor, setIsCreatingDoor] = useState(false);
+  const [isPlaceCovered, setIsPlaceCovered] = useState(null);
+  const [isAreaEditMode, setIsAreaEditMode] = useState(false);
+  const vertexMarkersRef = useRef([]);
   const [locationMarker, setLocationMarker] = useState(null);
   const [activeEditableLayerId, setActiveEditableLayerId] = useState('');
   const hasUserClearedEditableLayer = useRef(false);
@@ -1980,6 +2049,7 @@ const Amain = () => {
 
     setLocationRoofType('');
     setLocationStatus('');
+    setIsPlaceCovered(null);
 
     setSelectedRestrictionType(null);
     setRestrictionFormOpen(false);
@@ -2132,10 +2202,24 @@ const Amain = () => {
   }, [activeEditableLayerId]);
 
   useEffect(() => {
+    if (!selectedEditableFeature) {
+      setIsAreaEditMode(false);
+      clearVertexMarkers();
+    }
+  }, [selectedEditableFeature, clearVertexMarkers]);
+
+  useEffect(() => {
     if (activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && selectedDoorId) {
       setOpenSubMenu(4);
     }
   }, [activeEditableLayer, selectedDoorId]);
+
+  useEffect(() => {
+    if (activeEditableLayer?.id !== 'areas-outline') {
+      setIsAreaEditMode(false);
+      clearVertexMarkers();
+    }
+  }, [activeEditableLayer, clearVertexMarkers]);
 
   useEffect(() => {
     setIsDoorMoveMode(false);
@@ -2145,20 +2229,55 @@ const Amain = () => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
 
     const ensureHighlightLayer = () => {
-      if (!activeEditableLayer) {
-        if (map.getLayer(SELECTED_EDITABLE_FEATURE_LAYER_ID)) {
-          map.setLayoutProperty(SELECTED_EDITABLE_FEATURE_LAYER_ID, 'visibility', 'none');
-        }
+      const highlightColor = activeEditableLayer?.highlightColor || '#3b82f6';
+      const hideHighlightLayers = () => {
+        [
+          SELECTED_EDITABLE_FEATURE_LAYER_ID,
+          SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID,
+          SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID
+        ].forEach((layerId) => {
+          if (map.getLayer(layerId)) {
+            map.setLayoutProperty(layerId, 'visibility', 'none');
+          }
+        });
+      };
 
+      if (!activeEditableLayer) {
+        hideHighlightLayers();
         return;
       }
-
-      const highlightColor = activeEditableLayer?.highlightColor || '#3b82f6';
 
       if (!map.getSource(SELECTED_EDITABLE_FEATURE_SOURCE_ID)) {
         map.addSource(SELECTED_EDITABLE_FEATURE_SOURCE_ID, {
           type: 'geojson',
           data: { type: 'FeatureCollection', features: [] }
+        });
+      }
+
+      if (!map.getLayer(SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID)) {
+        map.addLayer({
+          id: SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID,
+          type: 'fill',
+          source: SELECTED_EDITABLE_FEATURE_SOURCE_ID,
+          paint: {
+            'fill-color': highlightColor,
+            'fill-opacity': 0.08
+          },
+          filter: ['==', ['geometry-type'], 'Polygon']
+        });
+      }
+
+      if (!map.getLayer(SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID)) {
+        map.addLayer({
+          id: SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID,
+          type: 'line',
+          source: SELECTED_EDITABLE_FEATURE_SOURCE_ID,
+          paint: {
+            'line-color': highlightColor,
+            'line-width': 4,
+            'line-blur': 0.4
+          },
+          filter: ['in', ['geometry-type'], 'LineString', 'Polygon', 'MultiLineString', 'MultiPolygon']
         });
       }
 
@@ -2168,16 +2287,36 @@ const Amain = () => {
           type: 'circle',
           source: SELECTED_EDITABLE_FEATURE_SOURCE_ID,
           paint: {
-            'circle-radius': 9,
+            'circle-radius': 7,
             'circle-color': highlightColor,
             'circle-stroke-color': '#ffffff',
-            'circle-stroke-width': 3
-          }
+            'circle-stroke-width': 2
+          },
+          filter: ['in', ['geometry-type'], 'Point', 'MultiPoint']
         });
-      } else {
-        map.setPaintProperty(SELECTED_EDITABLE_FEATURE_LAYER_ID, 'circle-color', highlightColor);
-        map.setLayoutProperty(SELECTED_EDITABLE_FEATURE_LAYER_ID, 'visibility', 'visible');
       }
+
+      if (map.getLayer(SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID)) {
+        map.setPaintProperty(SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID, 'fill-color', highlightColor);
+      }
+
+      if (map.getLayer(SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID)) {
+        map.setPaintProperty(SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID, 'line-color', highlightColor);
+      }
+
+      if (map.getLayer(SELECTED_EDITABLE_FEATURE_LAYER_ID)) {
+        map.setPaintProperty(SELECTED_EDITABLE_FEATURE_LAYER_ID, 'circle-color', highlightColor);
+      }
+
+      [
+        SELECTED_EDITABLE_FEATURE_LAYER_ID,
+        SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID,
+        SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID
+      ].forEach((layerId) => {
+        if (map.getLayer(layerId)) {
+          map.setLayoutProperty(layerId, 'visibility', 'visible');
+        }
+      });
     };
 
     if (map.isStyleLoaded()) {
@@ -2190,6 +2329,14 @@ const Amain = () => {
       map.off('load', ensureHighlightLayer);
     };
   }, [map, activeMenu, activeEditableLayer]);
+
+  useEffect(() => {
+    buildVertexMarkers();
+
+    return () => {
+      clearVertexMarkers();
+    };
+  }, [buildVertexMarkers, clearVertexMarkers, selectedEditableFeature, isAreaEditMode]);
 
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
@@ -2252,6 +2399,10 @@ const Amain = () => {
 
       if (activeEditableLayer.id === DOOR_ACCESS_LAYER_ID) {
         setOpenSubMenu(4);
+      }
+
+      if (activeEditableLayer.id === 'areas-outline') {
+        setOpenSubMenu(2);
       }
     };
 
@@ -2377,6 +2528,10 @@ const Amain = () => {
         setOpenSubMenu(4);
       }
 
+      if (activeEditableLayer.id === 'areas-outline') {
+        setOpenSubMenu(2);
+      }
+
       console.log('نزدیک‌ترین فیچر انتخابی:', {
         layerId: activeEditableLayer.id,
         distanceMeters: Number(nearestDoor.distanceMeters.toFixed(2)),
@@ -2447,6 +2602,89 @@ const Amain = () => {
       return isSameLayer ? '' : layerId;
     });
     setSelectedEditableFeature(null);
+    setIsAreaEditMode(false);
+  };
+
+  const clearVertexMarkers = useCallback(() => {
+    vertexMarkersRef.current.forEach((marker) => marker?.remove());
+    vertexMarkersRef.current = [];
+  }, []);
+
+  const rebuildSelectionFromVertices = useCallback((geometryType, updatedVertices) => {
+    if (!geometryType || !Array.isArray(updatedVertices) || !updatedVertices.length) return;
+
+    const updatedGeometry = rebuildGeometryFromVertices(geometryType, updatedVertices);
+    if (!updatedGeometry) return;
+
+    setSelectedEditableFeature((current) => {
+      if (!current?.features?.[0]) return current;
+      const updatedFeature = { ...current.features[0], geometry: updatedGeometry };
+      return { ...current, features: [updatedFeature] };
+    });
+  }, []);
+
+  const buildVertexMarkers = useCallback(() => {
+    if (!map || !isAreaEditMode) {
+      clearVertexMarkers();
+      return;
+    }
+
+    const feature = selectedEditableFeature?.features?.[0];
+    const geometryType = feature?.geometry?.type;
+    const vertices = extractEditableVertices(feature?.geometry);
+
+    if (!feature || !vertices.length) {
+      clearVertexMarkers();
+      return;
+    }
+
+    clearVertexMarkers();
+
+    const highlightColor = activeEditableLayer?.highlightColor || '#0f172a';
+    const newMarkers = vertices.map((coord, index) => {
+      const marker = new maplibregl.Marker({ color: highlightColor, draggable: true, scale: 0.9 })
+        .setLngLat(coord)
+        .addTo(map);
+
+      marker.on('dragend', () => {
+        const updatedVertices = newMarkers.map((m) => {
+          const { lng, lat } = m.getLngLat();
+          return [lng, lat];
+        });
+
+        rebuildSelectionFromVertices(geometryType, updatedVertices);
+      });
+
+      marker.getElement().setAttribute('data-vertex-index', index);
+      return marker;
+    });
+
+    vertexMarkersRef.current = newMarkers;
+  }, [map, isAreaEditMode, clearVertexMarkers, selectedEditableFeature, activeEditableLayer, rebuildSelectionFromVertices]);
+
+  const handleAreaEditModeToggle = () => {
+    if (!selectedEditableFeature) {
+      toast.error('ابتدا یک محدوده را از نقشه انتخاب کنید');
+      return;
+    }
+
+    setIsAreaEditMode((current) => !current);
+  };
+
+  const handleOpenAddPlaceWithRoofOption = () => {
+    setCurrentStep(1);
+    setIsAddPlaceModalOpen(true);
+  };
+
+  const handleDeleteSelectedArea = () => {
+    if (!selectedEditableFeature) {
+      toast.error('محدوده‌ای برای حذف انتخاب نشده است');
+      return;
+    }
+
+    setSelectedEditableFeature(null);
+    setIsAreaEditMode(false);
+    toast.info('محدوده انتخابی از حالت ویرایش خارج شد');
   };
 
 
@@ -2677,10 +2915,11 @@ const Amain = () => {
       },
       operational: {
         status: locationStatus === 'غیر فعال' ? 'inactive' : 'active',
-        transport_modes: selectedTransport.map(normalizeTransportValue).filter(Boolean),
-        gender_access: selectedGenderAccess.map(normalizeGenderValue).filter(Boolean),
-        place_function: placeFunction || null
-      },
+      transport_modes: selectedTransport.map(normalizeTransportValue).filter(Boolean),
+      gender_access: selectedGenderAccess.map(normalizeGenderValue).filter(Boolean),
+      place_function: placeFunction || null,
+      is_covered: typeof isPlaceCovered === 'boolean' ? isPlaceCovered : null
+    },
       time_restrictions: buildTimeRestrictionsPayload(),
       prayer_restrictions: buildPrayerRestrictionsPayload(),
       notes: additionalNotes
@@ -2744,6 +2983,7 @@ const Amain = () => {
     setPlaceFunction(operational?.place_function || doorInfo?.function || '');
     setPlaceAddress(doorInfo?.address || '');
     setLocationStatus(operational?.status === 'inactive' ? 'غیر فعال' : 'فعال');
+    setIsPlaceCovered(typeof operational?.is_covered === 'boolean' ? operational.is_covered : null);
     setSelectedTransport(Array.isArray(operational?.transport_modes)
       ? operational.transport_modes.map(normalizeTransportValue).filter(Boolean)
       : []);
@@ -4914,7 +5154,7 @@ const Amain = () => {
                     </div>
                     {openSubMenu === 2 && (
                       <div className="sub-buttons2">
-                        <button className="sub-btn">
+                        <button className="sub-btn" onClick={handleAreaEditModeToggle}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-drag-drop">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M19 11v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2" />
@@ -4928,7 +5168,7 @@ const Amain = () => {
                             <path d="M3 15l0 .01" />
                           </svg>
                         </button>
-                        <button className="sub-btn">
+                        <button className="sub-btn" onClick={handleOpenAddPlaceWithRoofOption}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
@@ -4936,7 +5176,7 @@ const Amain = () => {
                             <path d="M16 5l3 3" />
                           </svg>
                         </button>
-                        <button className="sub-btn">
+                        <button className="sub-btn" onClick={handleDeleteSelectedArea}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M4 7l16 0" />
@@ -5753,6 +5993,30 @@ const Amain = () => {
                                 {locationStatus === 'غیر فعال' && <div className="location-type-radio-dot"></div>}
                               </div>
                               <span>غیر فعال</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="location-type-section">
+                          <div className="location-type-label">مسقف بودن محدوده</div>
+                          <div className="location-type-options">
+                            <div
+                              className={`location-type-option ${isPlaceCovered === true ? 'selected' : ''}`}
+                              onClick={() => setIsPlaceCovered(true)}
+                            >
+                              <div className="location-type-radio">
+                                {isPlaceCovered === true && <div className="location-type-radio-dot"></div>}
+                              </div>
+                              <span>مسقف</span>
+                            </div>
+                            <div
+                              className={`location-type-option ${isPlaceCovered === false ? 'selected' : ''}`}
+                              onClick={() => setIsPlaceCovered(false)}
+                            >
+                              <div className="location-type-radio">
+                                {isPlaceCovered === false && <div className="location-type-radio-dot"></div>}
+                              </div>
+                              <span>غیر مسقف</span>
                             </div>
                           </div>
                         </div>
