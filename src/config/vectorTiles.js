@@ -19,6 +19,7 @@ const MESH_TRIANGLES_TILE_BASE = `${TILE_BASE_URL}/${MESH_TRIANGLES_SOURCE_LAYER
 const ROUTING_EDGES_STATIC_SOURCE_LAYER = 'public.routing_edges_static';
 const ROUTING_EDGES_STATIC_BASE = `${TILE_BASE_URL}/${ROUTING_EDGES_STATIC_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
 const DOORS_ACCESS_POINT_SOURCE_LAYER = 'public.fn_door_access_points_mvt';
+export const DOOR_ACCESS_LAYER_ID = 'doors-access-point';
 // The MVT layer name returned by the function omits the schema prefix
 export const DOORS_ACCESS_POINT_LAYER_NAME = 'door_access_points';
 const DOORS_ACCESS_POINT_BASE = `${TILE_BASE_URL}/${DOORS_ACCESS_POINT_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
@@ -245,7 +246,7 @@ export const haramAdminVectorTileConfig = [
     }
   },
   {
-    id: 'doors-access-point',
+    id: DOOR_ACCESS_LAYER_ID,
     titleFa: 'نقاط اتصال درب‌ها',
     table: DOORS_ACCESS_POINT_SOURCE_LAYER,
     sourceId: 'door_access_points',
@@ -263,5 +264,28 @@ export const haramAdminVectorTileConfig = [
     }
   }
 ];
+
+export const layerEditSettings = {
+  'areas-outline': {
+    enabled: true,
+    highlightColor: '#0f172a',
+    requiredPermission: 'map:edit:areas'
+  },
+  doors: {
+    enabled: true,
+    highlightColor: '#f43f5e',
+    requiredPermission: 'map:edit:doors'
+  },
+  'routing_edges_static-ground': {
+    enabled: true,
+    highlightColor: '#0ea5e9',
+    requiredPermission: 'map:edit:routing'
+  },
+  [DOOR_ACCESS_LAYER_ID]: {
+    enabled: true,
+    highlightColor: '#f97316',
+    requiredPermission: 'map:edit:doors'
+  }
+};
 
 export default haramVectorTileConfig;

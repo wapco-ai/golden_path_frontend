@@ -1,5 +1,5 @@
 // src/pages/Amain.jsx
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useIntl } from 'react-intl';
 import { toast } from 'react-toastify';
 import '../AdminPanel/Amain.css';
@@ -12,7 +12,12 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { distance as turfDistance } from '@turf/turf';
 import { useAdminLoginService } from './adminLoginServiceContext';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
-import { DOORS_ACCESS_POINT_LAYER_NAME, haramAdminVectorTileConfig } from '../config/vectorTiles';
+import {
+  DOOR_ACCESS_LAYER_ID,
+  DOORS_ACCESS_POINT_LAYER_NAME,
+  haramAdminVectorTileConfig,
+  layerEditSettings
+} from '../config/vectorTiles';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
 import { createDoor, deleteDoor, getDoorInfo, moveDoor, updateDoorInfo } from '../services/adminDoorsService';
 import { convertLngLatToUtm32640 } from '../utils/utm';
@@ -21,7 +26,6 @@ import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/grou
 import { getLanguageName } from '../utils/languageNames';
 
 
-const DOOR_ACCESS_LAYER_ID = 'doors-access-point';
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
 const SELECTED_EDITABLE_FEATURE_SOURCE_ID = 'selected-editable-feature-source';
 const SELECTED_EDITABLE_FEATURE_LAYER_ID = 'selected-editable-feature-layer';
@@ -47,15 +51,6 @@ const getTransportLabel = (value) => TRANSPORT_OPTIONS.find((option) => option.v
 const normalizeTransportValue = (value) => TRANSPORT_OPTIONS.find((option) => option.value === value)?.value
   || TRANSPORT_OPTIONS.find((option) => option.label === value)?.value
   || value;
-
-const editableLayerOptions = [
-  {
-    id: DOOR_ACCESS_LAYER_ID,
-    sourceId: DOOR_ACCESS_SOURCE_ID,
-    label: 'درب‌ها',
-    highlightColor: '#f97316'
-  }
-];
 
 const dedupeByValue = (items = []) => {
   const seen = new Set();
@@ -120,6 +115,37 @@ const Amain = () => {
     rejected: 46
   });
   const [map, setMap] = useState(null);
+  const userPermissions = useMemo(
+    () => adminProfile?.permissions || adminProfile?.user?.permissions || [],
+    [adminProfile]
+  );
+  const editableLayerOptions = useMemo(
+    () => haramAdminVectorTileConfig.map((layer) => {
+      const settings = layerEditSettings[layer.id] || {};
+
+      return {
+        id: layer.id,
+        sourceId: layer.sourceId,
+        label: layer.titleFa || layer.id,
+        highlightColor: settings.highlightColor || '#3b82f6',
+        isEditable: settings.enabled !== false,
+        requiredPermission: settings.requiredPermission || null
+      };
+    }),
+    []
+  );
+  const canUserEditLayer = useCallback(
+    (layer) => {
+      if (!layer?.isEditable) return false;
+      if (!layer?.requiredPermission) return true;
+
+      const permissions = Array.isArray(userPermissions) ? userPermissions : [];
+      if (!permissions.length) return true;
+
+      return permissions.includes(layer.requiredPermission);
+    },
+    [userPermissions]
+  );
 
   const [mapViewState, setMapViewState] = useState({
     longitude: 59.6161,
@@ -172,9 +198,17 @@ const Amain = () => {
   const [isLocationMarkerMode, setIsLocationMarkerMode] = useState(false);
   const [isCreatingDoor, setIsCreatingDoor] = useState(false);
   const [locationMarker, setLocationMarker] = useState(null);
-  const [activeEditableLayerId, setActiveEditableLayerId] = useState(editableLayerOptions[0]?.id || '');
+  const [activeEditableLayerId, setActiveEditableLayerId] = useState('');
   const [selectedEditableFeature, setSelectedEditableFeature] = useState(null);
-  const activeEditableLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
+  const activeEditableLayer = useMemo(() => {
+    const selectedLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
+
+    if (!canUserEditLayer(selectedLayer)) {
+      return null;
+    }
+
+    return selectedLayer;
+  }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
   const selectedFeatureProperties = selectedEditableFeature?.features?.[0]?.properties;
   const selectedFeatureCoordinates = selectedEditableFeature?.features?.[0]?.geometry?.coordinates;
   const selectedDoorId = selectedFeatureProperties?.door_id
@@ -183,7 +217,7 @@ const Amain = () => {
     || selectedFeatureProperties?.doorid
     || selectedFeatureProperties?.id;
   const selectedDoorAccessPointId = selectedFeatureProperties?.id;
-  const showDoorTools = activeEditableLayerId === DOOR_ACCESS_LAYER_ID && !!selectedDoorId && !!selectedEditableFeature;
+  const showDoorTools = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && !!selectedDoorId && !!selectedEditableFeature;
   const [lastCreatedDoorId, setLastCreatedDoorId] = useState(null);
   const [lastCreatedAccessPointId, setLastCreatedAccessPointId] = useState(null);
   const [isSavingDoorInfo, setIsSavingDoorInfo] = useState(false);
@@ -1745,14 +1779,32 @@ const Amain = () => {
   }, [activeMenu]);
 
   useEffect(() => {
+    const activeLayerOption = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
+
+    if (activeEditableLayerId && !canUserEditLayer(activeLayerOption)) {
+      setActiveEditableLayerId('');
+      setSelectedEditableFeature(null);
+      return;
+    }
+
+    if (!activeEditableLayerId) {
+      const firstAvailable = editableLayerOptions.find((layer) => canUserEditLayer(layer));
+
+      if (firstAvailable) {
+        setActiveEditableLayerId(firstAvailable.id);
+      }
+    }
+  }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
+
+  useEffect(() => {
     setSelectedEditableFeature(null);
   }, [activeEditableLayerId]);
 
   useEffect(() => {
-    if (activeEditableLayerId === DOOR_ACCESS_LAYER_ID && selectedDoorId) {
+    if (activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && selectedDoorId) {
       setOpenSubMenu(4);
     }
-  }, [activeEditableLayerId, selectedDoorId]);
+  }, [activeEditableLayer, selectedDoorId]);
 
   useEffect(() => {
     setIsDoorMoveMode(false);
@@ -1762,8 +1814,15 @@ const Amain = () => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
 
     const ensureHighlightLayer = () => {
-      const activeLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
-      const highlightColor = activeLayer?.highlightColor || '#3b82f6';
+      if (!activeEditableLayer) {
+        if (map.getLayer(SELECTED_EDITABLE_FEATURE_LAYER_ID)) {
+          map.setLayoutProperty(SELECTED_EDITABLE_FEATURE_LAYER_ID, 'visibility', 'none');
+        }
+
+        return;
+      }
+
+      const highlightColor = activeEditableLayer?.highlightColor || '#3b82f6';
 
       if (!map.getSource(SELECTED_EDITABLE_FEATURE_SOURCE_ID)) {
         map.addSource(SELECTED_EDITABLE_FEATURE_SOURCE_ID, {
@@ -1786,6 +1845,7 @@ const Amain = () => {
         });
       } else {
         map.setPaintProperty(SELECTED_EDITABLE_FEATURE_LAYER_ID, 'circle-color', highlightColor);
+        map.setLayoutProperty(SELECTED_EDITABLE_FEATURE_LAYER_ID, 'visibility', 'visible');
       }
     };
 
@@ -1798,7 +1858,7 @@ const Amain = () => {
     return () => {
       map.off('load', ensureHighlightLayer);
     };
-  }, [map, activeMenu, activeEditableLayerId]);
+  }, [map, activeMenu, activeEditableLayer]);
 
   useEffect(() => {
     if (!map) return undefined;
@@ -1816,8 +1876,6 @@ const Amain = () => {
 
     const handleMapClick = async (event) => {
       const { lngLat, point } = event;
-
-      const activeEditableLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
 
       if (!activeEditableLayer) {
         console.warn('هیچ لایه قابل ویرایشی انتخاب نشده است.');
@@ -1927,7 +1985,7 @@ const Amain = () => {
     map.on('click', handleMapClick);
 
     return () => map.off('click', handleMapClick);
-  }, [map, activeMenu, activeEditableLayerId]);
+  }, [map, activeMenu, activeEditableLayer]);
 
   const handleZoomIn = () => {
     if (map) {
@@ -1970,7 +2028,11 @@ const Amain = () => {
   };
 
   const handleEditableLayerSelect = (layerId) => {
-    setActiveEditableLayerId(layerId);
+    const layerOption = editableLayerOptions.find((layer) => layer.id === layerId);
+
+    if (!canUserEditLayer(layerOption)) return;
+
+    setActiveEditableLayerId((current) => (current === layerId ? '' : layerId));
     setSelectedEditableFeature(null);
   };
 
@@ -4567,48 +4629,62 @@ const Amain = () => {
                       <div className="map-type-dropdown layers-dropdown">
                         <div className="active-editable-layer-info">
                           <span className="active-layer-label">لایه فعال برای ویرایش:</span>
-                          <span className="active-layer-value">{activeEditableLayer?.label || activeEditableLayerId}</span>
+                          <span className="active-layer-value">{activeEditableLayer?.label || 'هیچ‌کدام'}</span>
                         </div>
-                        {haramAdminVectorTileConfig.map(layer => (
-                          <label
-                            key={layer.id}
-                            className="map-type-option layer-toggle"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <div className="layer-info">
-                              <span className="layer-title">{layer.titleFa || layer.id}</span>
-                              <span className="layer-subtitle">{layer.id}</span>
-                            </div>
-                            <div className="layer-actions">
-                              <button
-                                type="button"
-                                className={`edit-layer-btn ${activeEditableLayerId === layer.id ? 'active' : ''}`}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleEditableLayerSelect(layer.id);
-                                }}
-                                title="فعال سازی ویرایش این لایه"
-                              >
-                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <path d="M1.3335 11.6667V14.6667H4.3335L12.1568 6.84335L9.15683 3.84335L1.3335 11.6667Z" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
-                                  <path d="M8.3335 4.66667L11.3335 7.66667" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
-                                  <path d="M10.3335 2L13.3335 5L11.5002 6.83333L8.50016 3.83333L10.3335 2Z" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
-                                </svg>
-                              </button>
-                              <input
-                                type="checkbox"
-                                checked={!!layerVisibility[layer.id]}
-                                onChange={() => handleLayerToggle(layer.id)}
-                              />
-                            </div>
-                          </label>
-                        ))}
+                        {haramAdminVectorTileConfig.map(layer => {
+                          const layerOption = editableLayerOptions.find((option) => option.id === layer.id);
+                          const isLayerActive = activeEditableLayer?.id === layer.id;
+                          const isLayerSelectable = canUserEditLayer(layerOption);
+                          const editButtonTitle = !layerOption?.isEditable
+                            ? 'ویرایش برای این لایه غیرفعال است'
+                            : !isLayerSelectable
+                              ? 'دسترسی لازم برای ویرایش این لایه را ندارید'
+                              : isLayerActive
+                                ? 'غیرفعال کردن ویرایش این لایه'
+                                : 'فعال‌سازی ویرایش این لایه';
+
+                          return (
+                            <label
+                              key={layer.id}
+                              className="map-type-option layer-toggle"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="layer-info">
+                                <span className="layer-title">{layer.titleFa || layer.id}</span>
+                                <span className="layer-subtitle">{layer.id}</span>
+                              </div>
+                              <div className="layer-actions">
+                                <button
+                                  type="button"
+                                  className={`edit-layer-btn ${isLayerActive ? 'active' : ''} ${!isLayerSelectable ? 'disabled' : ''}`}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleEditableLayerSelect(layer.id);
+                                  }}
+                                  disabled={!isLayerSelectable}
+                                  title={editButtonTitle}
+                                >
+                                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M1.3335 11.6667V14.6667H4.3335L12.1568 6.84335L9.15683 3.84335L1.3335 11.6667Z" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
+                                    <path d="M8.3335 4.66667L11.3335 7.66667" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
+                                    <path d="M10.3335 2L13.3335 5L11.5002 6.83333L8.50016 3.83333L10.3335 2Z" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
+                                  </svg>
+                                </button>
+                                <input
+                                  type="checkbox"
+                                  checked={!!layerVisibility[layer.id]}
+                                  onChange={() => handleLayerToggle(layer.id)}
+                                />
+                              </div>
+                            </label>
+                          );
+                        })}
                         {selectedEditableFeature && (
                           <div className="selected-feature-hint">
                             <div className="selected-feature-row">
                               <span className="selected-feature-label">لایه انتخابی:</span>
-                              <span className="selected-feature-value">{activeEditableLayer?.label || activeEditableLayerId}</span>
+                              <span className="selected-feature-value">{activeEditableLayer?.label || 'هیچ‌کدام'}</span>
                             </div>
                             {selectedFeatureProperties && (
                               <div className="selected-feature-row">
