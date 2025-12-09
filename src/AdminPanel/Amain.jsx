@@ -191,6 +191,16 @@ const Amain = () => {
   const [isDoorMoveMode, setIsDoorMoveMode] = useState(false);
   const intl = useIntl();
   const language = intl?.locale || 'fa';
+  const translateLabel = useCallback(
+    (labelKey) => {
+      if (!labelKey || typeof labelKey !== 'string') return labelKey;
+
+      return intl?.messages?.[labelKey]
+        ? intl.formatMessage({ id: labelKey })
+        : labelKey;
+    },
+    [intl]
+  );
   const [isAddPlaceModalOpen, setIsAddPlaceModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [placeName, setPlaceName] = useState('');
@@ -660,7 +670,11 @@ const Amain = () => {
       .then((groupData) => {
         if (!isMounted) return;
         const normalizedGroups = normalizeGroupMetadata(groupData?.groups, language);
-        setGroupOptions(dedupeByValue(normalizedGroups));
+        const translatedGroups = normalizedGroups.map((group) => ({
+          ...group,
+          label: translateLabel(group.label)
+        }));
+        setGroupOptions(dedupeByValue(translatedGroups));
       })
       .catch((error) => {
         console.error('Failed to load group metadata', error);
@@ -674,7 +688,7 @@ const Amain = () => {
     return () => {
       isMounted = false;
     };
-  }, [language]);
+  }, [language, translateLabel]);
 
   useEffect(() => {
     if (!placeCategory) {
@@ -690,7 +704,11 @@ const Amain = () => {
       .then((subGroupData) => {
         if (!isMounted) return;
         const normalized = normalizeSubGroupMetadata(subGroupData?.subGroups, language);
-        setSubGroupOptions(dedupeByValue(normalized[placeCategory] || []));
+        const translatedSubGroups = (normalized[placeCategory] || []).map((subGroup) => ({
+          ...subGroup,
+          label: translateLabel(subGroup.label)
+        }));
+        setSubGroupOptions(dedupeByValue(translatedSubGroups));
       })
       .catch((error) => {
         console.error('Failed to load sub groups', error);
@@ -704,7 +722,7 @@ const Amain = () => {
     return () => {
       isMounted = false;
     };
-  }, [language, placeCategory]);
+  }, [language, placeCategory, translateLabel]);
 
   const toggleUserManagement = () => {
     setUserManagementOpen(!userManagementOpen);
