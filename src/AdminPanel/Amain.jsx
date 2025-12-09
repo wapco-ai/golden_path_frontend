@@ -2349,7 +2349,13 @@ const Amain = () => {
             'line-width': 4,
             'line-blur': 0.4
           },
-          filter: ['in', ['geometry-type'], 'LineString', 'Polygon', 'MultiLineString', 'MultiPolygon']
+          filter: [
+            'match',
+            ['geometry-type'],
+            ['LineString', 'Polygon', 'MultiLineString', 'MultiPolygon'],
+            true,
+            false
+          ]
         });
       }
 
@@ -2364,7 +2370,13 @@ const Amain = () => {
             'circle-stroke-color': '#ffffff',
             'circle-stroke-width': 2
           },
-          filter: ['in', ['geometry-type'], 'Point', 'MultiPoint']
+          filter: [
+            'match',
+            ['geometry-type'],
+            ['Point', 'MultiPoint'],
+            true,
+            false
+          ]
         });
       }
 
