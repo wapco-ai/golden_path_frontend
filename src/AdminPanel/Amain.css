@@ -3476,6 +3476,17 @@ body {
   color: white;
 }
 
+.calendar-day.in-range {
+  background: #E8F1FF;
+  border-color: #0F71EF;
+}
+
+.calendar-day.range-start,
+.calendar-day.range-end {
+  background: #0F71EF;
+  color: #fff;
+}
+
 .calendar-day.empty {
   background: transparent;
   cursor: default;
