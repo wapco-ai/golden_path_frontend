@@ -16,6 +16,8 @@ import { DOORS_ACCESS_POINT_LAYER_NAME, haramAdminVectorTileConfig } from '../co
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
 import { createDoor, deleteDoor, getDoorInfo, moveDoor, updateDoorInfo } from '../services/adminDoorsService';
 import { convertLngLatToUtm32640 } from '../utils/utm';
+import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
+import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 
 
 const DOOR_ACCESS_LAYER_ID = 'doors-access-point';
@@ -173,6 +175,8 @@ const Amain = () => {
   const [isSavingDoorInfo, setIsSavingDoorInfo] = useState(false);
   const [isLoadingDoorInfo, setIsLoadingDoorInfo] = useState(false);
   const [isDoorMoveMode, setIsDoorMoveMode] = useState(false);
+  const intl = useIntl();
+  const language = intl?.locale || 'fa';
   const [isAddPlaceModalOpen, setIsAddPlaceModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [placeName, setPlaceName] = useState('');
@@ -190,6 +194,10 @@ const Amain = () => {
   const [placeCategory, setPlaceCategory] = useState('');
   const [placeSubcategory, setPlaceSubcategory] = useState('');
   const [placeFunction, setPlaceFunction] = useState('');
+  const [groupOptions, setGroupOptions] = useState([]);
+  const [subGroupOptions, setSubGroupOptions] = useState([]);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+  const [isLoadingSubGroups, setIsLoadingSubGroups] = useState(false);
   const [selectedTransport, setSelectedTransport] = useState([]);
   const [selectedGenderAccess, setSelectedGenderAccess] = useState([]);
   const [timeRestrictions, setTimeRestrictions] = useState([]);
@@ -627,6 +635,60 @@ const Amain = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isPieChartFilterOpen, isBarChartFilterOpen]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    setIsLoadingGroups(true);
+    fetchGroupMetadata({ language, withPng: false })
+      .then((groupData) => {
+        if (!isMounted) return;
+        const normalizedGroups = normalizeGroupMetadata(groupData?.groups, language);
+        setGroupOptions(normalizedGroups);
+      })
+      .catch((error) => {
+        console.error('Failed to load group metadata', error);
+        toast.error('بارگذاری گروه‌ها با مشکل مواجه شد');
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setIsLoadingGroups(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [language]);
+
+  useEffect(() => {
+    if (!placeCategory) {
+      setSubGroupOptions([]);
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoadingSubGroups(true);
+    setSubGroupOptions([]);
+
+    fetchSubGroups({ language, groups: [placeCategory], withImages: false })
+      .then((subGroupData) => {
+        if (!isMounted) return;
+        const normalized = normalizeSubGroupMetadata(subGroupData?.subGroups, language);
+        setSubGroupOptions(normalized[placeCategory] || []);
+      })
+      .catch((error) => {
+        console.error('Failed to load sub groups', error);
+        toast.error('بارگذاری زیرگروه‌ها با مشکل مواجه شد');
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setIsLoadingSubGroups(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [language, placeCategory]);
 
   const toggleUserManagement = () => {
     setUserManagementOpen(!userManagementOpen);
@@ -1540,6 +1602,7 @@ const Amain = () => {
     setPlaceCategory('');
     setPlaceSubcategory('');
     setPlaceFunction('');
+    setSubGroupOptions([]);
     setSelectedTransport([]);
     setSelectedGenderAccess([]);
     setTimeRestrictions([]);
@@ -2070,25 +2133,35 @@ const Amain = () => {
     date: restriction?.date || null
   }));
 
-  const buildDoorInfoPayload = () => ({
-    basic_info: {
-      title: {
-        fa: placeName,
-        en: languageTitles.english,
-        ar: languageTitles.arabic,
-        ur: languageTitles.urdu
+  const buildDoorInfoPayload = () => {
+    const selectedSubGroup = subGroupOptions.find((subGroup) => subGroup.value === placeSubcategory);
+
+    return {
+      basic_info: {
+        title: {
+          fa: placeName,
+          en: languageTitles.english,
+          ar: languageTitles.arabic,
+          ur: languageTitles.urdu
+        },
+        description: fullDescription || shortDescription
       },
-      description: fullDescription || shortDescription
-    },
-    operational: {
-      status: locationStatus === 'غیر فعال' ? 'inactive' : 'active',
-      transport_modes: selectedTransport.map(normalizeTransportValue).filter(Boolean),
-      gender_access: selectedGenderAccess.map(normalizeGenderValue).filter(Boolean)
-    },
-    time_restrictions: buildTimeRestrictionsPayload(),
-    prayer_restrictions: buildPrayerRestrictionsPayload(),
-    notes: additionalNotes
-  });
+      grouping: {
+        group_id: placeCategory || null,
+        sub_group_id: selectedSubGroup?.value || null,
+        sub_group_label: selectedSubGroup?.label
+      },
+      operational: {
+        status: locationStatus === 'غیر فعال' ? 'inactive' : 'active',
+        transport_modes: selectedTransport.map(normalizeTransportValue).filter(Boolean),
+        gender_access: selectedGenderAccess.map(normalizeGenderValue).filter(Boolean),
+        place_function: placeFunction || null
+      },
+      time_restrictions: buildTimeRestrictionsPayload(),
+      prayer_restrictions: buildPrayerRestrictionsPayload(),
+      notes: additionalNotes
+    };
+  };
 
   const handleAddPlaceConfirm = async () => {
     if (currentStep === 1) {
@@ -2133,6 +2206,7 @@ const Amain = () => {
   function fillDoorInfoForm(doorInfo = {}) {
     const basicInfo = doorInfo?.basic_info || {};
     const operational = doorInfo?.operational || {};
+    const grouping = doorInfo?.grouping || {};
 
     setPlaceName(basicInfo?.title?.fa || '');
     setLanguageTitles({
@@ -2141,9 +2215,9 @@ const Amain = () => {
       urdu: basicInfo?.title?.ur || ''
     });
     setFullDescription(basicInfo?.description || '');
-    setPlaceCategory(doorInfo?.category || '');
-    setPlaceSubcategory(doorInfo?.subcategory || '');
-    setPlaceFunction(doorInfo?.function || '');
+    setPlaceCategory(grouping?.group_id || doorInfo?.category || '');
+    setPlaceSubcategory(grouping?.sub_group_id || doorInfo?.subcategory || '');
+    setPlaceFunction(operational?.place_function || doorInfo?.function || '');
     setPlaceAddress(doorInfo?.address || '');
     setLocationStatus(operational?.status === 'inactive' ? 'غیر فعال' : 'فعال');
     setSelectedTransport(Array.isArray(operational?.transport_modes)
@@ -5043,15 +5117,18 @@ const Amain = () => {
                           <select
                             className="form-input"
                             value={placeCategory}
-                            onChange={(e) => setPlaceCategory(e.target.value)}
+                            onChange={(e) => {
+                              setPlaceCategory(e.target.value);
+                              setPlaceSubcategory('');
+                            }}
+                            disabled={isLoadingGroups}
                           >
                             <option value="" disabled>گروه اصلی</option>
-                            <option value="حرم">حرم مطهر</option>
-                            <option value="صحن">صحن ها</option>
-                            <option value="رواق">رواق ها</option>
-                            <option value="مسجد">مساجد</option>
-                            <option value="مدرسه">مدارس علمیه</option>
-                            <option value="موزه">موزه ها</option>
+                            {groupOptions.map((group) => (
+                              <option key={group.value} value={group.value}>
+                                {group.label}
+                              </option>
+                            ))}
                           </select>
                         </div>
 
@@ -5060,16 +5137,14 @@ const Amain = () => {
                             className="form-input"
                             value={placeSubcategory}
                             onChange={(e) => setPlaceSubcategory(e.target.value)}
-                            disabled={!placeCategory}
+                            disabled={!placeCategory || isLoadingSubGroups}
                           >
                             <option value="" disabled>زیرگروه</option>
-                            <option value="صحن-انقلاب">صحن انقلاب اسلامی</option>
-                            <option value="صحن-قدس">صحن قدس</option>
-                            <option value="صحن-جمهوری">صحن جمهوری اسلامی</option>
-                            <option value="رواق-امام">رواق امام خمینی</option>
-                            <option value="رواق-دارالحجه">رواق دارالحجه</option>
-                            <option value="رواق-دارالولایه">رواق دارالولایه</option>
-                            <option value="رواق-کوثر">رواق کوثر</option>
+                            {subGroupOptions.map((subGroup) => (
+                              <option key={subGroup.value} value={subGroup.value}>
+                                {subGroup.label}
+                              </option>
+                            ))}
                           </select>
                         </div>
 
@@ -5081,13 +5156,8 @@ const Amain = () => {
                             disabled={!placeSubcategory}
                           >
                             <option value="" disabled>کارکرد گروه</option>
-                            <option value="عبادی">عبادی</option>
-                            <option value="فرهنگی">فرهنگی</option>
-                            <option value="خدماتی">خدماتی</option>
-                            <option value="امکانات">امکانات رفاهی</option>
-                            <option value="اطلاعات">مرکز اطلاعات</option>
-                            <option value="زیارتی">زیارتی</option>
-                            <option value="سیاحتی">سیاحتی</option>
+                            <option value="door">درب</option>
+                            <option value="connection-point">نقطه اتصال</option>
                           </select>
                         </div>
                       </div>
