@@ -2119,11 +2119,6 @@ body {
   color: #1e2023;
 }
 
-.active-layer-value {
-  font-size: 13px;
-  color: #0f71ef;
-}
-
 .layer-toggle {
   display: flex;
   align-items: center;

@@ -4714,7 +4714,6 @@ const Amain = () => {
                       <div className="map-type-dropdown layers-dropdown">
                         <div className="active-editable-layer-info">
                           <span className="active-layer-label">لایه فعال برای ویرایش:</span>
-                          <span className="active-layer-value">{activeEditableLayer?.label || 'هیچ‌کدام'}</span>
                         </div>
                         {haramAdminVectorTileConfig.map(layer => {
                           const layerOption = editableLayerOptions.find((option) => option.id === layer.id);
