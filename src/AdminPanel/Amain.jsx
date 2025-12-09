@@ -56,6 +56,19 @@ const editableLayerOptions = [
   }
 ];
 
+const dedupeByValue = (items = []) => {
+  const seen = new Set();
+  return items.filter((item) => {
+    const value = item?.value;
+
+    if (!value) return true;
+    if (seen.has(value)) return false;
+
+    seen.add(value);
+    return true;
+  });
+};
+
 const logDoorAccessPointDebugInfo = (mapInstance) => {
   if (!mapInstance) return;
 
@@ -644,7 +657,7 @@ const Amain = () => {
       .then((groupData) => {
         if (!isMounted) return;
         const normalizedGroups = normalizeGroupMetadata(groupData?.groups, language);
-        setGroupOptions(normalizedGroups);
+        setGroupOptions(dedupeByValue(normalizedGroups));
       })
       .catch((error) => {
         console.error('Failed to load group metadata', error);
@@ -674,7 +687,7 @@ const Amain = () => {
       .then((subGroupData) => {
         if (!isMounted) return;
         const normalized = normalizeSubGroupMetadata(subGroupData?.subGroups, language);
-        setSubGroupOptions(normalized[placeCategory] || []);
+        setSubGroupOptions(dedupeByValue(normalized[placeCategory] || []));
       })
       .catch((error) => {
         console.error('Failed to load sub groups', error);
