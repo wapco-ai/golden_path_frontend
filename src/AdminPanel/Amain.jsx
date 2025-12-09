@@ -2871,6 +2871,7 @@ const Amain = () => {
     date: Array.isArray(restriction?.date_scope)
       ? restriction.date_scope.join(', ')
       : restriction?.date_scope || restriction?.date || 'نامشخص',
+    isoDateScope: Array.isArray(restriction?.date_scope) ? restriction.date_scope : [],
     gender: Array.isArray(restriction?.gender)
       ? restriction.gender.map(normalizeGenderValue).filter(Boolean)
       : [],
@@ -2889,15 +2890,14 @@ const Amain = () => {
     before: restriction?.before_minutes ?? restriction?.before ?? '',
     after: restriction?.after_minutes ?? restriction?.after ?? '',
     date: restriction?.date || '',
+    isoDate: restriction?.date || null,
     title: restriction?.title || ''
   }));
 
   const buildTimeRestrictionsPayload = () => timeRestrictions.map((restriction) => ({
-    date_scope: Array.isArray(restriction?.date_scope)
-      ? restriction.date_scope
-      : restriction?.date
-        ? [restriction.date]
-        : [],
+    date_scope: restriction?.isoDateScope?.length
+      ? restriction.isoDateScope
+      : buildDateScopeIso(restriction?.date),
     gender: Array.isArray(restriction?.gender)
       ? restriction.gender.map(normalizeGenderValue).filter(Boolean)
       : [],
@@ -2920,7 +2920,12 @@ const Amain = () => {
       ?? (restriction?.after !== undefined ? Number(restriction.after) : undefined)
       ?? (restriction?.afterMinutes !== undefined ? Number(restriction.afterMinutes) : undefined)
       ?? (restriction?.after ? Number(restriction.after) : 0),
-    date: restriction?.date || null
+    date: restriction?.isoDate || buildPrayerDateIso(restriction?.date),
+    title: restriction?.title
+      ?? restriction?.label
+      ?? (restriction?.events?.length
+        ? `${restriction.events.join(' و ')} : ${restriction.before || 0} دقیقه قبل الی ${restriction.after || 0} دقیقه بعد`
+        : '')
   }));
 
   const buildDoorInfoPayload = () => {
@@ -3173,6 +3178,92 @@ const Amain = () => {
       'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
     ];
     return jalaliMonths[month - 1] || '';
+  };
+
+  const jalaliMonthNameToNumber = (monthName) => {
+    const jalaliMonths = [
+      'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+      'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
+    ];
+    return jalaliMonths.indexOf(monthName) + 1;
+  };
+
+  const jalaliDatePartsToIso = ({ year, month, day }) => {
+    const { gy, gm, gd } = toGregorian(year, month, day);
+    return `${gy}-${String(gm).padStart(2, '0')}-${String(gd).padStart(2, '0')}`;
+  };
+
+  const getCurrentJalaliMonthBounds = () => {
+    const today = new Date();
+    const todayJalali = toJalaali(today.getFullYear(), today.getMonth() + 1, today.getDate());
+    const start = jalaliDatePartsToIso({ year: todayJalali.jy, month: todayJalali.jm, day: 1 });
+    const endDay = jalaliMonthLength(todayJalali.jy, todayJalali.jm);
+    const end = jalaliDatePartsToIso({ year: todayJalali.jy, month: todayJalali.jm, day: endDay });
+    return [start, end];
+  };
+
+  const getCurrentWeekBounds = () => {
+    const today = new Date();
+    const start = new Date(today);
+    start.setDate(today.getDate() - start.getDay());
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    const toIsoDate = (date) => date.toISOString().split('T')[0];
+    return [toIsoDate(start), toIsoDate(end)];
+  };
+
+  const parseJalaliDateLabelToIso = (label) => {
+    const match = /روز\s+(\d{1,2})\s+(\S+)\s+(\d{4})/u.exec(label || '');
+    if (!match) return null;
+
+    const [, dayStr, monthName, yearStr] = match;
+    const monthNumber = jalaliMonthNameToNumber(monthName);
+    if (!monthNumber) return null;
+
+    return jalaliDatePartsToIso({
+      year: Number(yearStr),
+      month: monthNumber,
+      day: Number(dayStr)
+    });
+  };
+
+  const buildDateScopeIso = (dateLabel, jalaliSelection = null) => {
+    if (!dateLabel || dateLabel === 'کل روزها') return [];
+
+    if (dateLabel === 'این ماه' || dateLabel === 'تمام این ماه') {
+      return getCurrentJalaliMonthBounds();
+    }
+
+    if (dateLabel === 'این هفته' || dateLabel === 'کل این هفته') {
+      return getCurrentWeekBounds();
+    }
+
+    if (jalaliSelection) {
+      return [jalaliDatePartsToIso(jalaliSelection)];
+    }
+
+    const isoFromLabel = parseJalaliDateLabelToIso(dateLabel);
+    return isoFromLabel ? [isoFromLabel] : [];
+  };
+
+  const buildPrayerDateIso = (dateLabel, jalaliSelection = null) => {
+    if (!dateLabel || dateLabel === 'همه روزها') return null;
+
+    if (dateLabel === 'تمام این ماه') {
+      const [start, end] = getCurrentJalaliMonthBounds();
+      return `${start}/${end}`;
+    }
+
+    if (dateLabel === 'کل این هفته') {
+      const [start, end] = getCurrentWeekBounds();
+      return `${start}/${end}`;
+    }
+
+    if (jalaliSelection) {
+      return jalaliDatePartsToIso(jalaliSelection);
+    }
+
+    return parseJalaliDateLabelToIso(dateLabel);
   };
 
   const handleDateFilterToggle = (filter) => {
@@ -3575,6 +3666,7 @@ const Amain = () => {
     const newRestriction = {
       id: Date.now(),
       date: getRestrictionTitle(),
+      isoDateScope: buildDateScopeIso(getRestrictionTitle(), selectedJalaliDate),
       gender: [...selectedGenderRestrictions],
       timePairs: limitAllHours
         ? [{ start: '00:00', end: '23:59' }]
@@ -6524,6 +6616,12 @@ const Amain = () => {
                                       before: String(prayerBeforeMinutes),
                                       after: String(prayerAfterMinutes),
                                       date: prayerSelectedJalaliDate ? `روز ${prayerSelectedJalaliDate.day} ${getJalaliMonthName(prayerSelectedJalaliDate.month)} ${prayerSelectedJalaliDate.year}` : 'همه روزها',
+                                      isoDate: buildPrayerDateIso(
+                                        prayerSelectedJalaliDate
+                                          ? `روز ${prayerSelectedJalaliDate.day} ${getJalaliMonthName(prayerSelectedJalaliDate.month)} ${prayerSelectedJalaliDate.year}`
+                                          : 'همه روزها',
+                                        prayerSelectedJalaliDate
+                                      ),
                                       title
                                     };
                                     setPrayerTimeRestrictionsList(prev => [...prev, newItem]);
