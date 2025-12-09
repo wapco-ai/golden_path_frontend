@@ -29,6 +29,8 @@ import { getLanguageName } from '../utils/languageNames';
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
 const SELECTED_EDITABLE_FEATURE_SOURCE_ID = 'selected-editable-feature-source';
 const SELECTED_EDITABLE_FEATURE_LAYER_ID = 'selected-editable-feature-layer';
+const SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID = 'selected-editable-feature-line';
+const SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID = 'selected-editable-feature-fill';
 
 const GENDER_OPTIONS = [
   { value: 'female', label: 'بانوان' },
@@ -51,6 +53,22 @@ const getTransportLabel = (value) => TRANSPORT_OPTIONS.find((option) => option.v
 const normalizeTransportValue = (value) => TRANSPORT_OPTIONS.find((option) => option.value === value)?.value
   || TRANSPORT_OPTIONS.find((option) => option.label === value)?.value
   || value;
+
+const normalizeTransportModes = (value) => {
+  if (Array.isArray(value)) {
+    return value.map(normalizeTransportValue).filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    const cleaned = value.trim().replace(/^\{/, '').replace(/\}$/, '');
+
+    return cleaned
+      ? cleaned.split(',').map((item) => normalizeTransportValue(item.trim())).filter(Boolean)
+      : [];
+  }
+
+  return [];
+};
 
 const dedupeByValue = (items = []) => {
   const seen = new Set();
@@ -82,6 +100,70 @@ const getFeatureCenterCoordinates = (feature) => {
     }
   } catch (error) {
     console.error('خطا در محاسبه مرکز هندسی فیچر:', error);
+  }
+
+  return null;
+};
+
+const extractEditableVertices = (geometry = {}) => {
+  if (!geometry?.type || !geometry?.coordinates) return [];
+
+  if (geometry.type === 'Point') return [geometry.coordinates];
+  if (geometry.type === 'MultiPoint') return geometry.coordinates;
+  if (geometry.type === 'LineString') return geometry.coordinates;
+
+  if (geometry.type === 'Polygon') {
+    const outerRing = geometry.coordinates?.[0] || [];
+    if (!outerRing.length) return [];
+
+    const withoutClosingPoint = outerRing.length > 1
+      && outerRing[0][0] === outerRing[outerRing.length - 1][0]
+      && outerRing[0][1] === outerRing[outerRing.length - 1][1]
+      ? outerRing.slice(0, -1)
+      : outerRing;
+
+    return withoutClosingPoint;
+  }
+
+  if (geometry.type === 'MultiPolygon') {
+    const firstPolygon = geometry.coordinates?.[0]?.[0] || [];
+    if (!firstPolygon.length) return [];
+
+    const withoutClosingPoint = firstPolygon.length > 1
+      && firstPolygon[0][0] === firstPolygon[firstPolygon.length - 1][0]
+      && firstPolygon[0][1] === firstPolygon[firstPolygon.length - 1][1]
+      ? firstPolygon.slice(0, -1)
+      : firstPolygon;
+
+    return withoutClosingPoint;
+  }
+
+  return [];
+};
+
+const rebuildGeometryFromVertices = (geometryType, vertices = []) => {
+  if (!Array.isArray(vertices) || vertices.length === 0) return null;
+
+  if (geometryType === 'Point') {
+    return { type: 'Point', coordinates: vertices[0] };
+  }
+
+  if (geometryType === 'MultiPoint') {
+    return { type: 'MultiPoint', coordinates: vertices };
+  }
+
+  if (geometryType === 'LineString') {
+    return { type: 'LineString', coordinates: vertices };
+  }
+
+  if (geometryType === 'Polygon') {
+    const closedRing = [...vertices, vertices[0]];
+    return { type: 'Polygon', coordinates: [closedRing] };
+  }
+
+  if (geometryType === 'MultiPolygon') {
+    const closedRing = [...vertices, vertices[0]];
+    return { type: 'MultiPolygon', coordinates: [[closedRing]] };
   }
 
   return null;
@@ -219,6 +301,9 @@ const Amain = () => {
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [isLocationMarkerMode, setIsLocationMarkerMode] = useState(false);
   const [isCreatingDoor, setIsCreatingDoor] = useState(false);
+  const [isPlaceCovered, setIsPlaceCovered] = useState(null);
+  const [isAreaEditMode, setIsAreaEditMode] = useState(false);
+  const vertexMarkersRef = useRef([]);
   const [locationMarker, setLocationMarker] = useState(null);
   const [activeEditableLayerId, setActiveEditableLayerId] = useState('');
   const hasUserClearedEditableLayer = useRef(false);
@@ -245,6 +330,7 @@ const Amain = () => {
   const [lastCreatedAccessPointId, setLastCreatedAccessPointId] = useState(null);
   const [isSavingDoorInfo, setIsSavingDoorInfo] = useState(false);
   const [isLoadingDoorInfo, setIsLoadingDoorInfo] = useState(false);
+  const [isEditingDoorInfo, setIsEditingDoorInfo] = useState(false);
   const [isDoorMoveMode, setIsDoorMoveMode] = useState(false);
   const intl = useIntl();
   const language = intl?.locale || 'fa';
@@ -258,6 +344,11 @@ const Amain = () => {
     },
     [intl]
   );
+  const currentJalaliDate = useMemo(() => {
+    const now = new Date();
+    return toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  }, []);
+
   const [isAddPlaceModalOpen, setIsAddPlaceModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [placeName, setPlaceName] = useState('');
@@ -286,11 +377,12 @@ const Amain = () => {
   const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
   const [selectedDateFilter, setSelectedDateFilter] = useState([]);
   const [selectedJalaliDate, setSelectedJalaliDate] = useState(null);
-  const [calendarDate, setCalendarDate] = useState(() => {
-    const now = new Date();
-    const jalali = toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
-    return { year: jalali.jy, month: jalali.jm, day: jalali.jd };
-  });
+  const [selectedJalaliEndDate, setSelectedJalaliEndDate] = useState(null);
+  const [calendarDate, setCalendarDate] = useState(() => ({
+    year: currentJalaliDate.jy,
+    month: currentJalaliDate.jm,
+    day: currentJalaliDate.jd
+  }));
   const [selectedRestrictionType, setSelectedRestrictionType] = useState(null);
   const [restrictionFormOpen, setRestrictionFormOpen] = useState(false);
   const [selectedGenderRestrictions, setSelectedGenderRestrictions] = useState([]);
@@ -299,8 +391,12 @@ const Amain = () => {
   ]);
   const [limitAllHours, setLimitAllHours] = useState(false);
   const [isPrayerDateFilterOpen, setIsPrayerDateFilterOpen] = useState(false);
-  const [prayerCalendarDate, setPrayerCalendarDate] = useState({ year: 1403, month: 1 });
+  const [prayerCalendarDate, setPrayerCalendarDate] = useState({
+    year: currentJalaliDate.jy,
+    month: currentJalaliDate.jm
+  });
   const [prayerSelectedJalaliDate, setPrayerSelectedJalaliDate] = useState(null);
+  const [prayerSelectedJalaliEndDate, setPrayerSelectedJalaliEndDate] = useState(null);
   const [prayerRestrictionFormOpen, setPrayerRestrictionFormOpen] = useState(false);
   const [selectedPrayerEvents, setSelectedPrayerEvents] = useState([]);
   const [prayerBeforeMinutes, setPrayerBeforeMinutes] = useState('');
@@ -2300,6 +2396,9 @@ const Amain = () => {
 
     setLocationRoofType('');
     setLocationStatus('');
+    setIsPlaceCovered(null);
+
+    setIsEditingDoorInfo(false);
 
     setSelectedRestrictionType(null);
     setRestrictionFormOpen(false);
@@ -2308,11 +2407,13 @@ const Amain = () => {
     setLimitAllHours(false);
     setSelectedDateFilter([]);
     setSelectedJalaliDate(null);
+    setSelectedJalaliEndDate(null);
 
     setSelectedPrayerEvents([]);
     setPrayerBeforeMinutes('');
     setPrayerAfterMinutes('');
     setPrayerSelectedJalaliDate(null);
+    setPrayerSelectedJalaliEndDate(null);
     setPrayerRestrictionFormOpen(false);
     setIsPrayerDateFilterOpen(false);
     setPrayerTimeRestrictionsList([]);
@@ -2333,6 +2434,16 @@ const Amain = () => {
     setCurrentTitleField(null);
     setCurrentDescriptionField(null);
   };
+
+  const handleStepCircleClick = (stepNumber) => {
+    if (!isEditingDoorInfo) return;
+    setCurrentStep(stepNumber);
+  };
+
+  const activeLayerTitle = activeEditableLayer?.titleFa
+    || activeEditableLayer?.label
+    || activeEditableLayer?.id
+    || 'نام لایه';
 
 
   // Map initialization effect
@@ -2447,15 +2558,34 @@ const Amain = () => {
     }
   }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
 
+  const clearVertexMarkers = useCallback(() => {
+    vertexMarkersRef.current.forEach((marker) => marker?.remove());
+    vertexMarkersRef.current = [];
+  }, []);
+
   useEffect(() => {
     setSelectedEditableFeature(null);
   }, [activeEditableLayerId]);
+
+  useEffect(() => {
+    if (!selectedEditableFeature) {
+      setIsAreaEditMode(false);
+      clearVertexMarkers();
+    }
+  }, [selectedEditableFeature, clearVertexMarkers]);
 
   useEffect(() => {
     if (activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && selectedDoorId) {
       setOpenSubMenu(4);
     }
   }, [activeEditableLayer, selectedDoorId]);
+
+  useEffect(() => {
+    if (activeEditableLayer?.id !== 'areas-outline') {
+      setIsAreaEditMode(false);
+      clearVertexMarkers();
+    }
+  }, [activeEditableLayer, clearVertexMarkers]);
 
   useEffect(() => {
     setIsDoorMoveMode(false);
@@ -2465,20 +2595,61 @@ const Amain = () => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
 
     const ensureHighlightLayer = () => {
-      if (!activeEditableLayer) {
-        if (map.getLayer(SELECTED_EDITABLE_FEATURE_LAYER_ID)) {
-          map.setLayoutProperty(SELECTED_EDITABLE_FEATURE_LAYER_ID, 'visibility', 'none');
-        }
+      const highlightColor = activeEditableLayer?.highlightColor || '#3b82f6';
+      const hideHighlightLayers = () => {
+        [
+          SELECTED_EDITABLE_FEATURE_LAYER_ID,
+          SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID,
+          SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID
+        ].forEach((layerId) => {
+          if (map.getLayer(layerId)) {
+            map.setLayoutProperty(layerId, 'visibility', 'none');
+          }
+        });
+      };
 
+      if (!activeEditableLayer) {
+        hideHighlightLayers();
         return;
       }
-
-      const highlightColor = activeEditableLayer?.highlightColor || '#3b82f6';
 
       if (!map.getSource(SELECTED_EDITABLE_FEATURE_SOURCE_ID)) {
         map.addSource(SELECTED_EDITABLE_FEATURE_SOURCE_ID, {
           type: 'geojson',
           data: { type: 'FeatureCollection', features: [] }
+        });
+      }
+
+      if (!map.getLayer(SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID)) {
+        map.addLayer({
+          id: SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID,
+          type: 'fill',
+          source: SELECTED_EDITABLE_FEATURE_SOURCE_ID,
+          paint: {
+            'fill-color': highlightColor,
+            'fill-opacity': 0.08
+          },
+          filter: ['==', ['geometry-type'], 'Polygon']
+        });
+      }
+
+      if (!map.getLayer(SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID)) {
+        map.addLayer({
+          id: SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID,
+          type: 'line',
+          source: SELECTED_EDITABLE_FEATURE_SOURCE_ID,
+          paint: {
+            'line-color': highlightColor,
+            'line-width': 4,
+            'line-blur': 0.4
+          },
+          filter: [
+            'match',
+            ['geometry-type'],
+            ['LineString', 'Polygon', 'MultiLineString', 'MultiPolygon'],
+            true,
+            false
+          ]
         });
       }
 
@@ -2488,16 +2659,42 @@ const Amain = () => {
           type: 'circle',
           source: SELECTED_EDITABLE_FEATURE_SOURCE_ID,
           paint: {
-            'circle-radius': 9,
+            'circle-radius': 7,
             'circle-color': highlightColor,
             'circle-stroke-color': '#ffffff',
-            'circle-stroke-width': 3
-          }
+            'circle-stroke-width': 2
+          },
+          filter: [
+            'match',
+            ['geometry-type'],
+            ['Point', 'MultiPoint'],
+            true,
+            false
+          ]
         });
-      } else {
-        map.setPaintProperty(SELECTED_EDITABLE_FEATURE_LAYER_ID, 'circle-color', highlightColor);
-        map.setLayoutProperty(SELECTED_EDITABLE_FEATURE_LAYER_ID, 'visibility', 'visible');
       }
+
+      if (map.getLayer(SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID)) {
+        map.setPaintProperty(SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID, 'fill-color', highlightColor);
+      }
+
+      if (map.getLayer(SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID)) {
+        map.setPaintProperty(SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID, 'line-color', highlightColor);
+      }
+
+      if (map.getLayer(SELECTED_EDITABLE_FEATURE_LAYER_ID)) {
+        map.setPaintProperty(SELECTED_EDITABLE_FEATURE_LAYER_ID, 'circle-color', highlightColor);
+      }
+
+      [
+        SELECTED_EDITABLE_FEATURE_LAYER_ID,
+        SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID,
+        SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID
+      ].forEach((layerId) => {
+        if (map.getLayer(layerId)) {
+          map.setLayoutProperty(layerId, 'visibility', 'visible');
+        }
+      });
     };
 
     if (map.isStyleLoaded()) {
@@ -2572,6 +2769,10 @@ const Amain = () => {
 
       if (activeEditableLayer.id === DOOR_ACCESS_LAYER_ID) {
         setOpenSubMenu(4);
+      }
+
+      if (activeEditableLayer.id === 'areas-outline') {
+        setOpenSubMenu(2);
       }
     };
 
@@ -2695,6 +2896,10 @@ const Amain = () => {
 
       if (activeEditableLayer.id === DOOR_ACCESS_LAYER_ID) {
         setOpenSubMenu(4);
+      }
+
+      if (activeEditableLayer.id === 'areas-outline') {
+        setOpenSubMenu(2);
       }
 
       console.log('نزدیک‌ترین فیچر انتخابی:', {
@@ -3126,6 +3331,92 @@ const Amain = () => {
       return isSameLayer ? '' : layerId;
     });
     setSelectedEditableFeature(null);
+    setIsAreaEditMode(false);
+  };
+
+  const rebuildSelectionFromVertices = useCallback((geometryType, updatedVertices) => {
+    if (!geometryType || !Array.isArray(updatedVertices) || !updatedVertices.length) return;
+
+    const updatedGeometry = rebuildGeometryFromVertices(geometryType, updatedVertices);
+    if (!updatedGeometry) return;
+
+    setSelectedEditableFeature((current) => {
+      if (!current?.features?.[0]) return current;
+      const updatedFeature = { ...current.features[0], geometry: updatedGeometry };
+      return { ...current, features: [updatedFeature] };
+    });
+  }, []);
+
+  const buildVertexMarkers = useCallback(() => {
+    if (!map || !isAreaEditMode) {
+      clearVertexMarkers();
+      return;
+    }
+
+    const feature = selectedEditableFeature?.features?.[0];
+    const geometryType = feature?.geometry?.type;
+    const vertices = extractEditableVertices(feature?.geometry);
+
+    if (!feature || !vertices.length) {
+      clearVertexMarkers();
+      return;
+    }
+
+    clearVertexMarkers();
+
+    const highlightColor = activeEditableLayer?.highlightColor || '#0f172a';
+    const newMarkers = vertices.map((coord, index) => {
+      const marker = new maplibregl.Marker({ color: highlightColor, draggable: true, scale: 0.9 })
+        .setLngLat(coord)
+        .addTo(map);
+
+      marker.on('dragend', () => {
+        const updatedVertices = newMarkers.map((m) => {
+          const { lng, lat } = m.getLngLat();
+          return [lng, lat];
+        });
+
+        rebuildSelectionFromVertices(geometryType, updatedVertices);
+      });
+
+      marker.getElement().setAttribute('data-vertex-index', index);
+      return marker;
+    });
+
+    vertexMarkersRef.current = newMarkers;
+  }, [map, isAreaEditMode, clearVertexMarkers, selectedEditableFeature, activeEditableLayer, rebuildSelectionFromVertices]);
+
+  useEffect(() => {
+    buildVertexMarkers();
+
+    return () => {
+      clearVertexMarkers();
+    };
+  }, [buildVertexMarkers, clearVertexMarkers, selectedEditableFeature, isAreaEditMode]);
+
+  const handleAreaEditModeToggle = () => {
+    if (!selectedEditableFeature) {
+      toast.error('ابتدا یک محدوده را از نقشه انتخاب کنید');
+      return;
+    }
+
+    setIsAreaEditMode((current) => !current);
+  };
+
+  const handleOpenAddPlaceWithRoofOption = () => {
+    setCurrentStep(1);
+    setIsAddPlaceModalOpen(true);
+  };
+
+  const handleDeleteSelectedArea = () => {
+    if (!selectedEditableFeature) {
+      toast.error('محدوده‌ای برای حذف انتخاب نشده است');
+      return;
+    }
+
+    setSelectedEditableFeature(null);
+    setIsAreaEditMode(false);
+    toast.info('محدوده انتخابی از حالت ویرایش خارج شد');
   };
 
 
@@ -3201,7 +3492,7 @@ const Amain = () => {
 
       toast.success('درب جدید با موفقیت ثبت شد');
       console.log('door creation response', response);
-      await openDoorInfoModal(newDoorId, newAccessPointId);
+      await openDoorInfoModal(newDoorId, newAccessPointId, false);
     } catch (error) {
       toast.error(error?.message || 'ثبت درب ناموفق بود');
     } finally {
@@ -3279,49 +3570,69 @@ const Amain = () => {
     });
   };
 
-  const mapApiTimeRestrictionsToForm = (apiRestrictions = []) => apiRestrictions.map((restriction, index) => ({
-    id: restriction?.id || index,
-    date: Array.isArray(restriction?.date_scope)
-      ? restriction.date_scope.join(', ')
-      : restriction?.date_scope || restriction?.date || 'نامشخص',
-    gender: Array.isArray(restriction?.gender)
-      ? restriction.gender.map(normalizeGenderValue).filter(Boolean)
-      : [],
-    timePairs: Array.isArray(restriction?.time_ranges)
-      ? restriction.time_ranges.map((range) => ({
-        start: range?.start || '',
-        end: range?.end || ''
-      }))
-      : [],
-    limitAllHours: Boolean(restriction?.all_hours)
-  }));
-
-  const mapApiPrayerRestrictionsToForm = (apiRestrictions = []) => apiRestrictions.map((restriction, index) => ({
-    id: restriction?.id || index,
-    events: restriction?.events || [],
-    before: restriction?.before_minutes ?? restriction?.before ?? '',
-    after: restriction?.after_minutes ?? restriction?.after ?? '',
-    date: restriction?.date || '',
-    title: restriction?.title || ''
-  }));
-
-  const buildTimeRestrictionsPayload = () => timeRestrictions.map((restriction) => ({
-    date_scope: Array.isArray(restriction?.date_scope)
+  const mapApiTimeRestrictionsToForm = (apiRestrictions = []) => apiRestrictions.map((restriction, index) => {
+    const derivedIsoScope = Array.isArray(restriction?.date_scope) && restriction.date_scope.length
       ? restriction.date_scope
-      : restriction?.date
-        ? [restriction.date]
+      : buildDateScopeIso(restriction?.date);
+
+    return {
+      id: restriction?.id || index,
+      date: Array.isArray(restriction?.date_scope)
+        ? restriction.date_scope.join(', ')
+        : restriction?.date_scope || restriction?.date || 'نامشخص',
+      isoDateScope: derivedIsoScope?.length ? derivedIsoScope : [],
+      gender: Array.isArray(restriction?.gender)
+        ? restriction.gender.map(normalizeGenderValue).filter(Boolean)
         : [],
-    gender: Array.isArray(restriction?.gender)
-      ? restriction.gender.map(normalizeGenderValue).filter(Boolean)
-      : [],
-    time_ranges: Array.isArray(restriction?.timePairs)
-      ? restriction.timePairs.map((pair) => ({
-        start: pair?.start || '',
-        end: pair?.end || ''
-      }))
-      : [],
-    all_hours: Boolean(restriction?.limitAllHours)
-  }));
+      timePairs: Array.isArray(restriction?.time_ranges)
+        ? restriction.time_ranges.map((range) => ({
+          start: range?.start || '',
+          end: range?.end || ''
+        }))
+        : [],
+      limitAllHours: Boolean(restriction?.all_hours)
+    };
+  });
+
+  const mapApiPrayerRestrictionsToForm = (apiRestrictions = []) => apiRestrictions.map((restriction, index) => {
+    const derivedIsoDate = buildPrayerDateIso(restriction?.date) || restriction?.date || null;
+
+    return {
+      id: restriction?.id || index,
+      events: restriction?.events || [],
+      before: restriction?.before_minutes ?? restriction?.before ?? '',
+      after: restriction?.after_minutes ?? restriction?.after ?? '',
+      date: restriction?.date || '',
+      isoDate: derivedIsoDate,
+      title: restriction?.title || ''
+    };
+  });
+
+  const buildTimeRestrictionsPayload = () => {
+    const payload = timeRestrictions.map((restriction) => ({
+      date_scope: restriction?.isoDateScope?.length
+        ? restriction.isoDateScope
+        : buildDateScopeIso(restriction?.date),
+      gender: Array.isArray(restriction?.gender)
+        ? restriction.gender.map(normalizeGenderValue).filter(Boolean)
+        : [],
+      time_ranges: Array.isArray(restriction?.timePairs)
+        ? restriction.timePairs.map((pair) => ({
+          start: pair?.start || '',
+          end: pair?.end || ''
+        }))
+        : [],
+      all_hours: Boolean(restriction?.limitAllHours)
+    }));
+
+    const hasEmptyDateScope = payload.some((restriction) => !restriction.date_scope?.length);
+
+    if (hasEmptyDateScope) {
+      throw new Error('تاریخ محدودیت‌های زمانی باید به فرمت میلادی ISO-8601 ارسال شود');
+    }
+
+    return payload;
+  };
 
   const buildPrayerRestrictionsPayload = () => prayerTimeRestrictionsList.map((restriction) => ({
     events: restriction?.events || [],
@@ -3333,7 +3644,12 @@ const Amain = () => {
       ?? (restriction?.after !== undefined ? Number(restriction.after) : undefined)
       ?? (restriction?.afterMinutes !== undefined ? Number(restriction.afterMinutes) : undefined)
       ?? (restriction?.after ? Number(restriction.after) : 0),
-    date: restriction?.date || null
+    date: restriction?.isoDate || buildPrayerDateIso(restriction?.date),
+    title: restriction?.title
+      ?? restriction?.label
+      ?? (restriction?.events?.length
+        ? `${restriction.events.join(' و ')} : ${restriction.before || 0} دقیقه قبل الی ${restriction.after || 0} دقیقه بعد`
+        : '')
   }));
 
   const buildDoorInfoPayload = () => {
@@ -3356,10 +3672,11 @@ const Amain = () => {
       },
       operational: {
         status: locationStatus === 'غیر فعال' ? 'inactive' : 'active',
-        transport_modes: selectedTransport.map(normalizeTransportValue).filter(Boolean),
-        gender_access: selectedGenderAccess.map(normalizeGenderValue).filter(Boolean),
-        place_function: placeFunction || null
-      },
+      transport_modes: selectedTransport.map(normalizeTransportValue).filter(Boolean),
+      gender_access: selectedGenderAccess.map(normalizeGenderValue).filter(Boolean),
+      place_function: placeFunction || null,
+      is_covered: typeof isPlaceCovered === 'boolean' ? isPlaceCovered : null
+    },
       time_restrictions: buildTimeRestrictionsPayload(),
       prayer_restrictions: buildPrayerRestrictionsPayload(),
       notes: additionalNotes
@@ -3389,7 +3706,14 @@ const Amain = () => {
         return;
       }
 
-      const payload = buildDoorInfoPayload();
+      let payload;
+
+      try {
+        payload = buildDoorInfoPayload();
+      } catch (error) {
+        toast.error(error?.message || 'تاریخ محدودیت‌های زمانی به درستی انتخاب نشده است');
+        return;
+      }
 
       try {
         setIsSavingDoorInfo(true);
@@ -3423,9 +3747,8 @@ const Amain = () => {
     setPlaceFunction(operational?.place_function || doorInfo?.function || '');
     setPlaceAddress(doorInfo?.address || '');
     setLocationStatus(operational?.status === 'inactive' ? 'غیر فعال' : 'فعال');
-    setSelectedTransport(Array.isArray(operational?.transport_modes)
-      ? operational.transport_modes.map(normalizeTransportValue).filter(Boolean)
-      : []);
+    setIsPlaceCovered(typeof operational?.is_covered === 'boolean' ? operational.is_covered : null);
+    setSelectedTransport(normalizeTransportModes(operational?.transport_modes));
     setSelectedGenderAccess(Array.isArray(operational?.gender_access)
       ? operational.gender_access.map(normalizeGenderValue).filter(Boolean)
       : []);
@@ -3434,9 +3757,10 @@ const Amain = () => {
     setAdditionalNotes(doorInfo?.notes || '');
   }
 
-  async function openDoorInfoModal(doorId, accessPointId = null) {
+  async function openDoorInfoModal(doorId, accessPointId = null, isEditMode = false) {
     setLastCreatedDoorId(doorId || null);
     setLastCreatedAccessPointId(accessPointId || null);
+    setIsEditingDoorInfo(isEditMode);
     setIsAddPlaceModalOpen(true);
     setCurrentStep(1);
 
@@ -3488,7 +3812,7 @@ const Amain = () => {
       return;
     }
 
-    await openDoorInfoModal(selectedDoorId, selectedDoorAccessPointId || null);
+    await openDoorInfoModal(selectedDoorId, selectedDoorAccessPointId || null, true);
   };
 
   const activeLayerCount = Object.values(layerVisibility).filter(Boolean).length;
@@ -3588,6 +3912,194 @@ const Amain = () => {
     return jalaliMonths[month - 1] || '';
   };
 
+  const jalaliMonthNameToNumber = (monthName) => {
+    const jalaliMonths = [
+      'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+      'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
+    ];
+    return jalaliMonths.indexOf(monthName) + 1;
+  };
+
+  const jalaliYearOptions = useMemo(() => {
+    const startYear = currentJalaliDate.jy - 5;
+    return Array.from({ length: 11 }, (_, i) => startYear + i);
+  }, [currentJalaliDate.jy]);
+
+  const formatJalaliDateLabel = (dateParts) => {
+    if (!dateParts) return '';
+    const jalaliMonths = [
+      'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+      'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
+    ];
+    return `${dateParts.day} ${jalaliMonths[dateParts.month - 1]} ${dateParts.year}`;
+  };
+
+  const compareJalaliDates = (first, second) => {
+    if (!first || !second) return 0;
+    const firstIso = jalaliDatePartsToIso(first);
+    const secondIso = jalaliDatePartsToIso(second);
+    if (firstIso === secondIso) return 0;
+    return firstIso > secondIso ? 1 : -1;
+  };
+
+  const sortJalaliRange = (start, end) => {
+    if (!start || !end) return [start, end];
+    return compareJalaliDates(start, end) <= 0 ? [start, end] : [end, start];
+  };
+
+  const jalaliDatePartsToIso = ({ year, month, day }) => {
+    const { gy, gm, gd } = toGregorian(year, month, day);
+    return `${gy}-${String(gm).padStart(2, '0')}-${String(gd).padStart(2, '0')}`;
+  };
+
+  const getCurrentJalaliMonthBounds = () => {
+    const today = new Date();
+    const todayJalali = toJalaali(today.getFullYear(), today.getMonth() + 1, today.getDate());
+    const start = jalaliDatePartsToIso({ year: todayJalali.jy, month: todayJalali.jm, day: 1 });
+    const endDay = jalaliMonthLength(todayJalali.jy, todayJalali.jm);
+    const end = jalaliDatePartsToIso({ year: todayJalali.jy, month: todayJalali.jm, day: endDay });
+    return [start, end];
+  };
+
+  const getCurrentWeekBounds = () => {
+    const today = new Date();
+    const start = new Date(today);
+    start.setDate(today.getDate() - start.getDay());
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    const toIsoDate = (date) => date.toISOString().split('T')[0];
+    return [toIsoDate(start), toIsoDate(end)];
+  };
+
+  const parseJalaliDateLabelToIso = (label) => {
+    const match = /روز\s+(\d{1,2})\s+(\S+)\s+(\d{4})/u.exec(label || '');
+    if (!match) return null;
+
+    const [, dayStr, monthName, yearStr] = match;
+    const monthNumber = jalaliMonthNameToNumber(monthName);
+    if (!monthNumber) return null;
+
+    return jalaliDatePartsToIso({
+      year: Number(yearStr),
+      month: monthNumber,
+      day: Number(dayStr)
+    });
+  };
+
+  const buildDateScopeIso = (dateLabel, jalaliSelection = null, jalaliEndSelection = null) => {
+    if (!dateLabel || dateLabel === 'کل روزها') return [];
+
+    const isIsoDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+
+    if (isIsoDate(dateLabel)) {
+      return [dateLabel];
+    }
+
+    if (typeof dateLabel === 'string' && dateLabel.includes('/')) {
+      const parts = dateLabel.split('/');
+      if (parts.every(isIsoDate)) {
+        return parts;
+      }
+    }
+
+    if (dateLabel === 'این ماه' || dateLabel === 'تمام این ماه') {
+      return getCurrentJalaliMonthBounds();
+    }
+
+    if (dateLabel === 'این هفته' || dateLabel === 'کل این هفته') {
+      return getCurrentWeekBounds();
+    }
+
+    if (jalaliSelection && jalaliEndSelection) {
+      const [startDate, endDate] = sortJalaliRange(jalaliSelection, jalaliEndSelection);
+      const startIso = jalaliDatePartsToIso(startDate);
+      const endIso = jalaliDatePartsToIso(endDate);
+      return startIso === endIso ? [startIso] : [startIso, endIso];
+    }
+
+    if (jalaliSelection) {
+      return [jalaliDatePartsToIso(jalaliSelection)];
+    }
+
+    if (dateLabel.startsWith('از ') && dateLabel.includes(' تا ')) {
+      const [startText, endText] = dateLabel.replace(/^از\s+/, '').split(/\s+تا\s+/);
+      const startIso = parseJalaliDateLabelToIso(`روز ${startText}`);
+      const endIso = parseJalaliDateLabelToIso(`روز ${endText}`);
+      if (startIso && endIso) {
+        const ordered = startIso <= endIso ? [startIso, endIso] : [endIso, startIso];
+        return ordered[0] === ordered[1] ? [ordered[0]] : ordered;
+      }
+    }
+
+    const isoFromLabel = parseJalaliDateLabelToIso(dateLabel);
+    return isoFromLabel ? [isoFromLabel] : [];
+  };
+
+  const buildPrayerDateIso = (dateLabel, jalaliSelection = null, jalaliEndSelection = null) => {
+    if (!dateLabel || dateLabel === 'همه روزها') return null;
+
+    const isIsoDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+
+    if (isIsoDate(dateLabel)) {
+      return dateLabel;
+    }
+
+    if (typeof dateLabel === 'string' && dateLabel.includes('/')) {
+      const [start, end] = dateLabel.split('/');
+      if (isIsoDate(start) && isIsoDate(end)) {
+        return dateLabel;
+      }
+    }
+
+    if (dateLabel === 'تمام این ماه') {
+      const [start, end] = getCurrentJalaliMonthBounds();
+      return `${start}/${end}`;
+    }
+
+    if (dateLabel === 'کل این هفته') {
+      const [start, end] = getCurrentWeekBounds();
+      return `${start}/${end}`;
+    }
+
+    if (jalaliSelection && jalaliEndSelection) {
+      const [startDate, endDate] = sortJalaliRange(jalaliSelection, jalaliEndSelection);
+      const startIso = jalaliDatePartsToIso(startDate);
+      const endIso = jalaliDatePartsToIso(endDate);
+      return startIso === endIso ? startIso : `${startIso}/${endIso}`;
+    }
+
+    if (jalaliSelection) {
+      return jalaliDatePartsToIso(jalaliSelection);
+    }
+
+    if (dateLabel.startsWith('از ') && dateLabel.includes(' تا ')) {
+      const [startText, endText] = dateLabel.replace(/^از\s+/, '').split(/\s+تا\s+/);
+      const startIso = parseJalaliDateLabelToIso(`روز ${startText}`);
+      const endIso = parseJalaliDateLabelToIso(`روز ${endText}`);
+      if (startIso && endIso) {
+        const ordered = startIso <= endIso ? [startIso, endIso] : [endIso, startIso];
+        return ordered[0] === ordered[1] ? ordered[0] : `${ordered[0]}/${ordered[1]}`;
+      }
+    }
+
+    return parseJalaliDateLabelToIso(dateLabel);
+  };
+
+  const getPrayerDateLabel = () => {
+    if (prayerSelectedJalaliDate && prayerSelectedJalaliEndDate) {
+      const [startDate, endDate] = sortJalaliRange(prayerSelectedJalaliDate, prayerSelectedJalaliEndDate);
+      const startLabel = formatJalaliDateLabel(startDate);
+      const endLabel = formatJalaliDateLabel(endDate);
+      return startLabel === endLabel ? `روز ${startLabel}` : `از ${startLabel} تا ${endLabel}`;
+    }
+
+    if (prayerSelectedJalaliDate) {
+      return `روز ${formatJalaliDateLabel(prayerSelectedJalaliDate)}`;
+    }
+
+    return 'همه روزها';
+  };
+
   const handleDateFilterToggle = (filter) => {
     // If it's "انتخاب از تقویم", just show the calendar, don't open form yet
     if (filter === 'انتخاب از تقویم') {
@@ -3659,15 +4171,36 @@ const Amain = () => {
     // Days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const isToday = year === today.jy && month === today.jm && day === today.jd;
-      const isSelected = selectedJalaliDate &&
+      const isStart = selectedJalaliDate &&
         selectedJalaliDate.year === year &&
         selectedJalaliDate.month === month &&
         selectedJalaliDate.day === day;
+      const isEnd = selectedJalaliEndDate &&
+        selectedJalaliEndDate.year === year &&
+        selectedJalaliEndDate.month === month &&
+        selectedJalaliEndDate.day === day;
+      const isInRange = selectedJalaliDate && selectedJalaliEndDate
+        ? compareJalaliDates(
+          { year, month, day },
+          selectedJalaliDate
+        ) >= 0 && compareJalaliDates(
+          { year, month, day },
+          selectedJalaliEndDate
+        ) <= 0
+        : false;
+
+      const classes = [
+        'calendar-day',
+        isToday ? 'today' : '',
+        isStart ? 'selected range-start' : '',
+        isEnd ? 'selected range-end' : '',
+        isInRange && !isStart && !isEnd ? 'in-range' : ''
+      ].filter(Boolean).join(' ');
 
       days.push(
         <div
           key={`day-${day}`}
-          className={`calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`}
+          className={classes}
           onClick={() => {
             if (selectedDateFilter.includes('انتخاب از تقویم')) {
               handleDaySelect(day);
@@ -3952,31 +4485,55 @@ const Amain = () => {
   );
 
   const handleDaySelect = (day) => {
-    setSelectedJalaliDate({
+    const clickedDate = {
       year: calendarDate.year,
       month: calendarDate.month,
       day: day
-    });
+    };
 
-    const jalaliMonths = [
-      'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
-      'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
-    ];
-    const dateText = `${day} ${jalaliMonths[calendarDate.month - 1]} ${calendarDate.year}`;
+    // First click sets the start date, second click sets the end date
+    if (!selectedJalaliDate || selectedJalaliEndDate) {
+      setSelectedJalaliDate(clickedDate);
+      setSelectedJalaliEndDate(null);
+      setSelectedRestrictionType(null);
+      setRestrictionFormOpen(false);
+      return;
+    }
 
-    // Set the restriction type with proper format
-    setSelectedRestrictionType(`روز ${dateText}`);
+    const [startDate, endDate] = sortJalaliRange(selectedJalaliDate, clickedDate);
+    const startLabel = formatJalaliDateLabel(startDate);
+    const endLabel = formatJalaliDateLabel(endDate);
+    const dateText = startLabel === endLabel ? `روز ${startLabel}` : `از ${startLabel} تا ${endLabel}`;
 
-    // Close the date filter popup
+    setSelectedJalaliDate(startDate);
+    setSelectedJalaliEndDate(endDate);
+    setSelectedRestrictionType(dateText);
     setIsDateFilterOpen(false);
-
-    // Open the restriction form
     setRestrictionFormOpen(true);
-
-    // Reset time restriction pairs
     setTimeRestrictionPairs([{ start: '', end: '' }]);
     setLimitAllHours(false);
     setSelectedGenderRestrictions([]);
+  };
+
+  const handlePrayerDaySelect = (day) => {
+    const clickedDate = {
+      year: prayerCalendarDate.year,
+      month: prayerCalendarDate.month,
+      day
+    };
+
+    if (!prayerSelectedJalaliDate || prayerSelectedJalaliEndDate) {
+      setPrayerSelectedJalaliDate(clickedDate);
+      setPrayerSelectedJalaliEndDate(null);
+      setPrayerRestrictionFormOpen(false);
+      return;
+    }
+
+    const [startDate, endDate] = sortJalaliRange(prayerSelectedJalaliDate, clickedDate);
+    setPrayerSelectedJalaliDate(startDate);
+    setPrayerSelectedJalaliEndDate(endDate);
+    setIsPrayerDateFilterOpen(false);
+    setPrayerRestrictionFormOpen(true);
   };
 
   const handleConfirmRestriction = () => {
@@ -3985,9 +4542,17 @@ const Amain = () => {
       return;
     }
 
+    const restrictionIsoScope = buildDateScopeIso(getRestrictionTitle(), selectedJalaliDate, selectedJalaliEndDate);
+
+    if (!restrictionIsoScope.length) {
+      alert('لطفا تاریخ محدودیت را از تقویم یا گزینه‌های موجود انتخاب کنید');
+      return;
+    }
+
     const newRestriction = {
       id: Date.now(),
       date: getRestrictionTitle(),
+      isoDateScope: restrictionIsoScope,
       gender: [...selectedGenderRestrictions],
       timePairs: limitAllHours
         ? [{ start: '00:00', end: '23:59' }]
@@ -4100,12 +4665,14 @@ const Amain = () => {
     setLimitAllHours(false);
     setSelectedDateFilter([]);
     setSelectedJalaliDate(null);
+    setSelectedJalaliEndDate(null);
   };
 
   const removeDateFilter = (filter) => {
     setSelectedDateFilter(prev => prev.filter(f => f !== filter));
     if (filter === 'انتخاب از تقویم') {
       setSelectedJalaliDate(null);
+      setSelectedJalaliEndDate(null);
     }
   };
 
@@ -4175,28 +4742,32 @@ const Amain = () => {
 
     for (let day = 1; day <= daysInMonth; day++) {
       const isToday = year === today.jy && month === today.jm && day === today.jd;
-      const isSelected = prayerSelectedJalaliDate &&
+      const isStart = prayerSelectedJalaliDate &&
         prayerSelectedJalaliDate.year === year &&
         prayerSelectedJalaliDate.month === month &&
         prayerSelectedJalaliDate.day === day;
+      const isEnd = prayerSelectedJalaliEndDate &&
+        prayerSelectedJalaliEndDate.year === year &&
+        prayerSelectedJalaliEndDate.month === month &&
+        prayerSelectedJalaliEndDate.day === day;
+      const isInRange = prayerSelectedJalaliDate && prayerSelectedJalaliEndDate
+        ? compareJalaliDates({ year, month, day }, prayerSelectedJalaliDate) >= 0
+          && compareJalaliDates({ year, month, day }, prayerSelectedJalaliEndDate) <= 0
+        : false;
+
+      const classes = [
+        'calendar-day',
+        isToday ? 'today' : '',
+        isStart ? 'selected range-start' : '',
+        isEnd ? 'selected range-end' : '',
+        isInRange && !isStart && !isEnd ? 'in-range' : ''
+      ].filter(Boolean).join(' ');
 
       days.push(
         <div
           key={`p-day-${day}`}
-          className={`calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`}
-          onClick={() => {
-            // Same behaviour as the first calendar: set selected date, close calendar, open form
-            setPrayerSelectedJalaliDate({ year, month, day });
-            const jalaliMonths = [
-              'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
-              'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
-            ];
-            const dateText = `${day} ${jalaliMonths[month - 1]} ${year}`;
-            // store selection as part of the restriction title — reusing the same approach
-            // We'll set restriction form open and close calendar
-            setIsPrayerDateFilterOpen(false);
-            setPrayerRestrictionFormOpen(true);
-          }}
+          className={classes}
+          onClick={() => handlePrayerDaySelect(day)}
         >
           {day}
         </div>
@@ -5685,7 +6256,7 @@ const Amain = () => {
                     </div>
                     {openSubMenu === 2 && (
                       <div className="sub-buttons2">
-                        <button className="sub-btn">
+                        <button className="sub-btn" onClick={handleAreaEditModeToggle}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-drag-drop">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M19 11v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2" />
@@ -5699,10 +6270,7 @@ const Amain = () => {
                             <path d="M3 15l0 .01" />
                           </svg>
                         </button>
-                        <button className="sub-btn">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-navigation-top"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M16.54 19.977a.34 .34 0 0 0 .357 -.07a.33 .33 0 0 0 .084 -.35l-4.981 -10.557l-4.982 10.557a.33 .33 0 0 0 .084 .35a.34 .34 0 0 0 .357 .07l4.541 -1.477l4.54 1.477z" /><path d="M12 3v2" /></svg>
-                        </button>
-                        <button className="sub-btn">
+                        <button className="sub-btn" onClick={handleOpenAddPlaceWithRoofOption}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
@@ -5710,7 +6278,7 @@ const Amain = () => {
                             <path d="M16 5l3 3" />
                           </svg>
                         </button>
-                        <button className="sub-btn">
+                        <button className="sub-btn" onClick={handleDeleteSelectedArea}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M4 7l16 0" />
@@ -5838,7 +6406,6 @@ const Amain = () => {
                       <div className="map-type-dropdown layers-dropdown">
                         <div className="active-editable-layer-info">
                           <span className="active-layer-label">لایه فعال برای ویرایش:</span>
-                          <span className="active-layer-value">{activeEditableLayer?.label || 'هیچ‌کدام'}</span>
                         </div>
                         {haramAdminVectorTileConfig.map(layer => {
                           const layerOption = editableLayerOptions.find((option) => option.id === layer.id);
@@ -6372,15 +6939,24 @@ const Amain = () => {
                 </span>
               </div>
               <div className="step-progress">
-                <div className={`step-circle ${currentStep >= 1 ? 'active' : ''}`}>
+                <div
+                  className={`step-circle ${currentStep >= 1 ? 'active' : ''} ${isEditingDoorInfo ? 'clickable' : ''}`}
+                  onClick={() => handleStepCircleClick(1)}
+                >
                   {currentStep > 1 ? '✓' : '۱'}
                 </div>
                 <div className={`step-line ${currentStep >= 2 ? 'active' : ''}`}></div>
-                <div className={`step-circle ${currentStep >= 2 ? 'active' : ''}`}>
+                <div
+                  className={`step-circle ${currentStep >= 2 ? 'active' : ''} ${isEditingDoorInfo ? 'clickable' : ''}`}
+                  onClick={() => handleStepCircleClick(2)}
+                >
                   {currentStep > 2 ? '✓' : '۲'}
                 </div>
                 <div className={`step-line ${currentStep >= 3 ? 'active' : ''}`}></div>
-                <div className={`step-circle ${currentStep >= 3 ? 'active' : ''}`}>
+                <div
+                  className={`step-circle ${currentStep >= 3 ? 'active' : ''} ${isEditingDoorInfo ? 'clickable' : ''}`}
+                  onClick={() => handleStepCircleClick(3)}
+                >
                   {currentStep > 3 ? '✓' : '۳'}
                 </div>
               </div>
@@ -6391,7 +6967,7 @@ const Amain = () => {
               {currentStep === 1 && (
                 <div className="step-content">
                   <div className="step-intro">
-                    <h3>فرم و فرایند ایجاد و افزودن یک نقطه و مکان جدید</h3>
+                    <h3>{isEditingDoorInfo ? `فرم ویرایش لایه (${activeLayerTitle})` : 'فرم و فرایند ایجاد و افزودن یک نقطه و مکان جدید'}</h3>
                   </div>
 
                   <div className="form-section">
@@ -6476,7 +7052,7 @@ const Amain = () => {
                           >
                             <option value="" disabled>کارکرد گروه</option>
                             <option value="door">درب</option>
-                            <option value="connection-point">نقطه اتصال</option>
+                            <option value="connection">نقطه اتصال</option>
                           </select>
                         </div>
                       </div>
@@ -6488,7 +7064,7 @@ const Amain = () => {
               {currentStep === 2 && (
                 <div className="step-content step2-content">
                   <div className="step-intro">
-                    <h3>فرم و فرایند ایجاد و افزودن یک نقطه و مکان جدید</h3>
+                    <h3>{isEditingDoorInfo ? `فرم ویرایش لایه (${activeLayerTitle})` : 'فرم و فرایند ایجاد و افزودن یک نقطه و مکان جدید'}</h3>
                   </div>
 
                   <div className="form-section">
@@ -6517,6 +7093,30 @@ const Amain = () => {
                                 {locationStatus === 'غیر فعال' && <div className="location-type-radio-dot"></div>}
                               </div>
                               <span>غیر فعال</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="location-type-section">
+                          <div className="location-type-label">مسقف بودن محدوده</div>
+                          <div className="location-type-options">
+                            <div
+                              className={`location-type-option ${isPlaceCovered === true ? 'selected' : ''}`}
+                              onClick={() => setIsPlaceCovered(true)}
+                            >
+                              <div className="location-type-radio">
+                                {isPlaceCovered === true && <div className="location-type-radio-dot"></div>}
+                              </div>
+                              <span>مسقف</span>
+                            </div>
+                            <div
+                              className={`location-type-option ${isPlaceCovered === false ? 'selected' : ''}`}
+                              onClick={() => setIsPlaceCovered(false)}
+                            >
+                              <div className="location-type-radio">
+                                {isPlaceCovered === false && <div className="location-type-radio-dot"></div>}
+                              </div>
+                              <span>غیر مسقف</span>
                             </div>
                           </div>
                         </div>
@@ -6727,7 +7327,7 @@ const Amain = () => {
                                       onChange={(e) => setCalendarDate(prev => ({ ...prev, year: parseInt(e.target.value) }))}
                                       className="year-select"
                                     >
-                                      {Array.from({ length: 10 }, (_, i) => 1400 + i).map(year => (
+                                      {jalaliYearOptions.map(year => (
                                         <option key={year} value={year}>{year}</option>
                                       ))}
                                     </select>
@@ -6997,7 +7597,12 @@ const Amain = () => {
                                       events: [...selectedPrayerEvents],
                                       before: String(prayerBeforeMinutes),
                                       after: String(prayerAfterMinutes),
-                                      date: prayerSelectedJalaliDate ? `روز ${prayerSelectedJalaliDate.day} ${getJalaliMonthName(prayerSelectedJalaliDate.month)} ${prayerSelectedJalaliDate.year}` : 'همه روزها',
+                                      date: getPrayerDateLabel(),
+                                      isoDate: buildPrayerDateIso(
+                                        getPrayerDateLabel(),
+                                        prayerSelectedJalaliDate,
+                                        prayerSelectedJalaliEndDate
+                                      ),
                                       title
                                     };
                                     setPrayerTimeRestrictionsList(prev => [...prev, newItem]);
@@ -7006,6 +7611,7 @@ const Amain = () => {
                                     setPrayerBeforeMinutes('');
                                     setPrayerAfterMinutes('');
                                     setPrayerSelectedJalaliDate(null);
+                                    setPrayerSelectedJalaliEndDate(null);
                                     setPrayerRestrictionFormOpen(false);
                                   }}
                                 >
@@ -7086,7 +7692,7 @@ const Amain = () => {
                                       onChange={(e) => setPrayerCalendarDate(prev => ({ ...prev, year: parseInt(e.target.value) }))}
                                       className="year-select"
                                     >
-                                      {Array.from({ length: 10 }, (_, i) => 1400 + i).map(year => (
+                                      {jalaliYearOptions.map(year => (
                                         <option key={year} value={year}>{year}</option>
                                       ))}
                                     </select>
@@ -7129,8 +7735,8 @@ const Amain = () => {
                             }}>
                               حذف
                               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path fill-rule="evenodd" clip-rule="evenodd" d="M3.40994 5.1678C3.68547 5.14943 3.92372 5.3579 3.94209 5.63343L4.24872 10.2328C4.30862 11.1314 4.35131 11.7566 4.44502 12.227C4.53592 12.6833 4.66281 12.9249 4.84508 13.0954C5.02736 13.2659 5.2768 13.3765 5.73813 13.4368C6.21373 13.499 6.8404 13.5 7.74097 13.5H8.25654C9.1571 13.5 9.78377 13.499 10.2594 13.4368C10.7207 13.3765 10.9701 13.2659 11.1524 13.0954C11.3347 12.9249 11.4616 12.6833 11.5525 12.227C11.6462 11.7566 11.6889 11.1314 11.7488 10.2328L12.0554 5.63343C12.0738 5.3579 12.312 5.14943 12.5876 5.1678C12.8631 5.18617 13.0716 5.42442 13.0532 5.69995L12.7442 10.3345C12.6872 11.1896 12.6412 11.8804 12.5332 12.4224C12.421 12.986 12.23 13.4567 11.8356 13.8256C11.4412 14.1946 10.9588 14.3538 10.3891 14.4284C9.84105 14.5001 9.14876 14.5 8.2917 14.5H7.70581C6.84875 14.5 6.15646 14.5001 5.60843 14.4284C5.03866 14.3538 4.5563 14.1946 4.1619 13.8256C3.7675 13.4567 3.57656 12.986 3.46429 12.4224C3.35631 11.8804 3.31027 11.1896 3.25327 10.3344L2.94431 5.69995C2.92594 5.42442 3.13441 5.18617 3.40994 5.1678Z" fill="#EA4335" />
-                                <path fill-rule="evenodd" clip-rule="evenodd" d="M6.90226 1.50003L6.87161 1.50001C6.72734 1.49992 6.60166 1.49984 6.48298 1.51879C6.01412 1.59366 5.60838 1.8861 5.38909 2.30723C5.33358 2.41382 5.29391 2.53309 5.24838 2.66998L5.2387 2.69905L5.17397 2.89323C5.16131 2.93121 5.15778 2.94168 5.15471 2.95016C5.03797 3.2729 4.73529 3.49106 4.39219 3.49976C4.38317 3.49999 4.37212 3.50003 4.33209 3.50003H2.33203C2.05589 3.50003 1.83203 3.72388 1.83203 4.00003C1.83203 4.27617 2.05589 4.50003 2.33203 4.50003L4.3378 4.50003L4.34896 4.50003H11.6486L11.6597 4.50003L13.6654 4.50003C13.9416 4.50003 14.1654 4.27617 14.1654 4.00003C14.1654 3.72388 13.9416 3.50003 13.6654 3.50003H11.6654C11.6254 3.50003 11.6143 3.49999 11.6053 3.49976C11.2622 3.49106 10.9595 3.27289 10.8428 2.95014C10.8397 2.94172 10.8361 2.93102 10.8235 2.89323L10.7588 2.69905L10.7491 2.66996C10.7036 2.53307 10.6639 2.41382 10.6084 2.30723C10.3891 1.8861 9.98339 1.59366 9.51453 1.51879C9.39585 1.49984 9.27016 1.49992 9.1259 1.50001L9.09525 1.50003H6.90226ZM6.09508 3.29032C6.0689 3.36269 6.03847 3.43268 6.00413 3.50003H9.99338C9.95904 3.43268 9.92861 3.3627 9.90243 3.29033L9.87662 3.21477L9.81013 3.01528C9.74934 2.83294 9.73535 2.79575 9.72147 2.76909C9.64837 2.62872 9.51313 2.53124 9.35684 2.50628C9.32715 2.50154 9.28746 2.50003 9.09525 2.50003H6.90226C6.71005 2.50003 6.67035 2.50154 6.64067 2.50628C6.48438 2.53124 6.34914 2.62872 6.27604 2.76909C6.26216 2.79575 6.24816 2.83294 6.18738 3.01528L6.12085 3.21489C6.11083 3.24495 6.10303 3.26834 6.09508 3.29032Z" fill="#EA4335" />
+                                <path fillRule="evenodd" clipRule="evenodd" d="M3.40994 5.1678C3.68547 5.14943 3.92372 5.3579 3.94209 5.63343L4.24872 10.2328C4.30862 11.1314 4.35131 11.7566 4.44502 12.227C4.53592 12.6833 4.66281 12.9249 4.84508 13.0954C5.02736 13.2659 5.2768 13.3765 5.73813 13.4368C6.21373 13.499 6.8404 13.5 7.74097 13.5H8.25654C9.1571 13.5 9.78377 13.499 10.2594 13.4368C10.7207 13.3765 10.9701 13.2659 11.1524 13.0954C11.3347 12.9249 11.4616 12.6833 11.5525 12.227C11.6462 11.7566 11.6889 11.1314 11.7488 10.2328L12.0554 5.63343C12.0738 5.3579 12.312 5.14943 12.5876 5.1678C12.8631 5.18617 13.0716 5.42442 13.0532 5.69995L12.7442 10.3345C12.6872 11.1896 12.6412 11.8804 12.5332 12.4224C12.421 12.986 12.23 13.4567 11.8356 13.8256C11.4412 14.1946 10.9588 14.3538 10.3891 14.4284C9.84105 14.5001 9.14876 14.5 8.2917 14.5H7.70581C6.84875 14.5 6.15646 14.5001 5.60843 14.4284C5.03866 14.3538 4.5563 14.1946 4.1619 13.8256C3.7675 13.4567 3.57656 12.986 3.46429 12.4224C3.35631 11.8804 3.31027 11.1896 3.25327 10.3344L2.94431 5.69995C2.92594 5.42442 3.13441 5.18617 3.40994 5.1678Z" fill="#EA4335" />
+                                <path fillRule="evenodd" clipRule="evenodd" d="M6.90226 1.50003L6.87161 1.50001C6.72734 1.49992 6.60166 1.49984 6.48298 1.51879C6.01412 1.59366 5.60838 1.8861 5.38909 2.30723C5.33358 2.41382 5.29391 2.53309 5.24838 2.66998L5.2387 2.69905L5.17397 2.89323C5.16131 2.93121 5.15778 2.94168 5.15471 2.95016C5.03797 3.2729 4.73529 3.49106 4.39219 3.49976C4.38317 3.49999 4.37212 3.50003 4.33209 3.50003H2.33203C2.05589 3.50003 1.83203 3.72388 1.83203 4.00003C1.83203 4.27617 2.05589 4.50003 2.33203 4.50003L4.3378 4.50003L4.34896 4.50003H11.6486L11.6597 4.50003L13.6654 4.50003C13.9416 4.50003 14.1654 4.27617 14.1654 4.00003C14.1654 3.72388 13.9416 3.50003 13.6654 3.50003H11.6654C11.6254 3.50003 11.6143 3.49999 11.6053 3.49976C11.2622 3.49106 10.9595 3.27289 10.8428 2.95014C10.8397 2.94172 10.8361 2.93102 10.8235 2.89323L10.7588 2.69905L10.7491 2.66996C10.7036 2.53307 10.6639 2.41382 10.6084 2.30723C10.3891 1.8861 9.98339 1.59366 9.51453 1.51879C9.39585 1.49984 9.27016 1.49992 9.1259 1.50001L9.09525 1.50003H6.90226ZM6.09508 3.29032C6.0689 3.36269 6.03847 3.43268 6.00413 3.50003H9.99338C9.95904 3.43268 9.92861 3.3627 9.90243 3.29033L9.87662 3.21477L9.81013 3.01528C9.74934 2.83294 9.73535 2.79575 9.72147 2.76909C9.64837 2.62872 9.51313 2.53124 9.35684 2.50628C9.32715 2.50154 9.28746 2.50003 9.09525 2.50003H6.90226C6.71005 2.50003 6.67035 2.50154 6.64067 2.50628C6.48438 2.53124 6.34914 2.62872 6.27604 2.76909C6.26216 2.79575 6.24816 2.83294 6.18738 3.01528L6.12085 3.21489C6.11083 3.24495 6.10303 3.26834 6.09508 3.29032Z" fill="#EA4335" />
                               </svg>
 
                             </button>
@@ -7154,19 +7760,21 @@ const Amain = () => {
               >
                 لغو و بازگشت
               </button>
-              <button
-                className="confirm-btn"
-                onClick={handleAddPlaceConfirm}
-                disabled={isSavingDoorInfo || isLoadingDoorInfo}
-              >
-                {isSavingDoorInfo
-                  ? 'در حال ذخیره اطلاعات...'
-                  : isLoadingDoorInfo
-                    ? 'در حال بارگذاری اطلاعات...'
+              {(!isEditingDoorInfo || currentStep === 3) && (
+                <button
+                  className="confirm-btn"
+                  onClick={handleAddPlaceConfirm}
+                  disabled={isSavingDoorInfo || isLoadingDoorInfo}
+                >
+                  {isSavingDoorInfo
+                    ? 'در حال ذخیره اطلاعات...'
+                    : isLoadingDoorInfo
+                      ? 'در حال بارگذاری اطلاعات...'
                     : currentStep === 3
                       ? 'تایید اطلاعات و ثبت این مکان '
                       : 'تایید اطلاعات و مرحله بعد'}
-              </button>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -8193,8 +8801,8 @@ const Amain = () => {
                               }}>
                                 حذف
                                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <path fill-rule="evenodd" clip-rule="evenodd" d="M3.40994 5.1678C3.68547 5.14943 3.92372 5.3579 3.94209 5.63343L4.24872 10.2328C4.30862 11.1314 4.35131 11.7566 4.44502 12.227C4.53592 12.6833 4.66281 12.9249 4.84508 13.0954C5.02736 13.2659 5.2768 13.3765 5.73813 13.4368C6.21373 13.499 6.8404 13.5 7.74097 13.5H8.25654C9.1571 13.5 9.78377 13.499 10.2594 13.4368C10.7207 13.3765 10.9701 13.2659 11.1524 13.0954C11.3347 12.9249 11.4616 12.6833 11.5525 12.227C11.6462 11.7566 11.6889 11.1314 11.7488 10.2328L12.0554 5.63343C12.0738 5.3579 12.312 5.14943 12.5876 5.1678C12.8631 5.18617 13.0716 5.42442 13.0532 5.69995L12.7442 10.3345C12.6872 11.1896 12.6412 11.8804 12.5332 12.4224C12.421 12.986 12.23 13.4567 11.8356 13.8256C11.4412 14.1946 10.9588 14.3538 10.3891 14.4284C9.84105 14.5001 9.14876 14.5 8.2917 14.5H7.70581C6.84875 14.5 6.15646 14.5001 5.60843 14.4284C5.03866 14.3538 4.5563 14.1946 4.1619 13.8256C3.7675 13.4567 3.57656 12.986 3.46429 12.4224C3.35631 11.8804 3.31027 11.1896 3.25327 10.3344L2.94431 5.69995C2.92594 5.42442 3.13441 5.18617 3.40994 5.1678Z" fill="#EA4335" />
-                                  <path fill-rule="evenodd" clip-rule="evenodd" d="M6.90226 1.50003L6.87161 1.50001C6.72734 1.49992 6.60166 1.49984 6.48298 1.51879C6.01412 1.59366 5.60838 1.8861 5.38909 2.30723C5.33358 2.41382 5.29391 2.53309 5.24838 2.66998L5.2387 2.69905L5.17397 2.89323C5.16131 2.93121 5.15778 2.94168 5.15471 2.95016C5.03797 3.2729 4.73529 3.49106 4.39219 3.49976C4.38317 3.49999 4.37212 3.50003 4.33209 3.50003H2.33203C2.05589 3.50003 1.83203 3.72388 1.83203 4.00003C1.83203 4.27617 2.05589 4.50003 2.33203 4.50003L4.3378 4.50003L4.34896 4.50003H11.6486L11.6597 4.50003L13.6654 4.50003C13.9416 4.50003 14.1654 4.27617 14.1654 4.00003C14.1654 3.72388 13.9416 3.50003 13.6654 3.50003H11.6654C11.6254 3.50003 11.6143 3.49999 11.6053 3.49976C11.2622 3.49106 10.9595 3.27289 10.8428 2.95014C10.8397 2.94172 10.8361 2.93102 10.8235 2.89323L10.7588 2.69905L10.7491 2.66996C10.7036 2.53307 10.6639 2.41382 10.6084 2.30723C10.3891 1.8861 9.98339 1.59366 9.51453 1.51879C9.39585 1.49984 9.27016 1.49992 9.1259 1.50001L9.09525 1.50003H6.90226ZM6.09508 3.29032C6.0689 3.36269 6.03847 3.43268 6.00413 3.50003H9.99338C9.95904 3.43268 9.92861 3.3627 9.90243 3.29033L9.87662 3.21477L9.81013 3.01528C9.74934 2.83294 9.73535 2.79575 9.72147 2.76909C9.64837 2.62872 9.51313 2.53124 9.35684 2.50628C9.32715 2.50154 9.28746 2.50003 9.09525 2.50003H6.90226C6.71005 2.50003 6.67035 2.50154 6.64067 2.50628C6.48438 2.53124 6.34914 2.62872 6.27604 2.76909C6.26216 2.79575 6.24816 2.83294 6.18738 3.01528L6.12085 3.21489C6.11083 3.24495 6.10303 3.26834 6.09508 3.29032Z" fill="#EA4335" />
+                                  <path fillRule="evenodd" clipRule="evenodd" d="M3.40994 5.1678C3.68547 5.14943 3.92372 5.3579 3.94209 5.63343L4.24872 10.2328C4.30862 11.1314 4.35131 11.7566 4.44502 12.227C4.53592 12.6833 4.66281 12.9249 4.84508 13.0954C5.02736 13.2659 5.2768 13.3765 5.73813 13.4368C6.21373 13.499 6.8404 13.5 7.74097 13.5H8.25654C9.1571 13.5 9.78377 13.499 10.2594 13.4368C10.7207 13.3765 10.9701 13.2659 11.1524 13.0954C11.3347 12.9249 11.4616 12.6833 11.5525 12.227C11.6462 11.7566 11.6889 11.1314 11.7488 10.2328L12.0554 5.63343C12.0738 5.3579 12.312 5.14943 12.5876 5.1678C12.8631 5.18617 13.0716 5.42442 13.0532 5.69995L12.7442 10.3345C12.6872 11.1896 12.6412 11.8804 12.5332 12.4224C12.421 12.986 12.23 13.4567 11.8356 13.8256C11.4412 14.1946 10.9588 14.3538 10.3891 14.4284C9.84105 14.5001 9.14876 14.5 8.2917 14.5H7.70581C6.84875 14.5 6.15646 14.5001 5.60843 14.4284C5.03866 14.3538 4.5563 14.1946 4.1619 13.8256C3.7675 13.4567 3.57656 12.986 3.46429 12.4224C3.35631 11.8804 3.31027 11.1896 3.25327 10.3344L2.94431 5.69995C2.92594 5.42442 3.13441 5.18617 3.40994 5.1678Z" fill="#EA4335" />
+                                  <path fillRule="evenodd" clipRule="evenodd" d="M6.90226 1.50003L6.87161 1.50001C6.72734 1.49992 6.60166 1.49984 6.48298 1.51879C6.01412 1.59366 5.60838 1.8861 5.38909 2.30723C5.33358 2.41382 5.29391 2.53309 5.24838 2.66998L5.2387 2.69905L5.17397 2.89323C5.16131 2.93121 5.15778 2.94168 5.15471 2.95016C5.03797 3.2729 4.73529 3.49106 4.39219 3.49976C4.38317 3.49999 4.37212 3.50003 4.33209 3.50003H2.33203C2.05589 3.50003 1.83203 3.72388 1.83203 4.00003C1.83203 4.27617 2.05589 4.50003 2.33203 4.50003L4.3378 4.50003L4.34896 4.50003H11.6486L11.6597 4.50003L13.6654 4.50003C13.9416 4.50003 14.1654 4.27617 14.1654 4.00003C14.1654 3.72388 13.9416 3.50003 13.6654 3.50003H11.6654C11.6254 3.50003 11.6143 3.49999 11.6053 3.49976C11.2622 3.49106 10.9595 3.27289 10.8428 2.95014C10.8397 2.94172 10.8361 2.93102 10.8235 2.89323L10.7588 2.69905L10.7491 2.66996C10.7036 2.53307 10.6639 2.41382 10.6084 2.30723C10.3891 1.8861 9.98339 1.59366 9.51453 1.51879C9.39585 1.49984 9.27016 1.49992 9.1259 1.50001L9.09525 1.50003H6.90226ZM6.09508 3.29032C6.0689 3.36269 6.03847 3.43268 6.00413 3.50003H9.99338C9.95904 3.43268 9.92861 3.3627 9.90243 3.29033L9.87662 3.21477L9.81013 3.01528C9.74934 2.83294 9.73535 2.79575 9.72147 2.76909C9.64837 2.62872 9.51313 2.53124 9.35684 2.50628C9.32715 2.50154 9.28746 2.50003 9.09525 2.50003H6.90226C6.71005 2.50003 6.67035 2.50154 6.64067 2.50628C6.48438 2.53124 6.34914 2.62872 6.27604 2.76909C6.26216 2.79575 6.24816 2.83294 6.18738 3.01528L6.12085 3.21489C6.11083 3.24495 6.10303 3.26834 6.09508 3.29032Z" fill="#EA4335" />
                                 </svg>
                               </button>
                             </div>

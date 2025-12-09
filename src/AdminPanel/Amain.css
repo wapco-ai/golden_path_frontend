@@ -2119,11 +2119,6 @@ body {
   color: #1e2023;
 }
 
-.active-layer-value {
-  font-size: 13px;
-  color: #0f71ef;
-}
-
 .layer-toggle {
   display: flex;
   align-items: center;
@@ -2607,6 +2602,10 @@ body {
   color: #858585;
   background: white;
   transition: all 0.3s ease;
+}
+
+.step-circle.clickable {
+  cursor: pointer;
 }
 
 .step-circle.active {
@@ -3462,6 +3461,17 @@ body {
 .calendar-day.selected {
   background: #0F71EF;
   color: white;
+}
+
+.calendar-day.in-range {
+  background: #E8F1FF;
+  border-color: #0F71EF;
+}
+
+.calendar-day.range-start,
+.calendar-day.range-end {
+  background: #0F71EF;
+  color: #fff;
 }
 
 .calendar-day.empty {
