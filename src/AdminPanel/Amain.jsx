@@ -2545,16 +2545,6 @@ const Amain = () => {
       setActiveEditableLayerId('');
       setSelectedEditableFeature(null);
       hasUserClearedEditableLayer.current = false;
-      return;
-    }
-
-    if (!activeEditableLayerId && !hasUserClearedEditableLayer.current) {
-      const firstAvailable = editableLayerOptions.find((layer) => canUserEditLayer(layer));
-
-      if (firstAvailable) {
-        setActiveEditableLayerId(firstAvailable.id);
-        hasUserClearedEditableLayer.current = false;
-      }
     }
   }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
 
