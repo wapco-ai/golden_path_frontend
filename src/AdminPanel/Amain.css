@@ -2171,19 +2171,6 @@ body {
   border-color: #0f71ef;
 }
 
-.edit-layer-btn.disabled,
-.edit-layer-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-  background: #f3f4f6;
-  border-color: #e5e7eb;
-}
-
-.edit-layer-btn.disabled svg path,
-.edit-layer-btn:disabled svg path {
-  stroke: #9ca3af;
-}
-
 .edit-layer-btn.active {
   background: #0f71ef;
   border-color: #0f71ef;
@@ -3550,7 +3537,7 @@ body {
 /* Restriction Form Styles */
 .restriction-form-container {
   position: fixed;
-  top: 32%;
+  top: 29%;
   left: 22%;
   border: none;
   overflow: hidden;
@@ -7262,8 +7249,43 @@ body {
   }
 }
 
-.map-buttons-edit {
+/* File Upload Modal Styles */
+
+.language-textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.language-textarea:focus {
+  outline: none;
+  border-color: #0F71EF;
+}
+
+/* Edit Page Restrictions Styles */
+.edit-restrictions-section {
+  margin-bottom: 30px;
+}
+
+.edit-restriction-header {
   display: flex;
-  gap: 8px;
-  margin-top: 10px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.edit-restriction-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+}
+
+.edit-restrictions-display {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }

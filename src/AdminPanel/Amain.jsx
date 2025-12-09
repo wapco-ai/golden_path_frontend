@@ -355,6 +355,30 @@ const Amain = () => {
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
+  const [isRestrictionModalOpen, setIsRestrictionModalOpen] = useState(false);
+  const [editRestrictionFormOpen, setEditRestrictionFormOpen] = useState(false);
+  const [editSelectedRestrictionType, setEditSelectedRestrictionType] = useState(null);
+  const [editTimeRestrictionPairs, setEditTimeRestrictionPairs] = useState([{ start: '', end: '' }]);
+  const [editLimitAllHours, setEditLimitAllHours] = useState(false);
+  const [editSelectedGenderRestrictions, setEditSelectedGenderRestrictions] = useState([]);
+  const [editIsDateFilterOpen, setEditIsDateFilterOpen] = useState(false);
+  const [editSelectedDateFilter, setEditSelectedDateFilter] = useState([]);
+  const [editSelectedJalaliDate, setEditSelectedJalaliDate] = useState(null);
+  const [editCalendarDate, setEditCalendarDate] = useState(() => {
+    const now = new Date();
+    const jalali = toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+    return { year: jalali.jy, month: jalali.jm, day: jalali.jd };
+  });
+
+  // Prayer restriction states for the modal
+  const [editPrayerRestrictionFormOpen, setEditPrayerRestrictionFormOpen] = useState(false);
+  const [editIsPrayerDateFilterOpen, setEditIsPrayerDateFilterOpen] = useState(false);
+  const [editPrayerCalendarDate, setEditPrayerCalendarDate] = useState({ year: 1403, month: 1 });
+  const [editPrayerSelectedJalaliDate, setEditPrayerSelectedJalaliDate] = useState(null);
+  const [editSelectedPrayerEvents, setEditSelectedPrayerEvents] = useState([]);
+  const [editPrayerBeforeMinutes, setEditPrayerBeforeMinutes] = useState('');
+  const [editPrayerAfterMinutes, setEditPrayerAfterMinutes] = useState('');
+
   const [descriptionForModal, setDescriptionForModal] = useState('');
 
 
@@ -419,6 +443,25 @@ const Amain = () => {
   const [showOrientationModal, setShowOrientationModal] = useState(false);
   const [pendingImageFile, setPendingImageFile] = useState(null);
   const [selectedOrientation, setSelectedOrientation] = useState('');
+  const [isFileUploadModalOpen, setIsFileUploadModalOpen] = useState(false);
+
+  const [isFileTitleLanguageModalOpen, setIsFileTitleLanguageModalOpen] = useState(false);
+  const [isFileDescriptionLanguageModalOpen, setIsFileDescriptionLanguageModalOpen] = useState(false);
+  const [fileLanguageTitles, setFileLanguageTitles] = useState({
+    english: '',
+    arabic: '',
+    urdu: ''
+  });
+  const [fileLanguageDescriptions, setFileLanguageDescriptions] = useState({
+    english: '',
+    arabic: '',
+    urdu: ''
+  });
+
+  const [pendingFileInfo, setPendingFileInfo] = useState(null);
+  const [fileUploadTitle, setFileUploadTitle] = useState('');
+  const [fileUploadDescription, setFileUploadDescription] = useState('');
+  const [isFileLanguageModalOpen, setIsFileLanguageModalOpen] = useState(false);
 
   const normalizePrimaryMedia = (primaryMedia, existingImages = []) => {
     if (!primaryMedia) {
@@ -461,6 +504,251 @@ const Amain = () => {
       : [normalizedPrimary, ...existingImages];
 
     return { primary: normalizedPrimary, images };
+  };
+
+  const openFileTitleLanguageModal = () => {
+    setIsFileTitleLanguageModalOpen(true);
+  };
+
+  const openFileDescriptionLanguageModal = () => {
+    setIsFileDescriptionLanguageModalOpen(true);
+  };
+
+
+  const handleFileUploadWithModal = (event, fileType) => {
+    const files = Array.from(event.target.files);
+
+    if (files.length === 0) return;
+
+    // Process the first file (you can extend to multiple later)
+    const file = files[0];
+
+    // Check file size
+    const maxSize = 100 * 1024 * 1024; // 100MB
+    if (file.size > maxSize) {
+      alert(`حجم فایل نباید بیشتر از ۱۰۰ مگابایت باشد`);
+      event.target.value = '';
+      return;
+    }
+
+    // Determine the actual file type
+    let actualFileType = fileType;
+    if (file.type.startsWith('video/')) {
+      actualFileType = 'video';
+    } else if (file.type.startsWith('audio/')) {
+      actualFileType = 'audio';
+    } else if (file.type.startsWith('image/')) {
+      actualFileType = 'image';
+    } else if (file.type === 'application/pdf' || file.type.startsWith('text/')) {
+      actualFileType = 'text';
+    }
+
+    // For images, show orientation modal
+    if (actualFileType === 'image') {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPendingImageFile({
+          file,
+          url: e.target.result,
+          type: file.type,
+          name: file.name,
+          size: file.size
+        });
+        setShowOrientationModal(true);
+      };
+      reader.readAsDataURL(file);
+    }
+    // For other file types (video, audio, text), show title/description modal
+    else {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPendingFileInfo({
+          file,
+          url: e.target.result,
+          type: file.type,
+          name: file.name,
+          size: file.size,
+          fileType: actualFileType // Use the actual file type
+        });
+        setIsFileUploadModalOpen(true);
+
+        // Set default title from filename (without extension)
+        const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+        setFileUploadTitle(fileNameWithoutExt);
+        setFileUploadDescription('');
+        setFileLanguageTitles({
+          english: '',
+          arabic: '',
+          urdu: ''
+        });
+        setFileLanguageDescriptions({
+          english: '',
+          arabic: '',
+          urdu: ''
+        });
+      };
+
+      // Read the file based on type
+      if (actualFileType === 'video' || actualFileType === 'audio') {
+        reader.readAsDataURL(file);
+      } else {
+        // For text/PDF files
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // Reset file input
+    event.target.value = '';
+  };
+
+  // Helper function to detect file type from MIME type
+  const detectFileType = (file) => {
+    if (file.type.startsWith('image/')) return 'image';
+    if (file.type.startsWith('video/')) return 'video';
+    if (file.type.startsWith('audio/')) return 'audio';
+    if (file.type === 'application/pdf' || file.type.startsWith('text/') ||
+      file.type.includes('document') || file.type.includes('sheet')) {
+      return 'text';
+    }
+    return 'text'; // Default
+  };
+
+  // Helper function to get file category label
+  const getFileCategory = (mimeType) => {
+    if (mimeType.startsWith('video/')) return 'ویدئو';
+    if (mimeType.startsWith('audio/')) return 'صوت';
+    if (mimeType === 'application/pdf') return 'PDF';
+    if (mimeType.startsWith('text/')) return 'متن';
+    if (mimeType.includes('document')) return 'سند';
+    if (mimeType.includes('sheet')) return 'اکسل';
+    return 'فایل';
+  };
+
+  // Helper function to get file type label in Persian
+  const getFileTypeLabel = (fileType) => {
+    const labels = {
+      video: 'ویدئو',
+      audio: 'صوت',
+      text: 'متنی',
+      image: 'تصویر'
+    };
+    return labels[fileType] || fileType;
+  };
+
+  const handleSaveFileWithDetails = () => {
+    if (!pendingFileInfo) return;
+
+    if (!fileUploadTitle.trim()) {
+      alert('لطفا عنوان فایل را وارد کنید');
+      return;
+    }
+
+    if (!fileUploadDescription.trim()) {
+      alert('لطفا توضیحات فایل را وارد کنید');
+      return;
+    }
+
+    const newFile = {
+      id: Date.now() + Math.random(),
+      name: pendingFileInfo.name,
+      originalName: pendingFileInfo.name,
+      title: fileUploadTitle,
+      description: fileUploadDescription,
+      languageTitles: { ...fileLanguageTitles },
+      languageDescriptions: { ...fileLanguageDescriptions },
+      type: pendingFileInfo.type,
+      size: pendingFileInfo.size,
+      url: pendingFileInfo.url || URL.createObjectURL(pendingFileInfo.file),
+      fileType: pendingFileInfo.fileType,
+      originalFileType: pendingFileInfo.originalFileType,
+      uploadedAt: new Date().toISOString(),
+      metadata: {
+        dimensions: pendingFileInfo.dimensions,
+        duration: pendingFileInfo.duration,
+        pageCount: pendingFileInfo.pageCount
+      }
+    };
+
+    // Add to appropriate state based on file type
+    switch (pendingFileInfo.fileType) {
+      case 'image':
+        // Images go to profileImages with isPrimary flag
+        newFile.isPrimary = profileImages.length === 0 && !primaryImage;
+        newFile.orientation = selectedOrientation;
+        setProfileImages(prev => [...prev, newFile]);
+        if (profileImages.length === 0 && !primaryImage) {
+          setPrimaryImage(newFile);
+        }
+        break;
+      case 'video':
+        // Videos go to profileImages
+        newFile.isPrimary = profileImages.length === 0 && !primaryImage;
+        newFile.isVideo = true;
+        setProfileImages(prev => [...prev, newFile]);
+        if (profileImages.length === 0 && !primaryImage) {
+          setPrimaryImage(newFile);
+        }
+        break;
+      case 'audio':
+        setAudioFiles(prev => [...prev, newFile]);
+        break;
+      case 'text':
+        setTextFiles(prev => [...prev, newFile]);
+        break;
+      default:
+        // For unknown types, add to text files
+        setTextFiles(prev => [...prev, newFile]);
+    }
+
+    // Check if there are more files to process
+    const nextFileInput = document.querySelector('.file-input-hidden[data-file-index]');
+    if (nextFileInput && pendingFileInfo.index !== null &&
+      pendingFileInfo.index + 1 < pendingFileInfo.totalFiles) {
+      // There are more files, trigger next file
+      const nextIndex = pendingFileInfo.index + 1;
+      // You would need to store all files and process them sequentially
+      // For now, we'll just close and let user select next file
+      alert(`فایل ${pendingFileInfo.name} آپلود شد. لطفا فایل بعدی را انتخاب کنید.`);
+    }
+
+    // Close modal and reset
+    setIsFileUploadModalOpen(false);
+    setPendingFileInfo(null);
+    setFileUploadTitle('');
+    setFileUploadDescription('');
+    setFileLanguageTitles({
+      english: '',
+      arabic: '',
+      urdu: ''
+    });
+    setFileLanguageDescriptions({
+      english: '',
+      arabic: '',
+      urdu: ''
+    });
+    setSelectedOrientation('');
+  };
+
+  const openFileLanguageModal = () => {
+    setIsFileLanguageModalOpen(true);
+  };
+
+  const handleFileLanguageTitleChange = (language, value) => {
+    setFileLanguageTitles(prev => ({
+      ...prev,
+      [language]: value
+    }));
+  };
+
+  const handleFileLanguageDescriptionChange = (language, value) => {
+    setFileLanguageDescriptions(prev => ({
+      ...prev,
+      [language]: value
+    }));
+  };
+
+  const handleSaveFileLanguageInfo = () => {
+    setIsFileLanguageModalOpen(false);
   };
 
 
@@ -877,7 +1165,6 @@ const Amain = () => {
     if (!itemToEdit) return;
 
     console.log('Editing item:', itemToEdit);
-    console.log('Item location:', itemToEdit.location);
 
     setEditingCulturalId(id);
     setEditingCulturalData({ ...itemToEdit });
@@ -892,7 +1179,19 @@ const Amain = () => {
       setSelectedCulturalTypes([...itemToEdit.culturalTypes]);
     }
 
-    // Set other fields if they exist in the data
+    // Set display settings if they exist
+    if (itemToEdit.displaySettings) {
+      setShowUserComments(itemToEdit.displaySettings.showUserComments || 'نمایش');
+      setShowMultimedia(itemToEdit.displaySettings.showMultimedia || 'نمایش');
+    }
+
+    // Set restrictions if they exist
+    if (itemToEdit.restrictions) {
+      setCulturalTimeRestrictions(itemToEdit.restrictions.timeRestrictions || []);
+      setCulturalPrayerTimeRestrictionsList(itemToEdit.restrictions.prayerTimeRestrictions || []);
+    }
+
+    // Set media files
     const existingImages = itemToEdit.files?.images || [];
     const { primary, images } = normalizePrimaryMedia(itemToEdit.primaryImage, existingImages);
 
@@ -923,7 +1222,7 @@ const Amain = () => {
       return;
     }
 
-    // Save data first
+    // Save data with restrictions
     const updatedCulturalData = culturalData.map(item => {
       if (item.id === editingCulturalId) {
         return {
@@ -942,6 +1241,14 @@ const Amain = () => {
             lat: selectedLocation.lat,
             lng: selectedLocation.lng
           } : item.location,
+          restrictions: {
+            timeRestrictions: culturalTimeRestrictions,
+            prayerTimeRestrictions: culturalPrayerTimeRestrictionsList
+          },
+          displaySettings: {
+            showUserComments,
+            showMultimedia
+          },
           updatedAt: formatJalaliDate(new Date())
         };
       }
@@ -951,8 +1258,6 @@ const Amain = () => {
     setCulturalData(updatedCulturalData);
     alert('اطلاعات فرهنگی با موفقیت ویرایش شد');
 
-    // Then exit edit mode WITHOUT calling handleCancelEditCultural
-    // which might be causing the map to reinitialize
     exitEditMode();
   };
 
@@ -1116,6 +1421,24 @@ const Amain = () => {
     setIsDescriptionLanguageModalOpen(false);
     setIsAddressLanguageModalOpen(false);
 
+    setCulturalRestrictionFormOpen(false);
+    setCulturalPrayerRestrictionFormOpen(false);
+    setCulturalTimeRestrictions([]);
+    setCulturalPrayerTimeRestrictionsList([]);
+    setCulturalSelectedPrayerEvents([]);
+    setCulturalPrayerBeforeMinutes('');
+    setCulturalPrayerAfterMinutes('');
+
+    // Reset prayer restriction form states
+    setIsCulturalPrayerDateFilterOpen(false); // ADD THIS
+    setCulturalPrayerRestrictionFormOpen(false); // ADD THIS
+    setCulturalSelectedPrayerEvents([]); // ADD THIS
+    setCulturalPrayerBeforeMinutes(''); // ADD THIS
+    setCulturalPrayerAfterMinutes(''); // ADD THIS
+
+    // Also reset the prayer time restrictions list if needed
+    // setCulturalPrayerTimeRestrictionsList([]); // Uncomment if you want to clear saved restrictions too
+
     if (currentMarker) {
       currentMarker.remove();
       setCurrentMarker(null);
@@ -1176,16 +1499,12 @@ const Amain = () => {
     setCulturalSelectedGenderRestrictions([]);
     setCulturalTimeRestrictionPairs([{ start: '', end: '' }]);
     setCulturalLimitAllHours(false);
-    setIsCulturalPrayerDateFilterOpen(false);
+
+    // Prayer calendar states (already handled above with initial state)
     setCulturalPrayerCalendarDate({ year: 1403, month: 1 });
     setCulturalPrayerSelectedJalaliDate(null);
-    setCulturalPrayerRestrictionFormOpen(false);
-    setCulturalSelectedPrayerEvents([]);
-    setCulturalPrayerBeforeMinutes('');
-    setCulturalPrayerAfterMinutes('');
     setCulturalPrayerTimeRestrictionsList([]);
   };
-
 
   const handleCulturalNextStep = () => {
     if (culturalStep === 1) {
@@ -1405,7 +1724,7 @@ const Amain = () => {
     return culturalSelectedRestrictionType;
   };
 
-  
+
   // Helper function to create custom marker element
   const createMarkerElement = () => {
     const el = document.createElement('div');
@@ -1487,7 +1806,6 @@ const Amain = () => {
 
     mapInstance.addControl(new maplibregl.NavigationControl());
 
-    // Function to create custom red marker with your SVG
     const createRedMarker = () => {
       const el = document.createElement('div');
       el.innerHTML = `
@@ -1499,6 +1817,9 @@ const Amain = () => {
       el.style.cursor = 'pointer';
       el.style.width = '24px';
       el.style.height = '41px';
+
+      el.style.transform = 'translate(-50%, -100%)';
+
       return el;
     };
 
@@ -1764,7 +2085,7 @@ const Amain = () => {
 
     return days;
   };
-  
+
 
   const createRedMarker = () => {
     const el = document.createElement('div');
@@ -1941,7 +2262,6 @@ const Amain = () => {
   const handleSaveLanguageDescriptions = () => {
     setIsDescriptionLanguageModalOpen(false);
   };
-
   const handleLanguageTitleChange = (language, value) => {
     setLanguageTitles(prev => ({
       ...prev,
@@ -1949,13 +2269,13 @@ const Amain = () => {
     }));
   };
 
-
   const handleLanguageDescriptionChange = (language, value) => {
     setLanguageDescriptions(prev => ({
       ...prev,
       [language]: value
     }));
   };
+
 
   const resetForm = () => {
     setSelectedPlace(null);
@@ -2401,6 +2721,365 @@ const Amain = () => {
     if (map) {
       map.zoomOut();
     }
+  };
+
+  // Handle opening the restriction modal
+  const handleOpenRestrictionModal = () => {
+    setIsRestrictionModalOpen(true);
+
+    // Reset all restriction states
+    setEditIsDateFilterOpen(false);
+    setEditRestrictionFormOpen(false);
+    setEditSelectedRestrictionType(null);
+    setEditTimeRestrictionPairs([{ start: '', end: '' }]);
+    setEditLimitAllHours(false);
+    setEditSelectedGenderRestrictions([]);
+    setEditSelectedDateFilter([]);
+    setEditSelectedJalaliDate(null);
+
+    // Reset prayer restriction states
+    setEditIsPrayerDateFilterOpen(false);
+    setEditPrayerRestrictionFormOpen(false);
+    setEditSelectedPrayerEvents([]);
+    setEditPrayerBeforeMinutes('');
+    setEditPrayerAfterMinutes('');
+    setEditPrayerSelectedJalaliDate(null);
+  };
+
+  // Handle closing the restriction modal
+  const handleCloseRestrictionModal = () => {
+    setIsRestrictionModalOpen(false);
+
+    // Reset all states
+    setEditIsDateFilterOpen(false);
+    setEditRestrictionFormOpen(false);
+    setEditSelectedRestrictionType(null);
+    setEditTimeRestrictionPairs([{ start: '', end: '' }]);
+    setEditLimitAllHours(false);
+    setEditSelectedGenderRestrictions([]);
+    setEditSelectedDateFilter([]);
+    setEditSelectedJalaliDate(null);
+
+    setEditIsPrayerDateFilterOpen(false);
+    setEditPrayerRestrictionFormOpen(false);
+    setEditSelectedPrayerEvents([]);
+    setEditPrayerBeforeMinutes('');
+    setEditPrayerAfterMinutes('');
+    setEditPrayerSelectedJalaliDate(null);
+  };
+
+  // Handle date filter toggle in modal
+  const handleEditDateFilterToggle = (filter) => {
+    if (filter === 'انتخاب از تقویم') {
+      setEditSelectedDateFilter([filter]);
+      setEditIsDateFilterOpen(true);
+      setEditRestrictionFormOpen(false);
+      setEditSelectedRestrictionType(null);
+      return;
+    }
+
+    if (filter === editSelectedRestrictionType && editRestrictionFormOpen) {
+      setEditSelectedRestrictionType(null);
+      setEditRestrictionFormOpen(false);
+      setEditIsDateFilterOpen(false);
+      return;
+    }
+
+    setEditSelectedDateFilter([filter]);
+    setEditSelectedRestrictionType(filter);
+    setEditRestrictionFormOpen(true);
+    setEditIsDateFilterOpen(false);
+  };
+
+  // Handle day select in modal calendar
+  const handleEditDaySelect = (day) => {
+    setEditSelectedJalaliDate({
+      year: editCalendarDate.year,
+      month: editCalendarDate.month,
+      day: day
+    });
+
+    const jalaliMonths = [
+      'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+      'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
+    ];
+    const dateText = `${day} ${jalaliMonths[editCalendarDate.month - 1]} ${editCalendarDate.year}`;
+
+    setEditSelectedRestrictionType(`روز ${dateText}`);
+    setEditIsDateFilterOpen(false);
+    setEditRestrictionFormOpen(true);
+    setEditTimeRestrictionPairs([{ start: '', end: '' }]);
+    setEditLimitAllHours(false);
+    setEditSelectedGenderRestrictions([]);
+  };
+
+  // Handle prev month in modal calendar
+  const handleEditPrevMonth = () => {
+    setEditCalendarDate(prev => {
+      let newMonth = prev.month - 1;
+      let newYear = prev.year;
+      if (newMonth < 1) {
+        newMonth = 12;
+        newYear--;
+      }
+      return { ...prev, month: newMonth, year: newYear };
+    });
+  };
+
+  // Handle next month in modal calendar
+  const handleEditNextMonth = () => {
+    setEditCalendarDate(prev => {
+      let newMonth = prev.month + 1;
+      let newYear = prev.year;
+      if (newMonth > 12) {
+        newMonth = 1;
+        newYear++;
+      }
+      return { ...prev, month: newMonth, year: newYear };
+    });
+  };
+
+  // Handle add time restriction in modal
+  const handleEditAddTimeRestriction = () => {
+    setEditTimeRestrictionPairs([...editTimeRestrictionPairs, { start: '', end: '' }]);
+  };
+
+  // Handle remove time restriction in modal
+  const handleEditRemoveTimeRestriction = (index) => {
+    if (editTimeRestrictionPairs.length > 1) {
+      const newPairs = editTimeRestrictionPairs.filter((_, i) => i !== index);
+      setEditTimeRestrictionPairs(newPairs);
+    }
+  };
+
+  // Handle time change in modal
+  const handleEditTimeChange = (index, field, value) => {
+    const newPairs = [...editTimeRestrictionPairs];
+    newPairs[index][field] = value;
+    setEditTimeRestrictionPairs(newPairs);
+  };
+
+  // Handle gender restriction toggle in modal
+  const handleEditGenderRestrictionToggle = (gender) => {
+    if (editSelectedGenderRestrictions.includes(gender)) {
+      setEditSelectedGenderRestrictions(editSelectedGenderRestrictions.filter(g => g !== gender));
+    } else {
+      setEditSelectedGenderRestrictions([...editSelectedGenderRestrictions, gender]);
+    }
+  };
+
+  // Check if restriction form is valid
+  const isEditRestrictionFormValid = () => {
+    if (editSelectedGenderRestrictions.length === 0) {
+      return false;
+    }
+
+    if (!editLimitAllHours) {
+      const hasValidTimePairs = editTimeRestrictionPairs.every(pair =>
+        pair.start && pair.end && pair.start !== '' && pair.end !== ''
+      );
+
+      if (!hasValidTimePairs) {
+        return false;
+      }
+
+      const hasValidTimeOrder = editTimeRestrictionPairs.every(pair => {
+        if (!pair.start || !pair.end) return false;
+        const startMinutes = convertTimeToMinutes(pair.start);
+        const endMinutes = convertTimeToMinutes(pair.end);
+        return startMinutes < endMinutes;
+      });
+
+      if (!hasValidTimeOrder) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  // Get restriction title
+  const getEditRestrictionTitle = () => {
+    if (!editSelectedRestrictionType) return '';
+
+    if (editSelectedRestrictionType === 'کل روزها') return 'کل روزها';
+    if (editSelectedRestrictionType === 'تمام این ماه') return 'این ماه';
+    if (editSelectedRestrictionType === 'کل این هفته') return 'این هفته';
+    if (editSelectedRestrictionType.startsWith('روز')) return editSelectedRestrictionType;
+
+    return editSelectedRestrictionType;
+  };
+
+  // Handle confirm restriction in modal
+  const handleEditConfirmRestriction = () => {
+    if (!isEditRestrictionFormValid()) {
+      alert('لطفا اطلاعات محدودیت را به درستی تکمیل کنید');
+      return;
+    }
+
+    const newRestriction = {
+      id: Date.now(),
+      date: getEditRestrictionTitle(),
+      gender: [...editSelectedGenderRestrictions],
+      timePairs: editLimitAllHours
+        ? [{ start: '00:00', end: '23:59' }]
+        : editTimeRestrictionPairs.filter(pair => pair.start && pair.end),
+      limitAllHours: editLimitAllHours
+    };
+
+    // Add to existing restrictions
+    setCulturalTimeRestrictions(prev => [...prev, newRestriction]);
+
+    // Reset form
+    setEditRestrictionFormOpen(false);
+    setEditSelectedRestrictionType(null);
+    setEditSelectedGenderRestrictions([]);
+    setEditTimeRestrictionPairs([{ start: '', end: '' }]);
+    setEditLimitAllHours(false);
+    setEditSelectedDateFilter([]);
+    setEditSelectedJalaliDate(null);
+  };
+
+  // Handle prayer prev month in modal
+  const handleEditPrayerPrevMonth = () => {
+    setEditPrayerCalendarDate(prev => {
+      let newMonth = prev.month - 1;
+      let newYear = prev.year;
+      if (newMonth < 1) {
+        newMonth = 12;
+        newYear--;
+      }
+      return { ...prev, month: newMonth, year: newYear };
+    });
+  };
+
+  // Handle prayer next month in modal
+  const handleEditPrayerNextMonth = () => {
+    setEditPrayerCalendarDate(prev => {
+      let newMonth = prev.month + 1;
+      let newYear = prev.year;
+      if (newMonth > 12) {
+        newMonth = 1;
+        newYear++;
+      }
+      return { ...prev, month: newMonth, year: newYear };
+    });
+  };
+
+  // Toggle prayer event in modal
+  const toggleEditPrayerEvent = (ev) => {
+    if (editSelectedPrayerEvents.includes(ev)) {
+      setEditSelectedPrayerEvents(editSelectedPrayerEvents.filter(e => e !== ev));
+    } else {
+      setEditSelectedPrayerEvents([...editSelectedPrayerEvents, ev]);
+    }
+  };
+
+  // Handle confirm prayer restriction in modal
+  const handleEditConfirmPrayerRestriction = () => {
+    if (editSelectedPrayerEvents.length === 0 || editPrayerBeforeMinutes === '' || editPrayerAfterMinutes === '') {
+      alert('لطفا همه فیلدها را تکمیل کنید');
+      return;
+    }
+
+    const title = editSelectedPrayerEvents.join(' و ') + ` : ${editPrayerBeforeMinutes} دقیقه قبل الی ${editPrayerAfterMinutes} دقیقه بعد`;
+    const newItem = {
+      id: Date.now(),
+      events: [...editSelectedPrayerEvents],
+      before: String(editPrayerBeforeMinutes),
+      after: String(editPrayerAfterMinutes),
+      date: editPrayerSelectedJalaliDate ? `روز ${editPrayerSelectedJalaliDate.day} ${getJalaliMonthName(editPrayerSelectedJalaliDate.month)} ${editPrayerSelectedJalaliDate.year}` : 'همه روزها',
+      title
+    };
+
+    setCulturalPrayerTimeRestrictionsList(prev => [...prev, newItem]);
+
+    // Reset form
+    setEditSelectedPrayerEvents([]);
+    setEditPrayerBeforeMinutes('');
+    setEditPrayerAfterMinutes('');
+    setEditPrayerSelectedJalaliDate(null);
+    setEditPrayerRestrictionFormOpen(false);
+    setEditIsPrayerDateFilterOpen(false);
+  };
+
+  // Render calendar days for modal
+  const renderEditJalaliCalendarDays = () => {
+    const { year, month } = editCalendarDate;
+    const now = new Date();
+    const today = toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+
+    const firstDay = jalaliMonthStart(year, month);
+    const daysInMonth = jalaliMonthLength(year, month);
+    const days = [];
+
+    for (let i = 0; i < firstDay; i++) {
+      days.push(<div key={`edit-empty-${i}`} className="calendar-day empty"></div>);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const isToday = year === today.jy && month === today.jm && day === today.jd;
+      const isSelected = editSelectedJalaliDate &&
+        editSelectedJalaliDate.year === year &&
+        editSelectedJalaliDate.month === month &&
+        editSelectedJalaliDate.day === day;
+
+      days.push(
+        <div
+          key={`edit-day-${day}`}
+          className={`calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`}
+          onClick={() => handleEditDaySelect(day)}
+        >
+          {day}
+        </div>
+      );
+    }
+
+    return days;
+  };
+
+  // Render prayer calendar days for modal
+  const renderEditPrayerJalaliCalendarDays = () => {
+    const { year, month } = editPrayerCalendarDate;
+    const now = new Date();
+    const today = toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+
+    const firstDay = jalaliMonthStart(year, month);
+    const daysInMonth = jalaliMonthLength(year, month);
+    const days = [];
+
+    for (let i = 0; i < firstDay; i++) {
+      days.push(<div key={`edit-p-empty-${i}`} className="calendar-day empty"></div>);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const isToday = year === today.jy && month === today.jm && day === today.jd;
+      const isSelected = editPrayerSelectedJalaliDate &&
+        editPrayerSelectedJalaliDate.year === year &&
+        editPrayerSelectedJalaliDate.month === month &&
+        editPrayerSelectedJalaliDate.day === day;
+
+      days.push(
+        <div
+          key={`edit-p-day-${day}`}
+          className={`calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`}
+          onClick={() => {
+            setEditPrayerSelectedJalaliDate({ year, month, day });
+            const jalaliMonths = [
+              'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+              'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
+            ];
+            const dateText = `${day} ${jalaliMonths[month - 1]} ${year}`;
+            setEditIsPrayerDateFilterOpen(false);
+            setEditPrayerRestrictionFormOpen(true);
+          }}
+        >
+          {day}
+        </div>
+      );
+    }
+
+    return days;
   };
 
   const toggleCategoryManagement = () => {
@@ -3380,7 +4059,7 @@ const Amain = () => {
   const getRestrictionTitle = () => {
     if (!selectedRestrictionType) return '';
 
-    if (selectedRestrictionType === 'کل روزها') return 'کل روزها';
+    if (selectedRestrictionType === 'کل روز') return 'کل روز ';
     if (selectedRestrictionType === 'تمام این ماه') return 'این ماه';
     if (selectedRestrictionType === 'کل این هفته') return 'این هفته';
     if (selectedRestrictionType.startsWith('روز')) return selectedRestrictionType;
@@ -3992,7 +4671,7 @@ const Amain = () => {
                           type="file"
                           accept="image/*,video/*"
                           multiple
-                          onChange={(e) => handleFileUpload(e, 'image')}
+                          onChange={(e) => handleFileUploadWithModal(e, 'image')} // Changed
                           className="file-input-hidden"
                         />
                         افزودن فایل
@@ -4144,7 +4823,7 @@ const Amain = () => {
                             type="file"
                             accept="audio/*"
                             multiple
-                            onChange={(e) => handleFileUpload(e, 'audio')}
+                            onChange={(e) => handleFileUploadWithModal(e, 'audio')} // Changed
                             className="file-input-hidden"
                           />
                           افزودن فایل صوتی
@@ -4184,9 +4863,9 @@ const Amain = () => {
                         <label className="add-file-btn-small">
                           <input
                             type="file"
-                            accept=".pdf"
+                            accept=".pdf,.txt,.doc,.docx,.xls,.xlsx"
                             multiple
-                            onChange={(e) => handleFileUpload(e, 'text')}
+                            onChange={(e) => handleFileUploadWithModal(e, 'text')} // Changed
                             className="file-input-hidden"
                           />
                           افزودن فایل متنی
@@ -4254,18 +4933,18 @@ const Amain = () => {
 
                     <div className="edit-form-group">
                       <label className="edit-form-label">توضیحات</label>
-                      <div className="description-input-with-language-edit">
+                      <div className="description-input-with-language">
                         <textarea
-                          className="edit-form-textarea"
+                          className="form-textarea"
                           placeholder="درباره این مکان اطلاعات فرهنگی بنویسید"
                           value={culturalDescription}
                           onChange={(e) => setCulturalDescription(e.target.value)}
-                          rows="4"
+                          rows="3"
                         />
                         <button
-                          className="language-input-btn-edit"
+                          className="language-input-btn"
                           type="button"
-                          onClick={() => openTitleLanguageModal('description')}
+                          onClick={() => setIsDescriptionLanguageModalOpen(true)}  // Only for description
                           title="ورود توضیحات به زبان‌های دیگر"
                         >
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -4304,6 +4983,88 @@ const Amain = () => {
                             <path d="M12.5 2.5C13.7583 6.83667 13.7583 13.1633 12.5 17.5" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         </button>
+                      </div>
+                    </div>
+
+                    <div className="edit-form-section">
+                      <h3 className="edit-form-title">محدودیت‌های اعمال شده</h3>
+
+                      {/* Time-based Restrictions */}
+                      <div className="edit-restrictions-section">
+                        <div className="edit-restriction-header">
+                          <span className="edit-restriction-title">محدودیت‌های اعمال شده بر این مکان بر اساس روز، ساعت و جنسیت</span>
+                          <button
+                            className="add-restriction-btn"
+                            onClick={handleOpenRestrictionModal}
+                          >
+                            افزودن محدودیت
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#1E2023" />
+                              <path d="M10 15.625C9.65833 15.625 9.375 15.3417 9.375 15V5C9.375 4.65833 9.65833 4.375 10 4.375C10.3417 4.375 10.625 4.65833 10.625 5V15C10.625 15.3417 10.3417 15.625 10 15.625Z" fill="#1E2023" />
+                            </svg>
+                          </button>
+                        </div>
+
+                        {culturalTimeRestrictions.length > 0 && (
+                          <div className="edit-restrictions-display">
+                            {culturalTimeRestrictions.map((restriction, index) => (
+                              <div key={index} className="restriction-display-item">
+                                <div className="restriction-info">
+                                  <span className="restriction-date">{restriction.date} ،</span>
+                                  <span className="restriction-gender">{restriction.gender.join('، ')} ،</span>
+                                  <span className="restriction-time">
+                                    {restriction.timePairs.map((pair, idx) => (
+                                      <span key={idx}>
+                                        {pair.start} الی {pair.end}
+                                        {idx < restriction.timePairs.length - 1 && '، '}
+                                      </span>
+                                    ))}
+                                  </span>
+                                </div>
+                                <button
+                                  className="remove-restriction-display-btn"
+                                  onClick={() => removeCulturalRestriction(index)}
+                                >
+                                  <svg width="75" height="32" viewBox="0 0 75 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="0.5" y="0.5" width="74" height="31" rx="5.5" stroke="#EA4335" />
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M15.4099 13.1678C15.6855 13.1494 15.9237 13.3579 15.9421 13.6334L16.2487 18.2328C16.3086 19.1314 16.3513 19.7566 16.445 20.227C16.5359 20.6833 16.6628 20.9249 16.8451 21.0954C17.0274 21.2659 17.2768 21.3765 17.7381 21.4368C18.2137 21.499 18.8404 21.5 19.741 21.5H20.2565C21.1571 21.5 21.7838 21.499 22.2594 21.4368C22.7207 21.3765 22.9701 21.2659 23.1524 21.0954C23.3347 20.9249 23.4616 20.6833 23.5525 20.227C23.6462 19.7566 23.6889 19.1314 23.7488 18.2328L24.0554 13.6334C24.0738 13.3579 24.312 13.1494 24.5876 13.1678C24.8631 13.1862 25.0716 13.4244 25.0532 13.7L24.7442 18.3345C24.6872 19.1896 24.6412 19.8804 24.5332 20.4224C24.421 20.986 24.23 21.4567 23.8356 21.8256C23.4412 22.1946 22.9588 22.3538 22.3891 22.4284C21.8411 22.5001 21.1488 22.5 20.2917 22.5H19.7058C18.8488 22.5 18.1565 22.5001 17.6084 22.4284C17.0387 22.3538 16.5563 22.1946 16.1619 21.8256C15.7675 21.4567 15.5766 20.986 15.4643 20.4224C15.3563 19.8804 15.3103 19.1896 15.2533 18.3344L14.9443 13.7C14.9259 13.4244 15.1344 13.1862 15.4099 13.1678Z" fill="#EA4335" />
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M18.9023 9.50003L18.8716 9.50001C18.7273 9.49992 18.6017 9.49984 18.483 9.51879C18.0141 9.59366 17.6084 9.8861 17.3891 10.3072C17.3336 10.4138 17.2939 10.5331 17.2484 10.67L17.2387 10.6991L17.174 10.8932C17.1613 10.9312 17.1578 10.9417 17.1547 10.9502C17.038 11.2729 16.7353 11.4911 16.3922 11.4998C16.3832 11.5 16.3721 11.5 16.3321 11.5H14.332C14.0559 11.5 13.832 11.7239 13.832 12C13.832 12.2762 14.0559 12.5 14.332 12.5L16.3378 12.5L16.349 12.5H23.6486L23.6597 12.5L25.6654 12.5C25.9416 12.5 26.1654 12.2762 26.1654 12C26.1654 11.7239 25.9416 11.5 25.6654 11.5H23.6654C23.6254 11.5 23.6143 11.5 23.6053 11.4998C23.2622 11.4911 22.9595 11.2729 22.8428 10.9501C22.8397 10.9417 22.8361 10.931 22.8235 10.8932L22.7588 10.6991L22.7491 10.67C22.7036 10.5331 22.6639 10.4138 22.6084 10.3072C22.3891 9.8861 21.9834 9.59366 21.5145 9.51879C21.3958 9.49984 21.2702 9.49992 21.1259 9.50001L21.0952 9.50003H18.9023ZM18.0951 11.2903C18.0689 11.3627 18.0385 11.4327 18.0041 11.5H21.9934C21.959 11.4327 21.9286 11.3627 21.9024 11.2903L21.8766 11.2148L21.8101 11.0153C21.7493 10.8329 21.7354 10.7958 21.7215 10.7691C21.6484 10.6287 21.5131 10.5312 21.3568 10.5063C21.3272 10.5015 21.2875 10.5 21.0952 10.5H18.9023C18.7101 10.5 18.6704 10.5015 18.6407 10.5063C18.4844 10.5312 18.3491 10.6287 18.276 10.7691C18.2622 10.7958 18.2482 10.8329 18.1874 11.0153L18.1208 11.2149C18.1108 11.2449 18.103 11.2683 18.0951 11.2903Z" fill="#EA4335" />
+                                    <path d="M38.7759 20C37.7026 20 36.8953 19.9907 36.3539 19.972C35.8219 19.944 35.4253 19.9067 35.1639 19.86C34.9119 19.8133 34.6646 19.734 34.4219 19.622C33.9926 19.4353 33.6659 19.1647 33.4419 18.81C33.2273 18.4553 33.1199 18.04 33.1199 17.564C33.1199 17.2747 33.1619 16.9713 33.2459 16.654L33.7639 14.68L34.7859 14.988L34.2679 17.004C34.2119 17.228 34.1839 17.424 34.1839 17.592C34.1839 17.816 34.2353 18.0073 34.3379 18.166C34.4499 18.3153 34.6179 18.4413 34.8419 18.544C35.0006 18.6187 35.1826 18.6747 35.3879 18.712C35.6026 18.7493 35.9713 18.7773 36.4939 18.796C37.0166 18.8147 37.8006 18.824 38.8459 18.824H41.6319C42.1826 18.824 42.5933 18.8007 42.8639 18.754C43.1346 18.7073 43.3213 18.628 43.4239 18.516C43.5266 18.3947 43.5779 18.2173 43.5779 17.984C43.5779 17.844 43.5733 17.732 43.5639 17.648C43.0226 17.732 42.4346 17.774 41.7999 17.774C41.1186 17.774 40.5726 17.578 40.1619 17.186C39.7606 16.7847 39.5599 16.2387 39.5599 15.548C39.5599 15.0627 39.6486 14.61 39.8259 14.19C40.0126 13.77 40.2833 13.434 40.6379 13.182C41.0019 12.9207 41.4359 12.79 41.9399 12.79C42.6119 12.79 43.1719 13.042 43.6199 13.546C44.0773 14.05 44.3433 14.722 44.4179 15.562L44.5719 17.48C44.5906 17.76 44.5999 17.9513 44.5999 18.054C44.5999 18.53 44.5113 18.908 44.3339 19.188C44.1659 19.468 43.8626 19.6733 43.4239 19.804C42.9946 19.9347 42.3879 20 41.6039 20H38.8459H38.7759ZM40.5399 15.408C40.5399 15.8 40.6519 16.1127 40.8759 16.346C41.0999 16.57 41.4079 16.682 41.7999 16.682C42.3786 16.682 42.9339 16.6353 43.4659 16.542L43.3959 15.66C43.3306 15.0907 43.1626 14.652 42.8919 14.344C42.6306 14.0267 42.2993 14.868 41.8979 13.868C41.4779 13.868 41.1466 14.022 40.9039 14.33C40.6613 14.6287 40.5399 14.988 40.5399 15.408ZM41.2959 10.088H42.7099V11.488H41.2959V10.088ZM48.5068 20C47.8161 20 47.2655 19.8647 46.8548 19.594C46.4535 19.314 46.2295 18.95 46.1828 18.502C46.1361 18.306 46.1128 17.998 46.1128 17.578H47.0928C47.0928 17.8673 47.1115 18.1007 47.1488 18.278C47.1861 18.474 47.2981 18.614 47.4848 18.698C47.6808 18.782 47.9655 18.824 48.3388 18.824H49.1928C50.1728 18.824 50.6628 18.53 50.6628 17.942C50.6628 17.8767 50.6441 17.76 50.6068 17.592V17.564L49.5568 13.448L50.5928 13.168L51.6428 17.298C51.7361 17.662 51.8201 17.9467 51.8948 18.152C51.9788 18.348 52.0908 18.5113 52.2308 18.642C52.3708 18.7633 52.5575 18.824 52.7908 18.824H53.4768L53.5468 19.412L53.4768 20H52.7908C52.1655 20 51.6615 19.7387 51.2788 19.216C50.8308 19.7387 50.0888 20 49.0528 20H48.5068ZM49.1788 10.704H50.5788V12.104H49.1788V10.704ZM53.3362 18.824H53.5323C54.3629 18.824 55.0583 18.8053 55.6183 18.768C56.1783 18.7213 56.7523 18.614 57.3403 18.446L60.6303 17.564L57.7883 15.94C57.5083 15.772 57.2189 15.688 56.9203 15.688C56.6309 15.688 56.3556 15.772 56.0943 15.94C55.8329 16.0987 55.6229 16.3227 55.4642 16.612L55.2123 17.046L54.2883 16.472L54.5543 15.996C54.8156 15.52 55.1516 15.1513 55.5623 14.89C55.9823 14.6287 56.4303 14.498 56.9062 14.498C57.3916 14.498 57.8583 14.6333 58.3063 14.904L61.8763 17.06L61.7083 18.432L57.6063 19.594C56.9529 19.7713 56.3229 19.8833 55.7163 19.93C55.1096 19.9767 54.3769 20 53.5183 20H53.3362V18.824Z" fill="#EA4335" />
+                                  </svg>
+
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Prayer Time Restrictions */}
+                      <div className="edit-restrictions-section">
+                        <div className="edit-restriction-header">
+                          <span className="edit-restriction-title">محدودیت‌های اعمال شده بر این مکان بر اساس اوقات شرعي</span>
+                        </div>
+
+                        {culturalPrayerTimeRestrictionsList.length > 0 && (
+                          <div className="prayer-restrictions-list">
+                            {culturalPrayerTimeRestrictionsList.map((item, idx) => (
+                              <div key={item.id} className="prayer-restriction-row">
+                                <div className="prayer-restriction-badge">
+                                  <span className="prayer-restriction-text">{item.date} ، {item.title}</span>
+                                </div>
+                                <button className="remove-prayer-btn" onClick={() => {
+                                  setCulturalPrayerTimeRestrictionsList(prev => prev.filter((_, i) => i !== idx));
+                                }}>
+                                  حذف
+                                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M3.40994 5.1678C3.68547 5.14943 3.92372 5.3579 3.94209 5.63343L4.24872 10.2328C4.30862 11.1314 4.35131 11.7566 4.44502 12.227C4.53592 12.6833 4.66281 12.9249 4.84508 13.0954C5.02736 13.2659 5.2768 13.3765 5.73813 13.4368C6.21373 13.499 6.8404 13.5 7.74097 13.5H8.25654C9.1571 13.5 9.78377 13.499 10.2594 13.4368C10.7207 13.3765 10.9701 13.2659 11.1524 13.0954C11.3347 12.9249 11.4616 12.6833 11.5525 12.227C11.6462 11.7566 11.6889 11.1314 11.7488 10.2328L12.0554 5.63343C12.0738 5.3579 12.312 5.14943 12.5876 5.1678C12.8631 5.18617 13.0716 5.42442 13.0532 5.69995L12.7442 10.3345C12.6872 11.1896 12.6412 11.8804 12.5332 12.4224C12.421 12.986 12.23 13.4567 11.8356 13.8256C11.4412 14.1946 10.9588 14.3538 10.3891 14.4284C9.84105 14.5001 9.14876 14.5 8.2917 14.5H7.70581C6.84875 14.5 6.15646 14.5001 5.60843 14.4284C5.03866 14.3538 4.5563 14.1946 4.1619 13.8256C3.7675 13.4567 3.57656 12.986 3.46429 12.4224C3.35631 11.8804 3.31027 11.1896 3.25327 10.3344L2.94431 5.69995C2.92594 5.42442 3.13441 5.18617 3.40994 5.1678Z" fill="#EA4335" />
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M6.90226 1.50003L6.87161 1.50001C6.72734 1.49992 6.60166 1.49984 6.48298 1.51879C6.01412 1.59366 5.60838 1.8861 5.38909 2.30723C5.33358 2.41382 5.29391 2.53309 5.24838 2.66998L5.2387 2.69905L5.17397 2.89323C5.16131 2.93121 5.15778 2.94168 5.15471 2.95016C5.03797 3.2729 4.73529 3.49106 4.39219 3.49976C4.38317 3.49999 4.37212 3.50003 4.33209 3.50003H2.33203C2.05589 3.50003 1.83203 3.72388 1.83203 4.00003C1.83203 4.27617 2.05589 4.50003 2.33203 4.50003L4.3378 4.50003L4.34896 4.50003H11.6486L11.6597 4.50003L13.6654 4.50003C13.9416 4.50003 14.1654 4.27617 14.1654 4.00003C14.1654 3.72388 13.9416 3.50003 13.6654 3.50003H11.6654C11.6254 3.50003 11.6143 3.49999 11.6053 3.49976C11.2622 3.49106 10.9595 3.27289 10.8428 2.95014C10.8397 2.94172 10.8361 2.93102 10.8235 2.89323L10.7588 2.69905L10.7491 2.66996C10.7036 2.53307 10.6639 2.41382 10.6084 2.30723C10.3891 1.8861 9.98339 1.59366 9.51453 1.51879C9.39585 1.49984 9.27016 1.49992 9.1259 1.50001L9.09525 1.50003H6.90226ZM6.09508 3.29032C6.0689 3.36269 6.03847 3.43268 6.00413 3.50003H9.99338C9.95904 3.43268 9.92861 3.3627 9.90243 3.29033L9.87662 3.21477L9.81013 3.01528C9.74934 2.83294 9.73535 2.79575 9.72147 2.76909C9.64837 2.62872 9.51313 2.53124 9.35684 2.50628C9.32715 2.50154 9.28746 2.50003 9.09525 2.50003H6.90226C6.71005 2.50003 6.67035 2.50154 6.64067 2.50628C6.48438 2.53124 6.34914 2.62872 6.27604 2.76909C6.26216 2.79575 6.24816 2.83294 6.18738 3.01528L6.12085 3.21489C6.11083 3.24495 6.10303 3.26834 6.09508 3.29032Z" fill="#EA4335" />
+                                  </svg>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -4859,8 +5620,15 @@ const Amain = () => {
                         // Reset location marker mode when other buttons are clicked
                         setIsLocationMarkerMode(false);
                       }}>
-                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path fillRule="evenodd" clipRule="evenodd" d="M4.12881 1.875C4.14182 1.875 4.15487 1.875 4.16797 1.875L15.8738 1.875C16.4296 1.87498 16.9047 1.87495 17.2844 1.92285C17.6872 1.97365 18.0764 2.08775 18.3962 2.3877C18.7215 2.69295 18.8508 3.0738 18.9076 3.47004C18.9597 3.83404 18.9597 4.28664 18.9596 4.80299L18.9596 5.4501C18.9597 5.85719 18.9597 6.20912 18.9293 6.50259C18.8966 6.81839 18.8251 7.11466 18.6534 7.39911C18.4831 7.68142 18.2536 7.88633 17.9892 8.07003C17.74 8.24308 17.4217 8.42225 17.0474 8.63296L14.5954 10.0133C14.0372 10.3275 13.8429 10.4406 13.7131 10.5533C13.4151 10.812 13.2445 11.099 13.1643 11.4587C13.13 11.6124 13.1263 11.806 13.1263 12.3941L13.1263 14.6708C13.1263 15.4219 13.1264 16.0595 13.0491 16.5496C12.9669 17.0709 12.7761 17.5708 12.2761 17.8835C11.7875 18.1892 11.2492 18.1611 10.7261 18.0369C10.2223 17.9172 9.60152 17.6745 8.8566 17.3833L8.7842 17.355C8.43526 17.2186 8.12973 17.0991 7.88784 16.9743C7.62788 16.84 7.38647 16.673 7.20176 16.4131C7.01498 16.1502 6.94009 15.8684 6.9067 15.5803C6.87625 15.3175 6.87628 15.0022 6.8763 14.6505L6.87631 12.3941C6.87631 11.806 6.8726 11.6124 6.83832 11.4587C6.75813 11.099 6.58749 10.812 6.2895 10.5533C6.15975 10.4406 5.9654 10.3275 5.40725 10.0133L2.95522 8.63296C2.58088 8.42225 2.26258 8.24308 2.01346 8.07003C1.749 7.88633 1.51956 7.68142 1.3492 7.39911C1.17754 7.11466 1.10606 6.81839 1.07334 6.50259C1.04294 6.20912 1.04295 5.85719 1.04297 5.4501L1.04297 4.84555C1.04297 4.83131 1.04297 4.81712 1.04297 4.80297C1.04293 4.28663 1.0429 3.83403 1.09506 3.47004C1.15184 3.0738 1.2811 2.69295 1.60645 2.3877C1.92616 2.08775 2.31543 1.97365 2.71817 1.92285C3.09791 1.87495 3.57302 1.87498 4.12881 1.875ZM2.8746 3.16303C2.59655 3.1981 2.50813 3.25576 2.46173 3.2993C2.42096 3.33755 2.36717 3.40487 2.33242 3.64736C2.29448 3.91212 2.29297 4.2739 2.29297 4.84555V5.4204C2.29297 5.86558 2.29374 6.15231 2.31669 6.37379C2.33806 6.58005 2.37474 6.67923 2.41942 6.75326C2.46539 6.82943 2.54172 6.915 2.72658 7.04341C2.92135 7.1787 3.18743 7.32923 3.59291 7.55749L6.02043 8.92402C6.04316 8.93682 6.06555 8.94941 6.08761 8.96182C6.5532 9.22376 6.87029 9.40215 7.10897 9.60936C7.60177 10.0372 7.91794 10.5568 8.05836 11.1866C8.12661 11.4927 8.12649 11.8359 8.12632 12.3204C8.12631 12.3446 8.12631 12.3692 8.12631 12.3941V14.6187C8.12631 15.0121 8.12728 15.2542 8.14839 15.4364C8.16749 15.6011 8.19757 15.6565 8.22072 15.6891C8.24596 15.7246 8.29594 15.7782 8.46133 15.8636C8.63834 15.955 8.88221 16.0512 9.26733 16.2017C10.0682 16.5148 10.6068 16.7238 11.015 16.8207C11.4138 16.9154 11.5452 16.8663 11.6132 16.8238C11.6698 16.7884 11.7574 16.7164 11.8144 16.355C11.8744 15.9738 11.8763 15.4362 11.8763 14.6187V12.3941C11.8763 12.3692 11.8763 12.3446 11.8763 12.3204C11.8761 11.8359 11.876 11.4927 11.9443 11.1866C12.0847 10.5568 12.4008 10.0372 12.8936 9.60936C13.1323 9.40215 13.4494 9.22376 13.915 8.96184C13.937 8.94942 13.9594 8.93682 13.9822 8.92402L16.4097 7.55749C16.8152 7.32923 17.0813 7.1787 17.276 7.04341C17.4609 6.915 17.5372 6.82943 17.5832 6.75326C17.6279 6.67923 17.6646 6.58005 17.6859 6.37379C17.7089 6.15231 17.7096 5.86558 17.7096 5.4204V4.84555C17.7096 4.2739 17.7081 3.91212 17.6702 3.64736C17.6354 3.40487 17.5817 3.33755 17.5409 3.2993C17.4945 3.25576 17.4061 3.1981 17.128 3.16303C16.8359 3.12617 16.4405 3.125 15.8346 3.125H4.16797C3.56211 3.125 3.16676 3.12617 2.8746 3.16303Z" fill={openSubMenu === 1 ? "white" : "#1E2023"} />
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 5m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                        <path d="M19 8m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                        <path d="M5 11m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                        <path d="M15 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                        <path d="M6.5 9.5l3.5 -3" />
+                        <path d="M14 5.5l3 1.5" />
+                        <path d="M18.5 10l-2.5 7" />
+                        <path d="M13.5 17.5l-7 -5" />
                       </svg>
                     </div>
                     {openSubMenu === 1 && (
@@ -4878,6 +5646,9 @@ const Amain = () => {
                             <path d="M3 11l0 .01" />
                             <path d="M3 15l0 .01" />
                           </svg>
+                        </button>
+                        <button className="sub-btn">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-navigation-top"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M16.54 19.977a.34 .34 0 0 0 .357 -.07a.33 .33 0 0 0 .084 -.35l-4.981 -10.557l-4.982 10.557a.33 .33 0 0 0 .084 .35a.34 .34 0 0 0 .357 .07l4.541 -1.477l4.54 1.477z" /><path d="M12 3v2" /></svg>
                         </button>
                         <button className="sub-btn">
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
@@ -4929,6 +5700,9 @@ const Amain = () => {
                           </svg>
                         </button>
                         <button className="sub-btn">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-navigation-top"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M16.54 19.977a.34 .34 0 0 0 .357 -.07a.33 .33 0 0 0 .084 -.35l-4.981 -10.557l-4.982 10.557a.33 .33 0 0 0 .084 .35a.34 .34 0 0 0 .357 .07l4.541 -1.477l4.54 1.477z" /><path d="M12 3v2" /></svg>
+                        </button>
+                        <button className="sub-btn">
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
@@ -4964,18 +5738,7 @@ const Amain = () => {
                     {openSubMenu === 3 && (
                       <div className="sub-buttons3">
                         <button className="sub-btn">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-drag-drop">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                            <path d="M19 11v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2" />
-                            <path d="M13 13l9 3l-4 2l-2 4l-3 -9" />
-                            <path d="M3 3l0 .01" />
-                            <path d="M7 3l0 .01" />
-                            <path d="M11 3l0 .01" />
-                            <path d="M15 3l0 .01" />
-                            <path d="M3 7l0 .01" />
-                            <path d="M3 11l0 .01" />
-                            <path d="M3 15l0 .01" />
-                          </svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-navigation-top"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M16.54 19.977a.34 .34 0 0 0 .357 -.07a.33 .33 0 0 0 .084 -.35l-4.981 -10.557l-4.982 10.557a.33 .33 0 0 0 .084 .35a.34 .34 0 0 0 .357 .07l4.541 -1.477l4.54 1.477z" /><path d="M12 3v2" /></svg>
                         </button>
                         <button className="sub-btn">
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
@@ -5916,8 +6679,8 @@ const Amain = () => {
                               <div className="date-filter-option2">
                                 <div className="filter-title">فیلتر بر اساس تاریخ</div>
                                 <div
-                                  className={`date-filter-option ${selectedDateFilter.includes('کل روزها') ? 'selected' : ''}`}
-                                  onClick={() => handleDateFilterToggle('کل روزها')}
+                                  className={`date-filter-option ${selectedDateFilter.includes('کل روز') ? 'selected' : ''}`}
+                                  onClick={() => handleDateFilterToggle('کل روز')}
                                 >
                                   کل روزها
                                 </div>
@@ -6400,9 +7163,9 @@ const Amain = () => {
                   ? 'در حال ذخیره اطلاعات...'
                   : isLoadingDoorInfo
                     ? 'در حال بارگذاری اطلاعات...'
-                  : currentStep === 3
-                    ? 'تایید اطلاعات و ثبت این مکان '
-                    : 'تایید اطلاعات و مرحله بعد'}
+                    : currentStep === 3
+                      ? 'تایید اطلاعات و ثبت این مکان '
+                      : 'تایید اطلاعات و مرحله بعد'}
               </button>
             </div>
           </div>
@@ -6968,7 +7731,8 @@ const Amain = () => {
                                 <svg width="75" height="32" viewBox="0 0 75 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                                   <rect x="0.5" y="0.5" width="74" height="31" rx="5.5" stroke="#EA4335" />
                                   <path fillRule="evenodd" clipRule="evenodd" d="M15.4099 13.1678C15.6855 13.1494 15.9237 13.3579 15.9421 13.6334L16.2487 18.2328C16.3086 19.1314 16.3513 19.7566 16.445 20.227C16.5359 20.6833 16.6628 20.9249 16.8451 21.0954C17.0274 21.2659 17.2768 21.3765 17.7381 21.4368C18.2137 21.499 18.8404 21.5 19.741 21.5H20.2565C21.1571 21.5 21.7838 21.499 22.2594 21.4368C22.7207 21.3765 22.9701 21.2659 23.1524 21.0954C23.3347 20.9249 23.4616 20.6833 23.5525 20.227C23.6462 19.7566 23.6889 19.1314 23.7488 18.2328L24.0554 13.6334C24.0738 13.3579 24.312 13.1494 24.5876 13.1678C24.8631 13.1862 25.0716 13.4244 25.0532 13.7L24.7442 18.3345C24.6872 19.1896 24.6412 19.8804 24.5332 20.4224C24.421 20.986 24.23 21.4567 23.8356 21.8256C23.4412 22.1946 22.9588 22.3538 22.3891 22.4284C21.8411 22.5001 21.1488 22.5 20.2917 22.5H19.7058C18.8488 22.5 18.1565 22.5001 17.6084 22.4284C17.0387 22.3538 16.5563 22.1946 16.1619 21.8256C15.7675 21.4567 15.5766 20.986 15.4643 20.4224C15.3563 19.8804 15.3103 19.1896 15.2533 18.3344L14.9443 13.7C14.9259 13.4244 15.1344 13.1862 15.4099 13.1678Z" fill="#EA4335" />
-                                  <path fillRule="evenodd" clipRule="evenodd" d="M18.9023 9.50003L18.8716 9.50001C18.7273 9.49992 18.6017 9.49984 18.483 9.51879C18.0141 9.59366 17.6084 9.8861 17.3891 10.3072C17.3336 10.4138 17.2939 10.5331 17.2484 10.67L17.2387 10.6991L17.174 10.8932C17.1613 10.9312 17.1578 10.9417 17.1547 10.9502C17.038 11.2729 16.7353 11.4911 16.3922 11.4998C16.3832 11.5 16.3721 11.5 16.3321 11.5H14.332C14.0559 11.5 13.832 11.7239 13.832 12C13.832 12.2762 14.0559 12.5 14.332 12.5L16.3378 12.5L16.349 12.5H23.6486L23.6597 12.5L25.6654 12.5C25.9416 12.5 26.1654 12.2762 26.1654 12C26.1654 11.7239 25.9416 11.5 25.6654 11.5H23.6654C23.6254 11.5 23.6143 11.5 23.6053 11.4998C23.2622 11.4911 22.9595 11.2729 22.8428 10.9501C22.8397 10.9417 22.8361 10.931 22.8235 10.8932L22.7588 10.6991L22.7491 10.67C22.7036 10.5331 22.6639 10.4138 22.6084 10.3072C22.3891 9.8861 21.9834 9.59366 21.5145 9.51879C21.3958 9.49984 21.2702 9.49992 21.1259 9.50001L21.0952 9.50003H18.9023ZM18.0951 11.2903C18.0689 11.3627 18.0385 11.4327 18.0041 11.5H21.9934C21.959 11.4327 21.9286 11.3627 21.9024 11.29033L21.8766 11.21477L21.8101 11.01528C21.7493 10.83294 21.7354 10.7958 21.7215 10.7691C21.6484 10.6287 21.5131 10.5312 21.3568 10.50628C21.3272 10.5015 21.2875 10.5 21.0952 10.5H18.9023C18.7101 10.5 18.6704 10.5015 18.6407 10.50628C6.48438 2.53124 6.34914 2.62872 6.27604 2.76909C6.26216 2.79575 6.24816 2.83294 6.18738 3.01528L6.12085 3.21489C6.11083 3.24495 6.10303 3.26834 6.09508 3.29032Z" fill="#EA4335" />
+                                  <path fillRule="evenodd" clipRule="evenodd" d="M18.9023 9.50003L18.8716 9.50001C18.7273 9.49992 18.6017 9.49984 18.483 9.51879C18.0141 9.59366 17.6084 9.8861 17.3891 10.3072C17.3336 10.4138 17.2939 10.5331 17.2484 10.67L17.2387 10.6991L17.174 10.8932C17.1613 10.9312 17.1578 10.9417 17.1547 10.9502C17.038 11.2729 16.7353 11.4911 16.3922 11.4998C16.3832 11.5 16.3721 11.5 16.3321 11.5H14.332C14.0559 11.5 13.832 11.7239 13.832 12C13.832 12.2762 14.0559 12.5 14.332 12.5L16.3378 12.5L16.349 12.5H23.6486L23.6597 12.5L25.6654 12.5C25.9416 12.5 26.1654 12.2762 26.1654 12C26.1654 11.7239 25.9416 11.5 25.6654 11.5H23.6654C23.6254 11.5 23.6143 11.5 23.6053 11.4998C23.2622 11.4911 22.9595 11.2729 22.8428 10.9501C22.8397 10.9417 22.8361 10.931 22.8235 10.8932L22.7588 10.6991L22.7491 10.67C22.7036 10.5331 22.6639 10.4138 22.6084 10.3072C22.3891 9.8861 21.9834 9.59366 21.5145 9.51879C21.3958 9.49984 21.2702 9.49992 21.1259 9.50001L21.0952 9.50003H18.9023ZM18.0951 11.2903C18.0689 11.3627 18.0385 11.4327 18.0041 11.5H21.9934C21.959 11.4327 21.9286 11.3627 21.9024 11.2903L21.8766 11.2148L21.8101 11.0153C21.7493 10.8329 21.7354 10.7958 21.7215 10.7691C21.6484 10.6287 21.5131 10.5312 21.3568 10.5063C21.3272 10.5015 21.2875 10.5 21.0952 10.5H18.9023C18.7101 10.5 18.6704 10.5015 18.6407 10.5063C18.4844 10.5312 18.3491 10.6287 18.276 10.7691C18.2622 10.7958 18.2482 10.8329 18.1874 11.0153L18.1208 11.2149C18.1108 11.2449 18.103 11.2683 18.0951 11.2903Z" fill="#EA4335" />
+                                  <path d="M38.7759 20C37.7026 20 36.8953 19.9907 36.3539 19.972C35.8219 19.944 35.4253 19.9067 35.1639 19.86C34.9119 19.8133 34.6646 19.734 34.4219 19.622C33.9926 19.4353 33.6659 19.1647 33.4419 18.81C33.2273 18.4553 33.1199 18.04 33.1199 17.564C33.1199 17.2747 33.1619 16.9713 33.2459 16.654L33.7639 14.68L34.7859 14.988L34.2679 17.004C34.2119 17.228 34.1839 17.424 34.1839 17.592C34.1839 17.816 34.2353 18.0073 34.3379 18.166C34.4499 18.3153 34.6179 18.4413 34.8419 18.544C35.0006 18.6187 35.1826 18.6747 35.3879 18.712C35.6026 18.7493 35.9713 18.7773 36.4939 18.796C37.0166 18.8147 37.8006 18.824 38.8459 18.824H41.6319C42.1826 18.824 42.5933 18.8007 42.8639 18.754C43.1346 18.7073 43.3213 18.628 43.4239 18.516C43.5266 18.3947 43.5779 18.2173 43.5779 17.984C43.5779 17.844 43.5733 17.732 43.5639 17.648C43.0226 17.732 42.4346 17.774 41.7999 17.774C41.1186 17.774 40.5726 17.578 40.1619 17.186C39.7606 16.7847 39.5599 16.2387 39.5599 15.548C39.5599 15.0627 39.6486 14.61 39.8259 14.19C40.0126 13.77 40.2833 13.434 40.6379 13.182C41.0019 12.9207 41.4359 12.79 41.9399 12.79C42.6119 12.79 43.1719 13.042 43.6199 13.546C44.0773 14.05 44.3433 14.722 44.4179 15.562L44.5719 17.48C44.5906 17.76 44.5999 17.9513 44.5999 18.054C44.5999 18.53 44.5113 18.908 44.3339 19.188C44.1659 19.468 43.8626 19.6733 43.4239 19.804C42.9946 19.9347 42.3879 20 41.6039 20H38.8459H38.7759ZM40.5399 15.408C40.5399 15.8 40.6519 16.1127 40.8759 16.346C41.0999 16.57 41.4079 16.682 41.7999 16.682C42.3786 16.682 42.9339 16.6353 43.4659 16.542L43.3959 15.66C43.3306 15.0907 43.1626 14.652 42.8919 14.344C42.6306 14.0267 42.2993 14.868 41.8979 13.868C41.4779 13.868 41.1466 14.022 40.9039 14.33C40.6613 14.6287 40.5399 14.988 40.5399 15.408ZM41.2959 10.088H42.7099V11.488H41.2959V10.088ZM48.5068 20C47.8161 20 47.2655 19.8647 46.8548 19.594C46.4535 19.314 46.2295 18.95 46.1828 18.502C46.1361 18.306 46.1128 17.998 46.1128 17.578H47.0928C47.0928 17.8673 47.1115 18.1007 47.1488 18.278C47.1861 18.474 47.2981 18.614 47.4848 18.698C47.6808 18.782 47.9655 18.824 48.3388 18.824H49.1928C50.1728 18.824 50.6628 18.53 50.6628 17.942C50.6628 17.8767 50.6441 17.76 50.6068 17.592V17.564L49.5568 13.448L50.5928 13.168L51.6428 17.298C51.7361 17.662 51.8201 17.9467 51.8948 18.152C51.9788 18.348 52.0908 18.5113 52.2308 18.642C52.3708 18.7633 52.5575 18.824 52.7908 18.824H53.4768L53.5468 19.412L53.4768 20H52.7908C52.1655 20 51.6615 19.7387 51.2788 19.216C50.8308 19.7387 50.0888 20 49.0528 20H48.5068ZM49.1788 10.704H50.5788V12.104H49.1788V10.704ZM53.3362 18.824H53.5323C54.3629 18.824 55.0583 18.8053 55.6183 18.768C56.1783 18.7213 56.7523 18.614 57.3403 18.446L60.6303 17.564L57.7883 15.94C57.5083 15.772 57.2189 15.688 56.9203 15.688C56.6309 15.688 56.3556 15.772 56.0943 15.94C55.8329 16.0987 55.6229 16.3227 55.4642 16.612L55.2123 17.046L54.2883 16.472L54.5543 15.996C54.8156 15.52 55.1516 15.1513 55.5623 14.89C55.9823 14.6287 56.4303 14.498 56.9062 14.498C57.3916 14.498 57.8583 14.6333 58.3063 14.904L61.8763 17.06L61.7083 18.432L57.6063 19.594C56.9529 19.7713 56.3229 19.8833 55.7163 19.93C55.1096 19.9767 54.3769 20 53.5183 20H53.3362V18.824Z" fill="#EA4335" />
                                 </svg>
                               </button>
                             </div>
@@ -7452,13 +8216,12 @@ const Amain = () => {
                     {/* Profile Images and Videos Section */}
                     <div className="file-upload-section">
                       <div className="file-section-header">
-                        <span className="file-section-title">تصاویر و ویدئوهای پروفایل مربوط به اطلاعات فرهنگی</span>
                         <label className="add-file-btn">
                           <input
                             type="file"
                             accept="image/*,video/*"
                             multiple
-                            onChange={(e) => handleFileUpload(e, 'image')}
+                            onChange={(e) => handleFileUploadWithModal(e, 'image')} // Changed to handleFileUploadWithModal
                             className="file-input-hidden"
                           />
                           افزودن فایل
@@ -7562,7 +8325,7 @@ const Amain = () => {
                             type="file"
                             accept="audio/*"
                             multiple
-                            onChange={(e) => handleFileUpload(e, 'audio')}
+                            onChange={(e) => handleFileUploadWithModal(e, 'audio')} // Changed to handleFileUploadWithModal
                             className="file-input-hidden"
                           />
                           افزودن فایل صوتی
@@ -7606,9 +8369,9 @@ const Amain = () => {
                         <label className="add-file-btn">
                           <input
                             type="file"
-                            accept=".pdf"
+                            accept=".pdf,.txt,.doc,.docx,.xls,.xlsx"
                             multiple
-                            onChange={(e) => handleFileUpload(e, 'text')}
+                            onChange={(e) => handleFileUploadWithModal(e, 'text')} // Changed to handleFileUploadWithModal
                             className="file-input-hidden"
                           />
                           افزودن فایل متنی
@@ -7671,11 +8434,10 @@ const Amain = () => {
         <div className="modal-overlay">
           <div className="language-modal">
             <div className="modal-header">
-              <h3>ورود عنوان به زبان‌های دیگر </h3>
+              <h3>ورود عنوان به زبان‌های دیگر</h3>
             </div>
 
             <div className="modal-content">
-
               <div className="language-fields">
                 <div className="language-field">
                   <label className="language-label">انگلیسی</label>
@@ -7689,25 +8451,25 @@ const Amain = () => {
                 </div>
 
                 <div className="language-field">
-                  <label className="language-label">عربی </label>
+                  <label className="language-label">عربی</label>
                   <input
                     type="text"
                     className="language-input"
                     value={languageTitles.arabic}
                     onChange={(e) => handleLanguageTitleChange('arabic', e.target.value)}
-                    placeholder="العنوان باللغة العربية "
+                    placeholder="العنوان باللغة العربية"
                     dir="rtl"
                   />
                 </div>
 
                 <div className="language-field">
-                  <label className="language-label">اردو </label>
+                  <label className="language-label">اردو</label>
                   <input
                     type="text"
                     className="language-input"
                     value={languageTitles.urdu}
                     onChange={(e) => handleLanguageTitleChange('urdu', e.target.value)}
-                    placeholder="عنوان اردو میں "
+                    placeholder="عنوان اردو میں"
                     dir="rtl"
                   />
                 </div>
@@ -7723,7 +8485,72 @@ const Amain = () => {
               </button>
               <button
                 className="confirm-btn"
-                onClick={handleSaveLanguageTitles}
+                onClick={() => setIsTitleLanguageModalOpen(false)}
+              >
+                ذخیره زبان‌های دیگر
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Description Language Modal */}
+      {isDescriptionLanguageModalOpen && (
+        <div className="modal-overlay">
+          <div className="language-modal">
+            <div className="modal-header">
+              <h3>ورود توضیحات به زبان‌های دیگر</h3>
+            </div>
+
+            <div className="modal-content">
+              <div className="language-fields">
+                <div className="language-field">
+                  <label className="language-label">انگلیسی</label>
+                  <textarea
+                    className="language-textarea"
+                    value={languageDescriptions.english}
+                    onChange={(e) => handleLanguageDescriptionChange('english', e.target.value)}
+                    placeholder="Description in English"
+                    rows="2"
+                  />
+                </div>
+
+                <div className="language-field">
+                  <label className="language-label">عربی</label>
+                  <textarea
+                    className="language-textarea"
+                    value={languageDescriptions.arabic}
+                    onChange={(e) => handleLanguageDescriptionChange('arabic', e.target.value)}
+                    placeholder="الوصف باللغة العربية"
+                    dir="rtl"
+                    rows="2"
+                  />
+                </div>
+
+                <div className="language-field">
+                  <label className="language-label">اردو</label>
+                  <textarea
+                    className="language-textarea"
+                    value={languageDescriptions.urdu}
+                    onChange={(e) => handleLanguageDescriptionChange('urdu', e.target.value)}
+                    placeholder="تفصیل اردو میں"
+                    dir="rtl"
+                    rows="2"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="cancel-btn5"
+                onClick={() => setIsDescriptionLanguageModalOpen(false)}
+              >
+                انصراف
+              </button>
+              <button
+                className="confirm-btn"
+                onClick={() => setIsDescriptionLanguageModalOpen(false)}
               >
                 ذخیره زبان‌های دیگر
               </button>
@@ -7997,6 +8824,820 @@ const Amain = () => {
                 onClick={() => selectedOrientation ? handleOrientationSelect(selectedOrientation) : handleSkipOrientation()}
               >
                 تایید و ادامه
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* File Upload Modal */}
+      {/* File Upload Modal */}
+      {isFileUploadModalOpen && pendingFileInfo && (
+        <div className="modal-overlay">
+          <div className="language-modal">
+            <div className="modal-header">
+              <h3>ورود اطلاعات فایل</h3>
+            </div>
+
+            <div className="modal-content">
+              <div className="form-group">
+                <label className="form-label">عنوان فایل (الزامی)</label>
+                <div className="title-input-with-language">
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="عنوان فایل را وارد کنید"
+                    value={fileUploadTitle}
+                    onChange={(e) => setFileUploadTitle(e.target.value)}
+                    required
+                  />
+                  <button
+                    className="language-input-btn"
+                    type="button"
+                    onClick={openFileTitleLanguageModal}  // Changed to title-specific modal
+                    title="ورود عنوان به زبان‌های دیگر"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10 18.3333C14.6024 18.3333 18.3333 14.6024 18.3333 10C18.3333 5.39763 14.6024 1.66667 10 1.66667C5.39763 1.66667 1.66667 5.39763 1.66667 10C1.66667 14.6024 5.39763 18.3333 10 18.3333Z" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M6.66699 2.5H7.50033C6.242 6.83667 6.242 13.1633 7.50033 17.5H6.66699" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M12.5 2.5C13.7583 6.83667 13.7583 13.1633 12.5 17.5" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">توضیحات فایل (الزامی)</label>
+                <div className="description-input-with-language">
+                  <textarea
+                    className="form-textarea"
+                    placeholder="توضیحات فایل را وارد کنید"
+                    value={fileUploadDescription}
+                    onChange={(e) => setFileUploadDescription(e.target.value)}
+                    rows="3"
+                    required
+                  />
+                  <button
+                    className="language-input-btn"
+                    type="button"
+                    onClick={openFileDescriptionLanguageModal}  // Changed to description-specific modal
+                    title="ورود توضیحات به زبان‌های دیگر"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10 18.3333C14.6024 18.3333 18.3333 14.6024 18.3333 10C18.3333 5.39763 14.6024 1.66667 10 1.66667C5.39763 1.66667 1.66667 5.39763 1.66667 10C1.66667 14.6024 5.39763 18.3333 10 18.3333Z" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M6.66699 2.5H7.50033C6.242 6.83667 6.242 13.1633 7.50033 17.5H6.66699" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M12.5 2.5C13.7583 6.83667 13.7583 13.1633 12.5 17.5" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* ... rest of file info preview ... */}
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="cancel-btn5"
+                onClick={() => {
+                  setIsFileUploadModalOpen(false);
+                  setPendingFileInfo(null);
+                }}
+              >
+                انصراف
+              </button>
+              <button
+                className="confirm-btn"
+                onClick={handleSaveFileWithDetails}
+                disabled={!fileUploadTitle.trim() || !fileUploadDescription.trim()}
+              >
+                ذخیره و آپلود فایل
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* File Title Language Modal */}
+      {isFileTitleLanguageModalOpen && (
+        <div className="modal-overlay">
+          <div className="language-modal">
+            <div className="modal-header">
+              <h3>ورود عنوان فایل به زبان‌های دیگر</h3>
+            </div>
+
+            <div className="modal-content">
+              <div className="language-fields">
+                <div className="language-field">
+                  <label className="language-label">انگلیسی</label>
+                  <input
+                    type="text"
+                    className="language-input"
+                    value={fileLanguageTitles.english}
+                    onChange={(e) => handleFileLanguageTitleChange('english', e.target.value)}
+                    placeholder="Title in English"
+                  />
+                </div>
+
+                <div className="language-field">
+                  <label className="language-label">عربی</label>
+                  <input
+                    type="text"
+                    className="language-input"
+                    value={fileLanguageTitles.arabic}
+                    onChange={(e) => handleFileLanguageTitleChange('arabic', e.target.value)}
+                    placeholder="العنوان باللغة العربية"
+                    dir="rtl"
+                  />
+                </div>
+
+                <div className="language-field">
+                  <label className="language-label">اردو</label>
+                  <input
+                    type="text"
+                    className="language-input"
+                    value={fileLanguageTitles.urdu}
+                    onChange={(e) => handleFileLanguageTitleChange('urdu', e.target.value)}
+                    placeholder="عنوان اردو میں"
+                    dir="rtl"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="cancel-btn5"
+                onClick={() => setIsFileTitleLanguageModalOpen(false)}
+              >
+                انصراف
+              </button>
+              <button
+                className="confirm-btn"
+                onClick={() => setIsFileTitleLanguageModalOpen(false)}
+              >
+                ذخیره
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* File Description Language Modal */}
+      {isFileDescriptionLanguageModalOpen && (
+        <div className="modal-overlay">
+          <div className="language-modal">
+            <div className="modal-header">
+              <h3>ورود توضیحات فایل به زبان‌های دیگر</h3>
+            </div>
+
+            <div className="modal-content">
+              <div className="language-fields">
+                <div className="language-field">
+                  <label className="language-label">انگلیسی</label>
+                  <textarea
+                    className="language-textarea"
+                    value={fileLanguageDescriptions.english}
+                    onChange={(e) => handleFileLanguageDescriptionChange('english', e.target.value)}
+                    placeholder="Description in English"
+                    rows="2"
+                  />
+                </div>
+
+                <div className="language-field">
+                  <label className="language-label">عربی</label>
+                  <textarea
+                    className="language-textarea"
+                    value={fileLanguageDescriptions.arabic}
+                    onChange={(e) => handleFileLanguageDescriptionChange('arabic', e.target.value)}
+                    placeholder="الوصف باللغة العربية"
+                    dir="rtl"
+                    rows="2"
+                  />
+                </div>
+
+                <div className="language-field">
+                  <label className="language-label">اردو</label>
+                  <textarea
+                    className="language-textarea"
+                    value={fileLanguageDescriptions.urdu}
+                    onChange={(e) => handleFileLanguageDescriptionChange('urdu', e.target.value)}
+                    placeholder="تفصیل اردو میں"
+                    dir="rtl"
+                    rows="2"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="cancel-btn5"
+                onClick={() => setIsFileDescriptionLanguageModalOpen(false)}
+              >
+                انصراف
+              </button>
+              <button
+                className="confirm-btn"
+                onClick={() => setIsFileDescriptionLanguageModalOpen(false)}
+              >
+                ذخیره
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* File Language Modal */}
+      {isFileLanguageModalOpen && (
+        <div className="modal-overlay">
+          <div className="language-modal">
+            <div className="modal-header">
+              <h3>ورود اطلاعات فایل به زبان‌های دیگر</h3>
+            </div>
+
+            <div className="modal-content">
+              <div className="language-fields">
+                <div className="language-field">
+                  <label className="language-label">عنوان انگلیسی</label>
+                  <input
+                    type="text"
+                    className="language-input"
+                    value={fileLanguageTitles.english}
+                    onChange={(e) => handleFileLanguageTitleChange('english', e.target.value)}
+                    placeholder="Title in English"
+                  />
+                </div>
+
+                <div className="language-field">
+                  <label className="language-label">عنوان عربی</label>
+                  <input
+                    type="text"
+                    className="language-input"
+                    value={fileLanguageTitles.arabic}
+                    onChange={(e) => handleFileLanguageTitleChange('arabic', e.target.value)}
+                    placeholder="العنوان باللغة العربية"
+                    dir="rtl"
+                  />
+                </div>
+
+                <div className="language-field">
+                  <label className="language-label">عنوان اردو</label>
+                  <input
+                    type="text"
+                    className="language-input"
+                    value={fileLanguageTitles.urdu}
+                    onChange={(e) => handleFileLanguageTitleChange('urdu', e.target.value)}
+                    placeholder="عنوان اردو میں"
+                    dir="rtl"
+                  />
+                </div>
+
+                <div className="language-field">
+                  <label className="language-label">توضیحات انگلیسی</label>
+                  <textarea
+                    className="language-textarea"
+                    value={fileLanguageDescriptions.english}
+                    onChange={(e) => handleFileLanguageDescriptionChange('english', e.target.value)}
+                    placeholder="Description in English"
+                    rows="2"
+                  />
+                </div>
+
+                <div className="language-field">
+                  <label className="language-label">توضیحات عربی</label>
+                  <textarea
+                    className="language-textarea"
+                    value={fileLanguageDescriptions.arabic}
+                    onChange={(e) => handleFileLanguageDescriptionChange('arabic', e.target.value)}
+                    placeholder="الوصف باللغة العربية"
+                    dir="rtl"
+                    rows="2"
+                  />
+                </div>
+
+                <div className="language-field">
+                  <label className="language-label">توضیحات اردو</label>
+                  <textarea
+                    className="language-textarea"
+                    value={fileLanguageDescriptions.urdu}
+                    onChange={(e) => handleFileLanguageDescriptionChange('urdu', e.target.value)}
+                    placeholder="تفصیل اردو میں"
+                    dir="rtl"
+                    rows="2"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="cancel-btn5"
+                onClick={() => setIsFileLanguageModalOpen(false)}
+              >
+                انصراف
+              </button>
+              <button
+                className="confirm-btn"
+                onClick={handleSaveFileLanguageInfo}
+              >
+                ذخیره
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Add this modal JSX at the end of your component, before the final closing </div> */}
+
+      {/* Restriction Modal for Edit Page */}
+      {isRestrictionModalOpen && (
+        <div className="modal-overlay">
+          <div className="add-place-modal restriction-modal-edit">
+            {/* Modal Header */}
+            <div className="modal-header">
+              <div className="step-text">
+                <span className="step-title">افزودن محدودیت</span>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="modal-content">
+              <div className="step-content step3-content">
+                <div className="step-intro3">
+                  <h3>افزودن محدودیت جدید</h3>
+                </div>
+
+                <div className="form-section">
+                  {/* Time-based Restrictions Section */}
+                  <div className="restriction-section">
+                    <div className="restriction-header">
+                      <span className="restriction-title">محدودیت بر اساس روز، ساعت و جنسیت</span>
+                      <button
+                        className="add-restriction-btn"
+                        onClick={() => {
+                          setEditIsDateFilterOpen(!editIsDateFilterOpen);
+                          setEditIsPrayerDateFilterOpen(false);
+                        }}
+                      >
+                        افزودن محدودیت
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#1E2023" />
+                          <path d="M10 15.625C9.65833 15.625 9.375 15.3417 9.375 15V5C9.375 4.65833 9.65833 4.375 10 4.375C10.3417 4.375 10.625 4.65833 10.625 5V15C10.625 15.3417 10.3417 15.625 10 15.625Z" fill="#1E2023" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    {/* Date Filter Popup */}
+                    {editIsDateFilterOpen && !editRestrictionFormOpen && (
+                      <div className={`date-filter-popup ${editSelectedDateFilter.includes('انتخاب از تقویم') ? 'calendar-selectable' : ''}`}>
+                        <div className="date-filter-content">
+                          {/* Filter by Date Section */}
+                          <div className="filter-section">
+                            <div className="date-filter-option2">
+                              <div className="filter-title">فیلتر بر اساس تاریخ</div>
+                              <div
+                                className={`date-filter-option ${editSelectedDateFilter.includes('کل روزها') ? 'selected' : ''}`}
+                                onClick={() => handleEditDateFilterToggle('کل روزها')}
+                              >
+                                کل روزها
+                              </div>
+                              <div
+                                className={`date-filter-option ${editSelectedDateFilter.includes('تمام این ماه') ? 'selected' : ''}`}
+                                onClick={() => handleEditDateFilterToggle('تمام این ماه')}
+                              >
+                                تمام این ماه
+                              </div>
+                              <div
+                                className={`date-filter-option ${editSelectedDateFilter.includes('کل این هفته') ? 'selected' : ''}`}
+                                onClick={() => handleEditDateFilterToggle('کل این هفته')}
+                              >
+                                کل این هفته
+                              </div>
+                            </div>
+                            <div
+                              className={`calendar-select-option ${editSelectedDateFilter.includes('انتخاب از تقویم') ? 'selected' : ''}`}
+                              onClick={() => handleEditDateFilterToggle('انتخاب از تقویم')}
+                            >
+                              انتخاب از تقویم
+                            </div>
+                          </div>
+
+                          {/* Select from Calendar Section */}
+                          <div className="filter-section">
+                            <div className="jalali-calendar">
+                              {/* Calendar Header with Month/Year Selection */}
+                              <div className="calendar-header">
+                                <div className="month-year-selector">
+                                  <select
+                                    value={editCalendarDate.month}
+                                    onChange={(e) => setEditCalendarDate(prev => ({ ...prev, month: parseInt(e.target.value) }))}
+                                    className="month-select"
+                                  >
+                                    {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                                      <option key={month} value={month}>
+                                        {getJalaliMonthName(month)}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <select
+                                    value={editCalendarDate.year}
+                                    onChange={(e) => setEditCalendarDate(prev => ({ ...prev, year: parseInt(e.target.value) }))}
+                                    className="year-select"
+                                  >
+                                    {Array.from({ length: 10 }, (_, i) => 1400 + i).map(year => (
+                                      <option key={year} value={year}>{year}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="calendar-nav">
+                                  <button
+                                    className="nav-btn prev"
+                                    onClick={handleEditPrevMonth}
+                                  >
+                                    ‹
+                                  </button>
+                                  <button
+                                    className="nav-btn next"
+                                    onClick={handleEditNextMonth}
+                                  >
+                                    ›
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Day Names */}
+                              <div className="day-names">
+                                <div className="day-name">ش</div>
+                                <div className="day-name">یک</div>
+                                <div className="day-name">دو</div>
+                                <div className="day-name">سه</div>
+                                <div className="day-name">چهار</div>
+                                <div className="day-name">پنج</div>
+                                <div className="day-name">ج</div>
+                              </div>
+
+                              {/* Calendar Days Grid */}
+                              <div className="calendar-days">
+                                {renderEditJalaliCalendarDays()}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Restriction Form */}
+                    {editRestrictionFormOpen && editSelectedRestrictionType && (
+                      <div className="restriction-form-container">
+                        {/* Black header with title and close button */}
+                        <div className="restriction-form-header">
+                          <div className="restriction-title-black">
+                            <span className="restriction-label">محدودیت‌های</span>
+                            <span className="restriction-value">{getEditRestrictionTitle()}</span>
+                          </div>
+                          <button
+                            className="close-restriction-btn"
+                            onClick={() => {
+                              setEditRestrictionFormOpen(false);
+                              setEditSelectedRestrictionType(null);
+                            }}
+                          >
+                            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <rect x="0.5" y="0.5" width="31" height="31" rx="5.5" stroke="#EA4335" />
+                              <path fillRule="evenodd" clipRule="evenodd" d="M22.6654 16C22.6654 19.6819 19.6806 22.6666 15.9987 22.6666C12.3168 22.6666 9.33203 19.6819 9.33203 16C9.33203 12.3181 12.3168 9.33331 15.9987 9.33331C19.6806 9.33331 22.6654 12.3181 22.6654 16ZM13.9784 13.9797C14.1737 13.7845 14.4903 13.7845 14.6856 13.9797L15.9987 15.2929L17.3118 13.9798C17.507 13.7845 17.8236 13.7845 18.0189 13.9798C18.2142 14.175 18.2142 14.4916 18.0189 14.6869L16.7058 16L18.0189 17.3131C18.2141 17.5083 18.2141 17.8249 18.0189 18.0202C17.8236 18.2154 17.507 18.2154 17.3118 18.0202L15.9987 16.7071L14.6856 18.0202C14.4903 18.2154 14.1737 18.2154 13.9785 18.0202C13.7832 17.8249 13.7832 17.5083 13.9785 17.3131L15.2916 16L13.9784 14.6869C13.7832 14.4916 13.7832 14.175 13.9784 13.9797Z" fill="#EA4335" />
+                            </svg>
+                          </button>
+                        </div>
+
+                        {/* Gender Restrictions */}
+                        <div className="gender-restrictions-section">
+                          <div className="section-title3">محدودسازی جنسیتی برای تردد</div>
+                          <div className="gender-options">
+                            {['زنانه', 'مردانه', 'خانوادگی'].map((gender) => (
+                              <div
+                                key={gender}
+                                className={`gender-option ${editSelectedGenderRestrictions.includes(gender) ? 'selected' : ''}`}
+                                onClick={() => handleEditGenderRestrictionToggle(gender)}
+                              >
+                                <div className="gender-checkbox">
+                                  {editSelectedGenderRestrictions.includes(gender) ? (
+                                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                      <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
+                                      <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
+                                    </svg>
+                                  ) : (
+                                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                      <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" stroke="#D9D9D9" />
+                                    </svg>
+                                  )}
+                                </div>
+                                <span>{gender}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Time Restrictions */}
+                        <div className="time-restrictions-section">
+                          <div className="section-title5">محدودسازی زمانی برای تردد
+                            <button
+                              className="add-time-btn"
+                              onClick={handleEditAddTimeRestriction}
+                              disabled={editLimitAllHours || editTimeRestrictionPairs.length >= 4}
+                            >
+                              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path fillRule="evenodd" clipRule="evenodd" d="M10.0013 18.3333C14.6037 18.3333 18.3346 14.6023 18.3346 9.99996C18.3346 5.39759 14.6037 1.66663 10.0013 1.66663C5.39893 1.66663 1.66797 5.39759 1.66797 9.99996C1.66797 14.6023 5.39893 18.3333 10.0013 18.3333ZM10.6263 7.49996C10.6263 7.15478 10.3465 6.87496 10.0013 6.87496C9.65612 6.87496 9.3763 7.15478 9.3763 7.49996L9.3763 9.37498H7.5013C7.15612 9.37498 6.8763 9.6548 6.8763 9.99998C6.8763 10.3452 7.15612 10.625 7.5013 10.625H9.3763V12.5C9.3763 12.8451 9.65612 13.125 10.0013 13.125C10.3465 13.125 10.6263 12.8451 10.6263 12.5L10.6263 10.625H12.5013C12.8465 10.625 13.1263 10.3452 13.1263 9.99998C13.1263 9.6548 12.8465 9.37498 12.5013 9.37498H10.6263V7.49996Z" fill="#14C472" />
+                              </svg>
+                            </button>
+                          </div>
+
+                          {/* Time Restriction Pairs Grid */}
+                          <div className={`time-pairs-scrollable-container ${editTimeRestrictionPairs.length > 2 ? 'scrollable' : ''}`}>
+                            <div className={`time-pairs-grid ${editTimeRestrictionPairs.length > 2 ? 'multi-row' : ''}`}>
+                              {editTimeRestrictionPairs.map((pair, index) => (
+                                <div key={index} className="time-pair">
+                                  <div className="time-inputs">
+                                    <div className="time-input-group">
+                                      <label>شروع:</label>
+                                      <input
+                                        type="time"
+                                        value={pair.start}
+                                        onChange={(e) => handleEditTimeChange(index, 'start', e.target.value)}
+                                        disabled={editLimitAllHours}
+                                        className="time-input"
+                                      />
+                                    </div>
+                                    <div className="time-input-group">
+                                      <label>پایان :</label>
+                                      <input
+                                        type="time"
+                                        value={pair.end}
+                                        onChange={(e) => handleEditTimeChange(index, 'end', e.target.value)}
+                                        disabled={editLimitAllHours}
+                                        className="time-input"
+                                      />
+                                    </div>
+                                  </div>
+                                  {editTimeRestrictionPairs.length > 1 && (
+                                    <button
+                                      className="remove-time-btn"
+                                      onClick={() => handleEditRemoveTimeRestriction(index)}
+                                      disabled={editLimitAllHours}
+                                    >
+                                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M9.45597 18.3333H10.13C12.4489 18.3333 13.6084 18.3333 14.3622 17.578C15.1161 16.8227 15.1932 15.5837 15.3475 13.1058L15.5697 9.53534C15.6534 8.19086 15.6953 7.51861 15.3171 7.09262C14.9389 6.66663 14.3002 6.66663 13.0229 6.66663H6.56301C5.28569 6.66663 4.64704 6.66663 4.26885 7.09262C3.89065 7.51861 3.9325 8.19086 4.0162 9.53535L4.23846 13.1058C4.39272 15.5837 4.46984 16.8227 5.22371 17.578C5.97758 18.3333 7.13704 18.3333 9.45597 18.3333Z" fill="#EA4335" />
+                                        <path d="M2.29297 5.13885C2.29297 4.75533 2.58079 4.44442 2.93583 4.44442L5.15603 4.44404C5.59716 4.43197 5.98632 4.12897 6.13642 3.68072C6.14037 3.66893 6.1449 3.6544 6.16118 3.60165L6.25685 3.29157C6.31539 3.10145 6.36639 2.93581 6.43776 2.78776C6.71971 2.20287 7.24137 1.79671 7.84419 1.69273C7.99678 1.6664 8.15837 1.66652 8.34385 1.66664H11.2422C11.4277 1.66652 11.5893 1.6664 11.7419 1.69273C12.3447 1.79671 12.8664 2.20287 13.1483 2.78776C13.2197 2.93581 13.2707 3.10145 13.3292 3.29157L13.4249 3.60165C13.4412 3.6544 13.4457 3.66893 13.4497 3.68072C13.5998 4.12897 14.0661 4.43234 14.5073 4.44442H16.6501C17.0052 4.44442 17.293 4.75533 17.293 5.13885C17.293 5.52238 17.0052 5.83329 16.6501 5.83329H2.93583C2.58079 5.83329 2.29297 5.52238 2.29297 5.13885Z" fill="#EA4335" />
+                                      </svg>
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="time-restrictions-footer">
+                            <div
+                              className="all-hours-option"
+                              onClick={() => {
+                                setEditLimitAllHours(!editLimitAllHours);
+                                if (!editLimitAllHours) {
+                                  setEditTimeRestrictionPairs([{ start: '', end: '' }]);
+                                }
+                              }}
+                            >
+                              <div className="all-hours-checkbox">
+                                {editLimitAllHours ? (
+                                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
+                                  </svg>
+                                ) : (
+                                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" stroke="#D9D9D9" />
+                                  </svg>
+                                )}
+                              </div>
+                              <span>محدودیت برای تمام ساعات روز</span>
+                            </div>
+                            <button
+                              className="confirm-restriction-btn"
+                              onClick={handleEditConfirmRestriction}
+                              disabled={!isEditRestrictionFormValid()}
+                            >
+                              تایید و افزودن محدودیت زمانی
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Prayer Time Restrictions Section */}
+                  <div className="restriction-section">
+                    <div className="restriction-header">
+                      <span className="restriction-title">محدودیت بر اساس اوقات شرعی (برای همه روزها)</span>
+                      <button
+                        className="add-restriction-btn"
+                        onClick={() => {
+                          setEditIsPrayerDateFilterOpen(prev => !prev);
+                          setEditIsDateFilterOpen(false);
+                          setEditRestrictionFormOpen(false);
+                        }}
+                      >
+                        افزودن محدودیت
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#1E2023" />
+                          <path d="M10 15.625C9.65833 15.625 9.375 15.3417 9.375 15V5C9.375 4.65833 9.65833 4.375 10 4.375C10.3417 4.375 10.625 4.65833 10.625 5V15C10.625 15.3417 10.3417 15.625 10 15.625Z" fill="#1E2023" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    {editPrayerRestrictionFormOpen && (
+                      <div className="prayer-form">
+                        <div className="prayer-form-grid">
+                          <div className="form-column">
+                            <label className="form-label">انتخاب رویداد</label>
+                            <div className="prayer-event-grid">
+                              {prayerEventsOptions.map((ev) => (
+                                <div
+                                  key={ev}
+                                  className={`prayer-event-option ${editSelectedPrayerEvents.includes(ev) ? 'selected' : ''}`}
+                                  onClick={() => toggleEditPrayerEvent(ev)}
+                                >
+                                  {editSelectedPrayerEvents.includes(ev) ? (
+                                    <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#0F71EF" /></svg>
+                                  ) : (
+                                    <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#fff" stroke="#D9D9D9" /></svg>
+                                  )}
+                                  <span className="event-label">{ev}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="form-column">
+                            <label className="form-label">محدودسازی زمانی برای تردد</label>
+                            <div className="minutes-inputs-grid">
+                              <input
+                                type="number"
+                                min="0"
+                                className="minute-input"
+                                placeholder="دقیقه قبل از شروع: --"
+                                value={editPrayerBeforeMinutes}
+                                onChange={(e) => setEditPrayerBeforeMinutes(e.target.value)}
+                              />
+                              <input
+                                type="number"
+                                min="0"
+                                className="minute-input"
+                                placeholder="دقیقه قبل از پایان: --"
+                                value={editPrayerAfterMinutes}
+                                onChange={(e) => setEditPrayerAfterMinutes(e.target.value)}
+                              />
+                            </div>
+
+                            <div className="prayer-form-actions">
+                              <button
+                                className="confirm-prayer-btn"
+                                onClick={handleEditConfirmPrayerRestriction}
+                              >
+                                تایید و افزودن محدودیت اوقات شرعی
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {editIsPrayerDateFilterOpen && !editPrayerRestrictionFormOpen && (
+                      <div className="prayer-date-filter-popup">
+                        <div className="date-filter-content">
+                          {/* Filter by Date Section */}
+                          <div className="filter-section">
+                            <div className="date-filter-option2">
+                              <div className="filter-title">فیلتر بر اساس تاریخ</div>
+                              <div
+                                className={`date-filter-option`}
+                                onClick={() => {
+                                  setEditPrayerSelectedJalaliDate(null);
+                                  setEditPrayerRestrictionFormOpen(true);
+                                  setEditIsPrayerDateFilterOpen(false);
+                                }}
+                              >
+                                کل روزها
+                              </div>
+                              <div
+                                className="date-filter-option"
+                                onClick={() => {
+                                  setEditPrayerSelectedJalaliDate(null);
+                                  setEditPrayerRestrictionFormOpen(true);
+                                  setEditIsPrayerDateFilterOpen(false);
+                                }}
+                              >
+                                تمام این ماه
+                              </div>
+                              <div
+                                className="date-filter-option"
+                                onClick={() => {
+                                  setEditPrayerSelectedJalaliDate(null);
+                                  setEditPrayerRestrictionFormOpen(true);
+                                  setEditIsPrayerDateFilterOpen(false);
+                                }}
+                              >
+                                کل این هفته
+                              </div>
+                            </div>
+
+                            <div
+                              className="calendar-select-option selected"
+                            >
+                              انتخاب از تقویم
+                            </div>
+                          </div>
+
+                          {/* Calendar (Jalali) */}
+                          <div className="filter-section">
+                            <div className="jalali-calendar">
+                              <div className="calendar-header">
+                                <div className="month-year-selector">
+                                  <select
+                                    value={editPrayerCalendarDate.month}
+                                    onChange={(e) => setEditPrayerCalendarDate(prev => ({ ...prev, month: parseInt(e.target.value) }))}
+                                    className="month-select"
+                                  >
+                                    {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                                      <option key={month} value={month}>
+                                        {getJalaliMonthName(month)}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <select
+                                    value={editPrayerCalendarDate.year}
+                                    onChange={(e) => setEditPrayerCalendarDate(prev => ({ ...prev, year: parseInt(e.target.value) }))}
+                                    className="year-select"
+                                  >
+                                    {Array.from({ length: 10 }, (_, i) => 1400 + i).map(year => (
+                                      <option key={year} value={year}>{year}</option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <div className="calendar-nav">
+                                  <button className="nav-btn" onClick={handleEditPrayerPrevMonth}>‹</button>
+                                  <button className="nav-btn" onClick={handleEditPrayerNextMonth}>›</button>
+                                </div>
+                              </div>
+
+                              <div className="day-names">
+                                <div className="day-name">ش</div>
+                                <div className="day-name">ی</div>
+                                <div className="day-name">د</div>
+                                <div className="day-name">س</div>
+                                <div className="day-name">چ</div>
+                                <div className="day-name">پ</div>
+                                <div className="day-name">ج</div>
+                              </div>
+
+                              <div className="calendar-days">
+                                {renderEditPrayerJalaliCalendarDays()}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="modal-footer">
+              <button
+                className="cancel-btn11"
+                onClick={handleCloseRestrictionModal}
+              >
+                انصراف و بستن
+              </button>
+              <button
+                className="confirm-btn"
+                onClick={() => {
+                  // If time restriction form is open, handle it
+                  if (editRestrictionFormOpen) {
+                    handleEditConfirmRestriction();
+                  }
+                  // If prayer restriction form is open, handle it
+                  else if (editPrayerRestrictionFormOpen) {
+                    handleEditConfirmPrayerRestriction();
+                  }
+                  // Otherwise just close
+                  else {
+                    handleCloseRestrictionModal();
+                  }
+                }}
+                disabled={
+                  (editRestrictionFormOpen && !isEditRestrictionFormValid()) ||
+                  (editPrayerRestrictionFormOpen && (editSelectedPrayerEvents.length === 0 || editPrayerBeforeMinutes === '' || editPrayerAfterMinutes === ''))
+                }
+              >
+                تایید و افزودن محدودیت
               </button>
             </div>
           </div>
