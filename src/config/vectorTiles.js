@@ -272,12 +272,12 @@ export const layerEditSettings = {
     requiredPermission: 'map:edit:areas'
   },
   doors: {
-    enabled: true,
+    enabled: false,
     highlightColor: '#f43f5e',
     requiredPermission: 'map:edit:doors'
   },
   'routing_edges_static-ground': {
-    enabled: true,
+    enabled: false,
     highlightColor: '#0ea5e9',
     requiredPermission: 'map:edit:routing'
   },
