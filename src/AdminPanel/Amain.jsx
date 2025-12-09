@@ -420,6 +420,49 @@ const Amain = () => {
   const [pendingImageFile, setPendingImageFile] = useState(null);
   const [selectedOrientation, setSelectedOrientation] = useState('');
 
+  const normalizePrimaryMedia = (primaryMedia, existingImages = []) => {
+    if (!primaryMedia) {
+      return { primary: null, images: existingImages };
+    }
+
+    if (typeof primaryMedia === 'object') {
+      const normalizedPrimary = {
+        id: primaryMedia.id || 'existing-primary-image',
+        name: primaryMedia.name || 'تصویر اصلی',
+        type: primaryMedia.type || 'image/*',
+        url: primaryMedia.url || primaryMedia,
+        isPrimary: primaryMedia.isPrimary ?? true,
+        orientation: primaryMedia.orientation ?? null
+      };
+
+      const images = existingImages.some(img => img.id === normalizedPrimary.id)
+        ? existingImages
+        : [normalizedPrimary, ...existingImages];
+
+      return { primary: normalizedPrimary, images };
+    }
+
+    const dataUrlMatch = typeof primaryMedia === 'string'
+      ? primaryMedia.match(/^data:([^;]+);/)
+      : null;
+
+    const derivedType = dataUrlMatch?.[1] || 'image/*';
+
+    const normalizedPrimary = {
+      id: 'existing-primary-image',
+      name: 'تصویر اصلی',
+      type: derivedType,
+      url: primaryMedia,
+      isPrimary: true
+    };
+
+    const images = existingImages.some(img => img.id === normalizedPrimary.id)
+      ? existingImages
+      : [normalizedPrimary, ...existingImages];
+
+    return { primary: normalizedPrimary, images };
+  };
+
 
 
   useEffect(() => {
@@ -850,12 +893,13 @@ const Amain = () => {
     }
 
     // Set other fields if they exist in the data
-    if (itemToEdit.files) {
-      setProfileImages(itemToEdit.files.images || []);
-      setAudioFiles(itemToEdit.files.audio || []);
-      setTextFiles(itemToEdit.files.documents || []);
-      setPrimaryImage(itemToEdit.primaryImage || null);
-    }
+    const existingImages = itemToEdit.files?.images || [];
+    const { primary, images } = normalizePrimaryMedia(itemToEdit.primaryImage, existingImages);
+
+    setProfileImages(images);
+    setAudioFiles(itemToEdit.files?.audio || []);
+    setTextFiles(itemToEdit.files?.documents || []);
+    setPrimaryImage(primary || images[0] || null);
 
     // Set location if it exists
     if (itemToEdit.location) {
