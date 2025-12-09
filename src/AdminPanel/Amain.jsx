@@ -9,7 +9,7 @@ import { toJalaali, toGregorian } from 'jalaali-js';
 import ReactDatePicker from 'react-datepicker';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { distance as turfDistance } from '@turf/turf';
+import { centroid as turfCentroid, distance as turfDistance } from '@turf/turf';
 import { useAdminLoginService } from './adminLoginServiceContext';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import {
@@ -63,6 +63,28 @@ const dedupeByValue = (items = []) => {
     seen.add(value);
     return true;
   });
+};
+
+const getFeatureCenterCoordinates = (feature) => {
+  const geometry = feature?.geometry;
+
+  if (!geometry) return null;
+
+  if (geometry.type === 'Point') return geometry.coordinates;
+  if (geometry.type === 'MultiPoint') return geometry.coordinates?.[0];
+
+  try {
+    const centroid = turfCentroid(feature);
+    const coordinates = centroid?.geometry?.coordinates;
+
+    if (Array.isArray(coordinates) && coordinates.length >= 2) {
+      return coordinates;
+    }
+  } catch (error) {
+    console.error('خطا در محاسبه مرکز هندسی فیچر:', error);
+  }
+
+  return null;
 };
 
 const logDoorAccessPointDebugInfo = (mapInstance) => {
@@ -1892,15 +1914,15 @@ const Amain = () => {
       const centerCoordinates = [center.lng, center.lat];
       const featuresWithDistance = nearbyFeatures
         .map((feature) => {
-          const [featureLng, featureLat] = feature?.geometry?.coordinates || [];
+          const featureCoordinates = getFeatureCenterCoordinates(feature);
 
-          if (typeof featureLng !== 'number' || typeof featureLat !== 'number') {
+          if (!featureCoordinates) {
             return null;
           }
 
           const distanceMeters = turfDistance(
             centerCoordinates,
-            [featureLng, featureLat],
+            featureCoordinates,
             { units: 'kilometers' }
           ) * 1000;
 
@@ -2015,15 +2037,15 @@ const Amain = () => {
 
       const featuresWithDistance = nearbyFeatures
         .map((feature) => {
-          const [featureLng, featureLat] = feature?.geometry?.coordinates || [];
+          const featureCoordinates = getFeatureCenterCoordinates(feature);
 
-          if (typeof featureLng !== 'number' || typeof featureLat !== 'number') {
+          if (!featureCoordinates) {
             return null;
           }
 
           const distanceMeters = turfDistance(
             clickCoordinates,
-            [featureLng, featureLat],
+            featureCoordinates,
             { units: 'kilometers' }
           ) * 1000;
 
