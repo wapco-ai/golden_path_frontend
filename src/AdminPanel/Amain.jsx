@@ -330,6 +330,7 @@ const Amain = () => {
   const [lastCreatedAccessPointId, setLastCreatedAccessPointId] = useState(null);
   const [isSavingDoorInfo, setIsSavingDoorInfo] = useState(false);
   const [isLoadingDoorInfo, setIsLoadingDoorInfo] = useState(false);
+  const [isEditingDoorInfo, setIsEditingDoorInfo] = useState(false);
   const [isDoorMoveMode, setIsDoorMoveMode] = useState(false);
   const intl = useIntl();
   const language = intl?.locale || 'fa';
@@ -2067,6 +2068,8 @@ const Amain = () => {
     setLocationStatus('');
     setIsPlaceCovered(null);
 
+    setIsEditingDoorInfo(false);
+
     setSelectedRestrictionType(null);
     setRestrictionFormOpen(false);
     setSelectedGenderRestrictions([]);
@@ -2099,6 +2102,16 @@ const Amain = () => {
     setCurrentTitleField(null);
     setCurrentDescriptionField(null);
   };
+
+  const handleStepCircleClick = (stepNumber) => {
+    if (!isEditingDoorInfo) return;
+    setCurrentStep(stepNumber);
+  };
+
+  const activeLayerTitle = activeEditableLayer?.titleFa
+    || activeEditableLayer?.label
+    || activeEditableLayer?.id
+    || 'نام لایه';
 
 
   // Map initialization effect
@@ -2788,7 +2801,7 @@ const Amain = () => {
 
       toast.success('درب جدید با موفقیت ثبت شد');
       console.log('door creation response', response);
-      await openDoorInfoModal(newDoorId, newAccessPointId);
+      await openDoorInfoModal(newDoorId, newAccessPointId, false);
     } catch (error) {
       toast.error(error?.message || 'ثبت درب ناموفق بود');
     } finally {
@@ -3021,9 +3034,10 @@ const Amain = () => {
     setAdditionalNotes(doorInfo?.notes || '');
   }
 
-  async function openDoorInfoModal(doorId, accessPointId = null) {
+  async function openDoorInfoModal(doorId, accessPointId = null, isEditMode = false) {
     setLastCreatedDoorId(doorId || null);
     setLastCreatedAccessPointId(accessPointId || null);
+    setIsEditingDoorInfo(isEditMode);
     setIsAddPlaceModalOpen(true);
     setCurrentStep(1);
 
@@ -3075,7 +3089,7 @@ const Amain = () => {
       return;
     }
 
-    await openDoorInfoModal(selectedDoorId, selectedDoorAccessPointId || null);
+    await openDoorInfoModal(selectedDoorId, selectedDoorAccessPointId || null, true);
   };
 
   const activeLayerCount = Object.values(layerVisibility).filter(Boolean).length;
@@ -5874,15 +5888,24 @@ const Amain = () => {
                 </span>
               </div>
               <div className="step-progress">
-                <div className={`step-circle ${currentStep >= 1 ? 'active' : ''}`}>
+                <div
+                  className={`step-circle ${currentStep >= 1 ? 'active' : ''} ${isEditingDoorInfo ? 'clickable' : ''}`}
+                  onClick={() => handleStepCircleClick(1)}
+                >
                   {currentStep > 1 ? '✓' : '۱'}
                 </div>
                 <div className={`step-line ${currentStep >= 2 ? 'active' : ''}`}></div>
-                <div className={`step-circle ${currentStep >= 2 ? 'active' : ''}`}>
+                <div
+                  className={`step-circle ${currentStep >= 2 ? 'active' : ''} ${isEditingDoorInfo ? 'clickable' : ''}`}
+                  onClick={() => handleStepCircleClick(2)}
+                >
                   {currentStep > 2 ? '✓' : '۲'}
                 </div>
                 <div className={`step-line ${currentStep >= 3 ? 'active' : ''}`}></div>
-                <div className={`step-circle ${currentStep >= 3 ? 'active' : ''}`}>
+                <div
+                  className={`step-circle ${currentStep >= 3 ? 'active' : ''} ${isEditingDoorInfo ? 'clickable' : ''}`}
+                  onClick={() => handleStepCircleClick(3)}
+                >
                   {currentStep > 3 ? '✓' : '۳'}
                 </div>
               </div>
@@ -5893,7 +5916,7 @@ const Amain = () => {
               {currentStep === 1 && (
                 <div className="step-content">
                   <div className="step-intro">
-                    <h3>فرم و فرایند ایجاد و افزودن یک نقطه و مکان جدید</h3>
+                    <h3>{isEditingDoorInfo ? `فرم ویرایش لایه (${activeLayerTitle})` : 'فرم و فرایند ایجاد و افزودن یک نقطه و مکان جدید'}</h3>
                   </div>
 
                   <div className="form-section">
@@ -5990,7 +6013,7 @@ const Amain = () => {
               {currentStep === 2 && (
                 <div className="step-content step2-content">
                   <div className="step-intro">
-                    <h3>فرم و فرایند ایجاد و افزودن یک نقطه و مکان جدید</h3>
+                    <h3>{isEditingDoorInfo ? `فرم ویرایش لایه (${activeLayerTitle})` : 'فرم و فرایند ایجاد و افزودن یک نقطه و مکان جدید'}</h3>
                   </div>
 
                   <div className="form-section">
@@ -6680,19 +6703,21 @@ const Amain = () => {
               >
                 لغو و بازگشت
               </button>
-              <button
-                className="confirm-btn"
-                onClick={handleAddPlaceConfirm}
-                disabled={isSavingDoorInfo || isLoadingDoorInfo}
-              >
-                {isSavingDoorInfo
-                  ? 'در حال ذخیره اطلاعات...'
-                  : isLoadingDoorInfo
-                    ? 'در حال بارگذاری اطلاعات...'
-                  : currentStep === 3
-                    ? 'تایید اطلاعات و ثبت این مکان '
-                    : 'تایید اطلاعات و مرحله بعد'}
-              </button>
+              {(!isEditingDoorInfo || currentStep === 3) && (
+                <button
+                  className="confirm-btn"
+                  onClick={handleAddPlaceConfirm}
+                  disabled={isSavingDoorInfo || isLoadingDoorInfo}
+                >
+                  {isSavingDoorInfo
+                    ? 'در حال ذخیره اطلاعات...'
+                    : isLoadingDoorInfo
+                      ? 'در حال بارگذاری اطلاعات...'
+                    : currentStep === 3
+                      ? 'تایید اطلاعات و ثبت این مکان '
+                      : 'تایید اطلاعات و مرحله بعد'}
+                </button>
+              )}
             </div>
           </div>
         </div>
