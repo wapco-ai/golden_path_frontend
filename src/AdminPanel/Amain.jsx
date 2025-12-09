@@ -5964,7 +5964,7 @@ const Amain = () => {
                           >
                             <option value="" disabled>کارکرد گروه</option>
                             <option value="door">درب</option>
-                            <option value="connection-point">نقطه اتصال</option>
+                            <option value="connection">نقطه اتصال</option>
                           </select>
                         </div>
                       </div>
