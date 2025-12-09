@@ -344,6 +344,11 @@ const Amain = () => {
     },
     [intl]
   );
+  const currentJalaliDate = useMemo(() => {
+    const now = new Date();
+    return toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  }, []);
+
   const [isAddPlaceModalOpen, setIsAddPlaceModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [placeName, setPlaceName] = useState('');
@@ -372,11 +377,12 @@ const Amain = () => {
   const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
   const [selectedDateFilter, setSelectedDateFilter] = useState([]);
   const [selectedJalaliDate, setSelectedJalaliDate] = useState(null);
-  const [calendarDate, setCalendarDate] = useState(() => {
-    const now = new Date();
-    const jalali = toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
-    return { year: jalali.jy, month: jalali.jm, day: jalali.jd };
-  });
+  const [selectedJalaliEndDate, setSelectedJalaliEndDate] = useState(null);
+  const [calendarDate, setCalendarDate] = useState(() => ({
+    year: currentJalaliDate.jy,
+    month: currentJalaliDate.jm,
+    day: currentJalaliDate.jd
+  }));
   const [selectedRestrictionType, setSelectedRestrictionType] = useState(null);
   const [restrictionFormOpen, setRestrictionFormOpen] = useState(false);
   const [selectedGenderRestrictions, setSelectedGenderRestrictions] = useState([]);
@@ -385,8 +391,12 @@ const Amain = () => {
   ]);
   const [limitAllHours, setLimitAllHours] = useState(false);
   const [isPrayerDateFilterOpen, setIsPrayerDateFilterOpen] = useState(false);
-  const [prayerCalendarDate, setPrayerCalendarDate] = useState({ year: 1403, month: 1 });
+  const [prayerCalendarDate, setPrayerCalendarDate] = useState({
+    year: currentJalaliDate.jy,
+    month: currentJalaliDate.jm
+  });
   const [prayerSelectedJalaliDate, setPrayerSelectedJalaliDate] = useState(null);
+  const [prayerSelectedJalaliEndDate, setPrayerSelectedJalaliEndDate] = useState(null);
   const [prayerRestrictionFormOpen, setPrayerRestrictionFormOpen] = useState(false);
   const [selectedPrayerEvents, setSelectedPrayerEvents] = useState([]);
   const [prayerBeforeMinutes, setPrayerBeforeMinutes] = useState('');
@@ -2077,11 +2087,13 @@ const Amain = () => {
     setLimitAllHours(false);
     setSelectedDateFilter([]);
     setSelectedJalaliDate(null);
+    setSelectedJalaliEndDate(null);
 
     setSelectedPrayerEvents([]);
     setPrayerBeforeMinutes('');
     setPrayerAfterMinutes('');
     setPrayerSelectedJalaliDate(null);
+    setPrayerSelectedJalaliEndDate(null);
     setPrayerRestrictionFormOpen(false);
     setIsPrayerDateFilterOpen(false);
     setPrayerTimeRestrictionsList([]);
@@ -3229,6 +3241,33 @@ const Amain = () => {
     return jalaliMonths.indexOf(monthName) + 1;
   };
 
+  const jalaliYearOptions = useMemo(() => {
+    const startYear = currentJalaliDate.jy - 5;
+    return Array.from({ length: 11 }, (_, i) => startYear + i);
+  }, [currentJalaliDate.jy]);
+
+  const formatJalaliDateLabel = (dateParts) => {
+    if (!dateParts) return '';
+    const jalaliMonths = [
+      'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+      'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
+    ];
+    return `${dateParts.day} ${jalaliMonths[dateParts.month - 1]} ${dateParts.year}`;
+  };
+
+  const compareJalaliDates = (first, second) => {
+    if (!first || !second) return 0;
+    const firstIso = jalaliDatePartsToIso(first);
+    const secondIso = jalaliDatePartsToIso(second);
+    if (firstIso === secondIso) return 0;
+    return firstIso > secondIso ? 1 : -1;
+  };
+
+  const sortJalaliRange = (start, end) => {
+    if (!start || !end) return [start, end];
+    return compareJalaliDates(start, end) <= 0 ? [start, end] : [end, start];
+  };
+
   const jalaliDatePartsToIso = ({ year, month, day }) => {
     const { gy, gm, gd } = toGregorian(year, month, day);
     return `${gy}-${String(gm).padStart(2, '0')}-${String(gd).padStart(2, '0')}`;
@@ -3268,7 +3307,7 @@ const Amain = () => {
     });
   };
 
-  const buildDateScopeIso = (dateLabel, jalaliSelection = null) => {
+  const buildDateScopeIso = (dateLabel, jalaliSelection = null, jalaliEndSelection = null) => {
     if (!dateLabel || dateLabel === 'کل روزها') return [];
 
     const isIsoDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -3292,15 +3331,32 @@ const Amain = () => {
       return getCurrentWeekBounds();
     }
 
+    if (jalaliSelection && jalaliEndSelection) {
+      const [startDate, endDate] = sortJalaliRange(jalaliSelection, jalaliEndSelection);
+      const startIso = jalaliDatePartsToIso(startDate);
+      const endIso = jalaliDatePartsToIso(endDate);
+      return startIso === endIso ? [startIso] : [startIso, endIso];
+    }
+
     if (jalaliSelection) {
       return [jalaliDatePartsToIso(jalaliSelection)];
+    }
+
+    if (dateLabel.startsWith('از ') && dateLabel.includes(' تا ')) {
+      const [startText, endText] = dateLabel.replace(/^از\s+/, '').split(/\s+تا\s+/);
+      const startIso = parseJalaliDateLabelToIso(`روز ${startText}`);
+      const endIso = parseJalaliDateLabelToIso(`روز ${endText}`);
+      if (startIso && endIso) {
+        const ordered = startIso <= endIso ? [startIso, endIso] : [endIso, startIso];
+        return ordered[0] === ordered[1] ? [ordered[0]] : ordered;
+      }
     }
 
     const isoFromLabel = parseJalaliDateLabelToIso(dateLabel);
     return isoFromLabel ? [isoFromLabel] : [];
   };
 
-  const buildPrayerDateIso = (dateLabel, jalaliSelection = null) => {
+  const buildPrayerDateIso = (dateLabel, jalaliSelection = null, jalaliEndSelection = null) => {
     if (!dateLabel || dateLabel === 'همه روزها') return null;
 
     const isIsoDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -3326,11 +3382,43 @@ const Amain = () => {
       return `${start}/${end}`;
     }
 
+    if (jalaliSelection && jalaliEndSelection) {
+      const [startDate, endDate] = sortJalaliRange(jalaliSelection, jalaliEndSelection);
+      const startIso = jalaliDatePartsToIso(startDate);
+      const endIso = jalaliDatePartsToIso(endDate);
+      return startIso === endIso ? startIso : `${startIso}/${endIso}`;
+    }
+
     if (jalaliSelection) {
       return jalaliDatePartsToIso(jalaliSelection);
     }
 
+    if (dateLabel.startsWith('از ') && dateLabel.includes(' تا ')) {
+      const [startText, endText] = dateLabel.replace(/^از\s+/, '').split(/\s+تا\s+/);
+      const startIso = parseJalaliDateLabelToIso(`روز ${startText}`);
+      const endIso = parseJalaliDateLabelToIso(`روز ${endText}`);
+      if (startIso && endIso) {
+        const ordered = startIso <= endIso ? [startIso, endIso] : [endIso, startIso];
+        return ordered[0] === ordered[1] ? ordered[0] : `${ordered[0]}/${ordered[1]}`;
+      }
+    }
+
     return parseJalaliDateLabelToIso(dateLabel);
+  };
+
+  const getPrayerDateLabel = () => {
+    if (prayerSelectedJalaliDate && prayerSelectedJalaliEndDate) {
+      const [startDate, endDate] = sortJalaliRange(prayerSelectedJalaliDate, prayerSelectedJalaliEndDate);
+      const startLabel = formatJalaliDateLabel(startDate);
+      const endLabel = formatJalaliDateLabel(endDate);
+      return startLabel === endLabel ? `روز ${startLabel}` : `از ${startLabel} تا ${endLabel}`;
+    }
+
+    if (prayerSelectedJalaliDate) {
+      return `روز ${formatJalaliDateLabel(prayerSelectedJalaliDate)}`;
+    }
+
+    return 'همه روزها';
   };
 
   const handleDateFilterToggle = (filter) => {
@@ -3404,15 +3492,36 @@ const Amain = () => {
     // Days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const isToday = year === today.jy && month === today.jm && day === today.jd;
-      const isSelected = selectedJalaliDate &&
+      const isStart = selectedJalaliDate &&
         selectedJalaliDate.year === year &&
         selectedJalaliDate.month === month &&
         selectedJalaliDate.day === day;
+      const isEnd = selectedJalaliEndDate &&
+        selectedJalaliEndDate.year === year &&
+        selectedJalaliEndDate.month === month &&
+        selectedJalaliEndDate.day === day;
+      const isInRange = selectedJalaliDate && selectedJalaliEndDate
+        ? compareJalaliDates(
+          { year, month, day },
+          selectedJalaliDate
+        ) >= 0 && compareJalaliDates(
+          { year, month, day },
+          selectedJalaliEndDate
+        ) <= 0
+        : false;
+
+      const classes = [
+        'calendar-day',
+        isToday ? 'today' : '',
+        isStart ? 'selected range-start' : '',
+        isEnd ? 'selected range-end' : '',
+        isInRange && !isStart && !isEnd ? 'in-range' : ''
+      ].filter(Boolean).join(' ');
 
       days.push(
         <div
           key={`day-${day}`}
-          className={`calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`}
+          className={classes}
           onClick={() => {
             if (selectedDateFilter.includes('انتخاب از تقویم')) {
               handleDaySelect(day);
@@ -3697,31 +3806,55 @@ const Amain = () => {
   );
 
   const handleDaySelect = (day) => {
-    setSelectedJalaliDate({
+    const clickedDate = {
       year: calendarDate.year,
       month: calendarDate.month,
       day: day
-    });
+    };
 
-    const jalaliMonths = [
-      'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
-      'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
-    ];
-    const dateText = `${day} ${jalaliMonths[calendarDate.month - 1]} ${calendarDate.year}`;
+    // First click sets the start date, second click sets the end date
+    if (!selectedJalaliDate || selectedJalaliEndDate) {
+      setSelectedJalaliDate(clickedDate);
+      setSelectedJalaliEndDate(null);
+      setSelectedRestrictionType(null);
+      setRestrictionFormOpen(false);
+      return;
+    }
 
-    // Set the restriction type with proper format
-    setSelectedRestrictionType(`روز ${dateText}`);
+    const [startDate, endDate] = sortJalaliRange(selectedJalaliDate, clickedDate);
+    const startLabel = formatJalaliDateLabel(startDate);
+    const endLabel = formatJalaliDateLabel(endDate);
+    const dateText = startLabel === endLabel ? `روز ${startLabel}` : `از ${startLabel} تا ${endLabel}`;
 
-    // Close the date filter popup
+    setSelectedJalaliDate(startDate);
+    setSelectedJalaliEndDate(endDate);
+    setSelectedRestrictionType(dateText);
     setIsDateFilterOpen(false);
-
-    // Open the restriction form
     setRestrictionFormOpen(true);
-
-    // Reset time restriction pairs
     setTimeRestrictionPairs([{ start: '', end: '' }]);
     setLimitAllHours(false);
     setSelectedGenderRestrictions([]);
+  };
+
+  const handlePrayerDaySelect = (day) => {
+    const clickedDate = {
+      year: prayerCalendarDate.year,
+      month: prayerCalendarDate.month,
+      day
+    };
+
+    if (!prayerSelectedJalaliDate || prayerSelectedJalaliEndDate) {
+      setPrayerSelectedJalaliDate(clickedDate);
+      setPrayerSelectedJalaliEndDate(null);
+      setPrayerRestrictionFormOpen(false);
+      return;
+    }
+
+    const [startDate, endDate] = sortJalaliRange(prayerSelectedJalaliDate, clickedDate);
+    setPrayerSelectedJalaliDate(startDate);
+    setPrayerSelectedJalaliEndDate(endDate);
+    setIsPrayerDateFilterOpen(false);
+    setPrayerRestrictionFormOpen(true);
   };
 
   const handleConfirmRestriction = () => {
@@ -3730,7 +3863,7 @@ const Amain = () => {
       return;
     }
 
-    const restrictionIsoScope = buildDateScopeIso(getRestrictionTitle(), selectedJalaliDate);
+    const restrictionIsoScope = buildDateScopeIso(getRestrictionTitle(), selectedJalaliDate, selectedJalaliEndDate);
 
     if (!restrictionIsoScope.length) {
       alert('لطفا تاریخ محدودیت را از تقویم یا گزینه‌های موجود انتخاب کنید');
@@ -3853,12 +3986,14 @@ const Amain = () => {
     setLimitAllHours(false);
     setSelectedDateFilter([]);
     setSelectedJalaliDate(null);
+    setSelectedJalaliEndDate(null);
   };
 
   const removeDateFilter = (filter) => {
     setSelectedDateFilter(prev => prev.filter(f => f !== filter));
     if (filter === 'انتخاب از تقویم') {
       setSelectedJalaliDate(null);
+      setSelectedJalaliEndDate(null);
     }
   };
 
@@ -3928,28 +4063,32 @@ const Amain = () => {
 
     for (let day = 1; day <= daysInMonth; day++) {
       const isToday = year === today.jy && month === today.jm && day === today.jd;
-      const isSelected = prayerSelectedJalaliDate &&
+      const isStart = prayerSelectedJalaliDate &&
         prayerSelectedJalaliDate.year === year &&
         prayerSelectedJalaliDate.month === month &&
         prayerSelectedJalaliDate.day === day;
+      const isEnd = prayerSelectedJalaliEndDate &&
+        prayerSelectedJalaliEndDate.year === year &&
+        prayerSelectedJalaliEndDate.month === month &&
+        prayerSelectedJalaliEndDate.day === day;
+      const isInRange = prayerSelectedJalaliDate && prayerSelectedJalaliEndDate
+        ? compareJalaliDates({ year, month, day }, prayerSelectedJalaliDate) >= 0
+          && compareJalaliDates({ year, month, day }, prayerSelectedJalaliEndDate) <= 0
+        : false;
+
+      const classes = [
+        'calendar-day',
+        isToday ? 'today' : '',
+        isStart ? 'selected range-start' : '',
+        isEnd ? 'selected range-end' : '',
+        isInRange && !isStart && !isEnd ? 'in-range' : ''
+      ].filter(Boolean).join(' ');
 
       days.push(
         <div
           key={`p-day-${day}`}
-          className={`calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`}
-          onClick={() => {
-            // Same behaviour as the first calendar: set selected date, close calendar, open form
-            setPrayerSelectedJalaliDate({ year, month, day });
-            const jalaliMonths = [
-              'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
-              'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
-            ];
-            const dateText = `${day} ${jalaliMonths[month - 1]} ${year}`;
-            // store selection as part of the restriction title — reusing the same approach
-            // We'll set restriction form open and close calendar
-            setIsPrayerDateFilterOpen(false);
-            setPrayerRestrictionFormOpen(true);
-          }}
+          className={classes}
+          onClick={() => handlePrayerDaySelect(day)}
         >
           {day}
         </div>
@@ -6428,7 +6567,7 @@ const Amain = () => {
                                       onChange={(e) => setCalendarDate(prev => ({ ...prev, year: parseInt(e.target.value) }))}
                                       className="year-select"
                                     >
-                                      {Array.from({ length: 10 }, (_, i) => 1400 + i).map(year => (
+                                      {jalaliYearOptions.map(year => (
                                         <option key={year} value={year}>{year}</option>
                                       ))}
                                     </select>
@@ -6698,12 +6837,11 @@ const Amain = () => {
                                       events: [...selectedPrayerEvents],
                                       before: String(prayerBeforeMinutes),
                                       after: String(prayerAfterMinutes),
-                                      date: prayerSelectedJalaliDate ? `روز ${prayerSelectedJalaliDate.day} ${getJalaliMonthName(prayerSelectedJalaliDate.month)} ${prayerSelectedJalaliDate.year}` : 'همه روزها',
+                                      date: getPrayerDateLabel(),
                                       isoDate: buildPrayerDateIso(
-                                        prayerSelectedJalaliDate
-                                          ? `روز ${prayerSelectedJalaliDate.day} ${getJalaliMonthName(prayerSelectedJalaliDate.month)} ${prayerSelectedJalaliDate.year}`
-                                          : 'همه روزها',
-                                        prayerSelectedJalaliDate
+                                        getPrayerDateLabel(),
+                                        prayerSelectedJalaliDate,
+                                        prayerSelectedJalaliEndDate
                                       ),
                                       title
                                     };
@@ -6713,6 +6851,7 @@ const Amain = () => {
                                     setPrayerBeforeMinutes('');
                                     setPrayerAfterMinutes('');
                                     setPrayerSelectedJalaliDate(null);
+                                    setPrayerSelectedJalaliEndDate(null);
                                     setPrayerRestrictionFormOpen(false);
                                   }}
                                 >
@@ -6793,7 +6932,7 @@ const Amain = () => {
                                       onChange={(e) => setPrayerCalendarDate(prev => ({ ...prev, year: parseInt(e.target.value) }))}
                                       className="year-select"
                                     >
-                                      {Array.from({ length: 10 }, (_, i) => 1400 + i).map(year => (
+                                      {jalaliYearOptions.map(year => (
                                         <option key={year} value={year}>{year}</option>
                                       ))}
                                     </select>
