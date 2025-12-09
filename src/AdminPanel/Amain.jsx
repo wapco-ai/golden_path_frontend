@@ -54,6 +54,22 @@ const normalizeTransportValue = (value) => TRANSPORT_OPTIONS.find((option) => op
   || TRANSPORT_OPTIONS.find((option) => option.label === value)?.value
   || value;
 
+const normalizeTransportModes = (value) => {
+  if (Array.isArray(value)) {
+    return value.map(normalizeTransportValue).filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    const cleaned = value.trim().replace(/^\{/, '').replace(/\}$/, '');
+
+    return cleaned
+      ? cleaned.split(',').map((item) => normalizeTransportValue(item.trim())).filter(Boolean)
+      : [];
+  }
+
+  return [];
+};
+
 const dedupeByValue = (items = []) => {
   const seen = new Set();
   return items.filter((item) => {
@@ -3105,9 +3121,7 @@ const Amain = () => {
     setPlaceAddress(doorInfo?.address || '');
     setLocationStatus(operational?.status === 'inactive' ? 'غیر فعال' : 'فعال');
     setIsPlaceCovered(typeof operational?.is_covered === 'boolean' ? operational.is_covered : null);
-    setSelectedTransport(Array.isArray(operational?.transport_modes)
-      ? operational.transport_modes.map(normalizeTransportValue).filter(Boolean)
-      : []);
+    setSelectedTransport(normalizeTransportModes(operational?.transport_modes));
     setSelectedGenderAccess(Array.isArray(operational?.gender_access)
       ? operational.gender_access.map(normalizeGenderValue).filter(Boolean)
       : []);
