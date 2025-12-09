@@ -2197,6 +2197,11 @@ const Amain = () => {
     }
   }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
 
+  const clearVertexMarkers = useCallback(() => {
+    vertexMarkersRef.current.forEach((marker) => marker?.remove());
+    vertexMarkersRef.current = [];
+  }, []);
+
   useEffect(() => {
     setSelectedEditableFeature(null);
   }, [activeEditableLayerId]);
@@ -2604,11 +2609,6 @@ const Amain = () => {
     setSelectedEditableFeature(null);
     setIsAreaEditMode(false);
   };
-
-  const clearVertexMarkers = useCallback(() => {
-    vertexMarkersRef.current.forEach((marker) => marker?.remove());
-    vertexMarkersRef.current = [];
-  }, []);
 
   const rebuildSelectionFromVertices = useCallback((geometryType, updatedVertices) => {
     if (!geometryType || !Array.isArray(updatedVertices) || !updatedVertices.length) return;
