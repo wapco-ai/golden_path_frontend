@@ -199,6 +199,7 @@ const Amain = () => {
   const [isCreatingDoor, setIsCreatingDoor] = useState(false);
   const [locationMarker, setLocationMarker] = useState(null);
   const [activeEditableLayerId, setActiveEditableLayerId] = useState('');
+  const hasUserClearedEditableLayer = useRef(false);
   const [selectedEditableFeature, setSelectedEditableFeature] = useState(null);
   const activeEditableLayer = useMemo(() => {
     const selectedLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
@@ -1784,14 +1785,16 @@ const Amain = () => {
     if (activeEditableLayerId && !canUserEditLayer(activeLayerOption)) {
       setActiveEditableLayerId('');
       setSelectedEditableFeature(null);
+      hasUserClearedEditableLayer.current = false;
       return;
     }
 
-    if (!activeEditableLayerId) {
+    if (!activeEditableLayerId && !hasUserClearedEditableLayer.current) {
       const firstAvailable = editableLayerOptions.find((layer) => canUserEditLayer(layer));
 
       if (firstAvailable) {
         setActiveEditableLayerId(firstAvailable.id);
+        hasUserClearedEditableLayer.current = false;
       }
     }
   }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
@@ -1858,6 +1861,79 @@ const Amain = () => {
     return () => {
       map.off('load', ensureHighlightLayer);
     };
+  }, [map, activeMenu, activeEditableLayer]);
+
+  useEffect(() => {
+    if (!map || activeMenu !== 'mapmanage') return undefined;
+
+    const selectNearestFeature = () => {
+      if (!activeEditableLayer) {
+        setSelectedEditableFeature(null);
+        return;
+      }
+
+      const center = map.getCenter();
+      const centerPoint = map.project(center);
+      const searchRadiusPx = 40000;
+      const boundingBox = [
+        [centerPoint.x - searchRadiusPx, centerPoint.y - searchRadiusPx],
+        [centerPoint.x + searchRadiusPx, centerPoint.y + searchRadiusPx]
+      ];
+
+      const nearbyFeatures = map
+        .queryRenderedFeatures(boundingBox, { layers: [activeEditableLayer.id] })
+        .filter((feature) => !activeEditableLayer.sourceId || feature?.source === activeEditableLayer.sourceId);
+
+      if (!nearbyFeatures.length) {
+        setSelectedEditableFeature(null);
+        return;
+      }
+
+      const centerCoordinates = [center.lng, center.lat];
+      const featuresWithDistance = nearbyFeatures
+        .map((feature) => {
+          const [featureLng, featureLat] = feature?.geometry?.coordinates || [];
+
+          if (typeof featureLng !== 'number' || typeof featureLat !== 'number') {
+            return null;
+          }
+
+          const distanceMeters = turfDistance(
+            centerCoordinates,
+            [featureLng, featureLat],
+            { units: 'kilometers' }
+          ) * 1000;
+
+          return { feature, distanceMeters };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.distanceMeters - b.distanceMeters);
+
+      if (!featuresWithDistance.length) {
+        setSelectedEditableFeature(null);
+        return;
+      }
+
+      const nearestFeature = featuresWithDistance[0];
+      const selectedFeatureCollection = {
+        type: 'FeatureCollection',
+        features: [nearestFeature.feature]
+      };
+
+      setSelectedEditableFeature(selectedFeatureCollection);
+
+      if (activeEditableLayer.id === DOOR_ACCESS_LAYER_ID) {
+        setOpenSubMenu(4);
+      }
+    };
+
+    if (map.isStyleLoaded()) {
+      selectNearestFeature();
+      return undefined;
+    }
+
+    map.once('load', selectNearestFeature);
+    return () => map.off('load', selectNearestFeature);
   }, [map, activeMenu, activeEditableLayer]);
 
   useEffect(() => {
@@ -2032,7 +2108,16 @@ const Amain = () => {
 
     if (!canUserEditLayer(layerOption)) return;
 
-    setActiveEditableLayerId((current) => (current === layerId ? '' : layerId));
+    setActiveEditableLayerId((current) => {
+      const isSameLayer = current === layerId;
+      hasUserClearedEditableLayer.current = isSameLayer;
+
+      if (!isSameLayer) {
+        hasUserClearedEditableLayer.current = false;
+      }
+
+      return isSameLayer ? '' : layerId;
+    });
     setSelectedEditableFeature(null);
   };
 
