@@ -7110,3 +7110,147 @@ body {
   justify-content: center;
   cursor: pointer;
 }
+
+/* Orientation Modal Styles */
+.orientation-modal {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+.orientation-modal .modal-header {
+  padding: 20px 24px;
+  border: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0px;
+}
+
+.orientation-modal .modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1E2023;
+}
+
+.image-preview-container {
+  width: 100%;
+  height: 200px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #E8E8E8;
+}
+
+.image-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #F5F5F5;
+}
+
+.orientation-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.orientation-option {
+  background: #FFFFFF;
+  border: 1px solid #D9D9D9;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.orientation-option:hover {
+  border-color: #0F71EF;
+  background: #F5F9FF;
+}
+
+.orientation-option.selected {
+  border-color: #0F71EF;
+  background: #F5F9FF;
+}
+
+
+.orientation-option span {
+  font-size: 14px;
+  color: #1E2023;
+}
+
+
+/* Orientation badge for images */
+.image-container-with-badge {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.orientation-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(15, 113, 239, 0.9);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 1;
+}
+
+/* Edit section orientation styles */
+.orientation-badge-edit {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(15, 113, 239, 0.9);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 1;
+}
+
+/* For edit page */
+.image-container-with-badge-edit {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Modal content scrollable */
+.orientation-modal .modal-content {
+  padding: 24px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .orientation-options-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .image-preview-container {
+    height: 150px;
+  }
+}
+
+.map-buttons-edit {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}

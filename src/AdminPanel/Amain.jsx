@@ -293,6 +293,9 @@ const Amain = () => {
   const [editingCulturalId, setEditingCulturalId] = useState(null);
   const [editingCulturalData, setEditingCulturalData] = useState(null);
   const [openSubMenu, setOpenSubMenu] = useState(null);
+  const [showOrientationModal, setShowOrientationModal] = useState(false);
+  const [pendingImageFile, setPendingImageFile] = useState(null);
+  const [selectedOrientation, setSelectedOrientation] = useState('');
 
 
 
@@ -643,6 +646,9 @@ const Amain = () => {
     const itemToEdit = culturalData.find(item => item.id === id);
     if (!itemToEdit) return;
 
+    console.log('Editing item:', itemToEdit);
+    console.log('Item location:', itemToEdit.location);
+
     setEditingCulturalId(id);
     setEditingCulturalData({ ...itemToEdit });
 
@@ -664,8 +670,21 @@ const Amain = () => {
       setPrimaryImage(itemToEdit.primaryImage || null);
     }
 
+    // Set location if it exists
+    if (itemToEdit.location) {
+      console.log('Setting location to:', itemToEdit.location);
+      setSelectedLocation({
+        lat: itemToEdit.location.lat,
+        lng: itemToEdit.location.lng
+      });
+    } else {
+      console.log('No location found in item');
+      setSelectedLocation(null);
+    }
+
     setIsEditingCultural(true);
   };
+
 
   const handleSaveEditCultural = () => {
     if (!editingCulturalId || !culturalTitle.trim()) {
@@ -673,6 +692,7 @@ const Amain = () => {
       return;
     }
 
+    // Save data first
     const updatedCulturalData = culturalData.map(item => {
       if (item.id === editingCulturalId) {
         return {
@@ -687,6 +707,10 @@ const Amain = () => {
             audio: audioFiles,
             documents: textFiles
           },
+          location: selectedLocation ? {
+            lat: selectedLocation.lat,
+            lng: selectedLocation.lng
+          } : item.location,
           updatedAt: formatJalaliDate(new Date())
         };
       }
@@ -694,18 +718,98 @@ const Amain = () => {
     });
 
     setCulturalData(updatedCulturalData);
-    handleCancelEditCultural();
     alert('اطلاعات فرهنگی با موفقیت ویرایش شد');
+
+    // Then exit edit mode WITHOUT calling handleCancelEditCultural
+    // which might be causing the map to reinitialize
+    exitEditMode();
+  };
+
+  // Add this separate function to exit edit mode cleanly
+  const exitEditMode = () => {
+    // Clean up map and marker FIRST
+    if (currentMarker) {
+      currentMarker.remove();
+      setCurrentMarker(null);
+    }
+
+    if (culturalMap) {
+      culturalMap.remove();
+      setCulturalMap(null);
+    }
+
+    // Reset edit mode states
+    setIsEditingCultural(false);
+    setEditingCulturalId(null);
+    setEditingCulturalData(null);
+
+    // Reset form but don't clean up map twice
+    resetEditFormWithoutMapCleanup();
+
+    // Navigate back
+    setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات', 'مدیریت اطلاعات فرهنگی']);
+  };
+
+  // Separate function to reset form without touching map
+  const resetEditFormWithoutMapCleanup = () => {
+    setCulturalTitle('');
+    setCulturalDescription('');
+    setShowUserComments('نمایش');
+    setShowMultimedia('نمایش');
+    setSelectedCulturalTypes([]);
+    setPlaceAddress('');
+    setSelectedLocation(null);
+
+    setProfileImages([]);
+    setAudioFiles([]);
+    setTextFiles([]);
+    setPrimaryImage(null);
+
+    setIsTitleLanguageModalOpen(false);
+    setIsDescriptionLanguageModalOpen(false);
+    setIsAddressLanguageModalOpen(false);
+
+    setLanguageTitles({
+      english: '',
+      arabic: '',
+      urdu: ''
+    });
+    setLanguageDescriptions({
+      english: '',
+      arabic: '',
+      urdu: ''
+    });
+    setLanguageAddresses({
+      english: '',
+      arabic: '',
+      urdu: ''
+    });
+
+    setCurrentTitleField(null);
+    setCurrentDescriptionField(null);
+    setCurrentAddressField(null);
   };
 
   const handleCancelEditCultural = () => {
+    // Clean up map and marker
+    if (currentMarker) {
+      currentMarker.remove();
+      setCurrentMarker(null);
+    }
+
+    if (culturalMap) {
+      culturalMap.remove();
+      setCulturalMap(null);
+    }
+
     setIsEditingCultural(false);
     setEditingCulturalId(null);
     setEditingCulturalData(null);
     resetCulturalForm();
+
+    setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات', 'مدیریت اطلاعات فرهنگی']);
   };
 
-  // Update the getPageTitle function (around line 155)
   const getPageTitle = () => {
     if (currentReportView === 'کاربران ثبت نام کرده') {
       return {
@@ -741,7 +845,7 @@ const Amain = () => {
     };
   };
 
-  // Add with other handler functions
+
   const handleCulturalTypeToggle = (type) => {
     if (selectedCulturalTypes.includes(type)) {
       setSelectedCulturalTypes(selectedCulturalTypes.filter(t => t !== type));
@@ -780,6 +884,16 @@ const Amain = () => {
     setIsTitleLanguageModalOpen(false);
     setIsDescriptionLanguageModalOpen(false);
     setIsAddressLanguageModalOpen(false);
+
+    if (currentMarker) {
+      currentMarker.remove();
+      setCurrentMarker(null);
+    }
+
+    if (culturalMap) {
+      culturalMap.remove();
+      setCulturalMap(null);
+    }
 
     setLanguageTitles({
       english: '',
@@ -1060,6 +1174,22 @@ const Amain = () => {
     return culturalSelectedRestrictionType;
   };
 
+  
+  // Helper function to create custom marker element
+  const createMarkerElement = () => {
+    const el = document.createElement('div');
+    el.innerHTML = `
+    <svg width="24" height="41" viewBox="0 0 24 41" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M12 0C5.37258 0 0 6.00388 0 12.75C0 19.4433 3.82999 26.7186 9.8056 29.5117C11.1986 30.1628 12.8014 30.1628 14.1944 29.5117C20.17 26.7186 24 19.4433 24 12.75C24 6.00388 18.6274 0 12 0ZM12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" fill="#EA4335"/>
+      <path d="M12.0088 22.5685C7.15256 22.5687 3.21582 26.5061 3.21582 31.3624C3.21606 36.2185 7.15271 40.1552 12.0088 40.1554C16.8651 40.1554 20.8025 36.2187 20.8027 31.3624C20.8027 26.506 16.8652 22.5685 12.0088 22.5685Z" stroke="#EA4335" stroke-width="1.50419"/>
+    </svg>
+  `;
+    el.style.cursor = 'pointer';
+    el.style.width = '24px';
+    el.style.height = '41px';
+    return el;
+  };
+
   const handleCulturalConfirmRestriction = () => {
     if (!isCulturalRestrictionFormValid()) {
       alert('لطفا اطلاعات محدودیت را به درستی تکمیل کنید');
@@ -1108,46 +1238,75 @@ const Amain = () => {
   };
 
   const initializeEditMap = () => {
-    if (!document.getElementById('edit-cultural-map-container')) return null;
+    if (!document.getElementById('edit-cultural-map-container')) {
+      console.log('Map container not found');
+      return;
+    }
+
+    console.log('Initializing edit map with selectedLocation:', selectedLocation);
 
     const mapInstance = new maplibregl.Map({
       container: 'edit-cultural-map-container',
       style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
-      center: editingCulturalData?.location ? [editingCulturalData.location.lng, editingCulturalData.location.lat] : [59.6161, 36.2908],
+      center: selectedLocation ?
+        [selectedLocation.lng, selectedLocation.lat] :
+        [59.6161, 36.2908],
       zoom: 16,
     });
 
     mapInstance.addControl(new maplibregl.NavigationControl());
 
-    // Add existing marker if location exists
-    if (editingCulturalData?.location) {
-      const marker = new maplibregl.Marker({
-        element: createMarkerElement()
+    // Function to create custom red marker with your SVG
+    const createRedMarker = () => {
+      const el = document.createElement('div');
+      el.innerHTML = `
+        <svg width="24" height="41" viewBox="0 0 24 41" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M12 0C5.37258 0 0 6.00388 0 12.75C0 19.4433 3.82999 26.7186 9.8056 29.5117C11.1986 30.1628 12.8014 30.1628 14.1944 29.5117C20.17 26.7186 24 19.4433 24 12.75C24 6.00388 18.6274 0 12 0ZM12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" fill="#EA4335"/>
+          <path d="M12.0088 22.5685C7.15256 22.5687 3.21582 26.5061 3.21582 31.3624C3.21606 36.2185 7.15271 40.1552 12.0088 40.1554C16.8651 40.1554 20.8025 36.2187 20.8027 31.3624C20.8027 26.506 16.8652 22.5685 12.0088 22.5685Z" stroke="#EA4335" stroke-width="1.50419"/>
+        </svg>
+      `;
+      el.style.cursor = 'pointer';
+      el.style.width = '24px';
+      el.style.height = '41px';
+      return el;
+    };
+
+    let marker = null;
+
+    // Add initial marker if there's a selected location
+    if (selectedLocation) {
+      console.log('Adding marker at:', selectedLocation);
+      marker = new maplibregl.Marker({
+        element: createRedMarker()  // Use custom red marker
       })
-        .setLngLat([editingCulturalData.location.lng, editingCulturalData.location.lat])
+        .setLngLat([selectedLocation.lng, selectedLocation.lat])
         .addTo(mapInstance);
       setCurrentMarker(marker);
-      setSelectedLocation(editingCulturalData.location);
     }
 
-    // Add click event to map for new location selection
+    // Add click event to map for selecting new location
     mapInstance.on('click', (e) => {
       const coordinates = e.lngLat;
+
+      // Update selected location state
       setSelectedLocation(coordinates);
 
       // Remove existing marker if it exists
-      if (currentMarker) {
-        currentMarker.remove();
+      if (marker) {
+        marker.remove();
       }
 
-      // Create new marker
-      const newMarker = new maplibregl.Marker({
-        element: createMarkerElement()
+      // Create new marker at clicked location WITH CUSTOM RED MARKER
+      marker = new maplibregl.Marker({
+        element: createRedMarker()  // Use custom red marker
       })
         .setLngLat([coordinates.lng, coordinates.lat])
         .addTo(mapInstance);
 
-      setCurrentMarker(newMarker);
+      // Update current marker in state
+      setCurrentMarker(marker);
+
+      console.log('New location selected:', coordinates);
     });
 
     setCulturalMap(mapInstance);
@@ -1179,28 +1338,42 @@ const Amain = () => {
     const files = Array.from(event.target.files);
 
     files.forEach(file => {
-      // Check file type and add to appropriate state
-      if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
-        // For images and videos
+      // Check file type
+      if (file.type.startsWith('image/')) {
+        // For images - show orientation modal
         const reader = new FileReader();
         reader.onload = (e) => {
-          const newFile = {
-            id: Date.now() + Math.random(),
-            name: file.name,
-            type: file.type,
-            size: file.size,
+          // Store the image data temporarily
+          setPendingImageFile({
+            file,
             url: e.target.result,
-            isPrimary: profileImages.length === 0 && !primaryImage // First image becomes primary
-          };
-
-          setProfileImages(prev => [...prev, newFile]);
-
-          // Set as primary if it's the first image
-          if (profileImages.length === 0 && !primaryImage && file.type.startsWith('image/')) {
-            setPrimaryImage(newFile);
-          }
+            type: file.type,
+            name: file.name,
+            size: file.size
+          });
+          // Show orientation modal for images only
+          setShowOrientationModal(true);
         };
         reader.readAsDataURL(file);
+      }
+      else if (file.type.startsWith('video/')) {
+        // For videos - upload directly without orientation modal
+        const newFile = {
+          id: Date.now() + Math.random(),
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          url: URL.createObjectURL(file),
+          isPrimary: profileImages.length === 0 && !primaryImage,
+          orientation: null // No orientation for videos
+        };
+
+        setProfileImages(prev => [...prev, newFile]);
+
+        // Set as primary if it's the first media file
+        if (profileImages.length === 0 && !primaryImage) {
+          setPrimaryImage(newFile);
+        }
       }
       else if (file.type.startsWith('audio/')) {
         // For audio files
@@ -1228,6 +1401,59 @@ const Amain = () => {
 
     // Reset file input
     event.target.value = '';
+  };
+
+  const handleOrientationSelect = (orientation) => {
+    if (!pendingImageFile) return;
+
+    const newFile = {
+      id: Date.now() + Math.random(),
+      name: pendingImageFile.name,
+      type: pendingImageFile.type,
+      size: pendingImageFile.size,
+      url: pendingImageFile.url,
+      isPrimary: profileImages.length === 0 && !primaryImage,
+      orientation: orientation
+    };
+
+    setProfileImages(prev => [...prev, newFile]);
+
+    // Set as primary if it's the first image
+    if (profileImages.length === 0 && !primaryImage) {
+      setPrimaryImage(newFile);
+    }
+
+    // Reset and close modal
+    setPendingImageFile(null);
+    setSelectedOrientation('');
+    setShowOrientationModal(false);
+  };
+
+  // Function to skip orientation selection
+  const handleSkipOrientation = () => {
+    if (!pendingImageFile) return;
+
+    const newFile = {
+      id: Date.now() + Math.random(),
+      name: pendingImageFile.name,
+      type: pendingImageFile.type,
+      size: pendingImageFile.size,
+      url: pendingImageFile.url,
+      isPrimary: profileImages.length === 0 && !primaryImage,
+      orientation: null // No orientation selected
+    };
+
+    setProfileImages(prev => [...prev, newFile]);
+
+    // Set as primary if it's the first image
+    if (profileImages.length === 0 && !primaryImage) {
+      setPrimaryImage(newFile);
+    }
+
+    // Reset and close modal
+    setPendingImageFile(null);
+    setSelectedOrientation('');
+    setShowOrientationModal(false);
   };
 
   // Set primary image handler
@@ -1307,6 +1533,21 @@ const Amain = () => {
 
     return days;
   };
+  
+
+  const createRedMarker = () => {
+    const el = document.createElement('div');
+    el.innerHTML = `
+      <svg width="24" height="41" viewBox="0 0 24 41" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M12 0C5.37258 0 0 6.00388 0 12.75C0 19.4433 3.82999 26.7186 9.8056 29.5117C11.1986 30.1628 12.8014 30.1628 14.1944 29.5117C20.17 26.7186 24 19.4433 24 12.75C24 6.00388 18.6274 0 12 0ZM12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" fill="#EA4335"/>
+        <path d="M12.0088 22.5685C7.15256 22.5687 3.21582 26.5061 3.21582 31.3624C3.21606 36.2185 7.15271 40.1552 12.0088 40.1554C16.8651 40.1554 20.8025 36.2187 20.8027 31.3624C20.8027 26.506 16.8652 22.5685 12.0088 22.5685Z" stroke="#EA4335" stroke-width="1.50419"/>
+      </svg>
+    `;
+    el.style.cursor = 'pointer';
+    el.style.width = '24px';
+    el.style.height = '41px';
+    return el;
+  };
 
   const toggleCulturalPrayerEvent = (ev) => {
     if (culturalSelectedPrayerEvents.includes(ev)) {
@@ -1323,20 +1564,6 @@ const Amain = () => {
     }
   };
 
-  // Helper function to create custom marker element
-  const createMarkerElement = () => {
-    const el = document.createElement('div');
-    el.innerHTML = `
-    <svg width="24" height="41" viewBox="0 0 24 41" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path fill-rule="evenodd" clip-rule="evenodd" d="M12 0C5.37258 0 0 6.00388 0 12.75C0 19.4433 3.82999 26.7186 9.8056 29.5117C11.1986 30.1628 12.8014 30.1628 14.1944 29.5117C20.17 26.7186 24 19.4433 24 12.75C24 6.00388 18.6274 0 12 0ZM12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" fill="#EA4335"/>
-      <path d="M12.0088 22.5685C7.15256 22.5687 3.21582 26.5061 3.21582 31.3624C3.21606 36.2185 7.15271 40.1552 12.0088 40.1554C16.8651 40.1554 20.8025 36.2187 20.8027 31.3624C20.8027 26.506 16.8652 22.5685 12.0088 22.5685Z" stroke="#EA4335" stroke-width="1.50419"/>
-    </svg>
-  `;
-    el.style.cursor = 'pointer';
-    el.style.width = '24px';
-    el.style.height = '41px';
-    return el;
-  };
 
   // Map initialization function for cultural modal - FIXED VERSION
   const initializeCulturalMap = () => {
@@ -1392,6 +1619,8 @@ const Amain = () => {
       return;
     }
 
+    console.log('Saving with selectedLocation:', selectedLocation);
+
     const newCulturalItem = {
       id: Date.now(),
       title: culturalTitle,
@@ -1405,8 +1634,15 @@ const Amain = () => {
         images: profileImages,
         audio: audioFiles,
         documents: textFiles
-      }
+      },
+      // Make sure location is saved
+      location: selectedLocation ? {
+        lat: selectedLocation.lat,
+        lng: selectedLocation.lng
+      } : null
     };
+
+    console.log('Saved item with location:', newCulturalItem.location);
 
     setCulturalData(prev => [newCulturalItem, ...prev]);
 
@@ -1432,7 +1668,11 @@ const Amain = () => {
 
   const handleSubmenuClick = (viewName) => {
     setCurrentReportView(viewName);
-    setIsEditingCultural(false); // Reset edit mode
+
+    // Reset edit mode when clicking any submenu
+    setIsEditingCultural(false);
+    setEditingCulturalId(null);
+    setEditingCulturalData(null);
 
     if (viewName === 'کاربران ثبت نام کرده' ||
       viewName === 'لاگ های مسیریابی کاربران') {
@@ -1441,18 +1681,13 @@ const Amain = () => {
     } else if (viewName === 'مدیریت دسته بندی‌ها' ||
       viewName === 'مدیریت اطلاعات فرهنگی') {
       setActiveMenu('facmanage');
-      if (isEditingCultural && editingCulturalData) {
-        setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات', 'مدیریت اطلاعات فرهنگی', `ویرایش اطلاعات فرهنگی ${editingCulturalData.title}`]);
-      } else {
-        setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات', viewName]);
-      }
+      setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات', viewName]);
       resetCategoryForm();
     } else {
       setActiveMenu('usermanage');
       setBreadcrumbPath(['منوی اصلی', 'مدیریت کاربران', viewName]);
     }
   };
-
 
   const openTitleLanguageModal = (fieldType = 'title') => {
     setCurrentTitleField(fieldType);
@@ -1590,6 +1825,33 @@ const Amain = () => {
       }
     }
   }, [activeMenu]);
+
+  useEffect(() => {
+    if (isEditingCultural && editingCulturalId && document.getElementById('edit-cultural-map-container')) {
+      // Clean up any existing map first
+      if (culturalMap) {
+        culturalMap.remove();
+        setCulturalMap(null);
+      }
+
+      // Initialize the map
+      initializeEditMap();
+    }
+
+    return () => {
+      // Clean up on unmount or when editing mode ends
+      if (!isEditingCultural) {
+        if (currentMarker) {
+          currentMarker.remove();
+          setCurrentMarker(null);
+        }
+        if (culturalMap) {
+          culturalMap.remove();
+          setCulturalMap(null);
+        }
+      }
+    };
+  }, [isEditingCultural, editingCulturalId]);
 
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
@@ -1904,21 +2166,36 @@ const Amain = () => {
 
   const handleMenuClick = (menuName, breadcrumbLabel) => {
     setActiveMenu(menuName);
+
+    if (isEditingCultural) {
+      setIsEditingCultural(false);
+      setEditingCulturalId(null);
+      setEditingCulturalData(null);
+      resetCulturalForm();
+    }
+
+
     if (menuName === 'dashboard') {
       setCurrentReportView(null);
-      setBreadcrumbPath(['منوی اصلی', breadcrumbLabel, 'آمار کلی استارتاپ من']);
+      setBreadcrumbPath(['منوی اصلی', 'داشبورد', 'آمار کلی استارتاپ من']);
     } else if (menuName === 'mapmanage') {
       setCurrentReportView(null);
-      setBreadcrumbPath(['منوی اصلی', breadcrumbLabel]);
+      setBreadcrumbPath(['منوی اصلی', 'مدیریت نقشه']);
     } else if (menuName === 'facmanage') {
       setCurrentReportView(null);
-      setBreadcrumbPath(['منوی اصلی', breadcrumbLabel]);
+      setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات']);
+    } else if (menuName === 'usermanage') {
+      setCurrentReportView(null);
+      setBreadcrumbPath(['منوی اصلی', 'مدیریت کاربران']);
+    } else if (menuName === 'reports') {
+      setCurrentReportView(null);
+      setBreadcrumbPath(['منوی اصلی', 'گزارشات']);
     } else {
       setCurrentReportView(null);
-      const newPath = ['منوی اصلی', breadcrumbLabel];
-      setBreadcrumbPath(newPath);
+      setBreadcrumbPath(['منوی اصلی', breadcrumbLabel]);
     }
   };
+
   const handleLayerToggle = (layerId) => {
     setLayerVisibility((prev) => {
       const nextState = { ...prev, [layerId]: !prev[layerId] };
@@ -3195,11 +3472,21 @@ const Amain = () => {
                             className={`profile-image-item-edit ${file.id === primaryImage?.id ? 'primary' : ''}`}
                           >
                             {file.type.startsWith('image/') ? (
-                              <img
-                                src={file.url}
-                                alt={file.name}
-                                className="media-preview-edit"
-                              />
+                              <div className="image-container-with-badge-edit">
+                                <img
+                                  src={file.url}
+                                  alt={file.name}
+                                  className="media-preview-edit"
+                                />
+                                {file.orientation && (
+                                  <div className="orientation-badge-edit">
+                                    {file.orientation === 'north' && 'شمال'}
+                                    {file.orientation === 'south' && 'جنوب'}
+                                    {file.orientation === 'east' && 'شرق'}
+                                    {file.orientation === 'west' && 'غرب'}
+                                  </div>
+                                )}
+                              </div>
                             ) : file.type.startsWith('video/') ? (
                               <video controls className="media-preview-edit">
                                 <source src={file.url} type={file.type} />
@@ -3452,6 +3739,7 @@ const Amain = () => {
                       </div>
                     </div>
 
+                    {/* In your JSX where the map section is */}
                     <div className="edit-form-group">
                       <label className="edit-form-label">موقعیت جغرافیایی</label>
                       <div className="edit-map-container">
@@ -3467,12 +3755,19 @@ const Amain = () => {
                         <button
                           className="select-location-btn-edit"
                           onClick={() => {
+                            // Reinitialize the map if it doesn't exist
                             if (!culturalMap) {
                               initializeEditMap();
+                            } else {
+                              // Focus on current location
+                              culturalMap.flyTo({
+                                center: [selectedLocation.lng, selectedLocation.lat],
+                                zoom: 16
+                              });
                             }
                           }}
                         >
-                          انتخاب موقعیت روی نقشه
+                          {selectedLocation ? 'تغییر موقعیت روی نقشه' : 'انتخاب موقعیت روی نقشه'}
                         </button>
                       </div>
                     </div>
@@ -6631,11 +6926,21 @@ const Amain = () => {
                               className={`profile-image-item ${file.id === primaryImage?.id ? 'primary' : ''}`}
                             >
                               {file.type.startsWith('image/') ? (
-                                <img
-                                  src={file.url}
-                                  alt={file.name}
-                                  className="media-preview"
-                                />
+                                <div className="image-container-with-badge">
+                                  <img
+                                    src={file.url}
+                                    alt={file.name}
+                                    className="media-preview"
+                                  />
+                                  {file.orientation && (
+                                    <div className="orientation-badge">
+                                      {file.orientation === 'north' && 'شمال'}
+                                      {file.orientation === 'south' && 'جنوب'}
+                                      {file.orientation === 'east' && 'شرق'}
+                                      {file.orientation === 'west' && 'غرب'}
+                                    </div>
+                                  )}
+                                </div>
                               ) : file.type.startsWith('video/') ? (
                                 <video className="media-preview">
                                   <source src={file.url} type={file.type} />
@@ -7046,6 +7351,71 @@ const Amain = () => {
                 disabled={!avatarPreview || isUploadingAvatar}
               >
                 {isUploadingAvatar ? 'در حال آپلود...' : 'ذخیره تصویر'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Orientation Modal */}
+      {showOrientationModal && pendingImageFile && (
+        <div className="modal-overlay">
+          <div className="orientation-modal">
+            <div className="modal-header">
+              <h3>انتخاب زاویه عکس</h3>
+            </div>
+
+            <div className="modal-content">
+              <div className="image-preview-container">
+                <img
+                  src={pendingImageFile.url}
+                  alt="Preview"
+                  className="image-preview"
+                />
+              </div>
+
+              <div className="orientation-options-grid">
+                <button
+                  className={`orientation-option ${selectedOrientation === 'north' ? 'selected' : ''}`}
+                  onClick={() => setSelectedOrientation('north')}
+                >
+                  <span>جهت شمالی</span>
+                </button>
+
+                <button
+                  className={`orientation-option ${selectedOrientation === 'south' ? 'selected' : ''}`}
+                  onClick={() => setSelectedOrientation('south')}
+                >
+                  <span>جهت جنوبی</span>
+                </button>
+
+                <button
+                  className={`orientation-option ${selectedOrientation === 'east' ? 'selected' : ''}`}
+                  onClick={() => setSelectedOrientation('east')}
+                >
+                  <span>جهت شرقی</span>
+                </button>
+
+                <button
+                  className={`orientation-option ${selectedOrientation === 'west' ? 'selected' : ''}`}
+                  onClick={() => setSelectedOrientation('west')}
+                >
+                  <span>جهت غربی</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="cancel-btn5"
+                onClick={handleSkipOrientation}
+              >
+                رد کردن
+              </button>
+              <button
+                className="confirm-btn"
+                onClick={() => selectedOrientation ? handleOrientationSelect(selectedOrientation) : handleSkipOrientation()}
+              >
+                تایید و ادامه
               </button>
             </div>
           </div>
