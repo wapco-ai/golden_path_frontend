@@ -3677,10 +3677,17 @@ const Amain = () => {
       return;
     }
 
+    const restrictionIsoScope = buildDateScopeIso(getRestrictionTitle(), selectedJalaliDate);
+
+    if (!restrictionIsoScope.length) {
+      alert('لطفا تاریخ محدودیت را از تقویم یا گزینه‌های موجود انتخاب کنید');
+      return;
+    }
+
     const newRestriction = {
       id: Date.now(),
       date: getRestrictionTitle(),
-      isoDateScope: buildDateScopeIso(getRestrictionTitle(), selectedJalaliDate),
+      isoDateScope: restrictionIsoScope,
       gender: [...selectedGenderRestrictions],
       timePairs: limitAllHours
         ? [{ start: '00:00', end: '23:59' }]
