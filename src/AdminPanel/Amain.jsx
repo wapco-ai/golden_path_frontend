@@ -2879,33 +2879,43 @@ const Amain = () => {
     });
   };
 
-  const mapApiTimeRestrictionsToForm = (apiRestrictions = []) => apiRestrictions.map((restriction, index) => ({
-    id: restriction?.id || index,
-    date: Array.isArray(restriction?.date_scope)
-      ? restriction.date_scope.join(', ')
-      : restriction?.date_scope || restriction?.date || 'نامشخص',
-    isoDateScope: Array.isArray(restriction?.date_scope) ? restriction.date_scope : [],
-    gender: Array.isArray(restriction?.gender)
-      ? restriction.gender.map(normalizeGenderValue).filter(Boolean)
-      : [],
-    timePairs: Array.isArray(restriction?.time_ranges)
-      ? restriction.time_ranges.map((range) => ({
-        start: range?.start || '',
-        end: range?.end || ''
-      }))
-      : [],
-    limitAllHours: Boolean(restriction?.all_hours)
-  }));
+  const mapApiTimeRestrictionsToForm = (apiRestrictions = []) => apiRestrictions.map((restriction, index) => {
+    const derivedIsoScope = Array.isArray(restriction?.date_scope) && restriction.date_scope.length
+      ? restriction.date_scope
+      : buildDateScopeIso(restriction?.date);
 
-  const mapApiPrayerRestrictionsToForm = (apiRestrictions = []) => apiRestrictions.map((restriction, index) => ({
-    id: restriction?.id || index,
-    events: restriction?.events || [],
-    before: restriction?.before_minutes ?? restriction?.before ?? '',
-    after: restriction?.after_minutes ?? restriction?.after ?? '',
-    date: restriction?.date || '',
-    isoDate: restriction?.date || null,
-    title: restriction?.title || ''
-  }));
+    return {
+      id: restriction?.id || index,
+      date: Array.isArray(restriction?.date_scope)
+        ? restriction.date_scope.join(', ')
+        : restriction?.date_scope || restriction?.date || 'نامشخص',
+      isoDateScope: derivedIsoScope?.length ? derivedIsoScope : [],
+      gender: Array.isArray(restriction?.gender)
+        ? restriction.gender.map(normalizeGenderValue).filter(Boolean)
+        : [],
+      timePairs: Array.isArray(restriction?.time_ranges)
+        ? restriction.time_ranges.map((range) => ({
+          start: range?.start || '',
+          end: range?.end || ''
+        }))
+        : [],
+      limitAllHours: Boolean(restriction?.all_hours)
+    };
+  });
+
+  const mapApiPrayerRestrictionsToForm = (apiRestrictions = []) => apiRestrictions.map((restriction, index) => {
+    const derivedIsoDate = buildPrayerDateIso(restriction?.date) || restriction?.date || null;
+
+    return {
+      id: restriction?.id || index,
+      events: restriction?.events || [],
+      before: restriction?.before_minutes ?? restriction?.before ?? '',
+      after: restriction?.after_minutes ?? restriction?.after ?? '',
+      date: restriction?.date || '',
+      isoDate: derivedIsoDate,
+      title: restriction?.title || ''
+    };
+  });
 
   const buildTimeRestrictionsPayload = () => {
     const payload = timeRestrictions.map((restriction) => ({
@@ -3261,6 +3271,19 @@ const Amain = () => {
   const buildDateScopeIso = (dateLabel, jalaliSelection = null) => {
     if (!dateLabel || dateLabel === 'کل روزها') return [];
 
+    const isIsoDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+
+    if (isIsoDate(dateLabel)) {
+      return [dateLabel];
+    }
+
+    if (typeof dateLabel === 'string' && dateLabel.includes('/')) {
+      const parts = dateLabel.split('/');
+      if (parts.every(isIsoDate)) {
+        return parts;
+      }
+    }
+
     if (dateLabel === 'این ماه' || dateLabel === 'تمام این ماه') {
       return getCurrentJalaliMonthBounds();
     }
@@ -3279,6 +3302,19 @@ const Amain = () => {
 
   const buildPrayerDateIso = (dateLabel, jalaliSelection = null) => {
     if (!dateLabel || dateLabel === 'همه روزها') return null;
+
+    const isIsoDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+
+    if (isIsoDate(dateLabel)) {
+      return dateLabel;
+    }
+
+    if (typeof dateLabel === 'string' && dateLabel.includes('/')) {
+      const [start, end] = dateLabel.split('/');
+      if (isIsoDate(start) && isIsoDate(end)) {
+        return dateLabel;
+      }
+    }
 
     if (dateLabel === 'تمام این ماه') {
       const [start, end] = getCurrentJalaliMonthBounds();
