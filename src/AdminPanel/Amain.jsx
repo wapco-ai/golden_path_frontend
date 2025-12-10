@@ -10,6 +10,14 @@ import ReactDatePicker from 'react-datepicker';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { centroid as turfCentroid, distance as turfDistance } from '@turf/turf';
+import {
+  createCulturalItem,
+  deleteCulturalItem,
+  exportCulturalItems,
+  fetchCulturalItemDetails,
+  fetchCulturalItems,
+  updateCulturalItem
+} from '../services/culturalItemsService';
 import { useAdminLoginService } from './adminLoginServiceContext';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import {
@@ -500,6 +508,9 @@ const Amain = () => {
   const [culturalToDelete, setCulturalToDelete] = useState(null);
   const [culturalCurrentPage, setCulturalCurrentPage] = useState(1);
   const [culturalItemsPerPage, setCulturalItemsPerPage] = useState(7);
+  const [culturalTotalItems, setCulturalTotalItems] = useState(0);
+  const [isLoadingCultural, setIsLoadingCultural] = useState(false);
+  const [culturalPoiId, setCulturalPoiId] = useState('');
   const [locationRoofType, setLocationRoofType] = useState('');
   const [locationStatus, setLocationStatus] = useState('');
   const [isAddCulturalModalOpen, setIsAddCulturalModalOpen] = useState(false);
@@ -1112,76 +1123,27 @@ const Amain = () => {
     { day: 'جمعه', value: 50, count: 125 }
   ];
 
+  const loadCulturalItems = useCallback(async () => {
+    setIsLoadingCultural(true);
+    try {
+      const data = await fetchCulturalItems({
+        page: culturalCurrentPage,
+        pageSize: culturalItemsPerPage,
+        search: culturalSearchTerm
+      });
+      setCulturalData(data.items || []);
+      setCulturalTotalItems(data.totalItems || 0);
+    } catch (error) {
+      console.error('خطا در دریافت اطلاعات فرهنگی:', error);
+      toast.error('خطا در دریافت اطلاعات فرهنگی');
+    } finally {
+      setIsLoadingCultural(false);
+    }
+  }, [culturalCurrentPage, culturalItemsPerPage, culturalSearchTerm]);
+
   useEffect(() => {
-    // Sample cultural data
-    const sampleCulturalData = [
-      {
-        id: 1,
-        title: 'صحن انقلاب اسلامی',
-        address: 'حرم مطهر',
-        createdAt: '۱۸ مرداد ۱۴۰۴',
-        description: "",
-        status: 'active'
-      },
-      {
-        id: 2,
-        title: 'صحن آزادی',
-        address: 'حرم مطهر',
-        createdAt: '۲۰ مرداد ۱۴۰۴',
-        description: "",
-        status: 'active'
-      },
-      {
-        id: 3,
-        title: 'صحن امام حسن مجتبی (ع)',
-        address: 'حرم مطهر',
-        createdAt: '۲۲ مرداد ۱۴۰۴',
-        description: "",
-        status: 'active'
-      },
-      {
-        id: 4,
-        title: 'صحن جمهوری',
-        address: 'حرم مطهر',
-        createdAt: '۲۵ مرداد ۱۴۰۴',
-        description: "",
-        status: 'active'
-      },
-      {
-        id: 5,
-        title: 'رواق دارالحجه',
-        address: 'حرم مطهر',
-        createdAt: '۲۷ مرداد ۱۴۰۴',
-        description: "",
-        status: 'active'
-      },
-      {
-        id: 6,
-        title: 'رواق دارالولایه',
-        address: 'حرم مطهر',
-        createdAt: '۲۹ مرداد ۱۴۰۴',
-        description: "",
-        status: 'active'
-      },
-      {
-        id: 7,
-        title: 'مسجد بالاسر',
-        address: 'حرم مطهر',
-        createdAt: '۱ شهریور ۱۴۰۴',
-        description: "",
-        status: 'active'
-      },
-      {
-        id: 8,
-        title: 'مسجد طباطبایی',
-        address: 'حرم مطهر',
-        createdAt: '۳ شهریور ۱۴۰۴',
-        description: "",
-        status: 'active'
-      }
-    ];
-    setCulturalData(sampleCulturalData);
-  }, []);
+    loadCulturalItems();
+  }, [loadCulturalItems]);
 
   // Add these handler functions with other handler functions
   const handleDeleteCultural = (id) => {
@@ -1189,10 +1151,19 @@ const Amain = () => {
     setIsDeleteCulturalModalOpen(true);
   };
 
-  const confirmDeleteCultural = () => {
-    setCulturalData(culturalData.filter(item => item.id !== culturalToDelete));
-    setIsDeleteCulturalModalOpen(false);
-    setCulturalToDelete(null);
+  const confirmDeleteCultural = async () => {
+    if (!culturalToDelete) return;
+    try {
+      await deleteCulturalItem(culturalToDelete);
+      toast.success('آیتم فرهنگی با موفقیت حذف شد');
+      loadCulturalItems();
+    } catch (error) {
+      console.error('حذف آیتم فرهنگی با خطا مواجه شد', error);
+      toast.error('حذف آیتم فرهنگی با خطا مواجه شد');
+    } finally {
+      setIsDeleteCulturalModalOpen(false);
+      setCulturalToDelete(null);
+    }
   };
 
   const handleCulturalPageChange = (pageNumber) => {
@@ -1205,7 +1176,7 @@ const Amain = () => {
   };
 
   const getCulturalPageNumbers = () => {
-    const totalItems = filteredCulturalData.length;
+    const totalItems = culturalTotalItems;
     const totalPages = Math.ceil(totalItems / culturalItemsPerPage);
     const maxVisiblePages = 6;
     const pages = [];
@@ -1366,105 +1337,82 @@ const Amain = () => {
     }));
   };
 
-  const handleEditCultural = (id) => {
-    const itemToEdit = culturalData.find(item => item.id === id);
-    if (!itemToEdit) return;
+  const handleEditCultural = async (id) => {
+    try {
+      const itemToEdit = await fetchCulturalItemDetails(id);
+      if (!itemToEdit) return;
 
-    console.log('Editing item:', itemToEdit);
+      setEditingCulturalId(id);
+      setEditingCulturalData({ ...itemToEdit });
 
-    setEditingCulturalId(id);
-    setEditingCulturalData({ ...itemToEdit });
+      setCulturalTitle(itemToEdit.title || '');
+      setCulturalDescription(itemToEdit.description || '');
+      setPlaceAddress(itemToEdit.addressInShrine || '');
+      setCulturalPoiId(itemToEdit.poiId || '');
 
-    // Set up the form data for editing
-    setCulturalTitle(itemToEdit.title);
-    setCulturalDescription(itemToEdit.description || '');
-    setPlaceAddress(itemToEdit.address || '');
+      if (itemToEdit.culturalTypes) {
+        setSelectedCulturalTypes([...itemToEdit.culturalTypes]);
+      }
 
-    // Set cultural types if they exist
-    if (itemToEdit.culturalTypes) {
-      setSelectedCulturalTypes([...itemToEdit.culturalTypes]);
+      if (itemToEdit.displaySettings) {
+        setShowUserComments(itemToEdit.displaySettings.showUserComments || 'نمایش');
+        setShowMultimedia(itemToEdit.displaySettings.showMultimedia || 'نمایش');
+      }
+
+      if (itemToEdit.restrictions) {
+        setCulturalTimeRestrictions(itemToEdit.restrictions.timeRestrictions || []);
+        setCulturalPrayerTimeRestrictionsList(itemToEdit.restrictions.prayerTimeRestrictions || []);
+      }
+
+      const imageAttachments = (itemToEdit.attachments || []).filter((file) => file.type === 'image');
+      const { primary, images } = normalizePrimaryMedia(itemToEdit.primaryImage, imageAttachments);
+
+      setProfileImages(images);
+      setAudioFiles([]);
+      setTextFiles([]);
+      setPrimaryImage(primary || images[0] || null);
+
+      if (itemToEdit.location) {
+        setSelectedLocation({
+          lat: itemToEdit.location.lat,
+          lng: itemToEdit.location.lng
+        });
+      } else {
+        setSelectedLocation(null);
+      }
+
+      setIsEditingCultural(true);
+    } catch (error) {
+      console.error('خطا در دریافت جزئیات آیتم فرهنگی', error);
+      toast.error('دریافت جزئیات آیتم فرهنگی ناموفق بود');
     }
-
-    // Set display settings if they exist
-    if (itemToEdit.displaySettings) {
-      setShowUserComments(itemToEdit.displaySettings.showUserComments || 'نمایش');
-      setShowMultimedia(itemToEdit.displaySettings.showMultimedia || 'نمایش');
-    }
-
-    // Set restrictions if they exist
-    if (itemToEdit.restrictions) {
-      setCulturalTimeRestrictions(itemToEdit.restrictions.timeRestrictions || []);
-      setCulturalPrayerTimeRestrictionsList(itemToEdit.restrictions.prayerTimeRestrictions || []);
-    }
-
-    // Set media files
-    const existingImages = itemToEdit.files?.images || [];
-    const { primary, images } = normalizePrimaryMedia(itemToEdit.primaryImage, existingImages);
-
-    setProfileImages(images);
-    setAudioFiles(itemToEdit.files?.audio || []);
-    setTextFiles(itemToEdit.files?.documents || []);
-    setPrimaryImage(primary || images[0] || null);
-
-    // Set location if it exists
-    if (itemToEdit.location) {
-      console.log('Setting location to:', itemToEdit.location);
-      setSelectedLocation({
-        lat: itemToEdit.location.lat,
-        lng: itemToEdit.location.lng
-      });
-    } else {
-      console.log('No location found in item');
-      setSelectedLocation(null);
-    }
-
-    setIsEditingCultural(true);
   };
 
 
-  const handleSaveEditCultural = () => {
+  const handleSaveEditCultural = async () => {
     if (!editingCulturalId || !culturalTitle.trim()) {
       alert('لطفا عنوان را وارد کنید');
       return;
     }
 
-    // Save data with restrictions
-    const updatedCulturalData = culturalData.map(item => {
-      if (item.id === editingCulturalId) {
-        return {
-          ...item,
-          title: culturalTitle,
-          description: culturalDescription,
-          address: placeAddress,
-          culturalTypes: [...selectedCulturalTypes],
-          primaryImage: primaryImage?.url || item.primaryImage,
-          files: {
-            images: profileImages,
-            audio: audioFiles,
-            documents: textFiles
-          },
-          location: selectedLocation ? {
-            lat: selectedLocation.lat,
-            lng: selectedLocation.lng
-          } : item.location,
-          restrictions: {
-            timeRestrictions: culturalTimeRestrictions,
-            prayerTimeRestrictions: culturalPrayerTimeRestrictionsList
-          },
-          displaySettings: {
-            showUserComments,
-            showMultimedia
-          },
-          updatedAt: formatJalaliDate(new Date())
-        };
-      }
-      return item;
-    });
-
-    setCulturalData(updatedCulturalData);
-    alert('اطلاعات فرهنگی با موفقیت ویرایش شد');
-
-    exitEditMode();
+    try {
+      await updateCulturalItem(editingCulturalId, {
+        title: culturalTitle,
+        description: culturalDescription,
+        primaryImage: primaryImage?.url || null,
+        attachments: profileImages.map((img) => ({
+          type: 'image',
+          url: img.url || img,
+          mime: img.mime || 'image/jpeg'
+        }))
+      });
+      toast.success('اطلاعات فرهنگی با موفقیت ویرایش شد');
+      loadCulturalItems();
+      exitEditMode();
+    } catch (error) {
+      console.error('خطا در ویرایش آیتم فرهنگی', error);
+      toast.error('ویرایش آیتم فرهنگی ناموفق بود');
+    }
   };
 
   // Add this separate function to exit edit mode cleanly
@@ -1500,6 +1448,7 @@ const Amain = () => {
     setShowMultimedia('نمایش');
     setSelectedCulturalTypes([]);
     setPlaceAddress('');
+    setCulturalPoiId('');
     setSelectedLocation(null);
 
     setProfileImages([]);
@@ -2377,35 +2326,35 @@ const Amain = () => {
       return;
     }
 
+    if (!culturalPoiId) {
+      alert('شناسه poi لازم است');
+      return;
+    }
+
     console.log('Saving with selectedLocation:', selectedLocation);
 
-    const newCulturalItem = {
-      id: Date.now(),
+    const attachments = profileImages.map((img) => ({
+      type: 'image',
+      url: img.url || img,
+      mime: img.mime || 'image/jpeg'
+    }));
+
+    createCulturalItem({
+      poiId: Number(culturalPoiId),
       title: culturalTitle,
-      address: placeAddress || 'حرم مطهر',
-      createdAt: formatJalaliDate(new Date()),
       description: culturalDescription || '',
-      status: 'active',
-      culturalTypes: [...selectedCulturalTypes],
       primaryImage: primaryImage?.url || null,
-      files: {
-        images: profileImages,
-        audio: audioFiles,
-        documents: textFiles
-      },
-      // Make sure location is saved
-      location: selectedLocation ? {
-        lat: selectedLocation.lat,
-        lng: selectedLocation.lng
-      } : null
-    };
-
-    console.log('Saved item with location:', newCulturalItem.location);
-
-    setCulturalData(prev => [newCulturalItem, ...prev]);
-
-    closeAddCulturalModal();
-    alert('اطلاعات فرهنگی با موفقیت ثبت شد');
+      attachments
+    })
+      .then(() => {
+        toast.success('اطلاعات فرهنگی با موفقیت ثبت شد');
+        closeAddCulturalModal();
+        loadCulturalItems();
+      })
+      .catch((error) => {
+        console.error('ثبت آیتم فرهنگی ناموفق بود', error);
+        toast.error('ثبت آیتم فرهنگی ناموفق بود');
+      });
   };
 
   const toggleReportsManagement = () => {
@@ -4955,11 +4904,8 @@ const Amain = () => {
     }
   };
 
-  const filteredCulturalData = culturalData.filter(item =>
-    item.title.toLowerCase().includes(culturalSearchTerm.toLowerCase()) ||
-    item.description.toLowerCase().includes(culturalSearchTerm.toLowerCase()) ||
-    item.address.toLowerCase().includes(culturalSearchTerm.toLowerCase())
-  );
+  const filteredCulturalData = culturalData;
+  const totalCulturalPages = Math.max(1, Math.ceil(culturalTotalItems / culturalItemsPerPage));
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -5529,6 +5475,17 @@ const Amain = () => {
                     </div>
 
                     <div className="edit-form-group">
+                      <label className="edit-form-label">شناسه POI</label>
+                      <input
+                        type="number"
+                        className="edit-form-input"
+                        placeholder="شناسه POI را وارد کنید"
+                        value={culturalPoiId}
+                        onChange={(e) => setCulturalPoiId(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="edit-form-group">
                       <label className="edit-form-label">توضیحات</label>
                       <div className="description-input-with-language">
                         <textarea
@@ -6026,7 +5983,10 @@ const Amain = () => {
             <div className="cultural-management-section">
               {/* Header with buttons */}
               <div className="cultural-header-section9">
-                <button className="export-cultural-btn">
+                <button
+                  className="export-cultural-btn"
+                  onClick={() => exportCulturalItems({ language: 'fa', search: culturalSearchTerm })}
+                >
                   گرفتن خروجی
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path fillRule="evenodd" clipRule="evenodd" d="M3.69247 7.09327C3.91711 6.83119 4.31167 6.80084 4.57375 7.02548L10.0003 11.6768L15.4269 7.02548C15.689 6.80084 16.0836 6.83119 16.3082 7.09327C16.5328 7.35535 16.5025 7.74991 16.2404 7.97455L10.4071 12.9745C10.173 13.1752 9.82765 13.1752 9.59359 12.9745L3.76026 7.97455C3.49818 7.74991 3.46783 7.35535 3.69247 7.09327Z" fill="#1E2023" />
@@ -6080,13 +6040,8 @@ const Amain = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredCulturalData
-                      .slice(
-                        (culturalCurrentPage - 1) * culturalItemsPerPage,
-                        culturalCurrentPage * culturalItemsPerPage
-                      )
-                      .map(item => (
-                        <tr key={item.id}>
+                    {filteredCulturalData.map(item => (
+                      <tr key={item.id}>
                           <td>
                             <div className="cultural-title-cell">
                               <div className="cultural-avatar">
@@ -6119,8 +6074,8 @@ const Amain = () => {
                               </div>
                             </div>
                           </td>
-                          <td>{item.address}</td>
-                          <td>{item.createdAt}</td>
+                          <td>{item.addressInShrine || '-'}</td>
+                          <td>{item.createdAt || '-'}</td>
                           <td className="cultural-description-cell">
                             {item.description ? (
                               <div className="truncated-description">
@@ -6206,9 +6161,9 @@ const Amain = () => {
 
                   <div className="btc">
                     <button
-                      className={`pagination-btn ${culturalCurrentPage === Math.ceil(filteredCulturalData.length / culturalItemsPerPage) ? 'disabled' : ''}`}
+                      className={`pagination-btn ${culturalCurrentPage === totalCulturalPages ? 'disabled' : ''}`}
                       onClick={() => handleCulturalPageChange(culturalCurrentPage + 1)}
-                      disabled={culturalCurrentPage === Math.ceil(filteredCulturalData.length / culturalItemsPerPage)}
+                      disabled={culturalCurrentPage === totalCulturalPages}
                     >
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path fillRule="evenodd" clipRule="evenodd" d="M10.3254 2.95375C10.1157 2.77404 9.80007 2.79832 9.62036 3.00799L5.62036 7.67465C5.45987 7.8619 5.45987 8.1382 5.62036 8.32544L9.62036 12.9921C9.80007 13.2018 10.1157 13.2261 10.3254 13.0463C10.535 12.8666 10.5593 12.551 10.3796 12.3413L6.65853 8.00005L10.3796 3.65878C10.5593 3.44912 10.535 3.13347 10.3254 2.95375Z" fill={culturalCurrentPage === Math.ceil(filteredCulturalData.length / culturalItemsPerPage) ? "#C5C5C5" : "#0F71EF"} />
@@ -6216,9 +6171,9 @@ const Amain = () => {
                     </button>
 
                     <button
-                      className={`pagination-btn ${culturalCurrentPage === Math.ceil(filteredCulturalData.length / culturalItemsPerPage) ? 'disabled' : ''}`}
-                      onClick={() => handleCulturalPageChange(Math.ceil(filteredCulturalData.length / culturalItemsPerPage))}
-                      disabled={culturalCurrentPage === Math.ceil(filteredCulturalData.length / culturalItemsPerPage)}
+                      className={`pagination-btn ${culturalCurrentPage === totalCulturalPages ? 'disabled' : ''}`}
+                      onClick={() => handleCulturalPageChange(totalCulturalPages)}
+                      disabled={culturalCurrentPage === totalCulturalPages}
                     >
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path fillRule="evenodd" clipRule="evenodd" d="M11.6584 2.95363C11.4487 2.77392 11.1331 2.7982 10.9534 3.00787L6.95337 7.67453C6.79287 7.86178 6.79287 8.13808 6.95337 8.32532L10.9534 12.992C11.1331 13.2017 11.4487 13.2259 11.6584 13.0462C11.8681 12.8665 11.8923 12.5509 11.7126 12.3412L7.99154 7.99993L11.7126 3.65866C11.8923 3.44899 11.8681 3.13334 11.6584 2.95363ZM8.9916 2.9537C8.78193 2.77399 8.46628 2.79827 8.28657 3.00793L4.28657 7.6746C4.12608 7.86185 4.12608 8.13815 4.28657 8.32539L8.28657 12.9921C8.46628 13.2017 8.78193 13.226 8.9916 13.0463C9.20126 12.8666 9.22554 12.5509 9.04583 12.3413L5.32474 8L9.04583 3.65873C9.22554 3.44906 9.20126 3.13341 8.9916 2.9537Z" fill={culturalCurrentPage === Math.ceil(filteredCulturalData.length / culturalItemsPerPage) ? "#C5C5C5" : "#0F71EF"} />
@@ -8669,6 +8624,16 @@ const Amain = () => {
                             <path d="M12.5 2.5C13.7583 6.83667 13.7583 13.1633 12.5 17.5" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         </button>
+                      </div>
+
+                      <div className="title-input-with-language">
+                        <input
+                          type="number"
+                          className="form-input"
+                          placeholder="شناسه POI را وارد کنید"
+                          value={culturalPoiId}
+                          onChange={(e) => setCulturalPoiId(e.target.value)}
+                        />
                       </div>
 
                       <div className="description-input-with-language">
