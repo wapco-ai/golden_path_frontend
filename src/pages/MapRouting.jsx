@@ -384,6 +384,7 @@ const MapRoutingPage = () => {
   const handleSubgroupSelect = async (subgroup) => {
     setSelectedSubgroup(subgroup);
     setActiveInput('destination');
+    setShowDestinationModal(false);
 
     let coordinates = null;
 
