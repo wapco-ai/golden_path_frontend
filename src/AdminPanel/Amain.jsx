@@ -20,6 +20,7 @@ import {
 } from '../config/vectorTiles';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
 import { createDoor, deleteDoor, getDoorInfo, moveDoor, updateDoorInfo } from '../services/adminDoorsService';
+import { deleteArea } from '../services/adminAreasService';
 import { convertLngLatToUtm32640 } from '../utils/utm';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
@@ -369,6 +370,12 @@ const Amain = () => {
     || selectedFeatureProperties?.doorid
     || selectedFeatureProperties?.id;
   const selectedDoorAccessPointId = selectedFeatureProperties?.id;
+  const selectedAreaId = activeEditableLayer?.id === 'areas-outline'
+    ? selectedFeatureProperties?.area_id
+      || selectedFeatureProperties?.areaId
+      || selectedFeatureProperties?.areaID
+      || selectedFeatureProperties?.id
+    : null;
   const showDoorTools = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && !!selectedDoorId && !!selectedEditableFeature;
   const isActiveLayerPointBased = useMemo(
     () => activeEditableLayer?.type === 'circle' || activeEditableLayer?.type === 'symbol',
@@ -3435,6 +3442,11 @@ const Amain = () => {
   }, [buildVertexMarkers, clearVertexMarkers, selectedEditableFeature, isAreaEditMode]);
 
   const handleAreaEditModeToggle = () => {
+    if (activeEditableLayer?.id !== 'areas-outline') {
+      toast.error('برای ویرایش محدوده، لایه محدوده‌ها را انتخاب کنید');
+      return;
+    }
+
     if (!selectedEditableFeature) {
       toast.error('ابتدا یک محدوده را از نقشه انتخاب کنید');
       return;
@@ -3448,15 +3460,29 @@ const Amain = () => {
     setIsAddPlaceModalOpen(true);
   };
 
-  const handleDeleteSelectedArea = () => {
-    if (!selectedEditableFeature) {
+  const handleDeleteSelectedArea = async () => {
+    if (activeEditableLayer?.id !== 'areas-outline') {
+      toast.error('برای حذف محدوده، لایه محدوده‌ها باید فعال باشد');
+      return;
+    }
+
+    if (!selectedAreaId) {
       toast.error('محدوده‌ای برای حذف انتخاب نشده است');
       return;
     }
 
-    setSelectedEditableFeature(null);
-    setIsAreaEditMode(false);
-    toast.info('محدوده انتخابی از حالت ویرایش خارج شد');
+    const confirmDelete = window.confirm(`آیا از حذف محدوده انتخاب‌شده (شناسه ${selectedAreaId}) مطمئن هستید؟ این عملیات قابل بازگشت نیست.`);
+    if (!confirmDelete) return;
+
+    try {
+      await deleteArea(selectedAreaId);
+      toast.success('محدوده با موفقیت حذف شد');
+      setSelectedEditableFeature(null);
+      setIsAreaEditMode(false);
+      refreshLayerTiles('areas-outline');
+    } catch (error) {
+      toast.error(error?.message || 'حذف محدوده ناموفق بود');
+    }
   };
 
 
