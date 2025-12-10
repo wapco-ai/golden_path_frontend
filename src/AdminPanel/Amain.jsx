@@ -1960,6 +1960,14 @@ const Amain = () => {
 
     mapInstance.addControl(new maplibregl.NavigationControl());
 
+    // Ensure the map correctly aligns with the rendered container before handling clicks
+    mapInstance.once('load', () => {
+      mapInstance.resize();
+      if (selectedLocation) {
+        mapInstance.jumpTo({ center: [selectedLocation.lng, selectedLocation.lat], zoom: 16 });
+      }
+    });
+
     const createRedMarker = () => {
       const el = document.createElement('div');
       el.innerHTML = `
@@ -5541,6 +5549,7 @@ const Amain = () => {
                             if (!culturalMap) {
                               initializeEditMap();
                             } else {
+                              culturalMap.resize();
                               // Focus on current location
                               culturalMap.flyTo({
                                 center: [selectedLocation.lng, selectedLocation.lat],
