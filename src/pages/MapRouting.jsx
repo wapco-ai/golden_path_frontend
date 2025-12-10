@@ -1055,9 +1055,9 @@ const MapRoutingPage = () => {
       {mapSelectedSubGroups.length > 0 && (
         <div className="map-subgroups-container">
           <div className="map-subgroups-scroll">
-            {mapSelectedSubGroups.map((subGroup) => (
+            {mapSelectedSubGroups.map((subGroup, index) => (
               subGroup.img && (
-                <div key={subGroup.value} className="map-subgroup-card">
+                <div key={`${subGroup.value}-${index}`} className="map-subgroup-card">
                   <div className="map-subgroup-main">
                     <div className="map-subgroup-content">
                       <div className="map-subgroup-top">
