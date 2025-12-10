@@ -179,6 +179,8 @@
   "pwaInstallPrompt": "للوصول السريع، ثبّت التطبيق على جهازك.",
   "pwaInstallButton": "تثبيت",
   "mapLoadingDoors": "جارٍ تحميل الأبواب القريبة...",
+  "mapEntryNumber": "باب",
+  "mapEntryDistance": "المسافة: {distance}",
   "mapNoDoorsFound": "لم يتم العثور على أبواب لهذه المنطقة",
   "mapNoRecentSearches": "لا توجد عمليات بحث حديثة",
   "noRouteFound": "لم يتم العثور على مسار للحالة المحددة",

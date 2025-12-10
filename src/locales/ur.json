@@ -179,6 +179,8 @@
   "pwaInstallPrompt": "تیز رسائی کے لیے ایپ اپنے آلے پر انسٹال کریں۔",
   "pwaInstallButton": "انسٹال",
   "mapLoadingDoors": "دروازے لوڈ ہو رہے ہیں...",
+  "mapEntryNumber": "دروازہ",
+  "mapEntryDistance": "فاصلہ: {distance}",
   "mapNoDoorsFound": "اس علاقے کے لیے کوئی دروازے نہیں ملے",
   "mapNoRecentSearches": "کوئی حالیہ تلاش نہیں",
   "noRouteFound": "منتخب موڈ کے لیے کوئی راستہ نہیں ملا",

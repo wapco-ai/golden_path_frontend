@@ -180,6 +180,8 @@
   "pwaInstallPrompt": "For quick access, install the app on your device.",
   "pwaInstallButton": "Install",
   "mapLoadingDoors": "Loading nearby doors...",
+  "mapEntryNumber": "Door",
+  "mapEntryDistance": "Distance: {distance}",
   "mapNoDoorsFound": "No doors found for this area",
   "mapNoRecentSearches": "No recent searches",
   "noRouteFound": "No route found for selected mode",
