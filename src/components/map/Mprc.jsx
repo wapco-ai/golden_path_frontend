@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import Map, { Marker, Source, Layer } from 'react-map-gl';
+import Map, { Marker, Source, Layer, WebMercatorViewport } from 'react-map-gl';
 import { useIntl } from 'react-intl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -292,6 +292,62 @@ const Mprc = ({
       setDestCoords(null);
     }
   }, [selectedDestination]);
+
+  useEffect(() => {
+    if (!Array.isArray(areaDoorsData?.doors) || !areaDoorsData.doors.length) {
+      return;
+    }
+
+    const doorCoords = areaDoorsData.doors
+      .map((door) => door?.coord4326)
+      .filter((coords) => Array.isArray(coords) && coords.length >= 2)
+      .map(([lon, lat]) => ({ lon, lat }))
+      .filter(({ lon, lat }) => typeof lon === 'number' && typeof lat === 'number');
+
+    if (!doorCoords.length) {
+      return;
+    }
+
+    const minLon = Math.min(...doorCoords.map(({ lon }) => lon));
+    const maxLon = Math.max(...doorCoords.map(({ lon }) => lon));
+    const minLat = Math.min(...doorCoords.map(({ lat }) => lat));
+    const maxLat = Math.max(...doorCoords.map(({ lat }) => lat));
+
+    if (minLon === maxLon && minLat === maxLat) {
+      setViewState((prev) => ({
+        ...prev,
+        longitude: minLon,
+        latitude: minLat,
+        zoom: Math.max(prev.zoom, 19)
+      }));
+      return;
+    }
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const viewport = new WebMercatorViewport({
+      width: window.innerWidth || 800,
+      height: window.innerHeight || 600,
+      longitude: viewState.longitude,
+      latitude: viewState.latitude,
+      zoom: viewState.zoom
+    }).fitBounds(
+      [
+        [minLon, minLat],
+        [maxLon, maxLat]
+      ],
+      { padding: 80, maxZoom: 19 }
+    );
+
+    setViewState((prev) => ({
+      ...prev,
+      longitude: viewport.longitude,
+      latitude: viewport.latitude,
+      zoom: viewport.zoom
+    }));
+  }, [areaDoorsData?.doors, viewState.latitude, viewState.longitude, viewState.zoom]);
 
   const handleClick = (e) => {
     if (isSelectingLocation) {
