@@ -1,4 +1,5 @@
 import appConfig from '../config/appConfig';
+import { convertUtm32640ToLngLat } from '../utils/utm';
 import { ADMIN_ACCESS_TOKEN_KEY } from './adminAuthService';
 
 const CULTURAL_ITEMS_BASE_URL = `${appConfig.apiBaseUrl}/api/v1/cultural-items`;
@@ -34,9 +35,18 @@ const normalizeLocation = (location) => {
 
   const { x, y, floor, lng, lat } = location;
 
+  if (typeof x === 'number' && typeof y === 'number') {
+    const { lng: convertedLng, lat: convertedLat } = convertUtm32640ToLngLat({ x, y });
+    return {
+      lng: convertedLng,
+      lat: convertedLat,
+      floor: floor ?? null
+    };
+  }
+
   return {
-    lng: x ?? lng ?? null,
-    lat: y ?? lat ?? null,
+    lng: lng ?? null,
+    lat: lat ?? null,
     floor: floor ?? null
   };
 };
