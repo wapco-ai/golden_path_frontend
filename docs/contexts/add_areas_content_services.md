@@ -1,45 +1,45 @@
-
-# کانتکست کامل سرویس CRUD محدوده‌ها (`areas`)
+# کانتکست دقیق سرویس‌های CRUD محدوده‌ها (areas)
 
 ## 1. خلاصه
 
-این سرویس برای مدیریت محدوده‌ها (صحن، رواق، ایوان، سالن‌ها و...) در پنل ادمین استفاده می‌شود.
-از نظر ساختار ورودی، **تقریباً ۱:۱ شبیه سرویس CRUD درب‌هاست** و فقط یک تفاوت اصلی دارد:
+سرویس‌ها برای مدیریت محدوده‌ها (صحن، رواق، سالن، …) استفاده می‌شن.
+محدودیت‌های زمانی و نماز:
 
-* در محدوده‌ها، مفهومی مثل «باز/بسته بودن لحظه‌ای در» نداریم، ولی:
+* هم داخل فیلد `attrs` به شکل JSON ذخیره می‌شن (برای مصرف فرانت)
+* هم بک‌اند به‌صورت خودکار اون‌ها رو روی جداول نرمال‌شده
+  `access_time_restrictions` و `access_prayer_restrictions` سینک می‌کنه.
+  👉 فرانت **فقط** با JSON کار داره، هیچ کاری با جداول جدید نداره.
 
-  * در جدول فیزیکی `areas` فیلدهای: `area_type`, `floor`, `allowed_gender`, `is_closed`, `weight_open_space`, `geom`, `attrs` وجود دارد.
-  * در بخش `operational` یک فیلد اضافه داریم: `is_covered` (مسقف/غیرمسقف).
+در حال حاضر **اوتنتیکیشن فعاله نیست**؛ یعنی نیازی به `Authorization` تو هدرها ندارید.
 
 ---
 
 ## 2. آدرس‌ها (Endpoints)
 
-همه‌ی سرویس‌ها زیر prefix ادمین هستند و نیاز به توکن ادمین دارند:
+(فرض می‌کنیم روی سرور مثلاً زیر `/api/v1` مپ شده، ولی خود Routeها اینن:)
 
-```text
-GET    /api/v1/areas          لیست + فیلتر
-GET    /api/v1/areas/{id}     جزییات
-POST   /api/v1/areas          ایجاد
-PUT    /api/v1/areas/{id}     ویرایش
-DELETE /api/v1/areas/{id}     حذف
+```php
+GET    /areas
+GET    /areas/{id}
+POST   /areas
+PUT    /areas/{id}
+DELETE /areas/{id}
 ```
 
-Header مشترک:
+هدرهای پایه:
 
 ```http
-Authorization: Bearer {admin_access_token}
 Content-Type: application/json
 Accept: application/json
 ```
 
 ---
 
-## 3. مفهوم کلی دیتا در فرانت
+## 3. ساختار کلی شیء محدوده در فرانت
 
-### 3.1. شکل کلی بدنه برای POST/PUT
+### 3.1. فرم کلی که فرانت می‌فرسته (POST و PUT)
 
-بدنه‌ای که فرانت باید بفرسته، این ساختار رو داره:
+بدنه درخواست این ساختار رو داره:
 
 ```json
 {
@@ -54,32 +54,32 @@ Accept: application/json
   },
   "grouping": {
     "group_id": "sahn",
-    "sub_group_id": "sahn_jadid",
-    "sub_group_label": "صحن جدید" 
+    "sub_group_id": "sahn_jame",
+    "sub_group_label": "صحن جامع"
   },
   "operational": {
     "status": "active",                      // active, inactive, ...
     "transport_modes": ["walk","wheelchair"],
     "gender_access": ["male","female","family"],
-    "is_covered": true,                      // مسقف است؟
-    "description": "توضیح عملیاتی/داخلی"
+    "is_covered": true,                      // مسقف است یا نه
+    "description": "توضیحات عملیاتی/داخلی"
   },
   "time_restrictions": [
     {
-      "date_scope": ["این ماه"],
-      "gender": ["male"],
-      "time_ranges": [
+      "date_scope": ["این ماه"],            // اختیاری (لیست برچسب‌ها)
+      "gender": ["male","family"],          // اختیاری (لیست جنسیت‌ها)
+      "time_ranges": [                      // می‌تونه چند بازه ساعتی داشته باشه
         { "start": "00:00", "end": "23:59" }
       ],
-      "all_hours": true
+      "all_hours": true                     // اگر true باشد، کل روز همین محدودیت اعمال می‌شه
     }
   ],
   "prayer_restrictions": [
     {
-      "events": ["نماز صبح","نماز مغرب و عشاء"],
-      "before_minutes": 30,
-      "after_minutes": 20,
-      "date": "روز 2 فروردین 1403"
+      "events": ["نماز صبح","نماز مغرب و عشاء"],  // چند نماز
+      "before_minutes": 25,                       // چند دقیقه قبل از نماز محدودیت شروع می‌شه
+      "after_minutes": 26,                        // چند دقیقه بعد از نماز هم ادامه دارد
+      "date": "روز 2 فروردین 1403"                // فعلاً فقط متن؛ بک‌اند در attrs نگه می‌داره
     }
   ],
   "geometry": {
@@ -104,35 +104,48 @@ Accept: application/json
 }
 ```
 
-> **نکته:** ساختار بالا از نظر ایده، دقیقاً همون چیزیه که برای درب‌ها استفاده می‌کنید؛ فقط `is_covered` اضافه شده.
+> مختصات هندسه (`geometry`) در SRID 32640 (مختصات متری) هست؛ یعنی چیزی که از map server/leaflet با projection UTM می‌گیرید، نه lat/lng.
+
+### 3.2. اعتبارسنجی مهم (POST)
+
+الان در بک‌اند این‌ها چک می‌شن:
+
+* `basic_info.title.fa` → **اجباری**
+* `operational.status` → **اجباری**
+* `operational.is_covered` → **اجباری (boolean)**
+* `geometry` → **اجباری (GeoJSON)**
+* `meta.area_type` → **اجباری**
+* `meta.floor` → **اجباری**
+
+بقیه فیلدها اختیاری‌اند.
 
 ---
 
-## 4. جزئیات هر Endpoint
+## 4. Endpointها با مثال
 
-### 4.1. لیست محدوده‌ها – `GET /api/v1/areas`
+### 4.1. لیست محدوده‌ها – `GET /areas`
 
-#### Query Params (همه اختیاری)
+#### پارامترهای Query (اختیاری)
 
-* `floor` (int) → فیلتر طبقه
-* `area_type` (string) → فیلتر نوع محدوده (مثلاً `normal_area`, `courtyard`, ...)
-* `allowed_gender` (string) → مقادیر enum جنسیت مجاز (مثلاً `male`, `female`, `both`, `family`)
-* `is_closed` (0/1 یا true/false) → بسته بودن محدوده
-* `is_covered` (0/1 یا true/false) → مسقف بودن (از داخل `attrs.operational.is_covered`)
-* `status` (string) → مثلا `active`, `inactive` (از داخل `attrs.operational.status`)
-* `bbox` (string) → جعبه‌ی مکانی در SRID=32640 به صورت `"minX,minY,maxX,maxY"`
-* `search` (string) → جستجو روی عنوان (در زبان انتخاب‌شده)
+* `floor` (int) → فیلتر بر اساس طبقه
+* `area_type` (string) → نوع محدوده (مثلاً `normal_area`, `courtyard`, …)
+* `allowed_gender` (string) → فیلتر جنسیت مجاز
+* `is_closed` (0/1 یا true/false)
+* `is_covered` (0/1 یا true/false) → از داخل `attrs.operational.is_covered`
+* `status` (string) → از `attrs.operational.status` (مثلاً `active`)
+* `bbox` (string) → جعبه مکانی `"minX,minY,maxX,maxY"`
+* `search` (string) → جستجو روی عنوان (با توجه به زبان انتخاب‌شده)
 * `language` (string) → یکی از `fa,en,ar,ur` (پیش‌فرض `fa`)
 * `per_page` (int) → پیش‌فرض ۵۰
 
-#### مثال درخواست:
+#### مثال درخواست
 
 ```http
-GET /api/v1/areas?floor=0&status=active&is_covered=1&language=fa&search=صحن
-Authorization: Bearer {token}
+GET /areas?floor=0&status=active&is_covered=1&language=fa&search=صحن
+Accept: application/json
 ```
 
-#### ساختار پاسخ (Laravel pagination)
+#### نمونه پاسخ (pagination لاراول)
 
 ```json
 {
@@ -146,14 +159,46 @@ Authorization: Bearer {token}
       "is_closed": false,
       "weight_open_space": 1,
       "attrs": {
-        "basic_info": {...},
-        "grouping": {...},
-        "operational": {...},
-        "time_restrictions": [...],
-        "prayer_restrictions": [...]
+        "basic_info": {
+          "title": {
+            "fa": "صحن جامع رضوی",
+            "en": "Razavi Courtyard"
+          },
+          "description": "توضیحات فارسی..."
+        },
+        "grouping": {
+          "group_id": "sahn",
+          "sub_group_id": "sahn_jame",
+          "sub_group_label": "صحن جامع"
+        },
+        "operational": {
+          "status": "active",
+          "transport_modes": ["walk","wheelchair"],
+          "gender_access": ["family"],
+          "is_covered": false,
+          "description": "..."
+        },
+        "time_restrictions": [
+          {
+            "date_scope": ["این ماه"],
+            "gender": ["male"],
+            "time_ranges": [
+              { "start": "00:00", "end": "23:59" }
+            ],
+            "all_hours": true
+          }
+        ],
+        "prayer_restrictions": [
+          {
+            "events": ["نماز صبح"],
+            "before_minutes": 25,
+            "after_minutes": 26,
+            "date": "روز 2 فروردین 1403"
+          }
+        ]
       },
       "updated_at": "2025-12-10T10:00:00Z",
-      "geom_geojson": "{\"type\":\"Polygon\",\"coordinates\":[[...] ]}",
+      "geom_geojson": "{\"type\":\"Polygon\",\"coordinates\":[[...]]}",
       "title": "صحن جامع رضوی"
     }
   ],
@@ -163,7 +208,7 @@ Authorization: Bearer {token}
   "last_page_url": "...",
   "links": [...],
   "next_page_url": "...",
-  "path": "...",
+  "path": "/areas",
   "per_page": 50,
   "prev_page_url": null,
   "to": 50,
@@ -171,15 +216,11 @@ Authorization: Bearer {token}
 }
 ```
 
-> **نکته مهم برای فرانت:**
->
-> * فیلد `geom_geojson` یک **رشته‌ی JSON** است. اگر لازم دارید روی نقشه استفاده کنید باید:
->
->   * در JS: `const geom = JSON.parse(item.geom_geojson);`
+> برای استفاده روی نقشه، `geom_geojson` رو باید در فرانت `JSON.parse` کنید.
 
 ---
 
-### 4.2. جزییات یک محدوده – `GET /api/v1/areas/{id}`
+### 4.2. جزییات محدوده – `GET /areas/{id}`
 
 #### Query params
 
@@ -188,11 +229,11 @@ Authorization: Bearer {token}
 #### مثال:
 
 ```http
-GET /api/v1/areas/123?language=fa
-Authorization: Bearer {token}
+GET /areas/123?language=fa
+Accept: application/json
 ```
 
-#### پاسخ نمونه:
+#### نمونه پاسخ:
 
 ```json
 {
@@ -224,8 +265,24 @@ Authorization: Bearer {token}
       "is_covered": false,
       "description": "..."
     },
-    "time_restrictions": [...],
-    "prayer_restrictions": [...]
+    "time_restrictions": [
+      {
+        "date_scope": ["این ماه"],
+        "gender": ["male"],
+        "time_ranges": [
+          { "start": "00:00", "end": "23:59" }
+        ],
+        "all_hours": true
+      }
+    ],
+    "prayer_restrictions": [
+      {
+        "events": ["نماز صبح","نماز مغرب و عشاء"],
+        "before_minutes": 25,
+        "after_minutes": 26,
+        "date": "روز 2 فروردین 1403"
+      }
+    ]
   },
   "updated_at": "2025-12-10T10:00:00Z",
   "geom_geojson": "{\"type\":\"Polygon\",\"coordinates\":[[...]]}",
@@ -236,28 +293,14 @@ Authorization: Bearer {token}
 
 ---
 
-### 4.3. ایجاد محدوده – `POST /api/v1/areas`
+### 4.3. ایجاد محدوده – `POST /areas`
 
-#### بدنه (Body)
-
-همان ساختار کلی بخش ۳.۱.
-فیلدهای مهم از نظر اعتبارسنجی:
-
-* `basic_info.title.fa` → **اجباری**
-* `operational.status` → **اجباری**
-* `operational.is_covered` → **اجباری (boolean)**
-* `geometry` → **اجباری (GeoJSON)**
-* `meta.area_type` → **اجباری**
-* `meta.floor` → **اجباری**
-
-بقیه‌ی موارد اختیاری هستند.
-
-#### مثال درخواست:
+#### مثال درخواست کامل
 
 ```http
-POST /api/v1/areas
-Authorization: Bearer {token}
+POST /areas
 Content-Type: application/json
+Accept: application/json
 
 {
   "basic_info": {
@@ -279,8 +322,24 @@ Content-Type: application/json
     "is_covered": true,
     "description": "ویژه سرو غذای نذری"
   },
-  "time_restrictions": [],
-  "prayer_restrictions": [],
+  "time_restrictions": [
+    {
+      "date_scope": ["این ماه"],
+      "gender": ["family"],
+      "time_ranges": [
+        { "start": "08:00", "end": "22:00" }
+      ],
+      "all_hours": false
+    }
+  ],
+  "prayer_restrictions": [
+    {
+      "events": ["نماز ظهر و عصر"],
+      "before_minutes": 30,
+      "after_minutes": 30,
+      "date": "ایام خاص"
+    }
+  ],
   "geometry": {
     "type": "Polygon",
     "coordinates": [
@@ -303,7 +362,15 @@ Content-Type: application/json
 }
 ```
 
-#### پاسخ موفق (۲۰۱ Created):
+#### رفتار بک‌اند در POST
+
+* رکورد جدید در جدول `areas` ساخته می‌شود.
+* کل ساختار بالا در `attrs` ذخیره می‌شود.
+* عنوان‌ها به جدول `i18n_texts` سینک می‌شوند.
+* `time_restrictions` به `access_time_restrictions` تبدیل و برای این `area` درج می‌شوند.
+* `prayer_restrictions` به `access_prayer_restrictions` تبدیل و درج می‌شوند.
+
+#### نمونه پاسخ (۲۰۱ Created)
 
 ```json
 {
@@ -314,11 +381,11 @@ Content-Type: application/json
   "is_closed": false,
   "weight_open_space": 1.0,
   "attrs": {
-    "basic_info": {...},
-    "grouping": {...},
-    "operational": {...},
-    "time_restrictions": [],
-    "prayer_restrictions": []
+    "basic_info": { ... },
+    "grouping": { ... },
+    "operational": { ... },
+    "time_restrictions": [ ... ],
+    "prayer_restrictions": [ ... ]
   },
   "updated_at": "2025-12-10T10:30:00Z",
   "geom_geojson": "{\"type\":\"Polygon\",\"coordinates\":[[...]]}"
@@ -327,19 +394,25 @@ Content-Type: application/json
 
 ---
 
-### 4.4. ویرایش محدوده – `PUT /api/v1/areas/{id}`
+### 4.4. ویرایش محدوده – `PUT /areas/{id}`
 
-* همه‌ی فیلدها **اختیاری** هستند؛ هر چیزی که فرستاده شود، آپدیت می‌شود، بقیه دست‌نخورده می‌ماند.
-* `geometry` اگر ارسال شود، هندسه عوض می‌شود.
-* `meta.*` اگر ارسال شود، به ترتیب فیلدهای جدول را آپدیت می‌کند.
-* `basic_info`, `grouping`, `operational`, `time_restrictions`, `prayer_restrictions` روی `attrs` merge می‌شوند (جایگزین کل همان key، نه merge ریز به ریز).
+* همه‌چیز **اختیاری** است؛ هر فیلدی بیاد، همون قسمت آپدیت می‌شه.
+* اگر `time_restrictions` در body باشد:
 
-#### مثال: تغییر فقط عنوان و مسقف بودن
+  * `attrs.time_restrictions` جایگزین می‌شود.
+  * تمام رکوردهای قبلی `access_time_restrictions` برای این `area` حذف و از روی JSON جدید ساخته می‌شوند.
+* اگر `prayer_restrictions` در body باشد:
+
+  * `attrs.prayer_restrictions` جایگزین می‌شود.
+  * جدول `access_prayer_restrictions` برای این `area` کامل ری‌بیلد می‌شود.
+* اگر این دو کلید اصلاً نباشند → محدودیت‌های قبلی دست‌نخورده می‌مانند.
+
+#### مثال ۱ – تغییر فقط عنوان و مسقف بودن
 
 ```http
-PUT /api/v1/areas/456
-Authorization: Bearer {token}
+PUT /areas/456
 Content-Type: application/json
+Accept: application/json
 
 {
   "basic_info": {
@@ -353,18 +426,57 @@ Content-Type: application/json
 }
 ```
 
-پاسخ ساختار مشابه POST است (کل آبجکت area با فیلدهای جدید).
+در این حالت:
+
+* `time_restrictions` و `prayer_restrictions` دست‌نخورده می‌مونن (چون نیومدن).
+* فقط `basic_info` و `operational.is_covered` آپدیت می‌شن.
+
+#### مثال ۲ – فقط تغییر محدودیت زمانی
+
+```http
+PUT /areas/456
+Content-Type: application/json
+Accept: application/json
+
+{
+  "time_restrictions": [
+    {
+      "date_scope": ["ایام خاص"],
+      "gender": ["male","family"],
+      "time_ranges": [
+        { "start": "09:00", "end": "21:00" }
+      ],
+      "all_hours": false
+    }
+  ]
+}
+```
+
+در این حالت:
+
+* `attrs.time_restrictions` کامل جایگزین می‌شه.
+* در جدول `access_time_restrictions`:
+
+  * همه ردیف‌های قبلی این `area` حذف،
+  * و فقط ردیف‌های متناظر با JSON جدید درج می‌شن.
+* بقیه‌ی فیلدها (basic_info، geometry و …) دست‌نخورده می‌مونن.
 
 ---
 
-### 4.5. حذف محدوده – `DELETE /api/v1/areas/{id}`
+### 4.5. حذف محدوده – `DELETE /areas/{id}`
 
 #### مثال:
 
 ```http
-DELETE /api/v1/areas/456
-Authorization: Bearer {token}
+DELETE /areas/456
+Accept: application/json
 ```
+
+#### رفتار:
+
+* رکورد `areas` حذف می‌شه.
+* متن‌های مرتبط در `i18n_texts` حذف می‌شن.
+* تمام `access_time_restrictions` و `access_prayer_restrictions` مربوط به این `area` حذف می‌شن.
 
 #### پاسخ موفق:
 
@@ -374,7 +486,7 @@ Authorization: Bearer {token}
 }
 ```
 
-اگر پیدا نشود:
+اگر پیدا نشه:
 
 ```json
 {
@@ -384,11 +496,11 @@ Authorization: Bearer {token}
 
 ---
 
-## 5. مدیریت خطاها (برای فرانت)
+## 5. خطاهای مهم برای هندل سمت فرانت
 
-### 5.1. خطای اعتبارسنجی (Validation Error – HTTP 422)
+### 5.1. اعتبارسنجی (HTTP 422)
 
-ساختار استاندارد Laravel:
+مثال:
 
 ```json
 {
@@ -399,20 +511,19 @@ Authorization: Bearer {token}
     ],
     "operational.is_covered": [
       "The operational.is_covered field is required."
+    ],
+    "geometry": [
+      "The geometry field is required."
     ]
   }
 }
 ```
 
-**کار فرانت:**
+* اگر status = 422 → پیام‌های `errors` را روی فرم نمایش دهید.
 
-* اگر status code = 422:
+### 5.2. پیدا نشدن (404)
 
-  * روی `errors` لوپ بزنید و پیام‌ها را در فرم نشان دهید.
-
-### 5.2. خطای ۴۰۴
-
-برای `show`, `update`, `delete` در صورت نبودن رکورد:
+مثلاً در `GET /areas/9999` یا `PUT/DELETE /areas/9999`:
 
 ```json
 {
@@ -420,52 +531,25 @@ Authorization: Bearer {token}
 }
 ```
 
-### 5.3. خطای احراز هویت (401/403)
-
-طبق سیستم لاگین ادمین خودتان؛ معمولاً:
-
-```json
-{
-  "message": "Unauthenticated."
-}
-```
-
 ---
 
-## 6. نکات پیاده‌سازی در فرانت
+## 6. نکات عملی برای تیم فرانت
 
-1. **نقشه و هندسه**
+1. **State فرم**
+   می‌تونید در فرم، یک آبجکت React/Vue دقیقاً مطابق همین ساختار داشته باشید (`basic_info`, `grouping`, `operational`, `time_restrictions`, `prayer_restrictions`, `geometry`, `meta`) و هنگام POST/PUT همون state رو مستقیم بفرستید.
 
-   * از `geom_geojson` استفاده کنید.
-   * در زمان ثبت/ویرایش:
+2. **کار با هندسه (`geometry`)**
 
-     * از ابزار ترسیم Polygon/MultiPolygon روی map استفاده کنید.
-     * GeoJSON خروجی را **همان‌طور** به فیلد `geometry` بفرستید.
-   * دقت کنید که سیستم روی SRID=32640 کار می‌کند (مختصات متری، نه lat/lng).
+   * روی نقشه Polygon/MultiPolygon ترسیم کنید.
+   * آبجکت GeoJSON تولید شده رو بدون تغییر در فیلد `geometry` بفرستید.
+   * جواب سرور در `geom_geojson` میاد که باید `JSON.parse` بشه.
 
-2. **راست‌چین/چپ‌چین**
+3. **محدودیت‌ها**
 
-   * برای زبان `fa` و `ar`، UI را RTL کنید.
-   * در فرم عنوان‌ها، چهار input برای `fa,en,ar,ur` در نظر بگیرید.
+   * سمت فرانت فقط JSON می‌سازه/ویرایش می‌کنه (آرایه‌ها `time_restrictions`, `prayer_restrictions`).
+   * بک‌اند خودش این JSON رو روی جداول نرمال‌شده sync می‌کنه؛ فرانت نیازی به چیز extra نداره.
 
-3. **فیلتر سمت لیست**
+4. **ویرایش**
 
-   * کامبو برای `floor`, `area_type`, `status`, `is_covered`.
-   * سرچ با `search` (روی عنوان همان زبان انتخاب‌شده).
-   * اگر نقشه دارید، می‌توانید BBOX را از view فعلی نقشه حساب کنید و به صورت `"minX,minY,maxX,maxY"` بفرستید.
-
-4. **نمایش operational**
-
-   * `status` را با رنگ (مثلاً سبز برای active، قرمز برای inactive) نشان دهید.
-   * `is_covered` را با آیکون سقف/هوای آزاد نمایش دهید.
-   * `gender_access` را با تگ/label (مثلاً "خانوادگی", "آقایان", "بانوان") نشان دهید.
-
-5. **محدودیت‌های زمانی**
-
-   * هنوز جدول مجزا ندارند؛ فقط در JSON ذخیره می‌شوند:
-
-     * `attrs.time_restrictions`
-     * `attrs.prayer_restrictions`
-   * اگر لازم شد UI برای مدیریت‌شان بگذارید، می‌توانید فقط روی این آرایه‌ها کار کنید و همان‌ها را در POST/PUT بفرستید.
-
----
+   * اگر نمی‌خواید محدودیت‌ها عوض بشن، اصلاً `time_restrictions` و `prayer_restrictions` رو در PUT نفرستید.
+   * اگر می‌خواید کامل عوض بشن، آرایه‌ی جدید رو بفرستید؛ بک‌اند قبلی‌ها رو پاک می‌کنه و از نو می‌سازه.
