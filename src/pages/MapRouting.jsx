@@ -53,7 +53,6 @@ const MapRoutingPage = () => {
   const [areaDoorsStatus, setAreaDoorsStatus] = useState(null);
   const [areaDoorsMessage, setAreaDoorsMessage] = useState('');
   const [mapEntryDoors, setMapEntryDoors] = useState([]);
-  const [showModalDoorSelection, setShowModalDoorSelection] = useState(false);
   const [landmarkPlaces, setLandmarkPlaces] = useState([]);
   const [showImageMarkers] = useState(true);
   const [lastAreaDoorsCoords, setLastAreaDoorsCoords] = useState(null);
@@ -343,11 +342,6 @@ const MapRoutingPage = () => {
     })
     : recentSearches;
 
-  const isHallDestination = (destination) => {
-    const targetName = destination?.name || '';
-    return targetName.includes('صحن');
-  };
-
   // FIXED: Remove the auto-navigation useEffect that was causing the issue
   useEffect(() => {
     // Only navigate when we have both locations AND no modals are open AND we're not selecting from map
@@ -444,7 +438,7 @@ const MapRoutingPage = () => {
 
     console.log('Subgroup selected:', subgroup.label, 'Coordinates:', coordinates);
 
-    handleDestinationSelect(destination, { forceDestination: true, requireEntrySelection: isHallDestination(destination) });
+    handleDestinationSelect(destination, { forceDestination: true });
   };
 
   const handleSubgroupSelectWithModal = (subgroup) => {
@@ -458,38 +452,27 @@ const MapRoutingPage = () => {
     setSelectedOption(null);
   };
 
-  // UPDATED: Handle destination selection
+  // UPDATED: Handle destination selection - show entry modal first
   const handleDestinationSelect = (destination, options = {}) => {
-    const { forceDestination = false, requireEntrySelection = false } = options;
+    const { forceDestination = false } = options;
 
     setAreaDoorsData(null);
     setAreaDoorsStatus(null);
     setAreaDoorsMessage('');
     setMapEntryDoors([]);
-    setShowModalDoorSelection(false);
 
     const isDestinationInput = activeInput === 'destination' || forceDestination;
 
     if (isDestinationInput) {
-      if (requireEntrySelection) {
-        setTempDestination(destination);
-        setShowDestinationModal(true);
-        setShowEntryModal(false);
-        setShowModalDoorSelection(true);
-
-        const [lat, lon] = destination?.coordinates || [];
-        if (typeof lat === 'number' && typeof lon === 'number') {
-          requestAreaDoors(lat, lon);
-        }
-        return;
-      }
-
-      setSelectedDestination(destination);
-      addSearch(destination);
-      sessionStorage.setItem('currentDestination', JSON.stringify(destination));
+      // Store the destination temporarily and show entry modal
+      setTempDestination(destination);
       setShowDestinationModal(false);
-      setTempDestination(null);
-      setSelectedEntry(null);
+      setShowEntryModal(true);
+
+      const [lat, lon] = destination?.coordinates || [];
+      if (typeof lat === 'number' && typeof lon === 'number') {
+        requestAreaDoors(lat, lon);
+      }
     } else {
       // When setting origin manually, disable GPS tracking
       setIsTracking(false);
@@ -892,12 +875,6 @@ const MapRoutingPage = () => {
     }
   };
 
-  const handleDoorSelectFromModal = (door) => {
-    handleDoorSelect(door);
-    setShowModalDoorSelection(false);
-    setShowDestinationModal(false);
-  };
-
   const handleMapSelection = () => {
     setIsSelectingFromMap(true);
     setIsTracking(false);
@@ -1245,9 +1222,6 @@ const MapRoutingPage = () => {
                   className="map-modal-back-button"
                   onClick={() => {
                     activeInput === 'destination' ? setShowDestinationModal(false) : setShowOriginModal(false);
-                    setShowModalDoorSelection(false);
-                    setTempDestination(null);
-                    setSelectedEntry(null);
                   }}
                 >
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1477,53 +1451,6 @@ const MapRoutingPage = () => {
                 </ul>
               )}
             </>
-          )}
-
-          {showModalDoorSelection && tempDestination && activeInput === 'destination' && (
-            <div className="map-modal-door-selection">
-              <div className="map-entry-search-section">
-                <div className="map-entry-search-box">
-                  <div className="map-entry-location-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#F44336">
-                      <path d="M18.364 4.636a9 9 0 0 1 .203 12.519l-.203 .21l-4.243 4.242a3 3 0 0 1 -4.097 .135l-.144 -.135l-4.244 -4.243a9 9 0 0 1 12.728 -12.728zm-6.364 3.364a3 3 0 1 0 0 6a3 3 0 1 0 0 -6z" />
-                    </svg>
-                  </div>
-                  <span className="map-entry-location-name">{tempDestination.name}</span>
-                </div>
-              </div>
-
-              <div className="map-entries-section inline">
-                {areaDoorsStatus === 'loading' && (
-                  <p className="map-entry-info">{intl.formatMessage({ id: 'mapLoadingDoors' })}</p>
-                )}
-
-                {areaDoorsStatus && areaDoorsStatus !== 'ok' && areaDoorsStatus !== 'area_too_small' && areaDoorsMessage && (
-                  <div className="map-entry-alert">
-                    <p>{areaDoorsMessage}</p>
-                  </div>
-                )}
-
-                {(areaDoorsStatus === 'ok' || areaDoorsStatus === 'area_too_small') && mapEntryDoors.length === 0 && (
-                  <p className="map-entry-info">{intl.formatMessage({ id: 'mapNoDoorsFound' })}</p>
-                )}
-
-                {(areaDoorsStatus === 'ok' || areaDoorsStatus === 'area_too_small') && mapEntryDoors.length > 0 && (
-                  <div className="map-entries-grid">
-                    {mapEntryDoors.map((entry, index) => (
-                      <button
-                        key={entry?.doorNo || entry?.doorId || index}
-                        className={`map-entry-card ${selectedEntry === (entry?.doorNo || entry?.doorId) ? 'selected' : ''}`}
-                        onClick={() => handleDoorSelectFromModal(entry)}
-                      >
-                        <div className="map-entry-number">{intl.formatMessage({ id: 'mapEntryNumber' })} {entry?.doorNo || entry?.doorId || index + 1}</div>
-                        {entry?.doorName && <div className="map-entry-name">{entry.doorName}</div>}
-                        {entry?.distance && <div className="map-entry-distance">{intl.formatMessage({ id: 'mapEntryDistance' }, { distance: entry.distance })}</div>}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
           )}
         </div>
       )}
