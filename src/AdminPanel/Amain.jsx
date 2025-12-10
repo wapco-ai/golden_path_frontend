@@ -3985,7 +3985,7 @@ const Amain = () => {
 
     try {
       setIsLoadingAreaInfo(true);
-      const info = await getAreaInfo(areaId);
+      const info = await getAreaInfo(areaId, { language });
       fillDoorInfoForm(info);
     } catch (error) {
       toast.error(error?.message || 'دریافت اطلاعات محدوده ناموفق بود');

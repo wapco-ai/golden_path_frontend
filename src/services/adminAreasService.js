@@ -15,6 +15,51 @@ const buildAuthHeaders = () => {
   };
 };
 
+const normalizeAreaRecord = (record) => {
+  if (!record) return record;
+
+  const attrs = record?.attrs || {};
+  const mergedBasicInfo = record.basic_info || attrs.basic_info || {};
+  const mergedGrouping = record.grouping || attrs.grouping || {};
+  const mergedOperational = record.operational || attrs.operational || {};
+  const mergedTimeRestrictions = record.time_restrictions || attrs.time_restrictions || [];
+  const mergedPrayerRestrictions = record.prayer_restrictions || attrs.prayer_restrictions || [];
+
+  let geom = record.geom;
+
+  if (typeof record?.geom_geojson === 'string') {
+    try {
+      geom = JSON.parse(record.geom_geojson);
+    } catch (error) {
+      // اگر رشته‌ی GeoJSON معتبر نباشد، همان ساختار اصلی را برمی‌گردانیم
+      geom = record.geom;
+    }
+  }
+
+  return {
+    ...attrs,
+    ...record,
+    basic_info: mergedBasicInfo,
+    grouping: mergedGrouping,
+    operational: mergedOperational,
+    time_restrictions: mergedTimeRestrictions,
+    prayer_restrictions: mergedPrayerRestrictions,
+    notes: record.notes ?? attrs.notes,
+    geom
+  };
+};
+
+const normalizeAreasResponse = (payload) => {
+  if (payload?.data && Array.isArray(payload.data)) {
+    return {
+      ...payload,
+      data: payload.data.map(normalizeAreaRecord)
+    };
+  }
+
+  return normalizeAreaRecord(payload);
+};
+
 export const listAreas = async (params = {}, { signal } = {}) => {
   const url = new URL(AREAS_BASE_URL);
 
@@ -46,7 +91,7 @@ export const listAreas = async (params = {}, { signal } = {}) => {
     throw new Error(data?.message || 'دریافت لیست محدوده‌ها ناموفق بود');
   }
 
-  return data;
+  return normalizeAreasResponse(data);
 };
 
 export const createArea = async (payload, { signal } = {}) => {
@@ -66,8 +111,16 @@ export const createArea = async (payload, { signal } = {}) => {
   return data;
 };
 
-export const getAreaInfo = async (id, { signal } = {}) => {
-  const response = await fetch(buildAreaUrl(id), {
+export const getAreaInfo = async (id, params = {}, { signal } = {}) => {
+  const url = new URL(buildAreaUrl(id));
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return;
+
+    url.searchParams.set(key, value);
+  });
+
+  const response = await fetch(url, {
     method: 'GET',
     headers: buildAuthHeaders(),
     signal
@@ -79,7 +132,7 @@ export const getAreaInfo = async (id, { signal } = {}) => {
     throw new Error(data?.message || 'دریافت اطلاعات محدوده ناموفق بود');
   }
 
-  return data;
+  return normalizeAreasResponse(data);
 };
 
 export const updateAreaInfo = async (id, payload, { signal } = {}) => {
