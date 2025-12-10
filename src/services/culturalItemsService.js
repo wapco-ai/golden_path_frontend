@@ -1,5 +1,20 @@
+import appConfig from '../config/appConfig';
+import { ADMIN_ACCESS_TOKEN_KEY } from './adminAuthService';
+
+const CULTURAL_ITEMS_BASE_URL = `${appConfig.apiBaseUrl}/api/v1/cultural-items`;
+
 const DEFAULT_HEADERS = {
+  Accept: 'application/json',
   'Content-Type': 'application/json'
+};
+
+const buildAuthHeaders = () => {
+  const accessToken = sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY);
+
+  return {
+    ...DEFAULT_HEADERS,
+    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+  };
 };
 
 const handleResponse = async (response) => {
@@ -23,58 +38,65 @@ export const fetchCulturalItems = async ({ page, pageSize, search, language = 'f
 
   if (search) params.set('search', search);
 
-  const response = await fetch(`/api/v1/cultural-items?${params.toString()}`);
+  const response = await fetch(`${CULTURAL_ITEMS_BASE_URL}?${params.toString()}`, {
+    headers: buildAuthHeaders()
+  });
   return handleResponse(response);
 };
 
 export const fetchCulturalItemDetails = async (id) => {
-  const response = await fetch(`/api/v1/cultural-items/${id}`);
+  const response = await fetch(`${CULTURAL_ITEMS_BASE_URL}/${id}`, {
+    headers: buildAuthHeaders()
+  });
   return handleResponse(response);
 };
 
 export const createCulturalItem = async (payload) => {
-  const response = await fetch('/api/v1/cultural-items', {
+  const response = await fetch(CULTURAL_ITEMS_BASE_URL, {
     method: 'POST',
-    headers: DEFAULT_HEADERS,
+    headers: buildAuthHeaders(),
     body: JSON.stringify(payload)
   });
   return handleResponse(response);
 };
 
 export const updateCulturalItem = async (id, payload) => {
-  const response = await fetch(`/api/v1/cultural-items/${id}`, {
+  const response = await fetch(`${CULTURAL_ITEMS_BASE_URL}/${id}`, {
     method: 'PUT',
-    headers: DEFAULT_HEADERS,
+    headers: buildAuthHeaders(),
     body: JSON.stringify(payload)
   });
   return handleResponse(response);
 };
 
 export const deleteCulturalItem = async (id) => {
-  const response = await fetch(`/api/v1/cultural-items/${id}`, {
-    method: 'DELETE'
+  const response = await fetch(`${CULTURAL_ITEMS_BASE_URL}/${id}`, {
+    method: 'DELETE',
+    headers: buildAuthHeaders()
   });
   return handleResponse(response);
 };
 
 export const fetchCulturalItemTranslations = async (id, targetLangs = 'en,ar,ur') => {
-  const response = await fetch(`/api/v1/cultural-items/${id}/translations?targetLangs=${targetLangs}`);
+  const response = await fetch(`${CULTURAL_ITEMS_BASE_URL}/${id}/translations?targetLangs=${targetLangs}`, {
+    headers: buildAuthHeaders()
+  });
   return handleResponse(response);
 };
 
 export const createCulturalItemTranslation = async (id, payload) => {
-  const response = await fetch(`/api/v1/cultural-items/${id}/translations`, {
+  const response = await fetch(`${CULTURAL_ITEMS_BASE_URL}/${id}/translations`, {
     method: 'POST',
-    headers: DEFAULT_HEADERS,
+    headers: buildAuthHeaders(),
     body: JSON.stringify(payload)
   });
   return handleResponse(response);
 };
 
 export const upsertCulturalItemTranslation = async (id, lang, payload) => {
-  const response = await fetch(`/api/v1/cultural-items/${id}/translations/${lang}`, {
+  const response = await fetch(`${CULTURAL_ITEMS_BASE_URL}/${id}/translations/${lang}`, {
     method: 'PUT',
-    headers: DEFAULT_HEADERS,
+    headers: buildAuthHeaders(),
     body: JSON.stringify(payload)
   });
   return handleResponse(response);
@@ -83,6 +105,6 @@ export const upsertCulturalItemTranslation = async (id, lang, payload) => {
 export const exportCulturalItems = ({ language = 'fa', search } = {}) => {
   const params = new URLSearchParams({ language });
   if (search) params.set('search', search);
-  const url = `/api/v1/cultural-items/export?${params.toString()}`;
+  const url = `${CULTURAL_ITEMS_BASE_URL}/export?${params.toString()}`;
   window.open(url, '_blank');
 };
