@@ -976,6 +976,114 @@
         "language": "PLPGSQL",
         "parameters": [
             {
+                "data_type": "double precision",
+                "parameter_mode": "IN",
+                "parameter_name": "p_x",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "double precision",
+                "parameter_mode": "IN",
+                "parameter_name": "p_y",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "smallint",
+                "parameter_mode": "IN",
+                "parameter_name": "p_floor",
+                "ordinal_position": 3
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "parameter_mode": "IN",
+                "parameter_name": "p_allowed_gender",
+                "ordinal_position": 4
+            },
+            {
+                "data_type": "boolean",
+                "parameter_mode": "IN",
+                "parameter_name": "p_is_open",
+                "ordinal_position": 5
+            },
+            {
+                "data_type": "ARRAY",
+                "parameter_mode": "IN",
+                "parameter_name": "p_modes",
+                "ordinal_position": 6
+            },
+            {
+                "data_type": "boolean",
+                "parameter_mode": "IN",
+                "parameter_name": "p_bidirectional",
+                "ordinal_position": 7
+            },
+            {
+                "data_type": "bigint",
+                "parameter_mode": "OUT",
+                "parameter_name": "door_id",
+                "ordinal_position": 8
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "parameter_mode": "OUT",
+                "parameter_name": "door_geom",
+                "ordinal_position": 9
+            },
+            {
+                "data_type": "bigint",
+                "parameter_mode": "OUT",
+                "parameter_name": "door_from_area",
+                "ordinal_position": 10
+            },
+            {
+                "data_type": "bigint",
+                "parameter_mode": "OUT",
+                "parameter_name": "door_to_area",
+                "ordinal_position": 11
+            },
+            {
+                "data_type": "bigint",
+                "parameter_mode": "OUT",
+                "parameter_name": "dap_id",
+                "ordinal_position": 12
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "parameter_mode": "OUT",
+                "parameter_name": "dap_geom",
+                "ordinal_position": 13
+            }
+        ],
+        "return_type": "record",
+        "function_body": "\r\nDECLARE\r\n    v_click_pt       geometry;\r\n    v_area_id        bigint;\r\n    v_area_geom      geometry;\r\n    v_boundary       geometry;   -- حتماً LINESTRING یا MULTILINESTRING\r\n    v_snap_pt        geometry;\r\n    v_loc            double precision;\r\n    v_len            double precision;\r\n    v_frac           double precision;\r\n    v_start_frac     double precision;\r\n    v_end_frac       double precision;\r\n    v_door_geom      geometry;\r\n    v_dap_geom       geometry;\r\n    v_neighbor_area  bigint;\r\nBEGIN\r\n    -- 1) نقطه کلیک\r\n    v_click_pt := ST_SetSRID(ST_MakePoint(p_x, p_y), 32640);\r\n\r\n    -- 2) نزدیک‌ترین محدوده در همان طبقه\r\n    SELECT a.id, a.geom\r\n    INTO v_area_id, v_area_geom\r\n    FROM areas a\r\n    WHERE a.floor = p_floor\r\n    ORDER BY a.geom <-> v_click_pt\r\n    LIMIT 1;\r\n\r\n    IF v_area_id IS NULL THEN\r\n        RAISE EXCEPTION 'No area found near click (floor=%)', p_floor;\r\n    END IF;\r\n\r\n    -- 3) مرز: نزدیک‌ترین ring به کلیک\r\n    SELECT ST_LineMerge(d.geom)\r\n    INTO v_boundary\r\n    FROM ST_Dump(ST_Boundary(v_area_geom)) AS d\r\n    ORDER BY d.geom <-> v_click_pt\r\n    LIMIT 1;\r\n\r\n    IF v_boundary IS NULL OR ST_IsEmpty(v_boundary) THEN\r\n        RAISE EXCEPTION 'Area % has empty or non-line boundary', v_area_id;\r\n    END IF;\r\n\r\n    IF GeometryType(v_boundary) NOT IN ('LINESTRING','MULTILINESTRING') THEN\r\n        RAISE EXCEPTION 'Area % boundary is not a line (got %)', v_area_id, GeometryType(v_boundary);\r\n    END IF;\r\n\r\n    -- 4) نقطه روی مرز و segment ~2 متری\r\n    v_snap_pt := ST_ClosestPoint(v_boundary, v_click_pt);\r\n\r\n    v_loc := ST_LineLocatePoint(v_boundary, v_snap_pt);\r\n    v_len := ST_Length(v_boundary);\r\n\r\n    IF v_len <= 0 THEN\r\n        RAISE EXCEPTION 'Area % has zero boundary length', v_area_id;\r\n    END IF;\r\n\r\n    v_frac := 2.0 / v_len; -- طول ~۲ متر\r\n\r\n    v_start_frac := GREATEST(0.0, v_loc - v_frac / 2.0);\r\n    v_end_frac   := LEAST(1.0, v_loc + v_frac / 2.0);\r\n\r\n    v_door_geom := ST_LineSubstring(v_boundary, v_start_frac, v_end_frac);\r\n\r\n    IF v_door_geom IS NULL OR ST_IsEmpty(v_door_geom) THEN\r\n        v_door_geom := ST_MakeLine(\r\n            ST_LineInterpolatePoint(v_boundary, GREATEST(0.0, v_loc - 0.001)),\r\n            ST_LineInterpolatePoint(v_boundary, LEAST(1.0, v_loc + 0.001))\r\n        );\r\n    END IF;\r\n\r\n    -- 5) نقطه‌ی وسط درب\r\n    v_dap_geom := ST_LineInterpolatePoint(v_door_geom, 0.5);\r\n\r\n    -- 6) محدوده مقابل (اگر باشد)\r\n    SELECT a2.id\r\n    INTO v_neighbor_area\r\n    FROM areas a2\r\n    WHERE a2.floor = p_floor\r\n      AND a2.id <> v_area_id\r\n      AND ST_DWithin(a2.geom, v_dap_geom, 1.0)\r\n    ORDER BY ST_Distance(a2.geom, v_dap_geom)\r\n    LIMIT 1;\r\n\r\n    -- 7) درج در doors\r\n    INSERT INTO doors (\r\n        geom,\r\n        from_area,\r\n        to_area,\r\n        floor,\r\n        allowed_gender,\r\n        is_open,\r\n        modes,\r\n        bidirectional,\r\n        attrs\r\n    )\r\n    VALUES (\r\n        v_door_geom,\r\n        v_area_id,\r\n        v_neighbor_area,\r\n        p_floor,\r\n        p_allowed_gender,\r\n        p_is_open,\r\n        p_modes,\r\n        p_bidirectional,\r\n        jsonb_build_object(\r\n            'source', 'manual_click',\r\n            'created_at', now()\r\n        )\r\n    )\r\n    RETURNING id, geom, from_area, to_area\r\n    INTO door_id, door_geom, door_from_area, door_to_area;\r\n\r\n    -- 8) درج در door_access_points\r\n    INSERT INTO door_access_points (\r\n        door_id,\r\n        geom,\r\n        floor,\r\n        from_area,\r\n        to_area\r\n    )\r\n    VALUES (\r\n        door_id,\r\n        v_dap_geom,\r\n        p_floor,\r\n        v_area_id,\r\n        v_neighbor_area\r\n    )\r\n    RETURNING id, geom\r\n    INTO dap_id, dap_geom;\r\n\r\n    -- 9) خروجی تابع (یک ردیف)\r\n    RETURN QUERY\r\n        SELECT door_id, door_geom, door_from_area, door_to_area, dap_id, dap_geom;\r\n\r\n    RETURN;\r\nEND;\r\n",
+        "function_name": "fn_create_door_from_click",
+        "security_type": "INVOKER",
+        "full_definition": "CREATE OR REPLACE FUNCTION public.fn_create_door_from_click(p_x double precision, p_y double precision, p_floor smallint, p_allowed_gender gender_enum DEFAULT 'both'::gender_enum, p_is_open boolean DEFAULT true, p_modes text[] DEFAULT ARRAY['walk'::text, 'wheelchair'::text], p_bidirectional boolean DEFAULT true)\n RETURNS TABLE(door_id bigint, door_geom geometry, door_from_area bigint, door_to_area bigint, dap_id bigint, dap_geom geometry)\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n    v_click_pt       geometry;\r\n    v_area_id        bigint;\r\n    v_area_geom      geometry;\r\n    v_boundary       geometry;   -- حتماً LINESTRING یا MULTILINESTRING\r\n    v_snap_pt        geometry;\r\n    v_loc            double precision;\r\n    v_len            double precision;\r\n    v_frac           double precision;\r\n    v_start_frac     double precision;\r\n    v_end_frac       double precision;\r\n    v_door_geom      geometry;\r\n    v_dap_geom       geometry;\r\n    v_neighbor_area  bigint;\r\nBEGIN\r\n    -- 1) نقطه کلیک\r\n    v_click_pt := ST_SetSRID(ST_MakePoint(p_x, p_y), 32640);\r\n\r\n    -- 2) نزدیک‌ترین محدوده در همان طبقه\r\n    SELECT a.id, a.geom\r\n    INTO v_area_id, v_area_geom\r\n    FROM areas a\r\n    WHERE a.floor = p_floor\r\n    ORDER BY a.geom <-> v_click_pt\r\n    LIMIT 1;\r\n\r\n    IF v_area_id IS NULL THEN\r\n        RAISE EXCEPTION 'No area found near click (floor=%)', p_floor;\r\n    END IF;\r\n\r\n    -- 3) مرز: نزدیک‌ترین ring به کلیک\r\n    SELECT ST_LineMerge(d.geom)\r\n    INTO v_boundary\r\n    FROM ST_Dump(ST_Boundary(v_area_geom)) AS d\r\n    ORDER BY d.geom <-> v_click_pt\r\n    LIMIT 1;\r\n\r\n    IF v_boundary IS NULL OR ST_IsEmpty(v_boundary) THEN\r\n        RAISE EXCEPTION 'Area % has empty or non-line boundary', v_area_id;\r\n    END IF;\r\n\r\n    IF GeometryType(v_boundary) NOT IN ('LINESTRING','MULTILINESTRING') THEN\r\n        RAISE EXCEPTION 'Area % boundary is not a line (got %)', v_area_id, GeometryType(v_boundary);\r\n    END IF;\r\n\r\n    -- 4) نقطه روی مرز و segment ~2 متری\r\n    v_snap_pt := ST_ClosestPoint(v_boundary, v_click_pt);\r\n\r\n    v_loc := ST_LineLocatePoint(v_boundary, v_snap_pt);\r\n    v_len := ST_Length(v_boundary);\r\n\r\n    IF v_len <= 0 THEN\r\n        RAISE EXCEPTION 'Area % has zero boundary length', v_area_id;\r\n    END IF;\r\n\r\n    v_frac := 2.0 / v_len; -- طول ~۲ متر\r\n\r\n    v_start_frac := GREATEST(0.0, v_loc - v_frac / 2.0);\r\n    v_end_frac   := LEAST(1.0, v_loc + v_frac / 2.0);\r\n\r\n    v_door_geom := ST_LineSubstring(v_boundary, v_start_frac, v_end_frac);\r\n\r\n    IF v_door_geom IS NULL OR ST_IsEmpty(v_door_geom) THEN\r\n        v_door_geom := ST_MakeLine(\r\n            ST_LineInterpolatePoint(v_boundary, GREATEST(0.0, v_loc - 0.001)),\r\n            ST_LineInterpolatePoint(v_boundary, LEAST(1.0, v_loc + 0.001))\r\n        );\r\n    END IF;\r\n\r\n    -- 5) نقطه‌ی وسط درب\r\n    v_dap_geom := ST_LineInterpolatePoint(v_door_geom, 0.5);\r\n\r\n    -- 6) محدوده مقابل (اگر باشد)\r\n    SELECT a2.id\r\n    INTO v_neighbor_area\r\n    FROM areas a2\r\n    WHERE a2.floor = p_floor\r\n      AND a2.id <> v_area_id\r\n      AND ST_DWithin(a2.geom, v_dap_geom, 1.0)\r\n    ORDER BY ST_Distance(a2.geom, v_dap_geom)\r\n    LIMIT 1;\r\n\r\n    -- 7) درج در doors\r\n    INSERT INTO doors (\r\n        geom,\r\n        from_area,\r\n        to_area,\r\n        floor,\r\n        allowed_gender,\r\n        is_open,\r\n        modes,\r\n        bidirectional,\r\n        attrs\r\n    )\r\n    VALUES (\r\n        v_door_geom,\r\n        v_area_id,\r\n        v_neighbor_area,\r\n        p_floor,\r\n        p_allowed_gender,\r\n        p_is_open,\r\n        p_modes,\r\n        p_bidirectional,\r\n        jsonb_build_object(\r\n            'source', 'manual_click',\r\n            'created_at', now()\r\n        )\r\n    )\r\n    RETURNING id, geom, from_area, to_area\r\n    INTO door_id, door_geom, door_from_area, door_to_area;\r\n\r\n    -- 8) درج در door_access_points\r\n    INSERT INTO door_access_points (\r\n        door_id,\r\n        geom,\r\n        floor,\r\n        from_area,\r\n        to_area\r\n    )\r\n    VALUES (\r\n        door_id,\r\n        v_dap_geom,\r\n        p_floor,\r\n        v_area_id,\r\n        v_neighbor_area\r\n    )\r\n    RETURNING id, geom\r\n    INTO dap_id, dap_geom;\r\n\r\n    -- 9) خروجی تابع (یک ردیف)\r\n    RETURN QUERY\r\n        SELECT door_id, door_geom, door_from_area, door_to_area, dap_id, dap_geom;\r\n\r\n    RETURN;\r\nEND;\r\n$function$\n",
+        "is_deterministic": "NO"
+    },
+    {
+        "schema": "public",
+        "language": "PLPGSQL",
+        "parameters": [
+            {
+                "data_type": "bigint",
+                "parameter_mode": "IN",
+                "parameter_name": "p_door_id",
+                "ordinal_position": 1
+            }
+        ],
+        "return_type": "void",
+        "function_body": "\r\nBEGIN\r\n    -- اول نقاط دسترسی\r\n    DELETE FROM door_access_points\r\n    WHERE door_id = p_door_id;\r\n\r\n    -- سپس خود درب\r\n    DELETE FROM doors\r\n    WHERE id = p_door_id;\r\nEND;\r\n",
+        "function_name": "fn_delete_door_cascade",
+        "security_type": "INVOKER",
+        "full_definition": "CREATE OR REPLACE FUNCTION public.fn_delete_door_cascade(p_door_id bigint)\n RETURNS void\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n    -- اول نقاط دسترسی\r\n    DELETE FROM door_access_points\r\n    WHERE door_id = p_door_id;\r\n\r\n    -- سپس خود درب\r\n    DELETE FROM doors\r\n    WHERE id = p_door_id;\r\nEND;\r\n$function$\n",
+        "is_deterministic": "NO"
+    },
+    {
+        "schema": "public",
+        "language": "PLPGSQL",
+        "parameters": [
+            {
                 "data_type": "integer",
                 "parameter_mode": "IN",
                 "parameter_name": "z",
@@ -1448,6 +1556,78 @@
         "function_name": "fn_map_geojson",
         "security_type": "INVOKER",
         "full_definition": "CREATE OR REPLACE FUNCTION public.fn_map_geojson(p_lang lang_enum, p_floor smallint)\n RETURNS jsonb\n LANGUAGE sql\nAS $function$\r\n  WITH feats AS (\r\n    SELECT\r\n      'Feature' AS type,\r\n      ST_AsGeoJSON(f.geom_4326)::jsonb AS geometry,\r\n      jsonb_build_object(\r\n        -- می‌تونی این id رو در فرانت استفاده کنی؛ اگر نخواستی نادیده بگیر\r\n        'id',             f.entity_table || '-' || f.entity_id,\r\n\r\n        -- فیلدهایی که در نمونه داده بودی:\r\n        'name',           f.name,\r\n        'description',    f.description,\r\n        'group',          f.\"group\",\r\n        'subGroup',       f.\"subGroup\",\r\n        'subGroupValue',  f.\"subGroupValue\",\r\n        'types',          f.types,\r\n        'services',       f.services,\r\n        'gender',         f.gender,\r\n        'nodeFunction',   f.nodeFunction,\r\n        'restrictedTimes',f.restrictedTimes,\r\n        'latitude',       f.latitude,\r\n        'longitude',      f.longitude,\r\n        'gpsMeta',        f.gpsMeta,\r\n        'timestamp',      f.\"timestamp\",\r\n        'transportModes', f.transportModes,\r\n\r\n        -- اضافه: اگر خواستی در فرانت از روی floor هم فیلتر/سوییچ کنی\r\n        'floor',          f.floor\r\n      ) AS properties\r\n    FROM fn_map_features(p_lang) f\r\n    WHERE f.floor = p_floor\r\n  )\r\n  SELECT jsonb_build_object(\r\n    'type',     'FeatureCollection',\r\n    'features', COALESCE(jsonb_agg(to_jsonb(feats)), '[]'::jsonb)\r\n  )\r\n  FROM feats;\r\n$function$\n",
+        "is_deterministic": "NO"
+    },
+    {
+        "schema": "public",
+        "language": "PLPGSQL",
+        "parameters": [
+            {
+                "data_type": "bigint",
+                "parameter_mode": "IN",
+                "parameter_name": "p_door_id",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "double precision",
+                "parameter_mode": "IN",
+                "parameter_name": "p_x",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "double precision",
+                "parameter_mode": "IN",
+                "parameter_name": "p_y",
+                "ordinal_position": 3
+            },
+            {
+                "data_type": "smallint",
+                "parameter_mode": "IN",
+                "parameter_name": "p_floor",
+                "ordinal_position": 4
+            },
+            {
+                "data_type": "bigint",
+                "parameter_mode": "OUT",
+                "parameter_name": "door_id",
+                "ordinal_position": 5
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "parameter_mode": "OUT",
+                "parameter_name": "door_geom",
+                "ordinal_position": 6
+            },
+            {
+                "data_type": "bigint",
+                "parameter_mode": "OUT",
+                "parameter_name": "door_from_area",
+                "ordinal_position": 7
+            },
+            {
+                "data_type": "bigint",
+                "parameter_mode": "OUT",
+                "parameter_name": "door_to_area",
+                "ordinal_position": 8
+            },
+            {
+                "data_type": "bigint",
+                "parameter_mode": "OUT",
+                "parameter_name": "dap_id",
+                "ordinal_position": 9
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "parameter_mode": "OUT",
+                "parameter_name": "dap_geom",
+                "ordinal_position": 10
+            }
+        ],
+        "return_type": "record",
+        "function_body": "\r\nDECLARE\r\n    v_click_pt       geometry;\r\n    v_door_floor     smallint;\r\n    v_area_id        bigint;\r\n    v_area_geom      geometry;\r\n    v_boundary       geometry;\r\n    v_snap_pt        geometry;\r\n    v_loc            double precision;\r\n    v_len            double precision;\r\n    v_frac           double precision;\r\n    v_start_frac     double precision;\r\n    v_end_frac       double precision;\r\n    v_door_geom      geometry;\r\n    v_dap_geom       geometry;\r\n    v_neighbor_area  bigint;\r\nBEGIN\r\n    -- 0) خواندن درب\r\n    SELECT d.floor\r\n    INTO v_door_floor\r\n    FROM doors d\r\n    WHERE d.id = p_door_id;\r\n\r\n    IF v_door_floor IS NULL THEN\r\n        RAISE EXCEPTION 'Door % not found', p_door_id;\r\n    END IF;\r\n\r\n    IF p_floor IS NOT NULL THEN\r\n        v_door_floor := p_floor;\r\n    END IF;\r\n\r\n    -- 1) نقطه کلیک\r\n    v_click_pt := ST_SetSRID(ST_MakePoint(p_x, p_y), 32640);\r\n\r\n    -- 2) نزدیک‌ترین محدوده\r\n    SELECT a.id, a.geom\r\n    INTO v_area_id, v_area_geom\r\n    FROM areas a\r\n    WHERE a.floor = v_door_floor\r\n    ORDER BY a.geom <-> v_click_pt\r\n    LIMIT 1;\r\n\r\n    IF v_area_id IS NULL THEN\r\n        RAISE EXCEPTION 'No area found near click (floor=%)', v_door_floor;\r\n    END IF;\r\n\r\n    -- 3) مرز\r\n    SELECT ST_LineMerge(d.geom)\r\n    INTO v_boundary\r\n    FROM ST_Dump(ST_Boundary(v_area_geom)) AS d\r\n    ORDER BY d.geom <-> v_click_pt\r\n    LIMIT 1;\r\n\r\n    IF v_boundary IS NULL OR ST_IsEmpty(v_boundary) THEN\r\n        RAISE EXCEPTION 'Area % has empty or non-line boundary', v_area_id;\r\n    END IF;\r\n\r\n    IF GeometryType(v_boundary) NOT IN ('LINESTRING','MULTILINESTRING') THEN\r\n        RAISE EXCEPTION 'Area % boundary is not a line (got %)', v_area_id, GeometryType(v_boundary);\r\n    END IF;\r\n\r\n    -- 4) segment ~۲ متری\r\n    v_snap_pt := ST_ClosestPoint(v_boundary, v_click_pt);\r\n\r\n    v_loc := ST_LineLocatePoint(v_boundary, v_snap_pt);\r\n    v_len := ST_Length(v_boundary);\r\n\r\n    IF v_len <= 0 THEN\r\n        RAISE EXCEPTION 'Area % has zero boundary length', v_area_id;\r\n    END IF;\r\n\r\n    v_frac := 2.0 / v_len;\r\n\r\n    v_start_frac := GREATEST(0.0, v_loc - v_frac / 2.0);\r\n    v_end_frac   := LEAST(1.0, v_loc + v_frac / 2.0);\r\n\r\n    v_door_geom := ST_LineSubstring(v_boundary, v_start_frac, v_end_frac);\r\n\r\n    IF v_door_geom IS NULL OR ST_IsEmpty(v_door_geom) THEN\r\n        v_door_geom := ST_MakeLine(\r\n            ST_LineInterpolatePoint(v_boundary, GREATEST(0.0, v_loc - 0.001)),\r\n            ST_LineInterpolatePoint(v_boundary, LEAST(1.0, v_loc + 0.001))\r\n        );\r\n    END IF;\r\n\r\n    -- 5) نقطه وسط\r\n    v_dap_geom := ST_LineInterpolatePoint(v_door_geom, 0.5);\r\n\r\n    -- 6) محدوده مقابل\r\n    SELECT a2.id\r\n    INTO v_neighbor_area\r\n    FROM areas a2\r\n    WHERE a2.floor = v_door_floor\r\n      AND a2.id <> v_area_id\r\n      AND ST_DWithin(a2.geom, v_dap_geom, 1.0)\r\n    ORDER BY ST_Distance(a2.geom, v_dap_geom)\r\n    LIMIT 1;\r\n\r\n    -- 7) آپدیت doors\r\n    UPDATE doors d\r\n    SET geom      = v_door_geom,\r\n        from_area = v_area_id,\r\n        to_area   = v_neighbor_area,\r\n        floor     = v_door_floor,\r\n        attrs     = COALESCE(d.attrs, '{}'::jsonb) || jsonb_build_object(\r\n            'source', 'manual_move',\r\n            'moved_at', now()\r\n        )\r\n    WHERE d.id = p_door_id;\r\n\r\n    -- 8) بازسازی door_access_points\r\n    DELETE FROM door_access_points WHERE door_id = p_door_id;\r\n\r\n    INSERT INTO door_access_points (\r\n        door_id,\r\n        geom,\r\n        floor,\r\n        from_area,\r\n        to_area\r\n    )\r\n    VALUES (\r\n        p_door_id,\r\n        v_dap_geom,\r\n        v_door_floor,\r\n        v_area_id,\r\n        v_neighbor_area\r\n    )\r\n    RETURNING id, geom\r\n    INTO dap_id, dap_geom;\r\n\r\n    -- 9) خروجی یک ردیف\r\n    door_id        := p_door_id;\r\n    door_geom      := v_door_geom;\r\n    door_from_area := v_area_id;\r\n    door_to_area   := v_neighbor_area;\r\n\r\n    RETURN QUERY\r\n        SELECT door_id, door_geom, door_from_area, door_to_area, dap_id, dap_geom;\r\n\r\n    RETURN;\r\nEND;\r\n",
+        "function_name": "fn_move_door_to_click",
+        "security_type": "INVOKER",
+        "full_definition": "CREATE OR REPLACE FUNCTION public.fn_move_door_to_click(p_door_id bigint, p_x double precision, p_y double precision, p_floor smallint DEFAULT NULL::smallint)\n RETURNS TABLE(door_id bigint, door_geom geometry, door_from_area bigint, door_to_area bigint, dap_id bigint, dap_geom geometry)\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n    v_click_pt       geometry;\r\n    v_door_floor     smallint;\r\n    v_area_id        bigint;\r\n    v_area_geom      geometry;\r\n    v_boundary       geometry;\r\n    v_snap_pt        geometry;\r\n    v_loc            double precision;\r\n    v_len            double precision;\r\n    v_frac           double precision;\r\n    v_start_frac     double precision;\r\n    v_end_frac       double precision;\r\n    v_door_geom      geometry;\r\n    v_dap_geom       geometry;\r\n    v_neighbor_area  bigint;\r\nBEGIN\r\n    -- 0) خواندن درب\r\n    SELECT d.floor\r\n    INTO v_door_floor\r\n    FROM doors d\r\n    WHERE d.id = p_door_id;\r\n\r\n    IF v_door_floor IS NULL THEN\r\n        RAISE EXCEPTION 'Door % not found', p_door_id;\r\n    END IF;\r\n\r\n    IF p_floor IS NOT NULL THEN\r\n        v_door_floor := p_floor;\r\n    END IF;\r\n\r\n    -- 1) نقطه کلیک\r\n    v_click_pt := ST_SetSRID(ST_MakePoint(p_x, p_y), 32640);\r\n\r\n    -- 2) نزدیک‌ترین محدوده\r\n    SELECT a.id, a.geom\r\n    INTO v_area_id, v_area_geom\r\n    FROM areas a\r\n    WHERE a.floor = v_door_floor\r\n    ORDER BY a.geom <-> v_click_pt\r\n    LIMIT 1;\r\n\r\n    IF v_area_id IS NULL THEN\r\n        RAISE EXCEPTION 'No area found near click (floor=%)', v_door_floor;\r\n    END IF;\r\n\r\n    -- 3) مرز\r\n    SELECT ST_LineMerge(d.geom)\r\n    INTO v_boundary\r\n    FROM ST_Dump(ST_Boundary(v_area_geom)) AS d\r\n    ORDER BY d.geom <-> v_click_pt\r\n    LIMIT 1;\r\n\r\n    IF v_boundary IS NULL OR ST_IsEmpty(v_boundary) THEN\r\n        RAISE EXCEPTION 'Area % has empty or non-line boundary', v_area_id;\r\n    END IF;\r\n\r\n    IF GeometryType(v_boundary) NOT IN ('LINESTRING','MULTILINESTRING') THEN\r\n        RAISE EXCEPTION 'Area % boundary is not a line (got %)', v_area_id, GeometryType(v_boundary);\r\n    END IF;\r\n\r\n    -- 4) segment ~۲ متری\r\n    v_snap_pt := ST_ClosestPoint(v_boundary, v_click_pt);\r\n\r\n    v_loc := ST_LineLocatePoint(v_boundary, v_snap_pt);\r\n    v_len := ST_Length(v_boundary);\r\n\r\n    IF v_len <= 0 THEN\r\n        RAISE EXCEPTION 'Area % has zero boundary length', v_area_id;\r\n    END IF;\r\n\r\n    v_frac := 2.0 / v_len;\r\n\r\n    v_start_frac := GREATEST(0.0, v_loc - v_frac / 2.0);\r\n    v_end_frac   := LEAST(1.0, v_loc + v_frac / 2.0);\r\n\r\n    v_door_geom := ST_LineSubstring(v_boundary, v_start_frac, v_end_frac);\r\n\r\n    IF v_door_geom IS NULL OR ST_IsEmpty(v_door_geom) THEN\r\n        v_door_geom := ST_MakeLine(\r\n            ST_LineInterpolatePoint(v_boundary, GREATEST(0.0, v_loc - 0.001)),\r\n            ST_LineInterpolatePoint(v_boundary, LEAST(1.0, v_loc + 0.001))\r\n        );\r\n    END IF;\r\n\r\n    -- 5) نقطه وسط\r\n    v_dap_geom := ST_LineInterpolatePoint(v_door_geom, 0.5);\r\n\r\n    -- 6) محدوده مقابل\r\n    SELECT a2.id\r\n    INTO v_neighbor_area\r\n    FROM areas a2\r\n    WHERE a2.floor = v_door_floor\r\n      AND a2.id <> v_area_id\r\n      AND ST_DWithin(a2.geom, v_dap_geom, 1.0)\r\n    ORDER BY ST_Distance(a2.geom, v_dap_geom)\r\n    LIMIT 1;\r\n\r\n    -- 7) آپدیت doors\r\n    UPDATE doors d\r\n    SET geom      = v_door_geom,\r\n        from_area = v_area_id,\r\n        to_area   = v_neighbor_area,\r\n        floor     = v_door_floor,\r\n        attrs     = COALESCE(d.attrs, '{}'::jsonb) || jsonb_build_object(\r\n            'source', 'manual_move',\r\n            'moved_at', now()\r\n        )\r\n    WHERE d.id = p_door_id;\r\n\r\n    -- 8) بازسازی door_access_points\r\n    DELETE FROM door_access_points WHERE door_id = p_door_id;\r\n\r\n    INSERT INTO door_access_points (\r\n        door_id,\r\n        geom,\r\n        floor,\r\n        from_area,\r\n        to_area\r\n    )\r\n    VALUES (\r\n        p_door_id,\r\n        v_dap_geom,\r\n        v_door_floor,\r\n        v_area_id,\r\n        v_neighbor_area\r\n    )\r\n    RETURNING id, geom\r\n    INTO dap_id, dap_geom;\r\n\r\n    -- 9) خروجی یک ردیف\r\n    door_id        := p_door_id;\r\n    door_geom      := v_door_geom;\r\n    door_from_area := v_area_id;\r\n    door_to_area   := v_neighbor_area;\r\n\r\n    RETURN QUERY\r\n        SELECT door_id, door_geom, door_from_area, door_to_area, dap_id, dap_geom;\r\n\r\n    RETURN;\r\nEND;\r\n$function$\n",
         "is_deterministic": "NO"
     },
     {
