@@ -2545,16 +2545,6 @@ const Amain = () => {
       setActiveEditableLayerId('');
       setSelectedEditableFeature(null);
       hasUserClearedEditableLayer.current = false;
-      return;
-    }
-
-    if (!activeEditableLayerId && !hasUserClearedEditableLayer.current) {
-      const firstAvailable = editableLayerOptions.find((layer) => canUserEditLayer(layer));
-
-      if (firstAvailable) {
-        setActiveEditableLayerId(firstAvailable.id);
-        hasUserClearedEditableLayer.current = false;
-      }
     }
   }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
 
@@ -3575,11 +3565,16 @@ const Amain = () => {
       ? restriction.date_scope
       : buildDateScopeIso(restriction?.date);
 
+    const isAllDaysScope = Array.isArray(derivedIsoScope) && derivedIsoScope.includes('ALL_DAYS');
+    const dateLabel = isAllDaysScope
+      ? 'همه روزها'
+      : Array.isArray(restriction?.date_scope)
+        ? restriction.date_scope.join(', ')
+        : restriction?.date_scope || restriction?.date || 'نامشخص';
+
     return {
       id: restriction?.id || index,
-      date: Array.isArray(restriction?.date_scope)
-        ? restriction.date_scope.join(', ')
-        : restriction?.date_scope || restriction?.date || 'نامشخص',
+      date: dateLabel,
       isoDateScope: derivedIsoScope?.length ? derivedIsoScope : [],
       gender: Array.isArray(restriction?.gender)
         ? restriction.gender.map(normalizeGenderValue).filter(Boolean)
@@ -3595,15 +3590,24 @@ const Amain = () => {
   });
 
   const mapApiPrayerRestrictionsToForm = (apiRestrictions = []) => apiRestrictions.map((restriction, index) => {
-    const derivedIsoDate = buildPrayerDateIso(restriction?.date) || restriction?.date || null;
+    const derivedIsoScope = Array.isArray(restriction?.date_scope) && restriction.date_scope.length
+      ? restriction.date_scope
+      : buildDateScopeIso(restriction?.date);
+
+    const isAllDaysScope = Array.isArray(derivedIsoScope) && derivedIsoScope.includes('ALL_DAYS');
+    const dateLabel = isAllDaysScope
+      ? 'همه روزها'
+      : derivedIsoScope?.length
+        ? derivedIsoScope.join(' / ')
+        : restriction?.date || 'همه روزها';
 
     return {
       id: restriction?.id || index,
       events: restriction?.events || [],
       before: restriction?.before_minutes ?? restriction?.before ?? '',
       after: restriction?.after_minutes ?? restriction?.after ?? '',
-      date: restriction?.date || '',
-      isoDate: derivedIsoDate,
+      date: dateLabel,
+      isoDateScope: derivedIsoScope?.length ? derivedIsoScope : [],
       title: restriction?.title || ''
     };
   });
@@ -3634,23 +3638,29 @@ const Amain = () => {
     return payload;
   };
 
-  const buildPrayerRestrictionsPayload = () => prayerTimeRestrictionsList.map((restriction) => ({
-    events: restriction?.events || [],
-    before_minutes: restriction?.before_minutes
-      ?? (restriction?.before !== undefined ? Number(restriction.before) : undefined)
-      ?? (restriction?.beforeMinutes !== undefined ? Number(restriction.beforeMinutes) : undefined)
-      ?? (restriction?.before ? Number(restriction.before) : 0),
-    after_minutes: restriction?.after_minutes
-      ?? (restriction?.after !== undefined ? Number(restriction.after) : undefined)
-      ?? (restriction?.afterMinutes !== undefined ? Number(restriction.afterMinutes) : undefined)
-      ?? (restriction?.after ? Number(restriction.after) : 0),
-    date: restriction?.isoDate || buildPrayerDateIso(restriction?.date),
-    title: restriction?.title
-      ?? restriction?.label
-      ?? (restriction?.events?.length
-        ? `${restriction.events.join(' و ')} : ${restriction.before || 0} دقیقه قبل الی ${restriction.after || 0} دقیقه بعد`
-        : '')
-  }));
+  const buildPrayerRestrictionsPayload = () => prayerTimeRestrictionsList.map((restriction) => {
+    const dateScope = restriction?.isoDateScope?.length
+      ? restriction.isoDateScope
+      : buildDateScopeIso(restriction?.date);
+
+    return {
+      events: restriction?.events || [],
+      before_minutes: restriction?.before_minutes
+        ?? (restriction?.before !== undefined ? Number(restriction.before) : undefined)
+        ?? (restriction?.beforeMinutes !== undefined ? Number(restriction.beforeMinutes) : undefined)
+        ?? (restriction?.before ? Number(restriction.before) : 0),
+      after_minutes: restriction?.after_minutes
+        ?? (restriction?.after !== undefined ? Number(restriction.after) : undefined)
+        ?? (restriction?.afterMinutes !== undefined ? Number(restriction.afterMinutes) : undefined)
+        ?? (restriction?.after ? Number(restriction.after) : 0),
+      date_scope: dateScope,
+      title: restriction?.title
+        ?? restriction?.label
+        ?? (restriction?.events?.length
+          ? `${restriction.events.join(' و ')} : ${restriction.before || 0} دقیقه قبل الی ${restriction.after || 0} دقیقه بعد`
+          : '')
+    };
+  });
 
   const buildDoorInfoPayload = () => {
     const selectedSubGroup = subGroupOptions.find((subGroup) => subGroup.value === placeSubcategory);
@@ -3987,7 +3997,11 @@ const Amain = () => {
   };
 
   const buildDateScopeIso = (dateLabel, jalaliSelection = null, jalaliEndSelection = null) => {
-    if (!dateLabel || dateLabel === 'همه روزه') return [];
+    if (!dateLabel) return [];
+
+    if (dateLabel === 'کل روزها' || dateLabel === 'همه روزها' || dateLabel === 'ALL_DAYS') {
+      return ['ALL_DAYS'];
+    }
 
     const isIsoDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
 
@@ -5511,7 +5525,22 @@ const Amain = () => {
                             className="remove-file-btn-edit"
                             onClick={() => handleRemoveFile(primaryImage.id, 'image')}
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-x"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="24"
+                              height="24"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="icon icon-tabler icons-tabler-outline icon-tabler-x"
+                            >
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path d="M18 6l-12 12" />
+                              <path d="M6 6l12 12" />
+                            </svg>
                           </button>
                         </div>
                       </div>
@@ -5560,7 +5589,22 @@ const Amain = () => {
                                 className="remove-file-btn-small-edit"
                                 onClick={() => handleRemoveFile(file.id, 'image')}
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-x"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width="24"
+                                  height="24"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  className="icon icon-tabler icons-tabler-outline icon-tabler-x"
+                                >
+                                  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                  <path d="M18 6l-12 12" />
+                                  <path d="M6 6l12 12" />
+                                </svg>
                               </button>
                             </div>
                           </div>
@@ -6181,7 +6225,17 @@ const Amain = () => {
                         // Reset location marker mode when other buttons are clicked
                         setIsLocationMarkerMode(false);
                       }}>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
                         <path d="M12 5m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
                         <path d="M19 8m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
                         <path d="M5 11m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
@@ -7582,14 +7636,15 @@ const Amain = () => {
                                     }
                                     // Create new item
                                     const title = selectedPrayerEvents.join(' و ') + ` : ${prayerBeforeMinutes} دقیقه قبل الی ${prayerAfterMinutes} دقیقه بعد`;
+                                    const dateLabel = getPrayerDateLabel();
                                     const newItem = {
                                       id: Date.now(),
                                       events: [...selectedPrayerEvents],
                                       before: String(prayerBeforeMinutes),
                                       after: String(prayerAfterMinutes),
-                                      date: getPrayerDateLabel(),
-                                      isoDate: buildPrayerDateIso(
-                                        getPrayerDateLabel(),
+                                      date: dateLabel,
+                                      isoDateScope: buildDateScopeIso(
+                                        dateLabel,
                                         prayerSelectedJalaliDate,
                                         prayerSelectedJalaliEndDate
                                       ),
