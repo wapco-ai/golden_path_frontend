@@ -7328,6 +7328,16 @@ body {
   flex: 1;
 }
 
+.title-input-with-language8 {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.title-input-with-language8 .form-input {
+  flex: 1;
+}
+
 .title-input-with-language7 {
   display: flex;
   gap: 8px;

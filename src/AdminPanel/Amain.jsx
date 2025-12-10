@@ -7295,7 +7295,7 @@ const Amain = () => {
                     <div className="form-group">
                       <label className="form-label">نام و توضیحات این مکان</label>
 
-                      <div className="title-input-with-language">
+                      <div className="title-input-with-language8">
                         <input
                           type="text"
                           className="form-input"
