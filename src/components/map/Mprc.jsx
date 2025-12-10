@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import Map, { Marker, Source, Layer, WebMercatorViewport } from 'react-map-gl';
+import Map, { Marker, Source, Layer } from 'react-map-gl';
 import { useIntl } from 'react-intl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -93,6 +93,36 @@ const Mprc = ({
   const language = useLangStore((state) => state.language);
   const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
   const areaLineColor = areaDoorsStatus === 'area_too_small' ? '#9e9e9e' : '#ff9800';
+
+  const calculateViewForBounds = useCallback((bounds, options = {}) => {
+    const { minLon, maxLon, minLat, maxLat } = bounds;
+    const { width = 800, height = 600, padding = 0, maxZoom = 19 } = options;
+
+    const latRad = (lat) => {
+      const sin = Math.sin((lat * Math.PI) / 180);
+      const clamped = Math.min(Math.max(sin, -0.9999), 0.9999);
+      return Math.log((1 + clamped) / (1 - clamped)) / 2;
+    };
+
+    const zoomFor = (mapPx, fraction) => Math.log(mapPx / 256 / fraction) / Math.LN2;
+
+    const paddedWidth = Math.max(width - padding * 2, 1);
+    const paddedHeight = Math.max(height - padding * 2, 1);
+
+    const latFraction = (latRad(maxLat) - latRad(minLat)) / Math.PI;
+    const lngDiff = maxLon - minLon;
+    const lngFraction = ((lngDiff + 360) % 360) / 360;
+
+    const latZoom = latFraction > 0 ? zoomFor(paddedHeight, latFraction) : maxZoom;
+    const lngZoom = lngFraction > 0 ? zoomFor(paddedWidth, lngFraction) : maxZoom;
+    const zoom = Math.min(latZoom, lngZoom, maxZoom);
+
+    return {
+      longitude: (minLon + maxLon) / 2,
+      latitude: (minLat + maxLat) / 2,
+      zoom: Number.isFinite(zoom) ? zoom : maxZoom
+    };
+  }, []);
 
   const onMove = useCallback((evt) => {
     setViewState(evt.viewState);
@@ -327,18 +357,14 @@ const Mprc = ({
       return;
     }
 
-    const viewport = new WebMercatorViewport({
-      width: window.innerWidth || 800,
-      height: window.innerHeight || 600,
-      longitude: viewState.longitude,
-      latitude: viewState.latitude,
-      zoom: viewState.zoom
-    }).fitBounds(
-      [
-        [minLon, minLat],
-        [maxLon, maxLat]
-      ],
-      { padding: 80, maxZoom: 19 }
+    const viewport = calculateViewForBounds(
+      { minLon, maxLon, minLat, maxLat },
+      {
+        width: window.innerWidth || 800,
+        height: window.innerHeight || 600,
+        padding: 80,
+        maxZoom: 19
+      }
     );
 
     setViewState((prev) => ({
@@ -347,7 +373,7 @@ const Mprc = ({
       latitude: viewport.latitude,
       zoom: viewport.zoom
     }));
-  }, [areaDoorsData?.doors, viewState.latitude, viewState.longitude, viewState.zoom]);
+  }, [areaDoorsData?.doors, calculateViewForBounds]);
 
   const handleClick = (e) => {
     if (isSelectingLocation) {
