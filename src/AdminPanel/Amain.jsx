@@ -510,7 +510,6 @@ const Amain = () => {
   const [culturalItemsPerPage, setCulturalItemsPerPage] = useState(7);
   const [culturalTotalItems, setCulturalTotalItems] = useState(0);
   const [isLoadingCultural, setIsLoadingCultural] = useState(false);
-  const [culturalPoiId, setCulturalPoiId] = useState('');
   const [locationRoofType, setLocationRoofType] = useState('');
   const [locationStatus, setLocationStatus] = useState('');
   const [isAddCulturalModalOpen, setIsAddCulturalModalOpen] = useState(false);
@@ -1348,8 +1347,6 @@ const Amain = () => {
       setCulturalTitle(itemToEdit.title || '');
       setCulturalDescription(itemToEdit.description || '');
       setPlaceAddress(itemToEdit.addressInShrine || '');
-      setCulturalPoiId(itemToEdit.poiId || '');
-
       const itemTitles = itemToEdit.titles || {};
       const itemDescriptions = itemToEdit.descriptions || {};
 
@@ -1463,7 +1460,6 @@ const Amain = () => {
     setShowMultimedia('نمایش');
     setSelectedCulturalTypes([]);
     setPlaceAddress('');
-    setCulturalPoiId('');
     setSelectedLocation(null);
 
     setProfileImages([]);
@@ -2329,11 +2325,6 @@ const Amain = () => {
       return;
     }
 
-    if (!culturalPoiId) {
-      alert('شناسه poi لازم است');
-      return;
-    }
-
     console.log('Saving with selectedLocation:', selectedLocation);
 
     const attachments = profileImages.map((img) => ({
@@ -2343,7 +2334,6 @@ const Amain = () => {
     }));
 
     createCulturalItem({
-      poiId: Number(culturalPoiId),
       title: culturalTitle,
       description: culturalDescription || '',
       primaryImage: primaryImage?.url || null,
@@ -5475,17 +5465,6 @@ const Amain = () => {
                           </svg>
                         </button>
                       </div>
-                    </div>
-
-                    <div className="edit-form-group">
-                      <label className="edit-form-label">شناسه POI</label>
-                      <input
-                        type="number"
-                        className="edit-form-input"
-                        placeholder="شناسه POI را وارد کنید"
-                        value={culturalPoiId}
-                        onChange={(e) => setCulturalPoiId(e.target.value)}
-                      />
                     </div>
 
                     <div className="edit-form-group">
@@ -8627,16 +8606,6 @@ const Amain = () => {
                             <path d="M12.5 2.5C13.7583 6.83667 13.7583 13.1633 12.5 17.5" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         </button>
-                      </div>
-
-                      <div className="title-input-with-language">
-                        <input
-                          type="number"
-                          className="form-input"
-                          placeholder="شناسه POI را وارد کنید"
-                          value={culturalPoiId}
-                          onChange={(e) => setCulturalPoiId(e.target.value)}
-                        />
                       </div>
 
                       <div className="description-input-with-language">
