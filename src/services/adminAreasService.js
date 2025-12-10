@@ -18,35 +18,21 @@ const buildAuthHeaders = () => {
 const normalizeAreaRecord = (record) => {
   if (!record) return record;
 
-  const attrs = record?.attrs || {};
-  const mergedBasicInfo = record.basic_info || attrs.basic_info || {};
-  const mergedGrouping = record.grouping || attrs.grouping || {};
-  const mergedOperational = record.operational || attrs.operational || {};
-  const mergedTimeRestrictions = record.time_restrictions || attrs.time_restrictions || [];
-  const mergedPrayerRestrictions = record.prayer_restrictions || attrs.prayer_restrictions || [];
-
-  let geom = record.geom;
-
   if (typeof record?.geom_geojson === 'string') {
     try {
-      geom = JSON.parse(record.geom_geojson);
+      const parsedGeom = JSON.parse(record.geom_geojson);
+
+      return {
+        ...record,
+        geom: parsedGeom
+      };
     } catch (error) {
       // اگر رشته‌ی GeoJSON معتبر نباشد، همان ساختار اصلی را برمی‌گردانیم
-      geom = record.geom;
+      return record;
     }
   }
 
-  return {
-    ...attrs,
-    ...record,
-    basic_info: mergedBasicInfo,
-    grouping: mergedGrouping,
-    operational: mergedOperational,
-    time_restrictions: mergedTimeRestrictions,
-    prayer_restrictions: mergedPrayerRestrictions,
-    notes: record.notes ?? attrs.notes,
-    geom
-  };
+  return record;
 };
 
 const normalizeAreasResponse = (payload) => {
