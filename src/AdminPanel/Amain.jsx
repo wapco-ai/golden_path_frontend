@@ -1812,7 +1812,7 @@ const Amain = () => {
   const getCulturalRestrictionTitle = () => {
     if (!culturalSelectedRestrictionType) return '';
 
-    if (culturalSelectedRestrictionType === 'کل روزها') return 'کل روزها';
+    if (culturalSelectedRestrictionType === 'همه روزه') return 'همه روزه';
     if (culturalSelectedRestrictionType === 'تمام این ماه') return 'این ماه';
     if (culturalSelectedRestrictionType === 'کل این هفته') return 'این هفته';
     if (culturalSelectedRestrictionType.startsWith('روز')) return culturalSelectedRestrictionType;
@@ -3107,7 +3107,7 @@ const Amain = () => {
   const getEditRestrictionTitle = () => {
     if (!editSelectedRestrictionType) return '';
 
-    if (editSelectedRestrictionType === 'کل روزها') return 'کل روزها';
+    if (editSelectedRestrictionType === 'همه روزه') return 'همه روزه';
     if (editSelectedRestrictionType === 'تمام این ماه') return 'این ماه';
     if (editSelectedRestrictionType === 'کل این هفته') return 'این هفته';
     if (editSelectedRestrictionType.startsWith('روز')) return editSelectedRestrictionType;
@@ -3987,7 +3987,7 @@ const Amain = () => {
   };
 
   const buildDateScopeIso = (dateLabel, jalaliSelection = null, jalaliEndSelection = null) => {
-    if (!dateLabel || dateLabel === 'کل روزها') return [];
+    if (!dateLabel || dateLabel === 'همه روزه') return [];
 
     const isIsoDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
 
@@ -7272,7 +7272,7 @@ const Amain = () => {
                                   className={`date-filter-option ${selectedDateFilter.includes('کل روز') ? 'selected' : ''}`}
                                   onClick={() => handleDateFilterToggle('کل روز')}
                                 >
-                                  کل روزها
+                                  همه روزه
                                 </div>
                                 <div
                                   className={`date-filter-option ${selectedDateFilter.includes('تمام این ماه') ? 'selected' : ''}`}
@@ -7628,7 +7628,7 @@ const Amain = () => {
                                     setIsPrayerDateFilterOpen(false);
                                   }}
                                 >
-                                  کل روزها
+                                  همه روزه
                                 </div>
                                 <div
                                   className="date-filter-option"
@@ -8347,10 +8347,10 @@ const Amain = () => {
                               <div className="date-filter-option2">
                                 <div className="filter-title">فیلتر بر اساس تاریخ</div>
                                 <div
-                                  className={`date-filter-option ${culturalSelectedDateFilter.includes('کل روزها') ? 'selected' : ''}`}
-                                  onClick={() => handleCulturalDateFilterToggle('کل روزها')}
+                                  className={`date-filter-option ${culturalSelectedDateFilter.includes('همه روزه') ? 'selected' : ''}`}
+                                  onClick={() => handleCulturalDateFilterToggle('همه روزه')}
                                 >
-                                  کل روزها
+                                  همه روزه
                                 </div>
                                 <div
                                   className={`date-filter-option ${culturalSelectedDateFilter.includes('تمام این ماه') ? 'selected' : ''}`}
@@ -8696,7 +8696,7 @@ const Amain = () => {
                                     setIsCulturalPrayerDateFilterOpen(false);
                                   }}
                                 >
-                                  کل روزها
+                                  همه روزه
                                 </div>
                                 <div
                                   className="date-filter-option"
@@ -9792,10 +9792,10 @@ const Amain = () => {
                             <div className="date-filter-option2">
                               <div className="filter-title">فیلتر بر اساس تاریخ</div>
                               <div
-                                className={`date-filter-option ${editSelectedDateFilter.includes('کل روزها') ? 'selected' : ''}`}
-                                onClick={() => handleEditDateFilterToggle('کل روزها')}
+                                className={`date-filter-option ${editSelectedDateFilter.includes('همه روزه') ? 'selected' : ''}`}
+                                onClick={() => handleEditDateFilterToggle('همه روزه')}
                               >
-                                کل روزها
+                                همه روزه
                               </div>
                               <div
                                 className={`date-filter-option ${editSelectedDateFilter.includes('تمام این ماه') ? 'selected' : ''}`}
@@ -10119,7 +10119,7 @@ const Amain = () => {
                                   setEditIsPrayerDateFilterOpen(false);
                                 }}
                               >
-                                کل روزها
+                                همه روزه
                               </div>
                               <div
                                 className="date-filter-option"
