@@ -1350,6 +1350,21 @@ const Amain = () => {
       setPlaceAddress(itemToEdit.addressInShrine || '');
       setCulturalPoiId(itemToEdit.poiId || '');
 
+      const itemTitles = itemToEdit.titles || {};
+      const itemDescriptions = itemToEdit.descriptions || {};
+
+      setLanguageTitles({
+        english: itemTitles.en || '',
+        arabic: itemTitles.ar || '',
+        urdu: itemTitles.ur || ''
+      });
+
+      setLanguageDescriptions({
+        english: itemDescriptions.en || '',
+        arabic: itemDescriptions.ar || '',
+        urdu: itemDescriptions.ur || ''
+      });
+
       if (itemToEdit.culturalTypes) {
         setSelectedCulturalTypes([...itemToEdit.culturalTypes]);
       }
