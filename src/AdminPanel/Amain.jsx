@@ -1641,18 +1641,6 @@ const Amain = () => {
     setTitleForModal('');
     setDescriptionForModal('');
 
-    // Remove marker
-    if (currentMarker) {
-      currentMarker.remove();
-      setCurrentMarker(null);
-    }
-
-    // Clean up map
-    if (culturalMap) {
-      culturalMap.remove();
-      setCulturalMap(null);
-    }
-
     // Reset restriction states
     setCulturalTimeRestrictions([]);
     setCulturalPrayerTimeRestrictions([]);
