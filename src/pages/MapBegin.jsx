@@ -38,7 +38,7 @@ const MapBeginPage = () => {
   const [routingData, setRoutingData] = useState(null);
   const [shrineEvents, setShrineEvents] = useState([]);
   const [activeTab, setActiveTab] = useState('mostVisited');
-  const [showImageMarkers, setShowImageMarkers] = useState(true);
+  const [showImageMarkers] = useState(true);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [showLocationDetails, setShowLocationDetails] = useState(false);
   const [expandedSearch, setExpandedSearch] = useState(false);
@@ -581,15 +581,9 @@ const MapBeginPage = () => {
     setVelocity(0);
   };
 
-  useEffect(() => {
-    setShowImageMarkers(!selectedCategory);
-  }, [selectedCategory]);
-
   const handleCategoryClick = (category) => {
     const isSameCategory = selectedCategory && selectedCategory.value === category.value;
     setSelectedCategory(isSameCategory ? null : category);
-    // Show image markers only when no category is selected
-    setShowImageMarkers(isSameCategory ? true : false);
   }
 
 
