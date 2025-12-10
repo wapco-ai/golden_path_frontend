@@ -3565,11 +3565,16 @@ const Amain = () => {
       ? restriction.date_scope
       : buildDateScopeIso(restriction?.date);
 
+    const isAllDaysScope = Array.isArray(derivedIsoScope) && derivedIsoScope.includes('ALL_DAYS');
+    const dateLabel = isAllDaysScope
+      ? 'همه روزها'
+      : Array.isArray(restriction?.date_scope)
+        ? restriction.date_scope.join(', ')
+        : restriction?.date_scope || restriction?.date || 'نامشخص';
+
     return {
       id: restriction?.id || index,
-      date: Array.isArray(restriction?.date_scope)
-        ? restriction.date_scope.join(', ')
-        : restriction?.date_scope || restriction?.date || 'نامشخص',
+      date: dateLabel,
       isoDateScope: derivedIsoScope?.length ? derivedIsoScope : [],
       gender: Array.isArray(restriction?.gender)
         ? restriction.gender.map(normalizeGenderValue).filter(Boolean)
@@ -3589,9 +3594,12 @@ const Amain = () => {
       ? restriction.date_scope
       : buildDateScopeIso(restriction?.date);
 
-    const dateLabel = derivedIsoScope?.length
-      ? derivedIsoScope.join(' / ')
-      : restriction?.date || 'همه روزها';
+    const isAllDaysScope = Array.isArray(derivedIsoScope) && derivedIsoScope.includes('ALL_DAYS');
+    const dateLabel = isAllDaysScope
+      ? 'همه روزها'
+      : derivedIsoScope?.length
+        ? derivedIsoScope.join(' / ')
+        : restriction?.date || 'همه روزها';
 
     return {
       id: restriction?.id || index,
@@ -3989,7 +3997,11 @@ const Amain = () => {
   };
 
   const buildDateScopeIso = (dateLabel, jalaliSelection = null, jalaliEndSelection = null) => {
-    if (!dateLabel || dateLabel === 'کل روزها' || dateLabel === 'همه روزها') return [];
+    if (!dateLabel) return [];
+
+    if (dateLabel === 'کل روزها' || dateLabel === 'همه روزها' || dateLabel === 'ALL_DAYS') {
+      return ['ALL_DAYS'];
+    }
 
     const isIsoDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
 
