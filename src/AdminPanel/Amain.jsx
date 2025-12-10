@@ -169,6 +169,23 @@ const rebuildGeometryFromVertices = (geometryType, vertices = []) => {
   return null;
 };
 
+const floorLabelToValue = (label) => {
+  switch (label) {
+    case 'منفی ۱':
+      return -1;
+    case 'همکف':
+    default:
+      return 0;
+  }
+};
+
+const floorValueToLabel = (value) => {
+  if (value === -1) {
+    return 'منفی ۱';
+  }
+  return 'همکف';
+};
+
 const logDoorAccessPointDebugInfo = (mapInstance) => {
   if (!mapInstance) return;
 
@@ -278,6 +295,31 @@ const Amain = () => {
   const [isLayerListOpen, setIsLayerListOpen] = useState(false);
   const [mapFloor, setMapFloor] = useState('همکف');
   const [isMapFloorOpen, setIsMapFloorOpen] = useState(false);
+  const refreshLayerTiles = useCallback((layerId) => {
+    if (!map || !layerId) return;
+
+    const layerConfig = haramAdminVectorTileConfig.find((layer) => layer.id === layerId);
+    if (!layerConfig) return;
+
+    const source = map.getSource(layerConfig.sourceId);
+    const tileUrlFactory = typeof layerConfig.tileUrlFactory === 'function'
+      ? layerConfig.tileUrlFactory
+      : null;
+
+    const baseTileUrl = tileUrlFactory
+      ? tileUrlFactory({ floor: floorLabelToValue(mapFloor) })
+      : layerConfig.tileUrl;
+
+    if (!source || typeof source.setTiles !== 'function' || !baseTileUrl) return;
+
+    const cacheBustedUrl = `${baseTileUrl}${baseTileUrl.includes('?') ? '&' : '?'}cacheBust=${Date.now()}`;
+
+    source.setTiles([cacheBustedUrl]);
+
+    if (typeof map.triggerRepaint === 'function') {
+      map.triggerRepaint();
+    }
+  }, [map, mapFloor]);
   const unknownComments = commentStats.total - commentStats.approved - commentStats.rejected;
   const approvedDegrees = (commentStats.approved / commentStats.total) * 360;
   const rejectedDegrees = (commentStats.rejected / commentStats.total) * 360;
@@ -2830,6 +2872,8 @@ const Amain = () => {
           };
 
           setSelectedEditableFeature(movedFeature);
+          refreshLayerTiles(DOOR_ACCESS_LAYER_ID);
+          refreshLayerTiles('doors');
           toast.success(moveResponse?.message || 'درب با موفقیت جابجا شد');
         } catch (error) {
           toast.error(error?.message || 'جابجایی درب ناموفق بود');
@@ -3455,6 +3499,8 @@ const Amain = () => {
       locationMarker.remove();
       setLocationMarker(null);
     }
+
+    setSelectedLocation(null);
   };
 
   const handleAddPlaceToMarker = async () => {
@@ -3489,11 +3535,21 @@ const Amain = () => {
       toast.success('درب جدید با موفقیت ثبت شد');
       console.log('door creation response', response);
       await openDoorInfoModal(newDoorId, newAccessPointId, false);
+
+      refreshLayerTiles(DOOR_ACCESS_LAYER_ID);
+      refreshLayerTiles('doors');
     } catch (error) {
       toast.error(error?.message || 'ثبت درب ناموفق بود');
     } finally {
       setIsCreatingDoor(false);
       setIsLocationMarkerMode(false);
+
+      if (locationMarker) {
+        locationMarker.remove();
+        setLocationMarker(null);
+      }
+
+      setSelectedLocation(null);
     }
   };
 
@@ -3517,6 +3573,13 @@ const Amain = () => {
       map.off('move', keepMarkerCentered);
     };
   }, [map, isLocationMarkerMode, locationMarker]);
+
+  useEffect(() => {
+    if (!isLocationMarkerMode && locationMarker) {
+      locationMarker.remove();
+      setLocationMarker(null);
+    }
+  }, [isLocationMarkerMode, locationMarker]);
   useEffect(() => {
     // Reset scroll position when menu changes
     if (contentRef.current) {
@@ -3837,23 +3900,6 @@ const Amain = () => {
     'همکف',
     'منفی ۱'
   ];
-
-  const floorLabelToValue = (label) => {
-    switch (label) {
-      case 'منفی ۱':
-        return -1;
-      case 'همکف':
-      default:
-        return 0;
-    }
-  };
-
-  const floorValueToLabel = (value) => {
-    if (value === -1) {
-      return 'منفی ۱';
-    }
-    return 'همکف';
-  };
 
   const formatJalaliDate = (date) => {
     const jalali = toJalaali(date.getFullYear(), date.getMonth() + 1, date.getDate());
