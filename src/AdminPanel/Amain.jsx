@@ -1350,6 +1350,21 @@ const Amain = () => {
       setPlaceAddress(itemToEdit.addressInShrine || '');
       setCulturalPoiId(itemToEdit.poiId || '');
 
+      const itemTitles = itemToEdit.titles || {};
+      const itemDescriptions = itemToEdit.descriptions || {};
+
+      setLanguageTitles({
+        english: itemTitles.en || '',
+        arabic: itemTitles.ar || '',
+        urdu: itemTitles.ur || ''
+      });
+
+      setLanguageDescriptions({
+        english: itemDescriptions.en || '',
+        arabic: itemDescriptions.ar || '',
+        urdu: itemDescriptions.ur || ''
+      });
+
       if (itemToEdit.culturalTypes) {
         setSelectedCulturalTypes([...itemToEdit.culturalTypes]);
       }
@@ -1625,18 +1640,6 @@ const Amain = () => {
     setCurrentAddressField(null);
     setTitleForModal('');
     setDescriptionForModal('');
-
-    // Remove marker
-    if (currentMarker) {
-      currentMarker.remove();
-      setCurrentMarker(null);
-    }
-
-    // Clean up map
-    if (culturalMap) {
-      culturalMap.remove();
-      setCulturalMap(null);
-    }
 
     // Reset restriction states
     setCulturalTimeRestrictions([]);
