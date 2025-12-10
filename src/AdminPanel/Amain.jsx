@@ -372,9 +372,9 @@ const Amain = () => {
   const selectedDoorAccessPointId = selectedFeatureProperties?.id;
   const selectedAreaId = activeEditableLayer?.id === 'areas-outline'
     ? selectedFeatureProperties?.area_id
-      || selectedFeatureProperties?.areaId
-      || selectedFeatureProperties?.areaID
-      || selectedFeatureProperties?.id
+    || selectedFeatureProperties?.areaId
+    || selectedFeatureProperties?.areaID
+    || selectedFeatureProperties?.id
     : null;
   const showDoorTools = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && !!selectedDoorId && !!selectedEditableFeature;
   const isActiveLayerPointBased = useMemo(
@@ -5474,7 +5474,7 @@ const Amain = () => {
                           rows="3"
                         />
                         <button
-                          className="language-input-btn"
+                          className="language-input-btn15"
                           type="button"
                           onClick={() => setIsDescriptionLanguageModalOpen(true)}  // Only for description
                           title="ورود توضیحات به زبان‌های دیگر"
@@ -8609,7 +8609,7 @@ const Amain = () => {
                           rows="3"
                         />
                         <button
-                          className="language-input-btn"
+                          className="language-input-btn15"
                           type="button"
                           onClick={() => openTitleLanguageModal('description')}
                           title="ورود توضیحات به زبان‌های دیگر"
@@ -8710,7 +8710,7 @@ const Amain = () => {
                       <label className="form-label"> آدرس و موقعیت جغرافیایی در حرم </label>
 
                       {/* Address field with language button */}
-                      <div className="address-input-with-language">
+                      <div className="address-input-with-language3">
                         <textarea
                           className="form-textarea"
                           placeholder="آدرس اطلاعات فرهنگی را بنویسید"
@@ -9319,10 +9319,7 @@ const Amain = () => {
                               className="remove-file-btn"
                               onClick={() => handleRemoveFile(primaryImage.id, 'image')}
                             >
-                              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#EA4335" />
-                                <path d="M10 15.625C9.65833 15.625 9.375 15.3417 9.375 15V5C9.375 4.65833 9.65833 4.375 10 4.375C10.3417 4.375 10.625 4.65833 10.625 5V15C10.625 15.3417 10.3417 15.625 10 15.625Z" fill="#EA4335" />
-                              </svg>
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-x"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>
                             </button>
                           </div>
                         </div>
@@ -9371,10 +9368,7 @@ const Amain = () => {
                                   className="remove-file-btn-small"
                                   onClick={() => handleRemoveFile(file.id, 'image')}
                                 >
-                                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#EA4335" />
-                                    <path d="M10 15.625C9.65833 15.625 9.375 15.3417 9.375 15V5C9.375 4.65833 9.65833 4.375 10 4.375C10.3417 4.375 10.625 4.65833 10.625 5V15C10.625 15.3417 10.3417 15.625 10 15.625Z" fill="#EA4335" />
-                                  </svg>
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-x"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>
                                 </button>
                               </div>
                             </div>
@@ -9944,7 +9938,7 @@ const Amain = () => {
                     required
                   />
                   <button
-                    className="language-input-btn"
+                    className="language-input-btn15"
                     type="button"
                     onClick={openFileDescriptionLanguageModal}  // Changed to description-specific modal
                     title="ورود توضیحات به زبان‌های دیگر"
