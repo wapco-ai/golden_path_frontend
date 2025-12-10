@@ -1942,15 +1942,20 @@ const Amain = () => {
   };
 
   const initializeEditMap = () => {
-    if (!document.getElementById('edit-cultural-map-container')) {
+    const container = document.getElementById('edit-cultural-map-container');
+
+    if (!container) {
       console.log('Map container not found');
       return;
     }
 
+    // Remove any stale canvases in case the map was not cleaned up properly
+    container.innerHTML = '';
+
     console.log('Initializing edit map with selectedLocation:', selectedLocation);
 
     const mapInstance = new maplibregl.Map({
-      container: 'edit-cultural-map-container',
+      container,
       style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
       center: selectedLocation ?
         [selectedLocation.lng, selectedLocation.lat] :
@@ -1960,13 +1965,24 @@ const Amain = () => {
 
     mapInstance.addControl(new maplibregl.NavigationControl());
 
+    const resizeMap = () => {
+      mapInstance.resize();
+    };
+
     // Ensure the map correctly aligns with the rendered container before handling clicks
     mapInstance.once('load', () => {
-      mapInstance.resize();
+      resizeMap();
+      // Run another resize in the next frame to catch late layout changes
+      requestAnimationFrame(resizeMap);
       if (selectedLocation) {
         mapInstance.jumpTo({ center: [selectedLocation.lng, selectedLocation.lat], zoom: 16 });
       }
     });
+
+    // Keep the map in sync with container size changes (modals/tabs opening)
+    const resizeObserver = new ResizeObserver(() => resizeMap());
+    resizeObserver.observe(container);
+    mapInstance.on('remove', () => resizeObserver.disconnect());
 
     const createRedMarker = () => {
       const el = document.createElement('div');
