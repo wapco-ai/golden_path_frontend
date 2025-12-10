@@ -1066,6 +1066,54 @@
         "language": "PLPGSQL",
         "parameters": [
             {
+                "data_type": "date",
+                "parameter_mode": "IN",
+                "parameter_name": "p_date",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "jsonb",
+                "parameter_mode": "IN",
+                "parameter_name": "p_scope",
+                "ordinal_position": 2
+            }
+        ],
+        "return_type": "boolean",
+        "function_body": "\r\nDECLARE\r\n    v_list text[];\r\nBEGIN\r\n    IF p_scope IS NULL OR jsonb_typeof(p_scope) <> 'array' THEN\r\n        RETURN false;\r\n    END IF;\r\n\r\n    -- همه روزها\r\n    IF EXISTS (SELECT 1\r\n               FROM jsonb_array_elements_text(p_scope) as t(val)\r\n               WHERE upper(trim(val)) = 'ALL_DAYS') THEN\r\n        RETURN true;\r\n    END IF;\r\n\r\n    -- لیست رشته‌ها\r\n    SELECT array_agg(trim(t.val))\r\n    INTO   v_list\r\n    FROM   jsonb_array_elements_text(p_scope) as t(val);\r\n\r\n    IF v_list IS NULL OR array_length(v_list, 1) = 0 THEN\r\n        RETURN false;\r\n    END IF;\r\n\r\n    -- اگر یک تاریخ تنها بود\r\n    IF array_length(v_list, 1) = 1 THEN\r\n        RETURN (p_date = v_list[1]::date);\r\n    END IF;\r\n\r\n    -- اگر دو تاریخ بود و بازه باشد [start,end]\r\n    IF array_length(v_list, 1) >= 2 THEN\r\n        RETURN (p_date BETWEEN v_list[1]::date AND v_list[2]::date);\r\n    END IF;\r\n\r\n    RETURN false;\r\nEND;\r\n",
+        "function_name": "fn_date_in_scope",
+        "security_type": "INVOKER",
+        "full_definition": "CREATE OR REPLACE FUNCTION public.fn_date_in_scope(p_date date, p_scope jsonb)\n RETURNS boolean\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n    v_list text[];\r\nBEGIN\r\n    IF p_scope IS NULL OR jsonb_typeof(p_scope) <> 'array' THEN\r\n        RETURN false;\r\n    END IF;\r\n\r\n    -- همه روزها\r\n    IF EXISTS (SELECT 1\r\n               FROM jsonb_array_elements_text(p_scope) as t(val)\r\n               WHERE upper(trim(val)) = 'ALL_DAYS') THEN\r\n        RETURN true;\r\n    END IF;\r\n\r\n    -- لیست رشته‌ها\r\n    SELECT array_agg(trim(t.val))\r\n    INTO   v_list\r\n    FROM   jsonb_array_elements_text(p_scope) as t(val);\r\n\r\n    IF v_list IS NULL OR array_length(v_list, 1) = 0 THEN\r\n        RETURN false;\r\n    END IF;\r\n\r\n    -- اگر یک تاریخ تنها بود\r\n    IF array_length(v_list, 1) = 1 THEN\r\n        RETURN (p_date = v_list[1]::date);\r\n    END IF;\r\n\r\n    -- اگر دو تاریخ بود و بازه باشد [start,end]\r\n    IF array_length(v_list, 1) >= 2 THEN\r\n        RETURN (p_date BETWEEN v_list[1]::date AND v_list[2]::date);\r\n    END IF;\r\n\r\n    RETURN false;\r\nEND;\r\n$function$\n",
+        "is_deterministic": "NO"
+    },
+    {
+        "schema": "public",
+        "language": "PLPGSQL",
+        "parameters": [
+            {
+                "data_type": "date",
+                "parameter_mode": "IN",
+                "parameter_name": "p_date",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "jsonb",
+                "parameter_mode": "IN",
+                "parameter_name": "p_scope",
+                "ordinal_position": 2
+            }
+        ],
+        "return_type": "boolean",
+        "function_body": "\r\nDECLARE\r\n    v_arr text[];\r\nBEGIN\r\n    IF p_scope IS NULL OR jsonb_typeof(p_scope) <> 'array' THEN\r\n        RETURN FALSE;\r\n    END IF;\r\n\r\n    SELECT array_agg(e)\r\n    INTO   v_arr\r\n    FROM   jsonb_array_elements_text(p_scope) AS e;\r\n\r\n    IF v_arr IS NULL OR array_length(v_arr,1) = 0 THEN\r\n        RETURN FALSE;\r\n    END IF;\r\n\r\n    -- ALL_DAYS\r\n    IF EXISTS (SELECT 1 FROM unnest(v_arr) AS x WHERE upper(x) = 'ALL_DAYS') THEN\r\n        RETURN TRUE;\r\n    END IF;\r\n\r\n    -- یک تاریخ\r\n    IF array_length(v_arr,1) = 1 THEN\r\n        RETURN p_date = v_arr[1]::date;\r\n    END IF;\r\n\r\n    -- بازه start / end\r\n    IF array_length(v_arr,1) >= 2 THEN\r\n        RETURN p_date BETWEEN v_arr[1]::date AND v_arr[2]::date;\r\n    END IF;\r\n\r\n    RETURN FALSE;\r\nEND;\r\n",
+        "function_name": "fn_date_in_scope_json",
+        "security_type": "INVOKER",
+        "full_definition": "CREATE OR REPLACE FUNCTION public.fn_date_in_scope_json(p_date date, p_scope jsonb)\n RETURNS boolean\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n    v_arr text[];\r\nBEGIN\r\n    IF p_scope IS NULL OR jsonb_typeof(p_scope) <> 'array' THEN\r\n        RETURN FALSE;\r\n    END IF;\r\n\r\n    SELECT array_agg(e)\r\n    INTO   v_arr\r\n    FROM   jsonb_array_elements_text(p_scope) AS e;\r\n\r\n    IF v_arr IS NULL OR array_length(v_arr,1) = 0 THEN\r\n        RETURN FALSE;\r\n    END IF;\r\n\r\n    -- ALL_DAYS\r\n    IF EXISTS (SELECT 1 FROM unnest(v_arr) AS x WHERE upper(x) = 'ALL_DAYS') THEN\r\n        RETURN TRUE;\r\n    END IF;\r\n\r\n    -- یک تاریخ\r\n    IF array_length(v_arr,1) = 1 THEN\r\n        RETURN p_date = v_arr[1]::date;\r\n    END IF;\r\n\r\n    -- بازه start / end\r\n    IF array_length(v_arr,1) >= 2 THEN\r\n        RETURN p_date BETWEEN v_arr[1]::date AND v_arr[2]::date;\r\n    END IF;\r\n\r\n    RETURN FALSE;\r\nEND;\r\n$function$\n",
+        "is_deterministic": "NO"
+    },
+    {
+        "schema": "public",
+        "language": "PLPGSQL",
+        "parameters": [
+            {
                 "data_type": "bigint",
                 "parameter_mode": "IN",
                 "parameter_name": "p_door_id",
@@ -1120,6 +1168,210 @@
         "language": "PLPGSQL",
         "parameters": [
             {
+                "data_type": "jsonb",
+                "parameter_mode": "IN",
+                "parameter_name": "p_attrs",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "timestamp with time zone",
+                "parameter_mode": "IN",
+                "parameter_name": "p_at",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "text",
+                "parameter_mode": "IN",
+                "parameter_name": "p_gender",
+                "ordinal_position": 3
+            }
+        ],
+        "return_type": "text",
+        "function_body": "\r\nDECLARE\r\n    v_today date := p_at::date;\r\n    v_now   time := p_at::time;\r\n    v_tr    jsonb;\r\n    v_pr    jsonb;\r\n    v_ranges jsonb;\r\n    v_range jsonb;\r\n    v_events jsonb;\r\n    v_event text;\r\n    v_prayer_time time;\r\n    v_before int;\r\n    v_after  int;\r\n    v_start_ts timestamptz;\r\n    v_end_ts   timestamptz;\r\nBEGIN\r\n    IF p_attrs IS NULL THEN\r\n        RETURN NULL;\r\n    END IF;\r\n\r\n    ------------------------------------------------------------------\r\n    -- ۱) بررسی محدودیت‌های زمانی (time_restrictions)\r\n    ------------------------------------------------------------------\r\n    FOR v_tr IN SELECT * FROM jsonb_array_elements(p_attrs->'time_restrictions')\r\n    LOOP\r\n        IF NOT fn_date_in_scope(v_today, v_tr->'date_scope') THEN\r\n            CONTINUE;\r\n        END IF;\r\n\r\n        -- جنسیت اگر لازم بود\r\n        IF p_gender IS NOT NULL AND v_tr->'gender' IS NOT NULL THEN\r\n            IF NOT EXISTS (\r\n                SELECT 1 FROM jsonb_array_elements_text(v_tr->'gender') g WHERE g = p_gender\r\n            ) THEN\r\n                CONTINUE;\r\n            END IF;\r\n        END IF;\r\n\r\n        -- all_hours\r\n        IF (v_tr->>'all_hours')::boolean = true THEN\r\n            RETURN v_tr->>'title';\r\n        END IF;\r\n\r\n        -- time_ranges\r\n        FOR v_range IN SELECT * FROM jsonb_array_elements(v_tr->'time_ranges')\r\n        LOOP\r\n            IF v_now >= (v_range->>'start')::time\r\n               AND v_now <= (v_range->>'end')::time THEN\r\n                RETURN v_tr->>'title';\r\n            END IF;\r\n        END LOOP;\r\n    END LOOP;\r\n\r\n\r\n    ------------------------------------------------------------------\r\n    -- ۲) بررسی محدودیت‌های نماز (prayer_restrictions)\r\n    ------------------------------------------------------------------\r\n    FOR v_pr IN SELECT * FROM jsonb_array_elements(p_attrs->'prayer_restrictions')\r\n    LOOP\r\n        IF NOT fn_date_in_scope(v_today, v_pr->'date_scope') THEN\r\n            CONTINUE;\r\n        END IF;\r\n\r\n        v_events := v_pr->'events';\r\n        v_before := COALESCE((v_pr->>'before_minutes')::int, 0);\r\n        v_after  := COALESCE((v_pr->>'after_minutes')::int, 0);\r\n\r\n        FOR v_event IN SELECT jsonb_array_elements_text(v_events)\r\n        LOOP\r\n            SELECT pt.time\r\n            INTO v_prayer_time\r\n            FROM prayer_times pt\r\n            WHERE pt.day_date = v_today\r\n              AND pt.event = v_event\r\n            LIMIT 1;\r\n\r\n            IF NOT FOUND THEN\r\n                CONTINUE;\r\n            END IF;\r\n\r\n            v_start_ts := (v_today::timestamp + v_prayer_time) - (v_before * interval '1 minute');\r\n            v_end_ts   := (v_today::timestamp + v_prayer_time) + (v_after  * interval '1 minute');\r\n\r\n            IF p_at BETWEEN v_start_ts AND v_end_ts THEN\r\n                RETURN v_pr->>'title';\r\n            END IF;\r\n        END LOOP;\r\n    END LOOP;\r\n\r\n    RETURN NULL;\r\nEND;\r\n",
+        "function_name": "fn_door_active_restriction_title",
+        "security_type": "INVOKER",
+        "full_definition": "CREATE OR REPLACE FUNCTION public.fn_door_active_restriction_title(p_attrs jsonb, p_at timestamp with time zone, p_gender text DEFAULT NULL::text)\n RETURNS text\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n    v_today date := p_at::date;\r\n    v_now   time := p_at::time;\r\n    v_tr    jsonb;\r\n    v_pr    jsonb;\r\n    v_ranges jsonb;\r\n    v_range jsonb;\r\n    v_events jsonb;\r\n    v_event text;\r\n    v_prayer_time time;\r\n    v_before int;\r\n    v_after  int;\r\n    v_start_ts timestamptz;\r\n    v_end_ts   timestamptz;\r\nBEGIN\r\n    IF p_attrs IS NULL THEN\r\n        RETURN NULL;\r\n    END IF;\r\n\r\n    ------------------------------------------------------------------\r\n    -- ۱) بررسی محدودیت‌های زمانی (time_restrictions)\r\n    ------------------------------------------------------------------\r\n    FOR v_tr IN SELECT * FROM jsonb_array_elements(p_attrs->'time_restrictions')\r\n    LOOP\r\n        IF NOT fn_date_in_scope(v_today, v_tr->'date_scope') THEN\r\n            CONTINUE;\r\n        END IF;\r\n\r\n        -- جنسیت اگر لازم بود\r\n        IF p_gender IS NOT NULL AND v_tr->'gender' IS NOT NULL THEN\r\n            IF NOT EXISTS (\r\n                SELECT 1 FROM jsonb_array_elements_text(v_tr->'gender') g WHERE g = p_gender\r\n            ) THEN\r\n                CONTINUE;\r\n            END IF;\r\n        END IF;\r\n\r\n        -- all_hours\r\n        IF (v_tr->>'all_hours')::boolean = true THEN\r\n            RETURN v_tr->>'title';\r\n        END IF;\r\n\r\n        -- time_ranges\r\n        FOR v_range IN SELECT * FROM jsonb_array_elements(v_tr->'time_ranges')\r\n        LOOP\r\n            IF v_now >= (v_range->>'start')::time\r\n               AND v_now <= (v_range->>'end')::time THEN\r\n                RETURN v_tr->>'title';\r\n            END IF;\r\n        END LOOP;\r\n    END LOOP;\r\n\r\n\r\n    ------------------------------------------------------------------\r\n    -- ۲) بررسی محدودیت‌های نماز (prayer_restrictions)\r\n    ------------------------------------------------------------------\r\n    FOR v_pr IN SELECT * FROM jsonb_array_elements(p_attrs->'prayer_restrictions')\r\n    LOOP\r\n        IF NOT fn_date_in_scope(v_today, v_pr->'date_scope') THEN\r\n            CONTINUE;\r\n        END IF;\r\n\r\n        v_events := v_pr->'events';\r\n        v_before := COALESCE((v_pr->>'before_minutes')::int, 0);\r\n        v_after  := COALESCE((v_pr->>'after_minutes')::int, 0);\r\n\r\n        FOR v_event IN SELECT jsonb_array_elements_text(v_events)\r\n        LOOP\r\n            SELECT pt.time\r\n            INTO v_prayer_time\r\n            FROM prayer_times pt\r\n            WHERE pt.day_date = v_today\r\n              AND pt.event = v_event\r\n            LIMIT 1;\r\n\r\n            IF NOT FOUND THEN\r\n                CONTINUE;\r\n            END IF;\r\n\r\n            v_start_ts := (v_today::timestamp + v_prayer_time) - (v_before * interval '1 minute');\r\n            v_end_ts   := (v_today::timestamp + v_prayer_time) + (v_after  * interval '1 minute');\r\n\r\n            IF p_at BETWEEN v_start_ts AND v_end_ts THEN\r\n                RETURN v_pr->>'title';\r\n            END IF;\r\n        END LOOP;\r\n    END LOOP;\r\n\r\n    RETURN NULL;\r\nEND;\r\n$function$\n",
+        "is_deterministic": "NO"
+    },
+    {
+        "schema": "public",
+        "language": "PLPGSQL",
+        "parameters": [
+            {
+                "data_type": "jsonb",
+                "parameter_mode": "IN",
+                "parameter_name": "p_attrs",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "timestamp with time zone",
+                "parameter_mode": "IN",
+                "parameter_name": "p_at",
+                "ordinal_position": 2
+            }
+        ],
+        "return_type": "boolean",
+        "function_body": "\r\nDECLARE\r\n    v_today      date := p_at::date;\r\n    v_pr         jsonb;\r\n    v_events     jsonb;\r\n    v_event_name text;\r\n    v_before     int;\r\n    v_after      int;\r\n    v_prayer_time time;\r\n    v_start_ts   timestamptz;\r\n    v_end_ts     timestamptz;\r\nBEGIN\r\n    IF p_attrs IS NULL THEN\r\n        RETURN false;\r\n    END IF;\r\n\r\n    IF p_attrs->'prayer_restrictions' IS NULL THEN\r\n        RETURN false;\r\n    END IF;\r\n\r\n    FOR v_pr IN SELECT * FROM jsonb_array_elements(p_attrs->'prayer_restrictions')\r\n    LOOP\r\n        -- تاریخ\r\n        IF NOT fn_date_in_scope(v_today, v_pr->'date_scope') THEN\r\n            CONTINUE;\r\n        END IF;\r\n\r\n        v_before := COALESCE((v_pr->>'before_minutes')::int, 0);\r\n        v_after  := COALESCE((v_pr->>'after_minutes')::int, 0);\r\n        v_events := v_pr->'events';\r\n\r\n        IF v_events IS NULL OR jsonb_typeof(v_events) <> 'array' THEN\r\n            CONTINUE;\r\n        END IF;\r\n\r\n        FOR v_event_name IN SELECT jsonb_array_elements_text(v_events)\r\n        LOOP\r\n            -- گرفتن ساعت نماز از prayer_times\r\n            SELECT pt.\"time\"\r\n            INTO   v_prayer_time\r\n            FROM   prayer_times pt\r\n            WHERE  pt.day_date = v_today\r\n                   AND pt.event = v_event_name\r\n            LIMIT 1;\r\n\r\n            IF NOT FOUND THEN\r\n                CONTINUE;\r\n            END IF;\r\n\r\n            v_start_ts := make_timestamp(\r\n                              EXTRACT(YEAR  FROM v_today)::int,\r\n                              EXTRACT(MONTH FROM v_today)::int,\r\n                              EXTRACT(DAY   FROM v_today)::int,\r\n                              EXTRACT(HOUR  FROM v_prayer_time)::int,\r\n                              EXTRACT(MINUTE FROM v_prayer_time)::int,\r\n                              EXTRACT(SECOND FROM v_prayer_time)\r\n                          ) - (v_before * interval '1 minute');\r\n\r\n            v_end_ts   := make_timestamp(\r\n                              EXTRACT(YEAR  FROM v_today)::int,\r\n                              EXTRACT(MONTH FROM v_today)::int,\r\n                              EXTRACT(DAY   FROM v_today)::int,\r\n                              EXTRACT(HOUR  FROM v_prayer_time)::int,\r\n                              EXTRACT(MINUTE FROM v_prayer_time)::int,\r\n                              EXTRACT(SECOND FROM v_prayer_time)\r\n                          ) + (v_after * interval '1 minute');\r\n\r\n            IF p_at BETWEEN v_start_ts AND v_end_ts THEN\r\n                RETURN true;\r\n            END IF;\r\n        END LOOP;\r\n    END LOOP;\r\n\r\n    RETURN false;\r\nEND;\r\n",
+        "function_name": "fn_door_blocked_by_prayer_restrictions",
+        "security_type": "INVOKER",
+        "full_definition": "CREATE OR REPLACE FUNCTION public.fn_door_blocked_by_prayer_restrictions(p_attrs jsonb, p_at timestamp with time zone)\n RETURNS boolean\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n    v_today      date := p_at::date;\r\n    v_pr         jsonb;\r\n    v_events     jsonb;\r\n    v_event_name text;\r\n    v_before     int;\r\n    v_after      int;\r\n    v_prayer_time time;\r\n    v_start_ts   timestamptz;\r\n    v_end_ts     timestamptz;\r\nBEGIN\r\n    IF p_attrs IS NULL THEN\r\n        RETURN false;\r\n    END IF;\r\n\r\n    IF p_attrs->'prayer_restrictions' IS NULL THEN\r\n        RETURN false;\r\n    END IF;\r\n\r\n    FOR v_pr IN SELECT * FROM jsonb_array_elements(p_attrs->'prayer_restrictions')\r\n    LOOP\r\n        -- تاریخ\r\n        IF NOT fn_date_in_scope(v_today, v_pr->'date_scope') THEN\r\n            CONTINUE;\r\n        END IF;\r\n\r\n        v_before := COALESCE((v_pr->>'before_minutes')::int, 0);\r\n        v_after  := COALESCE((v_pr->>'after_minutes')::int, 0);\r\n        v_events := v_pr->'events';\r\n\r\n        IF v_events IS NULL OR jsonb_typeof(v_events) <> 'array' THEN\r\n            CONTINUE;\r\n        END IF;\r\n\r\n        FOR v_event_name IN SELECT jsonb_array_elements_text(v_events)\r\n        LOOP\r\n            -- گرفتن ساعت نماز از prayer_times\r\n            SELECT pt.\"time\"\r\n            INTO   v_prayer_time\r\n            FROM   prayer_times pt\r\n            WHERE  pt.day_date = v_today\r\n                   AND pt.event = v_event_name\r\n            LIMIT 1;\r\n\r\n            IF NOT FOUND THEN\r\n                CONTINUE;\r\n            END IF;\r\n\r\n            v_start_ts := make_timestamp(\r\n                              EXTRACT(YEAR  FROM v_today)::int,\r\n                              EXTRACT(MONTH FROM v_today)::int,\r\n                              EXTRACT(DAY   FROM v_today)::int,\r\n                              EXTRACT(HOUR  FROM v_prayer_time)::int,\r\n                              EXTRACT(MINUTE FROM v_prayer_time)::int,\r\n                              EXTRACT(SECOND FROM v_prayer_time)\r\n                          ) - (v_before * interval '1 minute');\r\n\r\n            v_end_ts   := make_timestamp(\r\n                              EXTRACT(YEAR  FROM v_today)::int,\r\n                              EXTRACT(MONTH FROM v_today)::int,\r\n                              EXTRACT(DAY   FROM v_today)::int,\r\n                              EXTRACT(HOUR  FROM v_prayer_time)::int,\r\n                              EXTRACT(MINUTE FROM v_prayer_time)::int,\r\n                              EXTRACT(SECOND FROM v_prayer_time)\r\n                          ) + (v_after * interval '1 minute');\r\n\r\n            IF p_at BETWEEN v_start_ts AND v_end_ts THEN\r\n                RETURN true;\r\n            END IF;\r\n        END LOOP;\r\n    END LOOP;\r\n\r\n    RETURN false;\r\nEND;\r\n$function$\n",
+        "is_deterministic": "NO"
+    },
+    {
+        "schema": "public",
+        "language": "PLPGSQL",
+        "parameters": [
+            {
+                "data_type": "jsonb",
+                "parameter_mode": "IN",
+                "parameter_name": "p_attrs",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "timestamp with time zone",
+                "parameter_mode": "IN",
+                "parameter_name": "p_at",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "text",
+                "parameter_mode": "IN",
+                "parameter_name": "p_gender",
+                "ordinal_position": 3
+            }
+        ],
+        "return_type": "boolean",
+        "function_body": "\r\nDECLARE\r\n    v_today date := p_at::date;\r\n    v_now   time := p_at::time;\r\n    v_tr    jsonb;\r\n    v_ranges jsonb;\r\n    v_range  jsonb;\r\n    v_gender jsonb;\r\n    v_all_hours boolean;\r\nBEGIN\r\n    IF p_attrs IS NULL THEN\r\n        RETURN false;\r\n    END IF;\r\n\r\n    IF p_attrs->'time_restrictions' IS NULL THEN\r\n        RETURN false;\r\n    END IF;\r\n\r\n    FOR v_tr IN SELECT * FROM jsonb_array_elements(p_attrs->'time_restrictions')\r\n    LOOP\r\n        -- تاریخ\r\n        IF NOT fn_date_in_scope(v_today, v_tr->'date_scope') THEN\r\n            CONTINUE;\r\n        END IF;\r\n\r\n        -- جنسیت (اگر تعریف شده بود)\r\n        v_gender := v_tr->'gender';\r\n        IF v_gender IS NOT NULL\r\n           AND jsonb_typeof(v_gender) = 'array'\r\n           AND p_gender IS NOT NULL THEN\r\n            IF NOT EXISTS (\r\n                SELECT 1\r\n                FROM jsonb_array_elements_text(v_gender) as g(val)\r\n                WHERE g.val = p_gender\r\n            ) THEN\r\n                CONTINUE;\r\n            END IF;\r\n        END IF;\r\n\r\n        v_all_hours := COALESCE( (v_tr->>'all_hours')::boolean, false );\r\n\r\n        IF v_all_hours THEN\r\n            RETURN true;  -- این محدودیت کل روز را می‌بندد\r\n        END IF;\r\n\r\n        -- بررسی بازه‌های زمانی\r\n        v_ranges := v_tr->'time_ranges';\r\n        IF v_ranges IS NULL OR jsonb_typeof(v_ranges) <> 'array' THEN\r\n            CONTINUE;\r\n        END IF;\r\n\r\n        FOR v_range IN SELECT * FROM jsonb_array_elements(v_ranges)\r\n        LOOP\r\n            IF v_range->>'start' IS NULL OR v_range->>'end' IS NULL THEN\r\n                CONTINUE;\r\n            END IF;\r\n\r\n            IF v_now >= (v_range->>'start')::time\r\n               AND v_now <= (v_range->>'end')::time THEN\r\n                RETURN true;\r\n            END IF;\r\n        END LOOP;\r\n    END LOOP;\r\n\r\n    RETURN false;\r\nEND;\r\n",
+        "function_name": "fn_door_blocked_by_time_restrictions",
+        "security_type": "INVOKER",
+        "full_definition": "CREATE OR REPLACE FUNCTION public.fn_door_blocked_by_time_restrictions(p_attrs jsonb, p_at timestamp with time zone, p_gender text DEFAULT NULL::text)\n RETURNS boolean\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n    v_today date := p_at::date;\r\n    v_now   time := p_at::time;\r\n    v_tr    jsonb;\r\n    v_ranges jsonb;\r\n    v_range  jsonb;\r\n    v_gender jsonb;\r\n    v_all_hours boolean;\r\nBEGIN\r\n    IF p_attrs IS NULL THEN\r\n        RETURN false;\r\n    END IF;\r\n\r\n    IF p_attrs->'time_restrictions' IS NULL THEN\r\n        RETURN false;\r\n    END IF;\r\n\r\n    FOR v_tr IN SELECT * FROM jsonb_array_elements(p_attrs->'time_restrictions')\r\n    LOOP\r\n        -- تاریخ\r\n        IF NOT fn_date_in_scope(v_today, v_tr->'date_scope') THEN\r\n            CONTINUE;\r\n        END IF;\r\n\r\n        -- جنسیت (اگر تعریف شده بود)\r\n        v_gender := v_tr->'gender';\r\n        IF v_gender IS NOT NULL\r\n           AND jsonb_typeof(v_gender) = 'array'\r\n           AND p_gender IS NOT NULL THEN\r\n            IF NOT EXISTS (\r\n                SELECT 1\r\n                FROM jsonb_array_elements_text(v_gender) as g(val)\r\n                WHERE g.val = p_gender\r\n            ) THEN\r\n                CONTINUE;\r\n            END IF;\r\n        END IF;\r\n\r\n        v_all_hours := COALESCE( (v_tr->>'all_hours')::boolean, false );\r\n\r\n        IF v_all_hours THEN\r\n            RETURN true;  -- این محدودیت کل روز را می‌بندد\r\n        END IF;\r\n\r\n        -- بررسی بازه‌های زمانی\r\n        v_ranges := v_tr->'time_ranges';\r\n        IF v_ranges IS NULL OR jsonb_typeof(v_ranges) <> 'array' THEN\r\n            CONTINUE;\r\n        END IF;\r\n\r\n        FOR v_range IN SELECT * FROM jsonb_array_elements(v_ranges)\r\n        LOOP\r\n            IF v_range->>'start' IS NULL OR v_range->>'end' IS NULL THEN\r\n                CONTINUE;\r\n            END IF;\r\n\r\n            IF v_now >= (v_range->>'start')::time\r\n               AND v_now <= (v_range->>'end')::time THEN\r\n                RETURN true;\r\n            END IF;\r\n        END LOOP;\r\n    END LOOP;\r\n\r\n    RETURN false;\r\nEND;\r\n$function$\n",
+        "is_deterministic": "NO"
+    },
+    {
+        "schema": "public",
+        "language": "PLPGSQL",
+        "parameters": [
+            {
+                "data_type": "bigint",
+                "parameter_mode": "IN",
+                "parameter_name": "p_door_id",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "timestamp with time zone",
+                "parameter_mode": "IN",
+                "parameter_name": "p_at",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "text",
+                "parameter_mode": "IN",
+                "parameter_name": "p_gender",
+                "ordinal_position": 3
+            }
+        ],
+        "return_type": "USER-DEFINED",
+        "function_body": "\r\nDECLARE\r\n    v_door   doors%ROWTYPE;\r\n    v_attrs  jsonb;\r\nBEGIN\r\n    SELECT * INTO v_door\r\n    FROM doors\r\n    WHERE id = p_door_id;\r\n\r\n    IF NOT FOUND THEN\r\n        RAISE EXCEPTION 'Door % not found', p_door_id;\r\n    END IF;\r\n\r\n    -- 1) اگر خود لایه بسته باشد\r\n    IF v_door.is_open = false THEN\r\n        RETURN 'closed_layer';\r\n    END IF;\r\n\r\n    v_attrs := v_door.attrs::jsonb;\r\n\r\n    -- 2) محدودیت زمانی\r\n    IF fn_door_blocked_by_time_restrictions(v_attrs, p_at, p_gender) THEN\r\n        RETURN 'closed_time_restriction';\r\n    END IF;\r\n\r\n    -- 3) محدودیت اوقات شرعی\r\n    IF fn_door_blocked_by_prayer_restrictions(v_attrs, p_at) THEN\r\n        RETURN 'closed_prayer_restriction';\r\n    END IF;\r\n\r\n    -- در غیر این صورت باز است\r\n    RETURN 'open';\r\nEND;\r\n",
+        "function_name": "fn_door_live_status",
+        "security_type": "INVOKER",
+        "full_definition": "CREATE OR REPLACE FUNCTION public.fn_door_live_status(p_door_id bigint, p_at timestamp with time zone, p_gender text DEFAULT NULL::text)\n RETURNS door_live_status_enum\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n    v_door   doors%ROWTYPE;\r\n    v_attrs  jsonb;\r\nBEGIN\r\n    SELECT * INTO v_door\r\n    FROM doors\r\n    WHERE id = p_door_id;\r\n\r\n    IF NOT FOUND THEN\r\n        RAISE EXCEPTION 'Door % not found', p_door_id;\r\n    END IF;\r\n\r\n    -- 1) اگر خود لایه بسته باشد\r\n    IF v_door.is_open = false THEN\r\n        RETURN 'closed_layer';\r\n    END IF;\r\n\r\n    v_attrs := v_door.attrs::jsonb;\r\n\r\n    -- 2) محدودیت زمانی\r\n    IF fn_door_blocked_by_time_restrictions(v_attrs, p_at, p_gender) THEN\r\n        RETURN 'closed_time_restriction';\r\n    END IF;\r\n\r\n    -- 3) محدودیت اوقات شرعی\r\n    IF fn_door_blocked_by_prayer_restrictions(v_attrs, p_at) THEN\r\n        RETURN 'closed_prayer_restriction';\r\n    END IF;\r\n\r\n    -- در غیر این صورت باز است\r\n    RETURN 'open';\r\nEND;\r\n$function$\n",
+        "is_deterministic": "NO"
+    },
+    {
+        "schema": "public",
+        "language": "PLPGSQL",
+        "parameters": [
+            {
+                "data_type": "timestamp with time zone",
+                "parameter_mode": "IN",
+                "parameter_name": "p_at",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "parameter_mode": "IN",
+                "parameter_name": "p_gender",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "bigint",
+                "parameter_mode": "OUT",
+                "parameter_name": "door_id",
+                "ordinal_position": 3
+            },
+            {
+                "data_type": "smallint",
+                "parameter_mode": "OUT",
+                "parameter_name": "floor",
+                "ordinal_position": 4
+            },
+            {
+                "data_type": "boolean",
+                "parameter_mode": "OUT",
+                "parameter_name": "base_is_open",
+                "ordinal_position": 5
+            },
+            {
+                "data_type": "text",
+                "parameter_mode": "OUT",
+                "parameter_name": "base_status",
+                "ordinal_position": 6
+            },
+            {
+                "data_type": "text",
+                "parameter_mode": "OUT",
+                "parameter_name": "live_status",
+                "ordinal_position": 7
+            },
+            {
+                "data_type": "boolean",
+                "parameter_mode": "OUT",
+                "parameter_name": "limited_by_time",
+                "ordinal_position": 8
+            },
+            {
+                "data_type": "boolean",
+                "parameter_mode": "OUT",
+                "parameter_name": "limited_by_prayer",
+                "ordinal_position": 9
+            },
+            {
+                "data_type": "text",
+                "parameter_mode": "OUT",
+                "parameter_name": "active_time_title",
+                "ordinal_position": 10
+            },
+            {
+                "data_type": "text",
+                "parameter_mode": "OUT",
+                "parameter_name": "active_prayer_title",
+                "ordinal_position": 11
+            },
+            {
+                "data_type": "text",
+                "parameter_mode": "OUT",
+                "parameter_name": "active_rule_type",
+                "ordinal_position": 12
+            },
+            {
+                "data_type": "bigint",
+                "parameter_mode": "OUT",
+                "parameter_name": "active_rule_id",
+                "ordinal_position": 13
+            }
+        ],
+        "return_type": "record",
+        "function_body": "\r\nDECLARE\r\n    v_d          doors%ROWTYPE;\r\n    v_today      date := p_at::date;\r\n    v_now        time := p_at::time;\r\n    v_oper       jsonb;\r\n    v_row        door_schedules%ROWTYPE;\r\n    v_note       jsonb;\r\n    v_prayer_time time;\r\n    v_before     int;\r\n    v_after      int;\r\n    v_start_ts   timestamptz;\r\n    v_end_ts     timestamptz;\r\nBEGIN\r\n    FOR v_d IN SELECT * FROM doors LOOP\r\n        door_id := v_d.id;\r\n        floor   := v_d.floor;\r\n\r\n        v_oper := COALESCE(v_d.attrs->'operational', '{}'::jsonb);\r\n\r\n        base_is_open := COALESCE(v_d.is_open, TRUE);\r\n        base_status  := COALESCE(\r\n                            v_oper->>'status',\r\n                            CASE WHEN base_is_open THEN 'open' ELSE 'closed' END\r\n                        );\r\n\r\n        limited_by_time     := FALSE;\r\n        limited_by_prayer   := FALSE;\r\n        active_time_title   := NULL;\r\n        active_prayer_title := NULL;\r\n        active_rule_type    := NULL;\r\n        active_rule_id      := NULL;\r\n\r\n        ----------------------------------------------------------------\r\n        -- اگر خود لایه بسته است، نیازی به چک محدودیت‌ها نیست\r\n        ----------------------------------------------------------------\r\n        IF base_is_open = FALSE OR base_status = 'closed' THEN\r\n            live_status := 'closed';\r\n            RETURN NEXT;\r\n            CONTINUE;\r\n        END IF;\r\n\r\n        ----------------------------------------------------------------\r\n        -- 1) محدودیت‌های زمانی از door_schedules (rule_type = time_restriction)\r\n        ----------------------------------------------------------------\r\n        FOR v_row IN\r\n            SELECT *\r\n            FROM door_schedules ds\r\n            WHERE ds.door_id  = v_d.id\r\n              AND ds.rule_type = 'time_restriction'\r\n        LOOP\r\n            v_note := v_row.note::jsonb;\r\n\r\n            -- date_scope\r\n            IF v_note ? 'date_scope' THEN\r\n                IF NOT fn_date_in_scope_json(v_today, v_note->'date_scope') THEN\r\n                    CONTINUE;\r\n                END IF;\r\n            END IF;\r\n\r\n            -- gender (اگر p_gender ارسال شده)\r\n            IF p_gender IS NOT NULL AND v_note ? 'gender' THEN\r\n                IF NOT EXISTS (\r\n                    SELECT 1\r\n                    FROM jsonb_array_elements_text(v_note->'gender') AS g(val)\r\n                    WHERE g.val = p_gender::text\r\n                ) THEN\r\n                    CONTINUE;\r\n                END IF;\r\n            END IF;\r\n\r\n            -- all_hours=false → فقط بازهٔ زمانی schedule\r\n            IF COALESCE((v_note->>'all_hours')::boolean, FALSE) = FALSE THEN\r\n                IF NOT (v_now BETWEEN v_row.time_from AND v_row.time_to) THEN\r\n                    CONTINUE;\r\n                END IF;\r\n            END IF;\r\n\r\n            -- این محدودیت الان فعّال است\r\n            limited_by_time   := TRUE;\r\n            active_time_title := v_note->>'title';\r\n            active_rule_type  := 'time_restriction';\r\n            active_rule_id    := v_row.id;\r\n            EXIT; -- اولین محدودیت کافی است\r\n        END LOOP;\r\n\r\n        ----------------------------------------------------------------\r\n        -- 2) محدودیت‌های نماز از door_schedules (rule_type = prayer)\r\n        ----------------------------------------------------------------\r\n        FOR v_row IN\r\n            SELECT *\r\n            FROM door_schedules ds\r\n            WHERE ds.door_id  = v_d.id\r\n              AND ds.rule_type = 'prayer'\r\n        LOOP\r\n            v_note := v_row.note::jsonb;\r\n\r\n            -- date_scope\r\n            IF v_note ? 'date_scope' THEN\r\n                IF NOT fn_date_in_scope_json(v_today, v_note->'date_scope') THEN\r\n                    CONTINUE;\r\n                END IF;\r\n            END IF;\r\n\r\n            v_before := COALESCE((v_note->>'before_minutes')::int, 0);\r\n            v_after  := COALESCE((v_note->>'after_minutes')::int, 0);\r\n\r\n            -- فرض: در هر ردیف فقط یک event داریم (field: event)\r\n            SELECT pt.event_time   -- 👈 اینجا نام ستون واقعی زمان نماز را بگذارید\r\nINTO   v_prayer_time\r\nFROM   prayer_times pt\r\nWHERE  pt.day_date = v_today\r\n  AND  pt.event    = v_event_name   -- یا v_note->>'event' در نسخه تک‌رویدادی\r\nLIMIT 1;\r\n\r\n\r\n            IF NOT FOUND THEN\r\n                CONTINUE;\r\n            END IF;\r\n\r\n            v_start_ts := (v_today::timestamp + v_prayer_time) - (v_before * interval '1 minute');\r\n            v_end_ts   := (v_today::timestamp + v_prayer_time) + (v_after  * interval '1 minute');\r\n\r\n            IF p_at BETWEEN v_start_ts AND v_end_ts THEN\r\n                limited_by_prayer   := TRUE;\r\n                active_prayer_title := v_note->>'title';\r\n\r\n                -- اگر از قبل محدودیت زمانی ثبت نشده بود، این را به عنوان active_rule در نظر بگیر\r\n                IF active_rule_type IS NULL THEN\r\n                    active_rule_type := 'prayer';\r\n                    active_rule_id   := v_row.id;\r\n                END IF;\r\n\r\n                EXIT;\r\n            END IF;\r\n        END LOOP;\r\n\r\n        ----------------------------------------------------------------\r\n        -- 3) live_status نهایی\r\n        ----------------------------------------------------------------\r\n        IF limited_by_time OR limited_by_prayer THEN\r\n            live_status := 'limited';\r\n        ELSE\r\n            live_status := 'open';\r\n        END IF;\r\n\r\n        RETURN NEXT;\r\n    END LOOP;\r\n\r\n    RETURN;\r\nEND;\r\n",
+        "function_name": "fn_door_live_status_ext",
+        "security_type": "INVOKER",
+        "full_definition": "CREATE OR REPLACE FUNCTION public.fn_door_live_status_ext(p_at timestamp with time zone DEFAULT now(), p_gender gender_enum DEFAULT NULL::gender_enum)\n RETURNS TABLE(door_id bigint, floor smallint, base_is_open boolean, base_status text, live_status text, limited_by_time boolean, limited_by_prayer boolean, active_time_title text, active_prayer_title text, active_rule_type text, active_rule_id bigint)\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n    v_d          doors%ROWTYPE;\r\n    v_today      date := p_at::date;\r\n    v_now        time := p_at::time;\r\n    v_oper       jsonb;\r\n    v_row        door_schedules%ROWTYPE;\r\n    v_note       jsonb;\r\n    v_prayer_time time;\r\n    v_before     int;\r\n    v_after      int;\r\n    v_start_ts   timestamptz;\r\n    v_end_ts     timestamptz;\r\nBEGIN\r\n    FOR v_d IN SELECT * FROM doors LOOP\r\n        door_id := v_d.id;\r\n        floor   := v_d.floor;\r\n\r\n        v_oper := COALESCE(v_d.attrs->'operational', '{}'::jsonb);\r\n\r\n        base_is_open := COALESCE(v_d.is_open, TRUE);\r\n        base_status  := COALESCE(\r\n                            v_oper->>'status',\r\n                            CASE WHEN base_is_open THEN 'open' ELSE 'closed' END\r\n                        );\r\n\r\n        limited_by_time     := FALSE;\r\n        limited_by_prayer   := FALSE;\r\n        active_time_title   := NULL;\r\n        active_prayer_title := NULL;\r\n        active_rule_type    := NULL;\r\n        active_rule_id      := NULL;\r\n\r\n        ----------------------------------------------------------------\r\n        -- اگر خود لایه بسته است، نیازی به چک محدودیت‌ها نیست\r\n        ----------------------------------------------------------------\r\n        IF base_is_open = FALSE OR base_status = 'closed' THEN\r\n            live_status := 'closed';\r\n            RETURN NEXT;\r\n            CONTINUE;\r\n        END IF;\r\n\r\n        ----------------------------------------------------------------\r\n        -- 1) محدودیت‌های زمانی از door_schedules (rule_type = time_restriction)\r\n        ----------------------------------------------------------------\r\n        FOR v_row IN\r\n            SELECT *\r\n            FROM door_schedules ds\r\n            WHERE ds.door_id  = v_d.id\r\n              AND ds.rule_type = 'time_restriction'\r\n        LOOP\r\n            v_note := v_row.note::jsonb;\r\n\r\n            -- date_scope\r\n            IF v_note ? 'date_scope' THEN\r\n                IF NOT fn_date_in_scope_json(v_today, v_note->'date_scope') THEN\r\n                    CONTINUE;\r\n                END IF;\r\n            END IF;\r\n\r\n            -- gender (اگر p_gender ارسال شده)\r\n            IF p_gender IS NOT NULL AND v_note ? 'gender' THEN\r\n                IF NOT EXISTS (\r\n                    SELECT 1\r\n                    FROM jsonb_array_elements_text(v_note->'gender') AS g(val)\r\n                    WHERE g.val = p_gender::text\r\n                ) THEN\r\n                    CONTINUE;\r\n                END IF;\r\n            END IF;\r\n\r\n            -- all_hours=false → فقط بازهٔ زمانی schedule\r\n            IF COALESCE((v_note->>'all_hours')::boolean, FALSE) = FALSE THEN\r\n                IF NOT (v_now BETWEEN v_row.time_from AND v_row.time_to) THEN\r\n                    CONTINUE;\r\n                END IF;\r\n            END IF;\r\n\r\n            -- این محدودیت الان فعّال است\r\n            limited_by_time   := TRUE;\r\n            active_time_title := v_note->>'title';\r\n            active_rule_type  := 'time_restriction';\r\n            active_rule_id    := v_row.id;\r\n            EXIT; -- اولین محدودیت کافی است\r\n        END LOOP;\r\n\r\n        ----------------------------------------------------------------\r\n        -- 2) محدودیت‌های نماز از door_schedules (rule_type = prayer)\r\n        ----------------------------------------------------------------\r\n        FOR v_row IN\r\n            SELECT *\r\n            FROM door_schedules ds\r\n            WHERE ds.door_id  = v_d.id\r\n              AND ds.rule_type = 'prayer'\r\n        LOOP\r\n            v_note := v_row.note::jsonb;\r\n\r\n            -- date_scope\r\n            IF v_note ? 'date_scope' THEN\r\n                IF NOT fn_date_in_scope_json(v_today, v_note->'date_scope') THEN\r\n                    CONTINUE;\r\n                END IF;\r\n            END IF;\r\n\r\n            v_before := COALESCE((v_note->>'before_minutes')::int, 0);\r\n            v_after  := COALESCE((v_note->>'after_minutes')::int, 0);\r\n\r\n            -- فرض: در هر ردیف فقط یک event داریم (field: event)\r\n            SELECT pt.event_time   -- 👈 اینجا نام ستون واقعی زمان نماز را بگذارید\r\nINTO   v_prayer_time\r\nFROM   prayer_times pt\r\nWHERE  pt.day_date = v_today\r\n  AND  pt.event    = v_event_name   -- یا v_note->>'event' در نسخه تک‌رویدادی\r\nLIMIT 1;\r\n\r\n\r\n            IF NOT FOUND THEN\r\n                CONTINUE;\r\n            END IF;\r\n\r\n            v_start_ts := (v_today::timestamp + v_prayer_time) - (v_before * interval '1 minute');\r\n            v_end_ts   := (v_today::timestamp + v_prayer_time) + (v_after  * interval '1 minute');\r\n\r\n            IF p_at BETWEEN v_start_ts AND v_end_ts THEN\r\n                limited_by_prayer   := TRUE;\r\n                active_prayer_title := v_note->>'title';\r\n\r\n                -- اگر از قبل محدودیت زمانی ثبت نشده بود، این را به عنوان active_rule در نظر بگیر\r\n                IF active_rule_type IS NULL THEN\r\n                    active_rule_type := 'prayer';\r\n                    active_rule_id   := v_row.id;\r\n                END IF;\r\n\r\n                EXIT;\r\n            END IF;\r\n        END LOOP;\r\n\r\n        ----------------------------------------------------------------\r\n        -- 3) live_status نهایی\r\n        ----------------------------------------------------------------\r\n        IF limited_by_time OR limited_by_prayer THEN\r\n            live_status := 'limited';\r\n        ELSE\r\n            live_status := 'open';\r\n        END IF;\r\n\r\n        RETURN NEXT;\r\n    END LOOP;\r\n\r\n    RETURN;\r\nEND;\r\n$function$\n",
+        "is_deterministic": "NO"
+    },
+    {
+        "schema": "public",
+        "language": "PLPGSQL",
+        "parameters": [
+            {
                 "data_type": "integer",
                 "parameter_mode": "IN",
                 "parameter_name": "z",
@@ -1149,6 +1401,78 @@
         "function_name": "fn_doors_mvt",
         "security_type": "INVOKER",
         "full_definition": "CREATE OR REPLACE FUNCTION public.fn_doors_mvt(z integer, x integer, y integer, p_floor smallint DEFAULT NULL::smallint)\n RETURNS bytea\n LANGUAGE plpgsql\n STABLE\nAS $function$\r\nDECLARE\r\n  tile_bbox_3857   geometry;  -- bbox تایل در 3857\r\n  tile_bbox_32640  geometry;  -- همان bbox در SRID داده‌ها\r\nBEGIN\r\n  -- bbox تایل در WebMercator\r\n  tile_bbox_3857 := ST_TileEnvelope(z, x, y);\r\n\r\n  -- تبدیل bbox به سیستم مختصات داده‌ها (32640)\r\n  tile_bbox_32640 := ST_Transform(tile_bbox_3857, 32640);\r\n\r\n  RETURN (\r\n    SELECT ST_AsMVT(t, 'doors', 4096, 'geom')\r\n    FROM (\r\n      SELECT\r\n        ST_AsMVTGeom(\r\n          ST_Transform(a.geom, 3857),  -- تبدیل داده‌ها به 3857 برای MVT\r\n          tile_bbox_3857,              -- bbox در همان 3857\r\n          4096,\r\n          64,\r\n          true\r\n        ) AS geom,\r\n        a.id,\r\n        a.from_area,\r\n        a.to_area,\r\n        a.floor,\r\n        a.allowed_gender,\r\n        a.is_open,\r\n        a.modes,\r\n        a.bidirectional,\r\n        a.attrs\r\n      FROM doors a\r\n      WHERE\r\n        (p_floor IS NULL OR a.floor = p_floor)\r\n        AND a.geom && tile_bbox_32640\r\n        AND ST_Intersects(a.geom, tile_bbox_32640)\r\n    ) AS t\r\n    WHERE geom IS NOT NULL\r\n  );\r\nEND;\r\n$function$\n",
+        "is_deterministic": "NO"
+    },
+    {
+        "schema": "public",
+        "language": "PLPGSQL",
+        "parameters": [
+            {
+                "data_type": "text",
+                "parameter_mode": "IN",
+                "parameter_name": "p_entity_table",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "bigint",
+                "parameter_mode": "IN",
+                "parameter_name": "p_entity_id",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "timestamp with time zone",
+                "parameter_mode": "IN",
+                "parameter_name": "p_ts",
+                "ordinal_position": 3
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "parameter_mode": "IN",
+                "parameter_name": "p_gender",
+                "ordinal_position": 4
+            },
+            {
+                "data_type": "text",
+                "parameter_mode": "IN",
+                "parameter_name": "p_mode",
+                "ordinal_position": 5
+            },
+            {
+                "data_type": "smallint",
+                "parameter_mode": "IN",
+                "parameter_name": "p_floor",
+                "ordinal_position": 6
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "parameter_mode": "IN",
+                "parameter_name": "p_geom",
+                "ordinal_position": 7
+            },
+            {
+                "data_type": "boolean",
+                "parameter_mode": "OUT",
+                "parameter_name": "allowed",
+                "ordinal_position": 8
+            },
+            {
+                "data_type": "numeric",
+                "parameter_mode": "OUT",
+                "parameter_name": "penalty_w",
+                "ordinal_position": 9
+            },
+            {
+                "data_type": "text",
+                "parameter_mode": "OUT",
+                "parameter_name": "restriction_type",
+                "ordinal_position": 10
+            }
+        ],
+        "return_type": "record",
+        "function_body": "\r\nDECLARE\r\n    v_now      timestamptz := p_ts;          -- می‌تونی اینجا به Asia/Tehran تبدیل کنی اگر لازم شد\r\n    v_date     date        := v_now::date;\r\n    v_time     time        := v_now::time;\r\n\r\n    v_allowed  boolean := true;\r\n    v_penalty  numeric := 1.0;              -- ۱ = بدون جریمه اضافه\r\n    v_type     text    := 'none';\r\n\r\n    v_admin_close_penalty  numeric;\r\n    v_admin_penalty        numeric;\r\n    v_time_block_exists    boolean := false;\r\n    v_prayer_block_exists  boolean := false;\r\n\r\n    -- ضرایب پیشنهادی برای محدودیت‌های زمانی/نماز (اگر بسته باشند)\r\n    c_time_penalty   constant numeric := 10.0;\r\n    c_prayer_penalty constant numeric := 8.0;\r\nBEGIN\r\n    ----------------------------------------------------------------------\r\n    -- 1) محدودیت‌های ادمین (admin_restrictions)\r\n    ----------------------------------------------------------------------\r\n    -- 1.1) نوع close  → یعنی این موجودیت واقعاً بسته است\r\n    SELECT MAX(r.penalty_w)\r\n    INTO v_admin_close_penalty\r\n    FROM admin_restrictions r\r\n    WHERE\r\n        r.is_active = true\r\n        AND (r.starts_at IS NULL OR r.starts_at <= v_now)\r\n        AND (r.ends_at   IS NULL OR v_now <= r.ends_at)\r\n        AND (\r\n              r.gender IS NULL\r\n           OR r.gender = 'both'::gender_enum\r\n           OR r.gender = p_gender\r\n        )\r\n        AND (\r\n              r.modes IS NULL\r\n           OR p_mode = ANY(r.modes)\r\n        )\r\n        AND r.restrict_type = 'close'\r\n        AND (\r\n                -- محدودیت مستقیم روی همین entity\r\n                (r.target_table = p_entity_table AND r.target_id = p_entity_id)\r\n             OR\r\n                -- یا محدودیت عمومی روی یک محدوده/طبقه\r\n                (\r\n                    r.target_table IS NULL\r\n                    AND r.target_id   IS NULL\r\n                    AND (r.floor IS NULL OR r.floor = p_floor)\r\n                    AND (\r\n                           r.geom IS NULL\r\n                        OR (p_geom IS NOT NULL AND ST_Contains(r.geom, p_geom))\r\n                    )\r\n                )\r\n        );\r\n\r\n    IF v_admin_close_penalty IS NOT NULL THEN\r\n        v_allowed := false;\r\n        v_penalty := GREATEST(v_penalty, v_admin_close_penalty);\r\n        v_type    := 'admin_close';\r\n    END IF;\r\n\r\n    -- 1.2) نوع غیر close → به معنی «مجاز ولی با جریمه»\r\n    SELECT MAX(r.penalty_w)\r\n    INTO v_admin_penalty\r\n    FROM admin_restrictions r\r\n    WHERE\r\n        r.is_active = true\r\n        AND (r.starts_at IS NULL OR r.starts_at <= v_now)\r\n        AND (r.ends_at   IS NULL OR v_now <= r.ends_at)\r\n        AND (\r\n              r.gender IS NULL\r\n           OR r.gender = 'both'::gender_enum\r\n           OR r.gender = p_gender\r\n        )\r\n        AND (\r\n              r.modes IS NULL\r\n           OR p_mode = ANY(r.modes)\r\n        )\r\n        AND r.restrict_type <> 'close'\r\n        AND (\r\n                (r.target_table = p_entity_table AND r.target_id = p_entity_id)\r\n             OR (\r\n                    r.target_table IS NULL\r\n                    AND r.target_id   IS NULL\r\n                    AND (r.floor IS NULL OR r.floor = p_floor)\r\n                    AND (\r\n                           r.geom IS NULL\r\n                        OR (p_geom IS NOT NULL AND ST_Contains(r.geom, p_geom))\r\n                    )\r\n                )\r\n        );\r\n\r\n    IF v_admin_penalty IS NOT NULL THEN\r\n        v_penalty := GREATEST(v_penalty, v_admin_penalty);\r\n        IF v_type = 'none' THEN\r\n            v_type := 'admin_penalty';\r\n        ELSIF v_type <> 'admin_close' THEN\r\n            -- اگر قبلاً نوع دیگری هم ست شده بود، بگیم mixed\r\n            v_type := 'mixed';\r\n        END IF;\r\n    END IF;\r\n\r\n    ----------------------------------------------------------------------\r\n    -- 2) محدودیت‌های زمانی (access_time_restrictions)\r\n    --    این‌ها را به صورت «بسته بودن در این زمان» تفسیر می‌کنیم.\r\n    ----------------------------------------------------------------------\r\n    SELECT EXISTS (\r\n        SELECT 1\r\n        FROM access_time_restrictions r\r\n        WHERE\r\n            r.entity_table = p_entity_table\r\n            AND r.entity_id = p_entity_id\r\n            AND (r.specific_date IS NULL OR r.specific_date = v_date)\r\n            AND (\r\n                    r.all_hours = true\r\n                 OR (\r\n                        r.start_time IS NOT NULL\r\n                    AND r.end_time   IS NOT NULL\r\n                    AND v_time >= r.start_time\r\n                    AND v_time <  r.end_time\r\n                 )\r\n            )\r\n            AND (\r\n                    r.gender IS NULL\r\n                 OR cardinality(r.gender) = 0\r\n                 OR p_gender = ANY(r.gender)\r\n                 OR 'both'::gender_enum = ANY(r.gender)\r\n            )\r\n    ) INTO v_time_block_exists;\r\n\r\n    IF v_time_block_exists THEN\r\n        v_allowed := false;\r\n        v_penalty := GREATEST(v_penalty, c_time_penalty);\r\n\r\n        IF v_type = 'none' THEN\r\n            v_type := 'time';\r\n        ELSIF v_type <> 'time' THEN\r\n            v_type := 'mixed';\r\n        END IF;\r\n    END IF;\r\n\r\n    ----------------------------------------------------------------------\r\n    -- 3) محدودیت‌های نماز (access_prayer_restrictions)\r\n    --    این بخش اسکلت است و به تابع زمان نماز نیاز دارد.\r\n    --    فعلاً فقط TODO است؛ اگر تابع prayer windows رو اضافه کردی،\r\n    --    این بخش را از حالت کامنت خارج کن.\r\n    ----------------------------------------------------------------------\r\n\r\n    -- نمونه‌ی پیشنهادی:\r\n    -- یک تابع مثل:\r\n    --   fn_prayer_windows(p_date date)\r\n    -- که برای هر نماز، این خروجی را داشته باشد:\r\n    --   (prayer_event text, center_time timestamptz)\r\n    --\r\n    -- سپس:\r\n    /*\r\n    SELECT EXISTS (\r\n        SELECT 1\r\n        FROM access_prayer_restrictions pr\r\n        JOIN fn_prayer_windows(v_date) pw\r\n             ON pw.prayer_event = pr.prayer_event\r\n        WHERE\r\n            pr.entity_table = p_entity_table\r\n            AND pr.entity_id = p_entity_id\r\n            AND (pr.specific_date IS NULL OR pr.specific_date = v_date)\r\n            AND v_now BETWEEN\r\n                (pw.center_time - make_interval(mins := pr.before_minutes))\r\n                AND\r\n                (pw.center_time + make_interval(mins := pr.after_minutes))\r\n            AND (\r\n                    pr.gender IS NULL\r\n                 OR cardinality(pr.gender) = 0\r\n                 OR p_gender = ANY(pr.gender)\r\n                 OR 'both'::gender_enum = ANY(pr.gender)\r\n            )\r\n    ) INTO v_prayer_block_exists;\r\n    */\r\n\r\n    -- فعلاً تا وقتی تابع نماز را نداری، v_prayer_block_exists همیشه false می‌ماند.\r\n    v_prayer_block_exists := false;\r\n\r\n    IF v_prayer_block_exists THEN\r\n        v_allowed := false;\r\n        v_penalty := GREATEST(v_penalty, c_prayer_penalty);\r\n\r\n        IF v_type = 'none' THEN\r\n            v_type := 'prayer';\r\n        ELSIF v_type <> 'prayer' THEN\r\n            v_type := 'mixed';\r\n        END IF;\r\n    END IF;\r\n\r\n    ----------------------------------------------------------------------\r\n    -- 4) خروجی\r\n    ----------------------------------------------------------------------\r\n    allowed          := v_allowed;\r\n    penalty_w        := v_penalty;\r\n    restriction_type := v_type;\r\n\r\n    RETURN;\r\nEND;\r\n",
+        "function_name": "fn_entity_access",
+        "security_type": "INVOKER",
+        "full_definition": "CREATE OR REPLACE FUNCTION public.fn_entity_access(p_entity_table text, p_entity_id bigint, p_ts timestamp with time zone, p_gender gender_enum, p_mode text, p_floor smallint DEFAULT NULL::smallint, p_geom geometry DEFAULT NULL::geometry)\n RETURNS TABLE(allowed boolean, penalty_w numeric, restriction_type text)\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n    v_now      timestamptz := p_ts;          -- می‌تونی اینجا به Asia/Tehran تبدیل کنی اگر لازم شد\r\n    v_date     date        := v_now::date;\r\n    v_time     time        := v_now::time;\r\n\r\n    v_allowed  boolean := true;\r\n    v_penalty  numeric := 1.0;              -- ۱ = بدون جریمه اضافه\r\n    v_type     text    := 'none';\r\n\r\n    v_admin_close_penalty  numeric;\r\n    v_admin_penalty        numeric;\r\n    v_time_block_exists    boolean := false;\r\n    v_prayer_block_exists  boolean := false;\r\n\r\n    -- ضرایب پیشنهادی برای محدودیت‌های زمانی/نماز (اگر بسته باشند)\r\n    c_time_penalty   constant numeric := 10.0;\r\n    c_prayer_penalty constant numeric := 8.0;\r\nBEGIN\r\n    ----------------------------------------------------------------------\r\n    -- 1) محدودیت‌های ادمین (admin_restrictions)\r\n    ----------------------------------------------------------------------\r\n    -- 1.1) نوع close  → یعنی این موجودیت واقعاً بسته است\r\n    SELECT MAX(r.penalty_w)\r\n    INTO v_admin_close_penalty\r\n    FROM admin_restrictions r\r\n    WHERE\r\n        r.is_active = true\r\n        AND (r.starts_at IS NULL OR r.starts_at <= v_now)\r\n        AND (r.ends_at   IS NULL OR v_now <= r.ends_at)\r\n        AND (\r\n              r.gender IS NULL\r\n           OR r.gender = 'both'::gender_enum\r\n           OR r.gender = p_gender\r\n        )\r\n        AND (\r\n              r.modes IS NULL\r\n           OR p_mode = ANY(r.modes)\r\n        )\r\n        AND r.restrict_type = 'close'\r\n        AND (\r\n                -- محدودیت مستقیم روی همین entity\r\n                (r.target_table = p_entity_table AND r.target_id = p_entity_id)\r\n             OR\r\n                -- یا محدودیت عمومی روی یک محدوده/طبقه\r\n                (\r\n                    r.target_table IS NULL\r\n                    AND r.target_id   IS NULL\r\n                    AND (r.floor IS NULL OR r.floor = p_floor)\r\n                    AND (\r\n                           r.geom IS NULL\r\n                        OR (p_geom IS NOT NULL AND ST_Contains(r.geom, p_geom))\r\n                    )\r\n                )\r\n        );\r\n\r\n    IF v_admin_close_penalty IS NOT NULL THEN\r\n        v_allowed := false;\r\n        v_penalty := GREATEST(v_penalty, v_admin_close_penalty);\r\n        v_type    := 'admin_close';\r\n    END IF;\r\n\r\n    -- 1.2) نوع غیر close → به معنی «مجاز ولی با جریمه»\r\n    SELECT MAX(r.penalty_w)\r\n    INTO v_admin_penalty\r\n    FROM admin_restrictions r\r\n    WHERE\r\n        r.is_active = true\r\n        AND (r.starts_at IS NULL OR r.starts_at <= v_now)\r\n        AND (r.ends_at   IS NULL OR v_now <= r.ends_at)\r\n        AND (\r\n              r.gender IS NULL\r\n           OR r.gender = 'both'::gender_enum\r\n           OR r.gender = p_gender\r\n        )\r\n        AND (\r\n              r.modes IS NULL\r\n           OR p_mode = ANY(r.modes)\r\n        )\r\n        AND r.restrict_type <> 'close'\r\n        AND (\r\n                (r.target_table = p_entity_table AND r.target_id = p_entity_id)\r\n             OR (\r\n                    r.target_table IS NULL\r\n                    AND r.target_id   IS NULL\r\n                    AND (r.floor IS NULL OR r.floor = p_floor)\r\n                    AND (\r\n                           r.geom IS NULL\r\n                        OR (p_geom IS NOT NULL AND ST_Contains(r.geom, p_geom))\r\n                    )\r\n                )\r\n        );\r\n\r\n    IF v_admin_penalty IS NOT NULL THEN\r\n        v_penalty := GREATEST(v_penalty, v_admin_penalty);\r\n        IF v_type = 'none' THEN\r\n            v_type := 'admin_penalty';\r\n        ELSIF v_type <> 'admin_close' THEN\r\n            -- اگر قبلاً نوع دیگری هم ست شده بود، بگیم mixed\r\n            v_type := 'mixed';\r\n        END IF;\r\n    END IF;\r\n\r\n    ----------------------------------------------------------------------\r\n    -- 2) محدودیت‌های زمانی (access_time_restrictions)\r\n    --    این‌ها را به صورت «بسته بودن در این زمان» تفسیر می‌کنیم.\r\n    ----------------------------------------------------------------------\r\n    SELECT EXISTS (\r\n        SELECT 1\r\n        FROM access_time_restrictions r\r\n        WHERE\r\n            r.entity_table = p_entity_table\r\n            AND r.entity_id = p_entity_id\r\n            AND (r.specific_date IS NULL OR r.specific_date = v_date)\r\n            AND (\r\n                    r.all_hours = true\r\n                 OR (\r\n                        r.start_time IS NOT NULL\r\n                    AND r.end_time   IS NOT NULL\r\n                    AND v_time >= r.start_time\r\n                    AND v_time <  r.end_time\r\n                 )\r\n            )\r\n            AND (\r\n                    r.gender IS NULL\r\n                 OR cardinality(r.gender) = 0\r\n                 OR p_gender = ANY(r.gender)\r\n                 OR 'both'::gender_enum = ANY(r.gender)\r\n            )\r\n    ) INTO v_time_block_exists;\r\n\r\n    IF v_time_block_exists THEN\r\n        v_allowed := false;\r\n        v_penalty := GREATEST(v_penalty, c_time_penalty);\r\n\r\n        IF v_type = 'none' THEN\r\n            v_type := 'time';\r\n        ELSIF v_type <> 'time' THEN\r\n            v_type := 'mixed';\r\n        END IF;\r\n    END IF;\r\n\r\n    ----------------------------------------------------------------------\r\n    -- 3) محدودیت‌های نماز (access_prayer_restrictions)\r\n    --    این بخش اسکلت است و به تابع زمان نماز نیاز دارد.\r\n    --    فعلاً فقط TODO است؛ اگر تابع prayer windows رو اضافه کردی،\r\n    --    این بخش را از حالت کامنت خارج کن.\r\n    ----------------------------------------------------------------------\r\n\r\n    -- نمونه‌ی پیشنهادی:\r\n    -- یک تابع مثل:\r\n    --   fn_prayer_windows(p_date date)\r\n    -- که برای هر نماز، این خروجی را داشته باشد:\r\n    --   (prayer_event text, center_time timestamptz)\r\n    --\r\n    -- سپس:\r\n    /*\r\n    SELECT EXISTS (\r\n        SELECT 1\r\n        FROM access_prayer_restrictions pr\r\n        JOIN fn_prayer_windows(v_date) pw\r\n             ON pw.prayer_event = pr.prayer_event\r\n        WHERE\r\n            pr.entity_table = p_entity_table\r\n            AND pr.entity_id = p_entity_id\r\n            AND (pr.specific_date IS NULL OR pr.specific_date = v_date)\r\n            AND v_now BETWEEN\r\n                (pw.center_time - make_interval(mins := pr.before_minutes))\r\n                AND\r\n                (pw.center_time + make_interval(mins := pr.after_minutes))\r\n            AND (\r\n                    pr.gender IS NULL\r\n                 OR cardinality(pr.gender) = 0\r\n                 OR p_gender = ANY(pr.gender)\r\n                 OR 'both'::gender_enum = ANY(pr.gender)\r\n            )\r\n    ) INTO v_prayer_block_exists;\r\n    */\r\n\r\n    -- فعلاً تا وقتی تابع نماز را نداری، v_prayer_block_exists همیشه false می‌ماند.\r\n    v_prayer_block_exists := false;\r\n\r\n    IF v_prayer_block_exists THEN\r\n        v_allowed := false;\r\n        v_penalty := GREATEST(v_penalty, c_prayer_penalty);\r\n\r\n        IF v_type = 'none' THEN\r\n            v_type := 'prayer';\r\n        ELSIF v_type <> 'prayer' THEN\r\n            v_type := 'mixed';\r\n        END IF;\r\n    END IF;\r\n\r\n    ----------------------------------------------------------------------\r\n    -- 4) خروجی\r\n    ----------------------------------------------------------------------\r\n    allowed          := v_allowed;\r\n    penalty_w        := v_penalty;\r\n    restriction_type := v_type;\r\n\r\n    RETURN;\r\nEND;\r\n$function$\n",
         "is_deterministic": "NO"
     },
     {
