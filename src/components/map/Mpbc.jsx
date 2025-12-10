@@ -285,8 +285,8 @@ const Mpbc = ({
           const subgroup = subGroups[group]?.find(sg => sg.value === subGroupValue);
           const hasImage = subgroup && subgroup.img;
 
-          // When no category is selected, only allow selection of features with images
-          if (!selectedCategory && !hasImage) {
+          // Always require an image-backed subgroup to show the bubble
+          if (!hasImage) {
             return; // Skip this feature - not selectable
           }
 
@@ -323,9 +323,9 @@ const Mpbc = ({
     );
 
     const isCategoryMismatch = selectedCategory && featureGroup !== selectedCategory.value;
-    const isImageOnlySelection = !selectedCategory && !subgroupHasImage;
+    const lacksImage = !subgroupHasImage;
 
-    if (isCategoryMismatch || isImageOnlySelection) {
+    if (isCategoryMismatch || lacksImage) {
       setSelectedFeatureForBubble(null);
     }
   }, [selectedCategory, selectedFeatureForBubble, subGroups]);
