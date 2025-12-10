@@ -7417,6 +7417,61 @@ const Amain = () => {
                       />
                     </div>
 
+                    {!isAreaLayerActive && (
+                      <div className="form-group">
+                        <label className="form-label">تعیین گروه این مکان </label>
+                        <div className="dropdown-group">
+                          <div className="dropdown-field">
+                            <select
+                              className="form-input"
+                              value={placeCategory}
+                              onChange={(e) => {
+                                setPlaceCategory(e.target.value);
+                                setPlaceSubcategory('');
+                              }}
+                              disabled={isLoadingGroups}
+                            >
+                              <option value="" disabled>گروه اصلی</option>
+                              {groupOptions.map((group) => (
+                                <option key={group.value} value={group.value}>
+                                  {group.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="dropdown-field">
+                            <select
+                              className="form-input"
+                              value={placeSubcategory}
+                              onChange={(e) => setPlaceSubcategory(e.target.value)}
+                              disabled={!placeCategory || isLoadingSubGroups}
+                            >
+                              <option value="" disabled>زیرگروه</option>
+                              {subGroupOptions.map((subGroup) => (
+                                <option key={subGroup.value} value={subGroup.value}>
+                                  {subGroup.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="dropdown-field">
+                            <select
+                              className="form-input"
+                              value={placeFunction}
+                              onChange={(e) => setPlaceFunction(e.target.value)}
+                              disabled={!placeSubcategory}
+                            >
+                              <option value="" disabled>کارکرد گروه</option>
+                              <option value="door">درب</option>
+                              <option value="connection">نقطه اتصال</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                   </div>
                 </div>
               )}
@@ -7485,60 +7540,7 @@ const Amain = () => {
                       </div>
                     </div>
 
-                    {!isAreaLayerActive && (
-                      <div className="form-group">
-                        <label className="form-label">تعیین گروه این مکان </label>
-                        <div className="dropdown-group">
-                          <div className="dropdown-field">
-                            <select
-                              className="form-input"
-                              value={placeCategory}
-                              onChange={(e) => {
-                                setPlaceCategory(e.target.value);
-                                setPlaceSubcategory('');
-                              }}
-                              disabled={isLoadingGroups}
-                            >
-                              <option value="" disabled>گروه اصلی</option>
-                              {groupOptions.map((group) => (
-                                <option key={group.value} value={group.value}>
-                                  {group.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
 
-                          <div className="dropdown-field">
-                            <select
-                              className="form-input"
-                              value={placeSubcategory}
-                              onChange={(e) => setPlaceSubcategory(e.target.value)}
-                              disabled={!placeCategory || isLoadingSubGroups}
-                            >
-                              <option value="" disabled>زیرگروه</option>
-                              {subGroupOptions.map((subGroup) => (
-                                <option key={subGroup.value} value={subGroup.value}>
-                                  {subGroup.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div className="dropdown-field">
-                            <select
-                              className="form-input"
-                              value={placeFunction}
-                              onChange={(e) => setPlaceFunction(e.target.value)}
-                              disabled={!placeSubcategory}
-                            >
-                              <option value="" disabled>کارکرد گروه</option>
-                              <option value="door">درب</option>
-                              <option value="connection">نقطه اتصال</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                    )}
 
                     {/* Transportation Type Section - Multi-select */}
                     <div className="form-group">
