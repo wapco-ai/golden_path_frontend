@@ -29,6 +29,25 @@ const handleResponse = async (response) => {
   return response.text();
 };
 
+const normalizeLocation = (location) => {
+  if (!location) return null;
+
+  const { x, y, floor, lng, lat } = location;
+
+  return {
+    lng: x ?? lng ?? null,
+    lat: y ?? lat ?? null,
+    floor: floor ?? null
+  };
+};
+
+const normalizeCulturalItem = (item) => ({
+  ...item,
+  title: item.title ?? item.titles?.fa ?? null,
+  description: item.description ?? item.descriptions?.fa ?? null,
+  location: normalizeLocation(item.location)
+});
+
 export const fetchCulturalItems = async ({ page, pageSize, search, language = 'fa' }) => {
   const params = new URLSearchParams({
     language,
@@ -41,14 +60,20 @@ export const fetchCulturalItems = async ({ page, pageSize, search, language = 'f
   const response = await fetch(`${CULTURAL_ITEMS_BASE_URL}?${params.toString()}`, {
     headers: buildAuthHeaders()
   });
-  return handleResponse(response);
+  const data = await handleResponse(response);
+
+  return {
+    ...data,
+    items: (data.items || []).map(normalizeCulturalItem)
+  };
 };
 
 export const fetchCulturalItemDetails = async (id) => {
   const response = await fetch(`${CULTURAL_ITEMS_BASE_URL}/${id}`, {
     headers: buildAuthHeaders()
   });
-  return handleResponse(response);
+  const item = await handleResponse(response);
+  return normalizeCulturalItem(item);
 };
 
 export const createCulturalItem = async (payload) => {
