@@ -20,7 +20,7 @@ import {
 } from '../config/vectorTiles';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
 import { createDoor, deleteDoor, getDoorInfo, moveDoor, updateDoorInfo } from '../services/adminDoorsService';
-import { deleteArea } from '../services/adminAreasService';
+import { deleteArea, getAreaInfo, updateAreaInfo } from '../services/adminAreasService';
 import { convertLngLatToUtm32640 } from '../utils/utm';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
@@ -385,6 +385,9 @@ const Amain = () => {
   const [lastCreatedAccessPointId, setLastCreatedAccessPointId] = useState(null);
   const [isSavingDoorInfo, setIsSavingDoorInfo] = useState(false);
   const [isLoadingDoorInfo, setIsLoadingDoorInfo] = useState(false);
+  const [lastCreatedAreaId, setLastCreatedAreaId] = useState(null);
+  const [isSavingAreaInfo, setIsSavingAreaInfo] = useState(false);
+  const [isLoadingAreaInfo, setIsLoadingAreaInfo] = useState(false);
   const [isEditingDoorInfo, setIsEditingDoorInfo] = useState(false);
   const [isDoorMoveMode, setIsDoorMoveMode] = useState(false);
   const intl = useIntl();
@@ -457,6 +460,8 @@ const Amain = () => {
   const [prayerBeforeMinutes, setPrayerBeforeMinutes] = useState('');
   const [prayerAfterMinutes, setPrayerAfterMinutes] = useState('');
   const [prayerTimeRestrictionsList, setPrayerTimeRestrictionsList] = useState([]);
+  const isSavingPlaceInfo = isSavingDoorInfo || isSavingAreaInfo;
+  const isLoadingPlaceInfo = isLoadingDoorInfo || isLoadingAreaInfo;
   const [categoryManagementOpen, setCategoryManagementOpen] = useState(false);
 
   const [categories, setCategories] = useState([]);
@@ -2503,6 +2508,9 @@ const Amain = () => {
     setIsPlaceCovered(null);
 
     setIsEditingDoorInfo(false);
+    setLastCreatedDoorId(null);
+    setLastCreatedAccessPointId(null);
+    setLastCreatedAreaId(null);
 
     setSelectedRestrictionType(null);
     setRestrictionFormOpen(false);
@@ -3505,6 +3513,17 @@ const Amain = () => {
   };
 
   const handleOpenAddPlaceWithRoofOption = () => {
+    if (activeEditableLayer?.id === 'areas-outline') {
+      if (!selectedAreaId) {
+        toast.error('برای ویرایش اطلاعات، ابتدا یک محدوده را انتخاب کنید');
+        return;
+      }
+
+      openAreaInfoModal(selectedAreaId, true);
+      return;
+    }
+
+    setLastCreatedAreaId(null);
     setCurrentStep(1);
     setIsAddPlaceModalOpen(true);
   };
@@ -3855,7 +3874,15 @@ const Amain = () => {
         setCurrentStep(3);
       }
     } else if (currentStep === 3) {
-      if (!lastCreatedDoorId) {
+      const isAreaLayerActive = activeEditableLayer?.id === 'areas-outline';
+      const targetAreaId = lastCreatedAreaId || selectedAreaId;
+
+      if (isAreaLayerActive && !targetAreaId) {
+        toast.error('شناسه محدوده برای ثبت اطلاعات در دسترس نیست');
+        return;
+      }
+
+      if (!isAreaLayerActive && !lastCreatedDoorId) {
         toast.error('شناسه درب برای ثبت اطلاعات در دسترس نیست');
         return;
       }
@@ -3870,16 +3897,30 @@ const Amain = () => {
       }
 
       try {
-        setIsSavingDoorInfo(true);
-        const response = await updateDoorInfo(lastCreatedDoorId, payload);
-        toast.success(response?.message || 'اطلاعات مکان با موفقیت ثبت شد');
+        if (isAreaLayerActive) {
+          setIsSavingAreaInfo(true);
+          const response = await updateAreaInfo(targetAreaId, payload);
+          toast.success(response?.message || 'اطلاعات محدوده با موفقیت ثبت شد');
+        } else {
+          setIsSavingDoorInfo(true);
+          const response = await updateDoorInfo(lastCreatedDoorId, payload);
+          toast.success(response?.message || 'اطلاعات مکان با موفقیت ثبت شد');
+        }
         setIsAddPlaceModalOpen(false);
         resetForm();
         setCurrentStep(1);
       } catch (error) {
-        toast.error(error?.message || 'ثبت اطلاعات مکان ناموفق بود');
+        if (isAreaLayerActive) {
+          toast.error(error?.message || 'ثبت اطلاعات محدوده ناموفق بود');
+        } else {
+          toast.error(error?.message || 'ثبت اطلاعات مکان ناموفق بود');
+        }
       } finally {
-        setIsSavingDoorInfo(false);
+        if (isAreaLayerActive) {
+          setIsSavingAreaInfo(false);
+        } else {
+          setIsSavingDoorInfo(false);
+        }
       }
     }
   };
@@ -3914,6 +3955,7 @@ const Amain = () => {
   async function openDoorInfoModal(doorId, accessPointId = null, isEditMode = false) {
     setLastCreatedDoorId(doorId || null);
     setLastCreatedAccessPointId(accessPointId || null);
+    setLastCreatedAreaId(null);
     setIsEditingDoorInfo(isEditMode);
     setIsAddPlaceModalOpen(true);
     setCurrentStep(1);
@@ -3928,6 +3970,27 @@ const Amain = () => {
       toast.error(error?.message || 'دریافت اطلاعات درب ناموفق بود');
     } finally {
       setIsLoadingDoorInfo(false);
+    }
+  }
+
+  async function openAreaInfoModal(areaId, isEditMode = false) {
+    setLastCreatedAreaId(areaId || null);
+    setLastCreatedDoorId(null);
+    setLastCreatedAccessPointId(null);
+    setIsEditingDoorInfo(isEditMode);
+    setIsAddPlaceModalOpen(true);
+    setCurrentStep(1);
+
+    if (!areaId) return;
+
+    try {
+      setIsLoadingAreaInfo(true);
+      const info = await getAreaInfo(areaId);
+      fillDoorInfoForm(info);
+    } catch (error) {
+      toast.error(error?.message || 'دریافت اطلاعات محدوده ناموفق بود');
+    } finally {
+      setIsLoadingAreaInfo(false);
     }
   }
 
@@ -8116,11 +8179,11 @@ const Amain = () => {
                 <button
                   className="confirm-btn"
                   onClick={handleAddPlaceConfirm}
-                  disabled={isSavingDoorInfo || isLoadingDoorInfo}
+                  disabled={isSavingPlaceInfo || isLoadingPlaceInfo}
                 >
-                  {isSavingDoorInfo
+                  {isSavingPlaceInfo
                     ? 'در حال ذخیره اطلاعات...'
-                    : isLoadingDoorInfo
+                    : isLoadingPlaceInfo
                       ? 'در حال بارگذاری اطلاعات...'
                       : currentStep === 3
                         ? 'تایید اطلاعات و ثبت این مکان '
