@@ -471,6 +471,39 @@ const Mpbc = ({
     )
     : [];
 
+  const categoryIdToGroup = {
+    1: 'sahn',
+    groupSahn: 'sahn',
+    groupCourtyard: 'sahn',
+    2: 'eyvan',
+    groupEyvan: 'eyvan',
+    3: 'ravaq',
+    groupRavaqPlural: 'ravaq',
+    groupRavaq: 'ravaq',
+    4: 'masjed',
+    groupMosques: 'masjed',
+    groupMosque: 'masjed',
+    5: 'madrese',
+    groupSchools: 'madrese',
+    groupSchool: 'madrese',
+    6: 'khadamat',
+    groupServices: 'khadamat',
+    groupService: 'khadamat',
+    7: 'elmi',
+    groupCulture: 'elmi',
+    groupCultural: 'elmi',
+    8: 'cemetery',
+    groupCemetery: 'cemetery',
+    9: 'qrcode',
+    groupQRScan: 'qrcode',
+    qr: 'qrcode',
+    'qr-code': 'qrcode',
+    10: 'elevator',
+    groupElevator: 'elevator',
+    11: 'other',
+    groupOther: 'other'
+  };
+
   const matchesSelectedCategory = useCallback((place) => {
     if (!selectedCategory) return true;
 
@@ -486,7 +519,13 @@ const Mpbc = ({
 
       values.forEach((val) => {
         if (val === undefined || val === null) return;
-        set.add(String(val));
+        const stringVal = String(val);
+        set.add(stringVal);
+
+        const mapped = categoryIdToGroup[val] ?? categoryIdToGroup[stringVal];
+        if (mapped) {
+          set.add(String(mapped));
+        }
       });
 
       return Array.from(set);
@@ -498,7 +537,8 @@ const Mpbc = ({
       selectedCategory.name,
       selectedCategory.title,
       selectedCategory.label,
-      selectedCategory.code
+      selectedCategory.code,
+      categoryIdToGroup[selectedValue]
     ]);
 
     const propertyKey = selectedCategory.property || selectedCategory.property_target || selectedCategory.propertyTarget;
@@ -518,6 +558,7 @@ const Mpbc = ({
       place?.subGroupValue,
       place?.subgroupValue,
       place?.sub_group_value,
+      place?.group,
       place?.nodeFunction
     ]);
 
