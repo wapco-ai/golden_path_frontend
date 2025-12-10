@@ -261,5 +261,6 @@
   "cancel": "إلغاء",
   "profileUpdatedSuccess": "تم تحديث الملف الشخصي بنجاح!",
   "entry": "مدخل",
-  "confirmEntry": "تأييد المدخل"
+  "confirmEntry": "تأييد المدخل",
+  "showPrevRoute":" المسار السابق"
 }

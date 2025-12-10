@@ -156,15 +156,16 @@ function Proutes() {
                       <span className="location-text8">{route.destination}</span>
                     </div>
                   </div>
+                  <div className="btn-container3">
+                    <button className="repeat-route-btn">
 
-                  {/* Repeat Route Button */}
-                  <button className="repeat-route-btn">
-                    <svg width="22" height="22" viewBox="0 0 19 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path fillRule="evenodd" clipRule="evenodd" d="M14.273 2.29297C14.5836 2.29297 14.8355 2.54481 14.8355 2.85547V6.03745C14.8355 6.34811 14.5836 6.59995 14.273 6.59995H11.091C10.7803 6.59995 10.5285 6.34811 10.5285 6.03745C10.5285 5.72679 10.7803 5.47495 11.091 5.47495H12.8613C10.7272 3.79264 7.62403 3.93595 5.65511 5.90487C3.53163 8.02834 3.53163 11.4712 5.65511 13.5947C7.77858 15.7181 11.2214 15.7181 13.3449 13.5947C14.7675 12.172 15.2378 10.1568 14.7529 8.34116C14.6728 8.04102 14.8511 7.73273 15.1512 7.65257C15.4514 7.57242 15.7597 7.75076 15.8398 8.0509C16.4241 10.2386 15.8585 12.672 14.1404 14.3901C11.5776 16.953 7.42243 16.953 4.85961 14.3901C2.2968 11.8273 2.2968 7.67219 4.85961 5.10937C7.28362 2.68536 11.1322 2.55407 13.7105 4.71551V2.85547C13.7105 2.54481 13.9623 2.29297 14.273 2.29297Z" fill="white" />
-                    </svg>
+                      <FormattedMessage id="repeatRoute" />
+                    </button>
+                    <button className="repeat-prev-btn">
 
-                    <FormattedMessage id="repeatRoute" />
-                  </button>
+                      <FormattedMessage id="showPrevRoute" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

@@ -261,5 +261,6 @@
   "cancel": "Cancel",
   "profileUpdatedSuccess": "Profile updated successfully!",
   "entry": "Entry",
-  "confirmEntry": "Confirm Entry"
+  "confirmEntry": "Confirm Entry",
+  "showPrevRoute":" previous route "
 }

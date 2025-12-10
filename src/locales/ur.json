@@ -261,5 +261,6 @@
   "cancel": "منسوخ کریں",
   "profileUpdatedSuccess": "پروفائل کامیابی سے اپ ڈیٹ ہو گئی!",
   "entry": "داخلہ",
-  "confirmEntry": "داخلہ کی تصدیق کریں"
+  "confirmEntry": "داخلہ کی تصدیق کریں",
+  "showPrevRoute":" پچھلا راستہ"
 }

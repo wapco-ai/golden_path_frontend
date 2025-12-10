@@ -261,5 +261,6 @@
   "cancel": "لغو",
   "profileUpdatedSuccess": "پروفایل با موفقیت به‌روزرسانی شد!",
   "entry": "ورودی",
-  "confirmEntry": "تأیید ورودی"
+  "confirmEntry": "تأیید ورودی",
+  "showPrevRoute":" مسیر قبلی"
 }
