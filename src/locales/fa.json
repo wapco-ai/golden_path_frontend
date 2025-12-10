@@ -179,6 +179,8 @@
   "pwaInstallTitle": "نصب اپلیکیشن",
   "pwaInstallPrompt": "برای دسترسی سریع، اپلیکیشن را روی دستگاه خود نصب کنید.",
   "pwaInstallButton": "نصب",
+  "mapLoadingDoors": "در حال بارگذاری درهای اطراف...",
+  "mapNoDoorsFound": "در این محدوده دری یافت نشد",
   "mapNoRecentSearches": "جستجویی  وجود ندارد",
   "noRouteFound": "مسیر با حالت انتخابی یافت نشد",
   "pwaCloseButton": "بستن",

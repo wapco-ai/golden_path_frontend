@@ -178,6 +178,8 @@
   "pwaInstallTitle": "تثبيت التطبيق",
   "pwaInstallPrompt": "للوصول السريع، ثبّت التطبيق على جهازك.",
   "pwaInstallButton": "تثبيت",
+  "mapLoadingDoors": "جارٍ تحميل الأبواب القريبة...",
+  "mapNoDoorsFound": "لم يتم العثور على أبواب لهذه المنطقة",
   "mapNoRecentSearches": "لا توجد عمليات بحث حديثة",
   "noRouteFound": "لم يتم العثور على مسار للحالة المحددة",
   "pwaCloseButton": "إغلاق",
