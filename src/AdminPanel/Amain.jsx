@@ -9911,12 +9911,12 @@ const Amain = () => {
             </div>
 
             <div className="modal-footer">
-              <button
+              {/* <button
                 className="cancel-btn5"
                 onClick={handleSkipOrientation}
               >
                 رد کردن
-              </button>
+              </button> */}
               <button
                 className="confirm-btn"
                 onClick={() => selectedOrientation ? handleOrientationSelect(selectedOrientation) : handleSkipOrientation()}
