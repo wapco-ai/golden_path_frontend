@@ -7534,9 +7534,11 @@ const Amain = () => {
                             className={`radio-option3 ${selectedGenderAccess.includes(genderOption.value) ? 'selected' : ''}`}
                             onClick={() => {
                               if (selectedGenderAccess.includes(genderOption.value)) {
-                                setSelectedGenderAccess(selectedGenderAccess.filter(g => g !== genderOption.value));
+                                // setSelectedGenderAccess(selectedGenderAccess.filter(g => g !== genderOption.value));
+                                setSelectedGenderAccess([]);
                               } else {
-                                setSelectedGenderAccess([...selectedGenderAccess, genderOption.value]);
+                                // setSelectedGenderAccess([...selectedGenderAccess, genderOption.value]);
+                                setSelectedGenderAccess([genderOption.value]);
                               }
                             }}
                           >
