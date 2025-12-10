@@ -471,15 +471,72 @@ const Mpbc = ({
     )
     : [];
 
+  const matchesSelectedCategory = useCallback((place) => {
+    if (!selectedCategory) return true;
+
+    const selectedValue = selectedCategory.value
+      ?? selectedCategory.id
+      ?? selectedCategory.categories_leaf_id
+      ?? selectedCategory.code;
+
+    if (selectedValue == null) return true;
+
+    const normalizeValues = (values) => {
+      const set = new Set();
+
+      values.forEach((val) => {
+        if (val === undefined || val === null) return;
+        set.add(String(val));
+      });
+
+      return Array.from(set);
+    };
+
+    const selectedCandidates = normalizeValues([
+      selectedValue,
+      selectedCategory.group,
+      selectedCategory.name,
+      selectedCategory.title,
+      selectedCategory.label,
+      selectedCategory.code
+    ]);
+
+    const propertyKey = selectedCategory.property || selectedCategory.property_target || selectedCategory.propertyTarget;
+
+    const placeCandidates = normalizeValues([
+      propertyKey ? place?.[propertyKey] : undefined,
+      place?.categories_leaf_id,
+      place?.category_leaf_id,
+      place?.categoryLeafId,
+      place?.category_id,
+      place?.categoryId,
+      place?.category,
+      place?.group,
+      place?.subGroup,
+      place?.subgroup,
+      place?.sub_group,
+      place?.subGroupValue,
+      place?.subgroupValue,
+      place?.sub_group_value,
+      place?.nodeFunction
+    ]);
+
+    return selectedCandidates.some((candidate) => placeCandidates.includes(candidate));
+  }, [selectedCategory]);
+
   // Function to render image markers for landmarks with images
   const renderImageMarkers = () => {
     if (!showImageMarkers || !Array.isArray(landmarkPlaces) || landmarkPlaces.length === 0) {
       return null;
     }
 
+    const filteredLandmarks = selectedCategory
+      ? landmarkPlaces.filter(matchesSelectedCategory)
+      : landmarkPlaces;
+
     const seenCoords = new Set();
 
-    const markers = landmarkPlaces
+    const markers = filteredLandmarks
       .map((place, idx) => {
         const coords = extractPlaceCoordinates(place);
         const imageUrl = getFirstImage(place);

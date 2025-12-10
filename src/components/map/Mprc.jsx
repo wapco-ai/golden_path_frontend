@@ -495,6 +495,12 @@ const Mprc = ({
       place?.category_id,
       place?.categoryId,
       place?.category,
+      place?.subGroup,
+      place?.subgroup,
+      place?.sub_group,
+      place?.subGroupValue,
+      place?.subgroupValue,
+      place?.sub_group_value,
       place?.group,
       place?.nodeFunction
     ]);
