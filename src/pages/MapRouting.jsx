@@ -844,11 +844,12 @@ const MapRoutingPage = () => {
     if (activeInput === 'destination') {
       if (!fallbackDestination && !tempDestination) return;
 
+      const baseCoordinates = (fallbackDestination || {}).coordinates || tempDestination?.coordinates;
       const destinationWithDoor = {
         ...(fallbackDestination || {}),
         entry: entryNumber,
         ...(door ? { door } : {}),
-        ...(doorCoordinates ? { coordinates: doorCoordinates } : {})
+        coordinates: baseCoordinates || doorCoordinates || (fallbackDestination || {}).coordinates
       };
 
       setSelectedDestination(destinationWithDoor);
@@ -898,15 +899,17 @@ const MapRoutingPage = () => {
       setMapSelectedLocation(location);
 
       if (activeInput === 'destination') {
-        requestAreaDoors(latlng.lat, latlng.lng);
-        // Show entry modal for destination selected from map
         const destination = {
           name: locName,
           location: intl.formatMessage({ id: 'mapSelectedLocationFromMap' }),
           coordinates: [latlng.lat, latlng.lng]
         };
-        setTempDestination(destination);
-        setShowEntryModal(true);
+
+        setSelectedDestination(destination);
+        addSearch(destination);
+        sessionStorage.setItem('currentDestination', JSON.stringify(destination));
+        setShowEntryModal(false);
+        setTempDestination(null);
       } else {
         setAreaDoorsData(null);
         setAreaDoorsStatus(null);
