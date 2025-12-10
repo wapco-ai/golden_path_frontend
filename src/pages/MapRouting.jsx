@@ -464,10 +464,12 @@ const MapRoutingPage = () => {
     const isDestinationInput = activeInput === 'destination' || forceDestination;
 
     if (isDestinationInput) {
-      // Store the destination temporarily and show entry modal
-      setTempDestination(destination);
+      setSelectedDestination(destination);
+      addSearch(destination);
+      sessionStorage.setItem('currentDestination', JSON.stringify(destination));
       setShowDestinationModal(false);
-      setShowEntryModal(true);
+      setTempDestination(null);
+      setSelectedEntry(null);
 
       const [lat, lon] = destination?.coordinates || [];
       if (typeof lat === 'number' && typeof lon === 'number') {
@@ -623,10 +625,7 @@ const MapRoutingPage = () => {
 
     console.log('Setting destination from main page:', destination);
 
-    // Store temporarily and show entry modal
-    setTempDestination(destination);
-    setShowEntryModal(true);
-    addSearch(destination);
+    handleDestinationSelect(destination, { forceDestination: true });
   };
 
   // Get subgroup description based on currently loaded geoData
@@ -729,20 +728,7 @@ const MapRoutingPage = () => {
       coordinates: categoryCoordinates
     };
 
-    setTempDestination(destination);
-
-    const result = await requestAreaDoors(categoryCoordinates[0], categoryCoordinates[1]);
-
-    if (result?.doors?.length) {
-      setShowEntryModal(true);
-      return;
-    }
-
-    setShowEntryModal(false);
-    setTempDestination(null);
-    setSelectedDestination(destination);
-    addSearch(destination);
-    sessionStorage.setItem('currentDestination', JSON.stringify(destination));
+    handleDestinationSelect(destination, { forceDestination: true });
   };
 
   const handleSubGroupClick = (subGroup) => {
@@ -898,15 +884,13 @@ const MapRoutingPage = () => {
       setMapSelectedLocation(location);
 
       if (activeInput === 'destination') {
-        requestAreaDoors(latlng.lat, latlng.lng);
-        // Show entry modal for destination selected from map
         const destination = {
           name: locName,
           location: intl.formatMessage({ id: 'mapSelectedLocationFromMap' }),
           coordinates: [latlng.lat, latlng.lng]
         };
-        setTempDestination(destination);
-        setShowEntryModal(true);
+
+        handleDestinationSelect(destination, { forceDestination: true });
       } else {
         setAreaDoorsData(null);
         setAreaDoorsStatus(null);
