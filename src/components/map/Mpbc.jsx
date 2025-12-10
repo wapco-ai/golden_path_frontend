@@ -312,6 +312,24 @@ const Mpbc = ({
     if (onMapClick) onMapClick(c, closestFeature);
   };
 
+  // Clear bubbles that don't match the active category filter
+  useEffect(() => {
+    if (!selectedFeatureForBubble) return;
+
+    const featureGroup = selectedFeatureForBubble.properties?.group;
+    const featureSubGroup = selectedFeatureForBubble.properties?.subGroupValue;
+    const subgroupHasImage = subGroups[featureGroup]?.some(
+      (sg) => sg.value === featureSubGroup && sg.img
+    );
+
+    const isCategoryMismatch = selectedCategory && featureGroup !== selectedCategory.value;
+    const isImageOnlySelection = !selectedCategory && !subgroupHasImage;
+
+    if (isCategoryMismatch || isImageOnlySelection) {
+      setSelectedFeatureForBubble(null);
+    }
+  }, [selectedCategory, selectedFeatureForBubble, subGroups]);
+
   useEffect(() => {
     let isMounted = true;
     const controller = new AbortController();
