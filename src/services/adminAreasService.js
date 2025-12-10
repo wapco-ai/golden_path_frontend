@@ -3,6 +3,8 @@ import { ADMIN_ACCESS_TOKEN_KEY } from './adminAuthService.js';
 
 const AREAS_BASE_URL = `${appConfig.apiBaseUrl}/api/v1/areas`;
 
+const buildAreaInfoUrl = (id) => `${AREAS_BASE_URL}/${encodeURIComponent(id)}/info`;
+
 const buildAuthHeaders = () => {
   const accessToken = sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY);
 
@@ -31,7 +33,8 @@ export const createArea = async (payload, { signal } = {}) => {
 };
 
 export const getAreaInfo = async (id, { signal } = {}) => {
-  const response = await fetch(`${AREAS_BASE_URL}/${id}/info`, {
+  // const response = await fetch(`${AREAS_BASE_URL}/${id}/info`, {
+  const response = await fetch(buildAreaInfoUrl(id), {
     method: 'GET',
     headers: buildAuthHeaders(),
     signal
@@ -47,7 +50,8 @@ export const getAreaInfo = async (id, { signal } = {}) => {
 };
 
 export const updateAreaInfo = async (id, payload, { signal } = {}) => {
-  const response = await fetch(`${AREAS_BASE_URL}/${id}/info`, {
+  // const response = await fetch(`${AREAS_BASE_URL}/${id}/info`, {
+  const response = await fetch(buildAreaInfoUrl(id), {
     method: 'PUT',
     headers: buildAuthHeaders(),
     body: JSON.stringify(payload || {}),
