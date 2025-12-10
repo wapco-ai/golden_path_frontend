@@ -4681,7 +4681,6 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 20px;
-  border-bottom: 1px solid #F2F2F2;
 }
 
 .delete-confirmation-modal .modal-header h3 {
@@ -4707,7 +4706,6 @@ body {
   justify-content: flex-end;
   gap: 12px;
   padding: 20px;
-  border-top: 1px solid #F2F2F2;
 }
 
 .delete-confirm-btn {
@@ -4906,37 +4904,6 @@ body {
   border: none;
 }
 
-.subcategory-section {
-  margin-bottom: 16px;
-}
-
-.subcategory-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.add-subcategory-btn {
-  padding: 12px 20px;
-  background: #0F71EF;
-  color: white;
-  border-radius: 6px;
-  font-size: 14px;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.view-subcategories-btn {
-  padding: 12px 20px;
-  background: white;
-  color: #0F71EF;
-  border: 1px solid #0F71EF;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-}
 
 .status-options-horizontal {
   display: flex;
@@ -5010,6 +4977,9 @@ body {
 
 .icon-upload-section-simple {
   margin-top: 8px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
 }
 
 .select-icon-btn {
@@ -5025,9 +4995,6 @@ body {
   gap: 8px;
 }
 
-.subcategory-section-simple {
-  margin-bottom: 16px;
-}
 
 .subcategory-info {
   color: #858585;
@@ -5035,10 +5002,7 @@ body {
   margin-bottom: 12px;
 }
 
-.subcategory-actions-simple {
-  display: flex;
-  gap: 12px;
-}
+
 
 .add-subcategory-btn-simple {
   padding: 12px 20px;
@@ -5813,7 +5777,7 @@ body {
   width: 100%;
 }
 
-.language-input-btn {
+.language-input-btn3 {
   position: absolute;
   left: 10px;
   top: 40%;
@@ -5830,10 +5794,54 @@ body {
   transition: transform 0.4s;
 }
 
-.language-input-btn:hover svg {
+.language-input-btn3:hover svg {
   transform: scale(1.1);
   stroke: #0F71EF;
 }
+
+.language-input-btn12 {
+  background: transparent;
+  border: 1px solid #0F71EF;
+  border-radius: 6px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.language-input-btn12:hover {
+  background: rgba(15, 113, 239, 0.1);
+}
+
+.subcategory-count-cell {
+  text-align: center;
+  padding-left: 20px;
+  width: 100%;
+  display: block;
+}
+
+/* Description cell with truncation */
+.description-cell {
+  max-width: 200px;
+  word-wrap: break-word;
+  line-height: 1.4;
+  padding-right: 8px;
+}
+
+.description-cell .more-text {
+  color: #666;
+  font-weight: 500;
+}
+
+.empty-description {
+  color: #999;
+  font-style: italic;
+}
+
+
 
 /* Adjust input padding to make space for button */
 .title-input-with-language .form-input,
@@ -7301,4 +7309,410 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Category Modal Styles */
+.create-category-modal {
+  width: 500px;
+  max-width: 90vw;
+}
+
+.title-input-with-language {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.title-input-with-language .form-input {
+  flex: 1;
+}
+
+.title-input-with-language7 {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.title-input-with-language7 .form-input {
+  flex: 1;
+}
+
+
+.language-input-btn {
+  background: transparent;
+  border: 1px solid #0F71EF;
+  border-radius: 6px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.language-input-btn:hover {
+  background: rgba(15, 113, 239, 0.1);
+}
+
+/* Icon upload preview */
+.icon-upload-preview-container {
+  margin-top: 12px;
+}
+
+.icon-preview-wrapper {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #E0E0E0;
+}
+
+.icon-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-icon-btn {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 24px;
+  height: 24px;
+  background: rgba(234, 67, 53, 0.9);
+  border: none;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* Subcategory input section */
+.subcategory-input-section {
+  margin-top: 24px;
+}
+
+.subcategory-input-with-add {
+  display: flex;
+  gap: 8px;
+  flex-direction: row;
+  justify-content: center;
+}
+
+.subcategory-input-with-add .form-input {
+  flex: 1;
+}
+
+.add-subcategory-btn2 {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.add-subcategory-btn2:disabled {
+  cursor: not-allowed;
+}
+
+.subcategories-list {
+  margin-top: 16px;
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #E0E0E0;
+  max-height: calc(50vh - 100px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+.subcategories-label {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.subcategory-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  background: white;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  border: 1px solid #E0E0E0;
+}
+
+.subcategory-item:last-child {
+  margin-bottom: 0;
+}
+
+.remove-subcategory-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Language Titles Modal */
+.language-titles-modal {
+  width: 400px;
+  max-width: 90vw;
+  background-color: white;
+  border-radius: 15px;
+}
+
+
+.language-input-group {
+  margin-bottom: 16px;
+}
+
+.language-input-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+/* Category table icon */
+.category-image-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 40px;
+}
+
+.category-icon-image {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #E0E0E0;
+}
+
+/* Edit Category Modal Styles */
+.edit-category-modal {
+  width: 500px;
+  max-width: 90vw;
+}
+
+.title-input-with-language {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.title-input-with-language .form-input {
+  flex: 1;
+}
+
+/* Icon preview in edit modal */
+.icon-preview-image {
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #E0E0E0;
+  position: relative;
+}
+
+.icon-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.icon-preview-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F5F5F5;
+  color: #666;
+  font-size: 12px;
+}
+
+/* New Subgroup management section */
+.subcategory-management-section {
+  margin-top: 20px;
+  padding: 16px;
+  background: #F9F9F9;
+  border-radius: 8px;
+  border: 1px solid #E0E0E0;
+}
+
+.subgroup-stats-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.subgroup-count-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.subgroup-count-label {
+  font-size: 14px;
+  color: #666;
+}
+
+.subgroup-count-number {
+  background: white;
+  border: 1px solid #E0E0E0;
+  border-radius: 6px;
+  padding: 8px 16px;
+  min-width: 60px;
+  text-align: center;
+  font-weight: 600;
+  color: #333;
+  font-size: 16px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.subgroup-actions-container {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.add-subgroup-btn-small {
+  background: white;
+  border: 1px solid #139B3C;
+  border-radius: 6px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.add-subgroup-btn-small:hover {
+  background: #E8F5E9;
+}
+
+.view-all-subgroups-btn {
+  background: #0F71EF;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  gap: 6px;
+  transition: background 0.2s;
+}
+
+.view-all-subgroups-btn:hover {
+  background: #0C5FD6;
+}
+
+/* Subcategories List Modal */
+.subcategories-list-modal {
+  width: 600px;
+  max-width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background-color: white;
+  border-radius: 15px;
+  max-height: calc(90vh - 100px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+.subcategories-table-container {
+  flex: 1;
+  overflow-y: auto;
+  margin-top: 16px;
+}
+
+.subcategories-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.subcategories-table th {
+  background: #F5F5F5;
+  padding: 12px;
+  text-align: right;
+  font-weight: 600;
+  border-bottom: 1px solid #E0E0E0;
+}
+
+.subcategories-table td {
+  padding: 12px;
+  border-bottom: 1px solid #F0F0F0;
+}
+
+.subcategory-title-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.subcategory-icon-placeholder.small {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: #E0E0E0;
+}
+
+.edit-subcategory-btn {
+  background: transparent;
+  border: 1px solid #0F71EF;
+  color: #0F71EF;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.delete-subcategory-btn {
+  background: transparent;
+  border: 1px solid #EA4335;
+  color: #EA4335;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.no-subcategories {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  padding: 40px !important;
+}
+
+.subcategory-actions{
+  gap: 5px;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
 }

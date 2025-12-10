@@ -414,7 +414,14 @@ const Amain = () => {
     title: '',
     description: '',
     image: null,
-    status: 'active'
+    status: 'active',
+    subcategoryInput: '',
+    subcategories: [],
+    languageTitles: {
+      english: '',
+      arabic: '',
+      urdu: ''
+    }
   });
   const [editingCategory, setEditingCategory] = useState(null);
   const [isEditCategoryModalOpen, setIsEditCategoryModalOpen] = useState(false);
@@ -476,6 +483,12 @@ const Amain = () => {
   const [editPrayerAfterMinutes, setEditPrayerAfterMinutes] = useState('');
 
   const [descriptionForModal, setDescriptionForModal] = useState('');
+  const [categoryLanguageTitles, setCategoryLanguageTitles] = useState({
+    english: '',
+    arabic: '',
+    urdu: ''
+  });
+  const [isCategoryTitleLanguageModalOpen, setIsCategoryTitleLanguageModalOpen] = useState(false);
 
 
   const [isTitleLanguageModalOpen, setIsTitleLanguageModalOpen] = useState(false);
@@ -485,6 +498,14 @@ const Amain = () => {
     arabic: '',
     urdu: ''
   });
+
+  const [editCategoryLanguageTitles, setEditCategoryLanguageTitles] = useState({
+    english: '',
+    arabic: '',
+    urdu: ''
+  });
+  const [isEditCategoryTitleLanguageModalOpen, setIsEditCategoryTitleLanguageModalOpen] = useState(false);
+  const [showSubcategoriesModal, setShowSubcategoriesModal] = useState(false);
 
   // For cultural modal description
   const [isDescriptionLanguageModalOpen, setIsDescriptionLanguageModalOpen] = useState(false);
@@ -558,6 +579,8 @@ const Amain = () => {
   const [fileUploadTitle, setFileUploadTitle] = useState('');
   const [fileUploadDescription, setFileUploadDescription] = useState('');
   const [isFileLanguageModalOpen, setIsFileLanguageModalOpen] = useState(false);
+  const [categoryCurrentPage, setCategoryCurrentPage] = useState(1);
+  const [categoryItemsPerPage, setCategoryItemsPerPage] = useState(7);
 
   const normalizePrimaryMedia = (primaryMedia, existingImages = []) => {
     if (!primaryMedia) {
@@ -600,6 +623,32 @@ const Amain = () => {
       : [normalizedPrimary, ...existingImages];
 
     return { primary: normalizedPrimary, images };
+  };
+
+  const getCategoryPageNumbers = () => {
+    const totalItems = filteredCategories.length;
+    const totalPages = Math.ceil(totalItems / categoryItemsPerPage);
+    const maxVisiblePages = 6;
+    const pages = [];
+
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      const startPage = Math.max(1, categoryCurrentPage - 2);
+      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+      for (let i = startPage; i <= endPage; i++) {
+        pages.push(i);
+      }
+    }
+
+    return pages;
+  };
+
+  const handleCategoryPageChange = (pageNumber) => {
+    setCategoryCurrentPage(pageNumber);
   };
 
   const openFileTitleLanguageModal = () => {
@@ -4254,9 +4303,45 @@ const Amain = () => {
       title: '',
       description: '',
       image: null,
-      status: 'active'
+      status: 'active',
+      subcategoryInput: '',
+      subcategories: [],
+      languageTitles: {
+        english: '',
+        arabic: '',
+        urdu: ''
+      }
+    });
+    setCategoryLanguageTitles({
+      english: '',
+      arabic: '',
+      urdu: ''
     });
     setEditingCategory(null);
+  };
+
+  const handleAddSubcategoryToNew = () => {
+    if (!newCategory.subcategoryInput?.trim()) return;
+
+    const subcategory = {
+      id: Date.now() + Math.random(),
+      title: newCategory.subcategoryInput.trim(),
+      createdAt: formatJalaliDate(new Date()),
+      status: 'active'
+    };
+
+    setNewCategory(prev => ({
+      ...prev,
+      subcategoryInput: '',
+      subcategories: [...(prev.subcategories || []), subcategory]
+    }));
+  };
+
+  const handleRemoveSubcategoryFromNew = (index) => {
+    setNewCategory(prev => ({
+      ...prev,
+      subcategories: prev.subcategories.filter((_, i) => i !== index)
+    }));
   };
 
   const handleCreateCategory = () => {
@@ -4265,15 +4350,25 @@ const Amain = () => {
       return;
     }
 
+    // Create image URL from file
+    let imageUrl = null;
+    if (newCategory.image instanceof File) {
+      imageUrl = URL.createObjectURL(newCategory.image);
+    } else if (typeof newCategory.image === 'string') {
+      imageUrl = newCategory.image;
+    }
+
     const categoryData = {
       id: Date.now(),
       title: newCategory.title,
       description: newCategory.description,
-      image: newCategory.image,
+      image: imageUrl, // Use the created URL
+      icon: newCategory.image, // Keep original file reference
       createdAt: formatJalaliDate(new Date()),
-      subcategories: [],
+      subcategories: newCategory.subcategories || [],
       status: newCategory.status,
-      numSubcategories: 0
+      numSubcategories: newCategory.subcategories?.length || 0,
+      languageTitles: { ...categoryLanguageTitles }
     };
 
     setCategories([...categories, categoryData]);
@@ -4281,6 +4376,7 @@ const Amain = () => {
     // Close modal and reset form
     setIsCreateCategoryModalOpen(false);
     resetCategoryForm();
+    toast.success('دسته بندی با موفقیت ایجاد شد');
   };
 
   const handleDeleteCategory = (id) => {
@@ -4310,6 +4406,14 @@ const Amain = () => {
       icon: category.icon || null,
       status: category.status || 'active'
     });
+
+    // Load language titles if they exist
+    setEditCategoryLanguageTitles({
+      english: category.languageTitles?.english || '',
+      arabic: category.languageTitles?.arabic || '',
+      urdu: category.languageTitles?.urdu || ''
+    });
+
     setIsIconUploaded(!!category.icon);
     setIsEditCategoryModalOpen(true);
   };
@@ -4320,14 +4424,26 @@ const Amain = () => {
       return;
     }
 
+    // Create a proper image URL from the icon file
+    let imageUrl = editCategoryData.icon;
+
+    // If icon is a File object, create object URL
+    if (editCategoryData.icon instanceof File) {
+      imageUrl = URL.createObjectURL(editCategoryData.icon);
+    }
+    // If it's already a string URL, keep it
+    // If it's null/undefined, keep as null
+
     setCategories(categories.map(category => {
       if (category.id === editingCategoryId) {
         return {
           ...category,
           title: editCategoryData.title,
           description: editCategoryData.description,
-          icon: editCategoryData.icon,
-          status: editCategoryData.status
+          image: imageUrl, // Make sure we save the proper image URL
+          icon: editCategoryData.icon, // Keep the original reference
+          status: editCategoryData.status,
+          languageTitles: { ...editCategoryLanguageTitles }
         };
       }
       return category;
@@ -4341,8 +4457,14 @@ const Amain = () => {
       icon: null,
       status: 'active'
     });
+    setEditCategoryLanguageTitles({
+      english: '',
+      arabic: '',
+      urdu: ''
+    });
     setEditingCategoryId(null);
     setIsIconUploaded(false);
+    toast.success('دسته بندی با موفقیت ویرایش شد');
   };
 
   const handleIconUpload = (event) => {
@@ -6080,89 +6202,91 @@ const Amain = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredCategories.map(category => (
-                      <>
-                        <tr key={category.id}>
-                          <td>
-                            <div className="category-title-cell">
-                              <div className="category-expand-btn" onClick={() => toggleCategoryExpand(category.id)}>
-                                {expandedCategories.includes(category.id) ? (
-                                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path fillRule="evenodd" clipRule="evenodd" d="M7.99967 14.1666C4.59392 14.1666 1.83301 11.4057 1.83301 7.99996C1.83301 4.5942 4.59392 1.83329 7.99967 1.83329C11.4054 1.83329 14.1663 4.5942 14.1663 7.99996C14.1663 11.4057 11.4054 14.1666 7.99967 14.1666ZM0.833008 7.99996C0.833008 11.958 4.04163 15.1666 7.99967 15.1666C11.9577 15.1666 15.1663 11.958 15.1663 7.99996C15.1663 4.04192 11.9577 0.833294 7.99967 0.833294C4.04163 0.833294 0.833008 4.04192 0.833008 7.99996ZM5.64612 9.35351C5.84138 9.54878 6.15797 9.54878 6.35323 9.35351L7.99967 7.70707L9.64612 9.35351C9.84138 9.54878 10.158 9.54878 10.3532 9.35351C10.5485 9.15825 10.5485 8.84167 10.3532 8.64641L8.35323 6.64641C8.15797 6.45114 7.84138 6.45114 7.64612 6.64641L5.64612 8.64641C5.45086 8.84167 5.45086 9.15825 5.64612 9.35351Z" fill="#0F71EF" />
-                                  </svg>
-                                ) : (
-                                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path fillRule="evenodd" clipRule="evenodd" d="M7.99967 1.83337C4.59392 1.83337 1.83301 4.59428 1.83301 8.00004C1.83301 11.4058 4.59392 14.1667 7.99967 14.1667C11.4054 14.1667 14.1663 11.4058 14.1663 8.00004C14.1663 4.59428 11.4054 1.83337 7.99967 1.83337ZM0.833008 8.00004C0.833008 4.042 4.04163 0.833374 7.99967 0.833374C11.9577 0.833374 15.1663 4.042 15.1663 8.00004C15.1663 11.9581 11.9577 15.1667 7.99967 15.1667C4.04163 15.1667 0.833008 11.9581 0.833008 8.00004ZM5.64612 6.64649C5.84138 6.45122 6.15797 6.45122 6.35323 6.64649L7.99967 8.29293L9.64612 6.64649C9.84138 6.45122 10.158 6.45122 10.3532 6.64649C10.5485 6.84175 10.5485 7.15833 10.3532 7.35359L8.35323 9.35359C8.15797 9.54886 7.84138 9.54886 7.64612 9.35359L5.64612 7.35359C5.45086 7.15833 5.45086 6.84175 5.64612 6.64649Z" fill="#858585" />
-                                  </svg>
-                                )}
-                              </div>
-                              <strong>{category.title}</strong>
-                            </div>
-                          </td>
-                          <td>{category.description}</td>
-                          <td>
-                            <div className="category-image-placeholder">
-                              {category.image ? 'تصویر موجود' : 'بدون تصویر'}
-                            </div>
-                          </td>
-                          <td>{category.createdAt}</td>
-                          <td>{category.numSubcategories}</td>
-                          <td>
-                            <span className={`status-badge ${category.status === 'active' ? 'active' : 'inactive'}`}>
-                              {category.status === 'active' ? '' : ''}
-                              {category.status === 'active' ? (
-                                <span style={{ color: '#139B3C', fontSize: '12px' }}>فعال</span>
-                              ) : (
-                                <span style={{ color: '#F44336', fontSize: '12px' }}>غیرفعال</span>
-                              )}
-                            </span>
-                          </td>
-                          <td>
-                            <div className="category-actions">
-                              <button className="edit-btn" onClick={() => handleEditCategory(category)}>
-                                ویرایش
-                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <g clipPath="url(#clip0_367_3812)">
-                                    <path fillRule="evenodd" clipRule="evenodd" d="M7.96142 0.833374L8.99967 0.833374C9.27582 0.833374 9.49967 1.05723 9.49967 1.33337C9.49967 1.60952 9.27582 1.83337 8.99967 1.83337H7.99967C6.41419 1.83337 5.27538 1.83444 4.40873 1.95095C3.55646 2.06554 3.04264 2.28347 2.66287 2.66324C2.2831 3.04301 2.06517 3.55682 1.95059 4.40909C1.83407 5.27574 1.83301 6.41456 1.83301 8.00004C1.83301 9.58552 1.83407 10.7243 1.95059 11.591C2.06517 12.4433 2.2831 12.9571 2.66287 13.3368C3.04264 13.7166 3.55646 13.9345 4.40873 14.0491C5.27538 14.1656 6.41419 14.1667 7.99967 14.1667C9.58516 14.1667 10.724 14.1656 11.5906 14.0491C12.4429 13.9345 12.9567 13.7166 13.3365 13.3368C13.7162 12.9571 13.9342 12.4433 14.0488 11.591C14.1653 10.7243 14.1663 9.58552 14.1663 8.00004V7.00004C14.1663 6.7239 14.3902 6.50004 14.6663 6.50004C14.9425 6.50004 15.1663 6.7239 15.1663 7.00004V8.03829C15.1664 9.57722 15.1664 10.7832 15.0398 11.7242C14.9104 12.6874 14.6401 13.4474 14.0436 14.044C13.447 14.6405 12.687 14.9107 11.7239 15.0402C10.7829 15.1667 9.57685 15.1667 8.03792 15.1667H7.96143C6.4225 15.1667 5.21647 15.1667 4.27548 15.0402C3.31232 14.9107 2.55231 14.6405 1.95577 14.044C1.35923 13.4474 1.089 12.6874 0.959506 11.7242C0.832993 10.7832 0.832999 9.57722 0.833008 8.03829V7.96179C0.832999 6.42286 0.832993 5.21684 0.959506 4.27584C1.089 3.31269 1.35923 2.55267 1.95577 1.95613C2.55231 1.35959 3.31232 1.08936 4.27548 0.959872C5.21647 0.833359 6.42249 0.833366 7.96142 0.833374ZM11.18 1.51732C12.092 0.605393 13.5705 0.605393 14.4824 1.51732C15.3943 2.42924 15.3943 3.90776 14.4824 4.81969L10.0503 9.25176C9.80281 9.49931 9.64776 9.65438 9.47473 9.78934C9.27093 9.9483 9.05042 10.0846 8.81711 10.1958C8.61902 10.2902 8.41097 10.3595 8.07887 10.4702L6.14251 11.1156C5.78502 11.2348 5.39088 11.1418 5.12442 10.8753C4.85795 10.6088 4.76491 10.2147 4.88408 9.8572L5.52952 7.92086C5.6402 7.58874 5.70953 7.3807 5.80394 7.18261C5.91513 6.94929 6.05141 6.72878 6.21037 6.52499C6.34533 6.35195 6.50041 6.1969 6.74797 5.94937L11.18 1.51732ZM13.7753 2.22442C13.2539 1.70302 12.4085 1.70302 11.8871 2.22442L11.6361 2.4755C11.6512 2.53941 11.6724 2.61555 11.7018 2.70048C11.7974 2.97586 11.9782 3.33852 12.3197 3.68004C12.6612 4.02156 13.0239 4.20235 13.2992 4.29789C13.3842 4.32735 13.4603 4.34853 13.5242 4.36366L13.7753 4.11258C14.2967 3.59118 14.2967 2.74582 13.7753 2.22442ZM12.7364 5.15143C12.3925 5.0035 11.9918 4.76635 11.6126 4.38714C11.2334 4.00794 10.9962 3.60726 10.8483 3.26328L7.47801 6.63355C7.20034 6.91122 7.09144 7.02134 6.99888 7.14001C6.88459 7.28653 6.78661 7.44508 6.70666 7.61283C6.64192 7.74868 6.59212 7.89533 6.46794 8.26787L6.18001 9.13166L6.86805 9.8197L7.73184 9.53177C8.10439 9.40759 8.25104 9.35779 8.38689 9.29305C8.55464 9.21311 8.71318 9.11512 8.85971 9.00083C8.97837 8.90828 9.08849 8.79938 9.36617 8.5217L12.7364 5.15143Z" fill="#1E2023" />
-                                  </g>
-                                  <defs>
-                                    <clipPath id="clip0_367_3812">
-                                      <rect width="16" height="16" fill="white" />
-                                    </clipPath>
-                                  </defs>
-                                </svg>
-                              </button>
-                              <button className="delete-btn" onClick={() => handleDeleteCategory(category.id)}>
-                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <path fillRule="evenodd" clipRule="evenodd" d="M3.41092 5.1678C3.68645 5.14943 3.9247 5.3579 3.94307 5.63343L4.24969 10.2328C4.3096 11.1314 4.35228 11.7566 4.446 12.227C4.5369 12.6833 4.66379 12.9249 4.84606 13.0954C5.02834 13.2659 5.27777 13.3765 5.73911 13.4368C6.21471 13.499 6.84138 13.5 7.74194 13.5H8.25752C9.15808 13.5 9.78475 13.499 10.2604 13.4368C10.7217 13.3765 10.9711 13.2659 11.1534 13.0954C11.3357 12.9249 11.4626 12.6833 11.5535 12.227C11.6472 11.7566 11.6899 11.1314 11.7498 10.2328L12.0564 5.63343C12.0748 5.3579 12.313 5.14943 12.5885 5.1678C12.8641 5.18617 13.0725 5.42442 13.0542 5.69995L12.7452 10.3345C12.6882 11.1896 12.6422 11.8804 12.5342 12.4224C12.4219 12.986 12.231 13.4567 11.8366 13.8256C11.4422 14.1946 10.9598 14.3538 10.3901 14.4284C9.84203 14.5001 9.14973 14.5 8.29268 14.5H7.70679C6.84973 14.5 6.15743 14.5001 5.60941 14.4284C5.03964 14.3538 4.55727 14.1946 4.16288 13.8256C3.76848 13.4567 3.57753 12.986 3.46527 12.4224C3.35729 11.8804 3.31125 11.1896 3.25425 10.3344L2.94528 5.69995C2.92691 5.42442 3.13538 5.18617 3.41092 5.1678Z" fill="#1E2023" />
-                                  <path fillRule="evenodd" clipRule="evenodd" d="M6.90324 1.50003L6.87258 1.50001C6.72832 1.49992 6.60264 1.49984 6.48396 1.51879C6.01509 1.59366 5.60936 1.8861 5.39006 2.30723C5.33456 2.41382 5.29489 2.53309 5.24935 2.66998L5.23967 2.69905L5.17495 2.89323C5.16229 2.93121 5.15876 2.94168 5.15569 2.95016C5.03894 3.2729 4.73626 3.49106 4.39316 3.49976C4.38414 3.49999 4.37309 3.50003 4.33306 3.50003H2.33301C2.05687 3.50003 1.83301 3.72388 1.83301 4.00003C1.83301 4.27617 2.05687 4.50003 2.33301 4.50003L4.33877 4.50003L4.34993 4.50003H11.6495L11.6607 4.50003L13.6664 4.50003C13.9425 4.50003 14.1664 4.27617 14.1664 4.00003C14.1664 3.72388 13.9425 3.50003 13.6664 3.50003H11.6664C11.6264 3.50003 11.6153 3.49999 11.6063 3.49976C11.2632 3.49106 10.9605 3.27289 10.8438 2.95014C10.8407 2.94172 10.8371 2.93102 10.8245 2.89323L10.7598 2.69905L10.7501 2.66996C10.7046 2.53307 10.6649 2.41382 10.6094 2.30723C10.3901 1.8861 9.98437 1.59366 9.5155 1.51879C9.39682 1.49984 9.27114 1.49992 9.12688 1.50001L9.09622 1.50003H6.90324ZM6.09606 3.29032C6.06988 3.36269 6.03945 3.43268 6.00511 3.50003H9.99435C9.96001 3.43268 9.92959 3.3627 9.90341 3.29033L9.8776 3.21477L9.8111 3.01528C9.75032 2.83294 9.73633 2.79575 9.72245 2.76909C9.64935 2.62872 9.5141 2.53124 9.35781 2.50628C9.32813 2.50154 9.28843 2.50003 9.09622 2.50003H6.90324C6.71103 2.50003 6.67133 2.50154 6.64165 2.50628C6.48536 2.53124 6.35011 2.62872 6.27701 2.76909C6.26313 2.79575 6.24914 2.83294 6.18836 3.01528L6.12182 3.21489C6.1118 3.24495 6.10401 3.26834 6.09606 3.29032Z" fill="#1E2023" />
-                                </svg>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-
-                        {/* Subcategories rows when expanded */}
-                        {expandedCategories.includes(category.id) && category.subcategories && category.subcategories.map(subcategory => (
-                          <tr key={`sub-${subcategory.id}`} className="subcategory-row">
+                    {filteredCategories
+                      .slice(
+                        (categoryCurrentPage - 1) * categoryItemsPerPage,
+                        categoryCurrentPage * categoryItemsPerPage
+                      )
+                      .map(category => (
+                        <>
+                          <tr key={category.id}>
                             <td>
-                              <div className="subcategory-title-cell">
-                                <div className="subcategory-branch"></div>
-                                <div className="category-icon-placeholder small"></div>
-                                <span>{subcategory.title}</span>
+                              <div className="category-title-cell">
+                                <div className="category-expand-btn" onClick={() => toggleCategoryExpand(category.id)}>
+                                  {expandedCategories.includes(category.id) ? (
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                      <path fillRule="evenodd" clipRule="evenodd" d="M7.99967 14.1666C4.59392 14.1666 1.83301 11.4057 1.83301 7.99996C1.83301 4.5942 4.59392 1.83329 7.99967 1.83329C11.4054 1.83329 14.1663 4.5942 14.1663 7.99996C14.1663 11.4057 11.4054 14.1666 7.99967 14.1666ZM0.833008 7.99996C0.833008 11.958 4.04163 15.1666 7.99967 15.1666C11.9577 15.1666 15.1663 11.958 15.1663 7.99996C15.1663 4.04192 11.9577 0.833294 7.99967 0.833294C4.04163 0.833294 0.833008 4.04192 0.833008 7.99996ZM5.64612 9.35351C5.84138 9.54878 6.15797 9.54878 6.35323 9.35351L7.99967 7.70707L9.64612 9.35351C9.84138 9.54878 10.158 9.54878 10.3532 9.35351C10.5485 9.15825 10.5485 8.84167 10.3532 8.64641L8.35323 6.64641C8.15797 6.45114 7.84138 6.45114 7.64612 6.64641L5.64612 8.64641C5.45086 8.84167 5.45086 9.15825 5.64612 9.35351Z" fill="#0F71EF" />
+                                    </svg>
+                                  ) : (
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                      <path fillRule="evenodd" clipRule="evenodd" d="M7.99967 1.83337C4.59392 1.83337 1.83301 4.59428 1.83301 8.00004C1.83301 11.4058 4.59392 14.1667 7.99967 14.1667C11.4054 14.1667 14.1663 11.4058 14.1663 8.00004C14.1663 4.59428 11.4054 1.83337 7.99967 1.83337ZM0.833008 8.00004C0.833008 4.042 4.04163 0.833374 7.99967 0.833374C11.9577 0.833374 15.1663 4.042 15.1663 8.00004C15.1663 11.9581 11.9577 15.1667 7.99967 15.1667C4.04163 15.1667 0.833008 11.9581 0.833008 8.00004ZM5.64612 6.64649C5.84138 6.45122 6.15797 6.45122 6.35323 6.64649L7.99967 8.29293L9.64612 6.64649C9.84138 6.45122 10.158 6.45122 10.3532 6.64649C10.5485 6.84175 10.5485 7.15833 10.3532 7.35359L8.35323 9.35359C8.15797 9.54886 7.84138 9.54886 7.64612 9.35359L5.64612 7.35359C5.45086 7.15833 5.45086 6.84175 5.64612 6.64649Z" fill="#858585" />
+                                    </svg>
+                                  )}
+                                </div>
+                                <strong>{category.title}</strong>
                               </div>
                             </td>
-                            <td></td>
-                            <td></td>
-                            <td>{subcategory.createdAt}</td>
-                            <td></td>
                             <td>
+                              <div className="truncated-description">
+                                {category.description ? (
+                                  <>
+                                    {category.description.split(/\s+/).slice(0, 7).join(' ')}
+                                    {category.description.split(/\s+/).length > 7 && '...'}
+                                  </>
+                                ) : (
+                                  <span className="no-description">-</span>
+                                )}
+                              </div>
+                            </td>
+                            <td>
+                              <td>
+                                <div className="category-image-cell">
+                                  {category.image ? (
+                                    <div className="category-icon-wrapper">
+                                      <img
+                                        src={category.image}
+                                        alt={category.title}
+                                        className="category-icon-image"
+                                        onError={(e) => {
+                                          e.target.style.display = 'none';
+                                          // Show fallback if image fails to load
+                                          const fallback = e.target.parentElement?.querySelector('.category-icon-fallback');
+                                          if (fallback) fallback.style.display = 'flex';
+                                        }}
+                                      />
+                                      <div className="category-icon-fallback" style={{ display: 'none' }}>
+                                        <span>تصویر</span>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="category-image-placeholder">
+                                      بدون تصویر
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </td>
+                            <td>{category.createdAt}</td>
+                            <td>
+                              <div className="subcategory-count-cell">
+                                {category.numSubcategories}
+                              </div>
+                            </td>
+                            <td>
+                              <span className={`status-badge ${category.status === 'active' ? 'active' : 'inactive'}`}>
+                                {category.status === 'active' ? '' : ''}
+                                {category.status === 'active' ? (
+                                  <span style={{ color: '#139B3C', fontSize: '12px' }}>فعال</span>
+                                ) : (
+                                  <span style={{ color: '#F44336', fontSize: '12px' }}>غیرفعال</span>
+                                )}
+                              </span>
                             </td>
                             <td>
                               <div className="category-actions">
-                                <button className="edit-icon-btn" onClick={() => handleEditSubcategory(subcategory)}>
+                                <button className="edit-btn" onClick={() => handleEditCategory(category)}>
+                                  ویرایش
                                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    {/* Edit icon SVG - same as above but smaller */}
                                     <g clipPath="url(#clip0_367_3812)">
                                       <path fillRule="evenodd" clipRule="evenodd" d="M7.96142 0.833374L8.99967 0.833374C9.27582 0.833374 9.49967 1.05723 9.49967 1.33337C9.49967 1.60952 9.27582 1.83337 8.99967 1.83337H7.99967C6.41419 1.83337 5.27538 1.83444 4.40873 1.95095C3.55646 2.06554 3.04264 2.28347 2.66287 2.66324C2.2831 3.04301 2.06517 3.55682 1.95059 4.40909C1.83407 5.27574 1.83301 6.41456 1.83301 8.00004C1.83301 9.58552 1.83407 10.7243 1.95059 11.591C2.06517 12.4433 2.2831 12.9571 2.66287 13.3368C3.04264 13.7166 3.55646 13.9345 4.40873 14.0491C5.27538 14.1656 6.41419 14.1667 7.99967 14.1667C9.58516 14.1667 10.724 14.1656 11.5906 14.0491C12.4429 13.9345 12.9567 13.7166 13.3365 13.3368C13.7162 12.9571 13.9342 12.4433 14.0488 11.591C14.1653 10.7243 14.1663 9.58552 14.1663 8.00004V7.00004C14.1663 6.7239 14.3902 6.50004 14.6663 6.50004C14.9425 6.50004 15.1663 6.7239 15.1663 7.00004V8.03829C15.1664 9.57722 15.1664 10.7832 15.0398 11.7242C14.9104 12.6874 14.6401 13.4474 14.0436 14.044C13.447 14.6405 12.687 14.9107 11.7239 15.0402C10.7829 15.1667 9.57685 15.1667 8.03792 15.1667H7.96143C6.4225 15.1667 5.21647 15.1667 4.27548 15.0402C3.31232 14.9107 2.55231 14.6405 1.95577 14.044C1.35923 13.4474 1.089 12.6874 0.959506 11.7242C0.832993 10.7832 0.832999 9.57722 0.833008 8.03829V7.96179C0.832999 6.42286 0.832993 5.21684 0.959506 4.27584C1.089 3.31269 1.35923 2.55267 1.95577 1.95613C2.55231 1.35959 3.31232 1.08936 4.27548 0.959872C5.21647 0.833359 6.42249 0.833366 7.96142 0.833374ZM11.18 1.51732C12.092 0.605393 13.5705 0.605393 14.4824 1.51732C15.3943 2.42924 15.3943 3.90776 14.4824 4.81969L10.0503 9.25176C9.80281 9.49931 9.64776 9.65438 9.47473 9.78934C9.27093 9.9483 9.05042 10.0846 8.81711 10.1958C8.61902 10.2902 8.41097 10.3595 8.07887 10.4702L6.14251 11.1156C5.78502 11.2348 5.39088 11.1418 5.12442 10.8753C4.85795 10.6088 4.76491 10.2147 4.88408 9.8572L5.52952 7.92086C5.6402 7.58874 5.70953 7.3807 5.80394 7.18261C5.91513 6.94929 6.05141 6.72878 6.21037 6.52499C6.34533 6.35195 6.50041 6.1969 6.74797 5.94937L11.18 1.51732ZM13.7753 2.22442C13.2539 1.70302 12.4085 1.70302 11.8871 2.22442L11.6361 2.4755C11.6512 2.53941 11.6724 2.61555 11.7018 2.70048C11.7974 2.97586 11.9782 3.33852 12.3197 3.68004C12.6612 4.02156 13.0239 4.20235 13.2992 4.29789C13.3842 4.32735 13.4603 4.34853 13.5242 4.36366L13.7753 4.11258C14.2967 3.59118 14.2967 2.74582 13.7753 2.22442ZM12.7364 5.15143C12.3925 5.0035 11.9918 4.76635 11.6126 4.38714C11.2334 4.00794 10.9962 3.60726 10.8483 3.26328L7.47801 6.63355C7.20034 6.91122 7.09144 7.02134 6.99888 7.14001C6.88459 7.28653 6.78661 7.44508 6.70666 7.61283C6.64192 7.74868 6.59212 7.89533 6.46794 8.26787L6.18001 9.13166L6.86805 9.8197L7.73184 9.53177C8.10439 9.40759 8.25104 9.35779 8.38689 9.29305C8.55464 9.21311 8.71318 9.11512 8.85971 9.00083C8.97837 8.90828 9.08849 8.79938 9.36617 8.5217L12.7364 5.15143Z" fill="#1E2023" />
                                     </g>
@@ -6173,9 +6297,8 @@ const Amain = () => {
                                     </defs>
                                   </svg>
                                 </button>
-                                <button className="delete-icon-btn" onClick={() => handleDeleteSubcategory(subcategory)}>
+                                <button className="delete-btn" onClick={() => handleDeleteCategory(category.id)}>
                                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    {/* Delete icon SVG - same as above but smaller */}
                                     <path fillRule="evenodd" clipRule="evenodd" d="M3.41092 5.1678C3.68645 5.14943 3.9247 5.3579 3.94307 5.63343L4.24969 10.2328C4.3096 11.1314 4.35228 11.7566 4.446 12.227C4.5369 12.6833 4.66379 12.9249 4.84606 13.0954C5.02834 13.2659 5.27777 13.3765 5.73911 13.4368C6.21471 13.499 6.84138 13.5 7.74194 13.5H8.25752C9.15808 13.5 9.78475 13.499 10.2604 13.4368C10.7217 13.3765 10.9711 13.2659 11.1534 13.0954C11.3357 12.9249 11.4626 12.6833 11.5535 12.227C11.6472 11.7566 11.6899 11.1314 11.7498 10.2328L12.0564 5.63343C12.0748 5.3579 12.313 5.14943 12.5885 5.1678C12.8641 5.18617 13.0725 5.42442 13.0542 5.69995L12.7452 10.3345C12.6882 11.1896 12.6422 11.8804 12.5342 12.4224C12.4219 12.986 12.231 13.4567 11.8366 13.8256C11.4422 14.1946 10.9598 14.3538 10.3901 14.4284C9.84203 14.5001 9.14973 14.5 8.29268 14.5H7.70679C6.84973 14.5 6.15743 14.5001 5.60941 14.4284C5.03964 14.3538 4.55727 14.1946 4.16288 13.8256C3.76848 13.4567 3.57753 12.986 3.46527 12.4224C3.35729 11.8804 3.31125 11.1896 3.25425 10.3344L2.94528 5.69995C2.92691 5.42442 3.13538 5.18617 3.41092 5.1678Z" fill="#1E2023" />
                                     <path fillRule="evenodd" clipRule="evenodd" d="M6.90324 1.50003L6.87258 1.50001C6.72832 1.49992 6.60264 1.49984 6.48396 1.51879C6.01509 1.59366 5.60936 1.8861 5.39006 2.30723C5.33456 2.41382 5.29489 2.53309 5.24935 2.66998L5.23967 2.69905L5.17495 2.89323C5.16229 2.93121 5.15876 2.94168 5.15569 2.95016C5.03894 3.2729 4.73626 3.49106 4.39316 3.49976C4.38414 3.49999 4.37309 3.50003 4.33306 3.50003H2.33301C2.05687 3.50003 1.83301 3.72388 1.83301 4.00003C1.83301 4.27617 2.05687 4.50003 2.33301 4.50003L4.33877 4.50003L4.34993 4.50003H11.6495L11.6607 4.50003L13.6664 4.50003C13.9425 4.50003 14.1664 4.27617 14.1664 4.00003C14.1664 3.72388 13.9425 3.50003 13.6664 3.50003H11.6664C11.6264 3.50003 11.6153 3.49999 11.6063 3.49976C11.2632 3.49106 10.9605 3.27289 10.8438 2.95014C10.8407 2.94172 10.8371 2.93102 10.8245 2.89323L10.7598 2.69905L10.7501 2.66996C10.7046 2.53307 10.6649 2.41382 10.6094 2.30723C10.3901 1.8861 9.98437 1.59366 9.5155 1.51879C9.39682 1.49984 9.27114 1.49992 9.12688 1.50001L9.09622 1.50003H6.90324ZM6.09606 3.29032C6.06988 3.36269 6.03945 3.43268 6.00511 3.50003H9.99435C9.96001 3.43268 9.92959 3.3627 9.90341 3.29033L9.8776 3.21477L9.8111 3.01528C9.75032 2.83294 9.73633 2.79575 9.72245 2.76909C9.64935 2.62872 9.5141 2.53124 9.35781 2.50628C9.32813 2.50154 9.28843 2.50003 9.09622 2.50003H6.90324C6.71103 2.50003 6.67133 2.50154 6.64165 2.50628C6.48536 2.53124 6.35011 2.62872 6.27701 2.76909C6.26313 2.79575 6.24914 2.83294 6.18836 3.01528L6.12182 3.21489C6.1118 3.24495 6.10401 3.26834 6.09606 3.29032Z" fill="#1E2023" />
                                   </svg>
@@ -6183,11 +6306,113 @@ const Amain = () => {
                               </div>
                             </td>
                           </tr>
-                        ))}
-                      </>
-                    ))}
+
+                          {/* Subcategories rows when expanded */}
+                          {expandedCategories.includes(category.id) && category.subcategories && category.subcategories.map(subcategory => (
+                            <tr key={`sub-${subcategory.id}`} className="subcategory-row">
+                              <td>
+                                <div className="subcategory-title-cell">
+                                  <div className="subcategory-branch"></div>
+                                  <div className="category-icon-placeholder small"></div>
+                                  <span>{subcategory.title}</span>
+                                </div>
+                              </td>
+                              <td></td>
+                              <td></td>
+                              <td>{subcategory.createdAt}</td>
+                              <td></td>
+                              <td>
+                              </td>
+                              <td>
+                                <div className="category-actions">
+                                  <button className="edit-icon-btn" onClick={() => handleEditSubcategory(subcategory)}>
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                      {/* Edit icon SVG - same as above but smaller */}
+                                      <g clipPath="url(#clip0_367_3812)">
+                                        <path fillRule="evenodd" clipRule="evenodd" d="M7.96142 0.833374L8.99967 0.833374C9.27582 0.833374 9.49967 1.05723 9.49967 1.33337C9.49967 1.60952 9.27582 1.83337 8.99967 1.83337H7.99967C6.41419 1.83337 5.27538 1.83444 4.40873 1.95095C3.55646 2.06554 3.04264 2.28347 2.66287 2.66324C2.2831 3.04301 2.06517 3.55682 1.95059 4.40909C1.83407 5.27574 1.83301 6.41456 1.83301 8.00004C1.83301 9.58552 1.83407 10.7243 1.95059 11.591C2.06517 12.4433 2.2831 12.9571 2.66287 13.3368C3.04264 13.7166 3.55646 13.9345 4.40873 14.0491C5.27538 14.1656 6.41419 14.1667 7.99967 14.1667C9.58516 14.1667 10.724 14.1656 11.5906 14.0491C12.4429 13.9345 12.9567 13.7166 13.3365 13.3368C13.7162 12.9571 13.9342 12.4433 14.0488 11.591C14.1653 10.7243 14.1663 9.58552 14.1663 8.00004V7.00004C14.1663 6.7239 14.3902 6.50004 14.6663 6.50004C14.9425 6.50004 15.1663 6.7239 15.1663 7.00004V8.03829C15.1664 9.57722 15.1664 10.7832 15.0398 11.7242C14.9104 12.6874 14.6401 13.4474 14.0436 14.044C13.447 14.6405 12.687 14.9107 11.7239 15.0402C10.7829 15.1667 9.57685 15.1667 8.03792 15.1667H7.96143C6.4225 15.1667 5.21647 15.1667 4.27548 15.0402C3.31232 14.9107 2.55231 14.6405 1.95577 14.044C1.35923 13.4474 1.089 12.6874 0.959506 11.7242C0.832993 10.7832 0.832999 9.57722 0.833008 8.03829V7.96179C0.832999 6.42286 0.832993 5.21684 0.959506 4.27584C1.089 3.31269 1.35923 2.55267 1.95577 1.95613C2.55231 1.35959 3.31232 1.08936 4.27548 0.959872C5.21647 0.833359 6.42249 0.833366 7.96142 0.833374ZM11.18 1.51732C12.092 0.605393 13.5705 0.605393 14.4824 1.51732C15.3943 2.42924 15.3943 3.90776 14.4824 4.81969L10.0503 9.25176C9.80281 9.49931 9.64776 9.65438 9.47473 9.78934C9.27093 9.9483 9.05042 10.0846 8.81711 10.1958C8.61902 10.2902 8.41097 10.3595 8.07887 10.4702L6.14251 11.1156C5.78502 11.2348 5.39088 11.1418 5.12442 10.8753C4.85795 10.6088 4.76491 10.2147 4.88408 9.8572L5.52952 7.92086C5.6402 7.58874 5.70953 7.3807 5.80394 7.18261C5.91513 6.94929 6.05141 6.72878 6.21037 6.52499C6.34533 6.35195 6.50041 6.1969 6.74797 5.94937L11.18 1.51732ZM13.7753 2.22442C13.2539 1.70302 12.4085 1.70302 11.8871 2.22442L11.6361 2.4755C11.6512 2.53941 11.6724 2.61555 11.7018 2.70048C11.7974 2.97586 11.9782 3.33852 12.3197 3.68004C12.6612 4.02156 13.0239 4.20235 13.2992 4.29789C13.3842 4.32735 13.4603 4.34853 13.5242 4.36366L13.7753 4.11258C14.2967 3.59118 14.2967 2.74582 13.7753 2.22442ZM12.7364 5.15143C12.3925 5.0035 11.9918 4.76635 11.6126 4.38714C11.2334 4.00794 10.9962 3.60726 10.8483 3.26328L7.47801 6.63355C7.20034 6.91122 7.09144 7.02134 6.99888 7.14001C6.88459 7.28653 6.78661 7.44508 6.70666 7.61283C6.64192 7.74868 6.59212 7.89533 6.46794 8.26787L6.18001 9.13166L6.86805 9.8197L7.73184 9.53177C8.10439 9.40759 8.25104 9.35779 8.38689 9.29305C8.55464 9.21311 8.71318 9.11512 8.85971 9.00083C8.97837 8.90828 9.08849 8.79938 9.36617 8.5217L12.7364 5.15143Z" fill="#1E2023" />
+                                      </g>
+                                      <defs>
+                                        <clipPath id="clip0_367_3812">
+                                          <rect width="16" height="16" fill="white" />
+                                        </clipPath>
+                                      </defs>
+                                    </svg>
+                                  </button>
+                                  <button className="delete-icon-btn" onClick={() => handleDeleteSubcategory(subcategory)}>
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                      {/* Delete icon SVG - same as above but smaller */}
+                                      <path fillRule="evenodd" clipRule="evenodd" d="M3.41092 5.1678C3.68645 5.14943 3.9247 5.3579 3.94307 5.63343L4.24969 10.2328C4.3096 11.1314 4.35228 11.7566 4.446 12.227C4.5369 12.6833 4.66379 12.9249 4.84606 13.0954C5.02834 13.2659 5.27777 13.3765 5.73911 13.4368C6.21471 13.499 6.84138 13.5 7.74194 13.5H8.25752C9.15808 13.5 9.78475 13.499 10.2604 13.4368C10.7217 13.3765 10.9711 13.2659 11.1534 13.0954C11.3357 12.9249 11.4626 12.6833 11.5535 12.227C11.6472 11.7566 11.6899 11.1314 11.7498 10.2328L12.0564 5.63343C12.0748 5.3579 12.313 5.14943 12.5885 5.1678C12.8641 5.18617 13.0725 5.42442 13.0542 5.69995L12.7452 10.3345C12.6882 11.1896 12.6422 11.8804 12.5342 12.4224C12.4219 12.986 12.231 13.4567 11.8366 13.8256C11.4422 14.1946 10.9598 14.3538 10.3901 14.4284C9.84203 14.5001 9.14973 14.5 8.29268 14.5H7.70679C6.84973 14.5 6.15743 14.5001 5.60941 14.4284C5.03964 14.3538 4.55727 14.1946 4.16288 13.8256C3.76848 13.4567 3.57753 12.986 3.46527 12.4224C3.35729 11.8804 3.31125 11.1896 3.25425 10.3344L2.94528 5.69995C2.92691 5.42442 3.13538 5.18617 3.41092 5.1678Z" fill="#1E2023" />
+                                      <path fillRule="evenodd" clipRule="evenodd" d="M6.90324 1.50003L6.87258 1.50001C6.72832 1.49992 6.60264 1.49984 6.48396 1.51879C6.01509 1.59366 5.60936 1.8861 5.39006 2.30723C5.33456 2.41382 5.29489 2.53309 5.24935 2.66998L5.23967 2.69905L5.17495 2.89323C5.16229 2.93121 5.15876 2.94168 5.15569 2.95016C5.03894 3.2729 4.73626 3.49106 4.39316 3.49976C4.38414 3.49999 4.37309 3.50003 4.33306 3.50003H2.33301C2.05687 3.50003 1.83301 3.72388 1.83301 4.00003C1.83301 4.27617 2.05687 4.50003 2.33301 4.50003L4.33877 4.50003L4.34993 4.50003H11.6495L11.6607 4.50003L13.6664 4.50003C13.9425 4.50003 14.1664 4.27617 14.1664 4.00003C14.1664 3.72388 13.9425 3.50003 13.6664 3.50003H11.6664C11.6264 3.50003 11.6153 3.49999 11.6063 3.49976C11.2632 3.49106 10.9605 3.27289 10.8438 2.95014C10.8407 2.94172 10.8371 2.93102 10.8245 2.89323L10.7598 2.69905L10.7501 2.66996C10.7046 2.53307 10.6649 2.41382 10.6094 2.30723C10.3901 1.8861 9.98437 1.59366 9.5155 1.51879C9.39682 1.49984 9.27114 1.49992 9.12688 1.50001L9.09622 1.50003H6.90324ZM6.09606 3.29032C6.06988 3.36269 6.03945 3.43268 6.00511 3.50003H9.99435C9.96001 3.43268 9.92959 3.3627 9.90341 3.29033L9.8776 3.21477L9.8111 3.01528C9.75032 2.83294 9.73633 2.79575 9.72245 2.76909C9.64935 2.62872 9.5141 2.53124 9.35781 2.50628C9.32813 2.50154 9.28843 2.50003 9.09622 2.50003H6.90324C6.71103 2.50003 6.67133 2.50154 6.64165 2.50628C6.48536 2.53124 6.35011 2.62872 6.27701 2.76909C6.26313 2.79575 6.24914 2.83294 6.18836 3.01528L6.12182 3.21489C6.1118 3.24495 6.10401 3.26834 6.09606 3.29032Z" fill="#1E2023" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </>
+                      ))}
                   </tbody>
                 </table>
+                {/* Pagination Controls for Categories */}
+                <div className="pagination-container">
+                  <div className="pagination-controls">
+                    <div className="btc">
+                      <button
+                        className={`pagination-btn ${categoryCurrentPage === 1 ? 'disabled' : ''}`}
+                        onClick={() => handleCategoryPageChange(1)}
+                        disabled={categoryCurrentPage === 1}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(180deg)' }}>
+                          <path fillRule="evenodd" clipRule="evenodd" d="M11.6584 2.95363C11.4487 2.77392 11.1331 2.7982 10.9534 3.00787L6.95337 7.67453C6.79287 7.86178 6.79287 8.13808 6.95337 8.32532L10.9534 12.992C11.1331 13.2017 11.4487 13.2259 11.6584 13.0462C11.8681 12.8665 11.8923 12.5509 11.7126 12.3412L7.99154 7.99993L11.7126 3.65866C11.8923 3.44899 11.8681 3.13334 11.6584 2.95363ZM8.9916 2.9537C8.78193 2.77399 8.46628 2.79827 8.28657 3.00793L4.28657 7.6746C4.12608 7.86185 4.12608 8.13815 4.28657 8.32539L8.28657 12.9921C8.46628 13.2017 8.78193 13.226 8.9916 13.0463C9.20126 12.8666 9.22554 12.5509 9.04583 12.3413L5.32474 8L9.04583 3.65873C9.22554 3.44906 9.20126 3.13341 8.9916 2.9537Z" fill={categoryCurrentPage === 1 ? "#C5C5C5" : "#0F71EF"} />
+                        </svg>
+                      </button>
+
+                      <button
+                        className={`pagination-btn ${categoryCurrentPage === 1 ? 'disabled' : ''}`}
+                        onClick={() => handleCategoryPageChange(categoryCurrentPage - 1)}
+                        disabled={categoryCurrentPage === 1}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(180deg)' }}>
+                          <path fillRule="evenodd" clipRule="evenodd" d="M10.3254 2.95375C10.1157 2.77404 9.80007 2.79832 9.62036 3.00799L5.62036 7.67465C5.45987 7.8619 5.45987 8.1382 5.62036 8.32544L9.62036 12.9921C9.80007 13.2018 10.1157 13.2261 10.3254 13.0463C10.535 12.8666 10.5593 12.551 10.3796 12.3413L6.65853 8.00005L10.3796 3.65878C10.5593 3.44912 10.535 3.13347 10.3254 2.95375Z" fill={categoryCurrentPage === 1 ? "#C5C5C5" : "#0F71EF"} />
+                        </svg>
+                      </button>
+                    </div>
+
+                    <div className="page-numbers">
+                      {getCategoryPageNumbers().map(page => (
+                        <button
+                          key={page}
+                          className={`page-number ${categoryCurrentPage === page ? 'active' : ''}`}
+                          onClick={() => handleCategoryPageChange(page)}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="btc">
+                      <button
+                        className={`pagination-btn ${categoryCurrentPage === Math.ceil(filteredCategories.length / categoryItemsPerPage) ? 'disabled' : ''}`}
+                        onClick={() => handleCategoryPageChange(categoryCurrentPage + 1)}
+                        disabled={categoryCurrentPage === Math.ceil(filteredCategories.length / categoryItemsPerPage)}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path fillRule="evenodd" clipRule="evenodd" d="M10.3254 2.95375C10.1157 2.77404 9.80007 2.79832 9.62036 3.00799L5.62036 7.67465C5.45987 7.8619 5.45987 8.1382 5.62036 8.32544L9.62036 12.9921C9.80007 13.2018 10.1157 13.2261 10.3254 13.0463C10.535 12.8666 10.5593 12.551 10.3796 12.3413L6.65853 8.00005L10.3796 3.65878C10.5593 3.44912 10.535 3.13347 10.3254 2.95375Z" fill={categoryCurrentPage === Math.ceil(filteredCategories.length / categoryItemsPerPage) ? "#C5C5C5" : "#0F71EF"} />
+                        </svg>
+                      </button>
+
+                      <button
+                        className={`pagination-btn ${categoryCurrentPage === Math.ceil(filteredCategories.length / categoryItemsPerPage) ? 'disabled' : ''}`}
+                        onClick={() => handleCategoryPageChange(Math.ceil(filteredCategories.length / categoryItemsPerPage))}
+                        disabled={categoryCurrentPage === Math.ceil(filteredCategories.length / categoryItemsPerPage)}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path fillRule="evenodd" clipRule="evenodd" d="M11.6584 2.95363C11.4487 2.77392 11.1331 2.7982 10.9534 3.00787L6.95337 7.67453C6.79287 7.86178 6.79287 8.13808 6.95337 8.32532L10.9534 12.992C11.1331 13.2017 11.4487 13.2259 11.6584 13.0462C11.8681 12.8665 11.8923 12.5509 11.7126 12.3412L7.99154 7.99993L11.7126 3.65866C11.8923 3.44899 11.8681 3.13334 11.6584 2.95363ZM8.9916 2.9537C8.78193 2.77399 8.46628 2.79827 8.28657 3.00793L4.28657 7.6746C4.12608 7.86185 4.12608 8.13815 4.28657 8.32539L8.28657 12.9921C8.46628 13.2017 8.78193 13.226 8.9916 13.0463C9.20126 12.8666 9.22554 12.5509 9.04583 12.3413L5.32474 8L9.04583 3.65873C9.22554 3.44906 9.20126 3.13341 8.9916 2.9537Z" fill={categoryCurrentPage === Math.ceil(filteredCategories.length / categoryItemsPerPage) ? "#C5C5C5" : "#0F71EF"} />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           ) : activeMenu === 'mapmanage' ? (
@@ -6263,7 +6488,7 @@ const Amain = () => {
                           </svg>
                         </button>
                         <button className="sub-btn">
-                        <svg width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.354 13.646l2.853 2.854-2.854 2.854-.707-.707L21.293 17H17v4.293l1.646-1.646.707.707-2.853 2.853-2.854-2.854.707-.707L16 21.293V17h-4.293l1.646 1.646-.707.707L9.793 16.5l2.854-2.854.707.707L11.707 16H16v-4.293l-1.646 1.646-.707-.707L16.5 9.793l2.854 2.854-.707.707L17 11.707V16h4.293l-1.646-1.646zM9 6H6.537L2.468 18l-.947-.321L5.48 6H4V1h5v2h9v1H9zM8 5V2H5v3z"/><path fill="none" d="M0 0h24v24H0z"/></svg>
+                          <svg width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.354 13.646l2.853 2.854-2.854 2.854-.707-.707L21.293 17H17v4.293l1.646-1.646.707.707-2.853 2.853-2.854-2.854.707-.707L16 21.293V17h-4.293l1.646 1.646-.707.707L9.793 16.5l2.854-2.854.707.707L11.707 16H16v-4.293l-1.646 1.646-.707-.707L16.5 9.793l2.854 2.854-.707.707L17 11.707V16h4.293l-1.646-1.646zM9 6H6.537L2.468 18l-.947-.321L5.48 6H4V1h5v2h9v1H9zM8 5V2H5v3z" /><path fill="none" d="M0 0h24v24H0z" /></svg>
                         </button>
                         <button className="sub-btn">
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
@@ -6350,7 +6575,7 @@ const Amain = () => {
                     {openSubMenu === 3 && (
                       <div className="sub-buttons3">
                         <button className="sub-btn">
-                        <svg width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.354 13.646l2.853 2.854-2.854 2.854-.707-.707L21.293 17H17v4.293l1.646-1.646.707.707-2.853 2.853-2.854-2.854.707-.707L16 21.293V17h-4.293l1.646 1.646-.707.707L9.793 16.5l2.854-2.854.707.707L11.707 16H16v-4.293l-1.646 1.646-.707-.707L16.5 9.793l2.854 2.854-.707.707L17 11.707V16h4.293l-1.646-1.646zM9 6H6.537L2.468 18l-.947-.321L5.48 6H4V1h5v2h9v1H9zM8 5V2H5v3z"/><path fill="none" d="M0 0h24v24H0z"/></svg>
+                          <svg width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.354 13.646l2.853 2.854-2.854 2.854-.707-.707L21.293 17H17v4.293l1.646-1.646.707.707-2.853 2.853-2.854-2.854.707-.707L16 21.293V17h-4.293l1.646 1.646-.707.707L9.793 16.5l2.854-2.854.707.707L11.707 16H16v-4.293l-1.646 1.646-.707-.707L16.5 9.793l2.854 2.854-.707.707L17 11.707V16h4.293l-1.646-1.646zM9 6H6.537L2.468 18l-.947-.321L5.48 6H4V1h5v2h9v1H9zM8 5V2H5v3z" /><path fill="none" d="M0 0h24v24H0z" /></svg>
                         </button>
                         <button className="sub-btn">
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
@@ -7833,17 +8058,33 @@ const Amain = () => {
             </div>
 
             <div className="modal-content">
-
               <div className="form-group">
                 <label className="form-label">اطلاعات اولیه دسته بندی</label>
+
+                {/* Title with language button */}
                 <div className="section-title8">عنوان</div>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={editCategoryData.title}
-                  onChange={(e) => setEditCategoryData({ ...editCategoryData, title: e.target.value })}
-                  placeholder="عنوان دسته بندی"
-                />
+                <div className="title-input-with-language7">
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editCategoryData.title}
+                    onChange={(e) => setEditCategoryData({ ...editCategoryData, title: e.target.value })}
+                    placeholder="عنوان دسته بندی (فارسی)"
+                  />
+                  <button
+                    className="language-input-btn12"
+                    type="button"
+                    onClick={() => setIsEditCategoryTitleLanguageModalOpen(true)}
+                    title="ورود عنوان به زبان‌های دیگر"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10 18.3333C14.6024 18.3333 18.3333 14.6024 18.3333 10C18.3333 5.39763 14.6024 1.66667 10 1.66667C5.39763 1.66667 1.66667 5.39763 1.66667 10C1.66667 14.6024 5.39763 18.3333 10 18.3333Z" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M6.66699 2.5H7.50033C6.242 6.83667 6.242 13.1633 7.50033 17.5H6.66699" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M12.5 2.5C13.7583 6.83667 13.7583 13.1633 12.5 17.5" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </div>
+
                 <div className="section-title8">توضیحات دسته بندی</div>
                 <textarea
                   className="form-textarea"
@@ -7852,13 +8093,28 @@ const Amain = () => {
                   placeholder=" توضیحات خودتان را وارد کنید"
                   rows="4"
                 />
+
+                {/* Icon upload with preview */}
                 <div className="icon-upload-section">
                   <div className="section-title8"> نماد و تصویر</div>
                   <div className="icon-upload-container">
                     <div className="icon-preview">
                       {editCategoryData.icon ? (
                         <div className="icon-preview-image">
-                          <span>تصویر آپلود شده</span>
+                          <img
+                            src={typeof editCategoryData.icon === 'string' ? editCategoryData.icon : URL.createObjectURL(editCategoryData.icon)}
+                            alt="آیکون دسته بندی"
+                            className="icon-preview-img"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              const parent = e.target.parentElement;
+                              const fallback = parent.querySelector('.icon-preview-fallback');
+                              if (fallback) fallback.style.display = 'flex';
+                            }}
+                          />
+                          <div className="icon-preview-fallback" style={{ display: 'none' }}>
+                            <span>تصویر آپلود شده</span>
+                          </div>
                         </div>
                       ) : (
                         <div className="icon-placeholder">
@@ -7877,9 +8133,9 @@ const Amain = () => {
                         className="hidden-file-input"
                       />
                       <label htmlFor="icon-upload" className="upload-icon-btn">
-                        {isIconUploaded ? 'تغییر نماد' : 'ایجاد نماد'}
+                        {editCategoryData.icon ? 'تغییر نماد' : 'ایجاد نماد'}
                       </label>
-                      {isIconUploaded && (
+                      {editCategoryData.icon && (
                         <button
                           className="remove-icon-btn"
                           onClick={() => {
@@ -7895,22 +8151,38 @@ const Amain = () => {
                 </div>
               </div>
 
-              <div className="form-group">زیر گروه‌های دسته بندی</div>
+              {/* NEW Subgroup section with count and buttons */}
+              <div className="subcategory-management-section">
+                <div className="section-title8">زیرگروه‌های دسته بندی</div>
 
-              <div className="subcategory-section">
-                <div className="subcategory-actions">
-                  <button
-                    className="add-subcategory-btn"
-                    onClick={handleAddSubcategoryInModal}
-                  >
-                    ایجاد زیر گروه
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M10 4.16669V15.8334M4.16667 10H15.8333" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                    </svg>
-                  </button>
-                  <button className="view-subcategories-btn">
-                    مشاهده زیر گروه‌ها
-                  </button>
+                <div className="subgroup-stats-container">
+                  <div className="subgroup-count-display">
+                    <div className="subgroup-count-label">تعداد زیرگروه‌ها : </div>
+                    <div className="subgroup-count-number">
+                      {categories.find(cat => cat.id === editingCategoryId)?.numSubcategories || 0}
+                    </div>
+                  </div>
+
+                  <div className="subgroup-actions-container">
+                    {/* + Button for adding new subcategory */}
+                    <button
+                      className="add-subgroup-btn-small"
+                      onClick={handleAddSubcategoryInModal}
+                      title="افزودن زیرگروه جدید"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path fillRule="evenodd" clipRule="evenodd" d="M10.0003 18.3334C14.6027 18.3334 18.3337 14.6024 18.3337 10C18.3337 5.39765 14.6027 1.66669 10.0003 1.66669C5.39795 1.66669 1.66699 5.39765 1.66699 10C1.66699 14.6024 5.39795 18.3334 10.0003 18.3334ZM10.6253 7.50002C10.6253 7.15484 10.3455 6.87502 10.0003 6.87502C9.65515 6.87502 9.37533 7.15484 9.37533 7.50002L9.37532 9.37504H7.50033C7.15515 9.37504 6.87533 9.65486 6.87533 10C6.87533 10.3452 7.15515 10.625 7.50033 10.625H9.37532V12.5C9.37532 12.8452 9.65515 13.125 10.0003 13.125C10.3455 13.125 10.6253 12.8452 10.6253 12.5L10.6253 10.625H12.5003C12.8455 10.625 13.1253 10.3452 13.1253 10C13.1253 9.65486 12.8455 9.37504 12.5003 9.37504H10.6253V7.50002Z" fill="#139B3C" />
+                      </svg>
+                    </button>
+
+                    {/* Button to view all subcategories */}
+                    <button
+                      className="view-all-subgroups-btn"
+                      onClick={() => setShowSubcategoriesModal(true)}
+                    >
+                      <span>مشاهده همه</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -7966,16 +8238,7 @@ const Amain = () => {
         <div className="modal-overlay">
           <div className="delete-confirmation-modal">
             <div className="modal-header">
-              <h3>حذف دسته بندی</h3>
-              <button className="close-modal-btn" onClick={() => setIsDeleteModalOpen(false)}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M18 6L6 18M6 6L18 18" stroke="#1E2023" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="modal-content">
-              <p>آیا از حذف این دسته بندی اطمینان دارید؟ این عمل قابل بازگشت نیست.</p>
+              <p>آیا از حذف این اطلاعات فرهنگی اطمینان دارید؟</p>
             </div>
 
             <div className="modal-footer">
@@ -8004,57 +8267,140 @@ const Amain = () => {
             </div>
 
             <div className="modal-content">
-
               <div className="form-group">
-                <label className="form-label"> اطلاعات اولیه دسته بندی </label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder=" عنوان دسته بندی را بنویسید"
-                  value={newCategory.title}
-                  onChange={(e) => setNewCategory({ ...newCategory, title: e.target.value })}
-                />
+                <label className="form-label">اطلاعات اولیه دسته بندی</label>
+
+                {/* Title input with language button */}
+                <div className="title-input-with-language">
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="عنوان دسته بندی را بنویسید (فارسی)"
+                    value={newCategory.title}
+                    onChange={(e) => setNewCategory({ ...newCategory, title: e.target.value })}
+                  />
+                  <button
+                    className="language-input-btn3"
+                    type="button"
+                    onClick={() => setIsCategoryTitleLanguageModalOpen(true)}
+                    title="ورود عنوان به زبان‌های دیگر"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10 18.3333C14.6024 18.3333 18.3333 14.6024 18.3333 10C18.3333 5.39763 14.6024 1.66667 10 1.66667C5.39763 1.66667 1.66667 5.39763 1.66667 10C1.66667 14.6024 5.39763 18.3333 10 18.3333Z" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M6.66699 2.5H7.50033C6.242 6.83667 6.242 13.1633 7.50033 17.5H6.66699" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M12.5 2.5C13.7583 6.83667 13.7583 13.1633 12.5 17.5" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </div>
+
                 <textarea
                   className="form-textarea"
-                  placeholder=" توضیحات دسته بندی را بنویسید"
+                  placeholder="توضیحات دسته بندی را بنویسید"
                   value={newCategory.description}
                   onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
                   rows="3"
                 />
+
+                {/* Icon upload section with preview */}
                 <div className="icon-upload-section-simple">
-                  <input
-                    type="file"
-                    id="new-icon-upload"
-                    accept="image/jpeg,image/png"
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
-                          alert('فقط فایل‌های JPEG و PNG مجاز هستند');
-                          return;
-                        }
-                        if (file.size > 2 * 1024 * 1024) {
-                          alert('حجم فایل نباید بیشتر از ۲ مگابایت باشد');
-                          return;
-                        }
-                        setNewCategory({ ...newCategory, image: file });
-                      }
-                    }}
-                    className="hidden-file-input"
-                  />
-                  <label htmlFor="new-icon-upload" className="select-icon-btn">
-                    انتخاب نماد
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M16.6667 11.6667H11.6667V16.6667H8.33333V11.6667H3.33333V8.33333H8.33333V3.33333H11.6667V8.33333H16.6667V11.6667Z" fill="white" />
-                    </svg>
-                  </label>
+                  <div className="icon-upload-preview-container">
+                    {newCategory.image ? (
+                      <div className="icon-preview-wrapper">
+                        <img
+                          src={typeof newCategory.image === 'string' ? newCategory.image : URL.createObjectURL(newCategory.image)}
+                          alt="آیکون دسته بندی"
+                          className="icon-preview"
+                        />
+                        <button
+                          className="remove-icon-btn"
+                          onClick={() => setNewCategory({ ...newCategory, image: null })}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 4L4 12M4 4L12 12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <input
+                          type="file"
+                          id="new-icon-upload"
+                          accept="image/jpeg,image/png"
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
+                                alert('فقط فایل‌های JPEG و PNG مجاز هستند');
+                                return;
+                              }
+                              if (file.size > 2 * 1024 * 1024) {
+                                alert('حجم فایل نباید بیشتر از ۲ مگابایت باشد');
+                                return;
+                              }
+                              setNewCategory({ ...newCategory, image: file });
+                            }
+                            e.target.value = ''; // Reset input
+                          }}
+                          className="hidden-file-input"
+                        />
+                        <label htmlFor="new-icon-upload" className="select-icon-btn">
+                          انتخاب نماد
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M16.6667 11.6667H11.6667V16.6667H8.33333V11.6667H3.33333V8.33333H8.33333V3.33333H11.6667V8.33333H16.6667V11.6667Z" fill="white" />
+                          </svg>
+                        </label>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
-              <input
-                type="text"
-                className="form-input"
-                placeholder=" برای دسته بندی زیر گروه ایجاد یا انتخاب کنید "
-              />
+
+              {/* Subcategory input field with plus button */}
+              <div className="subcategory-input-section">
+                <div className="subcategory-input-with-add">
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="برای دسته بندی زیر گروه ایجاد کنید"
+                    value={newCategory.subcategoryInput || ''}
+                    onChange={(e) => setNewCategory({ ...newCategory, subcategoryInput: e.target.value })}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && newCategory.subcategoryInput?.trim()) {
+                        handleAddSubcategoryToNew();
+                      }
+                    }}
+                  />
+                  <button
+                    className="add-subcategory-btn2"
+                    onClick={() => newCategory.subcategoryInput?.trim() && handleAddSubcategoryToNew()}
+                    disabled={!newCategory.subcategoryInput?.trim()}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path fillRule="evenodd" clipRule="evenodd" d="M10.0003 18.3334C14.6027 18.3334 18.3337 14.6024 18.3337 10C18.3337 5.39765 14.6027 1.66669 10.0003 1.66669C5.39795 1.66669 1.66699 5.39765 1.66699 10C1.66699 14.6024 5.39795 18.3334 10.0003 18.3334ZM10.6253 7.50002C10.6253 7.15484 10.3455 6.87502 10.0003 6.87502C9.65515 6.87502 9.37533 7.15484 9.37533 7.50002L9.37532 9.37504H7.50033C7.15515 9.37504 6.87533 9.65486 6.87533 10C6.87533 10.3452 7.15515 10.625 7.50033 10.625H9.37532V12.5C9.37532 12.8452 9.65515 13.125 10.0003 13.125C10.3455 13.125 10.6253 12.8452 10.6253 12.5L10.6253 10.625H12.5003C12.8455 10.625 13.1253 10.3452 13.1253 10C13.1253 9.65486 12.8455 9.37504 12.5003 9.37504H10.6253V7.50002Z" fill="#139B3C" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Display added subcategories */}
+                {newCategory.subcategories && newCategory.subcategories.length > 0 && (
+                  <div className="subcategories-list">
+                    <div className="subcategories-label">زیرگروه‌های اضافه شده : </div>
+                    {newCategory.subcategories.map((subcat, index) => (
+                      <div key={index} className="subcategory-item">
+                        <span>{subcat.title}</span>
+                        <button
+                          className="remove-subcategory-btn"
+                          onClick={() => handleRemoveSubcategoryFromNew(index)}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 4L12 12M4 12L12 4" stroke="#EA4335" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="modal-footer">
@@ -8069,14 +8415,10 @@ const Amain = () => {
               </button>
               <button
                 className="confirm-btn"
-                onClick={() => {
-                  setIsCreateCategoryModalOpen(false);
-                  resetCategoryForm();
-                  handleCreateCategory
-                }}
+                onClick={handleCreateCategory}
                 disabled={!newCategory.title.trim()}
               >
-                تایید و ویرایش
+                تایید و ایجاد
               </button>
             </div>
           </div>
@@ -8087,17 +8429,9 @@ const Amain = () => {
         <div className="modal-overlay">
           <div className="delete-confirmation-modal">
             <div className="modal-header">
-              <h3>حذف اطلاعات فرهنگی</h3>
-              <button className="close-modal-btn" onClick={() => setIsDeleteCulturalModalOpen(false)}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M18 6L6 18M6 6L18 18" stroke="#1E2023" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
+              <p>آیا از حذف این اطلاعات فرهنگی اطمینان دارید؟</p>
             </div>
 
-            <div className="modal-content">
-              <p>آیا از حذف این اطلاعات فرهنگی اطمینان دارید؟ این عمل قابل بازگشت نیست.</p>
-            </div>
 
             <div className="modal-footer">
               <button
@@ -10291,6 +10625,211 @@ const Amain = () => {
                 }
               >
                 تایید و افزودن محدودیت
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Language Titles Modal for Category */}
+      {isCategoryTitleLanguageModalOpen && (
+        <div className="modal-overlay">
+          <div className="language-titles-modal">
+            <div className="modal-header">
+              <h3>ورود عنوان دسته بندی به زبان‌های دیگر</h3>
+            </div>
+
+            <div className="modal-content">
+              <div className="language-input-group">
+                <label>انگلیسی</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Title in English"
+                  value={categoryLanguageTitles.english}
+                  onChange={(e) => setCategoryLanguageTitles(prev => ({
+                    ...prev,
+                    english: e.target.value
+                  }))}
+                />
+              </div>
+
+              <div className="language-input-group">
+                <label>عربی</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="العنوان بالعربیة"
+                  value={categoryLanguageTitles.arabic}
+                  onChange={(e) => setCategoryLanguageTitles(prev => ({
+                    ...prev,
+                    arabic: e.target.value
+                  }))}
+                />
+              </div>
+
+              <div className="language-input-group">
+                <label>اردو</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="اردو میں عنوان"
+                  value={categoryLanguageTitles.urdu}
+                  onChange={(e) => setCategoryLanguageTitles(prev => ({
+                    ...prev,
+                    urdu: e.target.value
+                  }))}
+                />
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="cancel-btn"
+                onClick={() => setIsCategoryTitleLanguageModalOpen(false)}
+              >
+                انصراف
+              </button>
+              <button
+                className="confirm-btn"
+                onClick={() => setIsCategoryTitleLanguageModalOpen(false)}
+              >
+                تایید
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Language Titles Modal for Edit Category */}
+      {isEditCategoryTitleLanguageModalOpen && (
+        <div className="modal-overlay">
+          <div className="language-titles-modal">
+            <div className="modal-header">
+              <h3>ویرایش عنوان دسته بندی به زبان‌های دیگر</h3>
+            </div>
+
+            <div className="modal-content">
+              <div className="language-input-group">
+                <label>انگلیسی</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Title in English"
+                  value={editCategoryLanguageTitles.english}
+                  onChange={(e) => setEditCategoryLanguageTitles(prev => ({
+                    ...prev,
+                    english: e.target.value
+                  }))}
+                />
+              </div>
+
+              <div className="language-input-group">
+                <label>عربی</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="العنوان بالعربیة"
+                  value={editCategoryLanguageTitles.arabic}
+                  onChange={(e) => setEditCategoryLanguageTitles(prev => ({
+                    ...prev,
+                    arabic: e.target.value
+                  }))}
+                />
+              </div>
+
+              <div className="language-input-group">
+                <label>اردو</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="اردو میں عنوان"
+                  value={editCategoryLanguageTitles.urdu}
+                  onChange={(e) => setEditCategoryLanguageTitles(prev => ({
+                    ...prev,
+                    urdu: e.target.value
+                  }))}
+                />
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="cancel-btn"
+                onClick={() => setIsEditCategoryTitleLanguageModalOpen(false)}
+              >
+                انصراف
+              </button>
+              <button
+                className="confirm-btn"
+                onClick={() => setIsEditCategoryTitleLanguageModalOpen(false)}
+              >
+                تایید
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Subcategories List Modal */}
+      {showSubcategoriesModal && (
+        <div className="modal-overlay">
+          <div className="subcategories-list-modal">
+            <div className="modal-header">
+              <h3>لیست زیرگروه‌های دسته بندی</h3>
+            </div>
+
+            <div className="modal-content">
+              <div className="subcategories-table-container">
+                <table className="subcategories-table">
+                  <thead>
+                    <tr>
+                      <th>عنوان زیرگروه</th>
+                      <th>تاریخ ایجاد</th>
+                      <th>عملیات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {categories.find(cat => cat.id === editingCategoryId)?.subcategories?.map(subcategory => (
+                      <tr key={subcategory.id}>
+                        <td>
+                          <div className="subcategory-title-cell5">
+                            <span>{subcategory.title}</span>
+                          </div>
+                        </td>
+                        <td>{subcategory.createdAt}</td>
+                        <td>
+                          <div className="subcategory-actions">
+                            <button
+                              className="edit-subcategory-btn"
+                              onClick={() => handleEditSubcategory(subcategory)}
+                            >
+                              ویرایش
+                            </button>
+                            <button
+                              className="delete-subcategory-btn"
+                              onClick={() => handleDeleteSubcategory(subcategory)}
+                            >
+                              حذف
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )) || (
+                        <tr>
+                          <td colSpan="4" className="no-subcategories">
+                            هیچ زیرگروهی برای این دسته بندی وجود ندارد.
+                          </td>
+                        </tr>
+                      )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="cancel-btn"
+                onClick={() => setShowSubcategoriesModal(false)}
+              >
+                بستن
               </button>
             </div>
           </div>
