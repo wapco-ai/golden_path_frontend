@@ -1975,9 +1975,6 @@ const Amain = () => {
       el.style.cursor = 'pointer';
       el.style.width = '24px';
       el.style.height = '41px';
-
-      el.style.transform = 'translate(-50%, -100%)';
-
       return el;
     };
 
@@ -1987,7 +1984,8 @@ const Amain = () => {
     if (selectedLocation) {
       console.log('Adding marker at:', selectedLocation);
       marker = new maplibregl.Marker({
-        element: createRedMarker()  // Use custom red marker
+        element: createRedMarker(),  // Use custom red marker
+        anchor: 'bottom'
       })
         .setLngLat([selectedLocation.lng, selectedLocation.lat])
         .addTo(mapInstance);
@@ -2008,7 +2006,8 @@ const Amain = () => {
 
       // Create new marker at clicked location WITH CUSTOM RED MARKER
       marker = new maplibregl.Marker({
-        element: createRedMarker()  // Use custom red marker
+        element: createRedMarker(),  // Use custom red marker
+        anchor: 'bottom'
       })
         .setLngLat([coordinates.lng, coordinates.lat])
         .addTo(mapInstance);
