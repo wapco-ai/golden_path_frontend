@@ -231,6 +231,8 @@ const Amain = () => {
         id: layer.id,
         sourceId: layer.sourceId,
         label: layer.titleFa || layer.id,
+        titleFa: layer.titleFa,
+        type: layer.type,
         highlightColor: settings.highlightColor || '#3b82f6',
         isEditable: settings.enabled !== false,
         requiredPermission: settings.requiredPermission || null
@@ -326,6 +328,10 @@ const Amain = () => {
     || selectedFeatureProperties?.id;
   const selectedDoorAccessPointId = selectedFeatureProperties?.id;
   const showDoorTools = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && !!selectedDoorId && !!selectedEditableFeature;
+  const isActiveLayerPointBased = useMemo(
+    () => activeEditableLayer?.type === 'circle' || activeEditableLayer?.type === 'symbol',
+    [activeEditableLayer]
+  );
   const [lastCreatedDoorId, setLastCreatedDoorId] = useState(null);
   const [lastCreatedAccessPointId, setLastCreatedAccessPointId] = useState(null);
   const [isSavingDoorInfo, setIsSavingDoorInfo] = useState(false);
@@ -7141,29 +7147,31 @@ const Amain = () => {
                           </div>
                         </div>
 
-                        <div className="location-type-section">
-                          <div className="location-type-label">مسقف بودن محدوده</div>
-                          <div className="location-type-options">
-                            <div
-                              className={`location-type-option ${isPlaceCovered === true ? 'selected' : ''}`}
-                              onClick={() => setIsPlaceCovered(true)}
-                            >
-                              <div className="location-type-radio">
-                                {isPlaceCovered === true && <div className="location-type-radio-dot"></div>}
+                        {!isActiveLayerPointBased && (
+                          <div className="location-type-section">
+                            <div className="location-type-label">مسقف بودن محدوده</div>
+                            <div className="location-type-options">
+                              <div
+                                className={`location-type-option ${isPlaceCovered === true ? 'selected' : ''}`}
+                                onClick={() => setIsPlaceCovered(true)}
+                              >
+                                <div className="location-type-radio">
+                                  {isPlaceCovered === true && <div className="location-type-radio-dot"></div>}
+                                </div>
+                                <span>مسقف</span>
                               </div>
-                              <span>مسقف</span>
-                            </div>
-                            <div
-                              className={`location-type-option ${isPlaceCovered === false ? 'selected' : ''}`}
-                              onClick={() => setIsPlaceCovered(false)}
-                            >
-                              <div className="location-type-radio">
-                                {isPlaceCovered === false && <div className="location-type-radio-dot"></div>}
+                              <div
+                                className={`location-type-option ${isPlaceCovered === false ? 'selected' : ''}`}
+                                onClick={() => setIsPlaceCovered(false)}
+                              >
+                                <div className="location-type-radio">
+                                  {isPlaceCovered === false && <div className="location-type-radio-dot"></div>}
+                                </div>
+                                <span>غیر مسقف</span>
                               </div>
-                              <span>غیر مسقف</span>
                             </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     </div>
 
