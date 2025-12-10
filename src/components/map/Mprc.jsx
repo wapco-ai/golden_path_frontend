@@ -410,14 +410,112 @@ const Mprc = ({
     isSelectingLocation
   );
 
+  const categoryIdToGroup = {
+    1: 'sahn',
+    'groupCourtyardPlural': 'sahn',
+    'groupCourtyard': 'sahn',
+    'groupCourtyards': 'sahn',
+    2: 'eyvan',
+    'groupEyvanPlural': 'eyvan',
+    'groupEyvan': 'eyvan',
+    3: 'ravaq',
+    'groupRavaqPlural': 'ravaq',
+    'groupRavaq': 'ravaq',
+    4: 'masjed',
+    'groupMosques': 'masjed',
+    'groupMosque': 'masjed',
+    5: 'madrese',
+    'groupSchools': 'madrese',
+    'groupSchool': 'madrese',
+    6: 'khadamat',
+    'groupServices': 'khadamat',
+    'groupService': 'khadamat',
+    7: 'elmi',
+    'groupCulture': 'elmi',
+    'groupCultural': 'elmi',
+    8: 'cemetery',
+    'groupCemetery': 'cemetery',
+    9: 'qrcode',
+    'groupQRScan': 'qrcode',
+    'qr': 'qrcode',
+    'qr-code': 'qrcode',
+    10: 'elevator',
+    'groupElevator': 'elevator',
+    11: 'other',
+    'groupOther': 'other'
+  };
+
+  const normalizeCandidateValues = (values) => {
+    const set = new Set();
+
+    values.forEach((val) => {
+      if (val === undefined || val === null) return;
+      const strVal = String(val);
+      set.add(strVal);
+
+      const mapped = categoryIdToGroup[val] ?? categoryIdToGroup[strVal];
+      if (mapped) {
+        set.add(String(mapped));
+      }
+    });
+
+    return Array.from(set);
+  };
+
+  const matchesSelectedCategory = useCallback((place) => {
+    if (!selectedCategory) return true;
+
+    const selectedValue = selectedCategory.value
+      ?? selectedCategory.id
+      ?? selectedCategory.categories_leaf_id
+      ?? selectedCategory.code;
+
+    if (selectedValue == null) return true;
+
+    const selectedCandidates = normalizeCandidateValues([
+      selectedValue,
+      selectedCategory.group,
+      selectedCategory.name,
+      selectedCategory.title,
+      selectedCategory.label,
+      selectedCategory.code,
+      categoryIdToGroup[selectedValue]
+    ]);
+
+    const propertyKey =
+      selectedCategory.property ||
+      selectedCategory.property_target ||
+      selectedCategory.propertyTarget;
+
+    const candidateValues = normalizeCandidateValues([
+      propertyKey ? place?.[propertyKey] : undefined,
+      place?.categories_leaf_id,
+      place?.category_leaf_id,
+      place?.categoryLeafId,
+      place?.category_id,
+      place?.categoryId,
+      place?.category,
+      place?.group,
+      place?.nodeFunction
+    ]);
+
+    return selectedCandidates.some((selected) => candidateValues.includes(selected));
+  }, [selectedCategory]);
+
   const renderLandmarkMarkers = useCallback(() => {
     if (!showImageMarkers || !Array.isArray(landmarkPlaces) || landmarkPlaces.length === 0) {
       return null;
     }
 
+    const filteredLandmarks = landmarkPlaces.filter(matchesSelectedCategory);
+
+    if (filteredLandmarks.length === 0) {
+      return null;
+    }
+
     const seenCoords = new Set();
 
-    const markers = landmarkPlaces
+    const markers = filteredLandmarks
       .map((place, idx) => {
         const coords = extractPlaceCoordinates(place);
         const imageUrl = getFirstImage(place);
@@ -479,7 +577,7 @@ const Mprc = ({
         </div>
       </Marker>
     ));
-  }, [showImageMarkers, landmarkPlaces, extractPlaceCoordinates, getFirstImage, onMapClick]);
+  }, [showImageMarkers, landmarkPlaces, extractPlaceCoordinates, getFirstImage, onMapClick, matchesSelectedCategory]);
 
   useEffect(() => {
     if (!shouldLoadGeoJson) {
@@ -641,44 +739,34 @@ const Mprc = ({
 
       {/* Point features (doors, services, etc.) */}
       // Point features (doors, services, etc.) - Only show when a category is selected
-      {selectedCategory && pointFeatures.map((feature, idx) => {
-        const [lng, lat] = feature.geometry.coordinates;
-        const { group, nodeFunction } = feature.properties || {};
+      {selectedCategory && pointFeatures
+        .filter((feature) => matchesSelectedCategory(feature?.properties || {}))
+        .map((feature, idx) => {
+          const [lng, lat] = feature.geometry.coordinates;
+          const { group, nodeFunction } = feature.properties || {};
 
-        const matchesSelectedCategory = Boolean(
-          feature.properties && (
-            feature.properties[selectedCategory.property] === selectedCategory.value ||
-            feature.properties.group === selectedCategory.value ||
-            feature.properties.nodeFunction === selectedCategory.value
-          )
-        );
+          const rawId = feature.properties?.uniqueId;
+          const key = rawId ? `${rawId}-${idx}` : idx;
 
-        if (!matchesSelectedCategory) {
-          return null;
-        }
-
-        const rawId = feature.properties?.uniqueId;
-        const key = rawId ? `${rawId}-${idx}` : idx;
-
-        return (
-          <Marker key={key} longitude={lng} latitude={lat} anchor="center">
-            <div style={{ position: 'relative' }}>
-              {getCompositeIcon(groups, group, nodeFunction, 40, 1)}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: -4,
-                  left: -4,
-                  right: -4,
-                  bottom: -4,
-                  border: '2px solid #e53935',
-                  borderRadius: '50%'
-                }}
-              />
-            </div>
-          </Marker>
-        );
-      })}
+          return (
+            <Marker key={key} longitude={lng} latitude={lat} anchor="center">
+              <div style={{ position: 'relative' }}>
+                {getCompositeIcon(groups, group, nodeFunction, 40, 1)}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: -4,
+                    left: -4,
+                    right: -4,
+                    bottom: -4,
+                    border: '2px solid #e53935',
+                    borderRadius: '50%'
+                  }}
+                />
+              </div>
+            </Marker>
+          );
+        })}
     </Map>
   );
 };
