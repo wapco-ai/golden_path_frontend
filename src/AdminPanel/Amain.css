@@ -1789,7 +1789,6 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 16px;
-  margin-top: 20px;
 }
 
 .media-item {
@@ -5777,6 +5776,10 @@ body {
   width: 100%;
 }
 
+.description-input-with-language{
+  display: flex;
+}
+
 .language-input-btn3 {
   position: absolute;
   left: 10px;
@@ -5801,7 +5804,7 @@ body {
 
 .language-input-btn12 {
   background: transparent;
-  border: 1px solid #0F71EF;
+  border: none;
   border-radius: 6px;
   width: 44px;
   height: 44px;
@@ -5815,6 +5818,24 @@ body {
 .language-input-btn12:hover {
   background: rgba(15, 113, 239, 0.1);
 }
+
+.language-input-btn15 {
+  background: transparent;
+  border-radius: 6px;
+  width: 44px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.language-input-btn15:hover {
+  background: rgba(15, 113, 239, 0.1);
+}
+
 
 .subcategory-count-cell {
   text-align: center;
@@ -5854,6 +5875,13 @@ body {
 .address-input-with-language {
   position: relative;
   margin-bottom: 16px;
+}
+
+.address-input-with-language3 {
+  position: relative;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: row;
 }
 
 /* Language Modal */
@@ -6204,7 +6232,7 @@ body {
   right: 8px;
   width: 32px;
   height: 32px;
-  background: rgba(234, 67, 53, 0.9);
+  background: white;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -6228,11 +6256,12 @@ body {
 
 .profile-image-item {
   position: relative;
-  width: 120px;
-  height: 90px;
+  width: 130px;
+  height: 140px;
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid #E9ECEF;
+  object-fit: cover;
 }
 
 .profile-image-item.primary {
@@ -7320,11 +7349,20 @@ body {
 .title-input-with-language {
   display: flex;
   gap: 8px;
-  align-items: center;
   margin-bottom: 16px;
 }
 
 .title-input-with-language .form-input {
+  flex: 1;
+}
+
+.title-input-with-language8 {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.title-input-with-language8 .form-input {
   flex: 1;
 }
 
@@ -7339,12 +7377,13 @@ body {
 }
 
 
+
 .language-input-btn {
   background: transparent;
-  border: 1px solid #0F71EF;
+  border: none;
   border-radius: 6px;
   width: 44px;
-  height: 44px;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -7496,6 +7535,7 @@ body {
   min-height: 40px;
 }
 
+
 .category-icon-image {
   width: 40px;
   height: 40px;
@@ -7513,7 +7553,6 @@ body {
 .title-input-with-language {
   display: flex;
   gap: 8px;
-  align-items: center;
   margin-bottom: 12px;
 }
 
