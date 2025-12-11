@@ -653,17 +653,68 @@ const Amain = () => {
   const [categoryCurrentPage, setCategoryCurrentPage] = useState(1);
   const [categoryItemsPerPage, setCategoryItemsPerPage] = useState(7);
 
+  const buildMediaUrl = (media, defaultMime = 'image/jpeg') => {
+    if (!media) return null;
+
+    if (typeof media === 'string') {
+      const trimmed = media.trim();
+      if (trimmed.startsWith('data:')) return trimmed;
+
+      const isRawBase64 = /^[A-Za-z0-9+/]+={0,2}$/g.test(trimmed.replace(/\s+/g, ''));
+      if (isRawBase64) {
+        return `data:${defaultMime};base64,${trimmed}`;
+      }
+
+      return trimmed;
+    }
+
+    if (typeof media === 'object') {
+      if (media.url) return media.url;
+      if (media.data) {
+        return `data:${media.mime || defaultMime};base64,${media.data}`;
+      }
+    }
+
+    return null;
+  };
+
+  const normalizeMediaAttachment = (file, defaultMime = 'image/jpeg') => {
+    if (!file) return null;
+
+    const mimeType = file.mime
+      || (file.type?.includes('/') ? file.type : null)
+      || (file.type === 'image' ? 'image/jpeg' : null)
+      || (file.type === 'video' ? 'video/mp4' : null)
+      || defaultMime;
+
+    return {
+      id: file.id || `attachment-${Math.random().toString(36).slice(2)}`,
+      name: file.name || 'فایل پیوست',
+      type: mimeType,
+      mime: mimeType,
+      url: buildMediaUrl(file, mimeType) || '',
+      orientation: file.orientation ?? null,
+      ...file
+    };
+  };
+
   const normalizePrimaryMedia = (primaryMedia, existingImages = []) => {
     if (!primaryMedia) {
       return { primary: null, images: existingImages };
     }
 
     if (typeof primaryMedia === 'object') {
+      const mimeType = primaryMedia.mime
+        || (primaryMedia.type?.includes('/') ? primaryMedia.type : null)
+        || (primaryMedia.type === 'image' ? 'image/jpeg' : null)
+        || (primaryMedia.type === 'video' ? 'video/mp4' : null)
+        || 'image/*';
+
       const normalizedPrimary = {
         id: primaryMedia.id || 'existing-primary-image',
         name: primaryMedia.name || 'تصویر اصلی',
-        type: primaryMedia.type || 'image/*',
-        url: primaryMedia.url || primaryMedia,
+        type: mimeType,
+        url: buildMediaUrl(primaryMedia, mimeType) || '',
         isPrimary: primaryMedia.isPrimary ?? true,
         orientation: primaryMedia.orientation ?? null
       };
@@ -685,7 +736,7 @@ const Amain = () => {
       id: 'existing-primary-image',
       name: 'تصویر اصلی',
       type: derivedType,
-      url: primaryMedia,
+      url: buildMediaUrl(primaryMedia, derivedType) || '',
       isPrimary: true
     };
 
@@ -1376,8 +1427,17 @@ const Amain = () => {
         setCulturalPrayerTimeRestrictionsList(itemToEdit.restrictions.prayerTimeRestrictions || []);
       }
 
-      const imageAttachments = (itemToEdit.attachments || []).filter((file) => file.type === 'image');
-      const { primary, images } = normalizePrimaryMedia(itemToEdit.primaryImage, imageAttachments);
+      const normalizedAttachments = (itemToEdit.attachments || [])
+        .map(file => normalizeMediaAttachment(file))
+        .filter(Boolean);
+
+      const imageAttachments = normalizedAttachments.filter((file) => file.type?.startsWith('image'));
+
+      const normalizedPrimary = itemToEdit.primaryImage
+        ? normalizeMediaAttachment(itemToEdit.primaryImage)
+        : null;
+
+      const { primary, images } = normalizePrimaryMedia(normalizedPrimary, imageAttachments);
 
       setProfileImages(images);
       setAudioFiles([]);
