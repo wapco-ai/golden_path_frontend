@@ -521,6 +521,7 @@ const Amain = () => {
   const [selectedCulturalTypes, setSelectedCulturalTypes] = useState([]);
   const [culturalTypeError, setCulturalTypeError] = useState(false);
   const [culturalMap, setCulturalMap] = useState(null);
+  const culturalMapRef = useRef(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [currentMarker, setCurrentMarker] = useState(null);
   const [titleForModal, setTitleForModal] = useState(''); // Current title field value
@@ -1491,18 +1492,26 @@ const Amain = () => {
     }
   };
 
-  // Add this separate function to exit edit mode cleanly
-  const exitEditMode = () => {
-    // Clean up map and marker FIRST
+  const cleanupCulturalMap = useCallback(() => {
+    const mapInstance = culturalMapRef.current;
+
+    if (mapInstance?.handlers) {
+      mapInstance.remove();
+    }
+
+    culturalMapRef.current = null;
+    setCulturalMap(null);
+
     if (currentMarker) {
       currentMarker.remove();
       setCurrentMarker(null);
     }
+  }, [currentMarker]);
 
-    if (culturalMap) {
-      culturalMap.remove();
-      setCulturalMap(null);
-    }
+  // Add this separate function to exit edit mode cleanly
+  const exitEditMode = () => {
+    // Clean up map and marker FIRST
+    cleanupCulturalMap();
 
     // Reset edit mode states
     setIsEditingCultural(false);
@@ -1659,15 +1668,7 @@ const Amain = () => {
     // Also reset the prayer time restrictions list if needed
     // setCulturalPrayerTimeRestrictionsList([]); // Uncomment if you want to clear saved restrictions too
 
-    if (currentMarker) {
-      currentMarker.remove();
-      setCurrentMarker(null);
-    }
-
-    if (culturalMap) {
-      culturalMap.remove();
-      setCulturalMap(null);
-    }
+    cleanupCulturalMap();
 
     setLanguageTitles({
       english: '',
@@ -1754,16 +1755,9 @@ const Amain = () => {
   useEffect(() => {
     if (!isAddCulturalModalOpen) {
       // Clean up when modal closes
-      if (currentMarker) {
-        currentMarker.remove();
-        setCurrentMarker(null);
-      }
-      if (culturalMap) {
-        culturalMap.remove();
-        setCulturalMap(null);
-      }
+      cleanupCulturalMap();
     }
-  }, [isAddCulturalModalOpen]);
+  }, [isAddCulturalModalOpen, cleanupCulturalMap]);
 
   // Cultural restriction handlers
   const handleCulturalDateFilterToggle = (filter) => {
@@ -2093,6 +2087,7 @@ const Amain = () => {
     });
 
     setCulturalMap(mapInstance);
+    culturalMapRef.current = mapInstance;
     return mapInstance;
   };
 
@@ -2386,6 +2381,7 @@ const Amain = () => {
     });
 
     setCulturalMap(mapInstance);
+    culturalMapRef.current = mapInstance;
     return mapInstance;
   };
 
@@ -2624,10 +2620,7 @@ const Amain = () => {
   useEffect(() => {
     if (isEditingCultural && editingCulturalId && document.getElementById('edit-cultural-map-container')) {
       // Clean up any existing map first
-      if (culturalMap) {
-        culturalMap.remove();
-        setCulturalMap(null);
-      }
+      cleanupCulturalMap();
 
       // Initialize the map
       initializeEditMap();
@@ -2636,17 +2629,10 @@ const Amain = () => {
     return () => {
       // Clean up on unmount or when editing mode ends
       if (!isEditingCultural) {
-        if (currentMarker) {
-          currentMarker.remove();
-          setCurrentMarker(null);
-        }
-        if (culturalMap) {
-          culturalMap.remove();
-          setCulturalMap(null);
-        }
+        cleanupCulturalMap();
       }
     };
-  }, [isEditingCultural, editingCulturalId]);
+  }, [isEditingCultural, editingCulturalId, cleanupCulturalMap]);
 
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
