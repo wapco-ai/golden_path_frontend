@@ -1493,17 +1493,7 @@ const Amain = () => {
   };
 
   const handleCancelEditCultural = () => {
-    // Clean up map and marker
-    if (currentMarker) {
-      currentMarker.remove();
-      setCurrentMarker(null);
-    }
-
-    if (culturalMap) {
-      culturalMap.remove();
-      setCulturalMap(null);
-    }
-
+    // Rely on resetCulturalForm to handle map cleanup to avoid double-removal errors
     setIsEditingCultural(false);
     setEditingCulturalId(null);
     setEditingCulturalData(null);
