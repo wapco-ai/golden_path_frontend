@@ -654,8 +654,12 @@ const Amain = () => {
   const [categoryItemsPerPage, setCategoryItemsPerPage] = useState(7);
 
   const normalizePrimaryMedia = (primaryMedia, existingImages = []) => {
-    if (!primaryMedia) {
-      return { primary: null, images: existingImages };
+    const validExistingImages = existingImages.filter(
+      (img) => img && img.url && typeof img.url === 'string' && img.url.trim()
+    );
+
+    if (!primaryMedia || (typeof primaryMedia === 'object' && !primaryMedia.url)) {
+      return { primary: null, images: validExistingImages };
     }
 
     if (typeof primaryMedia === 'object') {
@@ -668,9 +672,9 @@ const Amain = () => {
         orientation: primaryMedia.orientation ?? null
       };
 
-      const images = existingImages.some(img => img.id === normalizedPrimary.id)
-        ? existingImages
-        : [normalizedPrimary, ...existingImages];
+      const images = validExistingImages.some(img => img.id === normalizedPrimary.id)
+        ? validExistingImages
+        : [normalizedPrimary, ...validExistingImages];
 
       return { primary: normalizedPrimary, images };
     }
@@ -689,9 +693,9 @@ const Amain = () => {
       isPrimary: true
     };
 
-    const images = existingImages.some(img => img.id === normalizedPrimary.id)
-      ? existingImages
-      : [normalizedPrimary, ...existingImages];
+    const images = validExistingImages.some(img => img.id === normalizedPrimary.id)
+      ? validExistingImages
+      : [normalizedPrimary, ...validExistingImages];
 
     return { primary: normalizedPrimary, images };
   };
@@ -1376,7 +1380,8 @@ const Amain = () => {
         setCulturalPrayerTimeRestrictionsList(itemToEdit.restrictions.prayerTimeRestrictions || []);
       }
 
-      const imageAttachments = (itemToEdit.attachments || []).filter((file) => file.type === 'image');
+      const imageAttachments = (itemToEdit.attachments || [])
+        .filter((file) => file && file.type === 'image' && file.url && file.url.trim());
       const { primary, images } = normalizePrimaryMedia(itemToEdit.primaryImage, imageAttachments);
 
       setProfileImages(images);
