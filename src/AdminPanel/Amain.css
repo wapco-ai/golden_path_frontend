@@ -5892,8 +5892,8 @@ body {
   transform: translate(-50%, -50%);
   background: white;
   border-radius: 12px;
-  width: 500px;
-  max-width: 90%;
+  width: 700px;
+  max-width: 95%;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
