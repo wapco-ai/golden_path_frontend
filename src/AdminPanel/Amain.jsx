@@ -1473,15 +1473,17 @@ const Amain = () => {
     }
 
     try {
+      const attachments = normalizeImageAttachments(profileImages).map((img) => ({
+        type: 'image',
+        url: img.url,
+        mime: img.mime || 'image/jpeg'
+      }));
+
       await updateCulturalItem(editingCulturalId, {
         title: culturalTitle,
         description: culturalDescription,
         primaryImage: primaryImage?.url || null,
-        attachments: profileImages.map((img) => ({
-          type: 'image',
-          url: img.url || img,
-          mime: img.mime || 'image/jpeg'
-        }))
+        attachments
       });
       toast.success('اطلاعات فرهنگی با موفقیت ویرایش شد');
       loadCulturalItems();
@@ -2400,9 +2402,9 @@ const Amain = () => {
 
     console.log('Saving with selectedLocation:', selectedLocation);
 
-    const attachments = profileImages.map((img) => ({
+    const attachments = normalizeImageAttachments(profileImages).map((img) => ({
       type: 'image',
-      url: img.url || img,
+      url: img.url,
       mime: img.mime || 'image/jpeg'
     }));
 
