@@ -521,6 +521,7 @@ const Amain = () => {
   const [selectedCulturalTypes, setSelectedCulturalTypes] = useState([]);
   const [culturalTypeError, setCulturalTypeError] = useState(false);
   const [culturalMap, setCulturalMap] = useState(null);
+  const culturalMapRef = useRef(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [currentMarker, setCurrentMarker] = useState(null);
   const [titleForModal, setTitleForModal] = useState(''); // Current title field value
@@ -653,32 +654,72 @@ const Amain = () => {
   const [categoryCurrentPage, setCategoryCurrentPage] = useState(1);
   const [categoryItemsPerPage, setCategoryItemsPerPage] = useState(7);
 
-  const normalizeImageAttachments = (attachments = []) => attachments
-    .filter((file) => {
-      const hasUrl = file && typeof file.url === 'string' && file.url.trim();
-      const isImageType = file?.type === 'image'
-        || (typeof file?.type === 'string' && file.type.startsWith('image'));
+  const buildMediaUrl = (media, defaultMime = 'image/jpeg') => {
+    if (!media) return null;
 
-      return hasUrl && isImageType;
-    })
-    .map((file) => ({
-      ...file,
-      type: file.type || 'image/*'
-    }));
+    if (typeof media === 'string') {
+      const trimmed = media.trim();
+      if (trimmed.startsWith('data:')) return trimmed;
+
+      const isRawBase64 = /^[A-Za-z0-9+/]+={0,2}$/g.test(trimmed.replace(/\s+/g, ''));
+      if (isRawBase64) {
+        return `data:${defaultMime};base64,${trimmed}`;
+      }
+
+      return trimmed;
+    }
+
+    if (typeof media === 'object') {
+      if (media.url) return media.url;
+      if (media.data) {
+        return `data:${media.mime || defaultMime};base64,${media.data}`;
+      }
+    }
+
+    return null;
+  };
+
+  const normalizeMediaAttachment = (file, defaultMime = 'image/jpeg') => {
+    if (!file) return null;
+
+    const mimeType = file.mime
+      || (file.type?.includes('/') ? file.type : null)
+      || (file.type === 'image' ? 'image/jpeg' : null)
+      || (file.type === 'video' ? 'video/mp4' : null)
+      || defaultMime;
+
+    return {
+      id: file.id || `attachment-${Math.random().toString(36).slice(2)}`,
+      name: file.name || 'فایل پیوست',
+      type: mimeType,
+      mime: mimeType,
+      url: buildMediaUrl(file, mimeType) || '',
+      orientation: file.orientation ?? null,
+      ...file
+    };
+  };
 
   const normalizePrimaryMedia = (primaryMedia, existingImages = []) => {
-    const validExistingImages = normalizeImageAttachments(existingImages);
+    const validExistingImages = existingImages.filter(
+      (img) => img && img.url && typeof img.url === 'string' && img.url.trim()
+    );
 
     if (!primaryMedia || (typeof primaryMedia === 'object' && !primaryMedia.url)) {
       return { primary: null, images: validExistingImages };
     }
 
     if (typeof primaryMedia === 'object') {
+      const mimeType = primaryMedia.mime
+        || (primaryMedia.type?.includes('/') ? primaryMedia.type : null)
+        || (primaryMedia.type === 'image' ? 'image/jpeg' : null)
+        || (primaryMedia.type === 'video' ? 'video/mp4' : null)
+        || 'image/*';
+
       const normalizedPrimary = {
         id: primaryMedia.id || 'existing-primary-image',
         name: primaryMedia.name || 'تصویر اصلی',
-        type: primaryMedia.type || 'image/*',
-        url: primaryMedia.url || primaryMedia,
+        type: mimeType,
+        url: buildMediaUrl(primaryMedia, mimeType) || '',
         isPrimary: primaryMedia.isPrimary ?? true,
         orientation: primaryMedia.orientation ?? null
       };
@@ -700,7 +741,7 @@ const Amain = () => {
       id: 'existing-primary-image',
       name: 'تصویر اصلی',
       type: derivedType,
-      url: primaryMedia,
+      url: buildMediaUrl(primaryMedia, derivedType) || '',
       isPrimary: true
     };
 
@@ -1391,8 +1432,17 @@ const Amain = () => {
         setCulturalPrayerTimeRestrictionsList(itemToEdit.restrictions.prayerTimeRestrictions || []);
       }
 
-      const imageAttachments = normalizeImageAttachments(itemToEdit.attachments);
-      const { primary, images } = normalizePrimaryMedia(itemToEdit.primaryImage, imageAttachments);
+      const normalizedAttachments = (itemToEdit.attachments || [])
+        .map(file => normalizeMediaAttachment(file))
+        .filter(Boolean);
+
+      const imageAttachments = normalizedAttachments.filter((file) => file.type?.startsWith('image'));
+
+      const normalizedPrimary = itemToEdit.primaryImage
+        ? normalizeMediaAttachment(itemToEdit.primaryImage)
+        : null;
+
+      const { primary, images } = normalizePrimaryMedia(normalizedPrimary, imageAttachments);
 
       setProfileImages(images);
       setAudioFiles([]);
@@ -1444,18 +1494,26 @@ const Amain = () => {
     }
   };
 
-  // Add this separate function to exit edit mode cleanly
-  const exitEditMode = () => {
-    // Clean up map and marker FIRST
+  const cleanupCulturalMap = useCallback(() => {
+    const mapInstance = culturalMapRef.current;
+
+    if (mapInstance?.handlers) {
+      mapInstance.remove();
+    }
+
+    culturalMapRef.current = null;
+    setCulturalMap(null);
+
     if (currentMarker) {
       currentMarker.remove();
       setCurrentMarker(null);
     }
+  }, [currentMarker]);
 
-    if (culturalMap) {
-      culturalMap.remove();
-      setCulturalMap(null);
-    }
+  // Add this separate function to exit edit mode cleanly
+  const exitEditMode = () => {
+    // Clean up map and marker FIRST
+    cleanupCulturalMap();
 
     // Reset edit mode states
     setIsEditingCultural(false);
@@ -1612,15 +1670,7 @@ const Amain = () => {
     // Also reset the prayer time restrictions list if needed
     // setCulturalPrayerTimeRestrictionsList([]); // Uncomment if you want to clear saved restrictions too
 
-    if (currentMarker) {
-      currentMarker.remove();
-      setCurrentMarker(null);
-    }
-
-    if (culturalMap) {
-      culturalMap.remove();
-      setCulturalMap(null);
-    }
+    cleanupCulturalMap();
 
     setLanguageTitles({
       english: '',
@@ -1707,16 +1757,9 @@ const Amain = () => {
   useEffect(() => {
     if (!isAddCulturalModalOpen) {
       // Clean up when modal closes
-      if (currentMarker) {
-        currentMarker.remove();
-        setCurrentMarker(null);
-      }
-      if (culturalMap) {
-        culturalMap.remove();
-        setCulturalMap(null);
-      }
+      cleanupCulturalMap();
     }
-  }, [isAddCulturalModalOpen]);
+  }, [isAddCulturalModalOpen, cleanupCulturalMap]);
 
   // Cultural restriction handlers
   const handleCulturalDateFilterToggle = (filter) => {
@@ -2046,6 +2089,7 @@ const Amain = () => {
     });
 
     setCulturalMap(mapInstance);
+    culturalMapRef.current = mapInstance;
     return mapInstance;
   };
 
@@ -2339,6 +2383,7 @@ const Amain = () => {
     });
 
     setCulturalMap(mapInstance);
+    culturalMapRef.current = mapInstance;
     return mapInstance;
   };
 
@@ -2577,10 +2622,7 @@ const Amain = () => {
   useEffect(() => {
     if (isEditingCultural && editingCulturalId && document.getElementById('edit-cultural-map-container')) {
       // Clean up any existing map first
-      if (culturalMap) {
-        culturalMap.remove();
-        setCulturalMap(null);
-      }
+      cleanupCulturalMap();
 
       // Initialize the map
       initializeEditMap();
@@ -2589,17 +2631,10 @@ const Amain = () => {
     return () => {
       // Clean up on unmount or when editing mode ends
       if (!isEditingCultural) {
-        if (currentMarker) {
-          currentMarker.remove();
-          setCurrentMarker(null);
-        }
-        if (culturalMap) {
-          culturalMap.remove();
-          setCulturalMap(null);
-        }
+        cleanupCulturalMap();
       }
     };
-  }, [isEditingCultural, editingCulturalId]);
+  }, [isEditingCultural, editingCulturalId, cleanupCulturalMap]);
 
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
