@@ -752,6 +752,21 @@ const Amain = () => {
     return { primary: normalizedPrimary, images };
   };
 
+  const normalizeImageAttachments = (files = []) => {
+    if (!Array.isArray(files)) return [];
+
+    return files
+      .map(file => normalizeMediaAttachment(file))
+      .filter((file) => file
+        && typeof file.url === 'string'
+        && file.url.trim()
+        && (
+          (typeof file.type === 'string' && file.type.startsWith('image'))
+          || (typeof file.mime === 'string' && file.mime.startsWith('image'))
+          || file.fileType === 'image'
+        ));
+  };
+
   const getCategoryPageNumbers = () => {
     const totalItems = filteredCategories.length;
     const totalPages = Math.ceil(totalItems / categoryItemsPerPage);
