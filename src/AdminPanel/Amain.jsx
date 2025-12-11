@@ -523,7 +523,7 @@ const Amain = () => {
   const [culturalMap, setCulturalMap] = useState(null);
   const culturalMapRef = useRef(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
-  const [currentMarker, setCurrentMarker] = useState(null);
+  const currentMarkerRef = useRef(null);
   const [titleForModal, setTitleForModal] = useState(''); // Current title field value
   const [adminAvatar, setAdminAvatar] = useState(null);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -1504,11 +1504,11 @@ const Amain = () => {
     culturalMapRef.current = null;
     setCulturalMap(null);
 
-    if (currentMarker) {
-      currentMarker.remove();
-      setCurrentMarker(null);
+    if (currentMarkerRef.current) {
+      currentMarkerRef.current.remove();
+      currentMarkerRef.current = null;
     }
-  }, [currentMarker]);
+  }, []);
 
   // Add this separate function to exit edit mode cleanly
   const exitEditMode = () => {
@@ -2048,7 +2048,7 @@ const Amain = () => {
       return el;
     };
 
-    let marker = null;
+    let marker = currentMarkerRef.current;
 
     // Add initial marker if there's a selected location
     if (selectedLocation) {
@@ -2059,7 +2059,7 @@ const Amain = () => {
       })
         .setLngLat([selectedLocation.lng, selectedLocation.lat])
         .addTo(mapInstance);
-      setCurrentMarker(marker);
+      currentMarkerRef.current = marker;
     }
 
     // Add click event to map for selecting new location
@@ -2083,7 +2083,7 @@ const Amain = () => {
         .addTo(mapInstance);
 
       // Update current marker in state
-      setCurrentMarker(marker);
+      currentMarkerRef.current = marker;
 
       console.log('New location selected:', coordinates);
     });
@@ -2095,6 +2095,7 @@ const Amain = () => {
 
   useEffect(() => {
     if (isEditingCultural && editingCulturalData) {
+      if (culturalMapRef.current) return;
       // Initialize edit map after a short delay to ensure DOM is ready
       setTimeout(() => {
         initializeEditMap();
@@ -2359,7 +2360,7 @@ const Amain = () => {
     mapInstance.addControl(new maplibregl.NavigationControl());
 
     // Keep track of the marker
-    let marker = null;
+    let marker = currentMarkerRef.current;
 
     // Add click event to map
     mapInstance.on('click', (e) => {
@@ -2379,7 +2380,7 @@ const Amain = () => {
         .addTo(mapInstance);
 
       // Store the marker in state
-      setCurrentMarker(marker);
+      currentMarkerRef.current = marker;
     });
 
     setCulturalMap(mapInstance);
