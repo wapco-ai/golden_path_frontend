@@ -653,9 +653,24 @@ const Amain = () => {
   const [categoryCurrentPage, setCategoryCurrentPage] = useState(1);
   const [categoryItemsPerPage, setCategoryItemsPerPage] = useState(7);
 
+  const normalizeImageAttachments = (attachments = []) => attachments
+    .filter((file) => {
+      const hasUrl = file && typeof file.url === 'string' && file.url.trim();
+      const isImageType = file?.type === 'image'
+        || (typeof file?.type === 'string' && file.type.startsWith('image'));
+
+      return hasUrl && isImageType;
+    })
+    .map((file) => ({
+      ...file,
+      type: file.type || 'image/*'
+    }));
+
   const normalizePrimaryMedia = (primaryMedia, existingImages = []) => {
-    if (!primaryMedia) {
-      return { primary: null, images: existingImages };
+    const validExistingImages = normalizeImageAttachments(existingImages);
+
+    if (!primaryMedia || (typeof primaryMedia === 'object' && !primaryMedia.url)) {
+      return { primary: null, images: validExistingImages };
     }
 
     if (typeof primaryMedia === 'object') {
@@ -668,9 +683,9 @@ const Amain = () => {
         orientation: primaryMedia.orientation ?? null
       };
 
-      const images = existingImages.some(img => img.id === normalizedPrimary.id)
-        ? existingImages
-        : [normalizedPrimary, ...existingImages];
+      const images = validExistingImages.some(img => img.id === normalizedPrimary.id)
+        ? validExistingImages
+        : [normalizedPrimary, ...validExistingImages];
 
       return { primary: normalizedPrimary, images };
     }
@@ -689,9 +704,9 @@ const Amain = () => {
       isPrimary: true
     };
 
-    const images = existingImages.some(img => img.id === normalizedPrimary.id)
-      ? existingImages
-      : [normalizedPrimary, ...existingImages];
+    const images = validExistingImages.some(img => img.id === normalizedPrimary.id)
+      ? validExistingImages
+      : [normalizedPrimary, ...validExistingImages];
 
     return { primary: normalizedPrimary, images };
   };
@@ -1376,7 +1391,7 @@ const Amain = () => {
         setCulturalPrayerTimeRestrictionsList(itemToEdit.restrictions.prayerTimeRestrictions || []);
       }
 
-      const imageAttachments = (itemToEdit.attachments || []).filter((file) => file.type === 'image');
+      const imageAttachments = normalizeImageAttachments(itemToEdit.attachments);
       const { primary, images } = normalizePrimaryMedia(itemToEdit.primaryImage, imageAttachments);
 
       setProfileImages(images);
@@ -1408,15 +1423,17 @@ const Amain = () => {
     }
 
     try {
+      const attachments = normalizeImageAttachments(profileImages).map((img) => ({
+        type: 'image',
+        url: img.url,
+        mime: img.mime || 'image/jpeg'
+      }));
+
       await updateCulturalItem(editingCulturalId, {
         title: culturalTitle,
         description: culturalDescription,
         primaryImage: primaryImage?.url || null,
-        attachments: profileImages.map((img) => ({
-          type: 'image',
-          url: img.url || img,
-          mime: img.mime || 'image/jpeg'
-        }))
+        attachments
       });
       toast.success('اطلاعات فرهنگی با موفقیت ویرایش شد');
       loadCulturalItems();
@@ -2340,9 +2357,9 @@ const Amain = () => {
 
     console.log('Saving with selectedLocation:', selectedLocation);
 
-    const attachments = profileImages.map((img) => ({
+    const attachments = normalizeImageAttachments(profileImages).map((img) => ({
       type: 'image',
-      url: img.url || img,
+      url: img.url,
       mime: img.mime || 'image/jpeg'
     }));
 
