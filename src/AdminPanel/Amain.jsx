@@ -6296,14 +6296,14 @@ const Amain = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredCategories
-                      .slice(
-                        (categoryCurrentPage - 1) * categoryItemsPerPage,
-                        categoryCurrentPage * categoryItemsPerPage
-                      )
-                      .map(category => (
-                        <>
-                          <tr key={category.id}>
+                      {filteredCategories
+                        .slice(
+                          (categoryCurrentPage - 1) * categoryItemsPerPage,
+                          categoryCurrentPage * categoryItemsPerPage
+                        )
+                        .map(category => (
+                          <React.Fragment key={category.id}>
+                            <tr>
                             <td>
                               <div className="category-title-cell">
                                 <div className="category-expand-btn" onClick={() => toggleCategoryExpand(category.id)}>
@@ -6442,9 +6442,9 @@ const Amain = () => {
                                 </div>
                               </td>
                             </tr>
-                          ))}
-                        </>
-                      ))}
+                            ))}
+                          </React.Fragment>
+                        ))}
                   </tbody>
                 </table>
                 {/* Pagination Controls for Categories */}
