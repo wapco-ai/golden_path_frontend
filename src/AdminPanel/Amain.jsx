@@ -33,7 +33,7 @@ import { convertLngLatToUtm32640 } from '../utils/utm';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { getLanguageName } from '../utils/languageNames';
-import { uploadFile } from '../services/fileService';
+import { deleteFile, uploadFile } from '../services/fileService';
 
 
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
@@ -942,8 +942,15 @@ const Amain = () => {
 
     for (const file of files) {
       if (!file) continue;
+
+      // Already uploaded/remote files
       if (!file.file) {
-        uploadedFiles.push(file);
+        uploadedFiles.push({
+          ...file,
+          path: file.path || file.url || '',
+          url: file.url || file.path || '',
+          mime: file.mime || file.type
+        });
         continue;
       }
 
@@ -957,11 +964,12 @@ const Amain = () => {
         });
 
         uploadedFiles.push({
-          ...file,
-          path: response?.path || file.path,
-          url: response?.url || file.url,
+          id: file.id,
+          name: file.name,
+          orientation: file.orientation ?? null,
           mime: response?.mime || file.mime || file.type,
-          size: response?.size || file.size
+          path: response?.path || '',
+          url: response?.url || response?.path || '',
         });
       } catch (error) {
         console.error('File upload failed', error);
@@ -972,16 +980,26 @@ const Amain = () => {
     return uploadedFiles;
   };
 
-  const buildAttachmentPayload = (files = []) => files
-    .filter((file) => file?.path || file?.url)
-    .map((file) => ({
-      type: resolveAttachmentType(file?.mime || file?.type || ''),
-      mime: file?.mime || file?.type || 'application/octet-stream',
-      path: file?.path || file?.url || '',
-      url: file?.url,
-      orientation: file?.orientation ?? null,
-      name: file?.name
-    }));
+  const buildAttachmentPayload = (files = []) => {
+    const seenPaths = new Set();
+
+    return files
+      .filter((file) => file?.path || file?.url)
+      .map((file) => ({
+        type: resolveAttachmentType(file?.mime || file?.type || ''),
+        mime: file?.mime || file?.type || 'application/octet-stream',
+        path: file?.path || file?.url || '',
+        url: file?.url || file?.path || '',
+        orientation: file?.orientation ?? null,
+        name: file?.name
+      }))
+      .filter((attachment) => {
+        const key = attachment.path || attachment.url;
+        if (seenPaths.has(key)) return false;
+        seenPaths.add(key);
+        return true;
+      });
+  };
 
   const buildCulturalTimeRestrictionsPayload = () => culturalTimeRestrictions.map((restriction) => ({
     date_scope: restriction?.isoDateScope?.length
@@ -2401,10 +2419,20 @@ const Amain = () => {
     }
   };
 
-  const handleRemoveFile = (fileId, fileType) => {
+  const removeFileFromServer = async (file) => {
+    if (!file?.path && !file?.url) return;
+    try {
+      await deleteFile(file.path || file.url);
+    } catch (error) {
+      console.error('خطا در حذف فایل از سرویس فایل', error);
+    }
+  };
+
+  const handleRemoveFile = async (fileId, fileType) => {
     if (fileType === 'image') {
       const fileToRemove = profileImages.find(img => img.id === fileId);
       if (fileToRemove) {
+        await removeFileFromServer(fileToRemove);
         setProfileImages(prev => prev.filter(img => img.id !== fileId));
 
         // If removing primary image, set another image as primary or null
@@ -2415,12 +2443,14 @@ const Amain = () => {
       }
     } else if (fileType === 'audio') {
       const fileToRemove = audioFiles.find(audio => audio.id === fileId);
+      await removeFileFromServer(fileToRemove);
       if (fileToRemove && fileToRemove.url) {
         URL.revokeObjectURL(fileToRemove.url);
       }
       setAudioFiles(prev => prev.filter(audio => audio.id !== fileId));
     } else if (fileType === 'text') {
       const fileToRemove = textFiles.find(text => text.id === fileId);
+      await removeFileFromServer(fileToRemove);
       if (fileToRemove && fileToRemove.url) {
         URL.revokeObjectURL(fileToRemove.url);
       }
