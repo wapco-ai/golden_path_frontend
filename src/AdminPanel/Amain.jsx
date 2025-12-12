@@ -33,6 +33,7 @@ import { convertLngLatToUtm32640 } from '../utils/utm';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { getLanguageName } from '../utils/languageNames';
+import { uploadFile } from '../services/fileService';
 
 
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
@@ -922,6 +923,102 @@ const Amain = () => {
     return labels[fileType] || fileType;
   };
 
+  const resolveFileBucket = (file) => {
+    const mime = file?.type || file?.mime || '';
+    if (mime.startsWith('image/') || mime.startsWith('video/')) return 'images';
+    if (mime.startsWith('audio/')) return 'audio';
+    return 'files';
+  };
+
+  const resolveAttachmentType = (mimeType = '') => {
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.startsWith('video/')) return 'video';
+    if (mimeType.startsWith('audio/')) return 'audio';
+    return 'file';
+  };
+
+  const uploadCulturalFiles = async (files = [], entityId) => {
+    const uploadedFiles = [];
+
+    for (const file of files) {
+      if (!file) continue;
+      if (!file.file) {
+        uploadedFiles.push(file);
+        continue;
+      }
+
+      try {
+        const response = await uploadFile({
+          file: file.file,
+          entityTable: 'contents',
+          entityId,
+          bucket: resolveFileBucket(file),
+          keepOriginalName: true
+        });
+
+        uploadedFiles.push({
+          ...file,
+          path: response?.path || file.path,
+          url: response?.url || file.url,
+          mime: response?.mime || file.mime || file.type,
+          size: response?.size || file.size
+        });
+      } catch (error) {
+        console.error('File upload failed', error);
+        throw error;
+      }
+    }
+
+    return uploadedFiles;
+  };
+
+  const buildAttachmentPayload = (files = []) => files
+    .filter((file) => file?.path || file?.url)
+    .map((file) => ({
+      type: resolveAttachmentType(file?.mime || file?.type || ''),
+      mime: file?.mime || file?.type || 'application/octet-stream',
+      path: file?.path || file?.url || '',
+      url: file?.url,
+      orientation: file?.orientation ?? null,
+      name: file?.name
+    }));
+
+  const buildCulturalTimeRestrictionsPayload = () => culturalTimeRestrictions.map((restriction) => ({
+    date_scope: restriction?.isoDateScope?.length
+      ? restriction.isoDateScope
+      : buildDateScopeIso(restriction?.date),
+    gender: Array.isArray(restriction?.gender)
+      ? restriction.gender.map(normalizeGenderValue).filter(Boolean)
+      : [],
+    time_ranges: Array.isArray(restriction?.timePairs)
+      ? restriction.timePairs.map((pair) => ({
+        start: pair?.start || '',
+        end: pair?.end || ''
+      }))
+      : [],
+    all_hours: Boolean(restriction?.limitAllHours)
+  })).filter((restriction) => restriction.date_scope?.length);
+
+  const buildCulturalPrayerRestrictionsPayload = () => culturalPrayerTimeRestrictionsList.map((restriction) => ({
+    events: restriction?.events || [],
+    before_minutes: restriction?.before_minutes
+      ?? (restriction?.before !== undefined ? Number(restriction.before) : undefined)
+      ?? (restriction?.beforeMinutes !== undefined ? Number(restriction.beforeMinutes) : undefined)
+      ?? 0,
+    after_minutes: restriction?.after_minutes
+      ?? (restriction?.after !== undefined ? Number(restriction.after) : undefined)
+      ?? (restriction?.afterMinutes !== undefined ? Number(restriction.afterMinutes) : undefined)
+      ?? 0,
+    date_scope: restriction?.isoDateScope?.length
+      ? restriction.isoDateScope
+      : buildDateScopeIso(restriction?.date),
+    title: restriction?.title
+      ?? restriction?.label
+      ?? (restriction?.events?.length
+        ? `${restriction.events.join(' و ')} : ${restriction.before || 0} دقیقه قبل الی ${restriction.after || 0} دقیقه بعد`
+        : '')
+  })).filter((restriction) => restriction.date_scope?.length);
+
   const handleSaveFileWithDetails = () => {
     if (!pendingFileInfo) return;
 
@@ -946,6 +1043,7 @@ const Amain = () => {
       type: pendingFileInfo.type,
       size: pendingFileInfo.size,
       url: pendingFileInfo.url || URL.createObjectURL(pendingFileInfo.file),
+      file: pendingFileInfo.file,
       fileType: pendingFileInfo.fileType,
       originalFileType: pendingFileInfo.originalFileType,
       uploadedAt: new Date().toISOString(),
@@ -1488,18 +1586,56 @@ const Amain = () => {
     }
 
     try {
-      const attachments = normalizeImageAttachments(profileImages).map((img) => ({
-        type: 'image',
-        url: img.url,
-        mime: img.mime || 'image/jpeg'
-      }));
+      const uploadedFiles = await uploadCulturalFiles([
+        ...profileImages,
+        ...audioFiles,
+        ...textFiles
+      ], editingCulturalId);
 
-      await updateCulturalItem(editingCulturalId, {
+      const attachments = buildAttachmentPayload(uploadedFiles);
+      const resolvedPrimary = uploadedFiles.find((file) => file.id === primaryImage?.id)
+        || uploadedFiles.find((file) => file.isPrimary)
+        || null;
+
+      const payload = {
         title: culturalTitle,
         description: culturalDescription,
-        primaryImage: primaryImage?.url || null,
-        attachments
-      });
+        titles: {
+          fa: culturalTitle,
+          en: languageTitles.english,
+          ar: languageTitles.arabic,
+          ur: languageTitles.urdu
+        },
+        descriptions: {
+          fa: culturalDescription,
+          en: languageDescriptions.english,
+          ar: languageDescriptions.arabic,
+          ur: languageDescriptions.urdu
+        },
+        addressInShrine: placeAddress,
+        addresses: {
+          fa: placeAddress,
+          en: languageAddresses.english,
+          ar: languageAddresses.arabic,
+          ur: languageAddresses.urdu
+        },
+        culturalTypes: selectedCulturalTypes,
+        displaySettings: {
+          showUserComments: showUserComments === 'نمایش',
+          showMultimedia: showMultimedia === 'نمایش'
+        },
+        restrictions: {
+          timeRestrictions: buildCulturalTimeRestrictionsPayload(),
+          prayerTimeRestrictions: buildCulturalPrayerRestrictionsPayload()
+        },
+        primaryImage: resolvedPrimary?.path || resolvedPrimary?.url || null,
+        attachments,
+        location: selectedLocation
+          ? { lng: selectedLocation.lng, lat: selectedLocation.lat }
+          : null
+      };
+
+      await updateCulturalItem(editingCulturalId, payload);
       toast.success('اطلاعات فرهنگی با موفقیت ویرایش شد');
       loadCulturalItems();
       exitEditMode();
@@ -2159,6 +2295,7 @@ const Amain = () => {
           name: file.name,
           type: file.type,
           size: file.size,
+          file,
           url: URL.createObjectURL(file),
           isPrimary: profileImages.length === 0 && !primaryImage,
           orientation: null // No orientation for videos
@@ -2179,6 +2316,7 @@ const Amain = () => {
           name: file.name,
           type: file.type,
           size: file.size,
+          file,
           url: audioUrl
         }]);
       }
@@ -2190,6 +2328,7 @@ const Amain = () => {
           name: file.name,
           type: file.type,
           size: file.size,
+          file,
           url: pdfUrl
         }]);
       }
@@ -2208,6 +2347,7 @@ const Amain = () => {
       type: pendingImageFile.type,
       size: pendingImageFile.size,
       url: pendingImageFile.url,
+      file: pendingImageFile.file,
       isPrimary: profileImages.length === 0 && !primaryImage,
       orientation: orientation
     };
@@ -2235,6 +2375,7 @@ const Amain = () => {
       type: pendingImageFile.type,
       size: pendingImageFile.size,
       url: pendingImageFile.url,
+      file: pendingImageFile.file,
       isPrimary: profileImages.length === 0 && !primaryImage,
       orientation: null // No orientation selected
     };
