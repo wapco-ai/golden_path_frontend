@@ -1413,17 +1413,20 @@
 
 .map-entries-section {
   margin-bottom: 24px;
+  max-height: calc(40vh - 100px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
 }
 
 .map-entries-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
 }
 
 .map-entry-item {
   position: relative;
-  padding: 16px;
+  padding: 8px;
   background: #f8f9fa;
   border: 2px solid #e9ecef;
   border-radius: 12px;

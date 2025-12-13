@@ -2544,7 +2544,7 @@ body {
 }
 
 /* Add Place Modal */
-.add-place-modal {
+.add-cultural-modal, .add-place-modal {
   background: white;
   border-radius: 16px;
   width: 90%;

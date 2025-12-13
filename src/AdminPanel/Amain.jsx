@@ -9367,7 +9367,7 @@ const Amain = () => {
       {/* Add Cultural Information Modal */}
       {isAddCulturalModalOpen && (
         <div className="modal-overlay">
-          <div className="add-place-modal">
+          <div className="add-cultural-modal">
             {/* Modal Header - SAME as map manage modal */}
             <div className="modal-header">
               <div className="step-text">
@@ -11583,10 +11583,12 @@ const Amain = () => {
                   // If time restriction form is open, handle it
                   if (editRestrictionFormOpen) {
                     handleEditConfirmRestriction();
+                    handleCloseRestrictionModal();
                   }
                   // If prayer restriction form is open, handle it
                   else if (editPrayerRestrictionFormOpen) {
                     handleEditConfirmPrayerRestriction();
+                    handleCloseRestrictionModal();
                   }
                   // Otherwise just close
                   else {
