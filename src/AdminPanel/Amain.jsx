@@ -517,8 +517,8 @@ const Amain = () => {
   const [culturalStep, setCulturalStep] = useState(1);
   const [culturalTitle, setCulturalTitle] = useState('');
   const [culturalDescription, setCulturalDescription] = useState('');
-  const [showUserComments, setShowUserComments] = useState('نمایش');
-  const [showMultimedia, setShowMultimedia] = useState('نمایش');
+  const [showUserFeedbacks, setShowUserFeedbacks] = useState('نمایش');
+  const [showMediaGallery, setShowMediaGallery] = useState('نمایش');
   const [selectedCulturalTypes, setSelectedCulturalTypes] = useState([]);
   const [culturalTypeError, setCulturalTypeError] = useState(false);
   const [culturalMap, setCulturalMap] = useState(null);
@@ -654,6 +654,52 @@ const Amain = () => {
   const [categoryCurrentPage, setCategoryCurrentPage] = useState(1);
   const [categoryItemsPerPage, setCategoryItemsPerPage] = useState(7);
 
+  const buildMediaUrl = (media, defaultMime = 'image/jpeg') => {
+    if (!media) return null;
+
+    if (typeof media === 'string') {
+      const trimmed = media.trim();
+      if (trimmed.startsWith('data:')) return trimmed;
+
+      const isRawBase64 = /^[A-Za-z0-9+/]+={0,2}$/g.test(trimmed.replace(/\s+/g, ''));
+      if (isRawBase64) {
+        return `data:${defaultMime};base64,${trimmed}`;
+      }
+
+      return trimmed;
+    }
+
+    if (typeof media === 'object') {
+      if (media.url) return media.url;
+      if (media.data) {
+        return `data:${media.mime || defaultMime};base64,${media.data}`;
+      }
+    }
+
+    return null;
+  };
+
+  const normalizeMediaAttachment = (file, defaultMime = 'application/octet-stream') => {
+    if (!file) return null;
+
+    const mimeType = file.mime
+      || (file.type?.includes('/') ? file.type : null)
+      || (file.type === 'image' ? 'image/jpeg' : null)
+      || (file.type === 'video' ? 'video/mp4' : null)
+      || (file.type === 'audio' ? 'audio/mpeg' : null)
+      || defaultMime;
+
+    return {
+      id: file.id || `attachment-${Math.random().toString(36).slice(2)}`,
+      name: file.name || 'فایل پیوست',
+      type: mimeType,
+      mime: mimeType,
+      url: buildMediaUrl(file, mimeType) || '',
+      orientation: file.orientation ?? null,
+      ...file
+    };
+  };
+
   const normalizePrimaryMedia = (primaryMedia, existingImages = []) => {
     if (!primaryMedia) {
       return { primary: null, images: existingImages };
@@ -695,6 +741,39 @@ const Amain = () => {
       : [normalizedPrimary, ...existingImages];
 
     return { primary: normalizedPrimary, images };
+  };
+
+  const normalizeImageAttachments = (files = []) => {
+    if (!Array.isArray(files)) return [];
+
+    return files
+      .map(file => normalizeMediaAttachment(file))
+      .filter((file) => file
+        && typeof file.url === 'string'
+        && file.url.trim()
+        && (
+          (typeof file.type === 'string' && file.type.startsWith('image'))
+          || (typeof file.mime === 'string' && file.mime.startsWith('image'))
+          || file.fileType === 'image'
+        ));
+  };
+
+  const normalizeLanguageMedia = (media = {}, language = 'fa') => {
+    const seenPaths = new Set();
+    const languageMedia = Array.isArray(media?.[language]) ? media[language] : [];
+
+    return languageMedia
+      .map((file, idx) => normalizeMediaAttachment({
+        ...file,
+        id: file?.id || file?.path || file?.url || `media-${language}-${idx}`
+      }, file?.mime || file?.type || 'application/octet-stream'))
+      .filter((file) => {
+        if (!file?.url) return false;
+        const key = file.path || file.url;
+        if (seenPaths.has(key)) return false;
+        seenPaths.add(key);
+        return true;
+      });
   };
 
   const getCategoryPageNumbers = () => {
@@ -851,6 +930,163 @@ const Amain = () => {
     };
     return labels[fileType] || fileType;
   };
+
+  const resolveFileBucket = (file) => {
+    const mime = file?.type || file?.mime || '';
+    if (mime.startsWith('image/') || mime.startsWith('video/')) return 'images';
+    if (mime.startsWith('audio/')) return 'audio';
+    return 'files';
+  };
+
+  const resolveAttachmentType = (mimeType = '') => {
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.startsWith('video/')) return 'video';
+    if (mimeType.startsWith('audio/')) return 'audio';
+    return 'file';
+  };
+
+  const uploadCulturalFiles = async (files = [], entityId) => {
+    const uploadedFiles = [];
+
+    for (const file of files) {
+      if (!file) continue;
+
+      // Already uploaded/remote files
+      if (!file.file) {
+        uploadedFiles.push({
+          ...file,
+          path: file.path || file.url || '',
+          url: file.url || file.path || '',
+          mime: file.mime || file.type
+        });
+        continue;
+      }
+
+      try {
+        const response = await uploadFile({
+          file: file.file,
+          entityTable: 'contents',
+          entityId,
+          bucket: resolveFileBucket(file),
+          keepOriginalName: true
+        });
+
+        uploadedFiles.push({
+          id: file.id,
+          name: file.name,
+          orientation: file.orientation ?? null,
+          mime: response?.mime || file.mime || file.type,
+          path: response?.path || '',
+          url: response?.url || response?.path || '',
+        });
+      } catch (error) {
+        console.error('File upload failed', error);
+        throw error;
+      }
+    }
+
+    return uploadedFiles;
+  };
+
+  const buildAttachmentPayload = (files = []) => {
+    const seenPaths = new Set();
+
+    return files
+      .filter((file) => file?.path || file?.url)
+      .map((file) => ({
+        type: resolveAttachmentType(file?.mime || file?.type || ''),
+        mime: file?.mime || file?.type || 'application/octet-stream',
+        path: file?.path || file?.url || '',
+        url: file?.url || file?.path || '',
+        orientation: file?.orientation ?? null,
+        name: file?.name
+      }))
+      .filter((attachment) => {
+        const key = attachment.path || attachment.url;
+        if (seenPaths.has(key)) return false;
+        seenPaths.add(key);
+        return true;
+      });
+  };
+
+  const normalizeDisplaySettings = (settings = {}) => {
+    const normalized = settings.displaySettings || settings.display_settings || settings;
+
+    return {
+      showUserFeedbacks: normalized.showUserFeedbacks
+        ?? normalized.show_user_feedbacks
+        ?? normalized.showUserComments
+        ?? normalized.show_user_comments
+        ?? true,
+      showMediaGallery: normalized.showMediaGallery
+        ?? normalized.show_media_gallery
+        ?? normalized.showMultimedia
+        ?? normalized.show_multimedia
+        ?? true
+    };
+  };
+
+  const normalizeTimeRestrictions = (restrictions = []) => restrictions.map((restriction) => ({
+    date: restriction?.date || restriction?.title || restriction?.date_scope || '',
+    isoDateScope: restriction?.isoDateScope || restriction?.date_scope || '',
+    gender: restriction?.gender || restriction?.allowed_genders || [],
+    timePairs: restriction?.timePairs || restriction?.time_pairs || restriction?.time_ranges || [],
+    limitAllHours: restriction?.limitAllHours ?? restriction?.all_hours ?? false
+  }));
+
+  const normalizePrayerRestrictions = (restrictions = []) => restrictions.map((restriction) => ({
+    ...restriction,
+    date: restriction?.date || restriction?.title || restriction?.date_scope || '',
+    isoDateScope: restriction?.isoDateScope || restriction?.date_scope || '',
+    before: restriction?.before ?? restriction?.before_minutes ?? restriction?.beforeMinutes ?? 0,
+    after: restriction?.after ?? restriction?.after_minutes ?? restriction?.afterMinutes ?? 0,
+    events: restriction?.events || []
+  }));
+
+  const buildCulturalTimeRestrictionsPayload = () => culturalTimeRestrictions.map((restriction) => ({
+    date_scope: restriction?.isoDateScope?.length
+      ? restriction.isoDateScope
+      : restriction?.date_scope?.length
+        ? restriction.date_scope
+        : buildDateScopeIso(restriction?.date),
+    gender: Array.isArray(restriction?.gender)
+      ? restriction.gender.map(normalizeGenderValue).filter(Boolean)
+      : [],
+    time_ranges: Array.isArray(restriction?.timePairs)
+      ? restriction.timePairs.map((pair) => ({
+        start: pair?.start || '',
+        end: pair?.end || ''
+      }))
+      : Array.isArray(restriction?.time_ranges)
+        ? restriction.time_ranges.map((pair) => ({
+          start: pair?.start || '',
+          end: pair?.end || ''
+        }))
+        : [],
+    all_hours: Boolean(restriction?.limitAllHours ?? restriction?.all_hours)
+  })).filter((restriction) => restriction.date_scope?.length);
+
+  const buildCulturalPrayerRestrictionsPayload = () => culturalPrayerTimeRestrictionsList.map((restriction) => ({
+    events: restriction?.events || [],
+    before_minutes: restriction?.before_minutes
+      ?? (restriction?.before !== undefined ? Number(restriction.before) : undefined)
+      ?? (restriction?.beforeMinutes !== undefined ? Number(restriction.beforeMinutes) : undefined)
+      ?? 0,
+    after_minutes: restriction?.after_minutes
+      ?? (restriction?.after !== undefined ? Number(restriction.after) : undefined)
+      ?? (restriction?.afterMinutes !== undefined ? Number(restriction.afterMinutes) : undefined)
+      ?? 0,
+    date_scope: restriction?.isoDateScope?.length
+      ? restriction.isoDateScope
+      : restriction?.date_scope?.length
+        ? restriction.date_scope
+        : buildDateScopeIso(restriction?.date),
+    title: restriction?.title
+      ?? restriction?.label
+      ?? (restriction?.events?.length
+        ? `${restriction.events.join(' و ')} : ${restriction.before || 0} دقیقه قبل الی ${restriction.after || 0} دقیقه بعد`
+        : '')
+  })).filter((restriction) => restriction.date_scope?.length);
 
   const handleSaveFileWithDetails = () => {
     if (!pendingFileInfo) return;
@@ -1369,22 +1605,60 @@ const Amain = () => {
         setSelectedCulturalTypes([...itemToEdit.culturalTypes]);
       }
 
-      if (itemToEdit.displaySettings) {
-        setShowUserComments(itemToEdit.displaySettings.showUserComments || 'نمایش');
-        setShowMultimedia(itemToEdit.displaySettings.showMultimedia || 'نمایش');
-      }
+      const resolvedDisplaySettings = normalizeDisplaySettings({
+        ...(itemToEdit.displaySettings || {}),
+        ...(itemToEdit.display_settings || {}),
+        showUserFeedbacks: itemToEdit.showUserFeedbacks ?? itemToEdit.show_user_feedbacks,
+        showMediaGallery: itemToEdit.showMediaGallery ?? itemToEdit.show_media_gallery,
+        showUserComments: itemToEdit.showUserComments ?? itemToEdit.show_user_comments,
+        showMultimedia: itemToEdit.showMultimedia ?? itemToEdit.show_multimedia
+      });
+      setShowUserFeedbacks(resolvedDisplaySettings.showUserFeedbacks ? 'نمایش' : 'عدم نمایش');
+      setShowMediaGallery(resolvedDisplaySettings.showMediaGallery ? 'نمایش' : 'عدم نمایش');
 
       if (itemToEdit.restrictions) {
         setCulturalTimeRestrictions(itemToEdit.restrictions.timeRestrictions || []);
         setCulturalPrayerTimeRestrictionsList(itemToEdit.restrictions.prayerTimeRestrictions || []);
       }
 
-      const imageAttachments = (itemToEdit.attachments || []).filter((file) => file.type === 'image');
-      const { primary, images } = normalizePrimaryMedia(itemToEdit.primaryImage, imageAttachments);
+      setCulturalTimeRestrictions(normalizeTimeRestrictions(resolvedTimeRestrictions));
+      setCulturalPrayerTimeRestrictionsList(normalizePrayerRestrictions(resolvedPrayerRestrictions));
+
+      const normalizedAttachments = (itemToEdit.attachments || [])
+        .map(file => normalizeMediaAttachment(file))
+        .filter(Boolean);
+
+      const normalizedMedia = normalizeLanguageMedia(itemToEdit.media);
+
+      const seenAttachmentKeys = new Set();
+      const dedupedAttachments = [...normalizedAttachments, ...normalizedMedia].filter((file) => {
+        const key = file?.path || file?.url || file?.id;
+        if (!key) return false;
+        if (seenAttachmentKeys.has(key)) return false;
+        seenAttachmentKeys.add(key);
+        return true;
+      });
+
+      const imageAttachments = dedupedAttachments.filter((file) =>
+        (file.type && file.type.startsWith('image')) || (file.mime && file.mime.startsWith('image'))
+      );
+      const audioAttachments = dedupedAttachments.filter((file) =>
+        (file.type && file.type.startsWith('audio')) || (file.mime && file.mime.startsWith('audio'))
+      );
+      const textAttachments = dedupedAttachments.filter((file) =>
+        !((file.type && (file.type.startsWith('image') || file.type.startsWith('audio') || file.type.startsWith('video')))
+        || (file.mime && (file.mime.startsWith('image') || file.mime.startsWith('audio') || file.mime.startsWith('video'))))
+      );
+
+      const normalizedPrimary = itemToEdit.primaryImage
+        ? normalizeMediaAttachment(itemToEdit.primaryImage)
+        : imageAttachments[0] || null;
+
+      const { primary, images } = normalizePrimaryMedia(normalizedPrimary, imageAttachments);
 
       setProfileImages(images);
-      setAudioFiles([]);
-      setTextFiles([]);
+      setAudioFiles(audioAttachments);
+      setTextFiles(textAttachments);
       setPrimaryImage(primary || images[0] || null);
 
       if (itemToEdit.location) {
@@ -1411,16 +1685,83 @@ const Amain = () => {
     }
 
     try {
-      await updateCulturalItem(editingCulturalId, {
+      const uploadedFiles = await uploadCulturalFiles([
+        ...profileImages,
+        ...audioFiles,
+        ...textFiles
+      ], editingCulturalId);
+
+      const attachments = buildAttachmentPayload(uploadedFiles);
+      const resolvedPrimary = uploadedFiles.find((file) => file.id === primaryImage?.id)
+        || uploadedFiles.find((file) => file.isPrimary)
+        || null;
+
+      const restrictionsPayload = {
+        timeRestrictions: buildCulturalTimeRestrictionsPayload(),
+        prayerTimeRestrictions: buildCulturalPrayerRestrictionsPayload()
+      };
+
+      const displaySettingsPayload = {
+        showUserFeedbacks: showUserFeedbacks === 'نمایش',
+        showMediaGallery: showMediaGallery === 'نمایش',
+        showUserComments: showUserFeedbacks === 'نمایش',
+        showMultimedia: showMediaGallery === 'نمایش'
+      };
+
+      const payload = {
+        ...(editingCulturalData || {}),
         title: culturalTitle,
         description: culturalDescription,
-        primaryImage: primaryImage?.url || null,
-        attachments: profileImages.map((img) => ({
-          type: 'image',
-          url: img.url || img,
-          mime: img.mime || 'image/jpeg'
-        }))
-      });
+        titles: {
+          fa: culturalTitle,
+          en: languageTitles.english,
+          ar: languageTitles.arabic,
+          ur: languageTitles.urdu
+        },
+        descriptions: {
+          fa: culturalDescription,
+          en: languageDescriptions.english,
+          ar: languageDescriptions.arabic,
+          ur: languageDescriptions.urdu
+        },
+        addressInShrine: placeAddress,
+        addresses: {
+          fa: placeAddress,
+          en: languageAddresses.english,
+          ar: languageAddresses.arabic,
+          ur: languageAddresses.urdu
+        },
+        culturalTypes: selectedCulturalTypes,
+        cultural_types: selectedCulturalTypes,
+        type: selectedCulturalTypes,
+        types: selectedCulturalTypes,
+        displaySettings: displaySettingsPayload,
+        display_settings: displaySettingsPayload,
+        showUserFeedbacks: displaySettingsPayload.showUserFeedbacks,
+        show_user_feedbacks: displaySettingsPayload.showUserFeedbacks,
+        showMediaGallery: displaySettingsPayload.showMediaGallery,
+        show_media_gallery: displaySettingsPayload.showMediaGallery,
+        showUserComments: displaySettingsPayload.showUserFeedbacks,
+        show_user_comments: displaySettingsPayload.showUserFeedbacks,
+        showMultimedia: displaySettingsPayload.showMediaGallery,
+        show_multimedia: displaySettingsPayload.showMediaGallery,
+        restrictions: {
+          ...restrictionsPayload,
+          time_restrictions: restrictionsPayload.timeRestrictions,
+          prayer_time_restrictions: restrictionsPayload.prayerTimeRestrictions
+        },
+        timeRestrictions: restrictionsPayload.timeRestrictions,
+        time_restrictions: restrictionsPayload.timeRestrictions,
+        prayerTimeRestrictions: restrictionsPayload.prayerTimeRestrictions,
+        prayer_time_restrictions: restrictionsPayload.prayerTimeRestrictions,
+        primaryImage: resolvedPrimary?.path || resolvedPrimary?.url || null,
+        attachments,
+        location: selectedLocation
+          ? { lng: selectedLocation.lng, lat: selectedLocation.lat }
+          : null
+      };
+
+      await updateCulturalItem(editingCulturalId, payload);
       toast.success('اطلاعات فرهنگی با موفقیت ویرایش شد');
       loadCulturalItems();
       exitEditMode();
@@ -1459,8 +1800,8 @@ const Amain = () => {
   const resetEditFormWithoutMapCleanup = () => {
     setCulturalTitle('');
     setCulturalDescription('');
-    setShowUserComments('نمایش');
-    setShowMultimedia('نمایش');
+    setShowUserFeedbacks('نمایش');
+    setShowMediaGallery('نمایش');
     setSelectedCulturalTypes([]);
     setPlaceAddress('');
     setCulturalPoiId('');
@@ -1574,8 +1915,8 @@ const Amain = () => {
     setCulturalStep(1);
     setCulturalTitle('');
     setCulturalDescription('');
-    setShowUserComments('نمایش');
-    setShowMultimedia('نمایش');
+    setShowUserFeedbacks('نمایش');
+    setShowMediaGallery('نمایش');
     setSelectedCulturalTypes([]);
     setPlaceAddress('');
     setSelectedLocation(null);
@@ -5912,14 +6253,14 @@ const Amain = () => {
                         <span className="option-label-edit">دیدگاه‌های کاربران</span>
                         <div className="display-toggle-edit">
                           <div
-                            className={`toggle-option2-edit ${showUserComments === 'نمایش' ? 'selected' : ''}`}
-                            onClick={() => setShowUserComments('نمایش')}
+                            className={`toggle-option2-edit ${showUserFeedbacks === 'نمایش' ? 'selected' : ''}`}
+                            onClick={() => setShowUserFeedbacks('نمایش')}
                           >
                             نمایش
                           </div>
                           <div
-                            className={`toggle-option-edit ${showUserComments === 'عدم نمایش' ? 'selected' : ''}`}
-                            onClick={() => setShowUserComments('عدم نمایش')}
+                            className={`toggle-option-edit ${showUserFeedbacks === 'عدم نمایش' ? 'selected' : ''}`}
+                            onClick={() => setShowUserFeedbacks('عدم نمایش')}
                           >
                             عدم نمایش
                           </div>
@@ -5931,14 +6272,14 @@ const Amain = () => {
                         <span className="option-label-edit">چند رسانه‌ای‌ها</span>
                         <div className="display-toggle-edit">
                           <div
-                            className={`toggle-option2-edit ${showMultimedia === 'نمایش' ? 'selected' : ''}`}
-                            onClick={() => setShowMultimedia('نمایش')}
+                            className={`toggle-option2-edit ${showMediaGallery === 'نمایش' ? 'selected' : ''}`}
+                            onClick={() => setShowMediaGallery('نمایش')}
                           >
                             نمایش
                           </div>
                           <div
-                            className={`toggle-option-edit ${showMultimedia === 'عدم نمایش' ? 'selected' : ''}`}
-                            onClick={() => setShowMultimedia('عدم نمایش')}
+                            className={`toggle-option-edit ${showMediaGallery === 'عدم نمایش' ? 'selected' : ''}`}
+                            onClick={() => setShowMediaGallery('عدم نمایش')}
                           >
                             عدم نمایش
                           </div>
@@ -8673,14 +9014,14 @@ const Amain = () => {
                           <span className="option-label">دیدگاه‌های کاربران</span>
                           <div className="display-toggle">
                             <div
-                              className={`toggle-option2 ${showUserComments === 'نمایش' ? 'selected' : ''}`}
-                              onClick={() => setShowUserComments('نمایش')}
+                              className={`toggle-option2 ${showUserFeedbacks === 'نمایش' ? 'selected' : ''}`}
+                              onClick={() => setShowUserFeedbacks('نمایش')}
                             >
                               نمایش
                             </div>
                             <div
-                              className={`toggle-option ${showUserComments === 'عدم نمایش' ? 'selected' : ''}`}
-                              onClick={() => setShowUserComments('عدم نمایش')}
+                              className={`toggle-option ${showUserFeedbacks === 'عدم نمایش' ? 'selected' : ''}`}
+                              onClick={() => setShowUserFeedbacks('عدم نمایش')}
                             >
                               عدم نمایش
                             </div>
@@ -8692,14 +9033,14 @@ const Amain = () => {
                           <span className="option-label">چند رسانه‌ای‌ها</span>
                           <div className="display-toggle">
                             <div
-                              className={`toggle-option2 ${showMultimedia === 'نمایش' ? 'selected' : ''}`}
-                              onClick={() => setShowMultimedia('نمایش')}
+                              className={`toggle-option2 ${showMediaGallery === 'نمایش' ? 'selected' : ''}`}
+                              onClick={() => setShowMediaGallery('نمایش')}
                             >
                               نمایش
                             </div>
                             <div
-                              className={`toggle-option ${showMultimedia === 'عدم نمایش' ? 'selected' : ''}`}
-                              onClick={() => setShowMultimedia('عدم نمایش')}
+                              className={`toggle-option ${showMediaGallery === 'عدم نمایش' ? 'selected' : ''}`}
+                              onClick={() => setShowMediaGallery('عدم نمایش')}
                             >
                               عدم نمایش
                             </div>
