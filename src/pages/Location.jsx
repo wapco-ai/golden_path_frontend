@@ -227,16 +227,11 @@ const Location = () => {
         const mimeType = item.mime || '';
         let derivedType = item.type;
 
-        const mimeTypeToType = () => {
-          if (mimeType.startsWith('image/')) return 'image';
-          if (mimeType === 'application/pdf') return 'pdf';
-          if (mimeType.startsWith('video/')) return 'video';
-          return 'file';
-        };
-
-        // Prefer MIME-derived type when the provided type is generic (e.g., "file")
-        if (!derivedType || derivedType === 'file') {
-          derivedType = mimeTypeToType();
+        if (!derivedType) {
+          if (mimeType.startsWith('image/')) derivedType = 'image';
+          else if (mimeType === 'application/pdf') derivedType = 'pdf';
+          else if (mimeType.startsWith('video/')) derivedType = 'video';
+          else derivedType = 'file';
         }
 
         return {
