@@ -5743,14 +5743,22 @@ const Amain = () => {
   };
 
   return (
-    <div className={`admin-panel admin-panel-isolated ${isMapFullscreen ? 'map-fullscreen' : ''}`}>
+    <div
+      id="amain-admin-panel"
+      className={`admin-panel admin-panel-isolated ${isMapFullscreen ? 'map-fullscreen' : ''}`}
+    >
       {/* Header */}
-      <div className="admin-header">
+      <div id="amain-header" className="admin-header">
         <div className="header-right">
-          <div className="sidebar-logo">
+          <div id="amain-logo" className="sidebar-logo">
             <img src={logo} alt="Logo" />
           </div>
-          <div className="admin-profile" onClick={handleAvatarClick} style={{ cursor: 'pointer' }}>
+          <div
+            id="amain-profile-menu"
+            className="admin-profile"
+            onClick={handleAvatarClick}
+            style={{ cursor: 'pointer' }}
+          >
             <div className="profile-image">
               {adminAvatar ? (
                 <img
@@ -5810,9 +5818,9 @@ const Amain = () => {
 
       </div>
 
-      <div className="admin-content-wrapper">
+      <div id="amain-content" className="admin-content-wrapper">
         {/* Sidebar */}
-        <div className="admin-sidebar">
+        <div id="amain-sidebar" className="admin-sidebar">
 
 
           <div className="sidebar-menu">
