@@ -6853,21 +6853,24 @@ body {
   flex: 2;
   display: flex;
   flex-direction: column;
+  padding-top: 0px;
+  gap: 8px;
 }
 
 .edit-form-section {
   background: white;
-  border-radius: 12px;
   padding: 25px;
+  padding-top: 0px;
 }
 
 
 .edit-form-title {
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 600;
   color: #1E2023;
   margin-bottom: 20px;
   padding-bottom: 10px;
+  margin-top: 0px;
 }
 
 .edit-form-group {
@@ -6998,7 +7001,7 @@ body {
 /* Cultural Type Grid */
 .cultural-type-grid-edit {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
 }
 

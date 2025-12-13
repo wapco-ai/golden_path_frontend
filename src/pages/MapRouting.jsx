@@ -82,24 +82,27 @@ const MapRoutingPage = () => {
 
   useEffect(() => {
     let isMounted = true;
-
+  
     Promise.all([
       fetchGroupMetadata({ language, withPng: true }),
       fetchSubGroups({ language, withImages: true })
     ])
       .then(([groupData, subGroupData]) => {
         if (!isMounted) return;
-
+  
         const normalizedGroups = normalizeGroupMetadata(groupData?.groups, language);
         const normalizedSubGroups = normalizeSubGroupMetadata(subGroupData?.subGroups, language);
-
+  
+        console.log('Initial groups loaded:', normalizedGroups.length);
+        console.log('Initial subgroups loaded for all categories');
+        
         setGroups(normalizedGroups);
         setSubGroups(normalizedSubGroups);
       })
       .catch((err) => {
         console.error('failed to fetch group metadata', err);
       });
-
+  
     return () => {
       isMounted = false;
     };
@@ -694,7 +697,7 @@ const MapRoutingPage = () => {
 
   const handleCategoryClick = async (category) => {
     const isSameCategory = mapSelectedCategory && mapSelectedCategory.value === category.value;
-
+  
     if (isSameCategory) {
       setMapSelectedCategory(null);
       setMapSelectedSubGroups([]);
@@ -704,46 +707,68 @@ const MapRoutingPage = () => {
       setMapEntryDoors([]);
       return;
     }
-
-    const categorySubGroups = subGroups[category.value] || [];
-    const hasSubGroupsWithImages = categorySubGroups.some(sub => sub.img);
-
-    if (hasSubGroupsWithImages) {
-      setMapSelectedSubGroups(categorySubGroups);
-    } else {
-      setMapSelectedSubGroups([]);
-    }
-
+  
+    // Set loading state
     setMapSelectedCategory(category);
-    setActiveInput('destination');
-    setSelectedEntry(null);
-
-    const categoryCoordinates = getCategoryCenterCoordinates(category);
-
-    if (!categoryCoordinates) {
-      return;
+    setMapSelectedSubGroups([]); // Clear while loading
+    
+    try {
+      // Fetch FRESH subgroups for this category (same as modal does)
+      const response = await fetchSubGroups({ 
+        language, 
+        groups: category.value, 
+        withImages: true 
+      });
+      
+      const normalizedSubGroups = normalizeSubGroupMetadata(response?.subGroups, language);
+      
+      // Update the main subGroups state (for consistency)
+      setSubGroups((prev) => ({
+        ...prev,
+        [category.value]: normalizedSubGroups[category.value] || []
+      }));
+      
+      // Get subgroups for this specific category
+      const categorySubGroups = normalizedSubGroups[category.value] || [];
+      
+      console.log('Fresh fetch for category:', category.label);
+      console.log('Subgroups found:', categorySubGroups);
+      console.log('Subgroups with images:', categorySubGroups.filter(sub => sub.img));
+      
+      // Filter to get ONLY subgroups with images
+      const imageSubGroups = categorySubGroups.filter(subGroup => {
+        const hasImage = Array.isArray(subGroup.img) ? 
+          subGroup.img.length > 0 : 
+          Boolean(subGroup.img);
+        return hasImage;
+      });
+      
+      console.log('Image subgroups to display:', imageSubGroups.length);
+      
+      // Set the image subgroups to display
+      setMapSelectedSubGroups(imageSubGroups);
+      
+    } catch (err) {
+      console.error('Failed to fetch subgroups for category', category.label, err);
+      
+      // Fallback to existing data in subGroups state
+      const categorySubGroups = subGroups[category.value] || [];
+      const imageSubGroups = categorySubGroups.filter(subGroup => {
+        const hasImage = Array.isArray(subGroup.img) ? 
+          subGroup.img.length > 0 : 
+          Boolean(subGroup.img);
+        return hasImage;
+      });
+      
+      setMapSelectedSubGroups(imageSubGroups);
     }
-
-    const destination = {
-      name: intl.formatMessage({ id: category.label }),
-      location: intl.formatMessage({ id: category.label }),
-      coordinates: categoryCoordinates
-    };
-
-    setTempDestination(destination);
-
-    const result = await requestAreaDoors(categoryCoordinates[0], categoryCoordinates[1]);
-
-    if (result?.doors?.length) {
-      setShowEntryModal(true);
-      return;
-    }
-
-    setShowEntryModal(false);
+    
+    // Clear any previous area doors data
+    setAreaDoorsData(null);
+    setAreaDoorsStatus(null);
+    setAreaDoorsMessage('');
+    setMapEntryDoors([]);
     setTempDestination(null);
-    setSelectedDestination(destination);
-    addSearch(destination);
-    sessionStorage.setItem('currentDestination', JSON.stringify(destination));
   };
 
   const handleSubGroupClick = (subGroup) => {
@@ -1051,12 +1076,24 @@ const MapRoutingPage = () => {
         )}
       </div>
 
-      {/* Subgroups Container - Only shown when a category with image subgroups is selected */}
-      {mapSelectedSubGroups.length > 0 && (
+      {/* Subgroups Container - Only shown when a category is selected and has image subgroups */}
+      {mapSelectedCategory && mapSelectedSubGroups.length > 0 && (
         <div className="map-subgroups-container">
           <div className="map-subgroups-scroll">
-            {mapSelectedSubGroups.map((subGroup, index) => (
-              subGroup.img && (
+            {mapSelectedSubGroups.map((subGroup, index) => {
+              // Debug: check what we're rendering
+              console.log(`Rendering subgroup ${index}:`, subGroup.label, 'Image:', subGroup.img);
+
+              // Get image URL
+              const imageUrl = Array.isArray(subGroup.img) ? subGroup.img[0] : subGroup.img;
+
+              // Safety check - should not happen since we filtered, but just in case
+              if (!imageUrl) {
+                console.log(`Skipping ${subGroup.label} - no image URL`);
+                return null;
+              }
+
+              return (
                 <div key={`${subGroup.value}-${index}`} className="map-subgroup-card">
                   <div className="map-subgroup-main">
                     <div className="map-subgroup-content">
@@ -1089,8 +1126,12 @@ const MapRoutingPage = () => {
                     </div>
                     <div className="map-subgroup-image">
                       <img
-                        src={Array.isArray(subGroup.img) ? subGroup.img[0] : subGroup.img}
+                        src={imageUrl}
                         alt={subGroup.label}
+                        onError={(e) => {
+                          console.error(`Failed to load image for ${subGroup.label}:`, imageUrl);
+                          e.target.style.display = 'none';
+                        }}
                       />
                     </div>
                   </div>
@@ -1113,14 +1154,14 @@ const MapRoutingPage = () => {
                     </button>
                     <button className="map-subgroup-btn" onClick={() => navigate('/location')}>
                       <svg width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path fillRule="evenodd" clipRule="evenodd" d="M7.79691 0.833496H9.20341C10.1151 0.833483 10.85 0.833472 11.428 0.911179C12.0281 0.991856 12.5333 1.16445 12.9346 1.56573C13.1336 1.76471 13.2763 1.98925 13.3795 2.23825C14.0009 2.31608 14.5226 2.48705 14.9346 2.8991C15.3359 3.30038 15.5085 3.80563 15.5891 4.4057C15.6669 4.98368 15.6668 5.71856 15.6668 6.63028V9.37011C15.6668 10.2818 15.6669 11.0167 15.5891 11.5947C15.5085 12.1948 15.3359 12.7 14.9346 13.1013C14.5225 13.5133 14.0009 13.6843 13.3795 13.7622C13.2763 14.0111 13.1336 14.2356 12.9346 14.4346C12.5333 14.8359 12.0281 15.0085 11.428 15.0891C10.85 15.1669 10.1151 15.1668 9.20341 15.1668H7.79692C6.88519 15.1668 6.15031 15.1669 5.57233 15.0891C4.97226 15.0085 4.46701 14.8359 4.06573 14.4346C3.86677 14.2356 3.72403 14.0111 3.62083 13.7622C2.99946 13.6843 2.47778 13.5133 2.06573 13.1013C1.66445 12.7 1.49186 12.1948 1.41118 11.5947C1.33347 11.0167 1.33348 10.2818 1.3335 9.37011V6.63028C1.33348 5.71856 1.33347 4.98368 1.41118 4.4057C1.49186 3.80563 1.66445 3.30038 2.06573 2.8991C2.47777 2.48705 2.99944 2.31608 3.6208 2.23824C3.724 1.98925 3.86675 1.76471 4.06573 1.56573C4.46701 1.16445 4.97226 0.991856 5.57233 0.911179C6.15031 0.833472 6.88519 0.833483 7.79691 0.833496ZM3.38579 3.29381C3.09404 3.36412 2.91217 3.46688 2.77284 3.6062C2.58833 3.79071 2.46803 4.04976 2.40226 4.53894C2.33456 5.04251 2.3335 5.70992 2.3335 6.66686V9.33353C2.3335 10.2905 2.33456 10.9579 2.40226 11.4615C2.46803 11.9506 2.58833 12.2097 2.77284 12.3942C2.91217 12.5335 3.09405 12.6363 3.38579 12.7066C3.33347 12.1658 3.33348 11.5025 3.3335 10.7034V5.29691C3.33348 4.49785 3.33347 3.83462 3.38579 3.29381ZM13.6145 12.7066C13.9063 12.6363 14.0882 12.5335 14.2275 12.3942C14.412 12.2097 14.5323 11.9506 14.5981 11.4615C14.6658 10.9579 14.6668 10.2905 14.6668 9.33353V6.66686C14.6668 5.70992 14.6658 5.04251 14.5981 4.53894C14.5323 4.04976 14.412 3.79071 14.2275 3.6062C14.0882 3.46688 13.9063 3.36412 13.6145 3.29381C13.6669 3.83462 13.6668 4.49785 13.6668 5.29692V10.7034C13.6668 11.5025 13.6669 12.1658 13.6145 12.7066ZM5.70558 1.90226C5.21639 1.96803 4.95735 2.08833 4.77284 2.27284C4.58833 2.45735 4.46803 2.71639 4.40226 3.20558C4.33456 3.70914 4.3335 4.37655 4.3335 5.3335V10.6668C4.3335 11.6238 4.33456 12.2912 4.40226 12.7947C4.46803 13.2839 4.58833 13.543 4.77284 13.7275C4.95735 13.912 5.21639 14.0323 5.70558 14.0981C6.20914 14.1658 6.87655 14.1668 7.8335 14.1668H9.16683C10.1238 14.1668 10.7912 14.1658 11.2947 14.0981C11.7839 14.0323 12.043 13.912 12.2275 13.7275C12.412 13.543 12.5323 13.2839 12.5981 12.7947C12.6658 12.2912 12.6668 11.6238 12.6668 10.6668V5.3335C12.6668 4.37655 12.6658 3.70914 12.5981 3.20558C12.5323 2.71639 12.412 2.45735 12.2275 2.27284C12.043 2.08833 11.7839 1.96803 11.2947 1.90226C10.7912 1.83456 10.1238 1.8335 9.16683 1.8335H7.8335C6.87655 1.8335 6.20914 1.83456 5.70558 1.90226ZM6.00016 6.00016C6.00016 5.72402 6.22402 5.50016 6.50016 5.50016H10.5002C10.7763 5.50016 11.0002 5.72402 11.0002 6.00016C11.0002 6.27631 10.7763 6.50016 10.5002 6.50016H6.50016C6.22402 6.50016 6.00016 6.27631 6.00016 6.00016ZM6.00016 8.66683C6.00016 8.39069 6.22402 8.16683 6.50016 8.16683H10.5002C10.7763 8.16683 11.0002 8.39069 11.0002 8.66683C11.0002 8.94297 10.7763 9.16683 10.5002 9.16683H6.50016C6.22402 9.16683 6.00016 8.94297 6.00016 8.66683ZM6.00016 11.3335C6.00016 11.0574 6.22402 10.8335 6.50016 10.8335H8.50016C8.77631 10.8335 9.00016 11.0574 9.00016 11.3335C9.00016 11.6096 8.77631 11.8335 8.50016 11.8335H6.50016C6.22402 11.8335 6.00016 11.6096 6.00016 11.3335Z" fill="#0F71EF" />
+                        <path fillRule="evenodd" clipRule="evenodd" d="M7.79691 0.833496H9.20341C10.1151 0.833483 11.85 0.833472 11.428 0.911179C12.0281 0.991856 12.5333 1.16445 12.9346 1.56573C13.1336 1.76471 13.2763 1.98925 13.3795 2.23825C14.0009 2.31608 14.5226 2.48705 14.9346 2.8991C15.3359 3.30038 15.5085 3.80563 15.5891 4.4057C15.6669 4.98368 15.6668 5.71856 15.6668 6.63028V9.37011C15.6668 10.2818 15.6669 11.0167 15.5891 11.5947C15.5085 12.1948 15.3359 12.7 14.9346 13.1013C14.5225 13.5133 14.0009 13.6843 13.3795 13.7622C13.2763 14.0111 13.1336 14.2356 12.9346 14.4346C12.5333 14.8359 12.0281 15.0085 11.428 15.0891C10.85 15.1669 10.1151 15.1668 9.20341 15.1668H7.79692C6.88519 15.1668 6.15031 15.1669 5.57233 15.0891C4.97226 15.0085 4.46701 14.8359 4.06573 14.4346C3.86677 14.2356 3.72403 14.0111 3.62083 13.7622C2.99946 13.6843 2.47778 13.5133 2.06573 13.1013C1.66445 12.7 1.49186 12.1948 1.41118 11.5947C1.33347 11.0167 1.33348 10.2818 1.3335 9.37011V6.63028C1.33348 5.71856 1.33347 4.98368 1.41118 4.4057C1.49186 3.80563 1.66445 3.30038 2.06573 2.8991C2.47777 2.48705 2.99944 2.31608 3.6208 2.23824C3.724 1.98925 3.86675 1.76471 4.06573 1.56573C4.46701 1.16445 4.97226 0.991856 5.57233 0.911179C6.15031 0.833472 6.88519 0.833483 7.79691 0.833496ZM3.38579 3.29381C3.09404 3.36412 2.91217 3.46688 2.77284 3.6062C2.58833 3.79071 2.46803 4.04976 2.40226 4.53894C2.33456 5.04251 2.3335 5.70992 2.3335 6.66686V9.33353C2.3335 10.2905 2.33456 10.9579 2.40226 11.4615C2.46803 11.9506 2.58833 12.2097 2.77284 12.3942C2.91217 12.5335 3.09405 12.6363 3.38579 12.7066C3.33347 12.1658 3.33348 11.5025 3.3335 10.7034V5.29691C3.33348 4.49785 3.33347 3.83462 3.38579 3.29381ZM13.6145 12.7066C13.9063 12.6363 14.0882 12.5335 14.2275 12.3942C14.412 12.2097 14.5323 11.9506 14.5981 11.4615C14.6658 10.9579 14.6668 10.2905 14.6668 9.33353V6.66686C14.6668 5.70992 14.6658 5.04251 14.5981 4.53894C14.5323 4.04976 14.412 3.79071 14.2275 3.6062C14.0882 3.46688 13.9063 3.36412 13.6145 3.29381C13.6669 3.83462 13.6668 4.49785 13.6668 5.29692V10.7034C13.6668 11.5025 13.6669 12.1658 13.6145 12.7066ZM5.70558 1.90226C5.21639 1.96803 4.95735 2.08833 4.77284 2.27284C4.58833 2.45735 4.46803 2.71639 4.40226 3.20558C4.33456 3.70914 4.3335 4.37655 4.3335 5.3335V10.6668C4.3335 11.6238 4.33456 12.2912 4.40226 12.7947C4.46803 13.2839 4.58833 13.543 4.77284 13.7275C4.95735 13.912 5.21639 14.0323 5.70558 14.0981C6.20914 14.1658 6.87655 14.1668 7.8335 14.1668H9.16683C10.1238 14.1668 10.7912 14.1658 11.2947 14.0981C11.7839 14.0323 12.043 13.912 12.2275 13.7275C12.412 13.543 12.5323 13.2839 12.5981 12.7947C12.6658 12.2912 12.6668 11.6238 12.6668 10.6668V5.3335C12.6668 4.37655 12.6658 3.70914 12.5981 3.20558C12.5323 2.71639 12.412 2.45735 12.2275 2.27284C12.043 2.08833 11.7839 1.96803 11.2947 1.90226C10.7912 1.83456 10.1238 1.8335 9.16683 1.8335H7.8335C6.87655 1.8335 6.20914 1.83456 5.70558 1.90226ZM6.00016 6.00016C6.00016 5.72402 6.22402 5.50016 6.50016 5.50016H10.5002C10.7763 5.50016 11.0002 5.72402 11.0002 6.00016C11.0002 6.27631 10.7763 6.50016 10.5002 6.50016H6.50016C6.22402 6.50016 6.00016 6.27631 6.00016 6.00016ZM6.00016 8.66683C6.00016 8.39069 6.22402 8.16683 6.50016 8.16683H10.5002C10.7763 8.16683 11.0002 8.39069 11.0002 8.66683C11.0002 8.94297 10.7763 9.16683 10.5002 9.16683H6.50016C6.22402 9.16683 6.00016 8.94297 6.00016 8.66683ZM6.00016 11.3335C6.00016 11.0574 6.22402 10.8335 6.50016 10.8335H8.50016C8.77631 10.8335 9.00016 11.0574 9.00016 11.3335C9.00016 11.6096 8.77631 11.8335 8.50016 11.8335H6.50016C6.22402 11.8335 6.00016 11.6096 6.00016 11.3335Z" fill="#0F71EF" />
                       </svg>
                       <FormattedMessage id="detailsButton" />
                     </button>
                   </div>
                 </div>
-              )
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

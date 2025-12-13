@@ -33,7 +33,6 @@ import { convertLngLatToUtm32640 } from '../utils/utm';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { getLanguageName } from '../utils/languageNames';
-import { deleteFile, uploadFile } from '../services/fileService';
 
 
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
@@ -511,6 +510,7 @@ const Amain = () => {
   const [culturalItemsPerPage, setCulturalItemsPerPage] = useState(7);
   const [culturalTotalItems, setCulturalTotalItems] = useState(0);
   const [isLoadingCultural, setIsLoadingCultural] = useState(false);
+  const [culturalPoiId, setCulturalPoiId] = useState('');
   const [locationRoofType, setLocationRoofType] = useState('');
   const [locationStatus, setLocationStatus] = useState('');
   const [isAddCulturalModalOpen, setIsAddCulturalModalOpen] = useState(false);
@@ -522,9 +522,8 @@ const Amain = () => {
   const [selectedCulturalTypes, setSelectedCulturalTypes] = useState([]);
   const [culturalTypeError, setCulturalTypeError] = useState(false);
   const [culturalMap, setCulturalMap] = useState(null);
-  const culturalMapRef = useRef(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
-  const currentMarkerRef = useRef(null);
+  const [currentMarker, setCurrentMarker] = useState(null);
   const [titleForModal, setTitleForModal] = useState(''); // Current title field value
   const [adminAvatar, setAdminAvatar] = useState(null);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -655,79 +654,24 @@ const Amain = () => {
   const [categoryCurrentPage, setCategoryCurrentPage] = useState(1);
   const [categoryItemsPerPage, setCategoryItemsPerPage] = useState(7);
 
-  const buildMediaUrl = (media, defaultMime = 'image/jpeg') => {
-    if (!media) return null;
-
-    if (typeof media === 'string') {
-      const trimmed = media.trim();
-      if (trimmed.startsWith('data:')) return trimmed;
-
-      const isRawBase64 = /^[A-Za-z0-9+/]+={0,2}$/g.test(trimmed.replace(/\s+/g, ''));
-      if (isRawBase64) {
-        return `data:${defaultMime};base64,${trimmed}`;
-      }
-
-      return trimmed;
-    }
-
-    if (typeof media === 'object') {
-      if (media.url) return media.url;
-      if (media.data) {
-        return `data:${media.mime || defaultMime};base64,${media.data}`;
-      }
-    }
-
-    return null;
-  };
-
-  const normalizeMediaAttachment = (file, defaultMime = 'image/jpeg') => {
-    if (!file) return null;
-
-    const mimeType = file.mime
-      || (file.type?.includes('/') ? file.type : null)
-      || (file.type === 'image' ? 'image/jpeg' : null)
-      || (file.type === 'video' ? 'video/mp4' : null)
-      || defaultMime;
-
-    return {
-      id: file.id || `attachment-${Math.random().toString(36).slice(2)}`,
-      name: file.name || 'فایل پیوست',
-      type: mimeType,
-      mime: mimeType,
-      url: buildMediaUrl(file, mimeType) || '',
-      orientation: file.orientation ?? null,
-      ...file
-    };
-  };
-
   const normalizePrimaryMedia = (primaryMedia, existingImages = []) => {
-    const validExistingImages = existingImages.filter(
-      (img) => img && img.url && typeof img.url === 'string' && img.url.trim()
-    );
-
-    if (!primaryMedia || (typeof primaryMedia === 'object' && !primaryMedia.url)) {
-      return { primary: null, images: validExistingImages };
+    if (!primaryMedia) {
+      return { primary: null, images: existingImages };
     }
 
     if (typeof primaryMedia === 'object') {
-      const mimeType = primaryMedia.mime
-        || (primaryMedia.type?.includes('/') ? primaryMedia.type : null)
-        || (primaryMedia.type === 'image' ? 'image/jpeg' : null)
-        || (primaryMedia.type === 'video' ? 'video/mp4' : null)
-        || 'image/*';
-
       const normalizedPrimary = {
         id: primaryMedia.id || 'existing-primary-image',
         name: primaryMedia.name || 'تصویر اصلی',
-        type: mimeType,
-        url: buildMediaUrl(primaryMedia, mimeType) || '',
+        type: primaryMedia.type || 'image/*',
+        url: primaryMedia.url || primaryMedia,
         isPrimary: primaryMedia.isPrimary ?? true,
         orientation: primaryMedia.orientation ?? null
       };
 
-      const images = validExistingImages.some(img => img.id === normalizedPrimary.id)
-        ? validExistingImages
-        : [normalizedPrimary, ...validExistingImages];
+      const images = existingImages.some(img => img.id === normalizedPrimary.id)
+        ? existingImages
+        : [normalizedPrimary, ...existingImages];
 
       return { primary: normalizedPrimary, images };
     }
@@ -742,30 +686,15 @@ const Amain = () => {
       id: 'existing-primary-image',
       name: 'تصویر اصلی',
       type: derivedType,
-      url: buildMediaUrl(primaryMedia, derivedType) || '',
+      url: primaryMedia,
       isPrimary: true
     };
 
-    const images = validExistingImages.some(img => img.id === normalizedPrimary.id)
-      ? validExistingImages
-      : [normalizedPrimary, ...validExistingImages];
+    const images = existingImages.some(img => img.id === normalizedPrimary.id)
+      ? existingImages
+      : [normalizedPrimary, ...existingImages];
 
     return { primary: normalizedPrimary, images };
-  };
-
-  const normalizeImageAttachments = (files = []) => {
-    if (!Array.isArray(files)) return [];
-
-    return files
-      .map(file => normalizeMediaAttachment(file))
-      .filter((file) => file
-        && typeof file.url === 'string'
-        && file.url.trim()
-        && (
-          (typeof file.type === 'string' && file.type.startsWith('image'))
-          || (typeof file.mime === 'string' && file.mime.startsWith('image'))
-          || file.fileType === 'image'
-        ));
   };
 
   const getCategoryPageNumbers = () => {
@@ -923,155 +852,6 @@ const Amain = () => {
     return labels[fileType] || fileType;
   };
 
-  const resolveFileBucket = (file) => {
-    const mime = file?.type || file?.mime || '';
-    if (mime.startsWith('image/') || mime.startsWith('video/')) return 'images';
-    if (mime.startsWith('audio/')) return 'audio';
-    return 'files';
-  };
-
-  const resolveAttachmentType = (mimeType = '') => {
-    if (mimeType.startsWith('image/')) return 'image';
-    if (mimeType.startsWith('video/')) return 'video';
-    if (mimeType.startsWith('audio/')) return 'audio';
-    return 'file';
-  };
-
-  const uploadCulturalFiles = async (files = [], entityId) => {
-    const uploadedFiles = [];
-
-    for (const file of files) {
-      if (!file) continue;
-
-      // Already uploaded/remote files
-      if (!file.file) {
-        uploadedFiles.push({
-          ...file,
-          path: file.path || file.url || '',
-          url: file.url || file.path || '',
-          mime: file.mime || file.type
-        });
-        continue;
-      }
-
-      try {
-        const response = await uploadFile({
-          file: file.file,
-          entityTable: 'contents',
-          entityId,
-          bucket: resolveFileBucket(file),
-          keepOriginalName: true
-        });
-
-        uploadedFiles.push({
-          id: file.id,
-          name: file.name,
-          orientation: file.orientation ?? null,
-          mime: response?.mime || file.mime || file.type,
-          path: response?.path || '',
-          url: response?.url || response?.path || '',
-        });
-      } catch (error) {
-        console.error('File upload failed', error);
-        throw error;
-      }
-    }
-
-    return uploadedFiles;
-  };
-
-  const buildAttachmentPayload = (files = []) => {
-    const seenPaths = new Set();
-
-    return files
-      .filter((file) => file?.path || file?.url)
-      .map((file) => ({
-        type: resolveAttachmentType(file?.mime || file?.type || ''),
-        mime: file?.mime || file?.type || 'application/octet-stream',
-        path: file?.path || file?.url || '',
-        url: file?.url || file?.path || '',
-        orientation: file?.orientation ?? null,
-        name: file?.name
-      }))
-      .filter((attachment) => {
-        const key = attachment.path || attachment.url;
-        if (seenPaths.has(key)) return false;
-        seenPaths.add(key);
-        return true;
-      });
-  };
-
-  const normalizeDisplaySettings = (settings = {}) => {
-    const normalized = settings.displaySettings || settings.display_settings || settings;
-
-    return {
-      showUserComments: normalized.showUserComments ?? normalized.show_user_comments ?? true,
-      showMultimedia: normalized.showMultimedia ?? normalized.show_multimedia ?? true
-    };
-  };
-
-  const normalizeTimeRestrictions = (restrictions = []) => restrictions.map((restriction) => ({
-    date: restriction?.date || restriction?.title || restriction?.date_scope || '',
-    isoDateScope: restriction?.isoDateScope || restriction?.date_scope || '',
-    gender: restriction?.gender || restriction?.allowed_genders || [],
-    timePairs: restriction?.timePairs || restriction?.time_pairs || restriction?.time_ranges || [],
-    limitAllHours: restriction?.limitAllHours ?? restriction?.all_hours ?? false
-  }));
-
-  const normalizePrayerRestrictions = (restrictions = []) => restrictions.map((restriction) => ({
-    ...restriction,
-    date: restriction?.date || restriction?.title || restriction?.date_scope || '',
-    isoDateScope: restriction?.isoDateScope || restriction?.date_scope || '',
-    before: restriction?.before ?? restriction?.before_minutes ?? restriction?.beforeMinutes ?? 0,
-    after: restriction?.after ?? restriction?.after_minutes ?? restriction?.afterMinutes ?? 0,
-    events: restriction?.events || []
-  }));
-
-  const buildCulturalTimeRestrictionsPayload = () => culturalTimeRestrictions.map((restriction) => ({
-    date_scope: restriction?.isoDateScope?.length
-      ? restriction.isoDateScope
-      : restriction?.date_scope?.length
-        ? restriction.date_scope
-        : buildDateScopeIso(restriction?.date),
-    gender: Array.isArray(restriction?.gender)
-      ? restriction.gender.map(normalizeGenderValue).filter(Boolean)
-      : [],
-    time_ranges: Array.isArray(restriction?.timePairs)
-      ? restriction.timePairs.map((pair) => ({
-        start: pair?.start || '',
-        end: pair?.end || ''
-      }))
-      : Array.isArray(restriction?.time_ranges)
-        ? restriction.time_ranges.map((pair) => ({
-          start: pair?.start || '',
-          end: pair?.end || ''
-        }))
-        : [],
-    all_hours: Boolean(restriction?.limitAllHours ?? restriction?.all_hours)
-  })).filter((restriction) => restriction.date_scope?.length);
-
-  const buildCulturalPrayerRestrictionsPayload = () => culturalPrayerTimeRestrictionsList.map((restriction) => ({
-    events: restriction?.events || [],
-    before_minutes: restriction?.before_minutes
-      ?? (restriction?.before !== undefined ? Number(restriction.before) : undefined)
-      ?? (restriction?.beforeMinutes !== undefined ? Number(restriction.beforeMinutes) : undefined)
-      ?? 0,
-    after_minutes: restriction?.after_minutes
-      ?? (restriction?.after !== undefined ? Number(restriction.after) : undefined)
-      ?? (restriction?.afterMinutes !== undefined ? Number(restriction.afterMinutes) : undefined)
-      ?? 0,
-    date_scope: restriction?.isoDateScope?.length
-      ? restriction.isoDateScope
-      : restriction?.date_scope?.length
-        ? restriction.date_scope
-        : buildDateScopeIso(restriction?.date),
-    title: restriction?.title
-      ?? restriction?.label
-      ?? (restriction?.events?.length
-        ? `${restriction.events.join(' و ')} : ${restriction.before || 0} دقیقه قبل الی ${restriction.after || 0} دقیقه بعد`
-        : '')
-  })).filter((restriction) => restriction.date_scope?.length);
-
   const handleSaveFileWithDetails = () => {
     if (!pendingFileInfo) return;
 
@@ -1096,7 +876,6 @@ const Amain = () => {
       type: pendingFileInfo.type,
       size: pendingFileInfo.size,
       url: pendingFileInfo.url || URL.createObjectURL(pendingFileInfo.file),
-      file: pendingFileInfo.file,
       fileType: pendingFileInfo.fileType,
       originalFileType: pendingFileInfo.originalFileType,
       uploadedAt: new Date().toISOString(),
@@ -1569,6 +1348,8 @@ const Amain = () => {
       setCulturalTitle(itemToEdit.title || '');
       setCulturalDescription(itemToEdit.description || '');
       setPlaceAddress(itemToEdit.addressInShrine || '');
+      setCulturalPoiId(itemToEdit.poiId || '');
+
       const itemTitles = itemToEdit.titles || {};
       const itemDescriptions = itemToEdit.descriptions || {};
 
@@ -1584,47 +1365,22 @@ const Amain = () => {
         urdu: itemDescriptions.ur || ''
       });
 
-      if (itemToEdit.culturalTypes || itemToEdit.cultural_types || itemToEdit.types) {
-        setSelectedCulturalTypes([
-          ...(itemToEdit.culturalTypes || itemToEdit.cultural_types || itemToEdit.types || [])
-        ]);
+      if (itemToEdit.culturalTypes) {
+        setSelectedCulturalTypes([...itemToEdit.culturalTypes]);
       }
 
-      const resolvedDisplaySettings = normalizeDisplaySettings({
-        ...(itemToEdit.displaySettings || {}),
-        ...(itemToEdit.display_settings || {}),
-        showUserComments: itemToEdit.showUserComments ?? itemToEdit.show_user_comments,
-        showMultimedia: itemToEdit.showMultimedia ?? itemToEdit.show_multimedia
-      });
-      setShowUserComments(resolvedDisplaySettings.showUserComments ? 'نمایش' : 'عدم نمایش');
-      setShowMultimedia(resolvedDisplaySettings.showMultimedia ? 'نمایش' : 'عدم نمایش');
+      if (itemToEdit.displaySettings) {
+        setShowUserComments(itemToEdit.displaySettings.showUserComments || 'نمایش');
+        setShowMultimedia(itemToEdit.displaySettings.showMultimedia || 'نمایش');
+      }
 
-      const restrictionContainer = itemToEdit.restrictions || {};
-      const resolvedTimeRestrictions = restrictionContainer.timeRestrictions
-        || restrictionContainer.time_restrictions
-        || itemToEdit.timeRestrictions
-        || itemToEdit.time_restrictions
-        || [];
-      const resolvedPrayerRestrictions = restrictionContainer.prayerTimeRestrictions
-        || restrictionContainer.prayer_time_restrictions
-        || itemToEdit.prayerTimeRestrictions
-        || itemToEdit.prayer_time_restrictions
-        || [];
+      if (itemToEdit.restrictions) {
+        setCulturalTimeRestrictions(itemToEdit.restrictions.timeRestrictions || []);
+        setCulturalPrayerTimeRestrictionsList(itemToEdit.restrictions.prayerTimeRestrictions || []);
+      }
 
-      setCulturalTimeRestrictions(normalizeTimeRestrictions(resolvedTimeRestrictions));
-      setCulturalPrayerTimeRestrictionsList(normalizePrayerRestrictions(resolvedPrayerRestrictions));
-
-      const normalizedAttachments = (itemToEdit.attachments || [])
-        .map(file => normalizeMediaAttachment(file))
-        .filter(Boolean);
-
-      const imageAttachments = normalizedAttachments.filter((file) => file.type?.startsWith('image'));
-
-      const normalizedPrimary = itemToEdit.primaryImage
-        ? normalizeMediaAttachment(itemToEdit.primaryImage)
-        : null;
-
-      const { primary, images } = normalizePrimaryMedia(normalizedPrimary, imageAttachments);
+      const imageAttachments = (itemToEdit.attachments || []).filter((file) => file.type === 'image');
+      const { primary, images } = normalizePrimaryMedia(itemToEdit.primaryImage, imageAttachments);
 
       setProfileImages(images);
       setAudioFiles([]);
@@ -1655,77 +1411,16 @@ const Amain = () => {
     }
 
     try {
-      const uploadedFiles = await uploadCulturalFiles([
-        ...profileImages,
-        ...audioFiles,
-        ...textFiles
-      ], editingCulturalId);
-
-      const attachments = buildAttachmentPayload(uploadedFiles);
-      const resolvedPrimary = uploadedFiles.find((file) => file.id === primaryImage?.id)
-        || uploadedFiles.find((file) => file.isPrimary)
-        || null;
-
-      const restrictionsPayload = {
-        timeRestrictions: buildCulturalTimeRestrictionsPayload(),
-        prayerTimeRestrictions: buildCulturalPrayerRestrictionsPayload()
-      };
-
-      const displaySettingsPayload = {
-        showUserComments: showUserComments === 'نمایش',
-        showMultimedia: showMultimedia === 'نمایش'
-      };
-
-      const payload = {
-        ...(editingCulturalData || {}),
+      await updateCulturalItem(editingCulturalId, {
         title: culturalTitle,
         description: culturalDescription,
-        titles: {
-          fa: culturalTitle,
-          en: languageTitles.english,
-          ar: languageTitles.arabic,
-          ur: languageTitles.urdu
-        },
-        descriptions: {
-          fa: culturalDescription,
-          en: languageDescriptions.english,
-          ar: languageDescriptions.arabic,
-          ur: languageDescriptions.urdu
-        },
-        addressInShrine: placeAddress,
-        addresses: {
-          fa: placeAddress,
-          en: languageAddresses.english,
-          ar: languageAddresses.arabic,
-          ur: languageAddresses.urdu
-        },
-        culturalTypes: selectedCulturalTypes,
-        cultural_types: selectedCulturalTypes,
-        type: selectedCulturalTypes,
-        types: selectedCulturalTypes,
-        displaySettings: displaySettingsPayload,
-        display_settings: displaySettingsPayload,
-        showUserComments: displaySettingsPayload.showUserComments,
-        show_user_comments: displaySettingsPayload.showUserComments,
-        showMultimedia: displaySettingsPayload.showMultimedia,
-        show_multimedia: displaySettingsPayload.showMultimedia,
-        restrictions: {
-          ...restrictionsPayload,
-          time_restrictions: restrictionsPayload.timeRestrictions,
-          prayer_time_restrictions: restrictionsPayload.prayerTimeRestrictions
-        },
-        timeRestrictions: restrictionsPayload.timeRestrictions,
-        time_restrictions: restrictionsPayload.timeRestrictions,
-        prayerTimeRestrictions: restrictionsPayload.prayerTimeRestrictions,
-        prayer_time_restrictions: restrictionsPayload.prayerTimeRestrictions,
-        primaryImage: resolvedPrimary?.path || resolvedPrimary?.url || null,
-        attachments,
-        location: selectedLocation
-          ? { lng: selectedLocation.lng, lat: selectedLocation.lat }
-          : null
-      };
-
-      await updateCulturalItem(editingCulturalId, payload);
+        primaryImage: primaryImage?.url || null,
+        attachments: profileImages.map((img) => ({
+          type: 'image',
+          url: img.url || img,
+          mime: img.mime || 'image/jpeg'
+        }))
+      });
       toast.success('اطلاعات فرهنگی با موفقیت ویرایش شد');
       loadCulturalItems();
       exitEditMode();
@@ -1735,26 +1430,18 @@ const Amain = () => {
     }
   };
 
-  const cleanupCulturalMap = useCallback(() => {
-    const mapInstance = culturalMapRef.current;
-
-    if (mapInstance?.handlers) {
-      mapInstance.remove();
-    }
-
-    culturalMapRef.current = null;
-    setCulturalMap(null);
-
-    if (currentMarkerRef.current) {
-      currentMarkerRef.current.remove();
-      currentMarkerRef.current = null;
-    }
-  }, []);
-
   // Add this separate function to exit edit mode cleanly
   const exitEditMode = () => {
     // Clean up map and marker FIRST
-    cleanupCulturalMap();
+    if (currentMarker) {
+      currentMarker.remove();
+      setCurrentMarker(null);
+    }
+
+    if (culturalMap) {
+      culturalMap.remove();
+      setCulturalMap(null);
+    }
 
     // Reset edit mode states
     setIsEditingCultural(false);
@@ -1776,6 +1463,7 @@ const Amain = () => {
     setShowMultimedia('نمایش');
     setSelectedCulturalTypes([]);
     setPlaceAddress('');
+    setCulturalPoiId('');
     setSelectedLocation(null);
 
     setProfileImages([]);
@@ -1809,7 +1497,17 @@ const Amain = () => {
   };
 
   const handleCancelEditCultural = () => {
-    // Rely on resetCulturalForm to handle map cleanup to avoid double-removal errors
+    // Clean up map and marker
+    if (currentMarker) {
+      currentMarker.remove();
+      setCurrentMarker(null);
+    }
+
+    if (culturalMap) {
+      culturalMap.remove();
+      setCulturalMap(null);
+    }
+
     setIsEditingCultural(false);
     setEditingCulturalId(null);
     setEditingCulturalData(null);
@@ -1911,7 +1609,15 @@ const Amain = () => {
     // Also reset the prayer time restrictions list if needed
     // setCulturalPrayerTimeRestrictionsList([]); // Uncomment if you want to clear saved restrictions too
 
-    cleanupCulturalMap();
+    if (currentMarker) {
+      currentMarker.remove();
+      setCurrentMarker(null);
+    }
+
+    if (culturalMap) {
+      culturalMap.remove();
+      setCulturalMap(null);
+    }
 
     setLanguageTitles({
       english: '',
@@ -1998,9 +1704,16 @@ const Amain = () => {
   useEffect(() => {
     if (!isAddCulturalModalOpen) {
       // Clean up when modal closes
-      cleanupCulturalMap();
+      if (currentMarker) {
+        currentMarker.remove();
+        setCurrentMarker(null);
+      }
+      if (culturalMap) {
+        culturalMap.remove();
+        setCulturalMap(null);
+      }
     }
-  }, [isAddCulturalModalOpen, cleanupCulturalMap]);
+  }, [isAddCulturalModalOpen]);
 
   // Cultural restriction handlers
   const handleCulturalDateFilterToggle = (filter) => {
@@ -2233,20 +1946,15 @@ const Amain = () => {
   };
 
   const initializeEditMap = () => {
-    const container = document.getElementById('edit-cultural-map-container');
-
-    if (!container) {
+    if (!document.getElementById('edit-cultural-map-container')) {
       console.log('Map container not found');
       return;
     }
 
-    // Remove any stale canvases in case the map was not cleaned up properly
-    container.innerHTML = '';
-
     console.log('Initializing edit map with selectedLocation:', selectedLocation);
 
     const mapInstance = new maplibregl.Map({
-      container,
+      container: 'edit-cultural-map-container',
       style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
       center: selectedLocation ?
         [selectedLocation.lng, selectedLocation.lat] :
@@ -2255,25 +1963,6 @@ const Amain = () => {
     });
 
     mapInstance.addControl(new maplibregl.NavigationControl());
-
-    const resizeMap = () => {
-      mapInstance.resize();
-    };
-
-    // Ensure the map correctly aligns with the rendered container before handling clicks
-    mapInstance.once('load', () => {
-      resizeMap();
-      // Run another resize in the next frame to catch late layout changes
-      requestAnimationFrame(resizeMap);
-      if (selectedLocation) {
-        mapInstance.jumpTo({ center: [selectedLocation.lng, selectedLocation.lat], zoom: 16 });
-      }
-    });
-
-    // Keep the map in sync with container size changes (modals/tabs opening)
-    const resizeObserver = new ResizeObserver(() => resizeMap());
-    resizeObserver.observe(container);
-    mapInstance.on('remove', () => resizeObserver.disconnect());
 
     const createRedMarker = () => {
       const el = document.createElement('div');
@@ -2286,21 +1975,23 @@ const Amain = () => {
       el.style.cursor = 'pointer';
       el.style.width = '24px';
       el.style.height = '41px';
+
+      el.style.transform = 'translate(-50%, -100%)';
+
       return el;
     };
 
-    let marker = currentMarkerRef.current;
+    let marker = null;
 
     // Add initial marker if there's a selected location
     if (selectedLocation) {
       console.log('Adding marker at:', selectedLocation);
       marker = new maplibregl.Marker({
-        element: createRedMarker(),  // Use custom red marker
-        anchor: 'bottom'
+        element: createRedMarker()  // Use custom red marker
       })
         .setLngLat([selectedLocation.lng, selectedLocation.lat])
         .addTo(mapInstance);
-      currentMarkerRef.current = marker;
+      setCurrentMarker(marker);
     }
 
     // Add click event to map for selecting new location
@@ -2317,26 +2008,23 @@ const Amain = () => {
 
       // Create new marker at clicked location WITH CUSTOM RED MARKER
       marker = new maplibregl.Marker({
-        element: createRedMarker(),  // Use custom red marker
-        anchor: 'bottom'
+        element: createRedMarker()  // Use custom red marker
       })
         .setLngLat([coordinates.lng, coordinates.lat])
         .addTo(mapInstance);
 
       // Update current marker in state
-      currentMarkerRef.current = marker;
+      setCurrentMarker(marker);
 
       console.log('New location selected:', coordinates);
     });
 
     setCulturalMap(mapInstance);
-    culturalMapRef.current = mapInstance;
     return mapInstance;
   };
 
   useEffect(() => {
     if (isEditingCultural && editingCulturalData) {
-      if (culturalMapRef.current) return;
       // Initialize edit map after a short delay to ensure DOM is ready
       setTimeout(() => {
         initializeEditMap();
@@ -2385,7 +2073,6 @@ const Amain = () => {
           name: file.name,
           type: file.type,
           size: file.size,
-          file,
           url: URL.createObjectURL(file),
           isPrimary: profileImages.length === 0 && !primaryImage,
           orientation: null // No orientation for videos
@@ -2406,7 +2093,6 @@ const Amain = () => {
           name: file.name,
           type: file.type,
           size: file.size,
-          file,
           url: audioUrl
         }]);
       }
@@ -2418,7 +2104,6 @@ const Amain = () => {
           name: file.name,
           type: file.type,
           size: file.size,
-          file,
           url: pdfUrl
         }]);
       }
@@ -2437,7 +2122,6 @@ const Amain = () => {
       type: pendingImageFile.type,
       size: pendingImageFile.size,
       url: pendingImageFile.url,
-      file: pendingImageFile.file,
       isPrimary: profileImages.length === 0 && !primaryImage,
       orientation: orientation
     };
@@ -2465,7 +2149,6 @@ const Amain = () => {
       type: pendingImageFile.type,
       size: pendingImageFile.size,
       url: pendingImageFile.url,
-      file: pendingImageFile.file,
       isPrimary: profileImages.length === 0 && !primaryImage,
       orientation: null // No orientation selected
     };
@@ -2491,20 +2174,10 @@ const Amain = () => {
     }
   };
 
-  const removeFileFromServer = async (file) => {
-    if (!file?.path && !file?.url) return;
-    try {
-      await deleteFile(file.path || file.url);
-    } catch (error) {
-      console.error('خطا در حذف فایل از سرویس فایل', error);
-    }
-  };
-
-  const handleRemoveFile = async (fileId, fileType) => {
+  const handleRemoveFile = (fileId, fileType) => {
     if (fileType === 'image') {
       const fileToRemove = profileImages.find(img => img.id === fileId);
       if (fileToRemove) {
-        await removeFileFromServer(fileToRemove);
         setProfileImages(prev => prev.filter(img => img.id !== fileId));
 
         // If removing primary image, set another image as primary or null
@@ -2515,14 +2188,12 @@ const Amain = () => {
       }
     } else if (fileType === 'audio') {
       const fileToRemove = audioFiles.find(audio => audio.id === fileId);
-      await removeFileFromServer(fileToRemove);
       if (fileToRemove && fileToRemove.url) {
         URL.revokeObjectURL(fileToRemove.url);
       }
       setAudioFiles(prev => prev.filter(audio => audio.id !== fileId));
     } else if (fileType === 'text') {
       const fileToRemove = textFiles.find(text => text.id === fileId);
-      await removeFileFromServer(fileToRemove);
       if (fileToRemove && fileToRemove.url) {
         URL.revokeObjectURL(fileToRemove.url);
       }
@@ -2618,7 +2289,7 @@ const Amain = () => {
     mapInstance.addControl(new maplibregl.NavigationControl());
 
     // Keep track of the marker
-    let marker = currentMarkerRef.current;
+    let marker = null;
 
     // Add click event to map
     mapInstance.on('click', (e) => {
@@ -2638,11 +2309,10 @@ const Amain = () => {
         .addTo(mapInstance);
 
       // Store the marker in state
-      currentMarkerRef.current = marker;
+      setCurrentMarker(marker);
     });
 
     setCulturalMap(mapInstance);
-    culturalMapRef.current = mapInstance;
     return mapInstance;
   };
 
@@ -2659,15 +2329,21 @@ const Amain = () => {
       return;
     }
 
+    if (!culturalPoiId) {
+      alert('شناسه poi لازم است');
+      return;
+    }
+
     console.log('Saving with selectedLocation:', selectedLocation);
 
-    const attachments = normalizeImageAttachments(profileImages).map((img) => ({
+    const attachments = profileImages.map((img) => ({
       type: 'image',
-      url: img.url,
+      url: img.url || img,
       mime: img.mime || 'image/jpeg'
     }));
 
     createCulturalItem({
+      poiId: Number(culturalPoiId),
       title: culturalTitle,
       description: culturalDescription || '',
       primaryImage: primaryImage?.url || null,
@@ -2881,7 +2557,10 @@ const Amain = () => {
   useEffect(() => {
     if (isEditingCultural && editingCulturalId && document.getElementById('edit-cultural-map-container')) {
       // Clean up any existing map first
-      cleanupCulturalMap();
+      if (culturalMap) {
+        culturalMap.remove();
+        setCulturalMap(null);
+      }
 
       // Initialize the map
       initializeEditMap();
@@ -2890,10 +2569,17 @@ const Amain = () => {
     return () => {
       // Clean up on unmount or when editing mode ends
       if (!isEditingCultural) {
-        cleanupCulturalMap();
+        if (currentMarker) {
+          currentMarker.remove();
+          setCurrentMarker(null);
+        }
+        if (culturalMap) {
+          culturalMap.remove();
+          setCulturalMap(null);
+        }
       }
     };
-  }, [isEditingCultural, editingCulturalId, cleanupCulturalMap]);
+  }, [isEditingCultural, editingCulturalId]);
 
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
@@ -5792,6 +5478,17 @@ const Amain = () => {
                     </div>
 
                     <div className="edit-form-group">
+                      <label className="edit-form-label">شناسه POI</label>
+                      <input
+                        type="number"
+                        className="edit-form-input"
+                        placeholder="شناسه POI را وارد کنید"
+                        value={culturalPoiId}
+                        onChange={(e) => setCulturalPoiId(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="edit-form-group">
                       <label className="edit-form-label">توضیحات</label>
                       <div className="description-input-with-language">
                         <textarea
@@ -5866,7 +5563,6 @@ const Amain = () => {
                             if (!culturalMap) {
                               initializeEditMap();
                             } else {
-                              culturalMap.resize();
                               // Focus on current location
                               culturalMap.flyTo({
                                 center: [selectedLocation.lng, selectedLocation.lat],
@@ -5962,38 +5658,6 @@ const Amain = () => {
                         </div>
                       )}
                     </div>
-                  </div>
-
-
-                  {/* Cultural Type Selection */}
-                  <div className="edit-form-section">
-                    <h3 className="edit-form-title">نوع این مکان</h3>
-                    <div className="cultural-type-grid-edit">
-                      {['زیراتی', 'فرهنگی', 'خدماتی', 'تاریخی', 'معماری'].map((type) => (
-                        <div
-                          key={type}
-                          className={`cultural-type-option-edit ${selectedCulturalTypes.includes(type) ? 'selected' : ''}`}
-                          onClick={() => handleCulturalTypeToggle(type)}
-                        >
-                          <div className="cultural-type-checkbox-edit">
-                            {selectedCulturalTypes.includes(type) ? (
-                              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
-                                <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
-                              </svg>
-                            ) : (
-                              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" stroke="#D9D9D9" />
-                              </svg>
-                            )}
-                          </div>
-                          <span>{type}</span>
-                        </div>
-                      ))}
-                    </div>
-                    {culturalTypeError && (
-                      <div className="error-message-edit">لطفا حداقل یک نوع مکان را انتخاب کنید</div>
-                    )}
                   </div>
 
                   {/* Action Buttons */}
@@ -6282,6 +5946,38 @@ const Amain = () => {
                       </div>
                     </div>
                   </div>
+
+
+                  {/* Cultural Type Selection */}
+                  <div className="edit-form-section">
+                    <h3 className="edit-form-title">نوع این مکان</h3>
+                    <div className="cultural-type-grid-edit">
+                      {['زیارتی', 'فرهنگی', 'خدماتی', 'تاریخی', 'معماری'].map((type) => (
+                        <div
+                          key={type}
+                          className={`cultural-type-option-edit ${selectedCulturalTypes.includes(type) ? 'selected' : ''}`}
+                          onClick={() => handleCulturalTypeToggle(type)}
+                        >
+                          <div className="cultural-type-checkbox-edit">
+                            {selectedCulturalTypes.includes(type) ? (
+                              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
+                                <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
+                              </svg>
+                            ) : (
+                              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" stroke="#D9D9D9" />
+                              </svg>
+                            )}
+                          </div>
+                          <span>{type}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {culturalTypeError && (
+                      <div className="error-message-edit">لطفا حداقل یک نوع مکان را انتخاب کنید</div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -6349,82 +6045,82 @@ const Amain = () => {
                   <tbody>
                     {filteredCulturalData.map(item => (
                       <tr key={item.id}>
-                          <td>
-                            <div className="cultural-title-cell">
-                              <div className="cultural-avatar">
-                                {item.primaryImage ? (
-                                  <img
-                                    src={item.primaryImage}
-                                    alt={item.title}
-                                    className="cultural-avatar-img"
-                                  />
-                                ) : (
-                                  <div className="cultural-avatar-placeholder">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                      <path d="M19 7V5H5V7H19ZM19 11V9H5V11H19ZM19 15V13H5V15H19ZM19 19V17H5V19H19Z" fill="#858585" />
-                                    </svg>
-                                  </div>
-                                )}
-                              </div>
-                              <div className="cultural-title-text">
-                                <strong>{item.title}</strong>
-                                {item.culturalTypes && item.culturalTypes.length > 0 && (
-                                  <div className="cultural-types">
-                                    {item.culturalTypes.slice(0, 2).map((type, index) => (
-                                      <span key={index} className="cultural-type">{type}</span>
-                                    ))}
-                                    {item.culturalTypes.length > 2 && (
-                                      <span className="cultural-type-more">+{item.culturalTypes.length - 2}</span>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
+                        <td>
+                          <div className="cultural-title-cell">
+                            <div className="cultural-avatar">
+                              {item.primaryImage ? (
+                                <img
+                                  src={item.primaryImage}
+                                  alt={item.title}
+                                  className="cultural-avatar-img"
+                                />
+                              ) : (
+                                <div className="cultural-avatar-placeholder">
+                                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M19 7V5H5V7H19ZM19 11V9H5V11H19ZM19 15V13H5V15H19ZM19 19V17H5V19H19Z" fill="#858585" />
+                                  </svg>
+                                </div>
+                              )}
                             </div>
-                          </td>
-                          <td>{item.addressInShrine || '-'}</td>
-                          <td>{item.createdAt || '-'}</td>
-                          <td className="cultural-description-cell">
-                            {item.description ? (
-                              <div className="truncated-description">
-                                {item.description.split(/\s+/).slice(0, 7).join(' ')}
-                                {item.description.split(/\s+/).length > 7 && '...'}
-                              </div>
-                            ) : (
-                              <span className="no-description">بدون توضیح</span>
-                            )}
-                          </td>
-                          <td>
-                            <div className="cultural-actions">
-                              <button
-                                className="edit-cultural-btn"
-                                title="ویرایش"
-                                onClick={() => handleEditCultural(item.id)}
-                              >
-                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <g clipPath="url(#clip0_367_7217)">
-                                    <path fillRule="evenodd" clipRule="evenodd" d="M7.96167 0.833374L8.99992 0.833374C9.27606 0.833374 9.49992 1.05723 9.49992 1.33337C9.49992 1.60952 9.27606 1.83337 8.99992 1.83337H7.99992C6.41444 1.83337 5.27562 1.83444 4.40897 1.95095C3.5567 2.06554 3.04289 2.28347 2.66312 2.66324C2.28335 3.04301 2.06542 3.55682 1.95083 4.40909C1.83431 5.27574 1.83325 6.41456 1.83325 8.00004C1.83325 9.58552 1.83431 10.7243 1.95083 11.591C2.06542 12.4433 2.28335 12.9571 2.66312 13.3368C3.04289 13.7166 3.5567 13.9345 4.40897 14.0491C5.27562 14.1656 6.41444 14.1667 7.99992 14.1667C9.5854 14.1667 10.7242 14.1656 11.5909 14.0491C12.4431 13.9345 12.957 13.7166 13.3367 13.3368C13.7165 12.9571 13.9344 12.4433 14.049 11.591C14.1655 10.7243 14.1666 9.58552 14.1666 8.00004V7.00004C14.1666 6.7239 14.3904 6.50004 14.6666 6.50004C14.9427 6.50004 15.1666 6.7239 15.1666 7.00004V8.03829C15.1666 9.57722 15.1666 10.7832 15.0401 11.7242C14.9106 12.6874 14.6404 13.4474 14.0438 14.044C13.4473 14.6405 12.6873 14.9107 11.7241 15.0402C10.7831 15.1667 9.5771 15.1667 8.03817 15.1667H7.96167C6.42274 15.1667 5.21671 15.1667 4.27572 15.0402C3.31257 14.9107 2.55255 14.6405 1.95601 14.044C1.35947 13.4474 1.08924 12.6874 0.95975 11.7242C0.833237 10.7832 0.833244 9.57722 0.833252 8.03829V7.96179C0.833244 6.42286 0.833237 5.21684 0.95975 4.27584C1.08924 3.31269 1.35947 2.55267 1.95601 1.95613C2.55255 1.35959 3.31257 1.08936 4.27572 0.959872C5.21671 0.833359 6.42274 0.833366 7.96167 0.833374ZM11.1803 1.51732C12.0922 0.605393 13.5707 0.605393 14.4826 1.51732C15.3946 2.42924 15.3946 3.90776 14.4826 4.81969L10.0506 9.25176C9.80306 9.49931 9.648 9.65438 9.47497 9.78934C9.27118 9.9483 9.05067 10.0846 8.81735 10.1958C8.61926 10.2902 8.41122 10.3595 8.07911 10.4702L6.14276 11.1156C5.78526 11.2348 5.39112 11.1418 5.12466 10.8753C4.8582 10.6088 4.76515 10.2147 4.88432 9.8572L5.52976 7.92086C5.64044 7.58874 5.70978 7.3807 5.80418 7.18261C5.91538 6.94929 6.05166 6.72878 6.21062 6.52499C6.34558 6.35195 6.50065 6.1969 6.74822 5.94937L11.1803 1.51732ZM13.7755 2.22442C13.2541 1.70302 12.4088 1.70302 11.8874 2.22442L11.6363 2.4755C11.6514 2.53941 11.6726 2.61555 11.7021 2.70048C11.7976 2.97586 11.9784 3.33852 12.3199 3.68004C12.6614 4.02156 13.0241 4.20235 13.2995 4.29789C13.3844 4.32735 13.4605 4.34853 13.5245 4.36366L13.7755 4.11258C14.2969 3.59118 14.2969 2.74582 13.7755 2.22442ZM12.7367 5.15143C12.3927 5.0035 11.992 4.76635 11.6128 4.38714C11.2336 4.00794 10.9965 3.60726 10.8485 3.26328L7.47826 6.63355C7.20058 6.91122 7.09168 7.02134 6.99913 7.14001C6.88484 7.28653 6.78685 7.44508 6.70691 7.61283C6.64216 7.74868 6.59237 7.89533 6.46819 8.26787L6.18026 9.13166L6.8683 9.8197L7.73209 9.53177C8.10463 9.40759 8.25128 9.35779 8.38713 9.29305C8.55488 9.21311 8.71342 9.11512 8.85995 9.00083C8.97862 8.90828 9.08874 8.79938 9.36641 8.5217L12.7367 5.15143Z" fill="#1E2023" />
-                                  </g>
-                                  <defs>
-                                    <clipPath id="clip0_367_7217">
-                                      <rect width="16" height="16" fill="white" />
-                                    </clipPath>
-                                  </defs>
-                                </svg>
-                              </button>
-                              <button
-                                className="delete-cultural-btn"
-                                onClick={() => handleDeleteCultural(item.id)}
-                                title="حذف"
-                              >
-                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <path fillRule="evenodd" clipRule="evenodd" d="M3.41116 5.1678C3.68669 5.14943 3.92494 5.3579 3.94331 5.63343L4.24994 10.2328C4.30984 11.1314 4.35253 11.7566 4.44624 12.227C4.53714 12.6833 4.66403 12.9249 4.8463 13.0954C5.02858 13.2659 5.27802 13.3765 5.73935 13.4368C6.21496 13.499 6.84163 13.5 7.74219 13.5H8.25776C9.15832 13.5 9.78499 13.499 10.2606 13.4368C10.7219 13.3765 10.9714 13.2659 11.1536 13.0954C11.3359 12.9249 11.4628 12.6833 11.5537 12.227C11.6474 11.7566 11.6901 11.1314 11.75 10.2328L12.0566 5.63343C12.075 5.3579 12.3133 5.14943 12.5888 5.1678C12.8643 5.18617 13.0728 5.42442 13.0544 5.69995L12.7455 10.3345C12.6885 11.1896 12.6424 11.8804 12.5344 12.4224C12.4222 12.986 12.2312 13.4567 11.8368 13.8256C11.4424 14.1946 10.9601 14.3538 10.3903 14.4284C9.84227 14.5001 9.14998 14.5 8.29292 14.5H7.70703C6.84997 14.5 6.15768 14.5001 5.60965 14.4284C5.03988 14.3538 4.55752 14.1946 4.16312 13.8256C3.76872 13.4567 3.57778 12.986 3.46551 12.4224C3.35753 11.8804 3.31149 11.1896 3.25449 10.3344L2.94553 5.69995C2.92716 5.42442 3.13563 5.18617 3.41116 5.1678Z" fill="#1E2023" />
-                                  <path fillRule="evenodd" clipRule="evenodd" d="M6.90348 1.50003L6.87283 1.50001C6.72857 1.49992 6.60288 1.49984 6.4842 1.51879C6.01534 1.59366 5.60961 1.8861 5.39031 2.30723C5.3348 2.41382 5.29513 2.53309 5.2496 2.66998L5.23992 2.69905L5.17519 2.89323C5.16253 2.93121 5.159 2.94168 5.15593 2.95016C5.03919 3.2729 4.73651 3.49106 4.39341 3.49976C4.38439 3.49999 4.37334 3.50003 4.33331 3.50003H2.33325C2.05711 3.50003 1.83325 3.72388 1.83325 4.00003C1.83325 4.27617 2.05711 4.50003 2.33325 4.50003L4.33902 4.50003L4.35018 4.50003H11.6498L11.6609 4.50003L13.6666 4.50003C13.9428 4.50003 14.1666 4.27617 14.1666 4.00003C14.1666 3.72388 13.9428 3.50003 13.6666 3.50003H11.6666C11.6266 3.50003 11.6156 3.49999 11.6065 3.49976C11.2634 3.49106 10.9608 3.27289 10.844 2.95014C10.841 2.94172 10.8374 2.93102 10.8248 2.89323L10.76 2.69905L10.7503 2.66996C10.7048 2.53307 10.6651 2.41382 10.6096 2.30723C10.3903 1.8861 9.98461 1.59366 9.51575 1.51879C9.39707 1.49984 9.27138 1.49992 9.12712 1.50001L9.09647 1.50003H6.90348ZM6.0963 3.29032C6.07012 3.36269 6.03969 3.43268 6.00535 3.50003H9.9946C9.96026 3.43268 9.92983 3.3627 9.90365 3.29033L9.87784 3.21477L9.81135 3.01528C9.75057 2.83294 9.73657 2.79575 9.72269 2.76909C9.64959 2.62872 9.51435 2.53124 9.35806 2.50628C9.32837 2.50154 9.28868 2.50003 9.09647 2.50003H6.90348C6.71127 2.50003 6.67157 2.50154 6.64189 2.50628C6.4856 2.53124 6.35036 2.62872 6.27726 2.76909C6.26338 2.79575 6.24938 2.83294 6.1886 3.01528L6.12207 3.21489C6.11205 3.24495 6.10425 3.26834 6.0963 3.29032Z" fill="#1E2023" />
-                                </svg>
-                              </button>
+                            <div className="cultural-title-text">
+                              <strong>{item.title}</strong>
+                              {item.culturalTypes && item.culturalTypes.length > 0 && (
+                                <div className="cultural-types">
+                                  {item.culturalTypes.slice(0, 2).map((type, index) => (
+                                    <span key={index} className="cultural-type">{type}</span>
+                                  ))}
+                                  {item.culturalTypes.length > 2 && (
+                                    <span className="cultural-type-more">+{item.culturalTypes.length - 2}</span>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                          </td>
-                        </tr>
-                      ))}
+                          </div>
+                        </td>
+                        <td>{item.addressInShrine || '-'}</td>
+                        <td>{item.createdAt || '-'}</td>
+                        <td className="cultural-description-cell">
+                          {item.description ? (
+                            <div className="truncated-description">
+                              {item.description.split(/\s+/).slice(0, 7).join(' ')}
+                              {item.description.split(/\s+/).length > 7 && '...'}
+                            </div>
+                          ) : (
+                            <span className="no-description">بدون توضیح</span>
+                          )}
+                        </td>
+                        <td>
+                          <div className="cultural-actions">
+                            <button
+                              className="edit-cultural-btn"
+                              title="ویرایش"
+                              onClick={() => handleEditCultural(item.id)}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <g clipPath="url(#clip0_367_7217)">
+                                  <path fillRule="evenodd" clipRule="evenodd" d="M7.96167 0.833374L8.99992 0.833374C9.27606 0.833374 9.49992 1.05723 9.49992 1.33337C9.49992 1.60952 9.27606 1.83337 8.99992 1.83337H7.99992C6.41444 1.83337 5.27562 1.83444 4.40897 1.95095C3.5567 2.06554 3.04289 2.28347 2.66312 2.66324C2.28335 3.04301 2.06542 3.55682 1.95083 4.40909C1.83431 5.27574 1.83325 6.41456 1.83325 8.00004C1.83325 9.58552 1.83431 10.7243 1.95083 11.591C2.06542 12.4433 2.28335 12.9571 2.66312 13.3368C3.04289 13.7166 3.5567 13.9345 4.40897 14.0491C5.27562 14.1656 6.41444 14.1667 7.99992 14.1667C9.5854 14.1667 10.7242 14.1656 11.5909 14.0491C12.4431 13.9345 12.957 13.7166 13.3367 13.3368C13.7165 12.9571 13.9344 12.4433 14.049 11.591C14.1655 10.7243 14.1666 9.58552 14.1666 8.00004V7.00004C14.1666 6.7239 14.3904 6.50004 14.6666 6.50004C14.9427 6.50004 15.1666 6.7239 15.1666 7.00004V8.03829C15.1666 9.57722 15.1666 10.7832 15.0401 11.7242C14.9106 12.6874 14.6404 13.4474 14.0438 14.044C13.4473 14.6405 12.6873 14.9107 11.7241 15.0402C10.7831 15.1667 9.5771 15.1667 8.03817 15.1667H7.96167C6.42274 15.1667 5.21671 15.1667 4.27572 15.0402C3.31257 14.9107 2.55255 14.6405 1.95601 14.044C1.35947 13.4474 1.08924 12.6874 0.95975 11.7242C0.833237 10.7832 0.833244 9.57722 0.833252 8.03829V7.96179C0.833244 6.42286 0.833237 5.21684 0.95975 4.27584C1.08924 3.31269 1.35947 2.55267 1.95601 1.95613C2.55255 1.35959 3.31257 1.08936 4.27572 0.959872C5.21671 0.833359 6.42274 0.833366 7.96167 0.833374ZM11.1803 1.51732C12.0922 0.605393 13.5707 0.605393 14.4826 1.51732C15.3946 2.42924 15.3946 3.90776 14.4826 4.81969L10.0506 9.25176C9.80306 9.49931 9.648 9.65438 9.47497 9.78934C9.27118 9.9483 9.05067 10.0846 8.81735 10.1958C8.61926 10.2902 8.41122 10.3595 8.07911 10.4702L6.14276 11.1156C5.78526 11.2348 5.39112 11.1418 5.12466 10.8753C4.8582 10.6088 4.76515 10.2147 4.88432 9.8572L5.52976 7.92086C5.64044 7.58874 5.70978 7.3807 5.80418 7.18261C5.91538 6.94929 6.05166 6.72878 6.21062 6.52499C6.34558 6.35195 6.50065 6.1969 6.74822 5.94937L11.1803 1.51732ZM13.7755 2.22442C13.2541 1.70302 12.4088 1.70302 11.8874 2.22442L11.6363 2.4755C11.6514 2.53941 11.6726 2.61555 11.7021 2.70048C11.7976 2.97586 11.9784 3.33852 12.3199 3.68004C12.6614 4.02156 13.0241 4.20235 13.2995 4.29789C13.3844 4.32735 13.4605 4.34853 13.5245 4.36366L13.7755 4.11258C14.2969 3.59118 14.2969 2.74582 13.7755 2.22442ZM12.7367 5.15143C12.3927 5.0035 11.992 4.76635 11.6128 4.38714C11.2336 4.00794 10.9965 3.60726 10.8485 3.26328L7.47826 6.63355C7.20058 6.91122 7.09168 7.02134 6.99913 7.14001C6.88484 7.28653 6.78685 7.44508 6.70691 7.61283C6.64216 7.74868 6.59237 7.89533 6.46819 8.26787L6.18026 9.13166L6.8683 9.8197L7.73209 9.53177C8.10463 9.40759 8.25128 9.35779 8.38713 9.29305C8.55488 9.21311 8.71342 9.11512 8.85995 9.00083C8.97862 8.90828 9.08874 8.79938 9.36641 8.5217L12.7367 5.15143Z" fill="#1E2023" />
+                                </g>
+                                <defs>
+                                  <clipPath id="clip0_367_7217">
+                                    <rect width="16" height="16" fill="white" />
+                                  </clipPath>
+                                </defs>
+                              </svg>
+                            </button>
+                            <button
+                              className="delete-cultural-btn"
+                              onClick={() => handleDeleteCultural(item.id)}
+                              title="حذف"
+                            >
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path fillRule="evenodd" clipRule="evenodd" d="M3.41116 5.1678C3.68669 5.14943 3.92494 5.3579 3.94331 5.63343L4.24994 10.2328C4.30984 11.1314 4.35253 11.7566 4.44624 12.227C4.53714 12.6833 4.66403 12.9249 4.8463 13.0954C5.02858 13.2659 5.27802 13.3765 5.73935 13.4368C6.21496 13.499 6.84163 13.5 7.74219 13.5H8.25776C9.15832 13.5 9.78499 13.499 10.2606 13.4368C10.7219 13.3765 10.9714 13.2659 11.1536 13.0954C11.3359 12.9249 11.4628 12.6833 11.5537 12.227C11.6474 11.7566 11.6901 11.1314 11.75 10.2328L12.0566 5.63343C12.075 5.3579 12.3133 5.14943 12.5888 5.1678C12.8643 5.18617 13.0728 5.42442 13.0544 5.69995L12.7455 10.3345C12.6885 11.1896 12.6424 11.8804 12.5344 12.4224C12.4222 12.986 12.2312 13.4567 11.8368 13.8256C11.4424 14.1946 10.9601 14.3538 10.3903 14.4284C9.84227 14.5001 9.14998 14.5 8.29292 14.5H7.70703C6.84997 14.5 6.15768 14.5001 5.60965 14.4284C5.03988 14.3538 4.55752 14.1946 4.16312 13.8256C3.76872 13.4567 3.57778 12.986 3.46551 12.4224C3.35753 11.8804 3.31149 11.1896 3.25449 10.3344L2.94553 5.69995C2.92716 5.42442 3.13563 5.18617 3.41116 5.1678Z" fill="#1E2023" />
+                                <path fillRule="evenodd" clipRule="evenodd" d="M6.90348 1.50003L6.87283 1.50001C6.72857 1.49992 6.60288 1.49984 6.4842 1.51879C6.01534 1.59366 5.60961 1.8861 5.39031 2.30723C5.3348 2.41382 5.29513 2.53309 5.2496 2.66998L5.23992 2.69905L5.17519 2.89323C5.16253 2.93121 5.159 2.94168 5.15593 2.95016C5.03919 3.2729 4.73651 3.49106 4.39341 3.49976C4.38439 3.49999 4.37334 3.50003 4.33331 3.50003H2.33325C2.05711 3.50003 1.83325 3.72388 1.83325 4.00003C1.83325 4.27617 2.05711 4.50003 2.33325 4.50003L4.33902 4.50003L4.35018 4.50003H11.6498L11.6609 4.50003L13.6666 4.50003C13.9428 4.50003 14.1666 4.27617 14.1666 4.00003C14.1666 3.72388 13.9428 3.50003 13.6666 3.50003H11.6666C11.6266 3.50003 11.6156 3.49999 11.6065 3.49976C11.2634 3.49106 10.9608 3.27289 10.844 2.95014C10.841 2.94172 10.8374 2.93102 10.8248 2.89323L10.76 2.69905L10.7503 2.66996C10.7048 2.53307 10.6651 2.41382 10.6096 2.30723C10.3903 1.8861 9.98461 1.59366 9.51575 1.51879C9.39707 1.49984 9.27138 1.49992 9.12712 1.50001L9.09647 1.50003H6.90348ZM6.0963 3.29032C6.07012 3.36269 6.03969 3.43268 6.00535 3.50003H9.9946C9.96026 3.43268 9.92983 3.3627 9.90365 3.29033L9.87784 3.21477L9.81135 3.01528C9.75057 2.83294 9.73657 2.79575 9.72269 2.76909C9.64959 2.62872 9.51435 2.53124 9.35806 2.50628C9.32837 2.50154 9.28868 2.50003 9.09647 2.50003H6.90348C6.71127 2.50003 6.67157 2.50154 6.64189 2.50628C6.4856 2.53124 6.35036 2.62872 6.27726 2.76909C6.26338 2.79575 6.24938 2.83294 6.1886 3.01528L6.12207 3.21489C6.11205 3.24495 6.10425 3.26834 6.0963 3.29032Z" fill="#1E2023" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -6607,14 +6303,14 @@ const Amain = () => {
                     </tr>
                   </thead>
                   <tbody>
-                      {filteredCategories
-                        .slice(
-                          (categoryCurrentPage - 1) * categoryItemsPerPage,
-                          categoryCurrentPage * categoryItemsPerPage
-                        )
-                        .map(category => (
-                          <React.Fragment key={category.id}>
-                            <tr>
+                    {filteredCategories
+                      .slice(
+                        (categoryCurrentPage - 1) * categoryItemsPerPage,
+                        categoryCurrentPage * categoryItemsPerPage
+                      )
+                      .map(category => (
+                        <>
+                          <tr key={category.id}>
                             <td>
                               <div className="category-title-cell">
                                 <div className="category-expand-btn" onClick={() => toggleCategoryExpand(category.id)}>
@@ -6753,9 +6449,9 @@ const Amain = () => {
                                 </div>
                               </td>
                             </tr>
-                            ))}
-                          </React.Fragment>
-                        ))}
+                          ))}
+                        </>
+                      ))}
                   </tbody>
                 </table>
                 {/* Pagination Controls for Categories */}
@@ -6826,7 +6522,6 @@ const Amain = () => {
               <div className="map-container">
                 <div id="map-container" className="map-instance"></div>
 
-                {/* Top Left - Map Type Selector */}
                 {/* Top Left - Map Type Selector */}
                 <div className="map-control-top-left">
                   <div className="action-buttons-group">
@@ -8933,6 +8628,16 @@ const Amain = () => {
                         </button>
                       </div>
 
+                      <div className="title-input-with-language">
+                        <input
+                          type="number"
+                          className="form-input"
+                          placeholder="شناسه POI را وارد کنید"
+                          value={culturalPoiId}
+                          onChange={(e) => setCulturalPoiId(e.target.value)}
+                        />
+                      </div>
+
                       <div className="description-input-with-language">
                         <textarea
                           className="form-textarea"
@@ -9007,7 +8712,7 @@ const Amain = () => {
                     <div className="form-group">
                       <label className="form-label">نوع این مکان </label>
                       <div className="cultural-type-grid10">
-                        {['زیراتی', 'فرهنگی', 'خدماتی', 'تاریخی', 'معماری'].map((type) => (
+                        {['زیارتی', 'فرهنگی', 'خدماتی', 'تاریخی', 'معماری'].map((type) => (
                           <div
                             key={type}
                             className={`cultural-type-option10 ${selectedCulturalTypes.includes(type) ? 'selected' : ''}`}

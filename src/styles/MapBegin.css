@@ -702,17 +702,23 @@ body.modal-open {
 
 .events-modal-header h3 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   color: #1e2023;
 }
 
 .close-modal-btn {
   background: none;
-  border: none;
   font-size: 1.5rem;
   cursor: pointer;
   line-height: 1;
   color: #1e2023;
+  border : 1px solid #D9D9D9;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+ border-radius: 25px;
+ height: 38px;
+ width: 38px;
 }
 
 .events-modal-content {
@@ -726,7 +732,10 @@ body.modal-open {
 .events-modal-item {
   display: flex;
   gap: 12px;
-  align-items: center;
+  border: 1px solid #D9D9D9;
+  padding: 6px 6px 16px 6px;
+  border-radius: 8px;
+  align-items:flex-start;
 }
 
 .events-modal-image {
@@ -738,6 +747,11 @@ body.modal-open {
   border-radius: 8px;
   flex-shrink: 0;
 }
+
+.events-modal-info  {
+ flex: 1;
+}
+
 
 .events-modal-info h4 {
   margin: 0 0 4px 0;
@@ -762,12 +776,10 @@ body.modal-open {
 .events-modal-actions {
   margin-top: 10px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 .events-modal-nav-btn {
-  width: auto;
-  min-width: 160px;
   padding: 8px 16px;
 }
 
