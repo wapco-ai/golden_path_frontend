@@ -1037,6 +1037,13 @@ const Amain = () => {
     };
   };
 
+  const buildDisplaySettingsPayload = () => ({
+    showUserFeedbacks: showUserFeedbacks === 'نمایش',
+    showMediaGallery: showMediaGallery === 'نمایش',
+    showUserComments: showUserFeedbacks === 'نمایش',
+    showMultimedia: showMediaGallery === 'نمایش'
+  });
+
   const normalizeTimeRestrictions = (restrictions = []) => restrictions.map((restriction) => ({
     date: restriction?.date || restriction?.title || restriction?.date_scope || '',
     isoDateScope: restriction?.isoDateScope || restriction?.date_scope || '',
@@ -1720,12 +1727,7 @@ const Amain = () => {
         prayerTimeRestrictions: buildCulturalPrayerRestrictionsPayload()
       };
 
-      const displaySettingsPayload = {
-        showUserFeedbacks: showUserFeedbacks === 'نمایش',
-        showMediaGallery: showMediaGallery === 'نمایش',
-        showUserComments: showUserFeedbacks === 'نمایش',
-        showMultimedia: showMediaGallery === 'نمایش'
-      };
+      const displaySettingsPayload = buildDisplaySettingsPayload();
 
       const payload = {
         ...(editingCulturalData || {}),
@@ -2722,11 +2724,23 @@ const Amain = () => {
       mime: img.mime || 'image/jpeg'
     }));
 
+    const displaySettingsPayload = buildDisplaySettingsPayload();
+
     createCulturalItem({
       title: culturalTitle,
       description: culturalDescription || '',
       primaryImage: primaryImage?.url || null,
-      attachments
+      attachments,
+      displaySettings: displaySettingsPayload,
+      display_settings: displaySettingsPayload,
+      showUserFeedbacks: displaySettingsPayload.showUserFeedbacks,
+      show_user_feedbacks: displaySettingsPayload.showUserFeedbacks,
+      showMediaGallery: displaySettingsPayload.showMediaGallery,
+      show_media_gallery: displaySettingsPayload.showMediaGallery,
+      showUserComments: displaySettingsPayload.showUserComments,
+      show_user_comments: displaySettingsPayload.showUserComments,
+      showMultimedia: displaySettingsPayload.showMultimedia,
+      show_multimedia: displaySettingsPayload.showMultimedia
     })
       .then(() => {
         toast.success('اطلاعات فرهنگی با موفقیت ثبت شد');
