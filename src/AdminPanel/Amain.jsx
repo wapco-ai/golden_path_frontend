@@ -98,6 +98,16 @@ const normalizeTransportValue = (value) => TRANSPORT_OPTIONS.find((option) => op
 const placeTypeLabelToValue = (label) => PLACE_TYPE_OPTIONS.find((option) => option.label === label)?.value || '';
 const placeTypeValueToLabel = (value) => PLACE_TYPE_OPTIONS.find((option) => option.value === value)?.label || '';
 
+const PRAYER_EVENT_OPTIONS = [
+  { value: 'fajr', label: 'نماز صبح' },
+  { value: 'dhuhr_asr', label: 'نماز ظهر و عصر' },
+  { value: 'maghrib_isha', label: 'نماز مغرب و عشاء' }
+];
+
+const prayerEventLabelToValue = (label) => PRAYER_EVENT_OPTIONS.find((option) => option.label === label)?.value || label;
+const prayerEventValueToLabel = (value) => PRAYER_EVENT_OPTIONS.find((option) => option.value === value)?.label || value;
+const normalizePrayerEvents = (events = []) => events.map(prayerEventLabelToValue).filter(Boolean);
+
 const normalizeTransportModes = (value) => {
   if (Array.isArray(value)) {
     return value.map(normalizeTransportValue).filter(Boolean);
@@ -1125,7 +1135,7 @@ const Amain = () => {
     isoDateScope: restriction?.isoDateScope || restriction?.date_scope || '',
     before: restriction?.before ?? restriction?.before_minutes ?? restriction?.beforeMinutes ?? 0,
     after: restriction?.after ?? restriction?.after_minutes ?? restriction?.afterMinutes ?? 0,
-    events: restriction?.events || []
+    events: normalizePrayerEvents(restriction?.events)
   }));
 
   const buildCulturalTimeRestrictionsPayload = () => culturalTimeRestrictions.map((restriction) => ({
@@ -1151,27 +1161,32 @@ const Amain = () => {
     all_hours: Boolean(restriction?.limitAllHours ?? restriction?.all_hours)
   })).filter((restriction) => restriction.date_scope?.length);
 
-  const buildCulturalPrayerRestrictionsPayload = () => culturalPrayerTimeRestrictionsList.map((restriction) => ({
-    events: restriction?.events || [],
-    before_minutes: restriction?.before_minutes
-      ?? (restriction?.before !== undefined ? Number(restriction.before) : undefined)
-      ?? (restriction?.beforeMinutes !== undefined ? Number(restriction.beforeMinutes) : undefined)
-      ?? 0,
-    after_minutes: restriction?.after_minutes
-      ?? (restriction?.after !== undefined ? Number(restriction.after) : undefined)
-      ?? (restriction?.afterMinutes !== undefined ? Number(restriction.afterMinutes) : undefined)
-      ?? 0,
-    date_scope: restriction?.isoDateScope?.length
-      ? restriction.isoDateScope
-      : restriction?.date_scope?.length
-        ? restriction.date_scope
-        : buildDateScopeIso(restriction?.date),
-    title: restriction?.title
-      ?? restriction?.label
-      ?? (restriction?.events?.length
-        ? `${restriction.events.join(' و ')} : ${restriction.before || 0} دقیقه قبل الی ${restriction.after || 0} دقیقه بعد`
-        : '')
-  })).filter((restriction) => restriction.date_scope?.length);
+  const buildCulturalPrayerRestrictionsPayload = () => culturalPrayerTimeRestrictionsList.map((restriction) => {
+    const normalizedEvents = normalizePrayerEvents(restriction?.events);
+    const eventLabels = normalizedEvents.map(prayerEventValueToLabel);
+
+    return {
+      events: normalizedEvents,
+      before_minutes: restriction?.before_minutes
+        ?? (restriction?.before !== undefined ? Number(restriction.before) : undefined)
+        ?? (restriction?.beforeMinutes !== undefined ? Number(restriction.beforeMinutes) : undefined)
+        ?? 0,
+      after_minutes: restriction?.after_minutes
+        ?? (restriction?.after !== undefined ? Number(restriction.after) : undefined)
+        ?? (restriction?.afterMinutes !== undefined ? Number(restriction.afterMinutes) : undefined)
+        ?? 0,
+      date_scope: restriction?.isoDateScope?.length
+        ? restriction.isoDateScope
+        : restriction?.date_scope?.length
+          ? restriction.date_scope
+          : buildDateScopeIso(restriction?.date),
+      title: restriction?.title
+        ?? restriction?.label
+        ?? (eventLabels.length
+          ? `${eventLabels.join(' و ')} : ${restriction.before || 0} دقیقه قبل الی ${restriction.after || 0} دقیقه بعد`
+          : '')
+    };
+  }).filter((restriction) => restriction.date_scope?.length);
 
   const handleSaveFileWithDetails = () => {
     if (!pendingFileInfo) return;
@@ -1856,8 +1871,6 @@ const Amain = () => {
           sub_group_id: selectedSubGroup?.value || null,
           sub_group_label: selectedSubGroup?.label || null
         },
-        types: selectedCulturalTypes,
-        placeType: selectedPlaceType,
         settings: settingsPayload,
         time_restrictions: timeRestrictionsPayload,
         prayer_restrictions: prayerRestrictionsPayload,
@@ -2807,11 +2820,11 @@ const Amain = () => {
     return el;
   };
 
-  const toggleCulturalPrayerEvent = (ev) => {
-    if (culturalSelectedPrayerEvents.includes(ev)) {
-      setCulturalSelectedPrayerEvents(culturalSelectedPrayerEvents.filter(e => e !== ev));
+  const toggleCulturalPrayerEvent = (eventValue) => {
+    if (culturalSelectedPrayerEvents.includes(eventValue)) {
+      setCulturalSelectedPrayerEvents(culturalSelectedPrayerEvents.filter((value) => value !== eventValue));
     } else {
-      setCulturalSelectedPrayerEvents([...culturalSelectedPrayerEvents, ev]);
+      setCulturalSelectedPrayerEvents([...culturalSelectedPrayerEvents, eventValue]);
     }
   };
 
@@ -2940,8 +2953,6 @@ const Amain = () => {
       description: culturalDescription || '',
       primaryImage: primaryImage?.url || null,
       attachments,
-      placeType: selectedPlaceType,
-      place_type: selectedPlaceType,
       settings: settingsPayload,
       displaySettings: displaySettingsPayload,
       display_settings: displaySettingsPayload,
@@ -2961,8 +2972,6 @@ const Amain = () => {
       },
       culturalTypes: selectedCulturalTypes,
       cultural_types: selectedCulturalTypes,
-      type: selectedCulturalTypes,
-      types: selectedCulturalTypes,
       // Include address and location if available
       addressInShrine: placeAddress,
       location: selectedLocation
@@ -3850,11 +3859,11 @@ const Amain = () => {
   };
 
   // Toggle prayer event in modal
-  const toggleEditPrayerEvent = (ev) => {
-    if (editSelectedPrayerEvents.includes(ev)) {
-      setEditSelectedPrayerEvents(editSelectedPrayerEvents.filter(e => e !== ev));
+  const toggleEditPrayerEvent = (eventValue) => {
+    if (editSelectedPrayerEvents.includes(eventValue)) {
+      setEditSelectedPrayerEvents(editSelectedPrayerEvents.filter((value) => value !== eventValue));
     } else {
-      setEditSelectedPrayerEvents([...editSelectedPrayerEvents, ev]);
+      setEditSelectedPrayerEvents([...editSelectedPrayerEvents, eventValue]);
     }
   };
 
@@ -3865,7 +3874,8 @@ const Amain = () => {
       return;
     }
 
-    const title = editSelectedPrayerEvents.join(' و ') + ` : ${editPrayerBeforeMinutes} دقیقه قبل الی ${editPrayerAfterMinutes} دقیقه بعد`;
+    const eventLabels = editSelectedPrayerEvents.map(prayerEventValueToLabel);
+    const title = eventLabels.join(' و ') + ` : ${editPrayerBeforeMinutes} دقیقه قبل الی ${editPrayerAfterMinutes} دقیقه بعد`;
     const newItem = {
       id: Date.now(),
       events: [...editSelectedPrayerEvents],
@@ -4332,6 +4342,8 @@ const Amain = () => {
       ? restriction.date_scope
       : buildDateScopeIso(restriction?.date);
 
+    const normalizedEvents = normalizePrayerEvents(restriction?.events);
+
     const isAllDaysScope = Array.isArray(derivedIsoScope) && derivedIsoScope.includes('ALL_DAYS');
     const dateLabel = isAllDaysScope
       ? 'همه روزها'
@@ -4339,14 +4351,19 @@ const Amain = () => {
         ? derivedIsoScope.join(' / ')
         : restriction?.date || 'همه روزها';
 
+    const eventLabels = normalizedEvents.map(prayerEventValueToLabel);
+
     return {
       id: restriction?.id || index,
-      events: restriction?.events || [],
+      events: normalizedEvents,
       before: restriction?.before_minutes ?? restriction?.before ?? '',
       after: restriction?.after_minutes ?? restriction?.after ?? '',
       date: dateLabel,
       isoDateScope: derivedIsoScope?.length ? derivedIsoScope : [],
-      title: restriction?.title || ''
+      title: restriction?.title
+        || (eventLabels.length
+          ? `${eventLabels.join(' و ')} : ${restriction.before || 0} دقیقه قبل الی ${restriction.after || 0} دقیقه بعد`
+          : '')
     };
   });
 
@@ -4381,8 +4398,11 @@ const Amain = () => {
       ? restriction.isoDateScope
       : buildDateScopeIso(restriction?.date);
 
+    const normalizedEvents = normalizePrayerEvents(restriction?.events);
+    const eventLabels = normalizedEvents.map(prayerEventValueToLabel);
+
     return {
-      events: restriction?.events || [],
+      events: normalizedEvents,
       before_minutes: restriction?.before_minutes
         ?? (restriction?.before !== undefined ? Number(restriction.before) : undefined)
         ?? (restriction?.beforeMinutes !== undefined ? Number(restriction.beforeMinutes) : undefined)
@@ -4394,8 +4414,8 @@ const Amain = () => {
       date_scope: dateScope,
       title: restriction?.title
         ?? restriction?.label
-        ?? (restriction?.events?.length
-          ? `${restriction.events.join(' و ')} : ${restriction.before || 0} دقیقه قبل الی ${restriction.after || 0} دقیقه بعد`
+        ?? (eventLabels.length
+          ? `${eventLabels.join(' و ')} : ${restriction.before || 0} دقیقه قبل الی ${restriction.after || 0} دقیقه بعد`
           : '')
     };
   });
@@ -5542,13 +5562,11 @@ const Amain = () => {
     setCurrentPage(1); // Reset to first page when changing items per page
   };
 
-  const prayerEventsOptions = ['نماز صبح', 'نماز ظهر و عصر', 'نماز مغرب و عشاء'];
-
-  const togglePrayerEvent = (ev) => {
-    if (selectedPrayerEvents.includes(ev)) {
-      setSelectedPrayerEvents(selectedPrayerEvents.filter(e => e !== ev));
+  const togglePrayerEvent = (eventValue) => {
+    if (selectedPrayerEvents.includes(eventValue)) {
+      setSelectedPrayerEvents(selectedPrayerEvents.filter((value) => value !== eventValue));
     } else {
-      setSelectedPrayerEvents([...selectedPrayerEvents, ev]);
+      setSelectedPrayerEvents([...selectedPrayerEvents, eventValue]);
     }
   };
 
@@ -8586,18 +8604,18 @@ const Amain = () => {
                             <div className="form-column">
                               <label className="form-label">انتخاب رویداد</label>
                               <div className="prayer-event-grid">
-                                {prayerEventsOptions.map((ev) => (
+                                {PRAYER_EVENT_OPTIONS.map((option) => (
                                   <div
-                                    key={ev}
-                                    className={`prayer-event-option ${selectedPrayerEvents.includes(ev) ? 'selected' : ''}`}
-                                    onClick={() => togglePrayerEvent(ev)}
+                                    key={option.value}
+                                    className={`prayer-event-option ${selectedPrayerEvents.includes(option.value) ? 'selected' : ''}`}
+                                    onClick={() => togglePrayerEvent(option.value)}
                                   >
-                                    {selectedPrayerEvents.includes(ev) ? (
+                                    {selectedPrayerEvents.includes(option.value) ? (
                                       <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#0F71EF" /></svg>
                                     ) : (
                                       <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#fff" stroke="#D9D9D9" /></svg>
                                     )}
-                                    <span className="event-label">{ev}</span>
+                                    <span className="event-label">{option.label}</span>
                                   </div>
                                 ))}
                               </div>
@@ -8634,7 +8652,8 @@ const Amain = () => {
                                       return;
                                     }
                                     // Create new item
-                                    const title = selectedPrayerEvents.join(' و ') + ` : ${prayerBeforeMinutes} دقیقه قبل الی ${prayerAfterMinutes} دقیقه بعد`;
+                                    const eventLabels = selectedPrayerEvents.map(prayerEventValueToLabel);
+                                    const title = eventLabels.join(' و ') + ` : ${prayerBeforeMinutes} دقیقه قبل الی ${prayerAfterMinutes} دقیقه بعد`;
                                     const dateLabel = getPrayerDateLabel();
                                     const newItem = {
                                       id: Date.now(),
@@ -9826,18 +9845,18 @@ const Amain = () => {
                             <div className="form-column">
                               <label className="form-label">انتخاب رویداد</label>
                               <div className="prayer-event-grid">
-                                {prayerEventsOptions.map((ev) => (
+                                {PRAYER_EVENT_OPTIONS.map((option) => (
                                   <div
-                                    key={ev}
-                                    className={`prayer-event-option ${culturalSelectedPrayerEvents.includes(ev) ? 'selected' : ''}`}
-                                    onClick={() => toggleCulturalPrayerEvent(ev)}
+                                    key={option.value}
+                                    className={`prayer-event-option ${culturalSelectedPrayerEvents.includes(option.value) ? 'selected' : ''}`}
+                                    onClick={() => toggleCulturalPrayerEvent(option.value)}
                                   >
-                                    {culturalSelectedPrayerEvents.includes(ev) ? (
+                                    {culturalSelectedPrayerEvents.includes(option.value) ? (
                                       <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#0F71EF" /></svg>
                                     ) : (
                                       <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#fff" stroke="#D9D9D9" /></svg>
                                     )}
-                                    <span className="event-label">{ev}</span>
+                                    <span className="event-label">{option.label}</span>
                                   </div>
                                 ))}
                               </div>
@@ -9872,7 +9891,8 @@ const Amain = () => {
                                       alert('لطفا همه فیلدها را تکمیل کنید');
                                       return;
                                     }
-                                    const title = culturalSelectedPrayerEvents.join(' و ') + ` : ${culturalPrayerBeforeMinutes} دقیقه قبل الی ${culturalPrayerAfterMinutes} دقیقه بعد`;
+                                    const eventLabels = culturalSelectedPrayerEvents.map(prayerEventValueToLabel);
+                                    const title = eventLabels.join(' و ') + ` : ${culturalPrayerBeforeMinutes} دقیقه قبل الی ${culturalPrayerAfterMinutes} دقیقه بعد`;
                                     const newItem = {
                                       id: Date.now(),
                                       events: [...culturalSelectedPrayerEvents],
@@ -11262,20 +11282,20 @@ const Amain = () => {
                           <div className="form-column">
                             <label className="form-label">انتخاب رویداد</label>
                             <div className="prayer-event-grid">
-                              {prayerEventsOptions.map((ev) => (
-                                <div
-                                  key={ev}
-                                  className={`prayer-event-option ${editSelectedPrayerEvents.includes(ev) ? 'selected' : ''}`}
-                                  onClick={() => toggleEditPrayerEvent(ev)}
-                                >
-                                  {editSelectedPrayerEvents.includes(ev) ? (
-                                    <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#0F71EF" /></svg>
-                                  ) : (
-                                    <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#fff" stroke="#D9D9D9" /></svg>
-                                  )}
-                                  <span className="event-label">{ev}</span>
-                                </div>
-                              ))}
+                                {PRAYER_EVENT_OPTIONS.map((option) => (
+                                  <div
+                                    key={option.value}
+                                    className={`prayer-event-option ${editSelectedPrayerEvents.includes(option.value) ? 'selected' : ''}`}
+                                    onClick={() => toggleEditPrayerEvent(option.value)}
+                                  >
+                                    {editSelectedPrayerEvents.includes(option.value) ? (
+                                      <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#0F71EF" /></svg>
+                                    ) : (
+                                      <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#fff" stroke="#D9D9D9" /></svg>
+                                    )}
+                                    <span className="event-label">{option.label}</span>
+                                  </div>
+                                ))}
                             </div>
                           </div>
 
