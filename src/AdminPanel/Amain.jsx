@@ -10245,7 +10245,6 @@ const Amain = () => {
           </div>
         </div>
       )}
-      {/* Add this modal JSX at the end of your component, before the final closing </div> */}
 
       {/* Restriction Modal for Edit Page */}
       {isRestrictionModalOpen && (
