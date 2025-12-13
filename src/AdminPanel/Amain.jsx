@@ -568,7 +568,7 @@ const Amain = () => {
   const [selectedPlaceType, setSelectedPlaceType] = useState('');
   const [selectedCulturalTypes, setSelectedCulturalTypes] = useState([]);
   const [culturalTypeError, setCulturalTypeError] = useState(false);
-  const culturalMapRef = useRef(null);
+  const [culturalMap, setCulturalMap] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [currentMarker, setCurrentMarker] = useState(null);
   const editMapTimeoutRef = useRef(null);
@@ -2616,7 +2616,7 @@ const Amain = () => {
       })
         .setLngLat([selectedLocation.lng, selectedLocation.lat])
         .addTo(mapInstance);
-      currentMarkerRef.current = marker;
+      setCurrentMarker(marker);
     }
 
     // Add click event to map for selecting new location
@@ -2638,13 +2638,13 @@ const Amain = () => {
         .setLngLat([coordinates.lng, coordinates.lat])
         .addTo(mapInstance);
 
-      // Update current marker reference
-      currentMarkerRef.current = marker;
+      // Update current marker in state
+      setCurrentMarker(marker);
 
       console.log('New location selected:', coordinates);
     });
 
-    culturalMapRef.current = mapInstance;
+    setCulturalMap(mapInstance);
     return mapInstance;
   };
 
@@ -2956,11 +2956,11 @@ const Amain = () => {
         .setLngLat([coordinates.lng, coordinates.lat])
         .addTo(mapInstance);
 
-      // Store the marker reference
-      currentMarkerRef.current = marker;
+      // Store the marker in state
+      setCurrentMarker(marker);
     });
 
-    culturalMapRef.current = mapInstance;
+    setCulturalMap(mapInstance);
     return mapInstance;
   };
 
@@ -6313,11 +6313,11 @@ const Amain = () => {
                           className="select-location-btn-edit"
                           onClick={() => {
                             // Reinitialize the map if it doesn't exist
-                            if (!culturalMapRef.current) {
+                            if (!culturalMap) {
                               initializeEditMap();
                             } else {
                               // Focus on current location
-                              culturalMapRef.current.flyTo({
+                              culturalMap.flyTo({
                                 center: [selectedLocation.lng, selectedLocation.lat],
                                 zoom: 16
                               });
