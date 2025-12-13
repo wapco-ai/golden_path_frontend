@@ -1623,13 +1623,20 @@ const Amain = () => {
       setShowUserFeedbacks(resolvedDisplaySettings.showUserFeedbacks ? 'نمایش' : 'عدم نمایش');
       setShowMediaGallery(resolvedDisplaySettings.showMediaGallery ? 'نمایش' : 'عدم نمایش');
 
-      if (itemToEdit.restrictions) {
-        setCulturalTimeRestrictions(itemToEdit.restrictions.timeRestrictions || []);
-        setCulturalPrayerTimeRestrictionsList(itemToEdit.restrictions.prayerTimeRestrictions || []);
-      }
+      const resolvedTimeRestrictions = normalizeTimeRestrictions(
+        itemToEdit.restrictions?.timeRestrictions
+        || itemToEdit.restrictions?.time_restrictions
+        || []
+      );
 
-      setCulturalTimeRestrictions(normalizeTimeRestrictions(resolvedTimeRestrictions));
-      setCulturalPrayerTimeRestrictionsList(normalizePrayerRestrictions(resolvedPrayerRestrictions));
+      const resolvedPrayerRestrictions = normalizePrayerRestrictions(
+        itemToEdit.restrictions?.prayerTimeRestrictions
+        || itemToEdit.restrictions?.prayer_time_restrictions
+        || []
+      );
+
+      setCulturalTimeRestrictions(resolvedTimeRestrictions);
+      setCulturalPrayerTimeRestrictionsList(resolvedPrayerRestrictions);
 
       const normalizedAttachments = (itemToEdit.attachments || [])
         .map(file => normalizeMediaAttachment(file))
