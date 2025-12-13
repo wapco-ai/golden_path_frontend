@@ -2571,6 +2571,11 @@ const Amain = () => {
   };
 
   const initializeEditMap = () => {
+    // Prevent re-initializing the edit map if it already exists
+    if (culturalMap) {
+      return;
+    }
+
     if (!document.getElementById('edit-cultural-map-container')) {
       console.log('Map container not found');
       return;
