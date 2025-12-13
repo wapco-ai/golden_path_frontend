@@ -48,6 +48,20 @@ const GENDER_OPTIONS = [
   { value: 'family', label: 'خانوادگی' }
 ];
 
+const GENDER_VALUE_MAP = {
+  male: 'male',
+  'مرد': 'male',
+  'مردان': 'male',
+  'مردانه': 'male',
+  female: 'female',
+  'زن': 'female',
+  'زنان': 'female',
+  'زنانه': 'female',
+  family: 'family',
+  'خانواده': 'family',
+  'خانوادگی': 'family'
+};
+
 const TRANSPORT_OPTIONS = [
   { value: 'wheelchair', label: 'ویلچر', icon: 'wheelchair' },
   { value: 'van', label: 'ون برقی', icon: 'electric' },
@@ -63,9 +77,18 @@ const PLACE_TYPE_OPTIONS = [
 ];
 
 const getGenderLabel = (value) => GENDER_OPTIONS.find((option) => option.value === value)?.label || value;
-const normalizeGenderValue = (value) => GENDER_OPTIONS.find((option) => option.value === value)?.value
-  || GENDER_OPTIONS.find((option) => option.label === value)?.value
-  || value;
+const normalizeGenderValue = (value) => {
+  if (!value) return value;
+
+  const normalized = String(value).trim().toLowerCase();
+  if (GENDER_VALUE_MAP[normalized]) {
+    return GENDER_VALUE_MAP[normalized];
+  }
+
+  return GENDER_OPTIONS.find((option) => option.value === value)?.value
+    || GENDER_OPTIONS.find((option) => option.label === value)?.value
+    || value;
+};
 
 const getTransportLabel = (value) => TRANSPORT_OPTIONS.find((option) => option.value === value)?.label || value;
 const normalizeTransportValue = (value) => TRANSPORT_OPTIONS.find((option) => option.value === value)?.value
@@ -1035,6 +1058,29 @@ const Amain = () => {
       });
   };
 
+  const buildCulturalTranslationsPayload = (attachments = []) => {
+    const mediaPayload = attachments
+      .map((file) => ({
+        type: file?.type || resolveAttachmentType(file?.mime || file?.type || ''),
+        mime: file?.mime || 'application/octet-stream',
+        url: file?.url || file?.path || ''
+      }))
+      .filter((item) => Boolean(item.url));
+
+    const buildEntry = (title, body) => ({
+      title: title || '',
+      body: body || '',
+      media: mediaPayload
+    });
+
+    return {
+      fa: buildEntry(culturalTitle, culturalDescription),
+      en: buildEntry(languageTitles.english, languageDescriptions.english),
+      ar: buildEntry(languageTitles.arabic, languageDescriptions.arabic),
+      ur: buildEntry(languageTitles.urdu, languageDescriptions.urdu)
+    };
+  };
+
   const normalizeDisplaySettings = (settings = {}) => {
     const normalized = settings.displaySettings || settings.display_settings || settings;
 
@@ -1796,71 +1842,26 @@ const Amain = () => {
         (subGroup) => subGroup.value === culturalPlaceSubcategory
       );
 
-      const restrictionsPayload = {
-        timeRestrictions: buildCulturalTimeRestrictionsPayload(),
-        prayerTimeRestrictions: buildCulturalPrayerRestrictionsPayload()
-      };
-
-      const displaySettingsPayload = buildDisplaySettingsPayload();
+      const timeRestrictionsPayload = buildCulturalTimeRestrictionsPayload();
+      const prayerRestrictionsPayload = buildCulturalPrayerRestrictionsPayload();
+      const translationsPayload = buildCulturalTranslationsPayload(attachments);
       const settingsPayload = buildSettingsPayload();
 
       const payload = {
-        ...(editingCulturalData || {}),
-        title: culturalTitle,
-        description: culturalDescription,
-        titles: {
-          fa: culturalTitle,
-          en: languageTitles.english,
-          ar: languageTitles.arabic,
-          ur: languageTitles.urdu
-        },
-        descriptions: {
-          fa: culturalDescription,
-          en: languageDescriptions.english,
-          ar: languageDescriptions.arabic,
-          ur: languageDescriptions.urdu
-        },
+        poi_id: editingCulturalId,
+        translations: translationsPayload,
         addressInShrine: placeAddress,
-        addresses: {
-          fa: placeAddress,
-          en: languageAddresses.english,
-          ar: languageAddresses.arabic,
-          ur: languageAddresses.urdu
-        },
-        // Add grouping data to payload
         grouping: {
           group_id: culturalPlaceCategory || null,
           sub_group_id: selectedSubGroup?.value || null,
           sub_group_label: selectedSubGroup?.label || null
         },
-        culturalTypes: selectedCulturalTypes,
-        cultural_types: selectedCulturalTypes,
-        type: selectedCulturalTypes,
         types: selectedCulturalTypes,
         placeType: selectedPlaceType,
-        place_type: selectedPlaceType,
         settings: settingsPayload,
-        displaySettings: displaySettingsPayload,
-        display_settings: displaySettingsPayload,
-        showUserFeedbacks: displaySettingsPayload.showUserFeedbacks,
-        show_user_feedbacks: displaySettingsPayload.showUserFeedbacks,
-        showMediaGallery: displaySettingsPayload.showMediaGallery,
-        show_media_gallery: displaySettingsPayload.showMediaGallery,
-        showUserComments: displaySettingsPayload.showUserFeedbacks,
-        show_user_comments: displaySettingsPayload.showUserFeedbacks,
-        showMultimedia: displaySettingsPayload.showMediaGallery,
-        show_multimedia: displaySettingsPayload.showMediaGallery,
-        restrictions: {
-          ...restrictionsPayload,
-          time_restrictions: restrictionsPayload.timeRestrictions,
-          prayer_time_restrictions: restrictionsPayload.prayerTimeRestrictions
-        },
-        timeRestrictions: restrictionsPayload.timeRestrictions,
-        time_restrictions: restrictionsPayload.timeRestrictions,
-        prayerTimeRestrictions: restrictionsPayload.prayerTimeRestrictions,
-        prayer_time_restrictions: restrictionsPayload.prayerTimeRestrictions,
+        time_restrictions: timeRestrictionsPayload,
+        prayer_restrictions: prayerRestrictionsPayload,
         primaryImage: resolvedPrimary?.path || resolvedPrimary?.url || null,
-        attachments,
         location: selectedLocation
           ? { lng: selectedLocation.lng, lat: selectedLocation.lat }
           : null
