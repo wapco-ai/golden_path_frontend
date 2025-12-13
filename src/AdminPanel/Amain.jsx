@@ -472,6 +472,7 @@ const Amain = () => {
   const isSavingPlaceInfo = isSavingDoorInfo || isSavingAreaInfo;
   const isLoadingPlaceInfo = isLoadingDoorInfo || isLoadingAreaInfo;
   const [categoryManagementOpen, setCategoryManagementOpen] = useState(false);
+  
 
   const [categories, setCategories] = useState([]);
   const [expandedCategories, setExpandedCategories] = useState([]);
@@ -529,6 +530,12 @@ const Amain = () => {
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  const [culturalPlaceCategory, setCulturalPlaceCategory] = useState('');
+  const [culturalPlaceSubcategory, setCulturalPlaceSubcategory] = useState('');
+  const [culturalSubGroupOptions, setCulturalSubGroupOptions] = useState([]);
+  const [isLoadingCulturalGroups, setIsLoadingCulturalGroups] = useState(false);
+  const [isLoadingCulturalSubGroups, setIsLoadingCulturalSubGroups] = useState(false);
 
   const [isRestrictionModalOpen, setIsRestrictionModalOpen] = useState(false);
   const [editRestrictionFormOpen, setEditRestrictionFormOpen] = useState(false);
@@ -1612,6 +1619,37 @@ const Amain = () => {
         setSelectedCulturalTypes([...itemToEdit.culturalTypes]);
       }
 
+      // Add group and subgroup data - UPDATED
+      const grouping = itemToEdit.grouping || {};
+      const groupId = grouping.group_id || itemToEdit.group_id || '';
+      const subGroupId = grouping.sub_group_id || itemToEdit.sub_group_id || '';
+
+      setCulturalPlaceCategory(groupId);
+      setCulturalPlaceSubcategory(subGroupId);
+
+      // Load sub-groups for the selected group
+      if (groupId) {
+        setIsLoadingCulturalSubGroups(true);
+        try {
+          const subGroupData = await fetchSubGroups({
+            language,
+            groups: [groupId],
+            withImages: false
+          });
+
+          const normalized = normalizeSubGroupMetadata(subGroupData?.subGroups, language);
+          const translatedSubGroups = (normalized[groupId] || []).map((subGroup) => ({
+            ...subGroup,
+            label: translateLabel(subGroup.label)
+          }));
+          setCulturalSubGroupOptions(dedupeByValue(translatedSubGroups));
+        } catch (error) {
+          console.error('Failed to load sub groups for edit', error);
+        } finally {
+          setIsLoadingCulturalSubGroups(false);
+        }
+      }
+
       const resolvedDisplaySettings = normalizeDisplaySettings({
         ...(itemToEdit.displaySettings || {}),
         ...(itemToEdit.display_settings || {}),
@@ -1661,7 +1699,7 @@ const Amain = () => {
       );
       const textAttachments = dedupedAttachments.filter((file) =>
         !((file.type && (file.type.startsWith('image') || file.type.startsWith('audio') || file.type.startsWith('video')))
-        || (file.mime && (file.mime.startsWith('image') || file.mime.startsWith('audio') || file.mime.startsWith('video'))))
+          || (file.mime && (file.mime.startsWith('image') || file.mime.startsWith('audio') || file.mime.startsWith('video'))))
       );
 
       const normalizedPrimary = itemToEdit.primaryImage
@@ -1710,6 +1748,10 @@ const Amain = () => {
         || uploadedFiles.find((file) => file.isPrimary)
         || null;
 
+      const selectedSubGroup = culturalSubGroupOptions.find(
+        (subGroup) => subGroup.value === culturalPlaceSubcategory
+      );
+
       const restrictionsPayload = {
         timeRestrictions: buildCulturalTimeRestrictionsPayload(),
         prayerTimeRestrictions: buildCulturalPrayerRestrictionsPayload()
@@ -1739,6 +1781,12 @@ const Amain = () => {
           en: languageAddresses.english,
           ar: languageAddresses.arabic,
           ur: languageAddresses.urdu
+        },
+        // Add grouping data to payload
+        grouping: {
+          group_id: culturalPlaceCategory || null,
+          sub_group_id: selectedSubGroup?.value || null,
+          sub_group_label: selectedSubGroup?.label || null
         },
         culturalTypes: selectedCulturalTypes,
         cultural_types: selectedCulturalTypes,
@@ -1780,7 +1828,7 @@ const Amain = () => {
     }
   };
 
-  // Add this separate function to exit edit mode cleanly
+
   const exitEditMode = () => {
     // Clean up map and marker FIRST
     if (currentMarker) {
@@ -1805,7 +1853,72 @@ const Amain = () => {
     setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات', 'مدیریت اطلاعات فرهنگی']);
   };
 
-  // Separate function to reset form without touching map
+  useEffect(() => {
+    let isMounted = true;
+
+    const languageGroup = getLanguageName(language);
+
+    setIsLoadingCulturalGroups(true);
+    fetchGroupMetadata({ language, withPng: false, group: languageGroup })
+      .then((groupData) => {
+        if (!isMounted) return;
+        const normalizedGroups = normalizeGroupMetadata(groupData?.groups, language);
+        const translatedGroups = normalizedGroups.map((group) => ({
+          ...group,
+          label: translateLabel(group.label)
+        }));
+
+        setGroupOptions(dedupeByValue(translatedGroups));
+      })
+      .catch((error) => {
+        console.error('Failed to load group metadata for cultural', error);
+        toast.error('بارگذاری گروه‌ها با مشکل مواجه شد');
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setIsLoadingCulturalGroups(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [language, translateLabel]);
+
+  useEffect(() => {
+    if (!culturalPlaceCategory) {
+      setCulturalSubGroupOptions([]);
+      setCulturalPlaceSubcategory('');
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoadingCulturalSubGroups(true);
+    setCulturalSubGroupOptions([]);
+
+    fetchSubGroups({ language, groups: [culturalPlaceCategory], withImages: false })
+      .then((subGroupData) => {
+        if (!isMounted) return;
+        const normalized = normalizeSubGroupMetadata(subGroupData?.subGroups, language);
+        const translatedSubGroups = (normalized[culturalPlaceCategory] || []).map((subGroup) => ({
+          ...subGroup,
+          label: translateLabel(subGroup.label)
+        }));
+        setCulturalSubGroupOptions(dedupeByValue(translatedSubGroups));
+      })
+      .catch((error) => {
+        console.error('Failed to load sub groups for cultural', error);
+        toast.error('بارگذاری زیرگروه‌ها با مشکل مواجه شد');
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setIsLoadingCulturalSubGroups(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [language, culturalPlaceCategory, translateLabel]);
+
   const resetEditFormWithoutMapCleanup = () => {
     setCulturalTitle('');
     setCulturalDescription('');
@@ -1815,6 +1928,12 @@ const Amain = () => {
     setPlaceAddress('');
     setCulturalPoiId('');
     setSelectedLocation(null);
+
+    setCulturalPlaceCategory('');
+    setCulturalPlaceSubcategory('');
+    setCulturalSubGroupOptions([]);
+    setIsLoadingCulturalGroups(false);
+    setIsLoadingCulturalSubGroups(false);
 
     setProfileImages([]);
     setAudioFiles([]);
@@ -1931,6 +2050,12 @@ const Amain = () => {
     setSelectedLocation(null);
 
     setIsEditingCultural(false);
+
+    setCulturalPlaceCategory('');
+    setCulturalPlaceSubcategory('');
+    setCulturalSubGroupOptions([]);
+    setIsLoadingCulturalGroups(false);
+    setIsLoadingCulturalSubGroups(false);
 
     setProfileImages([]);
     setAudioFiles([]);
@@ -2667,6 +2792,40 @@ const Amain = () => {
   };
 
 
+  useEffect(() => {
+    if (!isEditingCultural || !culturalPlaceCategory) {
+      setCulturalSubGroupOptions([]);
+      setCulturalPlaceSubcategory('');
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoadingCulturalSubGroups(true);
+    setCulturalSubGroupOptions([]);
+
+    fetchSubGroups({ language, groups: [culturalPlaceCategory], withImages: false })
+      .then((subGroupData) => {
+        if (!isMounted) return;
+        const normalized = normalizeSubGroupMetadata(subGroupData?.subGroups, language);
+        const translatedSubGroups = (normalized[culturalPlaceCategory] || []).map((subGroup) => ({
+          ...subGroup,
+          label: translateLabel(subGroup.label)
+        }));
+        setCulturalSubGroupOptions(dedupeByValue(translatedSubGroups));
+      })
+      .catch((error) => {
+        console.error('Failed to load sub groups for cultural edit', error);
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setIsLoadingCulturalSubGroups(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [language, culturalPlaceCategory, translateLabel, isEditingCultural]);
+
   const handleSaveCulturalData = () => {
     if (selectedCulturalTypes.length === 0) {
       setCulturalTypeError(true);
@@ -2679,12 +2838,19 @@ const Amain = () => {
       return;
     }
 
-    if (!culturalPoiId) {
-      alert('شناسه poi لازم است');
+    // if (!culturalPoiId) {
+    //   alert('شناسه poi لازم است');
+    //   return;
+    // }
+
+    if (!culturalPlaceCategory) {
+      alert('لطفا گروه اصلی را انتخاب کنید');
       return;
     }
 
-    console.log('Saving with selectedLocation:', selectedLocation);
+    const selectedSubGroup = culturalSubGroupOptions.find(
+      (subGroup) => subGroup.value === culturalPlaceSubcategory
+    );
 
     const attachments = profileImages.map((img) => ({
       type: 'image',
@@ -2709,7 +2875,22 @@ const Amain = () => {
       showUserComments: displaySettingsPayload.showUserComments,
       show_user_comments: displaySettingsPayload.showUserComments,
       showMultimedia: displaySettingsPayload.showMultimedia,
-      show_multimedia: displaySettingsPayload.showMultimedia
+      show_multimedia: displaySettingsPayload.showMultimedia,
+      // Add grouping data
+      grouping: {
+        group_id: culturalPlaceCategory,
+        sub_group_id: selectedSubGroup?.value || null,
+        sub_group_label: selectedSubGroup?.label || null
+      },
+      culturalTypes: selectedCulturalTypes,
+      cultural_types: selectedCulturalTypes,
+      type: selectedCulturalTypes,
+      types: selectedCulturalTypes,
+      // Include address and location if available
+      addressInShrine: placeAddress,
+      location: selectedLocation
+        ? { lng: selectedLocation.lng, lat: selectedLocation.lat }
+        : null
     })
       .then(() => {
         toast.success('اطلاعات فرهنگی با موفقیت ثبت شد');
@@ -2721,6 +2902,7 @@ const Amain = () => {
         toast.error('ثبت آیتم فرهنگی ناموفق بود');
       });
   };
+
 
   const toggleReportsManagement = () => {
     setReportsManagementOpen(!reportsManagementOpen);
@@ -3982,6 +4164,7 @@ const Amain = () => {
       map.off('move', keepMarkerCentered);
     };
   }, [map, isLocationMarkerMode, locationMarker]);
+  
 
   useEffect(() => {
     if (!isLocationMarkerMode && locationMarker) {
@@ -5838,7 +6021,7 @@ const Amain = () => {
                         </button>
                       </div>
                     </div>
-
+                    {/* 
                     <div className="edit-form-group">
                       <label className="edit-form-label">شناسه POI</label>
                       <input
@@ -5848,7 +6031,7 @@ const Amain = () => {
                         value={culturalPoiId}
                         onChange={(e) => setCulturalPoiId(e.target.value)}
                       />
-                    </div>
+                    </div> */}
 
                     <div className="edit-form-group">
                       <label className="edit-form-label">توضیحات</label>
@@ -6339,6 +6522,46 @@ const Amain = () => {
                     {culturalTypeError && (
                       <div className="error-message-edit">لطفا حداقل یک نوع مکان را انتخاب کنید</div>
                     )}
+                  </div>
+                  {/* Add this after the Cultural Type Selection section in edit page */}
+                  <div className="edit-form-section">
+                    <h3 className="edit-form-title">تعیین گروه این مکان فرهنگی</h3>
+                    <div className="dropdown-group-cultural-edit">
+                      <div className="dropdown-field-cultural-edit">
+                        <select
+                          className="form-input-cultural-edit"
+                          value={culturalPlaceCategory}
+                          onChange={(e) => {
+                            setCulturalPlaceCategory(e.target.value);
+                            setCulturalPlaceSubcategory('');
+                          }}
+                          disabled={isLoadingCulturalGroups}
+                        >
+                          <option value="" disabled>گروه اصلی فرهنگی</option>
+                          {groupOptions.map((group) => (
+                            <option key={`cultural-edit-group-${group.value}`} value={group.value}>
+                              {group.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="dropdown-field-cultural-edit">
+                        <select
+                          className="form-input-cultural-edit"
+                          value={culturalPlaceSubcategory}
+                          onChange={(e) => setCulturalPlaceSubcategory(e.target.value)}
+                          disabled={!culturalPlaceCategory || isLoadingCulturalSubGroups}
+                        >
+                          <option value="" disabled>زیرگروه فرهنگی</option>
+                          {culturalSubGroupOptions.map((subGroup) => (
+                            <option key={`cultural-edit-subgroup-${subGroup.value}`} value={subGroup.value}>
+                              {subGroup.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -8990,7 +9213,7 @@ const Amain = () => {
                         </button>
                       </div>
 
-                      <div className="title-input-with-language">
+                      {/* <div className="title-input-with-language">
                         <input
                           type="number"
                           className="form-input"
@@ -8998,7 +9221,7 @@ const Amain = () => {
                           value={culturalPoiId}
                           onChange={(e) => setCulturalPoiId(e.target.value)}
                         />
-                      </div>
+                      </div> */}
 
                       <div className="description-input-with-language">
                         <textarea
@@ -9095,6 +9318,46 @@ const Amain = () => {
                             <span>{type}</span>
                           </div>
                         ))}
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">تعیین گروه این مکان فرهنگی</label>
+                      <div className="dropdown-group-cultural">
+                        <div className="dropdown-field-cultural">
+                          <select
+                            className="form-input-cultural"
+                            value={culturalPlaceCategory}
+                            onChange={(e) => {
+                              setCulturalPlaceCategory(e.target.value);
+                              setCulturalPlaceSubcategory('');
+                            }}
+                            disabled={isLoadingCulturalGroups}
+                          >
+                            <option value="" disabled>گروه اصلی فرهنگی</option>
+                            {groupOptions.map((group) => (
+                              <option key={`cultural-group-${group.value}`} value={group.value}>
+                                {group.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="dropdown-field-cultural">
+                          <select
+                            className="form-input-cultural"
+                            value={culturalPlaceSubcategory}
+                            onChange={(e) => setCulturalPlaceSubcategory(e.target.value)}
+                            disabled={!culturalPlaceCategory || isLoadingCulturalSubGroups}
+                          >
+                            <option value="" disabled>زیرگروه فرهنگی</option>
+                            {culturalSubGroupOptions.map((subGroup) => (
+                              <option key={`cultural-subgroup-${subGroup.value}`} value={subGroup.value}>
+                                {subGroup.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -10615,7 +10878,7 @@ const Amain = () => {
             {/* Modal Header */}
             <div className="modal-header">
               <div className="step-text">
-                <span className="step-title">افزودن محدودیت</span>
+                <span className="step-title" >افزودن محدودیت</span>
               </div>
             </div>
 
@@ -10747,7 +11010,7 @@ const Amain = () => {
 
                     {/* Restriction Form */}
                     {editRestrictionFormOpen && editSelectedRestrictionType && (
-                      <div className="restriction-form-container">
+                      <div className="restriction-form-container2">
                         {/* Black header with title and close button */}
                         <div className="restriction-form-header">
                           <div className="restriction-title-black">
@@ -10877,13 +11140,13 @@ const Amain = () => {
                               </div>
                               <span>محدودیت برای تمام ساعات روز</span>
                             </div>
-                            <button
+                            {/* <button
                               className="confirm-restriction-btn"
                               onClick={handleEditConfirmRestriction}
                               disabled={!isEditRestrictionFormValid()}
                             >
                               تایید و افزودن محدودیت زمانی
-                            </button>
+                            </button> */}
                           </div>
                         </div>
                       </div>
@@ -10954,14 +11217,14 @@ const Amain = () => {
                               />
                             </div>
 
-                            <div className="prayer-form-actions">
+                            {/* <div className="prayer-form-actions">
                               <button
                                 className="confirm-prayer-btn"
                                 onClick={handleEditConfirmPrayerRestriction}
                               >
                                 تایید و افزودن محدودیت اوقات شرعی
                               </button>
-                            </div>
+                            </div> */}
                           </div>
                         </div>
                       </div>

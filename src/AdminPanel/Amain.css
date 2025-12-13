@@ -2707,6 +2707,8 @@ body {
   justify-content: flex-end;
   margin-top: 0px;
   padding-top: 10px;
+  z-index: 1001;
+  background: white;
 }
 
 .modal-footer .cancel-btn {
@@ -3555,6 +3557,24 @@ body {
   background: white;
   z-index: 1001;
   width: 57vw;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  max-height: calc(70vh - 100px) !important;
+}
+
+.restriction-form-container2 {
+  position: fixed;
+  top: 26%;
+  left: 22%;
+  border: none;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  animation: slideIn 0.3s ease-out;
+  padding-bottom: 0px;
+  background: white;
+  z-index: 1000;
+  width: 57vw;
+  max-height: calc(70vh - 100px) !important;
 }
 
 @keyframes slideIn {
@@ -7757,4 +7777,86 @@ body {
   flex-direction: row;
   justify-content: center;
   align-items: center;
+}
+
+/* Add these CSS classes for cultural dropdowns */
+.dropdown-group-cultural {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.dropdown-field-cultural {
+  flex: 1;
+}
+
+.form-input-cultural {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #E0E0E0;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1E2023;
+  background-color: white;
+  transition: border-color 0.3s;
+}
+
+.form-input-cultural:focus {
+  outline: none;
+  border-color: #0F71EF;
+  box-shadow: 0 0 0 3px rgba(15, 113, 239, 0.1);
+}
+
+.form-input-cultural:disabled {
+  background-color: #F5F5F5;
+  cursor: not-allowed;
+  color: #999;
+}
+
+.form-input-cultural option {
+  padding: 8px;
+}
+
+/* Add to your CSS file */
+.dropdown-group-cultural-edit {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.dropdown-field-cultural-edit {
+  flex: 1;
+}
+
+.form-input-cultural-edit {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #E0E0E0;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1E2023;
+  background-color: white;
+  transition: border-color 0.3s;
+  font-family: inherit;
+}
+
+.form-input-cultural-edit:focus {
+  outline: none;
+  border-color: #0F71EF;
+  box-shadow: 0 0 0 3px rgba(15, 113, 239, 0.1);
+}
+
+.form-input-cultural-edit:disabled {
+  background-color: #F5F5F5;
+  cursor: not-allowed;
+  color: #999;
+}
+
+.form-input-cultural-edit option {
+  padding: 8px;
+}
+
+/* Add margin for the new section */
+.edit-form-section + .edit-form-section {
+  margin-top: 24px;
 }
