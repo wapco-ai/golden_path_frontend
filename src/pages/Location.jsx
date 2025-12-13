@@ -141,15 +141,6 @@ const Location = () => {
     };
   }, [locationData?.about]);
 
-  const getLocalizedContentValue = (value) => {
-    if (!value) return '';
-    if (typeof value === 'string') return value;
-    if (typeof value === 'object') {
-      return value[language] || value.fa || Object.values(value)[0] || '';
-    }
-    return '';
-  };
-
   const normalizeLocationId = (id) => {
     if (!id) return null;
 
@@ -195,57 +186,15 @@ const Location = () => {
   const normalizeImages = (place) => {
     if (!place) return [];
 
-    const isImageUrl = (url = '') => /\.(jpe?g|png|webp|gif|bmp|svg)(\?|$)/i.test(url);
+    if (Array.isArray(place.images)) return place.images;
+    if (Array.isArray(place.image)) return place.image;
+    if (Array.isArray(place.img)) return place.img;
 
-    const baseImages = [];
+    if (typeof place.images === 'string' && place.images.trim()) return [place.images];
+    if (typeof place.image === 'string' && place.image.trim()) return [place.image];
+    if (typeof place.img === 'string' && place.img.trim()) return [place.img];
 
-    if (Array.isArray(place.images)) baseImages.push(...place.images);
-    if (Array.isArray(place.image)) baseImages.push(...place.image);
-    if (Array.isArray(place.img)) baseImages.push(...place.img);
-
-    if (typeof place.images === 'string' && place.images.trim()) baseImages.push(place.images);
-    if (typeof place.image === 'string' && place.image.trim()) baseImages.push(place.image);
-    if (typeof place.img === 'string' && place.img.trim()) baseImages.push(place.img);
-
-    return baseImages.filter(url => typeof url === 'string' && isImageUrl(url));
-  };
-
-  const normalizeMediaByLanguage = (place) => {
-    const media = place?.media;
-    if (!media) return [];
-
-    const langKey = 'fa';
-    const mediaForLang = Array.isArray(media)
-      ? media
-      : media?.[langKey] || media?.fa || [];
-
-    if (!Array.isArray(mediaForLang)) return [];
-
-    return mediaForLang
-      .filter(item => item && (item.url || item.data))
-      .map((item, index) => {
-        const mimeType = item.mime || '';
-        let derivedType = item.type;
-
-        const mimeTypeToType = () => {
-          if (mimeType.startsWith('image/')) return 'image';
-          if (mimeType === 'application/pdf') return 'pdf';
-          if (mimeType.startsWith('video/')) return 'video';
-          return 'file';
-        };
-
-        // Prefer MIME-derived type when the provided type is generic (e.g., "file")
-        if (!derivedType || derivedType === 'file') {
-          derivedType = mimeTypeToType();
-        }
-
-        return {
-          ...item,
-          id: item.id || `media-${index}`,
-          type: derivedType,
-          mediaUrl: item.url || item.data || ''
-        };
-      });
+    return [];
   };
 
   const normalizeAbout = (place) => {
@@ -273,37 +222,16 @@ const Location = () => {
   const normalizePlaceData = (place) => {
     if (!place) return null;
 
-    const mediaItems = normalizeMediaByLanguage(place);
-    const showMediaGallery = place.showMediaGallery ?? place.settings?.showMediaGallery ?? true;
-    const showUserFeedbacks = place.showUserFeedbacks ?? place.settings?.showUserFeedbacks ?? true;
-
-    const mediaImages = mediaItems
-      .filter(item => item.type === 'image' && item.mediaUrl)
-      .map(item => item.mediaUrl);
-
-    const mediaContents = mediaItems
-      .filter(item => item.type !== 'image')
-      .map(item => ({
-        ...item,
-        title: item.title || place.titles || place.title || { fa: item.name || '' },
-        description: item.description || place.descriptions || place.description || { fa: '' }
-      }));
-
-    const baseContents = Array.isArray(place.contents) ? place.contents : [];
-    const baseImages = normalizeImages(place);
-
     return {
       ...place,
-      images: showMediaGallery ? [...baseImages, ...mediaImages] : [],
+      images: normalizeImages(place),
       about: normalizeAbout(place),
       location: place.location || place.address || place.label || '',
       openingHours: place.openingHours ?? place.open_hours ?? place.hours ?? '',
-      contents: showMediaGallery ? [...baseContents, ...mediaContents] : [],
+      contents: Array.isArray(place.contents) ? place.contents : [],
       comments: Array.isArray(place.comments) ? place.comments : [],
       views: place.views ?? place.view ?? 0,
-      averageRating: place.averageRating ?? place.rate ?? place.rating ?? 0,
-      showMediaGallery,
-      showUserFeedbacks
+      averageRating: place.averageRating ?? place.rate ?? place.rating ?? 0
     };
   };
 
@@ -565,7 +493,7 @@ const Location = () => {
 
   // Auto-advance carousel (optional)
   useEffect(() => {
-    if (!locationData?.images || locationData.images.length === 0) return;
+    if (!locationData?.images) return;
 
     const interval = setInterval(() => {
       setActiveSlide(prev => (prev + 1) % locationData.images.length);
@@ -745,7 +673,7 @@ const Location = () => {
 
   // Video and PDF handlers
   const handleVideoClick = (videoContent) => {
-    const videoUrl = videoContent.mediaUrl || videoContent.url || getFileUrl(videoContent.fileKey);
+    const videoUrl = getFileUrl(videoContent.fileKey);
     if (!videoUrl) {
       toast.error(intl.formatMessage({ id: 'videoLoadError' }));
       return;
@@ -770,7 +698,7 @@ const Location = () => {
   };
 
   const handlePdfClick = async (pdfContent) => {
-    const pdfUrl = pdfContent.mediaUrl || pdfContent.url || getFileUrl(pdfContent.fileKey);
+    const pdfUrl = getFileUrl(pdfContent.fileKey);
     if (!pdfUrl) {
       return;
     }
@@ -1023,7 +951,7 @@ const Location = () => {
       </section>
 
       {/* Audio/Video/Text Content Section */}
-      {locationData.showMediaGallery && locationData.contents && locationData.contents.length > 0 && (
+      {locationData.contents && locationData.contents.length > 0 && (
         <section className="content-section">
           <h3>
             <FormattedMessage id="audioTextContent" values={{ title: locationData.title }} />
@@ -1067,7 +995,7 @@ const Location = () => {
                       {content.thumbnail ? (
                         <img
                           src={content.thumbnail}
-                          alt={getLocalizedContentValue(content.title) || 'PDF document'}
+                          alt={content.title[language] || 'PDF document'}
                           onError={(e) => {
                             // Fallback if thumbnail fails to load
                             e.target.style.display = 'none';
@@ -1088,8 +1016,8 @@ const Location = () => {
                   )}
                 </div>
                 <div className="content-info">
-                  <h4>{getLocalizedContentValue(content.title)}</h4>
-                  <p>{getLocalizedContentValue(content.description)}</p>
+                  <h4>{content.title[language]}</h4>
+                  <p>{content.description[language]}</p>
                 </div>
               </div>
             ))}
@@ -1098,7 +1026,6 @@ const Location = () => {
       )}
 
       {/* Comments Section */}
-      {locationData.showUserFeedbacks && (
       <section className="comments-section">
         <div className="comments-header">
           <h3>
@@ -1173,7 +1100,6 @@ const Location = () => {
           ))}
         </div>
       </section>
-      )}
 
       {/* Comment Modal */}
       {showCommentModal && (
