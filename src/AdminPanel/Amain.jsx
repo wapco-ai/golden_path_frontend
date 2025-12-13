@@ -45,7 +45,7 @@ const SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID = 'selected-editable-feature-fill'
 const GENDER_OPTIONS = [
   { value: 'female', label: 'بانوان' },
   { value: 'male', label: 'مردان' },
-  { value: 'family', label: 'خانوادگی' }
+  { value: 'both', label: 'خانوادگی' }
 ];
 
 const GENDER_VALUE_MAP = {
@@ -57,9 +57,9 @@ const GENDER_VALUE_MAP = {
   'زن': 'female',
   'زنان': 'female',
   'زنانه': 'female',
-  family: 'family',
-  'خانواده': 'family',
-  'خانوادگی': 'family'
+  both: 'both',
+  'خانواده': 'both',
+  'خانوادگی': 'both'
 };
 
 const TRANSPORT_OPTIONS = [
