@@ -1169,34 +1169,51 @@ const Amain = () => {
     return Array.isArray(derived) ? derived : [];
   };
 
+  const getPrayerRestrictionParts = (restriction = {}) => {
+    const normalizedEvents = normalizePrayerEvents(restriction?.events).sort();
+    const dateScope = normalizeDateScopeArray(
+      restriction?.isoDateScope?.length ? restriction.isoDateScope : restriction?.date_scope,
+      restriction?.date
+    );
+
+    const beforeMinutes = restriction?.before_minutes
+      ?? (restriction?.before !== undefined ? Number(restriction.before) : undefined)
+      ?? (restriction?.beforeMinutes !== undefined ? Number(restriction.beforeMinutes) : undefined)
+      ?? 0;
+
+    const afterMinutes = restriction?.after_minutes
+      ?? (restriction?.after !== undefined ? Number(restriction.after) : undefined)
+      ?? (restriction?.afterMinutes !== undefined ? Number(restriction.afterMinutes) : undefined)
+      ?? 0;
+
+    const dedupKey = JSON.stringify({
+      events: normalizedEvents.join('|'),
+      before: beforeMinutes,
+      after: afterMinutes,
+      dateScope: dateScope.join('|')
+    });
+
+    return {
+      normalizedEvents,
+      beforeMinutes,
+      afterMinutes,
+      dateScope,
+      dedupKey
+    };
+  };
+
   const buildCulturalPrayerRestrictionsPayload = () => {
     const seen = new Set();
 
     return culturalPrayerTimeRestrictionsList.reduce((acc, restriction) => {
-      const normalizedEvents = normalizePrayerEvents(restriction?.events).sort();
+      const {
+        normalizedEvents,
+        beforeMinutes,
+        afterMinutes,
+        dateScope,
+        dedupKey
+      } = getPrayerRestrictionParts(restriction);
       const eventLabels = normalizedEvents.map(prayerEventValueToLabel);
-
-      const beforeMinutes = restriction?.before_minutes
-        ?? (restriction?.before !== undefined ? Number(restriction.before) : undefined)
-        ?? (restriction?.beforeMinutes !== undefined ? Number(restriction.beforeMinutes) : undefined)
-        ?? 0;
-
-      const afterMinutes = restriction?.after_minutes
-        ?? (restriction?.after !== undefined ? Number(restriction.after) : undefined)
-        ?? (restriction?.afterMinutes !== undefined ? Number(restriction.afterMinutes) : undefined)
-        ?? 0;
-
-      const dateScope = normalizeDateScopeArray(
-        restriction?.isoDateScope?.length ? restriction.isoDateScope : restriction?.date_scope,
-        restriction?.date
-      );
-
-      const dedupKey = JSON.stringify({
-        events: normalizedEvents.join('|'),
-        before: beforeMinutes,
-        after: afterMinutes,
-        dateScope: dateScope.join('|')
-      });
 
       if (seen.has(dedupKey) || !dateScope?.length) return acc;
       seen.add(dedupKey);
@@ -3915,10 +3932,23 @@ const Amain = () => {
       before: String(editPrayerBeforeMinutes),
       after: String(editPrayerAfterMinutes),
       date: editPrayerSelectedJalaliDate ? `روز ${editPrayerSelectedJalaliDate.day} ${getJalaliMonthName(editPrayerSelectedJalaliDate.month)} ${editPrayerSelectedJalaliDate.year}` : 'همه روزها',
+      isoDateScope: buildDateScopeIso(
+        editPrayerSelectedJalaliDate
+          ? `روز ${editPrayerSelectedJalaliDate.day} ${getJalaliMonthName(editPrayerSelectedJalaliDate.month)} ${editPrayerSelectedJalaliDate.year}`
+          : 'همه روزها',
+        editPrayerSelectedJalaliDate
+      ),
       title
     };
 
-    setCulturalPrayerTimeRestrictionsList(prev => [...prev, newItem]);
+    const { dedupKey: newKey } = getPrayerRestrictionParts(newItem);
+    setCulturalPrayerTimeRestrictionsList((prev) => {
+      const filtered = prev.filter((item) => {
+        const { dedupKey } = getPrayerRestrictionParts(item);
+        return dedupKey !== newKey;
+      });
+      return [...filtered, newItem];
+    });
 
     // Reset form
     setEditSelectedPrayerEvents([]);
@@ -4430,30 +4460,14 @@ const Amain = () => {
     const seen = new Set();
 
     return prayerTimeRestrictionsList.reduce((acc, restriction) => {
-      const dateScope = normalizeDateScopeArray(
-        restriction?.isoDateScope?.length ? restriction.isoDateScope : restriction?.date_scope,
-        restriction?.date
-      );
-
-      const normalizedEvents = normalizePrayerEvents(restriction?.events).sort();
+      const {
+        normalizedEvents,
+        beforeMinutes,
+        afterMinutes,
+        dateScope,
+        dedupKey
+      } = getPrayerRestrictionParts(restriction);
       const eventLabels = normalizedEvents.map(prayerEventValueToLabel);
-
-      const beforeMinutes = restriction?.before_minutes
-        ?? (restriction?.before !== undefined ? Number(restriction.before) : undefined)
-        ?? (restriction?.beforeMinutes !== undefined ? Number(restriction.beforeMinutes) : undefined)
-        ?? (restriction?.before ? Number(restriction.before) : 0);
-
-      const afterMinutes = restriction?.after_minutes
-        ?? (restriction?.after !== undefined ? Number(restriction.after) : undefined)
-        ?? (restriction?.afterMinutes !== undefined ? Number(restriction.afterMinutes) : undefined)
-        ?? (restriction?.after ? Number(restriction.after) : 0);
-
-      const dedupKey = JSON.stringify({
-        events: normalizedEvents.join('|'),
-        before: beforeMinutes,
-        after: afterMinutes,
-        dateScope: dateScope.join('|')
-      });
 
       if (seen.has(dedupKey) || !dateScope?.length) return acc;
       seen.add(dedupKey);
@@ -7583,13 +7597,18 @@ const Amain = () => {
                               </div>
                             )}
                             {selectedFeatureCoordinates && Array.isArray(selectedFeatureCoordinates) && (
-                              <div className="selected-feature-row">
-                                <span className="selected-feature-label">مختصات:</span>
-                                <span className="selected-feature-value">
-                                  {selectedFeatureCoordinates.map((coord) => Number(coord).toFixed(5)).join(', ')}
-                                </span>
-                              </div>
-                            )}
+                                <div className="selected-feature-row">
+                                  <span className="selected-feature-label">مختصات:</span>
+                                  <span className="selected-feature-value">
+                                    {selectedFeatureCoordinates.map((coord, index) => (
+                                      <React.Fragment key={`coord-${index}`}>
+                                        {Number(coord).toFixed(5)}
+                                        {index < selectedFeatureCoordinates.length - 1 && ', '}
+                                      </React.Fragment>
+                                    ))}
+                                  </span>
+                                </div>
+                              )}
                           </div>
                         )}
                       </div>
@@ -8730,7 +8749,14 @@ const Amain = () => {
                                       ),
                                       title
                                     };
-                                    setPrayerTimeRestrictionsList(prev => [...prev, newItem]);
+                                    const { dedupKey: newKey } = getPrayerRestrictionParts(newItem);
+                                    setPrayerTimeRestrictionsList((prev) => {
+                                      const filtered = prev.filter((item) => {
+                                        const { dedupKey } = getPrayerRestrictionParts(item);
+                                        return dedupKey !== newKey;
+                                      });
+                                      return [...filtered, newItem];
+                                    });
                                     // reset form
                                     setSelectedPrayerEvents([]);
                                     setPrayerBeforeMinutes('');
@@ -9961,9 +9987,22 @@ const Amain = () => {
                                       before: String(culturalPrayerBeforeMinutes),
                                       after: String(culturalPrayerAfterMinutes),
                                       date: culturalPrayerSelectedJalaliDate ? `روز ${culturalPrayerSelectedJalaliDate.day} ${getJalaliMonthName(culturalPrayerSelectedJalaliDate.month)} ${culturalPrayerSelectedJalaliDate.year}` : 'همه روزها',
+                                      isoDateScope: buildDateScopeIso(
+                                        culturalPrayerSelectedJalaliDate
+                                          ? `روز ${culturalPrayerSelectedJalaliDate.day} ${getJalaliMonthName(culturalPrayerSelectedJalaliDate.month)} ${culturalPrayerSelectedJalaliDate.year}`
+                                          : 'همه روزها',
+                                        culturalPrayerSelectedJalaliDate
+                                      ),
                                       title
                                     };
-                                    setCulturalPrayerTimeRestrictionsList(prev => [...prev, newItem]);
+                                    const { dedupKey: newKey } = getPrayerRestrictionParts(newItem);
+                                    setCulturalPrayerTimeRestrictionsList((prev) => {
+                                      const filtered = prev.filter((item) => {
+                                        const { dedupKey } = getPrayerRestrictionParts(item);
+                                        return dedupKey !== newKey;
+                                      });
+                                      return [...filtered, newItem];
+                                    });
                                     setCulturalSelectedPrayerEvents([]);
                                     setCulturalPrayerBeforeMinutes('');
                                     setCulturalPrayerAfterMinutes('');
