@@ -570,7 +570,7 @@ const Amain = () => {
   const [culturalTypeError, setCulturalTypeError] = useState(false);
   const [culturalMap, setCulturalMap] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
-  const currentMarkerRef = useRef(null);
+  const [currentMarker, setCurrentMarker] = useState(null);
   const editMapTimeoutRef = useRef(null);
   const [titleForModal, setTitleForModal] = useState(''); // Current title field value
   const [adminAvatar, setAdminAvatar] = useState(null);
@@ -1986,20 +1986,20 @@ const Amain = () => {
   };
 
   const cleanupCulturalMap = useCallback(() => {
-    if (currentMarkerRef.current) {
-      currentMarkerRef.current.remove();
-      currentMarkerRef.current = null;
+    if (currentMarker) {
+      currentMarker.remove();
+      setCurrentMarker(null);
     }
 
-    if (culturalMapRef.current) {
+    if (culturalMap) {
       try {
-        culturalMapRef.current.remove();
+        culturalMap.remove();
       } catch (error) {
         console.warn('Cultural map removal skipped', error);
       }
-      culturalMapRef.current = null;
+      setCulturalMap(null);
     }
-  }, []);
+  }, [currentMarker, culturalMap]);
 
 
   const exitEditMode = () => {
