@@ -517,8 +517,8 @@ const Amain = () => {
   const [culturalStep, setCulturalStep] = useState(1);
   const [culturalTitle, setCulturalTitle] = useState('');
   const [culturalDescription, setCulturalDescription] = useState('');
-  const [showUserComments, setShowUserComments] = useState('نمایش');
-  const [showMultimedia, setShowMultimedia] = useState('نمایش');
+  const [showUserFeedbacks, setShowUserFeedbacks] = useState('نمایش');
+  const [showMediaGallery, setShowMediaGallery] = useState('نمایش');
   const [selectedCulturalTypes, setSelectedCulturalTypes] = useState([]);
   const [culturalTypeError, setCulturalTypeError] = useState(false);
   const [culturalMap, setCulturalMap] = useState(null);
@@ -680,13 +680,14 @@ const Amain = () => {
     return null;
   };
 
-  const normalizeMediaAttachment = (file, defaultMime = 'image/jpeg') => {
+  const normalizeMediaAttachment = (file, defaultMime = 'application/octet-stream') => {
     if (!file) return null;
 
     const mimeType = file.mime
       || (file.type?.includes('/') ? file.type : null)
       || (file.type === 'image' ? 'image/jpeg' : null)
       || (file.type === 'video' ? 'video/mp4' : null)
+      || (file.type === 'audio' ? 'audio/mpeg' : null)
       || defaultMime;
 
     return {
@@ -766,6 +767,24 @@ const Amain = () => {
           || (typeof file.mime === 'string' && file.mime.startsWith('image'))
           || file.fileType === 'image'
         ));
+  };
+
+  const normalizeLanguageMedia = (media = {}, language = 'fa') => {
+    const seenPaths = new Set();
+    const languageMedia = Array.isArray(media?.[language]) ? media[language] : [];
+
+    return languageMedia
+      .map((file, idx) => normalizeMediaAttachment({
+        ...file,
+        id: file?.id || file?.path || file?.url || `media-${language}-${idx}`
+      }, file?.mime || file?.type || 'application/octet-stream'))
+      .filter((file) => {
+        if (!file?.url) return false;
+        const key = file.path || file.url;
+        if (seenPaths.has(key)) return false;
+        seenPaths.add(key);
+        return true;
+      });
   };
 
   const getCategoryPageNumbers = () => {
@@ -1005,8 +1024,16 @@ const Amain = () => {
     const normalized = settings.displaySettings || settings.display_settings || settings;
 
     return {
-      showUserComments: normalized.showUserComments ?? normalized.show_user_comments ?? true,
-      showMultimedia: normalized.showMultimedia ?? normalized.show_multimedia ?? true
+      showUserFeedbacks: normalized.showUserFeedbacks
+        ?? normalized.show_user_feedbacks
+        ?? normalized.showUserComments
+        ?? normalized.show_user_comments
+        ?? true,
+      showMediaGallery: normalized.showMediaGallery
+        ?? normalized.show_media_gallery
+        ?? normalized.showMultimedia
+        ?? normalized.show_multimedia
+        ?? true
     };
   };
 
@@ -1593,11 +1620,13 @@ const Amain = () => {
       const resolvedDisplaySettings = normalizeDisplaySettings({
         ...(itemToEdit.displaySettings || {}),
         ...(itemToEdit.display_settings || {}),
+        showUserFeedbacks: itemToEdit.showUserFeedbacks ?? itemToEdit.show_user_feedbacks,
+        showMediaGallery: itemToEdit.showMediaGallery ?? itemToEdit.show_media_gallery,
         showUserComments: itemToEdit.showUserComments ?? itemToEdit.show_user_comments,
         showMultimedia: itemToEdit.showMultimedia ?? itemToEdit.show_multimedia
       });
-      setShowUserComments(resolvedDisplaySettings.showUserComments ? 'نمایش' : 'عدم نمایش');
-      setShowMultimedia(resolvedDisplaySettings.showMultimedia ? 'نمایش' : 'عدم نمایش');
+      setShowUserFeedbacks(resolvedDisplaySettings.showUserFeedbacks ? 'نمایش' : 'عدم نمایش');
+      setShowMediaGallery(resolvedDisplaySettings.showMediaGallery ? 'نمایش' : 'عدم نمایش');
 
       const restrictionContainer = itemToEdit.restrictions || {};
       const resolvedTimeRestrictions = restrictionContainer.timeRestrictions
@@ -1618,17 +1647,37 @@ const Amain = () => {
         .map(file => normalizeMediaAttachment(file))
         .filter(Boolean);
 
-      const imageAttachments = normalizedAttachments.filter((file) => file.type?.startsWith('image'));
+      const normalizedMedia = normalizeLanguageMedia(itemToEdit.media);
+
+      const seenAttachmentKeys = new Set();
+      const dedupedAttachments = [...normalizedAttachments, ...normalizedMedia].filter((file) => {
+        const key = file?.path || file?.url || file?.id;
+        if (!key) return false;
+        if (seenAttachmentKeys.has(key)) return false;
+        seenAttachmentKeys.add(key);
+        return true;
+      });
+
+      const imageAttachments = dedupedAttachments.filter((file) =>
+        (file.type && file.type.startsWith('image')) || (file.mime && file.mime.startsWith('image'))
+      );
+      const audioAttachments = dedupedAttachments.filter((file) =>
+        (file.type && file.type.startsWith('audio')) || (file.mime && file.mime.startsWith('audio'))
+      );
+      const textAttachments = dedupedAttachments.filter((file) =>
+        !((file.type && (file.type.startsWith('image') || file.type.startsWith('audio') || file.type.startsWith('video')))
+        || (file.mime && (file.mime.startsWith('image') || file.mime.startsWith('audio') || file.mime.startsWith('video'))))
+      );
 
       const normalizedPrimary = itemToEdit.primaryImage
         ? normalizeMediaAttachment(itemToEdit.primaryImage)
-        : null;
+        : imageAttachments[0] || null;
 
       const { primary, images } = normalizePrimaryMedia(normalizedPrimary, imageAttachments);
 
       setProfileImages(images);
-      setAudioFiles([]);
-      setTextFiles([]);
+      setAudioFiles(audioAttachments);
+      setTextFiles(textAttachments);
       setPrimaryImage(primary || images[0] || null);
 
       if (itemToEdit.location) {
@@ -1672,8 +1721,10 @@ const Amain = () => {
       };
 
       const displaySettingsPayload = {
-        showUserComments: showUserComments === 'نمایش',
-        showMultimedia: showMultimedia === 'نمایش'
+        showUserFeedbacks: showUserFeedbacks === 'نمایش',
+        showMediaGallery: showMediaGallery === 'نمایش',
+        showUserComments: showUserFeedbacks === 'نمایش',
+        showMultimedia: showMediaGallery === 'نمایش'
       };
 
       const payload = {
@@ -1705,10 +1756,14 @@ const Amain = () => {
         types: selectedCulturalTypes,
         displaySettings: displaySettingsPayload,
         display_settings: displaySettingsPayload,
-        showUserComments: displaySettingsPayload.showUserComments,
-        show_user_comments: displaySettingsPayload.showUserComments,
-        showMultimedia: displaySettingsPayload.showMultimedia,
-        show_multimedia: displaySettingsPayload.showMultimedia,
+        showUserFeedbacks: displaySettingsPayload.showUserFeedbacks,
+        show_user_feedbacks: displaySettingsPayload.showUserFeedbacks,
+        showMediaGallery: displaySettingsPayload.showMediaGallery,
+        show_media_gallery: displaySettingsPayload.showMediaGallery,
+        showUserComments: displaySettingsPayload.showUserFeedbacks,
+        show_user_comments: displaySettingsPayload.showUserFeedbacks,
+        showMultimedia: displaySettingsPayload.showMediaGallery,
+        show_multimedia: displaySettingsPayload.showMediaGallery,
         restrictions: {
           ...restrictionsPayload,
           time_restrictions: restrictionsPayload.timeRestrictions,
@@ -1772,8 +1827,8 @@ const Amain = () => {
   const resetEditFormWithoutMapCleanup = () => {
     setCulturalTitle('');
     setCulturalDescription('');
-    setShowUserComments('نمایش');
-    setShowMultimedia('نمایش');
+    setShowUserFeedbacks('نمایش');
+    setShowMediaGallery('نمایش');
     setSelectedCulturalTypes([]);
     setPlaceAddress('');
     setSelectedLocation(null);
@@ -1876,8 +1931,8 @@ const Amain = () => {
     setCulturalStep(1);
     setCulturalTitle('');
     setCulturalDescription('');
-    setShowUserComments('نمایش');
-    setShowMultimedia('نمایش');
+    setShowUserFeedbacks('نمایش');
+    setShowMediaGallery('نمایش');
     setSelectedCulturalTypes([]);
     setPlaceAddress('');
     setSelectedLocation(null);
@@ -6248,14 +6303,14 @@ const Amain = () => {
                         <span className="option-label-edit">دیدگاه‌های کاربران</span>
                         <div className="display-toggle-edit">
                           <div
-                            className={`toggle-option2-edit ${showUserComments === 'نمایش' ? 'selected' : ''}`}
-                            onClick={() => setShowUserComments('نمایش')}
+                            className={`toggle-option2-edit ${showUserFeedbacks === 'نمایش' ? 'selected' : ''}`}
+                            onClick={() => setShowUserFeedbacks('نمایش')}
                           >
                             نمایش
                           </div>
                           <div
-                            className={`toggle-option-edit ${showUserComments === 'عدم نمایش' ? 'selected' : ''}`}
-                            onClick={() => setShowUserComments('عدم نمایش')}
+                            className={`toggle-option-edit ${showUserFeedbacks === 'عدم نمایش' ? 'selected' : ''}`}
+                            onClick={() => setShowUserFeedbacks('عدم نمایش')}
                           >
                             عدم نمایش
                           </div>
@@ -6267,14 +6322,14 @@ const Amain = () => {
                         <span className="option-label-edit">چند رسانه‌ای‌ها</span>
                         <div className="display-toggle-edit">
                           <div
-                            className={`toggle-option2-edit ${showMultimedia === 'نمایش' ? 'selected' : ''}`}
-                            onClick={() => setShowMultimedia('نمایش')}
+                            className={`toggle-option2-edit ${showMediaGallery === 'نمایش' ? 'selected' : ''}`}
+                            onClick={() => setShowMediaGallery('نمایش')}
                           >
                             نمایش
                           </div>
                           <div
-                            className={`toggle-option-edit ${showMultimedia === 'عدم نمایش' ? 'selected' : ''}`}
-                            onClick={() => setShowMultimedia('عدم نمایش')}
+                            className={`toggle-option-edit ${showMediaGallery === 'عدم نمایش' ? 'selected' : ''}`}
+                            onClick={() => setShowMediaGallery('عدم نمایش')}
                           >
                             عدم نمایش
                           </div>
@@ -8968,14 +9023,14 @@ const Amain = () => {
                           <span className="option-label">دیدگاه‌های کاربران</span>
                           <div className="display-toggle">
                             <div
-                              className={`toggle-option2 ${showUserComments === 'نمایش' ? 'selected' : ''}`}
-                              onClick={() => setShowUserComments('نمایش')}
+                              className={`toggle-option2 ${showUserFeedbacks === 'نمایش' ? 'selected' : ''}`}
+                              onClick={() => setShowUserFeedbacks('نمایش')}
                             >
                               نمایش
                             </div>
                             <div
-                              className={`toggle-option ${showUserComments === 'عدم نمایش' ? 'selected' : ''}`}
-                              onClick={() => setShowUserComments('عدم نمایش')}
+                              className={`toggle-option ${showUserFeedbacks === 'عدم نمایش' ? 'selected' : ''}`}
+                              onClick={() => setShowUserFeedbacks('عدم نمایش')}
                             >
                               عدم نمایش
                             </div>
@@ -8987,14 +9042,14 @@ const Amain = () => {
                           <span className="option-label">چند رسانه‌ای‌ها</span>
                           <div className="display-toggle">
                             <div
-                              className={`toggle-option2 ${showMultimedia === 'نمایش' ? 'selected' : ''}`}
-                              onClick={() => setShowMultimedia('نمایش')}
+                              className={`toggle-option2 ${showMediaGallery === 'نمایش' ? 'selected' : ''}`}
+                              onClick={() => setShowMediaGallery('نمایش')}
                             >
                               نمایش
                             </div>
                             <div
-                              className={`toggle-option ${showMultimedia === 'عدم نمایش' ? 'selected' : ''}`}
-                              onClick={() => setShowMultimedia('عدم نمایش')}
+                              className={`toggle-option ${showMediaGallery === 'عدم نمایش' ? 'selected' : ''}`}
+                              onClick={() => setShowMediaGallery('عدم نمایش')}
                             >
                               عدم نمایش
                             </div>
