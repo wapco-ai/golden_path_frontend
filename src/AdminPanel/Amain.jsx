@@ -7038,8 +7038,8 @@ const Amain = () => {
                         categoryCurrentPage * categoryItemsPerPage
                       )
                       .map(category => (
-                        <>
-                          <tr key={category.id}>
+                        <React.Fragment key={category.id}>
+                          <tr>
                             <td>
                               <div className="category-title-cell">
                                 <div className="category-expand-btn" onClick={() => toggleCategoryExpand(category.id)}>
@@ -7179,7 +7179,7 @@ const Amain = () => {
                               </td>
                             </tr>
                           ))}
-                        </>
+                        </React.Fragment>
                       ))}
                   </tbody>
                 </table>
