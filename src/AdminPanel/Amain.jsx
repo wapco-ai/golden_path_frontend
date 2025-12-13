@@ -7046,7 +7046,7 @@ const Amain = () => {
                         categoryCurrentPage * categoryItemsPerPage
                       )
                       .map(category => (
-                        <>
+                        <React.Fragment key={category.id}>
                           <tr key={category.id}>
                             <td>
                               <div className="category-title-cell">
@@ -7187,7 +7187,7 @@ const Amain = () => {
                               </td>
                             </tr>
                           ))}
-                        </>
+                        </React.Fragment>
                       ))}
                   </tbody>
                 </table>
