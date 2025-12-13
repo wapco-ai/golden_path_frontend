@@ -1161,11 +1161,19 @@ const Amain = () => {
     all_hours: Boolean(restriction?.limitAllHours ?? restriction?.all_hours)
   })).filter((restriction) => restriction.date_scope?.length);
 
+  const normalizeDateScopeArray = (dateScopeValue, fallbackDate) => {
+    if (Array.isArray(dateScopeValue)) return dateScopeValue;
+    if (typeof dateScopeValue === 'string' && dateScopeValue.length) return [dateScopeValue];
+
+    const derived = buildDateScopeIso(fallbackDate);
+    return Array.isArray(derived) ? derived : [];
+  };
+
   const buildCulturalPrayerRestrictionsPayload = () => {
     const seen = new Set();
 
     return culturalPrayerTimeRestrictionsList.reduce((acc, restriction) => {
-      const normalizedEvents = normalizePrayerEvents(restriction?.events);
+      const normalizedEvents = normalizePrayerEvents(restriction?.events).sort();
       const eventLabels = normalizedEvents.map(prayerEventValueToLabel);
 
       const beforeMinutes = restriction?.before_minutes
@@ -1178,17 +1186,16 @@ const Amain = () => {
         ?? (restriction?.afterMinutes !== undefined ? Number(restriction.afterMinutes) : undefined)
         ?? 0;
 
-      const dateScope = restriction?.isoDateScope?.length
-        ? restriction.isoDateScope
-        : restriction?.date_scope?.length
-          ? restriction.date_scope
-          : buildDateScopeIso(restriction?.date);
+      const dateScope = normalizeDateScopeArray(
+        restriction?.isoDateScope?.length ? restriction.isoDateScope : restriction?.date_scope,
+        restriction?.date
+      );
 
       const dedupKey = JSON.stringify({
-        events: normalizedEvents,
+        events: normalizedEvents.join('|'),
         before: beforeMinutes,
         after: afterMinutes,
-        dateScope: Array.isArray(dateScope) ? dateScope.join('|') : dateScope
+        dateScope: dateScope.join('|')
       });
 
       if (seen.has(dedupKey) || !dateScope?.length) return acc;
@@ -4423,11 +4430,12 @@ const Amain = () => {
     const seen = new Set();
 
     return prayerTimeRestrictionsList.reduce((acc, restriction) => {
-      const dateScope = restriction?.isoDateScope?.length
-        ? restriction.isoDateScope
-        : buildDateScopeIso(restriction?.date);
+      const dateScope = normalizeDateScopeArray(
+        restriction?.isoDateScope?.length ? restriction.isoDateScope : restriction?.date_scope,
+        restriction?.date
+      );
 
-      const normalizedEvents = normalizePrayerEvents(restriction?.events);
+      const normalizedEvents = normalizePrayerEvents(restriction?.events).sort();
       const eventLabels = normalizedEvents.map(prayerEventValueToLabel);
 
       const beforeMinutes = restriction?.before_minutes
@@ -4441,13 +4449,13 @@ const Amain = () => {
         ?? (restriction?.after ? Number(restriction.after) : 0);
 
       const dedupKey = JSON.stringify({
-        events: normalizedEvents,
+        events: normalizedEvents.join('|'),
         before: beforeMinutes,
         after: afterMinutes,
-        dateScope: Array.isArray(dateScope) ? dateScope.join('|') : dateScope
+        dateScope: dateScope.join('|')
       });
 
-      if (seen.has(dedupKey)) return acc;
+      if (seen.has(dedupKey) || !dateScope?.length) return acc;
       seen.add(dedupKey);
 
       acc.push({
@@ -7038,8 +7046,8 @@ const Amain = () => {
                         categoryCurrentPage * categoryItemsPerPage
                       )
                       .map(category => (
-                        <React.Fragment key={category.id}>
-                          <tr>
+                        <>
+                          <tr key={category.id}>
                             <td>
                               <div className="category-title-cell">
                                 <div className="category-expand-btn" onClick={() => toggleCategoryExpand(category.id)}>
@@ -7179,7 +7187,7 @@ const Amain = () => {
                               </td>
                             </tr>
                           ))}
-                        </React.Fragment>
+                        </>
                       ))}
                   </tbody>
                 </table>
