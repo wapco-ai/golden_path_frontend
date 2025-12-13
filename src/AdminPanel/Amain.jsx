@@ -33,6 +33,7 @@ import { convertLngLatToUtm32640 } from '../utils/utm';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { getLanguageName } from '../utils/languageNames';
+import { deleteFile, uploadFile } from '../services/fileService';
 
 
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
@@ -976,7 +977,9 @@ const Amain = () => {
           ...file,
           path: file.path || file.url || '',
           url: file.url || file.path || '',
-          mime: file.mime || file.type
+          mime: file.mime || file.type,
+          metadata: file.metadata || file.metaData || null,
+          bucket: file.bucket || resolveFileBucket(file)
         });
         continue;
       }
@@ -997,6 +1000,8 @@ const Amain = () => {
           mime: response?.mime || file.mime || file.type,
           path: response?.path || '',
           url: response?.url || response?.path || '',
+          metadata: response?.metadata || response?.metaData || null,
+          bucket: response?.bucket || resolveFileBucket(file)
         });
       } catch (error) {
         console.error('File upload failed', error);
@@ -1017,6 +1022,8 @@ const Amain = () => {
         mime: file?.mime || file?.type || 'application/octet-stream',
         path: file?.path || file?.url || '',
         url: file?.url || file?.path || '',
+        metadata: file?.metadata || file?.metaData || null,
+        bucket: file?.bucket,
         orientation: file?.orientation ?? null,
         name: file?.name
       }))
@@ -1135,6 +1142,7 @@ const Amain = () => {
 
     const newFile = {
       id: Date.now() + Math.random(),
+      file: pendingFileInfo.file,
       name: pendingFileInfo.name,
       originalName: pendingFileInfo.name,
       title: fileUploadTitle,
@@ -2641,6 +2649,7 @@ const Amain = () => {
 
     const newFile = {
       id: Date.now() + Math.random(),
+      file: pendingImageFile.file,
       name: pendingImageFile.name,
       type: pendingImageFile.type,
       size: pendingImageFile.size,
@@ -2668,6 +2677,7 @@ const Amain = () => {
 
     const newFile = {
       id: Date.now() + Math.random(),
+      file: pendingImageFile.file,
       name: pendingImageFile.name,
       type: pendingImageFile.type,
       size: pendingImageFile.size,
@@ -2697,30 +2707,44 @@ const Amain = () => {
     }
   };
 
-  const handleRemoveFile = (fileId, fileType) => {
+  const handleRemoveFile = async (fileId, fileType) => {
+    let fileToRemove = null;
+
     if (fileType === 'image') {
-      const fileToRemove = profileImages.find(img => img.id === fileId);
+      fileToRemove = profileImages.find(img => img.id === fileId);
       if (fileToRemove) {
-        setProfileImages(prev => prev.filter(img => img.id !== fileId));
+        const remainingImages = profileImages.filter(img => img.id !== fileId);
+        setProfileImages(remainingImages);
 
         // If removing primary image, set another image as primary or null
         if (primaryImage && primaryImage.id === fileId) {
-          const remainingImages = profileImages.filter(img => img.id !== fileId);
           setPrimaryImage(remainingImages.length > 0 ? remainingImages[0] : null);
         }
       }
     } else if (fileType === 'audio') {
-      const fileToRemove = audioFiles.find(audio => audio.id === fileId);
+      fileToRemove = audioFiles.find(audio => audio.id === fileId);
       if (fileToRemove && fileToRemove.url) {
         URL.revokeObjectURL(fileToRemove.url);
       }
       setAudioFiles(prev => prev.filter(audio => audio.id !== fileId));
     } else if (fileType === 'text') {
-      const fileToRemove = textFiles.find(text => text.id === fileId);
+      fileToRemove = textFiles.find(text => text.id === fileId);
       if (fileToRemove && fileToRemove.url) {
         URL.revokeObjectURL(fileToRemove.url);
       }
       setTextFiles(prev => prev.filter(text => text.id !== fileId));
+    }
+
+    const remotePath = fileToRemove?.path || fileToRemove?.url;
+    const shouldDeleteRemote = fileToRemove && !fileToRemove.file && remotePath;
+
+    if (shouldDeleteRemote) {
+      try {
+        await deleteFile(remotePath);
+      } catch (error) {
+        console.error('حذف فایل از سرور با خطا مواجه شد', error);
+        toast.error('حذف فایل از سرور ناموفق بود');
+      }
     }
   };
 
