@@ -51,12 +51,18 @@ const normalizeLocation = (location) => {
   };
 };
 
-const normalizeCulturalItem = (item) => ({
-  ...item,
-  title: item.title ?? item.titles?.fa ?? null,
-  description: item.description ?? item.descriptions?.fa ?? null,
-  location: normalizeLocation(item.location)
-});
+const normalizeCulturalItem = (item) => {
+  const normalizedId = item.id ?? item.poiId ?? item.poi_id ?? null;
+
+  return {
+    ...item,
+    id: normalizedId,
+    poiId: item.poiId ?? item.poi_id ?? normalizedId,
+    title: item.title ?? item.titles?.fa ?? null,
+    description: item.description ?? item.descriptions?.fa ?? null,
+    location: normalizeLocation(item.location)
+  };
+};
 
 export const fetchCulturalItems = async ({ page, pageSize, search, language = 'fa' }) => {
   const params = new URLSearchParams({
