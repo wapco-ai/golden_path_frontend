@@ -517,8 +517,8 @@ const Amain = () => {
   const [culturalStep, setCulturalStep] = useState(1);
   const [culturalTitle, setCulturalTitle] = useState('');
   const [culturalDescription, setCulturalDescription] = useState('');
-  const [showUserFeedbacks, setShowUserFeedbacks] = useState('نمایش');
-  const [showMediaGallery, setShowMediaGallery] = useState('نمایش');
+  const [showUserFeedbacks, setShowUserFeedbacks] = useState(true);
+  const [showMediaGallery, setShowMediaGallery] = useState(true);
   const [selectedCulturalTypes, setSelectedCulturalTypes] = useState([]);
   const [culturalTypeError, setCulturalTypeError] = useState(false);
   const [culturalMap, setCulturalMap] = useState(null);
@@ -1027,10 +1027,10 @@ const Amain = () => {
   };
 
   const buildDisplaySettingsPayload = () => ({
-    showUserFeedbacks: showUserFeedbacks === 'نمایش',
-    showMediaGallery: showMediaGallery === 'نمایش',
-    showUserComments: showUserFeedbacks === 'نمایش',
-    showMultimedia: showMediaGallery === 'نمایش'
+    showUserFeedbacks,
+    showMediaGallery,
+    showUserComments: showUserFeedbacks,
+    showMultimedia: showMediaGallery
   });
 
   const normalizeTimeRestrictions = (restrictions = []) => restrictions.map((restriction) => ({
@@ -1620,8 +1620,8 @@ const Amain = () => {
         showUserComments: itemToEdit.showUserComments ?? itemToEdit.show_user_comments,
         showMultimedia: itemToEdit.showMultimedia ?? itemToEdit.show_multimedia
       });
-      setShowUserFeedbacks(resolvedDisplaySettings.showUserFeedbacks ? 'نمایش' : 'عدم نمایش');
-      setShowMediaGallery(resolvedDisplaySettings.showMediaGallery ? 'نمایش' : 'عدم نمایش');
+      setShowUserFeedbacks(Boolean(resolvedDisplaySettings.showUserFeedbacks));
+      setShowMediaGallery(Boolean(resolvedDisplaySettings.showMediaGallery));
 
       const resolvedTimeRestrictions = normalizeTimeRestrictions(
         itemToEdit.restrictions?.timeRestrictions
@@ -1809,8 +1809,8 @@ const Amain = () => {
   const resetEditFormWithoutMapCleanup = () => {
     setCulturalTitle('');
     setCulturalDescription('');
-    setShowUserFeedbacks('نمایش');
-    setShowMediaGallery('نمایش');
+    setShowUserFeedbacks(true);
+    setShowMediaGallery(true);
     setSelectedCulturalTypes([]);
     setPlaceAddress('');
     setCulturalPoiId('');
@@ -1924,8 +1924,8 @@ const Amain = () => {
     setCulturalStep(1);
     setCulturalTitle('');
     setCulturalDescription('');
-    setShowUserFeedbacks('نمایش');
-    setShowMediaGallery('نمایش');
+    setShowUserFeedbacks(true);
+    setShowMediaGallery(true);
     setSelectedCulturalTypes([]);
     setPlaceAddress('');
     setSelectedLocation(null);
@@ -6274,14 +6274,14 @@ const Amain = () => {
                         <span className="option-label-edit">دیدگاه‌های کاربران</span>
                         <div className="display-toggle-edit">
                           <div
-                            className={`toggle-option2-edit ${showUserFeedbacks === 'نمایش' ? 'selected' : ''}`}
-                            onClick={() => setShowUserFeedbacks('نمایش')}
+                            className={`toggle-option2-edit ${showUserFeedbacks ? 'selected' : ''}`}
+                            onClick={() => setShowUserFeedbacks(true)}
                           >
                             نمایش
                           </div>
                           <div
-                            className={`toggle-option-edit ${showUserFeedbacks === 'عدم نمایش' ? 'selected' : ''}`}
-                            onClick={() => setShowUserFeedbacks('عدم نمایش')}
+                            className={`toggle-option-edit ${!showUserFeedbacks ? 'selected' : ''}`}
+                            onClick={() => setShowUserFeedbacks(false)}
                           >
                             عدم نمایش
                           </div>
@@ -6293,14 +6293,14 @@ const Amain = () => {
                         <span className="option-label-edit">چند رسانه‌ای‌ها</span>
                         <div className="display-toggle-edit">
                           <div
-                            className={`toggle-option2-edit ${showMediaGallery === 'نمایش' ? 'selected' : ''}`}
-                            onClick={() => setShowMediaGallery('نمایش')}
+                            className={`toggle-option2-edit ${showMediaGallery ? 'selected' : ''}`}
+                            onClick={() => setShowMediaGallery(true)}
                           >
                             نمایش
                           </div>
                           <div
-                            className={`toggle-option-edit ${showMediaGallery === 'عدم نمایش' ? 'selected' : ''}`}
-                            onClick={() => setShowMediaGallery('عدم نمایش')}
+                            className={`toggle-option-edit ${!showMediaGallery ? 'selected' : ''}`}
+                            onClick={() => setShowMediaGallery(false)}
                           >
                             عدم نمایش
                           </div>
@@ -9035,14 +9035,14 @@ const Amain = () => {
                           <span className="option-label">دیدگاه‌های کاربران</span>
                           <div className="display-toggle">
                             <div
-                              className={`toggle-option2 ${showUserFeedbacks === 'نمایش' ? 'selected' : ''}`}
-                              onClick={() => setShowUserFeedbacks('نمایش')}
+                              className={`toggle-option2 ${showUserFeedbacks ? 'selected' : ''}`}
+                              onClick={() => setShowUserFeedbacks(true)}
                             >
                               نمایش
                             </div>
                             <div
-                              className={`toggle-option ${showUserFeedbacks === 'عدم نمایش' ? 'selected' : ''}`}
-                              onClick={() => setShowUserFeedbacks('عدم نمایش')}
+                              className={`toggle-option ${!showUserFeedbacks ? 'selected' : ''}`}
+                              onClick={() => setShowUserFeedbacks(false)}
                             >
                               عدم نمایش
                             </div>
@@ -9054,14 +9054,14 @@ const Amain = () => {
                           <span className="option-label">چند رسانه‌ای‌ها</span>
                           <div className="display-toggle">
                             <div
-                              className={`toggle-option2 ${showMediaGallery === 'نمایش' ? 'selected' : ''}`}
-                              onClick={() => setShowMediaGallery('نمایش')}
+                              className={`toggle-option2 ${showMediaGallery ? 'selected' : ''}`}
+                              onClick={() => setShowMediaGallery(true)}
                             >
                               نمایش
                             </div>
                             <div
-                              className={`toggle-option ${showMediaGallery === 'عدم نمایش' ? 'selected' : ''}`}
-                              onClick={() => setShowMediaGallery('عدم نمایش')}
+                              className={`toggle-option ${!showMediaGallery ? 'selected' : ''}`}
+                              onClick={() => setShowMediaGallery(false)}
                             >
                               عدم نمایش
                             </div>
