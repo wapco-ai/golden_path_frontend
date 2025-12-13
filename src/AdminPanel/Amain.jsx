@@ -53,6 +53,14 @@ const TRANSPORT_OPTIONS = [
   { value: 'walk', label: 'به صورت پیاده', icon: 'walking' }
 ];
 
+const PLACE_TYPE_OPTIONS = [
+  { value: 'ziyarati', label: 'زیارتی' },
+  { value: 'farhangi', label: 'فرهنگی' },
+  { value: 'khadamati', label: 'خدماتی' },
+  { value: 'tarikhi', label: 'تاریخی' },
+  { value: 'memari', label: 'معماری' }
+];
+
 const getGenderLabel = (value) => GENDER_OPTIONS.find((option) => option.value === value)?.label || value;
 const normalizeGenderValue = (value) => GENDER_OPTIONS.find((option) => option.value === value)?.value
   || GENDER_OPTIONS.find((option) => option.label === value)?.value
@@ -62,6 +70,9 @@ const getTransportLabel = (value) => TRANSPORT_OPTIONS.find((option) => option.v
 const normalizeTransportValue = (value) => TRANSPORT_OPTIONS.find((option) => option.value === value)?.value
   || TRANSPORT_OPTIONS.find((option) => option.label === value)?.value
   || value;
+
+const placeTypeLabelToValue = (label) => PLACE_TYPE_OPTIONS.find((option) => option.label === label)?.value || '';
+const placeTypeValueToLabel = (value) => PLACE_TYPE_OPTIONS.find((option) => option.value === value)?.label || '';
 
 const normalizeTransportModes = (value) => {
   if (Array.isArray(value)) {
@@ -518,8 +529,9 @@ const Amain = () => {
   const [culturalStep, setCulturalStep] = useState(1);
   const [culturalTitle, setCulturalTitle] = useState('');
   const [culturalDescription, setCulturalDescription] = useState('');
-  const [showUserFeedbacks, setShowUserFeedbacks] = useState('نمایش');
-  const [showMediaGallery, setShowMediaGallery] = useState('نمایش');
+  const [showUserFeedbacks, setShowUserFeedbacks] = useState(true);
+  const [showMediaGallery, setShowMediaGallery] = useState(true);
+  const [selectedPlaceType, setSelectedPlaceType] = useState('');
   const [selectedCulturalTypes, setSelectedCulturalTypes] = useState([]);
   const [culturalTypeError, setCulturalTypeError] = useState(false);
   const [culturalMap, setCulturalMap] = useState(null);
@@ -1034,10 +1046,16 @@ const Amain = () => {
   };
 
   const buildDisplaySettingsPayload = () => ({
-    showUserFeedbacks: showUserFeedbacks === 'نمایش',
-    showMediaGallery: showMediaGallery === 'نمایش',
-    showUserComments: showUserFeedbacks === 'نمایش',
-    showMultimedia: showMediaGallery === 'نمایش'
+    showUserFeedbacks: Boolean(showUserFeedbacks),
+    showMediaGallery: Boolean(showMediaGallery),
+    showUserComments: Boolean(showUserFeedbacks),
+    showMultimedia: Boolean(showMediaGallery)
+  });
+
+  const buildSettingsPayload = () => ({
+    showUserFeedbacks: Boolean(showUserFeedbacks),
+    showMediaGallery: Boolean(showMediaGallery),
+    placeType: selectedPlaceType || null
   });
 
   const normalizeTimeRestrictions = (restrictions = []) => restrictions.map((restriction) => ({
@@ -1615,7 +1633,19 @@ const Amain = () => {
         urdu: itemDescriptions.ur || ''
       });
 
-      if (itemToEdit.culturalTypes) {
+      const resolvedPlaceType = itemToEdit.placeType
+        || itemToEdit.place_type
+        || itemToEdit.settings?.placeType
+        || '';
+
+      const resolvedPlaceLabel = resolvedPlaceType
+        ? placeTypeValueToLabel(resolvedPlaceType)
+        : placeTypeValueToLabel(placeTypeLabelToValue(itemToEdit.culturalTypes?.[0]));
+
+      setSelectedPlaceType(resolvedPlaceType || placeTypeLabelToValue(itemToEdit.culturalTypes?.[0]) || '');
+      if (resolvedPlaceLabel) {
+        setSelectedCulturalTypes([resolvedPlaceLabel]);
+      } else if (itemToEdit.culturalTypes) {
         setSelectedCulturalTypes([...itemToEdit.culturalTypes]);
       }
 
@@ -1658,8 +1688,8 @@ const Amain = () => {
         showUserComments: itemToEdit.showUserComments ?? itemToEdit.show_user_comments,
         showMultimedia: itemToEdit.showMultimedia ?? itemToEdit.show_multimedia
       });
-      setShowUserFeedbacks(resolvedDisplaySettings.showUserFeedbacks ? 'نمایش' : 'عدم نمایش');
-      setShowMediaGallery(resolvedDisplaySettings.showMediaGallery ? 'نمایش' : 'عدم نمایش');
+      setShowUserFeedbacks(Boolean(resolvedDisplaySettings.showUserFeedbacks));
+      setShowMediaGallery(Boolean(resolvedDisplaySettings.showMediaGallery));
 
       const resolvedTimeRestrictions = normalizeTimeRestrictions(
         itemToEdit.restrictions?.timeRestrictions
@@ -1736,6 +1766,12 @@ const Amain = () => {
       return;
     }
 
+    if (!selectedPlaceType) {
+      setCulturalTypeError(true);
+      alert('لطفا نوع مکان را انتخاب کنید');
+      return;
+    }
+
     try {
       const uploadedFiles = await uploadCulturalFiles([
         ...profileImages,
@@ -1758,6 +1794,7 @@ const Amain = () => {
       };
 
       const displaySettingsPayload = buildDisplaySettingsPayload();
+      const settingsPayload = buildSettingsPayload();
 
       const payload = {
         ...(editingCulturalData || {}),
@@ -1792,6 +1829,9 @@ const Amain = () => {
         cultural_types: selectedCulturalTypes,
         type: selectedCulturalTypes,
         types: selectedCulturalTypes,
+        placeType: selectedPlaceType,
+        place_type: selectedPlaceType,
+        settings: settingsPayload,
         displaySettings: displaySettingsPayload,
         display_settings: displaySettingsPayload,
         showUserFeedbacks: displaySettingsPayload.showUserFeedbacks,
@@ -1922,8 +1962,9 @@ const Amain = () => {
   const resetEditFormWithoutMapCleanup = () => {
     setCulturalTitle('');
     setCulturalDescription('');
-    setShowUserFeedbacks('نمایش');
-    setShowMediaGallery('نمایش');
+    setShowUserFeedbacks(true);
+    setShowMediaGallery(true);
+    setSelectedPlaceType('');
     setSelectedCulturalTypes([]);
     setPlaceAddress('');
     setCulturalPoiId('');
@@ -2022,10 +2063,16 @@ const Amain = () => {
 
 
   const handleCulturalTypeToggle = (type) => {
-    if (selectedCulturalTypes.includes(type)) {
-      setSelectedCulturalTypes(selectedCulturalTypes.filter(t => t !== type));
+    const resolvedOption = PLACE_TYPE_OPTIONS.find((option) => option.label === type || option.value === type);
+    if (!resolvedOption) return;
+
+    if (selectedPlaceType === resolvedOption.value) {
+      setSelectedPlaceType('');
+      setSelectedCulturalTypes([]);
     } else {
-      setSelectedCulturalTypes([...selectedCulturalTypes, type]);
+      setSelectedPlaceType(resolvedOption.value);
+      setSelectedCulturalTypes([resolvedOption.label]);
+      setCulturalTypeError(false);
     }
   };
 
@@ -2043,8 +2090,9 @@ const Amain = () => {
     setCulturalStep(1);
     setCulturalTitle('');
     setCulturalDescription('');
-    setShowUserFeedbacks('نمایش');
-    setShowMediaGallery('نمایش');
+    setShowUserFeedbacks(true);
+    setShowMediaGallery(true);
+    setSelectedPlaceType('');
     setSelectedCulturalTypes([]);
     setPlaceAddress('');
     setSelectedLocation(null);
@@ -2146,7 +2194,7 @@ const Amain = () => {
         return;
       }
 
-      if (selectedCulturalTypes.length === 0) {
+      if (!selectedPlaceType) {
         setCulturalTypeError(true);
         alert('لطفا حداقل یک نوع مکان را انتخاب کنید');
         return;
@@ -2827,7 +2875,7 @@ const Amain = () => {
   }, [language, culturalPlaceCategory, translateLabel, isEditingCultural]);
 
   const handleSaveCulturalData = () => {
-    if (selectedCulturalTypes.length === 0) {
+    if (!selectedPlaceType) {
       setCulturalTypeError(true);
       alert('لطفا حداقل یک نوع مکان را انتخاب کنید');
       return;
@@ -2859,6 +2907,7 @@ const Amain = () => {
     }));
 
     const displaySettingsPayload = buildDisplaySettingsPayload();
+    const settingsPayload = buildSettingsPayload();
 
     createCulturalItem({
       poiId: Number(culturalPoiId),
@@ -2866,6 +2915,9 @@ const Amain = () => {
       description: culturalDescription || '',
       primaryImage: primaryImage?.url || null,
       attachments,
+      placeType: selectedPlaceType,
+      place_type: selectedPlaceType,
+      settings: settingsPayload,
       displaySettings: displaySettingsPayload,
       display_settings: displaySettingsPayload,
       showUserFeedbacks: displaySettingsPayload.showUserFeedbacks,
@@ -6457,14 +6509,14 @@ const Amain = () => {
                         <span className="option-label-edit">دیدگاه‌های کاربران</span>
                         <div className="display-toggle-edit">
                           <div
-                            className={`toggle-option2-edit ${showUserFeedbacks === 'نمایش' ? 'selected' : ''}`}
-                            onClick={() => setShowUserFeedbacks('نمایش')}
+                            className={`toggle-option2-edit ${showUserFeedbacks ? 'selected' : ''}`}
+                            onClick={() => setShowUserFeedbacks(true)}
                           >
                             نمایش
                           </div>
                           <div
-                            className={`toggle-option-edit ${showUserFeedbacks === 'عدم نمایش' ? 'selected' : ''}`}
-                            onClick={() => setShowUserFeedbacks('عدم نمایش')}
+                            className={`toggle-option-edit ${!showUserFeedbacks ? 'selected' : ''}`}
+                            onClick={() => setShowUserFeedbacks(false)}
                           >
                             عدم نمایش
                           </div>
@@ -6476,14 +6528,14 @@ const Amain = () => {
                         <span className="option-label-edit">چند رسانه‌ای‌ها</span>
                         <div className="display-toggle-edit">
                           <div
-                            className={`toggle-option2-edit ${showMediaGallery === 'نمایش' ? 'selected' : ''}`}
-                            onClick={() => setShowMediaGallery('نمایش')}
+                            className={`toggle-option2-edit ${showMediaGallery ? 'selected' : ''}`}
+                            onClick={() => setShowMediaGallery(true)}
                           >
                             نمایش
                           </div>
                           <div
-                            className={`toggle-option-edit ${showMediaGallery === 'عدم نمایش' ? 'selected' : ''}`}
-                            onClick={() => setShowMediaGallery('عدم نمایش')}
+                            className={`toggle-option-edit ${!showMediaGallery ? 'selected' : ''}`}
+                            onClick={() => setShowMediaGallery(false)}
                           >
                             عدم نمایش
                           </div>
@@ -6497,14 +6549,16 @@ const Amain = () => {
                   <div className="edit-form-section">
                     <h3 className="edit-form-title">نوع این مکان</h3>
                     <div className="cultural-type-grid-edit">
-                      {['زیارتی', 'فرهنگی', 'خدماتی', 'تاریخی', 'معماری'].map((type) => (
-                        <div
-                          key={type}
-                          className={`cultural-type-option-edit ${selectedCulturalTypes.includes(type) ? 'selected' : ''}`}
-                          onClick={() => handleCulturalTypeToggle(type)}
-                        >
+                      {PLACE_TYPE_OPTIONS.map((typeOption) => {
+                        const isSelected = selectedCulturalTypes.includes(typeOption.label);
+                        return (
+                          <div
+                            key={typeOption.value}
+                            className={`cultural-type-option-edit ${isSelected ? 'selected' : ''}`}
+                            onClick={() => handleCulturalTypeToggle(typeOption.label)}
+                          >
                           <div className="cultural-type-checkbox-edit">
-                            {selectedCulturalTypes.includes(type) ? (
+                            {isSelected ? (
                               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
                                 <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
@@ -6515,9 +6569,10 @@ const Amain = () => {
                               </svg>
                             )}
                           </div>
-                          <span>{type}</span>
-                        </div>
-                      ))}
+                          <span>{typeOption.label}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                     {culturalTypeError && (
                       <div className="error-message-edit">لطفا حداقل یک نوع مکان را انتخاب کنید</div>
@@ -9258,14 +9313,14 @@ const Amain = () => {
                           <span className="option-label">دیدگاه‌های کاربران</span>
                           <div className="display-toggle">
                             <div
-                              className={`toggle-option2 ${showUserFeedbacks === 'نمایش' ? 'selected' : ''}`}
-                              onClick={() => setShowUserFeedbacks('نمایش')}
+                              className={`toggle-option2 ${showUserFeedbacks ? 'selected' : ''}`}
+                              onClick={() => setShowUserFeedbacks(true)}
                             >
                               نمایش
                             </div>
                             <div
-                              className={`toggle-option ${showUserFeedbacks === 'عدم نمایش' ? 'selected' : ''}`}
-                              onClick={() => setShowUserFeedbacks('عدم نمایش')}
+                              className={`toggle-option ${!showUserFeedbacks ? 'selected' : ''}`}
+                              onClick={() => setShowUserFeedbacks(false)}
                             >
                               عدم نمایش
                             </div>
@@ -9277,14 +9332,14 @@ const Amain = () => {
                           <span className="option-label">چند رسانه‌ای‌ها</span>
                           <div className="display-toggle">
                             <div
-                              className={`toggle-option2 ${showMediaGallery === 'نمایش' ? 'selected' : ''}`}
-                              onClick={() => setShowMediaGallery('نمایش')}
+                              className={`toggle-option2 ${showMediaGallery ? 'selected' : ''}`}
+                              onClick={() => setShowMediaGallery(true)}
                             >
                               نمایش
                             </div>
                             <div
-                              className={`toggle-option ${showMediaGallery === 'عدم نمایش' ? 'selected' : ''}`}
-                              onClick={() => setShowMediaGallery('عدم نمایش')}
+                              className={`toggle-option ${!showMediaGallery ? 'selected' : ''}`}
+                              onClick={() => setShowMediaGallery(false)}
                             >
                               عدم نمایش
                             </div>
@@ -9297,14 +9352,16 @@ const Amain = () => {
                     <div className="form-group">
                       <label className="form-label">نوع این مکان </label>
                       <div className="cultural-type-grid10">
-                        {['زیارتی', 'فرهنگی', 'خدماتی', 'تاریخی', 'معماری'].map((type) => (
-                          <div
-                            key={type}
-                            className={`cultural-type-option10 ${selectedCulturalTypes.includes(type) ? 'selected' : ''}`}
-                            onClick={() => handleCulturalTypeToggle(type)}
-                          >
-                            <div className="cultural-type-checkbox10">
-                              {selectedCulturalTypes.includes(type) ? (
+                        {PLACE_TYPE_OPTIONS.map((typeOption) => {
+                          const isSelected = selectedCulturalTypes.includes(typeOption.label);
+                          return (
+                            <div
+                              key={typeOption.value}
+                              className={`cultural-type-option10 ${isSelected ? 'selected' : ''}`}
+                              onClick={() => handleCulturalTypeToggle(typeOption.label)}
+                            >
+                              <div className="cultural-type-checkbox10">
+                                {isSelected ? (
                                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                                   <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
                                   <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
@@ -9314,10 +9371,11 @@ const Amain = () => {
                                   <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" stroke="#D9D9D9" />
                                 </svg>
                               )}
+                              </div>
+                              <span>{typeOption.label}</span>
                             </div>
-                            <span>{type}</span>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
 
