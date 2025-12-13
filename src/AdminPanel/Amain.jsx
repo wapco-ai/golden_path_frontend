@@ -977,7 +977,9 @@ const Amain = () => {
           ...file,
           path: file.path || file.url || '',
           url: file.url || file.path || '',
-          mime: file.mime || file.type
+          mime: file.mime || file.type,
+          metadata: file.metadata || file.metaData || null,
+          bucket: file.bucket || resolveFileBucket(file)
         });
         continue;
       }
@@ -998,6 +1000,8 @@ const Amain = () => {
           mime: response?.mime || file.mime || file.type,
           path: response?.path || '',
           url: response?.url || response?.path || '',
+          metadata: response?.metadata || response?.metaData || null,
+          bucket: response?.bucket || resolveFileBucket(file)
         });
       } catch (error) {
         console.error('File upload failed', error);
@@ -1018,6 +1022,8 @@ const Amain = () => {
         mime: file?.mime || file?.type || 'application/octet-stream',
         path: file?.path || file?.url || '',
         url: file?.url || file?.path || '',
+        metadata: file?.metadata || file?.metaData || null,
+        bucket: file?.bucket,
         orientation: file?.orientation ?? null,
         name: file?.name
       }))
