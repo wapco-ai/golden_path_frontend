@@ -745,11 +745,11 @@ const Amain = () => {
     return {
       id: file.id || `attachment-${Math.random().toString(36).slice(2)}`,
       name: file.name || 'فایل پیوست',
+      orientation: file.orientation ?? null,
+      ...file,
       type: mimeType,
       mime: mimeType,
-      url: buildMediaUrl(file, mimeType) || '',
-      orientation: file.orientation ?? null,
-      ...file
+      url: buildMediaUrl(file, mimeType) || file.url || ''
     };
   };
 
