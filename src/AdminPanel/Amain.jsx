@@ -1161,32 +1161,54 @@ const Amain = () => {
     all_hours: Boolean(restriction?.limitAllHours ?? restriction?.all_hours)
   })).filter((restriction) => restriction.date_scope?.length);
 
-  const buildCulturalPrayerRestrictionsPayload = () => culturalPrayerTimeRestrictionsList.map((restriction) => {
-    const normalizedEvents = normalizePrayerEvents(restriction?.events);
-    const eventLabels = normalizedEvents.map(prayerEventValueToLabel);
+  const buildCulturalPrayerRestrictionsPayload = () => {
+    const seen = new Set();
 
-    return {
-      events: normalizedEvents,
-      before_minutes: restriction?.before_minutes
+    return culturalPrayerTimeRestrictionsList.reduce((acc, restriction) => {
+      const normalizedEvents = normalizePrayerEvents(restriction?.events);
+      const eventLabels = normalizedEvents.map(prayerEventValueToLabel);
+
+      const beforeMinutes = restriction?.before_minutes
         ?? (restriction?.before !== undefined ? Number(restriction.before) : undefined)
         ?? (restriction?.beforeMinutes !== undefined ? Number(restriction.beforeMinutes) : undefined)
-        ?? 0,
-      after_minutes: restriction?.after_minutes
+        ?? 0;
+
+      const afterMinutes = restriction?.after_minutes
         ?? (restriction?.after !== undefined ? Number(restriction.after) : undefined)
         ?? (restriction?.afterMinutes !== undefined ? Number(restriction.afterMinutes) : undefined)
-        ?? 0,
-      date_scope: restriction?.isoDateScope?.length
+        ?? 0;
+
+      const dateScope = restriction?.isoDateScope?.length
         ? restriction.isoDateScope
         : restriction?.date_scope?.length
           ? restriction.date_scope
-          : buildDateScopeIso(restriction?.date),
-      title: restriction?.title
-        ?? restriction?.label
-        ?? (eventLabels.length
-          ? `${eventLabels.join(' و ')} : ${restriction.before || 0} دقیقه قبل الی ${restriction.after || 0} دقیقه بعد`
-          : '')
-    };
-  }).filter((restriction) => restriction.date_scope?.length);
+          : buildDateScopeIso(restriction?.date);
+
+      const dedupKey = JSON.stringify({
+        events: normalizedEvents,
+        before: beforeMinutes,
+        after: afterMinutes,
+        dateScope: Array.isArray(dateScope) ? dateScope.join('|') : dateScope
+      });
+
+      if (seen.has(dedupKey) || !dateScope?.length) return acc;
+      seen.add(dedupKey);
+
+      acc.push({
+        events: normalizedEvents,
+        before_minutes: beforeMinutes,
+        after_minutes: afterMinutes,
+        date_scope: dateScope,
+        title: restriction?.title
+          ?? restriction?.label
+          ?? (eventLabels.length
+            ? `${eventLabels.join(' و ')} : ${beforeMinutes || 0} دقیقه قبل الی ${afterMinutes || 0} دقیقه بعد`
+            : '')
+      });
+
+      return acc;
+    }, []);
+  };
 
   const handleSaveFileWithDetails = () => {
     if (!pendingFileInfo) return;
@@ -4397,32 +4419,52 @@ const Amain = () => {
     return payload;
   };
 
-  const buildPrayerRestrictionsPayload = () => prayerTimeRestrictionsList.map((restriction) => {
-    const dateScope = restriction?.isoDateScope?.length
-      ? restriction.isoDateScope
-      : buildDateScopeIso(restriction?.date);
+  const buildPrayerRestrictionsPayload = () => {
+    const seen = new Set();
 
-    const normalizedEvents = normalizePrayerEvents(restriction?.events);
-    const eventLabels = normalizedEvents.map(prayerEventValueToLabel);
+    return prayerTimeRestrictionsList.reduce((acc, restriction) => {
+      const dateScope = restriction?.isoDateScope?.length
+        ? restriction.isoDateScope
+        : buildDateScopeIso(restriction?.date);
 
-    return {
-      events: normalizedEvents,
-      before_minutes: restriction?.before_minutes
+      const normalizedEvents = normalizePrayerEvents(restriction?.events);
+      const eventLabels = normalizedEvents.map(prayerEventValueToLabel);
+
+      const beforeMinutes = restriction?.before_minutes
         ?? (restriction?.before !== undefined ? Number(restriction.before) : undefined)
         ?? (restriction?.beforeMinutes !== undefined ? Number(restriction.beforeMinutes) : undefined)
-        ?? (restriction?.before ? Number(restriction.before) : 0),
-      after_minutes: restriction?.after_minutes
+        ?? (restriction?.before ? Number(restriction.before) : 0);
+
+      const afterMinutes = restriction?.after_minutes
         ?? (restriction?.after !== undefined ? Number(restriction.after) : undefined)
         ?? (restriction?.afterMinutes !== undefined ? Number(restriction.afterMinutes) : undefined)
-        ?? (restriction?.after ? Number(restriction.after) : 0),
-      date_scope: dateScope,
-      title: restriction?.title
-        ?? restriction?.label
-        ?? (eventLabels.length
-          ? `${eventLabels.join(' و ')} : ${restriction.before || 0} دقیقه قبل الی ${restriction.after || 0} دقیقه بعد`
-          : '')
-    };
-  });
+        ?? (restriction?.after ? Number(restriction.after) : 0);
+
+      const dedupKey = JSON.stringify({
+        events: normalizedEvents,
+        before: beforeMinutes,
+        after: afterMinutes,
+        dateScope: Array.isArray(dateScope) ? dateScope.join('|') : dateScope
+      });
+
+      if (seen.has(dedupKey)) return acc;
+      seen.add(dedupKey);
+
+      acc.push({
+        events: normalizedEvents,
+        before_minutes: beforeMinutes,
+        after_minutes: afterMinutes,
+        date_scope: dateScope,
+        title: restriction?.title
+          ?? restriction?.label
+          ?? (eventLabels.length
+            ? `${eventLabels.join(' و ')} : ${beforeMinutes || 0} دقیقه قبل الی ${afterMinutes || 0} دقیقه بعد`
+            : '')
+      });
+
+      return acc;
+    }, []);
+  };
 
   const buildDoorInfoPayload = () => {
     const selectedSubGroup = subGroupOptions.find((subGroup) => subGroup.value === placeSubcategory);
