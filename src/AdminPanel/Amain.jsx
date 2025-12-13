@@ -1001,10 +1001,38 @@ const Amain = () => {
       });
   };
 
+  const normalizeDisplaySettings = (settings = {}) => {
+    const normalized = settings.displaySettings || settings.display_settings || settings;
+
+    return {
+      showUserComments: normalized.showUserComments ?? normalized.show_user_comments ?? true,
+      showMultimedia: normalized.showMultimedia ?? normalized.show_multimedia ?? true
+    };
+  };
+
+  const normalizeTimeRestrictions = (restrictions = []) => restrictions.map((restriction) => ({
+    date: restriction?.date || restriction?.title || restriction?.date_scope || '',
+    isoDateScope: restriction?.isoDateScope || restriction?.date_scope || '',
+    gender: restriction?.gender || restriction?.allowed_genders || [],
+    timePairs: restriction?.timePairs || restriction?.time_pairs || restriction?.time_ranges || [],
+    limitAllHours: restriction?.limitAllHours ?? restriction?.all_hours ?? false
+  }));
+
+  const normalizePrayerRestrictions = (restrictions = []) => restrictions.map((restriction) => ({
+    ...restriction,
+    date: restriction?.date || restriction?.title || restriction?.date_scope || '',
+    isoDateScope: restriction?.isoDateScope || restriction?.date_scope || '',
+    before: restriction?.before ?? restriction?.before_minutes ?? restriction?.beforeMinutes ?? 0,
+    after: restriction?.after ?? restriction?.after_minutes ?? restriction?.afterMinutes ?? 0,
+    events: restriction?.events || []
+  }));
+
   const buildCulturalTimeRestrictionsPayload = () => culturalTimeRestrictions.map((restriction) => ({
     date_scope: restriction?.isoDateScope?.length
       ? restriction.isoDateScope
-      : buildDateScopeIso(restriction?.date),
+      : restriction?.date_scope?.length
+        ? restriction.date_scope
+        : buildDateScopeIso(restriction?.date),
     gender: Array.isArray(restriction?.gender)
       ? restriction.gender.map(normalizeGenderValue).filter(Boolean)
       : [],
@@ -1013,8 +1041,13 @@ const Amain = () => {
         start: pair?.start || '',
         end: pair?.end || ''
       }))
-      : [],
-    all_hours: Boolean(restriction?.limitAllHours)
+      : Array.isArray(restriction?.time_ranges)
+        ? restriction.time_ranges.map((pair) => ({
+          start: pair?.start || '',
+          end: pair?.end || ''
+        }))
+        : [],
+    all_hours: Boolean(restriction?.limitAllHours ?? restriction?.all_hours)
   })).filter((restriction) => restriction.date_scope?.length);
 
   const buildCulturalPrayerRestrictionsPayload = () => culturalPrayerTimeRestrictionsList.map((restriction) => ({
@@ -1029,7 +1062,9 @@ const Amain = () => {
       ?? 0,
     date_scope: restriction?.isoDateScope?.length
       ? restriction.isoDateScope
-      : buildDateScopeIso(restriction?.date),
+      : restriction?.date_scope?.length
+        ? restriction.date_scope
+        : buildDateScopeIso(restriction?.date),
     title: restriction?.title
       ?? restriction?.label
       ?? (restriction?.events?.length
@@ -1549,19 +1584,35 @@ const Amain = () => {
         urdu: itemDescriptions.ur || ''
       });
 
-      if (itemToEdit.culturalTypes) {
-        setSelectedCulturalTypes([...itemToEdit.culturalTypes]);
+      if (itemToEdit.culturalTypes || itemToEdit.cultural_types || itemToEdit.types) {
+        setSelectedCulturalTypes([
+          ...(itemToEdit.culturalTypes || itemToEdit.cultural_types || itemToEdit.types || [])
+        ]);
       }
 
-      if (itemToEdit.displaySettings) {
-        setShowUserComments(itemToEdit.displaySettings.showUserComments || 'نمایش');
-        setShowMultimedia(itemToEdit.displaySettings.showMultimedia || 'نمایش');
-      }
+      const resolvedDisplaySettings = normalizeDisplaySettings({
+        ...(itemToEdit.displaySettings || {}),
+        ...(itemToEdit.display_settings || {}),
+        showUserComments: itemToEdit.showUserComments ?? itemToEdit.show_user_comments,
+        showMultimedia: itemToEdit.showMultimedia ?? itemToEdit.show_multimedia
+      });
+      setShowUserComments(resolvedDisplaySettings.showUserComments ? 'نمایش' : 'عدم نمایش');
+      setShowMultimedia(resolvedDisplaySettings.showMultimedia ? 'نمایش' : 'عدم نمایش');
 
-      if (itemToEdit.restrictions) {
-        setCulturalTimeRestrictions(itemToEdit.restrictions.timeRestrictions || []);
-        setCulturalPrayerTimeRestrictionsList(itemToEdit.restrictions.prayerTimeRestrictions || []);
-      }
+      const restrictionContainer = itemToEdit.restrictions || {};
+      const resolvedTimeRestrictions = restrictionContainer.timeRestrictions
+        || restrictionContainer.time_restrictions
+        || itemToEdit.timeRestrictions
+        || itemToEdit.time_restrictions
+        || [];
+      const resolvedPrayerRestrictions = restrictionContainer.prayerTimeRestrictions
+        || restrictionContainer.prayer_time_restrictions
+        || itemToEdit.prayerTimeRestrictions
+        || itemToEdit.prayer_time_restrictions
+        || [];
+
+      setCulturalTimeRestrictions(normalizeTimeRestrictions(resolvedTimeRestrictions));
+      setCulturalPrayerTimeRestrictionsList(normalizePrayerRestrictions(resolvedPrayerRestrictions));
 
       const normalizedAttachments = (itemToEdit.attachments || [])
         .map(file => normalizeMediaAttachment(file))
@@ -1615,7 +1666,18 @@ const Amain = () => {
         || uploadedFiles.find((file) => file.isPrimary)
         || null;
 
+      const restrictionsPayload = {
+        timeRestrictions: buildCulturalTimeRestrictionsPayload(),
+        prayerTimeRestrictions: buildCulturalPrayerRestrictionsPayload()
+      };
+
+      const displaySettingsPayload = {
+        showUserComments: showUserComments === 'نمایش',
+        showMultimedia: showMultimedia === 'نمایش'
+      };
+
       const payload = {
+        ...(editingCulturalData || {}),
         title: culturalTitle,
         description: culturalDescription,
         titles: {
@@ -1638,14 +1700,24 @@ const Amain = () => {
           ur: languageAddresses.urdu
         },
         culturalTypes: selectedCulturalTypes,
-        displaySettings: {
-          showUserComments: showUserComments === 'نمایش',
-          showMultimedia: showMultimedia === 'نمایش'
-        },
+        cultural_types: selectedCulturalTypes,
+        type: selectedCulturalTypes,
+        types: selectedCulturalTypes,
+        displaySettings: displaySettingsPayload,
+        display_settings: displaySettingsPayload,
+        showUserComments: displaySettingsPayload.showUserComments,
+        show_user_comments: displaySettingsPayload.showUserComments,
+        showMultimedia: displaySettingsPayload.showMultimedia,
+        show_multimedia: displaySettingsPayload.showMultimedia,
         restrictions: {
-          timeRestrictions: buildCulturalTimeRestrictionsPayload(),
-          prayerTimeRestrictions: buildCulturalPrayerRestrictionsPayload()
+          ...restrictionsPayload,
+          time_restrictions: restrictionsPayload.timeRestrictions,
+          prayer_time_restrictions: restrictionsPayload.prayerTimeRestrictions
         },
+        timeRestrictions: restrictionsPayload.timeRestrictions,
+        time_restrictions: restrictionsPayload.timeRestrictions,
+        prayerTimeRestrictions: restrictionsPayload.prayerTimeRestrictions,
+        prayer_time_restrictions: restrictionsPayload.prayerTimeRestrictions,
         primaryImage: resolvedPrimary?.path || resolvedPrimary?.url || null,
         attachments,
         location: selectedLocation
