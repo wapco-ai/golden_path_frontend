@@ -194,7 +194,57 @@ const Location = () => {
     if (typeof place.image === 'string' && place.image.trim()) return [place.image];
     if (typeof place.img === 'string' && place.img.trim()) return [place.img];
 
+<<<<<<< HEAD
     return [];
+=======
+    if (Array.isArray(place.images)) baseImages.push(...place.images);
+    if (Array.isArray(place.image)) baseImages.push(...place.image);
+    if (Array.isArray(place.img)) baseImages.push(...place.img);
+
+    if (typeof place.images === 'string' && place.images.trim()) baseImages.push(place.images);
+    if (typeof place.image === 'string' && place.image.trim()) baseImages.push(place.image);
+    if (typeof place.img === 'string' && place.img.trim()) baseImages.push(place.img);
+
+    return baseImages.filter(url => typeof url === 'string' && isImageUrl(url));
+  };
+
+  const normalizeMediaByLanguage = (place) => {
+    const media = place?.media;
+    if (!media) return [];
+
+    const langKey = 'fa';
+    const mediaForLang = Array.isArray(media)
+      ? media
+      : media?.[langKey] || media?.fa || [];
+
+    if (!Array.isArray(mediaForLang)) return [];
+
+    return mediaForLang
+      .filter(item => item && (item.url || item.data))
+      .map((item, index) => {
+        const mimeType = item.mime || '';
+        let derivedType = item.type;
+
+        const mimeTypeToType = () => {
+          if (mimeType.startsWith('image/')) return 'image';
+          if (mimeType === 'application/pdf') return 'pdf';
+          if (mimeType.startsWith('video/')) return 'video';
+          return 'file';
+        };
+
+        // Prefer MIME-derived type when the provided type is generic (e.g., "file")
+        if (!derivedType || derivedType === 'file') {
+          derivedType = mimeTypeToType();
+        }
+
+        return {
+          ...item,
+          id: item.id || `media-${index}`,
+          type: derivedType,
+          mediaUrl: item.url || item.data || ''
+        };
+      });
+>>>>>>> parent of 5ddaf8a (Merge branch 'main' into wapcodev/fix-media-display-and-user-feedback-logic-757ljl)
   };
 
   const normalizeAbout = (place) => {
