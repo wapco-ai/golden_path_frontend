@@ -1129,14 +1129,47 @@ const Amain = () => {
     limitAllHours: restriction?.limitAllHours ?? restriction?.all_hours ?? false
   }));
 
-  const normalizePrayerRestrictions = (restrictions = []) => restrictions.map((restriction) => ({
-    ...restriction,
-    date: restriction?.date || restriction?.title || restriction?.date_scope || '',
-    isoDateScope: restriction?.isoDateScope || restriction?.date_scope || '',
-    before: restriction?.before ?? restriction?.before_minutes ?? restriction?.beforeMinutes ?? 0,
-    after: restriction?.after ?? restriction?.after_minutes ?? restriction?.afterMinutes ?? 0,
-    events: normalizePrayerEvents(restriction?.events)
-  }));
+  const normalizePrayerRestrictions = (restrictions = []) => {
+    const seen = new Set();
+
+    return restrictions.reduce((acc, restriction) => {
+      const normalizedEvents = normalizePrayerEvents(restriction?.events);
+      const normalizedBefore = restriction?.before
+        ?? restriction?.before_minutes
+        ?? restriction?.beforeMinutes
+        ?? 0;
+      const normalizedAfter = restriction?.after
+        ?? restriction?.after_minutes
+        ?? restriction?.afterMinutes
+        ?? 0;
+
+      const dateScopeValue = restriction?.isoDateScope || restriction?.date_scope || restriction?.date || restriction?.title || '';
+      const dateScopeKey = Array.isArray(dateScopeValue)
+        ? dateScopeValue.join('|')
+        : String(dateScopeValue);
+
+      const dedupKey = JSON.stringify({
+        events: [...normalizedEvents].sort().join('|'),
+        before: normalizedBefore,
+        after: normalizedAfter,
+        dateScope: dateScopeKey
+      });
+
+      if (seen.has(dedupKey)) return acc;
+      seen.add(dedupKey);
+
+      acc.push({
+        ...restriction,
+        date: restriction?.date || restriction?.title || restriction?.date_scope || '',
+        isoDateScope: restriction?.isoDateScope || restriction?.date_scope || '',
+        before: normalizedBefore,
+        after: normalizedAfter,
+        events: normalizedEvents
+      });
+
+      return acc;
+    }, []);
+  };
 
   const buildCulturalTimeRestrictionsPayload = () => culturalTimeRestrictions.map((restriction) => ({
     date_scope: restriction?.isoDateScope?.length
