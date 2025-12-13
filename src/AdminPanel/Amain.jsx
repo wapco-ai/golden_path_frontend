@@ -7583,13 +7583,18 @@ const Amain = () => {
                               </div>
                             )}
                             {selectedFeatureCoordinates && Array.isArray(selectedFeatureCoordinates) && (
-                              <div className="selected-feature-row">
-                                <span className="selected-feature-label">مختصات:</span>
-                                <span className="selected-feature-value">
-                                  {selectedFeatureCoordinates.map((coord) => Number(coord).toFixed(5)).join(', ')}
-                                </span>
-                              </div>
-                            )}
+                                <div className="selected-feature-row">
+                                  <span className="selected-feature-label">مختصات:</span>
+                                  <span className="selected-feature-value">
+                                    {selectedFeatureCoordinates.map((coord, index) => (
+                                      <React.Fragment key={`coord-${index}`}>
+                                        {Number(coord).toFixed(5)}
+                                        {index < selectedFeatureCoordinates.length - 1 && ', '}
+                                      </React.Fragment>
+                                    ))}
+                                  </span>
+                                </div>
+                              )}
                           </div>
                         )}
                       </div>
