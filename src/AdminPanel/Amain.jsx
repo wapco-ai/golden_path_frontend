@@ -999,6 +999,7 @@ const Amain = () => {
   };
 
   const uploadCulturalFiles = async (files = [], entityId) => {
+    const targetEntityId = entityId ?? 'cultural-item';
     const uploadedFiles = [];
 
     for (const file of files) {
@@ -1021,7 +1022,7 @@ const Amain = () => {
         const response = await uploadFile({
           file: file.file,
           entityTable: 'contents',
-          entityId,
+          entityId: targetEntityId,
           bucket: resolveFileBucket(file),
           keepOriginalName: true
         });
@@ -1070,12 +1071,22 @@ const Amain = () => {
 
   const buildCulturalTranslationsPayload = (attachments = []) => {
     const mediaPayload = attachments
-      .map((file) => ({
-        type: file?.type || resolveAttachmentType(file?.mime || file?.type || ''),
-        mime: file?.mime || 'application/octet-stream',
-        url: file?.url || file?.path || ''
-      }))
-      .filter((item) => Boolean(item.url));
+      .map((file) => {
+        const url = file?.url || file?.path || '';
+        if (!url) return null;
+
+        return {
+          type: file?.type || resolveAttachmentType(file?.mime || file?.type || ''),
+          mime: file?.mime || 'application/octet-stream',
+          url,
+          path: file?.path || '',
+          bucket: file?.bucket,
+          metadata: file?.metadata || null,
+          name: file?.name,
+          orientation: file?.orientation ?? null
+        };
+      })
+      .filter(Boolean);
 
     const buildEntry = (title, body) => ({
       title: title || '',
@@ -2995,7 +3006,7 @@ const Amain = () => {
     };
   }, [language, culturalPlaceCategory, translateLabel, isEditingCultural]);
 
-  const handleSaveCulturalData = () => {
+  const handleSaveCulturalData = async () => {
     if (!selectedPlaceType) {
       setCulturalTypeError(true);
       alert('لطفا حداقل یک نوع مکان را انتخاب کنید');
@@ -3007,13 +3018,13 @@ const Amain = () => {
       return;
     }
 
-    // if (!culturalPoiId) {
-    //   alert('شناسه poi لازم است');
-    //   return;
-    // }
-
     if (!culturalPlaceCategory) {
       alert('لطفا گروه اصلی را انتخاب کنید');
+      return;
+    }
+
+    if (!selectedLocation) {
+      alert('لطفا یک نقطه روی نقشه انتخاب کنید');
       return;
     }
 
@@ -3021,55 +3032,56 @@ const Amain = () => {
       (subGroup) => subGroup.value === culturalPlaceSubcategory
     );
 
-    const attachments = profileImages.map((img) => ({
-      type: 'image',
-      url: img.url || img,
-      mime: img.mime || 'image/jpeg'
-    }));
+    const resolveCategoryLeafId = () => {
+      const value = selectedSubGroup?.value;
+      if (value === undefined || value === null || value === '') return null;
 
-    const displaySettingsPayload = buildDisplaySettingsPayload();
-    const settingsPayload = buildSettingsPayload();
+      const numericValue = Number(value);
+      return Number.isNaN(numericValue) ? value : numericValue;
+    };
 
-    createCulturalItem({
-      poiId: Number(culturalPoiId),
-      title: culturalTitle,
-      description: culturalDescription || '',
-      primaryImage: primaryImage?.url || null,
-      attachments,
-      settings: settingsPayload,
-      displaySettings: displaySettingsPayload,
-      display_settings: displaySettingsPayload,
-      showUserFeedbacks: displaySettingsPayload.showUserFeedbacks,
-      show_user_feedbacks: displaySettingsPayload.showUserFeedbacks,
-      showMediaGallery: displaySettingsPayload.showMediaGallery,
-      show_media_gallery: displaySettingsPayload.showMediaGallery,
-      showUserComments: displaySettingsPayload.showUserComments,
-      show_user_comments: displaySettingsPayload.showUserComments,
-      showMultimedia: displaySettingsPayload.showMultimedia,
-      show_multimedia: displaySettingsPayload.showMultimedia,
-      // Add grouping data
-      grouping: {
-        group_id: culturalPlaceCategory,
-        sub_group_id: selectedSubGroup?.value || null,
-        sub_group_label: selectedSubGroup?.label || null
-      },
-      culturalTypes: selectedCulturalTypes,
-      cultural_types: selectedCulturalTypes,
-      // Include address and location if available
-      addressInShrine: placeAddress,
-      location: selectedLocation
-        ? { lng: selectedLocation.lng, lat: selectedLocation.lat }
-        : null
-    })
-      .then(() => {
-        toast.success('اطلاعات فرهنگی با موفقیت ثبت شد');
-        closeAddCulturalModal();
-        loadCulturalItems();
-      })
-      .catch((error) => {
-        console.error('ثبت آیتم فرهنگی ناموفق بود', error);
-        toast.error('ثبت آیتم فرهنگی ناموفق بود');
+    try {
+      const uploadedFiles = await uploadCulturalFiles([
+        ...profileImages,
+        ...audioFiles,
+        ...textFiles
+      ], culturalPoiId || 'new-cultural-item');
+
+      const attachments = buildAttachmentPayload(uploadedFiles);
+      const translationsPayload = buildCulturalTranslationsPayload(attachments);
+      const settingsPayload = buildSettingsPayload();
+      const poiPayload = {
+        floor: floorLabelToValue(mapFloor),
+        category_leaf_id: resolveCategoryLeafId(),
+        location: {
+          lng: selectedLocation.lng,
+          lat: selectedLocation.lat
+        },
+        addressInShrine: placeAddress,
+        grouping: {
+          group_id: culturalPlaceCategory,
+          sub_group_id: selectedSubGroup?.value || null,
+          sub_group_label: selectedSubGroup?.label || null
+        },
+        placeType: selectedPlaceType || 'farhangi'
+      };
+
+      await createCulturalItem({
+        poi: poiPayload,
+        translations: translationsPayload,
+        settings: {
+          ...settingsPayload,
+          placeType: selectedPlaceType || 'farhangi'
+        }
       });
+
+      toast.success('اطلاعات فرهنگی با موفقیت ثبت شد');
+      closeAddCulturalModal();
+      loadCulturalItems();
+    } catch (error) {
+      console.error('ثبت آیتم فرهنگی ناموفق بود', error);
+      toast.error('ثبت آیتم فرهنگی ناموفق بود');
+    }
   };
 
 
@@ -3127,7 +3139,7 @@ const Amain = () => {
   };
 
   const handleSaveLanguageTitles = () => {
-    setIsTitleLanguageModalOpen(false); t
+    setIsTitleLanguageModalOpen(false);
   };
 
   const handleSaveLanguageDescriptions = () => {
