@@ -1763,12 +1763,16 @@ const Amain = () => {
       const resolvedTimeRestrictions = normalizeTimeRestrictions(
         itemToEdit.restrictions?.timeRestrictions
         || itemToEdit.restrictions?.time_restrictions
+        || itemToEdit.timeRestrictions
+        || itemToEdit.time_restrictions
         || []
       );
 
       const resolvedPrayerRestrictions = normalizePrayerRestrictions(
         itemToEdit.restrictions?.prayerTimeRestrictions
         || itemToEdit.restrictions?.prayer_time_restrictions
+        || itemToEdit.prayerTimeRestrictions
+        || itemToEdit.prayer_restrictions
         || []
       );
 
