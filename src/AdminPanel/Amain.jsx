@@ -568,9 +568,10 @@ const Amain = () => {
   const [selectedPlaceType, setSelectedPlaceType] = useState('');
   const [selectedCulturalTypes, setSelectedCulturalTypes] = useState([]);
   const [culturalTypeError, setCulturalTypeError] = useState(false);
-  const [culturalMap, setCulturalMap] = useState(null);
+  const culturalMapRef = useRef(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
-  const [currentMarker, setCurrentMarker] = useState(null);
+  const currentMarkerRef = useRef(null);
+  const editMapTimeoutRef = useRef(null);
   const [titleForModal, setTitleForModal] = useState(''); // Current title field value
   const [adminAvatar, setAdminAvatar] = useState(null);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -1984,18 +1985,26 @@ const Amain = () => {
     }
   };
 
+  const cleanupCulturalMap = useCallback(() => {
+    if (currentMarkerRef.current) {
+      currentMarkerRef.current.remove();
+      currentMarkerRef.current = null;
+    }
+
+    if (culturalMapRef.current) {
+      try {
+        culturalMapRef.current.remove();
+      } catch (error) {
+        console.warn('Cultural map removal skipped', error);
+      }
+      culturalMapRef.current = null;
+    }
+  }, []);
+
 
   const exitEditMode = () => {
     // Clean up map and marker FIRST
-    if (currentMarker) {
-      currentMarker.remove();
-      setCurrentMarker(null);
-    }
-
-    if (culturalMap) {
-      culturalMap.remove();
-      setCulturalMap(null);
-    }
+    cleanupCulturalMap();
 
     // Reset edit mode states
     setIsEditingCultural(false);
@@ -2124,15 +2133,7 @@ const Amain = () => {
 
   const handleCancelEditCultural = () => {
     // Clean up map and marker
-    if (currentMarker) {
-      currentMarker.remove();
-      setCurrentMarker(null);
-    }
-
-    if (culturalMap) {
-      culturalMap.remove();
-      setCulturalMap(null);
-    }
+    cleanupCulturalMap();
 
     setIsEditingCultural(false);
     setEditingCulturalId(null);
@@ -2248,15 +2249,7 @@ const Amain = () => {
     // Also reset the prayer time restrictions list if needed
     // setCulturalPrayerTimeRestrictionsList([]); // Uncomment if you want to clear saved restrictions too
 
-    if (currentMarker) {
-      currentMarker.remove();
-      setCurrentMarker(null);
-    }
-
-    if (culturalMap) {
-      culturalMap.remove();
-      setCulturalMap(null);
-    }
+    cleanupCulturalMap();
 
     setLanguageTitles({
       english: '',
@@ -2343,16 +2336,9 @@ const Amain = () => {
   useEffect(() => {
     if (!isAddCulturalModalOpen) {
       // Clean up when modal closes
-      if (currentMarker) {
-        currentMarker.remove();
-        setCurrentMarker(null);
-      }
-      if (culturalMap) {
-        culturalMap.remove();
-        setCulturalMap(null);
-      }
+      cleanupCulturalMap();
     }
-  }, [isAddCulturalModalOpen]);
+  }, [isAddCulturalModalOpen, cleanupCulturalMap]);
 
   // Cultural restriction handlers
   const handleCulturalDateFilterToggle = (filter) => {
@@ -2630,7 +2616,7 @@ const Amain = () => {
       })
         .setLngLat([selectedLocation.lng, selectedLocation.lat])
         .addTo(mapInstance);
-      setCurrentMarker(marker);
+      currentMarkerRef.current = marker;
     }
 
     // Add click event to map for selecting new location
@@ -2652,23 +2638,30 @@ const Amain = () => {
         .setLngLat([coordinates.lng, coordinates.lat])
         .addTo(mapInstance);
 
-      // Update current marker in state
-      setCurrentMarker(marker);
+      // Update current marker reference
+      currentMarkerRef.current = marker;
 
       console.log('New location selected:', coordinates);
     });
 
-    setCulturalMap(mapInstance);
+    culturalMapRef.current = mapInstance;
     return mapInstance;
   };
 
   useEffect(() => {
     if (isEditingCultural && editingCulturalData) {
       // Initialize edit map after a short delay to ensure DOM is ready
-      setTimeout(() => {
+      editMapTimeoutRef.current = setTimeout(() => {
         initializeEditMap();
       }, 100);
     }
+
+    return () => {
+      if (editMapTimeoutRef.current) {
+        clearTimeout(editMapTimeoutRef.current);
+        editMapTimeoutRef.current = null;
+      }
+    };
   }, [isEditingCultural, editingCulturalData]);
 
   const handleCulturalPrayerNextMonth = () => {
@@ -2963,11 +2956,11 @@ const Amain = () => {
         .setLngLat([coordinates.lng, coordinates.lat])
         .addTo(mapInstance);
 
-      // Store the marker in state
-      setCurrentMarker(marker);
+      // Store the marker reference
+      currentMarkerRef.current = marker;
     });
 
-    setCulturalMap(mapInstance);
+    culturalMapRef.current = mapInstance;
     return mapInstance;
   };
 
@@ -3281,30 +3274,29 @@ const Amain = () => {
 
   useEffect(() => {
     if (isEditingCultural && editingCulturalId && document.getElementById('edit-cultural-map-container')) {
-      // Clean up any existing map first
-      if (culturalMap) {
-        culturalMap.remove();
-        setCulturalMap(null);
+      if (editMapTimeoutRef.current) {
+        clearTimeout(editMapTimeoutRef.current);
+        editMapTimeoutRef.current = null;
       }
+
+      // Clean up any existing map first
+      cleanupCulturalMap();
 
       // Initialize the map
       initializeEditMap();
     }
 
     return () => {
+      if (editMapTimeoutRef.current) {
+        clearTimeout(editMapTimeoutRef.current);
+        editMapTimeoutRef.current = null;
+      }
       // Clean up on unmount or when editing mode ends
       if (!isEditingCultural) {
-        if (currentMarker) {
-          currentMarker.remove();
-          setCurrentMarker(null);
-        }
-        if (culturalMap) {
-          culturalMap.remove();
-          setCulturalMap(null);
-        }
+        cleanupCulturalMap();
       }
     };
-  }, [isEditingCultural, editingCulturalId]);
+  }, [isEditingCultural, editingCulturalId, cleanupCulturalMap]);
 
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
@@ -6321,11 +6313,11 @@ const Amain = () => {
                           className="select-location-btn-edit"
                           onClick={() => {
                             // Reinitialize the map if it doesn't exist
-                            if (!culturalMap) {
+                            if (!culturalMapRef.current) {
                               initializeEditMap();
                             } else {
                               // Focus on current location
-                              culturalMap.flyTo({
+                              culturalMapRef.current.flyTo({
                                 center: [selectedLocation.lng, selectedLocation.lat],
                                 zoom: 16
                               });
