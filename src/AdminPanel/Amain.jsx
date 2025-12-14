@@ -35,7 +35,7 @@ import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/grou
 import { getLanguageName } from '../utils/languageNames';
 import { deleteFile, uploadFile } from '../services/fileService';
 import { createVanEdge, createVanNode, deleteVanNode } from '../services/adminVanService';
-import { createTempBlockArea, updateTempBlockArea } from '../services/tempBlockAreasService';
+import { createTempBlockArea, updateTempBlockArea, deleteTempBlockArea } from '../services/tempBlockAreasService';
 
 
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
