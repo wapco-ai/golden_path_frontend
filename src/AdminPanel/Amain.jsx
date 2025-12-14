@@ -3779,6 +3779,41 @@ const Amain = () => {
     return undefined;
   }, [map, selectedEditableFeature]);
 
+  const buildTempAreaGeometry = useCallback((vertices = []) => {
+    if (!Array.isArray(vertices) || !vertices.length) return null;
+
+    if (vertices.length === 1) {
+      return { type: 'Point', coordinates: vertices[0] };
+    }
+
+    if (vertices.length === 2) {
+      return { type: 'LineString', coordinates: vertices };
+    }
+
+    const closedRing = [...vertices, vertices[0]];
+    return { type: 'Polygon', coordinates: [closedRing] };
+  }, []);
+
+  useEffect(() => {
+    if (!map) return undefined;
+
+    const source = map.getSource(TEMP_AREA_DRAW_SOURCE_ID);
+    if (!source?.setData) return undefined;
+
+    const geometry = buildTempAreaGeometry(tempAreaVertices);
+    const feature = geometry
+      ? { type: 'Feature', geometry, properties: { type: 'temp-area-draft' } }
+      : null;
+
+    const geojson = feature
+      ? { type: 'FeatureCollection', features: [feature] }
+      : { type: 'FeatureCollection', features: [] };
+
+    source.setData(geojson);
+
+    return undefined;
+  }, [map, tempAreaVertices, buildTempAreaGeometry]);
+
   useEffect(() => {
     if (!map) return undefined;
 
