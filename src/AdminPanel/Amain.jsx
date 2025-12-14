@@ -41,6 +41,9 @@ const SELECTED_EDITABLE_FEATURE_SOURCE_ID = 'selected-editable-feature-source';
 const SELECTED_EDITABLE_FEATURE_LAYER_ID = 'selected-editable-feature-layer';
 const SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID = 'selected-editable-feature-line';
 const SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID = 'selected-editable-feature-fill';
+const VAN_DRAW_SOURCE_ID = 'van-draw-source';
+const VAN_DRAW_LINE_LAYER_ID = 'van-draw-line-layer';
+const VAN_DRAW_POINT_LAYER_ID = 'van-draw-point-layer';
 
 const GENDER_OPTIONS = [
   { value: 'female', label: 'بانوان' },
@@ -374,10 +377,55 @@ const Amain = () => {
       map.triggerRepaint();
     }
   }, [map, mapFloor]);
+  const ensureVanDrawLayers = useCallback(() => {
+    if (!map) return;
+
+    if (!map.getSource(VAN_DRAW_SOURCE_ID)) {
+      map.addSource(VAN_DRAW_SOURCE_ID, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] }
+      });
+    }
+
+    if (!map.getLayer(VAN_DRAW_LINE_LAYER_ID)) {
+      map.addLayer({
+        id: VAN_DRAW_LINE_LAYER_ID,
+        type: 'line',
+        source: VAN_DRAW_SOURCE_ID,
+        paint: {
+          'line-color': '#f97316',
+          'line-width': 4,
+          'line-dasharray': [1.6, 1.6]
+        },
+        filter: ['==', ['geometry-type'], 'LineString']
+      });
+    }
+
+    if (!map.getLayer(VAN_DRAW_POINT_LAYER_ID)) {
+      map.addLayer({
+        id: VAN_DRAW_POINT_LAYER_ID,
+        type: 'circle',
+        source: VAN_DRAW_SOURCE_ID,
+        paint: {
+          'circle-radius': 5,
+          'circle-color': '#1e40af',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff'
+        },
+        filter: [
+          'any',
+          ['==', ['geometry-type'], 'Point'],
+          ['==', ['geometry-type'], 'MultiPoint']
+        ]
+      });
+    }
+  }, [map]);
   const unknownComments = commentStats.total - commentStats.approved - commentStats.rejected;
   const approvedDegrees = (commentStats.approved / commentStats.total) * 360;
   const rejectedDegrees = (commentStats.rejected / commentStats.total) * 360;
   const unknownDegrees = (unknownComments / commentStats.total) * 360;
+  const [isVanDrawingMode, setIsVanDrawingMode] = useState(false);
+  const [vanLineCoordinates, setVanLineCoordinates] = useState([]);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [facManagementOpen, setfacManagementOpen] = useState(false);
   const [reportsManagementOpen, setReportsManagementOpen] = useState(false);
@@ -3281,6 +3329,9 @@ const Amain = () => {
           setLocationMarker(null);
         }
       }
+
+      setIsVanDrawingMode(false);
+      setVanLineCoordinates([]);
     }
   }, [activeMenu]);
 
@@ -3328,6 +3379,22 @@ const Amain = () => {
   }, [map, activeMenu, layerVisibility, applyLayerVisibility]);
 
   useEffect(() => {
+    if (!map || activeMenu !== 'mapmanage') return undefined;
+
+    if (map.isStyleLoaded()) {
+      ensureVanDrawLayers();
+      return undefined;
+    }
+
+    const handleLoad = () => ensureVanDrawLayers();
+    map.once('load', handleLoad);
+
+    return () => {
+      map.off('load', handleLoad);
+    };
+  }, [map, activeMenu, ensureVanDrawLayers]);
+
+  useEffect(() => {
     if (activeMenu !== 'mapmanage') {
       setSelectedEditableFeature(null);
     }
@@ -3351,6 +3418,45 @@ const Amain = () => {
   useEffect(() => {
     setSelectedEditableFeature(null);
   }, [activeEditableLayerId]);
+
+  useEffect(() => {
+    if (!map || activeMenu !== 'mapmanage') return;
+
+    const vanSource = map.getSource(VAN_DRAW_SOURCE_ID);
+
+    if (!vanSource) return;
+
+    const vanFeatures = [];
+
+    if (vanLineCoordinates.length) {
+      vanFeatures.push({
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: vanLineCoordinates
+        },
+        properties: {
+          type: 'van-route'
+        }
+      });
+
+      vanLineCoordinates.forEach((coordinate, index) => {
+        vanFeatures.push({
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: coordinate
+          },
+          properties: {
+            type: 'van-node',
+            order: index + 1
+          }
+        });
+      });
+    }
+
+    vanSource.setData({ type: 'FeatureCollection', features: vanFeatures });
+  }, [map, activeMenu, vanLineCoordinates]);
 
   useEffect(() => {
     if (!selectedEditableFeature) {
@@ -3587,6 +3693,24 @@ const Amain = () => {
     const handleMapClick = async (event) => {
       const { lngLat, point } = event;
 
+      if (isVanDrawingMode) {
+        const newCoordinate = [lngLat.lng, lngLat.lat];
+
+        setVanLineCoordinates((prev) => {
+          const updated = [...prev, newCoordinate];
+          const utmCoordinate = convertLngLatToUtm32640({ lng: lngLat.lng, lat: lngLat.lat });
+          console.log('van path point added', { wgs84: newCoordinate, utm: utmCoordinate });
+
+          toast.success(updated.length === 1
+            ? 'نقطه شروع مسیر ون ثبت شد'
+            : 'نقطه جدید به مسیر ون اضافه شد');
+
+          return updated;
+        });
+
+        return;
+      }
+
       if (!activeEditableLayer) {
         console.warn('هیچ لایه قابل ویرایشی انتخاب نشده است.');
         return;
@@ -3701,7 +3825,18 @@ const Amain = () => {
     map.on('click', handleMapClick);
 
     return () => map.off('click', handleMapClick);
-  }, [map, activeMenu, activeEditableLayer]);
+  }, [
+    map,
+    activeMenu,
+    activeEditableLayer,
+    isVanDrawingMode,
+    mapFloor,
+    isDoorMoveMode,
+    selectedDoorId,
+    selectedFeatureProperties,
+    selectedDoorAccessPointId,
+    refreshLayerTiles
+  ]);
 
   const handleZoomIn = () => {
     if (map) {
@@ -4280,6 +4415,23 @@ const Amain = () => {
     map.flyTo({
       center: centerCoordinates,
       zoom: Math.max(map.getZoom(), 16)
+    });
+  };
+
+  const handleToggleVanDrawing = () => {
+    if (!map) {
+      toast.error('نقشه هنوز آماده نیست');
+      return;
+    }
+
+    setIsVanDrawingMode((prev) => {
+      const next = !prev;
+
+      if (next) {
+        toast.info('برای ترسیم مسیر ون روی نقشه کلیک کنید.');
+      }
+
+      return next;
     });
   };
 
@@ -7483,7 +7635,10 @@ const Amain = () => {
                     </div>
                     {openSubMenu === 3 && (
                       <div className="sub-buttons3">
-                        <button className="sub-btn van-create">
+                        <button
+                          className={`sub-btn van-create ${isVanDrawingMode ? 'active' : ''}`}
+                          onClick={handleToggleVanDrawing}
+                        >
                           <svg width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.354 13.646l2.853 2.854-2.854 2.854-.707-.707L21.293 17H17v4.293l1.646-1.646.707.707-2.853 2.853-2.854-2.854.707-.707L16 21.293V17h-4.293l1.646 1.646-.707.707L9.793 16.5l2.854-2.854.707.707L11.707 16H16v-4.293l-1.646 1.646-.707-.707L16.5 9.793l2.854 2.854-.707.707L17 11.707V16h4.293l-1.646-1.646zM9 6H6.537L2.468 18l-.947-.321L5.48 6H4V1h5v2h9v1H9zM8 5V2H5v3z" /><path fill="none" d="M0 0h24v24H0z" /></svg>
                         </button>
                         <button className="sub-btn">
