@@ -517,7 +517,7 @@ const Amain = () => {
   const isSavingPlaceInfo = isSavingDoorInfo || isSavingAreaInfo;
   const isLoadingPlaceInfo = isLoadingDoorInfo || isLoadingAreaInfo;
   const [categoryManagementOpen, setCategoryManagementOpen] = useState(false);
-  
+
 
   const [categories, setCategories] = useState([]);
   const [expandedCategories, setExpandedCategories] = useState([]);
@@ -1986,6 +1986,7 @@ const Amain = () => {
   };
 
   const cleanupCulturalMap = useCallback(() => {
+    console.log('Cultural map remove');
     if (currentMarker) {
       currentMarker.remove();
       setCurrentMarker(null);
@@ -2333,12 +2334,6 @@ const Amain = () => {
     }
   };
 
-  useEffect(() => {
-    if (!isAddCulturalModalOpen) {
-      // Clean up when modal closes
-      cleanupCulturalMap();
-    }
-  }, [isAddCulturalModalOpen, cleanupCulturalMap]);
 
   // Cultural restriction handlers
   const handleCulturalDateFilterToggle = (filter) => {
@@ -2570,9 +2565,11 @@ const Amain = () => {
     });
   };
 
+
   const initializeEditMap = () => {
     // Prevent re-initializing the edit map if it already exists
     if (culturalMap) {
+      console.warn('پیش از این نقشه ایجاد شده است.');
       return;
     }
 
@@ -2627,34 +2624,44 @@ const Amain = () => {
     // Add click event to map for selecting new location
     mapInstance.on('click', (e) => {
       const coordinates = e.lngLat;
+      // بررسی اینکه آیا مکان جدید واقعاً متفاوت است
+      if (!selectedLocation || (coordinates.lng !== selectedLocation.lng || coordinates.lat !== selectedLocation.lat)) {
+        // Update selected location state
+        setSelectedLocation(coordinates);
 
-      // Update selected location state
-      setSelectedLocation(coordinates);
+        // Remove existing marker if it exists
+        if (marker) {
+          marker.remove();
+        }
 
-      // Remove existing marker if it exists
-      if (marker) {
-        marker.remove();
+        // Create new marker at clicked location WITH CUSTOM RED MARKER
+        marker = new maplibregl.Marker({
+          element: createRedMarker()  // Use custom red marker
+        })
+          .setLngLat([coordinates.lng, coordinates.lat])
+          .addTo(mapInstance);
+
+        // Update current marker in state
+        setCurrentMarker(marker);
+
+        console.log('New location selected:', coordinates);
+        // پاک‌سازی منابع هنگام خروج از حالت ویرایش
+
       }
-
-      // Create new marker at clicked location WITH CUSTOM RED MARKER
-      marker = new maplibregl.Marker({
-        element: createRedMarker()  // Use custom red marker
-      })
-        .setLngLat([coordinates.lng, coordinates.lat])
-        .addTo(mapInstance);
-
-      // Update current marker in state
-      setCurrentMarker(marker);
-
-      console.log('New location selected:', coordinates);
     });
 
     setCulturalMap(mapInstance);
     return mapInstance;
-  };
+  }
+
 
   useEffect(() => {
-    if (isEditingCultural && editingCulturalData) {
+    if (!isEditingCultural || !editingCulturalData) return;
+
+    // Ensure not to reinitialize if already set up
+    if (culturalMap) return;
+
+    if (isEditingCultural && editingCulturalData && !culturalMap) {
       // Initialize edit map after a short delay to ensure DOM is ready
       editMapTimeoutRef.current = setTimeout(() => {
         initializeEditMap();
@@ -2667,7 +2674,7 @@ const Amain = () => {
         editMapTimeoutRef.current = null;
       }
     };
-  }, [isEditingCultural, editingCulturalData]);
+  });
 
   const handleCulturalPrayerNextMonth = () => {
     setCulturalPrayerCalendarDate(prev => {
@@ -3278,30 +3285,31 @@ const Amain = () => {
   }, [activeMenu]);
 
   useEffect(() => {
+
     if (isEditingCultural && editingCulturalId && document.getElementById('edit-cultural-map-container')) {
       if (editMapTimeoutRef.current) {
         clearTimeout(editMapTimeoutRef.current);
         editMapTimeoutRef.current = null;
       }
 
-      // Clean up any existing map first
-      cleanupCulturalMap();
-
-      // Initialize the map
-      initializeEditMap();
+      // Check if map has already been initialized
+      if (isEditingCultural && editingCulturalData && !culturalMap) { // یا هر متغیر مشابه
+        cleanupCulturalMap();
+        // initializeEditMap();
+      }
     }
 
-    return () => {
-      if (editMapTimeoutRef.current) {
-        clearTimeout(editMapTimeoutRef.current);
-        editMapTimeoutRef.current = null;
-      }
-      // Clean up on unmount or when editing mode ends
-      if (!isEditingCultural) {
-        cleanupCulturalMap();
-      }
-    };
-  }, [isEditingCultural, editingCulturalId, cleanupCulturalMap]);
+    // return () => {
+    //   if (editMapTimeoutRef.current) {
+    //     clearTimeout(editMapTimeoutRef.current);
+    //     editMapTimeoutRef.current = null;
+    //   }
+    //   // Clean up on unmount or when editing mode ends
+    //   if (!isEditingCultural) {
+    //     cleanupCulturalMap();
+    //   }
+    // };
+  }, [isEditingCultural, editingCulturalId, cleanupCulturalMap, culturalMap]);
 
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
@@ -4356,7 +4364,7 @@ const Amain = () => {
       map.off('move', keepMarkerCentered);
     };
   }, [map, isLocationMarkerMode, locationMarker]);
-  
+
 
   useEffect(() => {
     if (!isLocationMarkerMode && locationMarker) {
@@ -6318,7 +6326,7 @@ const Amain = () => {
                           className="select-location-btn-edit"
                           onClick={() => {
                             // Reinitialize the map if it doesn't exist
-                            if (!culturalMap) {
+                            if (isEditingCultural && editingCulturalData && !culturalMap) {
                               initializeEditMap();
                             } else {
                               // Focus on current location
@@ -6718,19 +6726,19 @@ const Amain = () => {
                             className={`cultural-type-option-edit ${isSelected ? 'selected' : ''}`}
                             onClick={() => handleCulturalTypeToggle(typeOption.label)}
                           >
-                          <div className="cultural-type-checkbox-edit">
-                            {isSelected ? (
-                              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
-                                <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
-                              </svg>
-                            ) : (
-                              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" stroke="#D9D9D9" />
-                              </svg>
-                            )}
-                          </div>
-                          <span>{typeOption.label}</span>
+                            <div className="cultural-type-checkbox-edit">
+                              {isSelected ? (
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
+                                  <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
+                                </svg>
+                              ) : (
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" stroke="#D9D9D9" />
+                                </svg>
+                              )}
+                            </div>
+                            <span>{typeOption.label}</span>
                           </div>
                         );
                       })}
@@ -7639,18 +7647,18 @@ const Amain = () => {
                               </div>
                             )}
                             {selectedFeatureCoordinates && Array.isArray(selectedFeatureCoordinates) && (
-                                <div className="selected-feature-row">
-                                  <span className="selected-feature-label">مختصات:</span>
-                                  <span className="selected-feature-value">
-                                    {selectedFeatureCoordinates.map((coord, index) => (
-                                      <React.Fragment key={`coord-${index}`}>
-                                        {Number(coord).toFixed(5)}
-                                        {index < selectedFeatureCoordinates.length - 1 && ', '}
-                                      </React.Fragment>
-                                    ))}
-                                  </span>
-                                </div>
-                              )}
+                              <div className="selected-feature-row">
+                                <span className="selected-feature-label">مختصات:</span>
+                                <span className="selected-feature-value">
+                                  {selectedFeatureCoordinates.map((coord, index) => (
+                                    <React.Fragment key={`coord-${index}`}>
+                                      {Number(coord).toFixed(5)}
+                                      {index < selectedFeatureCoordinates.length - 1 && ', '}
+                                    </React.Fragment>
+                                  ))}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -9536,15 +9544,15 @@ const Amain = () => {
                             >
                               <div className="cultural-type-checkbox10">
                                 {isSelected ? (
-                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
-                                  <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
-                                </svg>
-                              ) : (
-                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" stroke="#D9D9D9" />
-                                </svg>
-                              )}
+                                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
+                                  </svg>
+                                ) : (
+                                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" stroke="#D9D9D9" />
+                                  </svg>
+                                )}
                               </div>
                               <span>{typeOption.label}</span>
                             </div>
@@ -11425,20 +11433,20 @@ const Amain = () => {
                           <div className="form-column">
                             <label className="form-label">انتخاب رویداد</label>
                             <div className="prayer-event-grid">
-                                {PRAYER_EVENT_OPTIONS.map((option) => (
-                                  <div
-                                    key={option.value}
-                                    className={`prayer-event-option ${editSelectedPrayerEvents.includes(option.value) ? 'selected' : ''}`}
-                                    onClick={() => toggleEditPrayerEvent(option.value)}
-                                  >
-                                    {editSelectedPrayerEvents.includes(option.value) ? (
-                                      <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#0F71EF" /></svg>
-                                    ) : (
-                                      <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#fff" stroke="#D9D9D9" /></svg>
-                                    )}
-                                    <span className="event-label">{option.label}</span>
-                                  </div>
-                                ))}
+                              {PRAYER_EVENT_OPTIONS.map((option) => (
+                                <div
+                                  key={option.value}
+                                  className={`prayer-event-option ${editSelectedPrayerEvents.includes(option.value) ? 'selected' : ''}`}
+                                  onClick={() => toggleEditPrayerEvent(option.value)}
+                                >
+                                  {editSelectedPrayerEvents.includes(option.value) ? (
+                                    <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#0F71EF" /></svg>
+                                  ) : (
+                                    <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#fff" stroke="#D9D9D9" /></svg>
+                                  )}
+                                  <span className="event-label">{option.label}</span>
+                                </div>
+                              ))}
                             </div>
                           </div>
 
