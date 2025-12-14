@@ -180,9 +180,6 @@ const MapBeginPage = () => {
 
     const normalizedId = rawId.toLowerCase();
     const idMappings = {
-      saghakhaneh: 'saqqakhaneh',
-      saghakhaneh_15: 'saqqakhaneh',
-      rozemonavare: 'rozemonavare_12'
     };
 
     return idMappings[normalizedId] || rawId;

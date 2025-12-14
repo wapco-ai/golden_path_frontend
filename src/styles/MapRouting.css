@@ -981,6 +981,7 @@
   border: none;
   border-radius: 0px;
   border-bottom: 1px solid #F2F2F2;
+  padding-bottom: 20px;
 }
 
 .subgroup-search-item:hover {
@@ -1417,6 +1418,8 @@
 }
 
 .map-entry-item {
+  display: flex;
+  flex-direction: column;
   position: relative;
   padding: 2px;
   background: white;
@@ -1428,6 +1431,10 @@
   transition: all 0.2s ease;
   font-family: 'Vazir', Arial, sans-serif;
   border: 1px solid #0F71EF;
+  max-height: 90px;
+  min-height: 90px;
+  align-items: center;
+  justify-content: center;
 }
 
 .map-entry-item.selected {

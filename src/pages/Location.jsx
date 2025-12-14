@@ -669,8 +669,6 @@ const Location = () => {
     }
   }, []);
 
-  // Function to check if current location matches initial QR location
-  // Add this useEffect after your current useEffect that sets initialQrLocation and currentUserLocation
   useEffect(() => {
     console.log('=== DEBUG Location Component ===');
     console.log('initialQrLocation:', initialQrLocation);
