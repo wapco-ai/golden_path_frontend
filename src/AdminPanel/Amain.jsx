@@ -4714,6 +4714,43 @@ const Amain = () => {
     }
   };
 
+  const handleDeleteTempArea = async () => {
+    if (!isTempAreaLayerActive) {
+      toast.error('برای حذف محدوده موقت، لایه محدوده موقت باید فعال باشد');
+      return;
+    }
+
+    if (!selectedTempAreaId) {
+      toast.error('محدوده موقتی برای حذف انتخاب نشده است');
+      return;
+    }
+
+    const promptText = window.prompt(
+      `برای حذف محدوده موقت با شناسه ${selectedTempAreaId}، عبارت "حذف" را وارد کنید:`
+    );
+
+    if (promptText === null) {
+      toast.info('حذف محدوده موقت لغو شد');
+      return;
+    }
+
+    if (promptText.trim() !== 'حذف') {
+      toast.error('برای تأیید حذف باید دقیقاً عبارت "حذف" را وارد کنید');
+      return;
+    }
+
+    try {
+      await deleteTempBlockArea(selectedTempAreaId);
+      toast.success('محدوده موقت با موفقیت حذف شد');
+      setSelectedEditableFeature(null);
+      setIsTempAreaDrawingMode(false);
+      setTempAreaVertices([]);
+      refreshActiveEditableLayerTiles();
+    } catch (error) {
+      toast.error(error?.message || 'حذف محدوده موقت ناموفق بود');
+    }
+  };
+
   const handleOpenAddPlaceWithRoofOption = () => {
     if (activeEditableLayer?.id === 'areas-outline') {
       if (!selectedAreaId) {
@@ -8064,7 +8101,7 @@ const Amain = () => {
                             <path d="M16 5l3 3" />
                           </svg>
                         </button>
-                        <button className="sub-btn delete-temp-area">
+                        <button className="sub-btn delete-temp-area" onClick={handleDeleteTempArea}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M4 7l16 0" />
