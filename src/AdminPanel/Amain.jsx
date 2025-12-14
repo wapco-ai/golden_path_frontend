@@ -116,6 +116,49 @@ const prayerEventLabelToValue = (label) => PRAYER_EVENT_OPTIONS.find((option) =>
 const prayerEventValueToLabel = (value) => PRAYER_EVENT_OPTIONS.find((option) => option.value === value)?.label || value;
 const normalizePrayerEvents = (events = []) => events.map(prayerEventLabelToValue).filter(Boolean);
 
+const buildPrayerRulesPayload = (selectedEvents, beforeValue, afterValue) => {
+  const before = Number.isFinite(Number(beforeValue)) ? Number(beforeValue) : 0;
+  const after = Number.isFinite(Number(afterValue)) ? Number(afterValue) : 0;
+
+  return PRAYER_EVENT_OPTIONS.reduce((rules, option) => {
+    rules[option.value] = {
+      enabled: selectedEvents.includes(option.value),
+      before,
+      after
+    };
+
+    return rules;
+  }, {});
+};
+
+const normalizePrayerRules = (prayerRules = {}) => {
+  const enabledEvents = [];
+  let before = '';
+  let after = '';
+
+  PRAYER_EVENT_OPTIONS.forEach((option) => {
+    const rule = prayerRules?.[option.value];
+
+    if (rule?.enabled) {
+      enabledEvents.push(option.value);
+
+      if (before === '' && rule?.before !== undefined && rule?.before !== null) {
+        before = String(rule.before);
+      }
+
+      if (after === '' && rule?.after !== undefined && rule?.after !== null) {
+        after = String(rule.after);
+      }
+    }
+  });
+
+  return {
+    events: enabledEvents,
+    before,
+    after
+  };
+};
+
 const normalizeTransportModes = (value) => {
   if (Array.isArray(value)) {
     return value.map(normalizeTransportValue).filter(Boolean);
@@ -4623,36 +4666,6 @@ const Amain = () => {
     return date.toISOString().slice(0, 16);
   };
 
-  const buildTempAreaReasonText = () => {
-    const parts = [];
-
-    if (tempAreaName?.trim()) {
-      parts.push(`نام: ${tempAreaName.trim()}`);
-    }
-
-    if (tempAreaDescription?.trim()) {
-      parts.push(`توضیحات: ${tempAreaDescription.trim()}`);
-    }
-
-    if (tempAreaValidFrom || tempAreaValidTo) {
-      const fromText = tempAreaValidFrom ? new Date(tempAreaValidFrom).toLocaleString('fa-IR') : '---';
-      const toText = tempAreaValidTo ? new Date(tempAreaValidTo).toLocaleString('fa-IR') : '---';
-      parts.push(`محدوده زمانی: ${fromText} تا ${toText}`);
-    }
-
-    if (tempAreaPrayerEvents.length) {
-      const prayersLabel = tempAreaPrayerEvents.map(prayerEventValueToLabel).join('، ');
-      const beforeText = tempAreaPrayerBefore ? `${tempAreaPrayerBefore} دقیقه قبل` : null;
-      const afterText = tempAreaPrayerAfter ? `${tempAreaPrayerAfter} دقیقه بعد` : null;
-      const timingText = [beforeText, afterText].filter(Boolean).join(' / ');
-      parts.push(`محدودیت اوقات شرعی: ${prayersLabel}${timingText ? ` (${timingText})` : ''}`);
-    }
-
-    parts.push(`وضعیت: ${tempAreaIsActive ? 'فعال' : 'غیرفعال'}`);
-
-    return parts.join(' | ') || null;
-  };
-
   const handleOpenTempAreaEditModal = () => {
     if (!isTempAreaLayerActive) {
       toast.error('برای ویرایش محدوده موقت، لایه محدوده‌های موقت را فعال کنید');
@@ -4668,10 +4681,11 @@ const Amain = () => {
     setTempAreaDescription(selectedFeatureProperties?.reason || selectedFeatureProperties?.description || '');
     setTempAreaValidFrom(formatDateTimeLocal(selectedFeatureProperties?.valid_from || selectedFeatureProperties?.validFrom));
     setTempAreaValidTo(formatDateTimeLocal(selectedFeatureProperties?.valid_to || selectedFeatureProperties?.validTo));
-    setTempAreaPrayerEvents([]);
-    setTempAreaPrayerBefore('');
-    setTempAreaPrayerAfter('');
-    setTempAreaIsActive(true);
+    const { events, before, after } = normalizePrayerRules(selectedFeatureProperties?.prayer_rules || selectedFeatureProperties?.prayerRules);
+    setTempAreaPrayerEvents(events);
+    setTempAreaPrayerBefore(before);
+    setTempAreaPrayerAfter(after);
+    setTempAreaIsActive(Boolean(selectedFeatureProperties?.is_active ?? true));
     setIsTempAreaEditModalOpen(true);
   };
 
@@ -4690,11 +4704,13 @@ const Amain = () => {
 
     const payload = {
       floor: floorLabelToValue(mapFloor),
-      restrict_type: 'close',
+      title: tempAreaName?.trim() || null,
+      reason: tempAreaDescription?.trim() || null,
+      is_active: tempAreaIsActive,
       geom_geojson_4326: geometry,
-      reason: buildTempAreaReasonText(),
       valid_from: tempAreaValidFrom ? new Date(tempAreaValidFrom).toISOString() : null,
-      valid_to: tempAreaValidTo ? new Date(tempAreaValidTo).toISOString() : null
+      valid_to: tempAreaValidTo ? new Date(tempAreaValidTo).toISOString() : null,
+      prayer_rules: buildPrayerRulesPayload(tempAreaPrayerEvents, tempAreaPrayerBefore, tempAreaPrayerAfter)
     };
 
     try {
