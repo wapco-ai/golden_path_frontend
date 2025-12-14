@@ -41,6 +41,9 @@ const SELECTED_EDITABLE_FEATURE_SOURCE_ID = 'selected-editable-feature-source';
 const SELECTED_EDITABLE_FEATURE_LAYER_ID = 'selected-editable-feature-layer';
 const SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID = 'selected-editable-feature-line';
 const SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID = 'selected-editable-feature-fill';
+const VAN_DRAW_SOURCE_ID = 'van-draw-source';
+const VAN_DRAW_LINE_LAYER_ID = 'van-draw-line-layer';
+const VAN_DRAW_POINT_LAYER_ID = 'van-draw-point-layer';
 
 const GENDER_OPTIONS = [
   { value: 'female', label: 'بانوان' },
@@ -374,10 +377,55 @@ const Amain = () => {
       map.triggerRepaint();
     }
   }, [map, mapFloor]);
+  const ensureVanDrawLayers = useCallback(() => {
+    if (!map) return;
+
+    if (!map.getSource(VAN_DRAW_SOURCE_ID)) {
+      map.addSource(VAN_DRAW_SOURCE_ID, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] }
+      });
+    }
+
+    if (!map.getLayer(VAN_DRAW_LINE_LAYER_ID)) {
+      map.addLayer({
+        id: VAN_DRAW_LINE_LAYER_ID,
+        type: 'line',
+        source: VAN_DRAW_SOURCE_ID,
+        paint: {
+          'line-color': '#f97316',
+          'line-width': 4,
+          'line-dasharray': [1.6, 1.6]
+        },
+        filter: ['==', ['geometry-type'], 'LineString']
+      });
+    }
+
+    if (!map.getLayer(VAN_DRAW_POINT_LAYER_ID)) {
+      map.addLayer({
+        id: VAN_DRAW_POINT_LAYER_ID,
+        type: 'circle',
+        source: VAN_DRAW_SOURCE_ID,
+        paint: {
+          'circle-radius': 5,
+          'circle-color': '#1e40af',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff'
+        },
+        filter: [
+          'any',
+          ['==', ['geometry-type'], 'Point'],
+          ['==', ['geometry-type'], 'MultiPoint']
+        ]
+      });
+    }
+  }, [map]);
   const unknownComments = commentStats.total - commentStats.approved - commentStats.rejected;
   const approvedDegrees = (commentStats.approved / commentStats.total) * 360;
   const rejectedDegrees = (commentStats.rejected / commentStats.total) * 360;
   const unknownDegrees = (unknownComments / commentStats.total) * 360;
+  const [isVanDrawingMode, setIsVanDrawingMode] = useState(false);
+  const [vanLineCoordinates, setVanLineCoordinates] = useState([]);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [facManagementOpen, setfacManagementOpen] = useState(false);
   const [reportsManagementOpen, setReportsManagementOpen] = useState(false);
@@ -517,7 +565,7 @@ const Amain = () => {
   const isSavingPlaceInfo = isSavingDoorInfo || isSavingAreaInfo;
   const isLoadingPlaceInfo = isLoadingDoorInfo || isLoadingAreaInfo;
   const [categoryManagementOpen, setCategoryManagementOpen] = useState(false);
-  
+
 
   const [categories, setCategories] = useState([]);
   const [expandedCategories, setExpandedCategories] = useState([]);
@@ -571,6 +619,7 @@ const Amain = () => {
   const [culturalMap, setCulturalMap] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [currentMarker, setCurrentMarker] = useState(null);
+  const editMapTimeoutRef = useRef(null);
   const [titleForModal, setTitleForModal] = useState(''); // Current title field value
   const [adminAvatar, setAdminAvatar] = useState(null);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -999,6 +1048,7 @@ const Amain = () => {
   };
 
   const uploadCulturalFiles = async (files = [], entityId) => {
+    const targetEntityId = entityId ?? 'cultural-item';
     const uploadedFiles = [];
 
     for (const file of files) {
@@ -1021,7 +1071,7 @@ const Amain = () => {
         const response = await uploadFile({
           file: file.file,
           entityTable: 'contents',
-          entityId,
+          entityId: targetEntityId,
           bucket: resolveFileBucket(file),
           keepOriginalName: true
         });
@@ -1070,12 +1120,22 @@ const Amain = () => {
 
   const buildCulturalTranslationsPayload = (attachments = []) => {
     const mediaPayload = attachments
-      .map((file) => ({
-        type: file?.type || resolveAttachmentType(file?.mime || file?.type || ''),
-        mime: file?.mime || 'application/octet-stream',
-        url: file?.url || file?.path || ''
-      }))
-      .filter((item) => Boolean(item.url));
+      .map((file) => {
+        const url = file?.url || file?.path || '';
+        if (!url) return null;
+
+        return {
+          type: file?.type || resolveAttachmentType(file?.mime || file?.type || ''),
+          mime: file?.mime || 'application/octet-stream',
+          url,
+          path: file?.path || '',
+          bucket: file?.bucket,
+          metadata: file?.metadata || null,
+          name: file?.name,
+          orientation: file?.orientation ?? null
+        };
+      })
+      .filter(Boolean);
 
     const buildEntry = (title, body) => ({
       title: title || '',
@@ -1973,18 +2033,27 @@ const Amain = () => {
     }
   };
 
-
-  const exitEditMode = () => {
-    // Clean up map and marker FIRST
+  const cleanupCulturalMap = useCallback(() => {
+    console.log('Cultural map remove');
     if (currentMarker) {
       currentMarker.remove();
       setCurrentMarker(null);
     }
 
     if (culturalMap) {
-      culturalMap.remove();
+      try {
+        culturalMap.remove();
+      } catch (error) {
+        console.warn('Cultural map removal skipped', error);
+      }
       setCulturalMap(null);
     }
+  }, [currentMarker, culturalMap]);
+
+
+  const exitEditMode = () => {
+    // Clean up map and marker FIRST
+    cleanupCulturalMap();
 
     // Reset edit mode states
     setIsEditingCultural(false);
@@ -2113,15 +2182,7 @@ const Amain = () => {
 
   const handleCancelEditCultural = () => {
     // Clean up map and marker
-    if (currentMarker) {
-      currentMarker.remove();
-      setCurrentMarker(null);
-    }
-
-    if (culturalMap) {
-      culturalMap.remove();
-      setCulturalMap(null);
-    }
+    cleanupCulturalMap();
 
     setIsEditingCultural(false);
     setEditingCulturalId(null);
@@ -2237,15 +2298,7 @@ const Amain = () => {
     // Also reset the prayer time restrictions list if needed
     // setCulturalPrayerTimeRestrictionsList([]); // Uncomment if you want to clear saved restrictions too
 
-    if (currentMarker) {
-      currentMarker.remove();
-      setCurrentMarker(null);
-    }
-
-    if (culturalMap) {
-      culturalMap.remove();
-      setCulturalMap(null);
-    }
+    cleanupCulturalMap();
 
     setLanguageTitles({
       english: '',
@@ -2329,19 +2382,6 @@ const Amain = () => {
     }
   };
 
-  useEffect(() => {
-    if (!isAddCulturalModalOpen) {
-      // Clean up when modal closes
-      if (currentMarker) {
-        currentMarker.remove();
-        setCurrentMarker(null);
-      }
-      if (culturalMap) {
-        culturalMap.remove();
-        setCulturalMap(null);
-      }
-    }
-  }, [isAddCulturalModalOpen]);
 
   // Cultural restriction handlers
   const handleCulturalDateFilterToggle = (filter) => {
@@ -2573,7 +2613,14 @@ const Amain = () => {
     });
   };
 
+
   const initializeEditMap = () => {
+    // Prevent re-initializing the edit map if it already exists
+    if (culturalMap) {
+      console.warn('پیش از این نقشه ایجاد شده است.');
+      return;
+    }
+
     if (!document.getElementById('edit-cultural-map-container')) {
       console.log('Map container not found');
       return;
@@ -2625,40 +2672,57 @@ const Amain = () => {
     // Add click event to map for selecting new location
     mapInstance.on('click', (e) => {
       const coordinates = e.lngLat;
+      // بررسی اینکه آیا مکان جدید واقعاً متفاوت است
+      if (!selectedLocation || (coordinates.lng !== selectedLocation.lng || coordinates.lat !== selectedLocation.lat)) {
+        // Update selected location state
+        setSelectedLocation(coordinates);
 
-      // Update selected location state
-      setSelectedLocation(coordinates);
+        // Remove existing marker if it exists
+        if (marker) {
+          marker.remove();
+        }
 
-      // Remove existing marker if it exists
-      if (marker) {
-        marker.remove();
+        // Create new marker at clicked location WITH CUSTOM RED MARKER
+        marker = new maplibregl.Marker({
+          element: createRedMarker()  // Use custom red marker
+        })
+          .setLngLat([coordinates.lng, coordinates.lat])
+          .addTo(mapInstance);
+
+        // Update current marker in state
+        setCurrentMarker(marker);
+
+        console.log('New location selected:', coordinates);
+        // پاک‌سازی منابع هنگام خروج از حالت ویرایش
+
       }
-
-      // Create new marker at clicked location WITH CUSTOM RED MARKER
-      marker = new maplibregl.Marker({
-        element: createRedMarker()  // Use custom red marker
-      })
-        .setLngLat([coordinates.lng, coordinates.lat])
-        .addTo(mapInstance);
-
-      // Update current marker in state
-      setCurrentMarker(marker);
-
-      console.log('New location selected:', coordinates);
     });
 
     setCulturalMap(mapInstance);
     return mapInstance;
-  };
+  }
+
 
   useEffect(() => {
-    if (isEditingCultural && editingCulturalData) {
+    if (!isEditingCultural || !editingCulturalData) return;
+
+    // Ensure not to reinitialize if already set up
+    if (culturalMap) return;
+
+    if (isEditingCultural && editingCulturalData && !culturalMap) {
       // Initialize edit map after a short delay to ensure DOM is ready
-      setTimeout(() => {
+      editMapTimeoutRef.current = setTimeout(() => {
         initializeEditMap();
       }, 100);
     }
-  }, [isEditingCultural, editingCulturalData]);
+
+    return () => {
+      if (editMapTimeoutRef.current) {
+        clearTimeout(editMapTimeoutRef.current);
+        editMapTimeoutRef.current = null;
+      }
+    };
+  });
 
   const handleCulturalPrayerNextMonth = () => {
     setCulturalPrayerCalendarDate(prev => {
@@ -2995,7 +3059,7 @@ const Amain = () => {
     };
   }, [language, culturalPlaceCategory, translateLabel, isEditingCultural]);
 
-  const handleSaveCulturalData = () => {
+  const handleSaveCulturalData = async () => {
     if (!selectedPlaceType) {
       setCulturalTypeError(true);
       alert('لطفا حداقل یک نوع مکان را انتخاب کنید');
@@ -3007,13 +3071,13 @@ const Amain = () => {
       return;
     }
 
-    // if (!culturalPoiId) {
-    //   alert('شناسه poi لازم است');
-    //   return;
-    // }
-
     if (!culturalPlaceCategory) {
       alert('لطفا گروه اصلی را انتخاب کنید');
+      return;
+    }
+
+    if (!selectedLocation) {
+      alert('لطفا یک نقطه روی نقشه انتخاب کنید');
       return;
     }
 
@@ -3021,55 +3085,56 @@ const Amain = () => {
       (subGroup) => subGroup.value === culturalPlaceSubcategory
     );
 
-    const attachments = profileImages.map((img) => ({
-      type: 'image',
-      url: img.url || img,
-      mime: img.mime || 'image/jpeg'
-    }));
+    const resolveCategoryLeafId = () => {
+      const value = selectedSubGroup?.value;
+      if (value === undefined || value === null || value === '') return null;
 
-    const displaySettingsPayload = buildDisplaySettingsPayload();
-    const settingsPayload = buildSettingsPayload();
+      const numericValue = Number(value);
+      return Number.isNaN(numericValue) ? value : numericValue;
+    };
 
-    createCulturalItem({
-      poiId: Number(culturalPoiId),
-      title: culturalTitle,
-      description: culturalDescription || '',
-      primaryImage: primaryImage?.url || null,
-      attachments,
-      settings: settingsPayload,
-      displaySettings: displaySettingsPayload,
-      display_settings: displaySettingsPayload,
-      showUserFeedbacks: displaySettingsPayload.showUserFeedbacks,
-      show_user_feedbacks: displaySettingsPayload.showUserFeedbacks,
-      showMediaGallery: displaySettingsPayload.showMediaGallery,
-      show_media_gallery: displaySettingsPayload.showMediaGallery,
-      showUserComments: displaySettingsPayload.showUserComments,
-      show_user_comments: displaySettingsPayload.showUserComments,
-      showMultimedia: displaySettingsPayload.showMultimedia,
-      show_multimedia: displaySettingsPayload.showMultimedia,
-      // Add grouping data
-      grouping: {
-        group_id: culturalPlaceCategory,
-        sub_group_id: selectedSubGroup?.value || null,
-        sub_group_label: selectedSubGroup?.label || null
-      },
-      culturalTypes: selectedCulturalTypes,
-      cultural_types: selectedCulturalTypes,
-      // Include address and location if available
-      addressInShrine: placeAddress,
-      location: selectedLocation
-        ? { lng: selectedLocation.lng, lat: selectedLocation.lat }
-        : null
-    })
-      .then(() => {
-        toast.success('اطلاعات فرهنگی با موفقیت ثبت شد');
-        closeAddCulturalModal();
-        loadCulturalItems();
-      })
-      .catch((error) => {
-        console.error('ثبت آیتم فرهنگی ناموفق بود', error);
-        toast.error('ثبت آیتم فرهنگی ناموفق بود');
+    try {
+      const uploadedFiles = await uploadCulturalFiles([
+        ...profileImages,
+        ...audioFiles,
+        ...textFiles
+      ], culturalPoiId || 'new-cultural-item');
+
+      const attachments = buildAttachmentPayload(uploadedFiles);
+      const translationsPayload = buildCulturalTranslationsPayload(attachments);
+      const settingsPayload = buildSettingsPayload();
+      const poiPayload = {
+        floor: floorLabelToValue(mapFloor),
+        category_leaf_id: resolveCategoryLeafId(),
+        location: {
+          lng: selectedLocation.lng,
+          lat: selectedLocation.lat
+        },
+        addressInShrine: placeAddress,
+        grouping: {
+          group_id: culturalPlaceCategory,
+          sub_group_id: selectedSubGroup?.value || null,
+          sub_group_label: selectedSubGroup?.label || null
+        },
+        placeType: selectedPlaceType || 'farhangi'
+      };
+
+      await createCulturalItem({
+        poi: poiPayload,
+        translations: translationsPayload,
+        settings: {
+          ...settingsPayload,
+          placeType: selectedPlaceType || 'farhangi'
+        }
       });
+
+      toast.success('اطلاعات فرهنگی با موفقیت ثبت شد');
+      closeAddCulturalModal();
+      loadCulturalItems();
+    } catch (error) {
+      console.error('ثبت آیتم فرهنگی ناموفق بود', error);
+      toast.error('ثبت آیتم فرهنگی ناموفق بود');
+    }
   };
 
 
@@ -3127,7 +3192,7 @@ const Amain = () => {
   };
 
   const handleSaveLanguageTitles = () => {
-    setIsTitleLanguageModalOpen(false); t
+    setIsTitleLanguageModalOpen(false);
   };
 
   const handleSaveLanguageDescriptions = () => {
@@ -3264,35 +3329,38 @@ const Amain = () => {
           setLocationMarker(null);
         }
       }
+
+      setIsVanDrawingMode(false);
+      setVanLineCoordinates([]);
     }
   }, [activeMenu]);
 
   useEffect(() => {
+
     if (isEditingCultural && editingCulturalId && document.getElementById('edit-cultural-map-container')) {
-      // Clean up any existing map first
-      if (culturalMap) {
-        culturalMap.remove();
-        setCulturalMap(null);
+      if (editMapTimeoutRef.current) {
+        clearTimeout(editMapTimeoutRef.current);
+        editMapTimeoutRef.current = null;
       }
 
-      // Initialize the map
-      initializeEditMap();
+      // Check if map has already been initialized
+      if (isEditingCultural && editingCulturalData && !culturalMap) { // یا هر متغیر مشابه
+        cleanupCulturalMap();
+        // initializeEditMap();
+      }
     }
 
-    return () => {
-      // Clean up on unmount or when editing mode ends
-      if (!isEditingCultural) {
-        if (currentMarker) {
-          currentMarker.remove();
-          setCurrentMarker(null);
-        }
-        if (culturalMap) {
-          culturalMap.remove();
-          setCulturalMap(null);
-        }
-      }
-    };
-  }, [isEditingCultural, editingCulturalId]);
+    // return () => {
+    //   if (editMapTimeoutRef.current) {
+    //     clearTimeout(editMapTimeoutRef.current);
+    //     editMapTimeoutRef.current = null;
+    //   }
+    //   // Clean up on unmount or when editing mode ends
+    //   if (!isEditingCultural) {
+    //     cleanupCulturalMap();
+    //   }
+    // };
+  }, [isEditingCultural, editingCulturalId, cleanupCulturalMap, culturalMap]);
 
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
@@ -3309,6 +3377,22 @@ const Amain = () => {
       map.off('load', handleLoad);
     };
   }, [map, activeMenu, layerVisibility, applyLayerVisibility]);
+
+  useEffect(() => {
+    if (!map || activeMenu !== 'mapmanage') return undefined;
+
+    if (map.isStyleLoaded()) {
+      ensureVanDrawLayers();
+      return undefined;
+    }
+
+    const handleLoad = () => ensureVanDrawLayers();
+    map.once('load', handleLoad);
+
+    return () => {
+      map.off('load', handleLoad);
+    };
+  }, [map, activeMenu, ensureVanDrawLayers]);
 
   useEffect(() => {
     if (activeMenu !== 'mapmanage') {
@@ -3334,6 +3418,45 @@ const Amain = () => {
   useEffect(() => {
     setSelectedEditableFeature(null);
   }, [activeEditableLayerId]);
+
+  useEffect(() => {
+    if (!map || activeMenu !== 'mapmanage') return;
+
+    const vanSource = map.getSource(VAN_DRAW_SOURCE_ID);
+
+    if (!vanSource) return;
+
+    const vanFeatures = [];
+
+    if (vanLineCoordinates.length) {
+      vanFeatures.push({
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: vanLineCoordinates
+        },
+        properties: {
+          type: 'van-route'
+        }
+      });
+
+      vanLineCoordinates.forEach((coordinate, index) => {
+        vanFeatures.push({
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: coordinate
+          },
+          properties: {
+            type: 'van-node',
+            order: index + 1
+          }
+        });
+      });
+    }
+
+    vanSource.setData({ type: 'FeatureCollection', features: vanFeatures });
+  }, [map, activeMenu, vanLineCoordinates]);
 
   useEffect(() => {
     if (!selectedEditableFeature) {
@@ -3570,6 +3693,24 @@ const Amain = () => {
     const handleMapClick = async (event) => {
       const { lngLat, point } = event;
 
+      if (isVanDrawingMode) {
+        const newCoordinate = [lngLat.lng, lngLat.lat];
+
+        setVanLineCoordinates((prev) => {
+          const updated = [...prev, newCoordinate];
+          const utmCoordinate = convertLngLatToUtm32640({ lng: lngLat.lng, lat: lngLat.lat });
+          console.log('van path point added', { wgs84: newCoordinate, utm: utmCoordinate });
+
+          toast.success(updated.length === 1
+            ? 'نقطه شروع مسیر ون ثبت شد'
+            : 'نقطه جدید به مسیر ون اضافه شد');
+
+          return updated;
+        });
+
+        return;
+      }
+
       if (!activeEditableLayer) {
         console.warn('هیچ لایه قابل ویرایشی انتخاب نشده است.');
         return;
@@ -3684,7 +3825,18 @@ const Amain = () => {
     map.on('click', handleMapClick);
 
     return () => map.off('click', handleMapClick);
-  }, [map, activeMenu, activeEditableLayer]);
+  }, [
+    map,
+    activeMenu,
+    activeEditableLayer,
+    isVanDrawingMode,
+    mapFloor,
+    isDoorMoveMode,
+    selectedDoorId,
+    selectedFeatureProperties,
+    selectedDoorAccessPointId,
+    refreshLayerTiles
+  ]);
 
   const handleZoomIn = () => {
     if (map) {
@@ -4266,6 +4418,23 @@ const Amain = () => {
     });
   };
 
+  const handleToggleVanDrawing = () => {
+    if (!map) {
+      toast.error('نقشه هنوز آماده نیست');
+      return;
+    }
+
+    setIsVanDrawingMode((prev) => {
+      const next = !prev;
+
+      if (next) {
+        toast.info('برای ترسیم مسیر ون روی نقشه کلیک کنید.');
+      }
+
+      return next;
+    });
+  };
+
   const handleCancelLocationMarker = () => {
     setIsLocationMarkerMode(false);
 
@@ -4347,7 +4516,7 @@ const Amain = () => {
       map.off('move', keepMarkerCentered);
     };
   }, [map, isLocationMarkerMode, locationMarker]);
-  
+
 
   useEffect(() => {
     if (!isLocationMarkerMode && locationMarker) {
@@ -6309,7 +6478,7 @@ const Amain = () => {
                           className="select-location-btn-edit"
                           onClick={() => {
                             // Reinitialize the map if it doesn't exist
-                            if (!culturalMap) {
+                            if (isEditingCultural && editingCulturalData && !culturalMap) {
                               initializeEditMap();
                             } else {
                               // Focus on current location
@@ -6709,19 +6878,19 @@ const Amain = () => {
                             className={`cultural-type-option-edit ${isSelected ? 'selected' : ''}`}
                             onClick={() => handleCulturalTypeToggle(typeOption.label)}
                           >
-                          <div className="cultural-type-checkbox-edit">
-                            {isSelected ? (
-                              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
-                                <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
-                              </svg>
-                            ) : (
-                              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" stroke="#D9D9D9" />
-                              </svg>
-                            )}
-                          </div>
-                          <span>{typeOption.label}</span>
+                            <div className="cultural-type-checkbox-edit">
+                              {isSelected ? (
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
+                                  <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
+                                </svg>
+                              ) : (
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" stroke="#D9D9D9" />
+                                </svg>
+                              )}
+                            </div>
+                            <span>{typeOption.label}</span>
                           </div>
                         );
                       })}
@@ -7454,7 +7623,7 @@ const Amain = () => {
                     <div className="date-separator3"></div>
 
                     {/* Button 3 */}
-                    <div className={`action-button ${openSubMenu === 3 ? 'selected' : ''}`}
+                    <div className={`action-button van-manage ${openSubMenu === 3 ? 'selected' : ''}`}
                       onClick={() => {
                         setOpenSubMenu(openSubMenu === 3 ? null : 3);
                         // Reset location marker mode when other buttons are clicked
@@ -7466,7 +7635,10 @@ const Amain = () => {
                     </div>
                     {openSubMenu === 3 && (
                       <div className="sub-buttons3">
-                        <button className="sub-btn">
+                        <button
+                          className={`sub-btn van-create ${isVanDrawingMode ? 'active' : ''}`}
+                          onClick={handleToggleVanDrawing}
+                        >
                           <svg width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.354 13.646l2.853 2.854-2.854 2.854-.707-.707L21.293 17H17v4.293l1.646-1.646.707.707-2.853 2.853-2.854-2.854.707-.707L16 21.293V17h-4.293l1.646 1.646-.707.707L9.793 16.5l2.854-2.854.707.707L11.707 16H16v-4.293l-1.646 1.646-.707-.707L16.5 9.793l2.854 2.854-.707.707L17 11.707V16h4.293l-1.646-1.646zM9 6H6.537L2.468 18l-.947-.321L5.48 6H4V1h5v2h9v1H9zM8 5V2H5v3z" /><path fill="none" d="M0 0h24v24H0z" /></svg>
                         </button>
                         <button className="sub-btn">
@@ -7630,18 +7802,18 @@ const Amain = () => {
                               </div>
                             )}
                             {selectedFeatureCoordinates && Array.isArray(selectedFeatureCoordinates) && (
-                                <div className="selected-feature-row">
-                                  <span className="selected-feature-label">مختصات:</span>
-                                  <span className="selected-feature-value">
-                                    {selectedFeatureCoordinates.map((coord, index) => (
-                                      <React.Fragment key={`coord-${index}`}>
-                                        {Number(coord).toFixed(5)}
-                                        {index < selectedFeatureCoordinates.length - 1 && ', '}
-                                      </React.Fragment>
-                                    ))}
-                                  </span>
-                                </div>
-                              )}
+                              <div className="selected-feature-row">
+                                <span className="selected-feature-label">مختصات:</span>
+                                <span className="selected-feature-value">
+                                  {selectedFeatureCoordinates.map((coord, index) => (
+                                    <React.Fragment key={`coord-${index}`}>
+                                      {Number(coord).toFixed(5)}
+                                      {index < selectedFeatureCoordinates.length - 1 && ', '}
+                                    </React.Fragment>
+                                  ))}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -9527,15 +9699,15 @@ const Amain = () => {
                             >
                               <div className="cultural-type-checkbox10">
                                 {isSelected ? (
-                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
-                                  <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
-                                </svg>
-                              ) : (
-                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" stroke="#D9D9D9" />
-                                </svg>
-                              )}
+                                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" fill="#0F71EF" stroke="#0F71EF" />
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M14.0303 6.96967C14.3232 7.26256 14.3232 7.73744 14.0303 8.03033L9.03033 13.0303C8.73744 13.3232 8.26256 13.3232 7.96967 13.0303L5.96967 11.0303C5.67678 10.7374 5.67678 10.2626 5.96967 9.96967C6.26256 9.67678 6.73744 9.67678 7.03033 9.96967L8.5 11.4393L12.9697 6.96967C13.2626 6.67678 13.7374 6.67678 14.0303 6.96967Z" fill="white" />
+                                  </svg>
+                                ) : (
+                                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="0.5" y="0.5" width="19" height="19" rx="3.5" stroke="#D9D9D9" />
+                                  </svg>
+                                )}
                               </div>
                               <span>{typeOption.label}</span>
                             </div>
@@ -11416,20 +11588,20 @@ const Amain = () => {
                           <div className="form-column">
                             <label className="form-label">انتخاب رویداد</label>
                             <div className="prayer-event-grid">
-                                {PRAYER_EVENT_OPTIONS.map((option) => (
-                                  <div
-                                    key={option.value}
-                                    className={`prayer-event-option ${editSelectedPrayerEvents.includes(option.value) ? 'selected' : ''}`}
-                                    onClick={() => toggleEditPrayerEvent(option.value)}
-                                  >
-                                    {editSelectedPrayerEvents.includes(option.value) ? (
-                                      <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#0F71EF" /></svg>
-                                    ) : (
-                                      <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#fff" stroke="#D9D9D9" /></svg>
-                                    )}
-                                    <span className="event-label">{option.label}</span>
-                                  </div>
-                                ))}
+                              {PRAYER_EVENT_OPTIONS.map((option) => (
+                                <div
+                                  key={option.value}
+                                  className={`prayer-event-option ${editSelectedPrayerEvents.includes(option.value) ? 'selected' : ''}`}
+                                  onClick={() => toggleEditPrayerEvent(option.value)}
+                                >
+                                  {editSelectedPrayerEvents.includes(option.value) ? (
+                                    <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#0F71EF" /></svg>
+                                  ) : (
+                                    <svg width="22" height="22" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#fff" stroke="#D9D9D9" /></svg>
+                                  )}
+                                  <span className="event-label">{option.label}</span>
+                                </div>
+                              ))}
                             </div>
                           </div>
 
