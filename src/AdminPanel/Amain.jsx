@@ -551,6 +551,15 @@ const Amain = () => {
   const [tempAreaDescription, setTempAreaDescription] = useState('');
   const [tempAreaValidFrom, setTempAreaValidFrom] = useState('');
   const [tempAreaValidTo, setTempAreaValidTo] = useState('');
+  const [tempAreaStartTime, setTempAreaStartTime] = useState('');
+  const [tempAreaEndTime, setTempAreaEndTime] = useState('');
+  const [tempAreaSelectedStartDate, setTempAreaSelectedStartDate] = useState(null);
+  const [tempAreaSelectedEndDate, setTempAreaSelectedEndDate] = useState(null);
+  const [tempAreaCalendarDate, setTempAreaCalendarDate] = useState(() => ({
+    year: currentJalaliDate.jy,
+    month: currentJalaliDate.jm
+  }));
+  const [activeTempAreaDateField, setActiveTempAreaDateField] = useState(null);
   const [tempAreaPrayerEvents, setTempAreaPrayerEvents] = useState([]);
   const [tempAreaPrayerBefore, setTempAreaPrayerBefore] = useState('');
   const [tempAreaPrayerAfter, setTempAreaPrayerAfter] = useState('');
@@ -4668,6 +4677,49 @@ const Amain = () => {
     return date.toISOString().slice(0, 16);
   };
 
+  const convertIsoToJalaliDateTime = (value) => {
+    if (!value) return { date: null, time: '' };
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return { date: null, time: '' };
+
+    const jalali = toJalaali(date.getFullYear(), date.getMonth() + 1, date.getDate());
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+
+    return {
+      date: { year: jalali.jy, month: jalali.jm, day: jalali.jd },
+      time: `${hours}:${minutes}`
+    };
+  };
+
+  const buildIsoFromJalaliDateTime = (dateParts, time) => {
+    if (!dateParts || !time) return '';
+
+    const [hours, minutes] = time.split(':');
+    if (hours === undefined || minutes === undefined) return '';
+
+    const { gy, gm, gd } = toGregorian(dateParts.year, dateParts.month, dateParts.day);
+    const isoDate = new Date(Date.UTC(gy, gm - 1, gd, Number(hours), Number(minutes)));
+
+    if (Number.isNaN(isoDate.getTime())) return '';
+
+    return isoDate.toISOString();
+  };
+
+  const formatTempAreaDateLabel = (dateParts, time) => {
+    if (!dateParts || !time) return 'انتخاب تاریخ';
+    return `روز ${dateParts.day} ${getJalaliMonthName(dateParts.month)} ${dateParts.year} - ${time}`;
+  };
+
+  useEffect(() => {
+    setTempAreaValidFrom(buildIsoFromJalaliDateTime(tempAreaSelectedStartDate, tempAreaStartTime));
+  }, [tempAreaSelectedStartDate, tempAreaStartTime]);
+
+  useEffect(() => {
+    setTempAreaValidTo(buildIsoFromJalaliDateTime(tempAreaSelectedEndDate, tempAreaEndTime));
+  }, [tempAreaSelectedEndDate, tempAreaEndTime]);
+
   const handleOpenTempAreaEditModal = async () => {
     if (!isTempAreaLayerActive) {
       toast.error('برای ویرایش محدوده موقت، لایه محدوده‌های موقت را فعال کنید');
@@ -4683,6 +4735,12 @@ const Amain = () => {
     setTempAreaDescription(selectedFeatureProperties?.reason || selectedFeatureProperties?.description || '');
     setTempAreaValidFrom(formatDateTimeLocal(selectedFeatureProperties?.valid_from || selectedFeatureProperties?.validFrom));
     setTempAreaValidTo(formatDateTimeLocal(selectedFeatureProperties?.valid_to || selectedFeatureProperties?.validTo));
+    const initialStart = convertIsoToJalaliDateTime(selectedFeatureProperties?.valid_from || selectedFeatureProperties?.validFrom);
+    const initialEnd = convertIsoToJalaliDateTime(selectedFeatureProperties?.valid_to || selectedFeatureProperties?.validTo);
+    setTempAreaSelectedStartDate(initialStart.date);
+    setTempAreaStartTime(initialStart.time);
+    setTempAreaSelectedEndDate(initialEnd.date);
+    setTempAreaEndTime(initialEnd.time);
     const { events, before, after } = normalizePrayerRules(selectedFeatureProperties?.prayer_rules || selectedFeatureProperties?.prayerRules);
     setTempAreaPrayerEvents(events);
     setTempAreaPrayerBefore(before);
@@ -4699,6 +4757,12 @@ const Amain = () => {
       setTempAreaDescription(tempAreaDetails?.reason || tempAreaDetails?.description || '');
       setTempAreaValidFrom(formatDateTimeLocal(tempAreaDetails?.valid_from || tempAreaDetails?.validFrom));
       setTempAreaValidTo(formatDateTimeLocal(tempAreaDetails?.valid_to || tempAreaDetails?.validTo));
+      const detailsStart = convertIsoToJalaliDateTime(tempAreaDetails?.valid_from || tempAreaDetails?.validFrom);
+      const detailsEnd = convertIsoToJalaliDateTime(tempAreaDetails?.valid_to || tempAreaDetails?.validTo);
+      setTempAreaSelectedStartDate(detailsStart.date);
+      setTempAreaStartTime(detailsStart.time);
+      setTempAreaSelectedEndDate(detailsEnd.date);
+      setTempAreaEndTime(detailsEnd.time);
       setTempAreaPrayerEvents(normalizedPrayerRules.events);
       setTempAreaPrayerBefore(normalizedPrayerRules.before);
       setTempAreaPrayerAfter(normalizedPrayerRules.after);
@@ -6571,6 +6635,83 @@ const Amain = () => {
           key={`p-day-${day}`}
           className={classes}
           onClick={() => handlePrayerDaySelect(day)}
+        >
+          {day}
+        </div>
+      );
+    }
+
+    return days;
+  };
+
+  const handleTempAreaPrevMonth = () => {
+    setTempAreaCalendarDate(prev => {
+      let newMonth = prev.month - 1;
+      let newYear = prev.year;
+      if (newMonth < 1) {
+        newMonth = 12;
+        newYear--;
+      }
+      return { ...prev, month: newMonth, year: newYear };
+    });
+  };
+
+  const handleTempAreaNextMonth = () => {
+    setTempAreaCalendarDate(prev => {
+      let newMonth = prev.month + 1;
+      let newYear = prev.year;
+      if (newMonth > 12) {
+        newMonth = 1;
+        newYear++;
+      }
+      return { ...prev, month: newMonth, year: newYear };
+    });
+  };
+
+  const renderTempAreaJalaliCalendarDays = () => {
+    const { year, month } = tempAreaCalendarDate;
+    const now = new Date();
+    const today = toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+
+    const firstDay = jalaliMonthStart(year, month);
+    const daysInMonth = jalaliMonthLength(year, month);
+    const days = [];
+
+    for (let i = 0; i < firstDay; i++) {
+      days.push(<div key={`temp-empty-${i}`} className="calendar-day empty"></div>);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const isToday = year === today.jy && month === today.jm && day === today.jd;
+      const isStart = tempAreaSelectedStartDate
+        && tempAreaSelectedStartDate.year === year
+        && tempAreaSelectedStartDate.month === month
+        && tempAreaSelectedStartDate.day === day;
+      const isEnd = tempAreaSelectedEndDate
+        && tempAreaSelectedEndDate.year === year
+        && tempAreaSelectedEndDate.month === month
+        && tempAreaSelectedEndDate.day === day;
+      const isInRange = tempAreaSelectedStartDate && tempAreaSelectedEndDate
+        ? compareJalaliDates({ year, month, day }, tempAreaSelectedStartDate) >= 0
+        && compareJalaliDates({ year, month, day }, tempAreaSelectedEndDate) <= 0
+        : false;
+
+      days.push(
+        <div
+          key={`temp-${day}`}
+          className={`calendar-day ${isToday ? 'today' : ''} ${isStart ? 'selected' : ''} ${isEnd ? 'selected-end' : ''} ${isInRange ? 'in-range' : ''}`}
+          onClick={() => {
+            if (isTempAreaFormDisabled) return;
+
+            const selectedDate = { year, month, day };
+            if (activeTempAreaDateField === 'start') {
+              setTempAreaSelectedStartDate(selectedDate);
+              setActiveTempAreaDateField(null);
+            } else if (activeTempAreaDateField === 'end') {
+              setTempAreaSelectedEndDate(selectedDate);
+              setActiveTempAreaDateField(null);
+            }
+          }}
         >
           {day}
         </div>
@@ -9002,25 +9143,107 @@ const Amain = () => {
                   <div className="dual-input">
                     <div className="input-wrapper">
                       <span className="input-label">شروع</span>
+                      <button
+                        type="button"
+                        className="date-input-display"
+                        onClick={() => {
+                          if (isTempAreaFormDisabled) return;
+                          if (tempAreaSelectedStartDate) {
+                            setTempAreaCalendarDate({
+                              year: tempAreaSelectedStartDate.year,
+                              month: tempAreaSelectedStartDate.month
+                            });
+                          }
+                          setActiveTempAreaDateField('start');
+                        }}
+                        disabled={isTempAreaFormDisabled}
+                      >
+                        {formatTempAreaDateLabel(tempAreaSelectedStartDate, tempAreaStartTime)}
+                      </button>
                       <input
-                        type="datetime-local"
+                        type="time"
                         className="form-input"
-                        value={tempAreaValidFrom}
-                        onChange={(e) => setTempAreaValidFrom(e.target.value)}
+                        value={tempAreaStartTime}
+                        onChange={(e) => setTempAreaStartTime(e.target.value)}
                         disabled={isTempAreaFormDisabled}
                       />
                     </div>
                     <div className="input-wrapper">
                       <span className="input-label">پایان</span>
+                      <button
+                        type="button"
+                        className="date-input-display"
+                        onClick={() => {
+                          if (isTempAreaFormDisabled) return;
+                          if (tempAreaSelectedEndDate) {
+                            setTempAreaCalendarDate({
+                              year: tempAreaSelectedEndDate.year,
+                              month: tempAreaSelectedEndDate.month
+                            });
+                          }
+                          setActiveTempAreaDateField('end');
+                        }}
+                        disabled={isTempAreaFormDisabled}
+                      >
+                        {formatTempAreaDateLabel(tempAreaSelectedEndDate, tempAreaEndTime)}
+                      </button>
                       <input
-                        type="datetime-local"
+                        type="time"
                         className="form-input"
-                        value={tempAreaValidTo}
-                        onChange={(e) => setTempAreaValidTo(e.target.value)}
+                        value={tempAreaEndTime}
+                        onChange={(e) => setTempAreaEndTime(e.target.value)}
                         disabled={isTempAreaFormDisabled}
                       />
                     </div>
                   </div>
+                  {activeTempAreaDateField && (
+                    <div className="jalali-calendar temp-area-calendar">
+                      <div className="calendar-header">
+                        <div className="month-year-selector">
+                          <select
+                            value={tempAreaCalendarDate.month}
+                            onChange={(e) => setTempAreaCalendarDate(prev => ({ ...prev, month: parseInt(e.target.value) }))}
+                            className="month-select"
+                          >
+                            {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                              <option key={month} value={month}>
+                                {getJalaliMonthName(month)}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={tempAreaCalendarDate.year}
+                            onChange={(e) => setTempAreaCalendarDate(prev => ({ ...prev, year: parseInt(e.target.value) }))}
+                            className="year-select"
+                          >
+                            {jalaliYearOptions.map(year => (
+                              <option key={year} value={year}>{year}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="calendar-nav">
+                          <button className="nav-btn prev" onClick={handleTempAreaPrevMonth}>
+                            ‹
+                          </button>
+                          <button className="nav-btn next" onClick={handleTempAreaNextMonth}>
+                            ›
+                          </button>
+                        </div>
+                      </div>
+                      <div className="day-names">
+                        <div className="day-name">ش</div>
+                        <div className="day-name">ی</div>
+                        <div className="day-name">د</div>
+                        <div className="day-name">س</div>
+                        <div className="day-name">چ</div>
+                        <div className="day-name">پ</div>
+                        <div className="day-name">ج</div>
+                      </div>
+                      <div className="calendar-days">
+                        {renderTempAreaJalaliCalendarDays()}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-group">
