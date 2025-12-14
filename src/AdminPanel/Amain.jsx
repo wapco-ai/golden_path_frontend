@@ -427,7 +427,6 @@ const Amain = () => {
   const unknownDegrees = (unknownComments / commentStats.total) * 360;
   const [isVanDrawingMode, setIsVanDrawingMode] = useState(false);
   const [vanLineCoordinates, setVanLineCoordinates] = useState([]);
-  const [isSavingVanRoute, setIsSavingVanRoute] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [facManagementOpen, setfacManagementOpen] = useState(false);
   const [reportsManagementOpen, setReportsManagementOpen] = useState(false);
@@ -3423,14 +3422,6 @@ const Amain = () => {
   }, [activeEditableLayerId]);
 
   useEffect(() => {
-    if (activeMenu !== 'mapmanage') return;
-
-    if (isVanEdgesLayerActive) {
-      setOpenSubMenu(3);
-    }
-  }, [activeMenu, isVanEdgesLayerActive]);
-
-  useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return;
 
     const vanSource = map.getSource(VAN_DRAW_SOURCE_ID);
@@ -3705,17 +3696,16 @@ const Amain = () => {
       const { lngLat, point } = event;
 
       if (isVanDrawingMode) {
-        if (isSavingVanRoute) {
-          toast.info('در حال ذخیره مسیر ون هستید، لطفاً صبر کنید');
-          return;
-        }
-
         const newCoordinate = [lngLat.lng, lngLat.lat];
 
         setVanLineCoordinates((prev) => {
           const updated = [...prev, newCoordinate];
           const utmCoordinate = convertLngLatToUtm32640({ lng: lngLat.lng, lat: lngLat.lat });
           console.log('van path point added', { wgs84: newCoordinate, utm: utmCoordinate });
+
+          toast.success(updated.length === 1
+            ? 'نقطه شروع مسیر ون ثبت شد'
+            : 'نقطه جدید به مسیر ون اضافه شد');
 
           return updated;
         });
@@ -3842,7 +3832,6 @@ const Amain = () => {
     activeMenu,
     activeEditableLayer,
     isVanDrawingMode,
-    isSavingVanRoute,
     mapFloor,
     isDoorMoveMode,
     selectedDoorId,
@@ -4431,95 +4420,21 @@ const Amain = () => {
     });
   };
 
-  const persistVanRoute = useCallback(async () => {
-    if (vanLineCoordinates.length < 2) {
-      toast.error('برای ثبت مسیر ون حداقل دو نقطه لازم است');
-      return;
-    }
-
-    const floor = floorLabelToValue(mapFloor);
-    const utmCoordinates = vanLineCoordinates.map(([lng, lat]) => convertLngLatToUtm32640({ lng, lat }));
-
-    try {
-      setIsSavingVanRoute(true);
-
-      const nodeIds = [];
-
-      for (let index = 0; index < utmCoordinates.length; index += 1) {
-        const { x, y } = utmCoordinates[index];
-
-        const nodeResponse = await createVanNode({
-          floor,
-          node_type: 'junction',
-          geom: { x, y },
-          basic_info: {
-            title: { fa: `نقطه مسیر ون ${index + 1}` },
-            description: { fa: `ثبت شده در طبقه ${floorValueToLabel(floor)}` }
-          }
-        });
-
-        nodeIds.push(nodeResponse?.id);
-      }
-
-      for (let index = 0; index < nodeIds.length - 1; index += 1) {
-        await createVanEdge({
-          src: nodeIds[index],
-          dst: nodeIds[index + 1],
-          one_way: true,
-          is_open: true,
-          attrs: { order: index + 1 },
-          geom: {
-            type: 'LineString',
-            srid: 32640,
-            coordinates: [
-              [utmCoordinates[index].x, utmCoordinates[index].y],
-              [utmCoordinates[index + 1].x, utmCoordinates[index + 1].y]
-            ]
-          }
-        });
-      }
-
-      toast.success('مسیر ون با موفقیت ذخیره شد');
-      setVanLineCoordinates([]);
-      setIsVanDrawingMode(false);
-    } catch (error) {
-      console.error('van route save error', error);
-      toast.error(error?.message || 'ثبت مسیر ون ناموفق بود');
-    } finally {
-      setIsSavingVanRoute(false);
-    }
-  }, [vanLineCoordinates, mapFloor]);
-
-  const handleToggleVanDrawing = async () => {
+  const handleToggleVanDrawing = () => {
     if (!map) {
       toast.error('نقشه هنوز آماده نیست');
       return;
     }
 
-    if (!isVanEdgesLayerActive) {
-      toast.error('برای ترسیم مسیر ون باید لایه van-edges در حالت ویرایش باشد');
-      return;
-    }
+    setIsVanDrawingMode((prev) => {
+      const next = !prev;
 
-    if (isSavingVanRoute) {
-      toast.info('در حال ذخیره مسیر ون هستید، لطفاً کمی صبر کنید');
-      return;
-    }
-
-    if (isVanDrawingMode) {
-      const shouldSave = window.confirm('آیا مسیر ون ذخیره شود؟');
-
-      if (!shouldSave) {
-        return;
+      if (next) {
+        toast.info('برای ترسیم مسیر ون روی نقشه کلیک کنید.');
       }
 
-      await persistVanRoute();
-      return;
-    }
-
-    setVanLineCoordinates([]);
-    setIsVanDrawingMode(true);
-    toast.info('برای ترسیم مسیر ون روی نقشه کلیک کنید.');
+      return next;
+    });
   };
 
   const handleCancelLocationMarker = () => {

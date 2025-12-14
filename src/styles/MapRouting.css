@@ -691,14 +691,6 @@
   justify-content: center;
 }
 
-.map-marker-origin-inner {
-  width: 10px;
-  height: 10px;
-  background-color: #1E90FF;
-  border: 2px solid #fff;
-  border-radius: 50%;
-  box-shadow: 0 0 4px rgba(30, 144, 255, 0.5);
-}
 
 .map-marker-destination {
   width: 24px;
@@ -1426,24 +1418,21 @@
 
 .map-entry-item {
   position: relative;
-  padding: 8px;
-  background: #f8f9fa;
+  padding: 2px;
+  background: white;
+  border-radius: 25px;
   border: 2px solid #e9ecef;
   border-radius: 12px;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: 'Vazir', Arial, sans-serif;
-}
-
-.map-entry-item:hover {
-  border-color: #0F71EF;
-  background: #f0f7ff;
+  border: 1px solid #0F71EF;
 }
 
 .map-entry-item.selected {
-  border-color: #0F71EF;
-  background: #f0f7ff;
+  border-color: green;
+  background: #f0fff3;
 }
 
 .map-entry-number {

@@ -186,14 +186,6 @@
   justify-content: center;
 }
 
-.map-marker-origin-inner {
-  width: 10px;
-  height: 10px;
-  background-color: #1E90FF;
-  border: 2px solid #fff;
-  border-radius: 50%;
-  box-shadow: 0 0 4px rgba(30, 144, 255, 0.5);
-}
 
 .map-marker-selecting {
   width: 24px;
@@ -311,6 +303,7 @@
 
 .search-bar-container.expanded .search-bar-toggle:active .toggle-handle {
   transform: rotate(180deg) scale(0.95);
+  
 }
 
 .search-bar {
@@ -712,13 +705,13 @@ body.modal-open {
   cursor: pointer;
   line-height: 1;
   color: #1e2023;
-  border : 1px solid #D9D9D9;
+  border: 1px solid #D9D9D9;
   display: flex;
   justify-content: center;
   align-items: center;
- border-radius: 25px;
- height: 38px;
- width: 38px;
+  border-radius: 25px;
+  height: 38px;
+  width: 38px;
 }
 
 .events-modal-content {
@@ -735,7 +728,7 @@ body.modal-open {
   border: 1px solid #D9D9D9;
   padding: 6px 6px 16px 6px;
   border-radius: 8px;
-  align-items:flex-start;
+  align-items: flex-start;
 }
 
 .events-modal-image {
@@ -748,8 +741,8 @@ body.modal-open {
   flex-shrink: 0;
 }
 
-.events-modal-info  {
- flex: 1;
+.events-modal-info {
+  flex: 1;
 }
 
 
@@ -1140,13 +1133,13 @@ body.modal-open {
 .location-details7 {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
   gap: 3px;
 }
 
 .location-meta7 {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   display: flex;
   align-items: center;
   font-size: 14px;
@@ -1162,10 +1155,10 @@ body.modal-open {
 .location-description {
   display: flex;
   flex-direction: row;
-  gap: 10px;
   align-items: center;
   flex-wrap: wrap;
   margin-bottom: 30px;
+  gap: 5px;
 }
 
 .location-description p {
@@ -1181,10 +1174,10 @@ body.modal-open {
   align-items: center;
   gap: 5px;
   background: none;
-  border: 1px solid #0F71EF;
+  border: none;
   color: #0F71EF;
   font-size: 0.9rem;
-  padding: 8px 14px;
+  padding: 0px;
   border-radius: 10px;
   font-family: 'Vazir', Tahoma, sans-serif;
   cursor: pointer;
@@ -1282,7 +1275,9 @@ body.modal-open {
   justify-content: center;
   pointer-events: none;
   filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.2));
+
 }
+
 
 
 /*  when swiping is happening */
@@ -1356,4 +1351,3 @@ body.modal-open {
 .modal-content-wrapper::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
-
