@@ -7488,7 +7488,7 @@ const Amain = () => {
                 {/* Top Left - Map Type Selector */}
                 <div className="map-control-top-left">
                   <div className="action-buttons-group">
-                    <div className={`action-button temp-area-manage ${openSubMenu === 0 ? 'selected' : ''}`}
+                    <div className={`action-button ${openSubMenu === 0 ? 'selected' : ''}`}
                       onClick={() => setOpenSubMenu(openSubMenu === 0 ? null : 0)}>
                       <span>
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -7507,7 +7507,7 @@ const Amain = () => {
                   <div className="action-buttons-group">
 
                     {/* Button 1 */}
-                    <div className={`action-button ${openSubMenu === 1 ? 'selected' : ''}`}
+                    <div className={`action-button temp-area-manage ${openSubMenu === 1 ? 'selected' : ''}`}
                       onClick={() => {
                         setOpenSubMenu(openSubMenu === 1 ? null : 1);
                         // Reset location marker mode when other buttons are clicked
@@ -7536,7 +7536,7 @@ const Amain = () => {
                     </div>
                     {openSubMenu === 1 && (
                       <div className="sub-buttons1">
-                        <button className="sub-btn">
+                        <button className="sub-btn move-temp-area">
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-drag-drop">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M19 11v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2" />
@@ -7550,10 +7550,10 @@ const Amain = () => {
                             <path d="M3 15l0 .01" />
                           </svg>
                         </button>
-                        <button className="sub-btn">
+                        <button className="sub-btn create-temp-area">
                           <svg width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.354 13.646l2.853 2.854-2.854 2.854-.707-.707L21.293 17H17v4.293l1.646-1.646.707.707-2.853 2.853-2.854-2.854.707-.707L16 21.293V17h-4.293l1.646 1.646-.707.707L9.793 16.5l2.854-2.854.707.707L11.707 16H16v-4.293l-1.646 1.646-.707-.707L16.5 9.793l2.854 2.854-.707.707L17 11.707V16h4.293l-1.646-1.646zM9 6H6.537L2.468 18l-.947-.321L5.48 6H4V1h5v2h9v1H9zM8 5V2H5v3z" /><path fill="none" d="M0 0h24v24H0z" /></svg>
                         </button>
-                        <button className="sub-btn">
+                        <button className="sub-btn edit-temp-area">
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
@@ -7561,7 +7561,7 @@ const Amain = () => {
                             <path d="M16 5l3 3" />
                           </svg>
                         </button>
-                        <button className="sub-btn">
+                        <button className="sub-btn delete-temp-area">
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M4 7l16 0" />
