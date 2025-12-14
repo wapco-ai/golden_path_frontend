@@ -679,7 +679,6 @@ const Mprc = ({
       {userCoords && (
         <Marker longitude={userCoords.lng} latitude={userCoords.lat} anchor="center">
           <div className="map-marker-origin">
-            <div className="map-marker-origin-inner" />
           </div>
         </Marker>
       )}

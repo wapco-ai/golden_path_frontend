@@ -143,6 +143,7 @@ const Mpbc = ({
 
     return null;
   }, []);
+  
 
   // Initialize map focus and user location based on QR entry or GPS tracking
   useEffect(() => {
@@ -311,24 +312,7 @@ const Mpbc = ({
 
     if (onMapClick) onMapClick(c, closestFeature);
   };
-
-  // Clear bubbles that don't match the active category filter
-  useEffect(() => {
-    if (!selectedFeatureForBubble) return;
-
-    const featureGroup = selectedFeatureForBubble.properties?.group;
-    const featureSubGroup = selectedFeatureForBubble.properties?.subGroupValue;
-    const subgroupHasImage = subGroups[featureGroup]?.some(
-      (sg) => sg.value === featureSubGroup && sg.img
-    );
-
-    const isCategoryMismatch = selectedCategory && featureGroup !== selectedCategory.value;
-    const lacksImage = !subgroupHasImage;
-
-    if (isCategoryMismatch || lacksImage) {
-      setSelectedFeatureForBubble(null);
-    }
-  }, [selectedCategory, selectedFeatureForBubble, subGroups]);
+  ;
 
   useEffect(() => {
     let isMounted = true;
@@ -429,6 +413,21 @@ const Mpbc = ({
     : [];
 
   const DOOR_SEGMENT_HALF_LENGTH = 0.000015;
+
+  const truncateBubbleText = (text) => {
+    if (!text) return '';
+
+    // Take first 3 words
+    const words = text.split(/\s+/).slice(0, 5);
+    let result = words.join(' ');
+
+    // If total length exceeds 30 characters, truncate with ellipsis
+    if (result.length > 17) {
+      result = result.substring(0, 17) + '...';
+    }
+
+    return result;
+  };
 
   const doorLineFeatures = geoData
     ? geoData.features.reduce((acc, feature) => {
@@ -565,6 +564,39 @@ const Mpbc = ({
     return selectedCandidates.some((candidate) => placeCandidates.includes(candidate));
   }, [selectedCategory]);
 
+  // Clear bubbles that don't match the active category filter
+  // Clear bubbles that don't match the active category filter
+  useEffect(() => {
+    if (!selectedFeatureForBubble) return;
+
+    const featureProps = selectedFeatureForBubble.properties || {};
+
+    // If it's a landmark, check if it matches the selected category
+    if (featureProps.isLandmark) {
+      // Check if this landmark matches the selected category
+      const matchesCategory = matchesSelectedCategory(featureProps);
+
+      if (selectedCategory && !matchesCategory) {
+        setSelectedFeatureForBubble(null);
+      }
+      return;
+    }
+
+    // For regular features, use the existing logic
+    const featureGroup = featureProps.group;
+    const featureSubGroup = featureProps.subGroupValue;
+    const subgroupHasImage = subGroups[featureGroup]?.some(
+      (sg) => sg.value === featureSubGroup && sg.img
+    );
+
+    const isCategoryMismatch = selectedCategory && featureGroup !== selectedCategory.value;
+    const lacksImage = !subgroupHasImage;
+
+    if (isCategoryMismatch || lacksImage) {
+      setSelectedFeatureForBubble(null);
+    }
+  }, [selectedCategory, selectedFeatureForBubble, subGroups, matchesSelectedCategory])
+
   // Function to render image markers for landmarks with images
   const renderImageMarkers = () => {
     if (!showImageMarkers || !Array.isArray(landmarkPlaces) || landmarkPlaces.length === 0) {
@@ -662,7 +694,6 @@ const Mpbc = ({
       {userCoords && (
         <Marker longitude={userCoords.lng} latitude={userCoords.lat} anchor="center">
           <div className="map-marker-origin">
-            <div className="map-marker-origin-inner" />
           </div>
         </Marker>
       )}
@@ -689,12 +720,17 @@ const Mpbc = ({
                 fontSize="12"
                 fontWeight="600"
               >
-                {selectedFeatureForBubble.properties?.name ||
-                  selectedFeatureForBubble.properties?.subGroup}
+                {truncateBubbleText(
+                  selectedFeatureForBubble.properties?.name ||
+                  selectedFeatureForBubble.properties?.subGroup ||
+                  selectedFeatureForBubble.properties?.label ||
+                  ''
+                )}
               </text>
             </svg>
           </div>
         </Marker>
+
       )}
 
       {/* Destination marker */}
@@ -741,6 +777,7 @@ const Mpbc = ({
           />
         </Source>
       )}
+
 
       {/* Image markers for subgroups with images */}
       {renderImageMarkers()}

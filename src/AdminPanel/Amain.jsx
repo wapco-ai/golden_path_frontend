@@ -34,6 +34,7 @@ import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { getLanguageName } from '../utils/languageNames';
 import { deleteFile, uploadFile } from '../services/fileService';
+import { createVanEdge, createVanNode } from '../services/adminVanService';
 
 
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
@@ -463,6 +464,7 @@ const Amain = () => {
 
     return selectedLayer;
   }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
+  const isVanEdgesLayerActive = activeEditableLayer?.id === 'van-edges';
   const selectedFeatureProperties = selectedEditableFeature?.features?.[0]?.properties;
   const selectedFeatureCoordinates = selectedEditableFeature?.features?.[0]?.geometry?.coordinates;
   const selectedDoorId = selectedFeatureProperties?.door_id
