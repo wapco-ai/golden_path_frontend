@@ -42,4 +42,19 @@ export const createTempBlockArea = async (payload, { signal } = {}) => {
   return handleResponse(response, 'ثبت محدوده موقت ناموفق بود');
 };
 
+export const updateTempBlockArea = async (id, payload, { signal } = {}) => {
+  if (!id) {
+    throw new Error('شناسه محدوده موقت نامعتبر است');
+  }
+
+  const response = await fetch(`${TEMP_BLOCK_AREA_BASE_URL}/${id}`, {
+    method: 'PUT',
+    headers: buildAuthHeaders(),
+    body: JSON.stringify(payload || {}),
+    signal
+  });
+
+  return handleResponse(response, 'به‌روزرسانی محدوده موقت ناموفق بود');
+};
+
 export default createTempBlockArea;

@@ -35,7 +35,7 @@ import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/grou
 import { getLanguageName } from '../utils/languageNames';
 import { deleteFile, uploadFile } from '../services/fileService';
 import { createVanEdge, createVanNode, deleteVanNode } from '../services/adminVanService';
-import { createTempBlockArea } from '../services/tempBlockAreasService';
+import { createTempBlockArea, updateTempBlockArea } from '../services/tempBlockAreasService';
 
 
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
@@ -501,11 +501,14 @@ const Amain = () => {
   const [isAreaEditMode, setIsAreaEditMode] = useState(false);
   const [isTempAreaDrawingMode, setIsTempAreaDrawingMode] = useState(false);
   const [tempAreaVertices, setTempAreaVertices] = useState([]);
+  const [isTempAreaMoveMode, setIsTempAreaMoveMode] = useState(false);
+  const [tempAreaMoveGeometry, setTempAreaMoveGeometry] = useState(null);
   const vertexMarkersRef = useRef([]);
   const [locationMarker, setLocationMarker] = useState(null);
   const [activeEditableLayerId, setActiveEditableLayerId] = useState('');
   const hasUserClearedEditableLayer = useRef(false);
   const [selectedEditableFeature, setSelectedEditableFeature] = useState(null);
+  const tempAreaOriginalGeometryRef = useRef(null);
   const activeEditableLayer = useMemo(() => {
     const selectedLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
 
@@ -556,6 +559,14 @@ const Amain = () => {
     ? selectedFeatureProperties?.area_id
     || selectedFeatureProperties?.areaId
     || selectedFeatureProperties?.areaID
+    || selectedFeatureProperties?.id
+    : null;
+  const selectedTempAreaId = isTempAreaLayerActive
+    ? selectedFeatureProperties?.temp_block_area_id
+    || selectedFeatureProperties?.tempBlockAreaId
+    || selectedFeatureProperties?.tempBlockAreaID
+    || selectedFeatureProperties?.tempAreaId
+    || selectedFeatureProperties?.temp_area_id
     || selectedFeatureProperties?.id
     : null;
   const selectedVanNodeId = isVanNodesLayerActive
@@ -3501,6 +3512,9 @@ const Amain = () => {
   useEffect(() => {
     if (activeMenu !== 'mapmanage') {
       setSelectedEditableFeature(null);
+      setIsTempAreaMoveMode(false);
+      setTempAreaMoveGeometry(null);
+      tempAreaOriginalGeometryRef.current = null;
     }
   }, [activeMenu]);
 
@@ -3586,12 +3600,23 @@ const Amain = () => {
     if (!isTempAreaLayerActive) {
       setIsTempAreaDrawingMode(false);
       setTempAreaVertices([]);
+      setIsTempAreaMoveMode(false);
+      setTempAreaMoveGeometry(null);
+      tempAreaOriginalGeometryRef.current = null;
     }
   }, [isTempAreaLayerActive]);
 
   useEffect(() => {
     setIsDoorMoveMode(false);
   }, [selectedDoorId]);
+
+  useEffect(() => {
+    if (!isTempAreaLayerActive || !selectedEditableFeature) {
+      setIsTempAreaMoveMode(false);
+      setTempAreaMoveGeometry(null);
+      tempAreaOriginalGeometryRef.current = null;
+    }
+  }, [isTempAreaLayerActive, selectedEditableFeature]);
 
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
@@ -3817,6 +3842,30 @@ const Amain = () => {
     return { type: 'Polygon', coordinates: [closedRing] };
   }, []);
 
+  const translateCoordinatesByDelta = useCallback((coordinates, delta) => {
+    if (!map) return coordinates;
+
+    if (!Array.isArray(coordinates)) return coordinates;
+
+    if (typeof coordinates[0] === 'number' && typeof coordinates[1] === 'number') {
+      const projected = map.project({ lng: coordinates[0], lat: coordinates[1] });
+      const movedPoint = { x: projected.x + (delta?.x || 0), y: projected.y + (delta?.y || 0) };
+      const { lng, lat } = map.unproject(movedPoint);
+      return [lng, lat];
+    }
+
+    return coordinates.map((coord) => translateCoordinatesByDelta(coord, delta));
+  }, [map]);
+
+  const translateGeometryByDelta = useCallback((geometry, delta) => {
+    if (!geometry?.type || !geometry?.coordinates || !map) return null;
+
+    return {
+      ...geometry,
+      coordinates: translateCoordinatesByDelta(geometry.coordinates, delta)
+    };
+  }, [map, translateCoordinatesByDelta]);
+
   useEffect(() => {
     if (!map) return undefined;
 
@@ -3879,6 +3928,39 @@ const Amain = () => {
 
       if (!activeEditableLayer) {
         console.warn('هیچ لایه قابل ویرایشی انتخاب نشده است.');
+        return;
+      }
+
+      if (isTempAreaMoveMode && isTempAreaLayerActive && selectedTempAreaId) {
+        const selectedFeature = selectedEditableFeature?.features?.[0];
+        const baseGeometry = tempAreaMoveGeometry || selectedFeature?.geometry;
+        const centerCoordinates = getFeatureCenterCoordinates(selectedFeature);
+
+        if (!selectedFeature || !baseGeometry || !centerCoordinates) {
+          toast.error('برای جابجایی محدوده موقت، ابتدا یک محدوده معتبر انتخاب کنید');
+          setIsTempAreaMoveMode(false);
+          setTempAreaMoveGeometry(null);
+          tempAreaOriginalGeometryRef.current = null;
+          return;
+        }
+
+        const centerPoint = map.project({ lng: centerCoordinates[0], lat: centerCoordinates[1] });
+        const delta = { x: point.x - centerPoint.x, y: point.y - centerPoint.y };
+        const translatedGeometry = translateGeometryByDelta(baseGeometry, delta);
+
+        if (!translatedGeometry) {
+          toast.error('جابجایی محدوده موقت امکان‌پذیر نیست');
+          return;
+        }
+
+        setTempAreaMoveGeometry(translatedGeometry);
+        setSelectedEditableFeature((current) => {
+          const feature = current?.features?.[0];
+          if (!feature) return current;
+          const updatedFeature = { ...feature, geometry: translatedGeometry };
+          return { ...current, features: [updatedFeature] };
+        });
+
         return;
       }
 
@@ -4006,6 +4088,12 @@ const Amain = () => {
     selectedDoorId,
     selectedFeatureProperties,
     selectedDoorAccessPointId,
+    isTempAreaMoveMode,
+    isTempAreaLayerActive,
+    selectedTempAreaId,
+    selectedEditableFeature,
+    tempAreaMoveGeometry,
+    translateGeometryByDelta,
     refreshActiveEditableLayerTiles
   ]);
 
@@ -4513,6 +4601,66 @@ const Amain = () => {
     }
 
     setIsAreaEditMode((current) => !current);
+  };
+
+  const handleTempAreaMoveToggle = async () => {
+    if (!isTempAreaLayerActive) {
+      toast.error('برای جابجایی محدوده موقت، لایه محدوده موقت را فعال کنید');
+      setOpenSubMenu(1);
+      return;
+    }
+
+    if (!selectedEditableFeature || !selectedTempAreaId) {
+      toast.error('برای جابجایی محدوده موقت، ابتدا یک محدوده را انتخاب کنید');
+      return;
+    }
+
+    const selectedFeature = selectedEditableFeature?.features?.[0];
+    const currentGeometry = tempAreaMoveGeometry || selectedFeature?.geometry;
+
+    if (!isTempAreaMoveMode) {
+      tempAreaOriginalGeometryRef.current = selectedFeature?.geometry || null;
+      setTempAreaMoveGeometry(null);
+      setIsTempAreaMoveMode(true);
+      toast.info('برای جابجایی محدوده موقت، روی موقعیت جدید در نقشه کلیک کنید');
+      return;
+    }
+
+    if (!currentGeometry) {
+      toast.error('هندسه محدوده موقت برای ذخیره در دسترس نیست');
+      setIsTempAreaMoveMode(false);
+      return;
+    }
+
+    const hasMoved = tempAreaOriginalGeometryRef.current
+      ? JSON.stringify(currentGeometry) !== JSON.stringify(tempAreaOriginalGeometryRef.current)
+      : true;
+
+    if (!hasMoved) {
+      toast.error('محدوده موقت جابجا نشده است');
+      setIsTempAreaMoveMode(false);
+      return;
+    }
+
+    const payload = {
+      floor: floorLabelToValue(mapFloor),
+      restrict_type: 'close',
+      geom_geojson_4326: currentGeometry,
+      reason: selectedFeatureProperties?.reason ?? selectedFeatureProperties?.description ?? null
+    };
+
+    try {
+      await updateTempBlockArea(selectedTempAreaId, payload);
+      toast.success('جابجایی محدوده موقت با موفقیت ذخیره شد');
+      refreshActiveEditableLayerTiles();
+    } catch (error) {
+      toast.error(error?.message || 'ذخیره جابجایی محدوده موقت ناموفق بود');
+      return;
+    } finally {
+      setIsTempAreaMoveMode(false);
+      setTempAreaMoveGeometry(null);
+      tempAreaOriginalGeometryRef.current = null;
+    }
   };
 
   const handleToggleTempAreaDrawing = async () => {
@@ -7888,7 +8036,10 @@ const Amain = () => {
                     </div>
                     {openSubMenu === 1 && (
                       <div className="sub-buttons1">
-                        <button className="sub-btn move-temp-area">
+                        <button
+                          className={`sub-btn move-temp-area ${isTempAreaMoveMode ? 'active' : ''}`}
+                          onClick={handleTempAreaMoveToggle}
+                        >
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-drag-drop">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M19 11v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2" />
