@@ -35,7 +35,7 @@ import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/grou
 import { getLanguageName } from '../utils/languageNames';
 import { deleteFile, uploadFile } from '../services/fileService';
 import { createVanEdge, createVanNode, deleteVanNode } from '../services/adminVanService';
-import { createTempBlockArea, updateTempBlockArea, deleteTempBlockArea } from '../services/tempBlockAreasService';
+import { createTempBlockArea, updateTempBlockArea, deleteTempBlockArea, getTempBlockArea } from '../services/tempBlockAreasService';
 
 
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
@@ -555,6 +555,7 @@ const Amain = () => {
   const [tempAreaPrayerBefore, setTempAreaPrayerBefore] = useState('');
   const [tempAreaPrayerAfter, setTempAreaPrayerAfter] = useState('');
   const [tempAreaIsActive, setTempAreaIsActive] = useState(true);
+  const [isLoadingTempAreaDetails, setIsLoadingTempAreaDetails] = useState(false);
   const [isSavingTempAreaDetails, setIsSavingTempAreaDetails] = useState(false);
   const vertexMarkersRef = useRef([]);
   const [locationMarker, setLocationMarker] = useState(null);
@@ -628,6 +629,7 @@ const Amain = () => {
     || selectedFeatureProperties?.nodeID
     || selectedFeatureProperties?.id
     : null;
+  const isTempAreaFormDisabled = isSavingTempAreaDetails || isLoadingTempAreaDetails;
   const showDoorTools = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && !!selectedDoorId && !!selectedEditableFeature;
   const isActiveLayerPointBased = useMemo(
     () => activeEditableLayer?.type === 'circle' || activeEditableLayer?.type === 'symbol',
@@ -4666,7 +4668,7 @@ const Amain = () => {
     return date.toISOString().slice(0, 16);
   };
 
-  const handleOpenTempAreaEditModal = () => {
+  const handleOpenTempAreaEditModal = async () => {
     if (!isTempAreaLayerActive) {
       toast.error('برای ویرایش محدوده موقت، لایه محدوده‌های موقت را فعال کنید');
       return;
@@ -4687,6 +4689,25 @@ const Amain = () => {
     setTempAreaPrayerAfter(after);
     setTempAreaIsActive(Boolean(selectedFeatureProperties?.is_active ?? true));
     setIsTempAreaEditModalOpen(true);
+
+    try {
+      setIsLoadingTempAreaDetails(true);
+      const tempAreaDetails = await getTempBlockArea(selectedTempAreaId);
+      const normalizedPrayerRules = normalizePrayerRules(tempAreaDetails?.prayer_rules || tempAreaDetails?.prayerRules);
+
+      setTempAreaName(tempAreaDetails?.title || tempAreaDetails?.name || '');
+      setTempAreaDescription(tempAreaDetails?.reason || tempAreaDetails?.description || '');
+      setTempAreaValidFrom(formatDateTimeLocal(tempAreaDetails?.valid_from || tempAreaDetails?.validFrom));
+      setTempAreaValidTo(formatDateTimeLocal(tempAreaDetails?.valid_to || tempAreaDetails?.validTo));
+      setTempAreaPrayerEvents(normalizedPrayerRules.events);
+      setTempAreaPrayerBefore(normalizedPrayerRules.before);
+      setTempAreaPrayerAfter(normalizedPrayerRules.after);
+      setTempAreaIsActive(Boolean(tempAreaDetails?.is_active ?? true));
+    } catch (error) {
+      toast.error(error?.message || 'دریافت اطلاعات محدوده موقت ناموفق بود');
+    } finally {
+      setIsLoadingTempAreaDetails(false);
+    }
   };
 
   const handleSaveTempAreaDetails = async () => {
@@ -4727,7 +4748,7 @@ const Amain = () => {
   };
 
   const handleCloseTempAreaModal = () => {
-    if (isSavingTempAreaDetails) return;
+    if (isSavingTempAreaDetails || isLoadingTempAreaDetails) return;
 
     setIsTempAreaEditModalOpen(false);
   };
@@ -8939,12 +8960,18 @@ const Amain = () => {
           <div className="add-place-modal temp-area-edit-modal">
             <div className="modal-header">
               <div className="step-text">ویرایش محدوده موقت</div>
-              <button className="close-modal" onClick={handleCloseTempAreaModal} aria-label="بستن" disabled={isSavingTempAreaDetails}>
+              <button className="close-modal" onClick={handleCloseTempAreaModal} aria-label="بستن" disabled={isTempAreaFormDisabled}>
                 ×
               </button>
             </div>
 
             <div className="modal-content">
+              {isLoadingTempAreaDetails && (
+                <div className="form-group">
+                  <div className="info-message">در حال دریافت اطلاعات محدوده موقت از سرور...</div>
+                </div>
+              )}
+
               <div className="form-section">
                 <div className="form-group">
                   <label className="form-label">نام محدوده</label>
@@ -8954,6 +8981,7 @@ const Amain = () => {
                     placeholder="نام محدوده موقت"
                     value={tempAreaName}
                     onChange={(e) => setTempAreaName(e.target.value)}
+                    disabled={isTempAreaFormDisabled}
                   />
                 </div>
 
@@ -8964,6 +8992,7 @@ const Amain = () => {
                     placeholder="توضیحات تکمیلی درباره علت ایجاد این محدوده"
                     value={tempAreaDescription}
                     onChange={(e) => setTempAreaDescription(e.target.value)}
+                    disabled={isTempAreaFormDisabled}
                     rows="3"
                   />
                 </div>
@@ -8978,6 +9007,7 @@ const Amain = () => {
                         className="form-input"
                         value={tempAreaValidFrom}
                         onChange={(e) => setTempAreaValidFrom(e.target.value)}
+                        disabled={isTempAreaFormDisabled}
                       />
                     </div>
                     <div className="input-wrapper">
@@ -8987,6 +9017,7 @@ const Amain = () => {
                         className="form-input"
                         value={tempAreaValidTo}
                         onChange={(e) => setTempAreaValidTo(e.target.value)}
+                        disabled={isTempAreaFormDisabled}
                       />
                     </div>
                   </div>
@@ -9012,6 +9043,7 @@ const Amain = () => {
                                 return current.filter((event) => event !== option.value);
                               });
                             }}
+                            disabled={isTempAreaFormDisabled}
                           />
                           <span>{option.label}</span>
                         </label>
@@ -9027,6 +9059,7 @@ const Amain = () => {
                           className="form-input"
                           value={tempAreaPrayerBefore}
                           onChange={(e) => setTempAreaPrayerBefore(e.target.value)}
+                          disabled={isTempAreaFormDisabled}
                         />
                       </div>
                       <div className="input-wrapper">
@@ -9037,6 +9070,7 @@ const Amain = () => {
                           className="form-input"
                           value={tempAreaPrayerAfter}
                           onChange={(e) => setTempAreaPrayerAfter(e.target.value)}
+                          disabled={isTempAreaFormDisabled}
                         />
                       </div>
                     </div>
@@ -9050,6 +9084,7 @@ const Amain = () => {
                       type="checkbox"
                       checked={tempAreaIsActive}
                       onChange={(e) => setTempAreaIsActive(e.target.checked)}
+                      disabled={isTempAreaFormDisabled}
                     />
                     <span>این محدوده فعال باشد</span>
                   </label>
@@ -9058,10 +9093,10 @@ const Amain = () => {
             </div>
 
             <div className="modal-actions">
-              <button className="secondary-btn" onClick={handleCloseTempAreaModal} disabled={isSavingTempAreaDetails}>
+              <button className="secondary-btn" onClick={handleCloseTempAreaModal} disabled={isTempAreaFormDisabled}>
                 انصراف
               </button>
-              <button className="primary-btn" onClick={handleSaveTempAreaDetails} disabled={isSavingTempAreaDetails}>
+              <button className="primary-btn" onClick={handleSaveTempAreaDetails} disabled={isTempAreaFormDisabled}>
                 {isSavingTempAreaDetails ? 'در حال ذخیره...' : 'ثبت تغییرات'}
               </button>
             </div>
