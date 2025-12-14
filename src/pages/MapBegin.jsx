@@ -192,6 +192,8 @@ const MapBeginPage = () => {
     const locationId = resolveLocationId(selectedLocation);
     const params = new URLSearchParams();
 
+    const normalizedId = locationId ? locationId.replace(/\/+$/, '').trim() : locationId;
+
     if (selectedLocation?.coordinates) {
       const [lat, lng] = selectedLocation.coordinates;
       if (lat && lng) {
@@ -202,9 +204,9 @@ const MapBeginPage = () => {
       }
     }
 
-    if (locationId) {
-      params.set('id', locationId);
-      sessionStorage.setItem('mapSelectedId', locationId);
+    if (normalizedId) {
+      params.set('id', normalizedId);
+      sessionStorage.setItem('mapSelectedId', normalizedId);
     }
 
     const queryString = params.toString();
@@ -214,16 +216,24 @@ const MapBeginPage = () => {
   };
 
   const handleModalTouchStart = (e) => {
+    const target = e.target;
+
+    const interactiveSelectors = 'button, input, a, .cultural-info-btn, .place-action-btn, .view-all-btn5, .view-all-events, .close-modal-btn, .transparent-save-btn';
+
+    if (target.closest(interactiveSelectors)) {
+      setPreventScroll(false);
+      setIsModalDragging(false);
+      return;
+    }
+
     if (isModalDragging || isDragging) return;
 
     const touchY = e.touches[0].clientY;
     const modalContent = e.currentTarget;
 
-    // Check if we're at the top of the scrollable content
     const isAtTop = modalContent.scrollTop <= 0;
     const isAtBottom = modalContent.scrollHeight - modalContent.scrollTop <= modalContent.clientHeight + 1;
 
-    // Only allow dragging from top or bottom edges, or when not scrollable
     if (isAtTop || !expandedSearch) {
       setPreventScroll(true);
       setIsModalDragging(true);
@@ -233,7 +243,6 @@ const MapBeginPage = () => {
       setModalLastTouchTime(Date.now());
       setModalVelocity(0);
 
-      // Store initial scroll position
       setScrollStartY(touchY);
       setScrollStartScrollTop(modalContent.scrollTop);
     } else {
@@ -340,6 +349,7 @@ const MapBeginPage = () => {
 
     if (isLandmarkSelection) {
       const landmark = feature.properties || {};
+
       const images = Array.isArray(landmark.img)
         ? landmark.img
         : landmark.img
@@ -352,7 +362,7 @@ const MapBeginPage = () => {
         address: landmark.address,
         distance: landmark.distance,
         time: landmark.time,
-        description: landmark.description,
+        description: landmark.content?.body || landmark.description || '',
         value: landmark.value || landmark.id || landmark.subGroupValue,
         coordinates: [latlng.lat, latlng.lng]
       });
@@ -762,6 +772,70 @@ const MapBeginPage = () => {
   }, []);
 
 
+  useEffect(() => {
+    // Check if this is a QR code entry and if it's a landmark
+    if (storedId && storedLat && storedLng) {
+      const findLandmarkById = () => {
+        if (!landmarkPlaces || landmarkPlaces.length === 0) return null;
+        return landmarkPlaces.find(landmark => {
+          const landmarkId = landmark.id || landmark.value || landmark.subGroupValue;
+          return landmarkId && storedId.includes(landmarkId);
+        });
+      };
+
+      const foundLandmark = findLandmarkById();
+
+      if (foundLandmark) {
+        // Use the same getFirstImage function logic from your fetchLandmarkPlaces useEffect
+        const getFirstImage = (place) => {
+          if (!place) return null;
+          if (Array.isArray(place.image) && place.image.length > 0) {
+            return place.image[0];
+          }
+          if (Array.isArray(place.images) && place.images.length > 0) {
+            return place.images[0];
+          }
+          if (typeof place.image === 'string' && place.image.trim()) {
+            return place.image;
+          }
+          if (typeof place.images === 'string' && place.images.trim()) {
+            return place.images;
+          }
+          return null;
+        };
+
+        const primaryImage = getFirstImage(foundLandmark);
+
+        const images = primaryImage ? [primaryImage] : [];
+
+
+        setSelectedLocation({
+          label: foundLandmark.label || foundLandmark.name || foundLandmark.title || intl.formatMessage({ id: 'mapSelectedLocation' }),
+          img: images,
+          address: foundLandmark.address,
+          distance: foundLandmark.distance,
+          time: foundLandmark.time,
+          description: foundLandmark.content?.body || foundLandmark.description || '',
+          value: foundLandmark.value || foundLandmark.id || foundLandmark.subGroupValue,
+          coordinates: [parseFloat(storedLat), parseFloat(storedLng)]
+        });
+
+        // Show location details and routing panel
+        setShowLocationDetails(true);
+        setShowRouting(true);
+        setExpandedSearch(false);
+
+        // Set height to 41vh for the modal
+        const modalHeight = window.innerHeight * 0.41;
+        setCurrentHeight(modalHeight);
+
+        // Set flag to indicate this is a QR code entry
+        setIsQrCodeEntry(true);
+      }
+    }
+  }, [storedId, storedLat, storedLng, landmarkPlaces, intl]);
+
+
   const handlePlaceClick = (placeTitle, groupValue, subGroupValue) => {
     if (!geoData) return;
 
@@ -958,7 +1032,6 @@ const MapBeginPage = () => {
           onTouchStart={handleModalTouchStart}
           onTouchMove={handleModalTouchMove}
           onTouchEnd={handleModalTouchEnd}
-          onClick={(e) => e.stopPropagation()} // Prevent toggle when clicking content
         >
           <form className={`search-bar ${showRouting ? 'expanded' : ''}`}>
             <input
@@ -1010,10 +1083,6 @@ const MapBeginPage = () => {
                     {selectedLocation.label}
                   </h2>
                   <div className="location-meta7">
-                    <span className="location-address">
-                      {selectedLocation.address}
-                    </span>
-                    <span className="place-meta-separator">|</span>
                     <span className="place-distance">{selectedLocation.distance} {intl.formatMessage({ id: 'meter' })}</span>
                     <span className="place-meta-separator">|</span>
                     <span className="place-time">{selectedLocation.time} {intl.formatMessage({ id: 'walking' })}</span>
@@ -1021,12 +1090,21 @@ const MapBeginPage = () => {
 
                   <div className="location-description">
                     <p>
-                      {selectedLocation.description && selectedLocation.description.split(' ').length > 4
-                        ? `${selectedLocation.description.split(' ').slice(0, 4).join(' ')} ...`
+                      {selectedLocation.description && selectedLocation.description.split(' ').length > 3
+                        ? `${selectedLocation.description.split(' ').slice(0, 3).join(' ')} ...`
                         : selectedLocation.description
                       }
                     </p>
-                    <button className="cultural-info-btn" onClick={handleCulturalInfo}>
+                    <button
+                      className="cultural-info-btn"
+                      onClick={handleCulturalInfo}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                      }}
+                      onTouchEnd={(e) => {
+                        e.stopPropagation();
+                      }}
+                    >
                       {intl.formatMessage({ id: 'moreCulturalInfo' })}
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path fillRule="evenodd" clipRule="evenodd" d="M7.0203 3.64645C7.21556 3.84171 7.21556 4.15829 7.0203 4.35355L3.87385 7.5H13.3334C13.6096 7.5 13.8334 7.72386 13.8334 8C13.8334 8.27614 13.6096 8.5 13.3334 8.5H3.87385L7.0203 11.6464C7.21556 11.8417 7.21556 12.1583 7.0203 12.3536C6.82504 12.5488 6.50846 12.5488 6.31319 12.3536L2.31319 8.35355C2.11793 8.15829 2.11793 7.84171 2.31319 7.64645L6.31319 3.64645C6.50846 3.45118 6.82504 3.45118 7.0203 3.64645Z" fill="#0F71EF" />

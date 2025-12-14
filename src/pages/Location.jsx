@@ -338,6 +338,31 @@ const Location = () => {
     };
   }, []);
 
+  // Add this useEffect for modal animation
+  useEffect(() => {
+    if (showCommentModal) {
+      // Trigger animation after modal is rendered
+      setTimeout(() => {
+        const modal = document.querySelector('.comment-modal');
+        const overlay = document.querySelector('.modal-overlay-location');
+        if (modal && overlay) {
+          modal.style.transform = 'translateY(0)';
+          overlay.style.opacity = '1';
+          overlay.style.visibility = 'visible';
+        }
+      }, 10);
+    } else {
+      // Reset styles when closing
+      const modal = document.querySelector('.comment-modal');
+      const overlay = document.querySelector('.modal-overlay-location');
+      if (modal && overlay) {
+        modal.style.transform = 'translateY(100%)';
+        overlay.style.opacity = '0';
+        overlay.style.visibility = 'hidden';
+      }
+    }
+  }, [showCommentModal]);
+
   const stopAboutSpeech = () => {
     if (aboutAudioRef.current) {
       aboutAudioRef.current.pause();
@@ -645,22 +670,46 @@ const Location = () => {
   }, []);
 
   // Function to check if current location matches initial QR location
+  // Add this useEffect after your current useEffect that sets initialQrLocation and currentUserLocation
+  useEffect(() => {
+    console.log('=== DEBUG Location Component ===');
+    console.log('initialQrLocation:', initialQrLocation);
+    console.log('currentUserLocation:', currentUserLocation);
+    console.log('QR Lat/Lng/Id from sessionStorage:',
+      sessionStorage.getItem('qrLat'),
+      sessionStorage.getItem('qrLng'),
+      sessionStorage.getItem('qrId')
+    );
+    console.log('MapSelected Lat/Lng/Id from sessionStorage:',
+      sessionStorage.getItem('mapSelectedLat'),
+      sessionStorage.getItem('mapSelectedLng'),
+      sessionStorage.getItem('mapSelectedId')
+    );
+    console.log('isAtInitialLocation result:', isAtInitialLocation());
+    console.log('===============================');
+  }, [initialQrLocation, currentUserLocation]);
+
+
   const isAtInitialLocation = () => {
     if (!initialQrLocation || !currentUserLocation) return false;
 
-    // Add tolerance for floating point coordinate comparison
+    const normalizeId = (id) => {
+      if (!id) return '';
+      return id.toString().replace(/\/+$/, '').trim();
+    };
+
+    const initialId = normalizeId(initialQrLocation.id);
+    const currentId = normalizeId(currentUserLocation.id);
+
+    if (initialId && currentId) {
+      return initialId === currentId;
+    }
+
     const latDiff = Math.abs(initialQrLocation.lat - currentUserLocation.lat);
     const lngDiff = Math.abs(initialQrLocation.lng - currentUserLocation.lng);
-    const coordinateTolerance = 0.0001; // About 10 meters tolerance
+    const coordinateTolerance = 0.0001;
 
-    // Check if coordinates are approximately the same
-    const coordinatesMatch = latDiff < coordinateTolerance && lngDiff < coordinateTolerance;
-
-    // If we have IDs, also check them, but don't require ID match
-    const idsMatch = !initialQrLocation.id || !currentUserLocation.id ||
-      initialQrLocation.id === currentUserLocation.id;
-
-    return coordinatesMatch && idsMatch;
+    return latDiff < coordinateTolerance && lngDiff < coordinateTolerance;
   };
 
   const calculateAverageRating = () => {
@@ -895,18 +944,15 @@ const Location = () => {
           <span>
             {isQrCodeEntry ? (
               <FormattedMessage
-                id="youAreHere"
+                id={isAtInitialLocation() ? "youAreHere" : "youAreHereQr"}
               />
             ) : (
-              <FormattedMessage
-                id="youAreHereQr"
-                values={{ placeName: locationData.title }}
-              />
+              <FormattedMessage id="youAreHereQr" />
             )}
           </span>
           <div className="line right-line"></div>
         </div>
-        <h1>{locationData.title}</h1>
+        <h1 >{locationData.title}</h1>
         <h2>{locationData.location}</h2>
 
         <div className="location-meta">
@@ -1104,7 +1150,10 @@ const Location = () => {
       {/* Comment Modal */}
       {showCommentModal && (
         <>
-          <div className="modal-overlay" onClick={closeCommentModal}></div>
+          <div
+            className="modal-overlay-location"
+            onClick={closeCommentModal}
+          ></div>
           <div className="comment-modal">
             <div
               className="search-bar-toggle6"
