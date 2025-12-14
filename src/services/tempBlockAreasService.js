@@ -73,11 +73,41 @@ export const getTempBlockArea = async (id, { signal } = {}) => {
 
 export const deleteTempBlockArea = async (id, { signal } = {}) => {
   const response = await fetch(`${TEMP_BLOCK_AREA_BASE_URL}/${id}`, {
-      method: 'DELETE',
-      headers: buildAuthHeaders(),
-      signal
-  })
+    method: 'DELETE',
+    headers: buildAuthHeaders(),
+    signal
+  });
   return handleResponse(response, 'حذف محدوده موقت ناموفق بود');
+};
+
+export const stopTempBlockArea = async (id, payload = {}, { signal } = {}) => {
+  if (!id) {
+    throw new Error('شناسه محدوده موقت نامعتبر است');
+  }
+
+  const response = await fetch(`${TEMP_BLOCK_AREA_BASE_URL}/${id}/stop`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    body: JSON.stringify(payload || {}),
+    signal
+  });
+
+  return handleResponse(response, 'توقف محدوده موقت ناموفق بود');
+};
+
+export const extendTempBlockArea = async (id, payload = {}, { signal } = {}) => {
+  if (!id) {
+    throw new Error('شناسه محدوده موقت نامعتبر است');
+  }
+
+  const response = await fetch(`${TEMP_BLOCK_AREA_BASE_URL}/${id}/extend`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    body: JSON.stringify(payload || {}),
+    signal
+  });
+
+  return handleResponse(response, 'تمدید محدوده موقت ناموفق بود');
 };
 
 export default createTempBlockArea;
