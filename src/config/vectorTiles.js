@@ -6,18 +6,36 @@ export const DEFAULT_TILE_FLOOR = import.meta?.env?.VITE_TILE_FLOOR?.trim();
 export const DEFAULT_TILE_GENDER = import.meta?.env?.VITE_TILE_GENDER?.trim();
 
 const DEFAULT_VECTOR_TILE_FLOOR = 0;
+
 const VECTOR_FUNCTION_SOURCE_LAYER = 'public.fn_map_features_mvt';
 const VECTOR_FUNCTION_TILE_BASE = `${TILE_BASE_URL}/${VECTOR_FUNCTION_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
+
 const AREAS_FUNCTION_SOURCE_LAYER = 'public.fn_areas_mvt';
 const AREAS_VECTOR_LAYER_NAME = 'areas';
 const AREAS_FUNCTION_TILE_BASE = `${TILE_BASE_URL}/${AREAS_FUNCTION_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
+
+const TEMP_AREAS_FUNCTION_SOURCE_LAYER = 'public.fn_temp_block_areas_live_mvt';
+const TEMP_AREAS_VECTOR_LAYER_NAME = 'temp_block_areas_live';
+const TEMP_AREAS_FUNCTION_TILE_BASE = `${TILE_BASE_URL}/${TEMP_AREAS_FUNCTION_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
+
 const DOORS_FUNCTION_SOURCE_LAYER = 'public.fn_doors_mvt';
 const DOORS_VECTOR_LAYER_NAME = 'doors';
 const DOORS_FUNCTION_TILE_BASE = `${TILE_BASE_URL}/${DOORS_FUNCTION_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
+
+const VAN_NODES_FUNCTION_SOURCE_LAYER = 'public.fn_van_nodes_mvt';
+const VAN_NODES_VECTOR_LAYER_NAME = 'van_nodes';
+const VAN_NODES_FUNCTION_TILE_BASE = `${TILE_BASE_URL}/${VAN_NODES_FUNCTION_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
+
+const VAN_EDGES_FUNCTION_SOURCE_LAYER = 'public.fn_van_edges_mvt';
+const VAN_EDGES_VECTOR_LAYER_NAME = 'van_edges';
+const VAN_EDGES_FUNCTION_TILE_BASE = `${TILE_BASE_URL}/${VAN_EDGES_FUNCTION_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
+
 const MESH_TRIANGLES_SOURCE_LAYER = 'public.vw_mesh_triangles';
 const MESH_TRIANGLES_TILE_BASE = `${TILE_BASE_URL}/${MESH_TRIANGLES_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
+
 const ROUTING_EDGES_STATIC_SOURCE_LAYER = 'public.routing_edges_static';
 const ROUTING_EDGES_STATIC_BASE = `${TILE_BASE_URL}/${ROUTING_EDGES_STATIC_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
+
 const DOORS_ACCESS_POINT_SOURCE_LAYER = 'public.fn_door_access_points_mvt';
 export const DOOR_ACCESS_LAYER_ID = 'doors-access-point';
 // The MVT layer name returned by the function omits the schema prefix
@@ -25,6 +43,9 @@ export const DOORS_ACCESS_POINT_LAYER_NAME = 'door_access_points';
 const DOORS_ACCESS_POINT_BASE = `${TILE_BASE_URL}/${DOORS_ACCESS_POINT_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
 
 const buildDoorAccessPointsTileUrlFactory = () => buildFloorOnlyTileUrlFactory(DOORS_ACCESS_POINT_BASE);
+
+const buildVanNodesTileUrlFactory = () => buildFloorOnlyTileUrlFactory(VAN_NODES_FUNCTION_TILE_BASE);
+const buildVanEdgesTileUrlFactory = () => buildFloorOnlyTileUrlFactory(VAN_EDGES_FUNCTION_TILE_BASE);
 
 const normalizeFloorValue = (floor) => {
   if (typeof floor === 'number' && !Number.isNaN(floor)) {
@@ -94,6 +115,23 @@ const buildAreasTileUrlFactory = () => ({ floor } = {}) => {
   }
 
   return `${AREAS_FUNCTION_TILE_BASE}?${params.toString()}`;
+};
+
+const buildTempAreasTileUrlFactory = () => ({ floor } = {}) => {
+  const params = new URLSearchParams();
+
+  if (DEFAULT_TILE_LANG) {
+    params.set('p_lang', DEFAULT_TILE_LANG);
+  }
+
+  const fallbackFloor = typeof floor !== 'undefined' ? floor : DEFAULT_TILE_FLOOR;
+  params.set('p_floor', normalizeFloorValue(fallbackFloor));
+
+  // if (DEFAULT_TILE_GENDER) {
+  //   params.set('p_gender', DEFAULT_TILE_GENDER);
+  // }
+
+  return `${TEMP_AREAS_FUNCTION_TILE_BASE}?${params.toString()}`;
 };
 
 
@@ -227,6 +265,26 @@ export const haramAdminVectorTileConfig = [
     }
   },
   {
+    id: 'temp-areas-outline',
+    titleFa: 'محدوده‌ موقت',
+    table: 'public.fn_temp_block_areas_live_mvt',
+    sourceId: 'fn_temp_block_areas_live_mvt',
+    sourceLayer: TEMP_AREAS_VECTOR_LAYER_NAME,
+    tileUrlFactory: buildTempAreasTileUrlFactory(),
+    type: 'line',
+    minzoom: 14,
+    maxzoom: 22,
+    visibleByDefault: true,
+    paint: {
+      'line-color': '#d3516f',
+      'line-width': 2
+    },
+    layout: {
+      'line-cap': 'round',
+      'line-join': 'round'
+    }
+  },
+  {
     id: 'doors',
     titleFa: 'درب‌ها',
     table: 'public.fn_doors_mvt',
@@ -255,11 +313,49 @@ export const haramAdminVectorTileConfig = [
     visibleByDefault: false,
     paint: {
       'line-color': '#ffddcc',
-      'line-width': 0.15
+      'line-width': 0.55
     },
     layout: {
       'line-join': 'round',
       'line-cap': 'round'
+    }
+  },
+  {
+    id: 'van-edges',
+    titleFa: 'مسیر ون برقی',
+    table: MESH_TRIANGLES_SOURCE_LAYER,
+    sourceId: 'van_edges',
+    sourceLayer: VAN_EDGES_VECTOR_LAYER_NAME,
+    tileUrlFactory: buildVanEdgesTileUrlFactory(),
+    type: 'line',
+    minzoom: 15,
+    maxzoom: 22,
+    visibleByDefault: false,
+    paint: {
+      'line-color': '#ffddcc',
+      'line-width': 2
+    },
+    layout: {
+      'line-join': 'round',
+      'line-cap': 'round'
+    }
+  },
+  {
+    id: 'van-nodes',
+    titleFa: 'گره مسیر ون',
+    table: VAN_EDGES_FUNCTION_SOURCE_LAYER,
+    sourceId: 'van_nodes',
+    sourceLayer: VAN_NODES_VECTOR_LAYER_NAME,
+    tileUrlFactory: buildVanNodesTileUrlFactory(),
+    type: 'circle',
+    minzoom: 15,
+    maxzoom: 22,
+    visibleByDefault: true,
+    paint: {
+      'circle-color': '#190fff',
+      'circle-radius': 5,
+      'circle-stroke-color': '#ffffff',
+      'circle-stroke-width': 1.5
     }
   },
   {
@@ -284,6 +380,21 @@ export const haramAdminVectorTileConfig = [
 
 export const layerEditSettings = {
   'areas-outline': {
+    enabled: true,
+    highlightColor: '#0f172a',
+    requiredPermission: 'map:edit:areas'
+  },
+  'temp-areas-outline': {
+    enabled: true,
+    highlightColor: '#0f172a',
+    requiredPermission: 'map:edit:areas'
+  },
+  'van-edges': {
+    enabled: true,
+    highlightColor: '#0f172a',
+    requiredPermission: 'map:edit:areas'
+  },
+  'van-nodes': {
     enabled: true,
     highlightColor: '#0f172a',
     requiredPermission: 'map:edit:areas'

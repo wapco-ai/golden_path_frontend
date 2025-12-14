@@ -7486,7 +7486,7 @@ const Amain = () => {
                 {/* Top Left - Map Type Selector */}
                 <div className="map-control-top-left">
                   <div className="action-buttons-group">
-                    <div className={`action-button ${openSubMenu === 0 ? 'selected' : ''}`}
+                    <div className={`action-button temp-area-manage ${openSubMenu === 0 ? 'selected' : ''}`}
                       onClick={() => setOpenSubMenu(openSubMenu === 0 ? null : 0)}>
                       <span>
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
