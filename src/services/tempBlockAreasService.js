@@ -42,4 +42,14 @@ export const createTempBlockArea = async (payload, { signal } = {}) => {
   return handleResponse(response, 'ثبت محدوده موقت ناموفق بود');
 };
 
+export const deleteTempBlockArea = async (id, { signal } = {}) => {
+  const response = await fetch(`${TEMP_BLOCK_AREA_BASE_URL}/${id}`, {
+    method: 'DELETE',
+    headers: buildAuthHeaders(),
+    signal
+  });
+
+  return handleResponse(response, 'حذف محدوده موقت ناموفق بود');
+};
+
 export default createTempBlockArea;
