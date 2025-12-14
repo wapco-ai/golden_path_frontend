@@ -8750,7 +8750,7 @@ const Amain = () => {
                     <div className="date-separator3"></div>
 
                     {/* Button 2 */}
-                    <div className={`action-button ${openSubMenu === 2 ? 'selected' : ''}`}
+                    <div className={`action-button area-mange ${openSubMenu === 2 ? 'selected' : ''}`}
                       onClick={() => {
                         setOpenSubMenu(openSubMenu === 2 ? null : 2);
                         // Reset location marker mode when other buttons are clicked
@@ -8762,7 +8762,7 @@ const Amain = () => {
                     </div>
                     {openSubMenu === 2 && (
                       <div className="sub-buttons2">
-                        <button className="sub-btn" onClick={handleAreaEditModeToggle}>
+                        <button className="sub-btn move-area" onClick={handleAreaEditModeToggle}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-drag-drop">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M19 11v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2" />
@@ -8776,7 +8776,7 @@ const Amain = () => {
                             <path d="M3 15l0 .01" />
                           </svg>
                         </button>
-                        <button className="sub-btn" onClick={handleOpenAddPlaceWithRoofOption}>
+                        <button className="sub-btn edit-area" onClick={handleOpenAddPlaceWithRoofOption}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
@@ -8784,7 +8784,7 @@ const Amain = () => {
                             <path d="M16 5l3 3" />
                           </svg>
                         </button>
-                        <button className="sub-btn" onClick={handleDeleteSelectedArea}>
+                        <button className="sub-btn delete-area" onClick={handleDeleteSelectedArea}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M4 7l16 0" />
@@ -8841,7 +8841,7 @@ const Amain = () => {
                     <div className="date-separator3"></div>
 
                     {/* Button 4 - Location Marker */}
-                    <div className={`action-button ${isLocationMarkerMode ? 'selected' : ''}`}
+                    <div className={`action-button manage-door-point ${isLocationMarkerMode ? 'selected' : ''}`}
                       onClick={() => {
                         handleLocationMarkerSelect();
                         setOpenSubMenu(openSubMenu === 4 ? null : 4);
@@ -8852,7 +8852,7 @@ const Amain = () => {
                     </div>
                     {openSubMenu === 4 && showDoorTools && (
                       <div className="sub-buttons4">
-                        <button className="sub-btn" onClick={handleDoorMoveStart}>
+                        <button className="sub-btn move-door-point" onClick={handleDoorMoveStart}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-drag-drop">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M19 11v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2" />
@@ -8866,7 +8866,7 @@ const Amain = () => {
                             <path d="M3 15l0 .01" />
                           </svg>
                         </button>
-                        <button className="sub-btn" onClick={handleDoorEdit}>
+                        <button className="sub-btn edit-door-point" onClick={handleDoorEdit}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
@@ -8874,7 +8874,7 @@ const Amain = () => {
                             <path d="M16 5l3 3" />
                           </svg>
                         </button>
-                        <button className="sub-btn" onClick={handleDoorDelete}>
+                        <button className="sub-btn delete-door-point" onClick={handleDoorDelete}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M4 7l16 0" />
