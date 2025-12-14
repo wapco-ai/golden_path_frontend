@@ -185,6 +185,59 @@ const normalizePrayerRules = (prayerRules = {}) => {
   };
 };
 
+const extractPrayerRulesFromRestrictions = (restrictions = []) => {
+  const events = new Set();
+  let before = '';
+  let after = '';
+
+  restrictions.forEach((item) => {
+    const normalizedEvent = normalizePrayerEventValue(item?.prayer_event || item?.events || item?.event);
+
+    if (normalizedEvent) {
+      events.add(normalizedEvent);
+    }
+
+    if (before === '' && item?.before_minutes !== undefined && item?.before_minutes !== null) {
+      before = String(item.before_minutes);
+    }
+
+    if (after === '' && item?.after_minutes !== undefined && item?.after_minutes !== null) {
+      after = String(item.after_minutes);
+    }
+  });
+
+  return {
+    events: Array.from(events),
+    before,
+    after
+  };
+};
+
+const normalizeTempAreaData = (data = {}) => {
+  const area = data?.area || data;
+  const basePrayerRules = normalizePrayerRules(area?.prayer_rules || area?.prayerRules);
+  const restrictionPrayerRules = extractPrayerRulesFromRestrictions(
+    data?.prayer_restrictions || data?.prayerRestrictions
+  );
+
+  const events = basePrayerRules.events.length ? basePrayerRules.events : restrictionPrayerRules.events;
+  const before = basePrayerRules.before !== '' ? basePrayerRules.before : restrictionPrayerRules.before;
+  const after = basePrayerRules.after !== '' ? basePrayerRules.after : restrictionPrayerRules.after;
+
+  return {
+    title: area?.title || area?.name || '',
+    description: area?.reason || area?.description || '',
+    valid_from: area?.valid_from || area?.validFrom || data?.valid_from || data?.validFrom || '',
+    valid_to: area?.valid_to || area?.validTo || data?.valid_to || data?.validTo || '',
+    is_active: Boolean(area?.is_active ?? data?.is_active ?? true),
+    prayer_rules: {
+      events,
+      before,
+      after
+    }
+  };
+};
+
 const normalizeTransportModes = (value) => {
   if (Array.isArray(value)) {
     return value.map(normalizeTransportValue).filter(Boolean);
