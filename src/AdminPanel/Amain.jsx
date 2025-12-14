@@ -503,6 +503,16 @@ const Amain = () => {
   const [tempAreaVertices, setTempAreaVertices] = useState([]);
   const [isTempAreaMoveMode, setIsTempAreaMoveMode] = useState(false);
   const [tempAreaMoveGeometry, setTempAreaMoveGeometry] = useState(null);
+  const [isTempAreaEditModalOpen, setIsTempAreaEditModalOpen] = useState(false);
+  const [tempAreaName, setTempAreaName] = useState('');
+  const [tempAreaDescription, setTempAreaDescription] = useState('');
+  const [tempAreaValidFrom, setTempAreaValidFrom] = useState('');
+  const [tempAreaValidTo, setTempAreaValidTo] = useState('');
+  const [tempAreaPrayerEvents, setTempAreaPrayerEvents] = useState([]);
+  const [tempAreaPrayerBefore, setTempAreaPrayerBefore] = useState('');
+  const [tempAreaPrayerAfter, setTempAreaPrayerAfter] = useState('');
+  const [tempAreaIsActive, setTempAreaIsActive] = useState(true);
+  const [isSavingTempAreaDetails, setIsSavingTempAreaDetails] = useState(false);
   const vertexMarkersRef = useRef([]);
   const [locationMarker, setLocationMarker] = useState(null);
   const [activeEditableLayerId, setActiveEditableLayerId] = useState('');
@@ -4603,6 +4613,109 @@ const Amain = () => {
     setIsAreaEditMode((current) => !current);
   };
 
+  const formatDateTimeLocal = (value) => {
+    if (!value) return '';
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) return '';
+
+    return date.toISOString().slice(0, 16);
+  };
+
+  const buildTempAreaReasonText = () => {
+    const parts = [];
+
+    if (tempAreaName?.trim()) {
+      parts.push(`نام: ${tempAreaName.trim()}`);
+    }
+
+    if (tempAreaDescription?.trim()) {
+      parts.push(`توضیحات: ${tempAreaDescription.trim()}`);
+    }
+
+    if (tempAreaValidFrom || tempAreaValidTo) {
+      const fromText = tempAreaValidFrom ? new Date(tempAreaValidFrom).toLocaleString('fa-IR') : '---';
+      const toText = tempAreaValidTo ? new Date(tempAreaValidTo).toLocaleString('fa-IR') : '---';
+      parts.push(`محدوده زمانی: ${fromText} تا ${toText}`);
+    }
+
+    if (tempAreaPrayerEvents.length) {
+      const prayersLabel = tempAreaPrayerEvents.map(prayerEventValueToLabel).join('، ');
+      const beforeText = tempAreaPrayerBefore ? `${tempAreaPrayerBefore} دقیقه قبل` : null;
+      const afterText = tempAreaPrayerAfter ? `${tempAreaPrayerAfter} دقیقه بعد` : null;
+      const timingText = [beforeText, afterText].filter(Boolean).join(' / ');
+      parts.push(`محدودیت اوقات شرعی: ${prayersLabel}${timingText ? ` (${timingText})` : ''}`);
+    }
+
+    parts.push(`وضعیت: ${tempAreaIsActive ? 'فعال' : 'غیرفعال'}`);
+
+    return parts.join(' | ') || null;
+  };
+
+  const handleOpenTempAreaEditModal = () => {
+    if (!isTempAreaLayerActive) {
+      toast.error('برای ویرایش محدوده موقت، لایه محدوده‌های موقت را فعال کنید');
+      return;
+    }
+
+    if (!selectedEditableFeature || !selectedTempAreaId) {
+      toast.error('برای ویرایش محدوده موقت، ابتدا یک محدوده را انتخاب کنید');
+      return;
+    }
+
+    setTempAreaName(selectedFeatureProperties?.title || selectedFeatureProperties?.name || '');
+    setTempAreaDescription(selectedFeatureProperties?.reason || selectedFeatureProperties?.description || '');
+    setTempAreaValidFrom(formatDateTimeLocal(selectedFeatureProperties?.valid_from || selectedFeatureProperties?.validFrom));
+    setTempAreaValidTo(formatDateTimeLocal(selectedFeatureProperties?.valid_to || selectedFeatureProperties?.validTo));
+    setTempAreaPrayerEvents([]);
+    setTempAreaPrayerBefore('');
+    setTempAreaPrayerAfter('');
+    setTempAreaIsActive(true);
+    setIsTempAreaEditModalOpen(true);
+  };
+
+  const handleSaveTempAreaDetails = async () => {
+    if (!selectedEditableFeature || !selectedTempAreaId) {
+      toast.error('هیچ محدوده موقتی برای ویرایش انتخاب نشده است');
+      return;
+    }
+
+    const geometry = tempAreaMoveGeometry || selectedEditableFeature?.features?.[0]?.geometry;
+
+    if (!geometry) {
+      toast.error('هندسه محدوده موقت در دسترس نیست');
+      return;
+    }
+
+    const payload = {
+      floor: floorLabelToValue(mapFloor),
+      restrict_type: 'close',
+      geom_geojson_4326: geometry,
+      reason: buildTempAreaReasonText(),
+      valid_from: tempAreaValidFrom ? new Date(tempAreaValidFrom).toISOString() : null,
+      valid_to: tempAreaValidTo ? new Date(tempAreaValidTo).toISOString() : null
+    };
+
+    try {
+      setIsSavingTempAreaDetails(true);
+      await updateTempBlockArea(selectedTempAreaId, payload);
+      toast.success('اطلاعات محدوده موقت با موفقیت به‌روزرسانی شد');
+      setIsTempAreaEditModalOpen(false);
+      refreshActiveEditableLayerTiles();
+    } catch (error) {
+      toast.error(error?.message || 'به‌روزرسانی محدوده موقت ناموفق بود');
+    } finally {
+      setIsSavingTempAreaDetails(false);
+    }
+  };
+
+  const handleCloseTempAreaModal = () => {
+    if (isSavingTempAreaDetails) return;
+
+    setIsTempAreaEditModalOpen(false);
+  };
+
   const handleTempAreaMoveToggle = async () => {
     if (!isTempAreaLayerActive) {
       toast.error('برای جابجایی محدوده موقت، لایه محدوده موقت را فعال کنید');
@@ -8093,7 +8206,7 @@ const Amain = () => {
                         <button className="sub-btn create-temp-area" onClick={handleToggleTempAreaDrawing}>
                           <svg width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.354 13.646l2.853 2.854-2.854 2.854-.707-.707L21.293 17H17v4.293l1.646-1.646.707.707-2.853 2.853-2.854-2.854.707-.707L16 21.293V17h-4.293l1.646 1.646-.707.707L9.793 16.5l2.854-2.854.707.707L11.707 16H16v-4.293l-1.646 1.646-.707-.707L16.5 9.793l2.854 2.854-.707.707L17 11.707V16h4.293l-1.646-1.646zM9 6H6.537L2.468 18l-.947-.321L5.48 6H4V1h5v2h9v1H9zM8 5V2H5v3z" /><path fill="none" d="M0 0h24v24H0z" /></svg>
                         </button>
-                        <button className="sub-btn edit-temp-area">
+                        <button className="sub-btn edit-temp-area" onClick={handleOpenTempAreaEditModal}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
@@ -8805,6 +8918,141 @@ const Amain = () => {
             )}
         </div>
       </div>
+      {isTempAreaEditModalOpen && (
+        <div className="modal-overlay">
+          <div className="add-place-modal temp-area-edit-modal">
+            <div className="modal-header">
+              <div className="step-text">ویرایش محدوده موقت</div>
+              <button className="close-modal" onClick={handleCloseTempAreaModal} aria-label="بستن" disabled={isSavingTempAreaDetails}>
+                ×
+              </button>
+            </div>
+
+            <div className="modal-content">
+              <div className="form-section">
+                <div className="form-group">
+                  <label className="form-label">نام محدوده</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="نام محدوده موقت"
+                    value={tempAreaName}
+                    onChange={(e) => setTempAreaName(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">توضیحات</label>
+                  <textarea
+                    className="form-textarea"
+                    placeholder="توضیحات تکمیلی درباره علت ایجاد این محدوده"
+                    value={tempAreaDescription}
+                    onChange={(e) => setTempAreaDescription(e.target.value)}
+                    rows="3"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">محدوده زمانی</label>
+                  <div className="dual-input">
+                    <div className="input-wrapper">
+                      <span className="input-label">شروع</span>
+                      <input
+                        type="datetime-local"
+                        className="form-input"
+                        value={tempAreaValidFrom}
+                        onChange={(e) => setTempAreaValidFrom(e.target.value)}
+                      />
+                    </div>
+                    <div className="input-wrapper">
+                      <span className="input-label">پایان</span>
+                      <input
+                        type="datetime-local"
+                        className="form-input"
+                        value={tempAreaValidTo}
+                        onChange={(e) => setTempAreaValidTo(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">محدودیت بر اساس اوقات شرعی</label>
+                  <div className="prayer-restrictions">
+                    <div className="checkbox-group">
+                      {PRAYER_EVENT_OPTIONS.map((option) => (
+                        <label key={option.value} className="checkbox-item">
+                          <input
+                            type="checkbox"
+                            checked={tempAreaPrayerEvents.includes(option.value)}
+                            onChange={(e) => {
+                              const { checked } = e.target;
+
+                              setTempAreaPrayerEvents((current) => {
+                                if (checked) {
+                                  return Array.from(new Set([...current, option.value]));
+                                }
+
+                                return current.filter((event) => event !== option.value);
+                              });
+                            }}
+                          />
+                          <span>{option.label}</span>
+                        </label>
+                      ))}
+                    </div>
+
+                    <div className="dual-input">
+                      <div className="input-wrapper">
+                        <span className="input-label">دقایق قبل</span>
+                        <input
+                          type="number"
+                          min="0"
+                          className="form-input"
+                          value={tempAreaPrayerBefore}
+                          onChange={(e) => setTempAreaPrayerBefore(e.target.value)}
+                        />
+                      </div>
+                      <div className="input-wrapper">
+                        <span className="input-label">دقایق بعد</span>
+                        <input
+                          type="number"
+                          min="0"
+                          className="form-input"
+                          value={tempAreaPrayerAfter}
+                          onChange={(e) => setTempAreaPrayerAfter(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-group inline-group">
+                  <label className="form-label">وضعیت محدوده</label>
+                  <label className="checkbox-item">
+                    <input
+                      type="checkbox"
+                      checked={tempAreaIsActive}
+                      onChange={(e) => setTempAreaIsActive(e.target.checked)}
+                    />
+                    <span>این محدوده فعال باشد</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button className="secondary-btn" onClick={handleCloseTempAreaModal} disabled={isSavingTempAreaDetails}>
+                انصراف
+              </button>
+              <button className="primary-btn" onClick={handleSaveTempAreaDetails} disabled={isSavingTempAreaDetails}>
+                {isSavingTempAreaDetails ? 'در حال ذخیره...' : 'ثبت تغییرات'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add Place Modal */}
       {isAddPlaceModalOpen && (
         <div className="modal-overlay">

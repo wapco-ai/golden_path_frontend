@@ -2559,6 +2559,91 @@ body {
   justify-content: space-between;
 }
 
+.temp-area-edit-modal .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.temp-area-edit-modal .close-modal {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #1e2023;
+}
+
+.temp-area-edit-modal .dual-input {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.temp-area-edit-modal .input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.temp-area-edit-modal .input-label {
+  font-size: 12px;
+  color: #6f7174;
+}
+
+.temp-area-edit-modal .checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.temp-area-edit-modal .checkbox-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #1e2023;
+}
+
+.temp-area-edit-modal .inline-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.temp-area-edit-modal .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 20px 24px;
+  border-top: 1px solid #e6e6e6;
+}
+
+.temp-area-edit-modal .primary-btn,
+.temp-area-edit-modal .secondary-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.temp-area-edit-modal .primary-btn {
+  background-color: #0f71ef;
+  color: white;
+}
+
+.temp-area-edit-modal .primary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.temp-area-edit-modal .secondary-btn {
+  background-color: #f2f4f7;
+  color: #1e2023;
+}
+
 @keyframes modalSlideIn {
   from {
     opacity: 0;
