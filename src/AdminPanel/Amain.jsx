@@ -114,7 +114,33 @@ const PRAYER_EVENT_OPTIONS = [
 
 const prayerEventLabelToValue = (label) => PRAYER_EVENT_OPTIONS.find((option) => option.label === label)?.value || label;
 const prayerEventValueToLabel = (value) => PRAYER_EVENT_OPTIONS.find((option) => option.value === value)?.label || value;
-const normalizePrayerEvents = (events = []) => events.map(prayerEventLabelToValue).filter(Boolean);
+const normalizePrayerEventValue = (value) => {
+  const cleaned = (value || '').toString().trim();
+  const lower = cleaned.toLowerCase();
+
+  if (!cleaned) return '';
+  if (['dhuhr', 'asr', 'dhuhr_asr'].includes(lower)) return 'dhuhr_asr';
+  if (['maghrib', 'isha', 'maghrib_isha'].includes(lower)) return 'maghrib_isha';
+  if (lower === 'fajr') return 'fajr';
+
+  return prayerEventLabelToValue(cleaned);
+};
+const normalizePrayerEvents = (events = []) => {
+  if (typeof events === 'string') {
+    const cleaned = events.trim().replace(/^\{/, '').replace(/\}$/u, '');
+    const splitEvents = cleaned
+      ? cleaned.split(',').map((event) => event.trim()).filter(Boolean)
+      : [];
+
+    return splitEvents.map(normalizePrayerEventValue).filter(Boolean);
+  }
+
+  const eventArray = Array.isArray(events)
+    ? events
+    : (events ? [events] : []);
+
+  return eventArray.map(normalizePrayerEventValue).filter(Boolean);
+};
 
 const buildPrayerRulesPayload = (selectedEvents, beforeValue, afterValue) => {
   const before = Number.isFinite(Number(beforeValue)) ? Number(beforeValue) : 0;
@@ -156,6 +182,59 @@ const normalizePrayerRules = (prayerRules = {}) => {
     events: enabledEvents,
     before,
     after
+  };
+};
+
+const extractPrayerRulesFromRestrictions = (restrictions = []) => {
+  const events = new Set();
+  let before = '';
+  let after = '';
+
+  restrictions.forEach((item) => {
+    const normalizedEvent = normalizePrayerEventValue(item?.prayer_event || item?.events || item?.event);
+
+    if (normalizedEvent) {
+      events.add(normalizedEvent);
+    }
+
+    if (before === '' && item?.before_minutes !== undefined && item?.before_minutes !== null) {
+      before = String(item.before_minutes);
+    }
+
+    if (after === '' && item?.after_minutes !== undefined && item?.after_minutes !== null) {
+      after = String(item.after_minutes);
+    }
+  });
+
+  return {
+    events: Array.from(events),
+    before,
+    after
+  };
+};
+
+const normalizeTempAreaData = (data = {}) => {
+  const area = data?.area || data;
+  const basePrayerRules = normalizePrayerRules(area?.prayer_rules || area?.prayerRules);
+  const restrictionPrayerRules = extractPrayerRulesFromRestrictions(
+    data?.prayer_restrictions || data?.prayerRestrictions
+  );
+
+  const events = basePrayerRules.events.length ? basePrayerRules.events : restrictionPrayerRules.events;
+  const before = basePrayerRules.before !== '' ? basePrayerRules.before : restrictionPrayerRules.before;
+  const after = basePrayerRules.after !== '' ? basePrayerRules.after : restrictionPrayerRules.after;
+
+  return {
+    title: area?.title || area?.name || '',
+    description: area?.reason || area?.description || '',
+    valid_from: area?.valid_from || area?.validFrom || data?.valid_from || data?.validFrom || '',
+    valid_to: area?.valid_to || area?.validTo || data?.valid_to || data?.validTo || '',
+    is_active: Boolean(area?.is_active ?? data?.is_active ?? true),
+    prayer_rules: {
+      events,
+      before,
+      after
+    }
   };
 };
 
@@ -1415,7 +1494,11 @@ const Amain = () => {
   };
 
   const getPrayerRestrictionParts = (restriction = {}) => {
-    const normalizedEvents = normalizePrayerEvents(restriction?.events).sort();
+    const normalizedEvents = normalizePrayerEvents(
+      restriction?.events
+      ?? restriction?.prayer_event
+      ?? restriction?.prayerEvent
+    ).sort();
     const dateScope = normalizeDateScopeArray(
       restriction?.isoDateScope?.length ? restriction.isoDateScope : restriction?.date_scope,
       restriction?.date
@@ -4679,30 +4762,30 @@ const Amain = () => {
       return;
     }
 
-    setTempAreaName(selectedFeatureProperties?.title || selectedFeatureProperties?.name || '');
-    setTempAreaDescription(selectedFeatureProperties?.reason || selectedFeatureProperties?.description || '');
-    setTempAreaValidFrom(formatDateTimeLocal(selectedFeatureProperties?.valid_from || selectedFeatureProperties?.validFrom));
-    setTempAreaValidTo(formatDateTimeLocal(selectedFeatureProperties?.valid_to || selectedFeatureProperties?.validTo));
-    const { events, before, after } = normalizePrayerRules(selectedFeatureProperties?.prayer_rules || selectedFeatureProperties?.prayerRules);
-    setTempAreaPrayerEvents(events);
-    setTempAreaPrayerBefore(before);
-    setTempAreaPrayerAfter(after);
-    setTempAreaIsActive(Boolean(selectedFeatureProperties?.is_active ?? true));
+    const normalizedSelected = normalizeTempAreaData(selectedFeatureProperties);
+    setTempAreaName(normalizedSelected.title);
+    setTempAreaDescription(normalizedSelected.description);
+    setTempAreaValidFrom(formatDateTimeLocal(normalizedSelected.valid_from));
+    setTempAreaValidTo(formatDateTimeLocal(normalizedSelected.valid_to));
+    setTempAreaPrayerEvents(normalizedSelected.prayer_rules.events);
+    setTempAreaPrayerBefore(normalizedSelected.prayer_rules.before);
+    setTempAreaPrayerAfter(normalizedSelected.prayer_rules.after);
+    setTempAreaIsActive(Boolean(normalizedSelected.is_active));
     setIsTempAreaEditModalOpen(true);
 
     try {
       setIsLoadingTempAreaDetails(true);
       const tempAreaDetails = await getTempBlockArea(selectedTempAreaId);
-      const normalizedPrayerRules = normalizePrayerRules(tempAreaDetails?.prayer_rules || tempAreaDetails?.prayerRules);
+      const normalizedDetails = normalizeTempAreaData(tempAreaDetails);
 
-      setTempAreaName(tempAreaDetails?.title || tempAreaDetails?.name || '');
-      setTempAreaDescription(tempAreaDetails?.reason || tempAreaDetails?.description || '');
-      setTempAreaValidFrom(formatDateTimeLocal(tempAreaDetails?.valid_from || tempAreaDetails?.validFrom));
-      setTempAreaValidTo(formatDateTimeLocal(tempAreaDetails?.valid_to || tempAreaDetails?.validTo));
-      setTempAreaPrayerEvents(normalizedPrayerRules.events);
-      setTempAreaPrayerBefore(normalizedPrayerRules.before);
-      setTempAreaPrayerAfter(normalizedPrayerRules.after);
-      setTempAreaIsActive(Boolean(tempAreaDetails?.is_active ?? true));
+      setTempAreaName(normalizedDetails.title);
+      setTempAreaDescription(normalizedDetails.description);
+      setTempAreaValidFrom(formatDateTimeLocal(normalizedDetails.valid_from));
+      setTempAreaValidTo(formatDateTimeLocal(normalizedDetails.valid_to));
+      setTempAreaPrayerEvents(normalizedDetails.prayer_rules.events);
+      setTempAreaPrayerBefore(normalizedDetails.prayer_rules.before);
+      setTempAreaPrayerAfter(normalizedDetails.prayer_rules.after);
+      setTempAreaIsActive(Boolean(normalizedDetails.is_active));
     } catch (error) {
       toast.error(error?.message || 'دریافت اطلاعات محدوده موقت ناموفق بود');
     } finally {
@@ -5265,35 +5348,85 @@ const Amain = () => {
     };
   });
 
-  const mapApiPrayerRestrictionsToForm = (apiRestrictions = []) => apiRestrictions.map((restriction, index) => {
-    const derivedIsoScope = Array.isArray(restriction?.date_scope) && restriction.date_scope.length
-      ? restriction.date_scope
-      : buildDateScopeIso(restriction?.date);
+  const mapApiPrayerRestrictionsToForm = (apiRestrictions = []) => {
+    const aggregated = [];
 
-    const normalizedEvents = normalizePrayerEvents(restriction?.events);
+    apiRestrictions.forEach((restriction, index) => {
+      const derivedIsoScope = Array.isArray(restriction?.date_scope) && restriction.date_scope.length
+        ? restriction.date_scope
+        : buildDateScopeIso(restriction?.date);
 
-    const isAllDaysScope = Array.isArray(derivedIsoScope) && derivedIsoScope.includes('ALL_DAYS');
-    const dateLabel = isAllDaysScope
-      ? 'همه روزها'
-      : derivedIsoScope?.length
-        ? derivedIsoScope.join(' / ')
-        : restriction?.date || 'همه روزها';
+      const normalizedEvents = normalizePrayerEvents(
+        restriction?.events
+        ?? restriction?.prayer_event
+        ?? restriction?.prayerEvent
+      );
 
-    const eventLabels = normalizedEvents.map(prayerEventValueToLabel);
+      const isAllDaysScope = Array.isArray(derivedIsoScope) && derivedIsoScope.includes('ALL_DAYS');
+      const dateLabel = isAllDaysScope
+        ? 'همه روزها'
+        : derivedIsoScope?.length
+          ? derivedIsoScope.join(' / ')
+          : restriction?.date || 'همه روزها';
 
-    return {
-      id: restriction?.id || index,
-      events: normalizedEvents,
-      before: restriction?.before_minutes ?? restriction?.before ?? '',
-      after: restriction?.after_minutes ?? restriction?.after ?? '',
-      date: dateLabel,
-      isoDateScope: derivedIsoScope?.length ? derivedIsoScope : [],
-      title: restriction?.title
-        || (eventLabels.length
-          ? `${eventLabels.join(' و ')} : ${restriction.before || 0} دقیقه قبل الی ${restriction.after || 0} دقیقه بعد`
-          : '')
-    };
-  });
+      const beforeValue = restriction?.before_minutes ?? restriction?.before ?? '';
+      const afterValue = restriction?.after_minutes ?? restriction?.after ?? '';
+
+      const aggregateKey = JSON.stringify({
+        before: beforeValue,
+        after: afterValue,
+        dateScope: derivedIsoScope?.join('|') || '',
+        gender: Array.isArray(restriction?.gender)
+          ? restriction.gender.map(normalizeGenderValue).filter(Boolean).join('|')
+          : ''
+      });
+
+      const existing = aggregated.find((item) => item.key === aggregateKey);
+
+      if (existing) {
+        normalizedEvents.forEach((event) => existing.events.add(event));
+        if (!existing.title) existing.title = restriction?.title || '';
+        return;
+      }
+
+      const eventsSet = new Set(normalizedEvents);
+
+      aggregated.push({
+        key: aggregateKey,
+        id: restriction?.id || index,
+        events: eventsSet,
+        before: beforeValue,
+        after: afterValue,
+        dateLabel,
+        isoDateScope: derivedIsoScope?.length ? derivedIsoScope : [],
+        title: restriction?.title || ''
+      });
+    });
+
+    return aggregated.map((item, idx) => {
+      const events = Array.from(item.events);
+      const eventLabels = events.map(prayerEventValueToLabel);
+      const isAllDaysScope = Array.isArray(item?.isoDateScope) && item.isoDateScope.includes('ALL_DAYS');
+      const dateLabel = isAllDaysScope
+        ? 'همه روزها'
+        : item?.isoDateScope?.length
+          ? item.isoDateScope.join(' / ')
+          : item?.dateLabel || 'همه روزها';
+
+      return {
+        id: item?.id ?? idx,
+        events,
+        before: item?.before,
+        after: item?.after,
+        date: dateLabel,
+        isoDateScope: item?.isoDateScope || [],
+        title: item?.title
+          || (eventLabels.length
+            ? `${eventLabels.join(' و ')} : ${item.before || 0} دقیقه قبل الی ${item.after || 0} دقیقه بعد`
+            : '')
+      };
+    });
+  };
 
   const buildTimeRestrictionsPayload = () => {
     const payload = timeRestrictions.map((restriction) => ({
