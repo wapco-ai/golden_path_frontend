@@ -34,7 +34,7 @@ import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { getLanguageName } from '../utils/languageNames';
 import { deleteFile, uploadFile } from '../services/fileService';
-import { createVanEdge, createVanNode } from '../services/adminVanService';
+import { createVanEdge, createVanNode, deleteVanNode } from '../services/adminVanService';
 import { createTempBlockArea } from '../services/tempBlockAreasService';
 
 
@@ -476,6 +476,7 @@ const Amain = () => {
   const [isVanDrawingMode, setIsVanDrawingMode] = useState(false);
   const [vanLineCoordinates, setVanLineCoordinates] = useState([]);
   const [isSavingVanRoute, setIsSavingVanRoute] = useState(false);
+  const [isDeletingVanNode, setIsDeletingVanNode] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [facManagementOpen, setfacManagementOpen] = useState(false);
   const [reportsManagementOpen, setReportsManagementOpen] = useState(false);
@@ -516,8 +517,9 @@ const Amain = () => {
     return selectedLayer;
   }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
   const isVanEdgesLayerActive = activeEditableLayer?.id === 'van-edges';
+  const isVanNodesLayerActive = activeEditableLayer?.id === 'van-nodes';
   useEffect(() => {
-    if (isVanEdgesLayerActive && activeMenu === 'mapmanage' && openSubMenu !== 3) {
+    if ((isVanEdgesLayerActive || isVanNodesLayerActive) && activeMenu === 'mapmanage' && openSubMenu !== 3) {
       setOpenSubMenu(3);
     }
 
@@ -525,7 +527,7 @@ const Amain = () => {
       setIsVanDrawingMode(false);
       setVanLineCoordinates([]);
     }
-  }, [activeMenu, isVanDrawingMode, isVanEdgesLayerActive, openSubMenu]);
+  }, [activeMenu, isVanDrawingMode, isVanEdgesLayerActive, isVanNodesLayerActive, openSubMenu]);
   const selectedFeatureProperties = selectedEditableFeature?.features?.[0]?.properties;
   const selectedFeatureCoordinates = selectedEditableFeature?.features?.[0]?.geometry?.coordinates;
   const selectedDoorId = selectedFeatureProperties?.door_id
@@ -538,6 +540,12 @@ const Amain = () => {
     ? selectedFeatureProperties?.area_id
     || selectedFeatureProperties?.areaId
     || selectedFeatureProperties?.areaID
+    || selectedFeatureProperties?.id
+    : null;
+  const selectedVanNodeId = isVanNodesLayerActive
+    ? selectedFeatureProperties?.node_id
+    || selectedFeatureProperties?.nodeId
+    || selectedFeatureProperties?.nodeID
     || selectedFeatureProperties?.id
     : null;
   const isTempAreaLayerActive = activeEditableLayer?.id === 'temp-areas-outline';
@@ -4713,6 +4721,34 @@ const Amain = () => {
     }
   };
 
+  const handleDeleteVanNode = async () => {
+    if (!isVanNodesLayerActive) {
+      toast.error('برای حذف گره ون، لایه گره‌های ون باید فعال باشد');
+      return;
+    }
+
+    if (!selectedVanNodeId) {
+      toast.error('هیچ گره ونی برای حذف انتخاب نشده است');
+      return;
+    }
+
+    const confirmDelete = window.confirm(`آیا از حذف گره ون انتخاب‌شده (شناسه ${selectedVanNodeId}) مطمئن هستید؟ این عملیات قابل بازگشت نیست.`);
+    if (!confirmDelete) return;
+
+    try {
+      setIsDeletingVanNode(true);
+      await deleteVanNode(selectedVanNodeId);
+      toast.success('گره ون با موفقیت حذف شد');
+      setSelectedEditableFeature(null);
+      refreshLayerTiles('van-nodes');
+      refreshLayerTiles('van-edges');
+    } catch (error) {
+      toast.error(error?.message || 'حذف گره ون ناموفق بود');
+    } finally {
+      setIsDeletingVanNode(false);
+    }
+  };
+
   const handleCancelLocationMarker = () => {
     setIsLocationMarkerMode(false);
 
@@ -7952,7 +7988,11 @@ const Amain = () => {
                             <path d="M16 5l3 3" />
                           </svg>
                         </button>
-                        <button className="sub-btn delete-van-node">
+                        <button
+                          className="sub-btn delete-van-node"
+                          disabled={!isVanNodesLayerActive || !selectedVanNodeId || isDeletingVanNode}
+                          onClick={handleDeleteVanNode}
+                        >
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M4 7l16 0" />
