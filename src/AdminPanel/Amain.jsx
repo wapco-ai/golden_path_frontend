@@ -517,6 +517,11 @@ const Amain = () => {
   }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
   const isVanEdgesLayerActive = activeEditableLayer?.id === 'van-edges';
   const isTempAreaLayerActive = activeEditableLayer?.id === 'temp-areas-outline';
+  const refreshActiveEditableLayerTiles = useCallback(() => {
+    if (!activeEditableLayer?.id) return;
+
+    refreshLayerTiles(activeEditableLayer.id);
+  }, [activeEditableLayer?.id, refreshLayerTiles]);
   useEffect(() => {
     if (isVanEdgesLayerActive && activeMenu === 'mapmanage' && openSubMenu !== 3) {
       setOpenSubMenu(3);
@@ -3902,8 +3907,7 @@ const Amain = () => {
           };
 
           setSelectedEditableFeature(movedFeature);
-          refreshLayerTiles(DOOR_ACCESS_LAYER_ID);
-          refreshLayerTiles('doors');
+          refreshActiveEditableLayerTiles();
           toast.success(moveResponse?.message || 'درب با موفقیت جابجا شد');
         } catch (error) {
           toast.error(error?.message || 'جابجایی درب ناموفق بود');
@@ -3995,7 +3999,7 @@ const Amain = () => {
     selectedDoorId,
     selectedFeatureProperties,
     selectedDoorAccessPointId,
-    refreshLayerTiles
+    refreshActiveEditableLayerTiles
   ]);
 
   const handleZoomIn = () => {
@@ -4549,7 +4553,7 @@ const Amain = () => {
       toast.success('محدوده موقت با موفقیت ذخیره شد');
       setIsTempAreaDrawingMode(false);
       setTempAreaVertices([]);
-      refreshLayerTiles('temp-areas-outline');
+      refreshActiveEditableLayerTiles();
     } catch (error) {
       toast.error(error?.message || 'ثبت محدوده موقت ناموفق بود');
     }
@@ -4590,7 +4594,7 @@ const Amain = () => {
       toast.success('محدوده با موفقیت حذف شد');
       setSelectedEditableFeature(null);
       setIsAreaEditMode(false);
-      refreshLayerTiles('areas-outline');
+      refreshActiveEditableLayerTiles();
     } catch (error) {
       toast.error(error?.message || 'حذف محدوده ناموفق بود');
     }
@@ -4683,10 +4687,9 @@ const Amain = () => {
       });
     }
 
-    refreshLayerTiles('van-edges');
-    refreshLayerTiles('van-nodes');
+    refreshActiveEditableLayerTiles();
     toast.success('مسیر ون با موفقیت ذخیره شد');
-  }, [mapFloor, refreshLayerTiles, vanLineCoordinates]);
+  }, [mapFloor, refreshActiveEditableLayerTiles, vanLineCoordinates]);
 
   const handleToggleVanDrawing = async () => {
     if (!map) {
@@ -4773,8 +4776,7 @@ const Amain = () => {
       console.log('door creation response', response);
       await openDoorInfoModal(newDoorId, newAccessPointId, false);
 
-      refreshLayerTiles(DOOR_ACCESS_LAYER_ID);
-      refreshLayerTiles('doors');
+      refreshActiveEditableLayerTiles();
     } catch (error) {
       toast.error(error?.message || 'ثبت درب ناموفق بود');
     } finally {
@@ -5066,6 +5068,7 @@ const Amain = () => {
           const response = await updateDoorInfo(lastCreatedDoorId, payload);
           toast.success(response?.message || 'اطلاعات مکان با موفقیت ثبت شد');
         }
+        refreshActiveEditableLayerTiles();
         setIsAddPlaceModalOpen(false);
         resetForm();
         setCurrentStep(1);
@@ -5168,6 +5171,7 @@ const Amain = () => {
       toast.success('درب با موفقیت حذف شد');
       setSelectedEditableFeature(null);
       setOpenSubMenu(null);
+      refreshActiveEditableLayerTiles();
     } catch (error) {
       toast.error(error?.message || 'حذف درب ناموفق بود');
     }
