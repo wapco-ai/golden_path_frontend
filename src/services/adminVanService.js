@@ -51,4 +51,14 @@ export const createVanEdge = async (payload, { signal } = {}) => {
   return handleResponse(response, 'ثبت مسیر ون ناموفق بود');
 };
 
+export const deleteVanNode = async (nodeId, { signal } = {}) => {
+  const response = await fetch(`${VAN_ADMIN_BASE_URL}/nodes/${nodeId}`, {
+    method: 'DELETE',
+    headers: buildAuthHeaders(),
+    signal
+  });
+
+  return handleResponse(response, 'حذف گره ون ناموفق بود');
+};
+
 export default createVanNode;
