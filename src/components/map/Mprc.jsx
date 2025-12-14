@@ -76,7 +76,8 @@ const Mprc = ({
   areaDoorsStatus,
   onDoorSelect,
   showImageMarkers = false,
-  landmarkPlaces = []
+  landmarkPlaces = [],
+  isChoosingFromMap = false
 }) => {
   const intl = useIntl();
   const [viewState, setViewState] = useState({
@@ -509,11 +510,16 @@ const Mprc = ({
   }, [selectedCategory]);
 
   const renderLandmarkMarkers = useCallback(() => {
-    if (!showImageMarkers || !Array.isArray(landmarkPlaces) || landmarkPlaces.length === 0) {
+    // Check if landmarks should be displayed
+    const shouldShowLandmarks = isChoosingFromMap || (showImageMarkers && selectedCategory);
+
+    if (!shouldShowLandmarks || !Array.isArray(landmarkPlaces) || landmarkPlaces.length === 0) {
       return null;
     }
 
-    const filteredLandmarks = landmarkPlaces.filter(matchesSelectedCategory);
+    const filteredLandmarks = isChoosingFromMap
+      ? landmarkPlaces  // Show all landmarks when choosing from map
+      : landmarkPlaces.filter(matchesSelectedCategory);  // Filter by category when category is selected
 
     if (filteredLandmarks.length === 0) {
       return null;
@@ -583,7 +589,8 @@ const Mprc = ({
         </div>
       </Marker>
     ));
-  }, [showImageMarkers, landmarkPlaces, extractPlaceCoordinates, getFirstImage, onMapClick, matchesSelectedCategory]);
+  }, [showImageMarkers, landmarkPlaces, extractPlaceCoordinates, getFirstImage, onMapClick, matchesSelectedCategory, isChoosingFromMap, selectedCategory]);
+
 
   useEffect(() => {
     if (!shouldLoadGeoJson) {
