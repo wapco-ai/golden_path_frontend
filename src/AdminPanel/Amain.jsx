@@ -524,6 +524,10 @@ const Amain = () => {
   const [reportsManagementOpen, setReportsManagementOpen] = useState(false);
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const currentJalaliDate = useMemo(() => {
+    const now = new Date();
+    return toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  }, []);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const calendarRef = useRef(null);
@@ -666,10 +670,6 @@ const Amain = () => {
     },
     [intl]
   );
-  const currentJalaliDate = useMemo(() => {
-    const now = new Date();
-    return toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
-  }, []);
 
   const [isAddPlaceModalOpen, setIsAddPlaceModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
