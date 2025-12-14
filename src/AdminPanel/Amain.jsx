@@ -114,7 +114,33 @@ const PRAYER_EVENT_OPTIONS = [
 
 const prayerEventLabelToValue = (label) => PRAYER_EVENT_OPTIONS.find((option) => option.label === label)?.value || label;
 const prayerEventValueToLabel = (value) => PRAYER_EVENT_OPTIONS.find((option) => option.value === value)?.label || value;
-const normalizePrayerEvents = (events = []) => events.map(prayerEventLabelToValue).filter(Boolean);
+const normalizePrayerEventValue = (value) => {
+  const cleaned = (value || '').toString().trim();
+  const lower = cleaned.toLowerCase();
+
+  if (!cleaned) return '';
+  if (['dhuhr', 'asr', 'dhuhr_asr'].includes(lower)) return 'dhuhr_asr';
+  if (['maghrib', 'isha', 'maghrib_isha'].includes(lower)) return 'maghrib_isha';
+  if (lower === 'fajr') return 'fajr';
+
+  return prayerEventLabelToValue(cleaned);
+};
+const normalizePrayerEvents = (events = []) => {
+  if (typeof events === 'string') {
+    const cleaned = events.trim().replace(/^\{/, '').replace(/\}$/u, '');
+    const splitEvents = cleaned
+      ? cleaned.split(',').map((event) => event.trim()).filter(Boolean)
+      : [];
+
+    return splitEvents.map(normalizePrayerEventValue).filter(Boolean);
+  }
+
+  const eventArray = Array.isArray(events)
+    ? events
+    : (events ? [events] : []);
+
+  return eventArray.map(normalizePrayerEventValue).filter(Boolean);
+};
 
 const buildPrayerRulesPayload = (selectedEvents, beforeValue, afterValue) => {
   const before = Number.isFinite(Number(beforeValue)) ? Number(beforeValue) : 0;
@@ -1424,7 +1450,11 @@ const Amain = () => {
   };
 
   const getPrayerRestrictionParts = (restriction = {}) => {
-    const normalizedEvents = normalizePrayerEvents(restriction?.events).sort();
+    const normalizedEvents = normalizePrayerEvents(
+      restriction?.events
+      ?? restriction?.prayer_event
+      ?? restriction?.prayerEvent
+    ).sort();
     const dateScope = normalizeDateScopeArray(
       restriction?.isoDateScope?.length ? restriction.isoDateScope : restriction?.date_scope,
       restriction?.date
@@ -5329,35 +5359,85 @@ const Amain = () => {
     };
   });
 
-  const mapApiPrayerRestrictionsToForm = (apiRestrictions = []) => apiRestrictions.map((restriction, index) => {
-    const derivedIsoScope = Array.isArray(restriction?.date_scope) && restriction.date_scope.length
-      ? restriction.date_scope
-      : buildDateScopeIso(restriction?.date);
+  const mapApiPrayerRestrictionsToForm = (apiRestrictions = []) => {
+    const aggregated = [];
 
-    const normalizedEvents = normalizePrayerEvents(restriction?.events);
+    apiRestrictions.forEach((restriction, index) => {
+      const derivedIsoScope = Array.isArray(restriction?.date_scope) && restriction.date_scope.length
+        ? restriction.date_scope
+        : buildDateScopeIso(restriction?.date);
 
-    const isAllDaysScope = Array.isArray(derivedIsoScope) && derivedIsoScope.includes('ALL_DAYS');
-    const dateLabel = isAllDaysScope
-      ? 'همه روزها'
-      : derivedIsoScope?.length
-        ? derivedIsoScope.join(' / ')
-        : restriction?.date || 'همه روزها';
+      const normalizedEvents = normalizePrayerEvents(
+        restriction?.events
+        ?? restriction?.prayer_event
+        ?? restriction?.prayerEvent
+      );
 
-    const eventLabels = normalizedEvents.map(prayerEventValueToLabel);
+      const isAllDaysScope = Array.isArray(derivedIsoScope) && derivedIsoScope.includes('ALL_DAYS');
+      const dateLabel = isAllDaysScope
+        ? 'همه روزها'
+        : derivedIsoScope?.length
+          ? derivedIsoScope.join(' / ')
+          : restriction?.date || 'همه روزها';
 
-    return {
-      id: restriction?.id || index,
-      events: normalizedEvents,
-      before: restriction?.before_minutes ?? restriction?.before ?? '',
-      after: restriction?.after_minutes ?? restriction?.after ?? '',
-      date: dateLabel,
-      isoDateScope: derivedIsoScope?.length ? derivedIsoScope : [],
-      title: restriction?.title
-        || (eventLabels.length
-          ? `${eventLabels.join(' و ')} : ${restriction.before || 0} دقیقه قبل الی ${restriction.after || 0} دقیقه بعد`
-          : '')
-    };
-  });
+      const beforeValue = restriction?.before_minutes ?? restriction?.before ?? '';
+      const afterValue = restriction?.after_minutes ?? restriction?.after ?? '';
+
+      const aggregateKey = JSON.stringify({
+        before: beforeValue,
+        after: afterValue,
+        dateScope: derivedIsoScope?.join('|') || '',
+        gender: Array.isArray(restriction?.gender)
+          ? restriction.gender.map(normalizeGenderValue).filter(Boolean).join('|')
+          : ''
+      });
+
+      const existing = aggregated.find((item) => item.key === aggregateKey);
+
+      if (existing) {
+        normalizedEvents.forEach((event) => existing.events.add(event));
+        if (!existing.title) existing.title = restriction?.title || '';
+        return;
+      }
+
+      const eventsSet = new Set(normalizedEvents);
+
+      aggregated.push({
+        key: aggregateKey,
+        id: restriction?.id || index,
+        events: eventsSet,
+        before: beforeValue,
+        after: afterValue,
+        dateLabel,
+        isoDateScope: derivedIsoScope?.length ? derivedIsoScope : [],
+        title: restriction?.title || ''
+      });
+    });
+
+    return aggregated.map((item, idx) => {
+      const events = Array.from(item.events);
+      const eventLabels = events.map(prayerEventValueToLabel);
+      const isAllDaysScope = Array.isArray(item?.isoDateScope) && item.isoDateScope.includes('ALL_DAYS');
+      const dateLabel = isAllDaysScope
+        ? 'همه روزها'
+        : item?.isoDateScope?.length
+          ? item.isoDateScope.join(' / ')
+          : item?.dateLabel || 'همه روزها';
+
+      return {
+        id: item?.id ?? idx,
+        events,
+        before: item?.before,
+        after: item?.after,
+        date: dateLabel,
+        isoDateScope: item?.isoDateScope || [],
+        title: item?.title
+          || (eventLabels.length
+            ? `${eventLabels.join(' و ')} : ${item.before || 0} دقیقه قبل الی ${item.after || 0} دقیقه بعد`
+            : '')
+      };
+    });
+  };
 
   const buildTimeRestrictionsPayload = () => {
     const payload = timeRestrictions.map((restriction) => ({
