@@ -57,6 +57,20 @@ export const updateTempBlockArea = async (id, payload, { signal } = {}) => {
   return handleResponse(response, 'به‌روزرسانی محدوده موقت ناموفق بود');
 };
 
+export const getTempBlockArea = async (id, { signal } = {}) => {
+  if (!id) {
+    throw new Error('شناسه محدوده موقت نامعتبر است');
+  }
+
+  const response = await fetch(`${TEMP_BLOCK_AREA_BASE_URL}/${id}`, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    signal
+  });
+
+  return handleResponse(response, 'دریافت اطلاعات محدوده موقت ناموفق بود');
+};
+
 export const deleteTempBlockArea = async (id, { signal } = {}) => {
   const response = await fetch(`${TEMP_BLOCK_AREA_BASE_URL}/${id}`, {
       method: 'DELETE',
