@@ -357,6 +357,7 @@ const Amain = () => {
   const [isLayerListOpen, setIsLayerListOpen] = useState(false);
   const [mapFloor, setMapFloor] = useState('همکف');
   const [isMapFloorOpen, setIsMapFloorOpen] = useState(false);
+  const [openSubMenu, setOpenSubMenu] = useState(null);
   const refreshLayerTiles = useCallback((layerId) => {
     if (!map || !layerId) return;
 
@@ -474,6 +475,7 @@ const Amain = () => {
   const unknownDegrees = (unknownComments / commentStats.total) * 360;
   const [isVanDrawingMode, setIsVanDrawingMode] = useState(false);
   const [vanLineCoordinates, setVanLineCoordinates] = useState([]);
+  const [isSavingVanRoute, setIsSavingVanRoute] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [facManagementOpen, setfacManagementOpen] = useState(false);
   const [reportsManagementOpen, setReportsManagementOpen] = useState(false);
@@ -514,6 +516,16 @@ const Amain = () => {
     return selectedLayer;
   }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
   const isVanEdgesLayerActive = activeEditableLayer?.id === 'van-edges';
+  useEffect(() => {
+    if (isVanEdgesLayerActive && activeMenu === 'mapmanage' && openSubMenu !== 3) {
+      setOpenSubMenu(3);
+    }
+
+    if (!isVanEdgesLayerActive && isVanDrawingMode) {
+      setIsVanDrawingMode(false);
+      setVanLineCoordinates([]);
+    }
+  }, [activeMenu, isVanDrawingMode, isVanEdgesLayerActive, openSubMenu]);
   const selectedFeatureProperties = selectedEditableFeature?.features?.[0]?.properties;
   const selectedFeatureCoordinates = selectedEditableFeature?.features?.[0]?.geometry?.coordinates;
   const selectedDoorId = selectedFeatureProperties?.door_id
@@ -782,7 +794,6 @@ const Amain = () => {
   const [isEditingCultural, setIsEditingCultural] = useState(false);
   const [editingCulturalId, setEditingCulturalId] = useState(null);
   const [editingCulturalData, setEditingCulturalData] = useState(null);
-  const [openSubMenu, setOpenSubMenu] = useState(null);
   const [showOrientationModal, setShowOrientationModal] = useState(false);
   const [pendingImageFile, setPendingImageFile] = useState(null);
   const [selectedOrientation, setSelectedOrientation] = useState('');
@@ -3794,29 +3805,13 @@ const Amain = () => {
     const handleMapClick = async (event) => {
       const { lngLat, point } = event;
 
-      if (isTempAreaDrawingMode) {
-        const newVertex = [lngLat.lng, lngLat.lat];
-        setTempAreaVertices((prev) => {
-          const updated = [...prev, newVertex];
-          toast.success(updated.length === 1
-            ? 'نقطه شروع محدوده موقت ثبت شد'
-            : 'نقطه جدید به محدوده موقت اضافه شد');
-          return updated;
-        });
-        return;
-      }
-
-      if (isVanDrawingMode) {
+      if (isVanDrawingMode && isVanEdgesLayerActive) {
         const newCoordinate = [lngLat.lng, lngLat.lat];
 
         setVanLineCoordinates((prev) => {
           const updated = [...prev, newCoordinate];
           const utmCoordinate = convertLngLatToUtm32640({ lng: lngLat.lng, lat: lngLat.lat });
           console.log('van path point added', { wgs84: newCoordinate, utm: utmCoordinate });
-
-          toast.success(updated.length === 1
-            ? 'نقطه شروع مسیر ون ثبت شد'
-            : 'نقطه جدید به مسیر ون اضافه شد');
 
           return updated;
         });
@@ -3943,6 +3938,7 @@ const Amain = () => {
     activeMenu,
     activeEditableLayer,
     isVanDrawingMode,
+    isVanEdgesLayerActive,
     mapFloor,
     isDoorMoveMode,
     selectedDoorId,
@@ -4597,21 +4593,104 @@ const Amain = () => {
     });
   };
 
-  const handleToggleVanDrawing = () => {
+  const saveVanRoute = useCallback(async (routeTitle) => {
+    const floor = floorLabelToValue(mapFloor);
+    const createdNodes = [];
+
+    for (let index = 0; index < vanLineCoordinates.length; index += 1) {
+      const coordinate = vanLineCoordinates[index];
+
+      if (!Array.isArray(coordinate) || coordinate.length < 2) {
+        throw new Error('مختصات مسیر ون نامعتبر است');
+      }
+
+      const [lng, lat] = coordinate || [];
+      const { x, y } = convertLngLatToUtm32640({ lng, lat });
+      const nodeTitle = `${routeTitle} - نقطه ${index + 1}`;
+
+      const nodeResponse = await createVanNode({
+        floor,
+        node_type: index === 0 || index === vanLineCoordinates.length - 1 ? 'stop' : 'junction',
+        geom: { x, y },
+        basic_info: {
+          title: { fa: nodeTitle, en: nodeTitle },
+          description: { fa: '', en: '' }
+        }
+      });
+
+      const nodeId = nodeResponse?.id;
+
+      if (!nodeId) {
+        throw new Error('شناسه گره ون دریافت نشد');
+      }
+
+      createdNodes.push({ id: nodeId, coordinate });
+    }
+
+    for (let index = 0; index < createdNodes.length - 1; index += 1) {
+      const current = createdNodes[index];
+      const next = createdNodes[index + 1];
+      const edgeLengthKm = turfDistance(current.coordinate, next.coordinate, { units: 'kilometers' });
+      const edgeLengthMeters = Number.isFinite(edgeLengthKm) ? Math.round(edgeLengthKm * 1000) : 0;
+
+      await createVanEdge({
+        src: current.id,
+        dst: next.id,
+        one_way: true,
+        is_open: true,
+        length_m: edgeLengthMeters,
+        attrs: {},
+        geom_geojson: {
+          type: 'LineString',
+          coordinates: [current.coordinate, next.coordinate]
+        }
+      });
+    }
+
+    refreshLayerTiles('van-edges');
+    refreshLayerTiles('van-nodes');
+    toast.success('مسیر ون با موفقیت ذخیره شد');
+  }, [mapFloor, refreshLayerTiles, vanLineCoordinates]);
+
+  const handleToggleVanDrawing = async () => {
     if (!map) {
       toast.error('نقشه هنوز آماده نیست');
       return;
     }
 
-    setIsVanDrawingMode((prev) => {
-      const next = !prev;
+    if (!isVanEdgesLayerActive) {
+      toast.error('برای ترسیم مسیر ون، لایه مسیر ون را در حالت ویرایش فعال کنید');
+      return;
+    }
 
-      if (next) {
-        toast.info('برای ترسیم مسیر ون روی نقشه کلیک کنید.');
-      }
+    if (!isVanDrawingMode) {
+      setVanLineCoordinates([]);
+      setIsVanDrawingMode(true);
+      setOpenSubMenu(3);
+      return;
+    }
 
-      return next;
-    });
+    if (vanLineCoordinates.length < 2) {
+      toast.error('برای ذخیره مسیر ون حداقل دو نقطه لازم است');
+      setIsVanDrawingMode(false);
+      setVanLineCoordinates([]);
+      return;
+    }
+
+    const routeTitle = window.prompt('برای ذخیره مسیر ون یک عنوان وارد کنید', 'مسیر ون جدید');
+
+    if (!routeTitle || !routeTitle.trim()) return;
+
+    try {
+      setIsSavingVanRoute(true);
+      await saveVanRoute(routeTitle.trim());
+      setIsVanDrawingMode(false);
+      setVanLineCoordinates([]);
+    } catch (error) {
+      toast.error(error?.message || 'ذخیره مسیر ون ناموفق بود');
+    } finally {
+      setIsSavingVanRoute(false);
+    }
   };
 
   const handleCancelLocationMarker = () => {
@@ -7665,7 +7744,7 @@ const Amain = () => {
                 {/* Top Left - Map Type Selector */}
                 <div className="map-control-top-left">
                   <div className="action-buttons-group">
-                    <div className={`action-button temp-area-manage ${openSubMenu === 0 ? 'selected' : ''}`}
+                    <div className={`action-button ${openSubMenu === 0 ? 'selected' : ''}`}
                       onClick={() => setOpenSubMenu(openSubMenu === 0 ? null : 0)}>
                       <span>
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -7708,7 +7787,7 @@ const Amain = () => {
                   <div className="action-buttons-group">
 
                     {/* Button 1 */}
-                    <div className={`action-button ${openSubMenu === 1 ? 'selected' : ''}`}
+                    <div className={`action-button temp-area-manage ${openSubMenu === 1 ? 'selected' : ''}`}
                       onClick={() => {
                         setOpenSubMenu(openSubMenu === 1 ? null : 1);
                         // Reset location marker mode when other buttons are clicked
@@ -7737,7 +7816,7 @@ const Amain = () => {
                     </div>
                     {openSubMenu === 1 && (
                       <div className="sub-buttons1">
-                        <button className="sub-btn">
+                        <button className="sub-btn move-temp-area">
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-drag-drop">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M19 11v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2" />
@@ -7751,10 +7830,10 @@ const Amain = () => {
                             <path d="M3 15l0 .01" />
                           </svg>
                         </button>
-                        <button className="sub-btn">
+                        <button className="sub-btn create-temp-area">
                           <svg width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.354 13.646l2.853 2.854-2.854 2.854-.707-.707L21.293 17H17v4.293l1.646-1.646.707.707-2.853 2.853-2.854-2.854.707-.707L16 21.293V17h-4.293l1.646 1.646-.707.707L9.793 16.5l2.854-2.854.707.707L11.707 16H16v-4.293l-1.646 1.646-.707-.707L16.5 9.793l2.854 2.854-.707.707L17 11.707V16h4.293l-1.646-1.646zM9 6H6.537L2.468 18l-.947-.321L5.48 6H4V1h5v2h9v1H9zM8 5V2H5v3z" /><path fill="none" d="M0 0h24v24H0z" /></svg>
                         </button>
-                        <button className="sub-btn">
+                        <button className="sub-btn edit-temp-area">
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
@@ -7762,7 +7841,7 @@ const Amain = () => {
                             <path d="M16 5l3 3" />
                           </svg>
                         </button>
-                        <button className="sub-btn">
+                        <button className="sub-btn delete-temp-area">
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M4 7l16 0" />
@@ -7840,6 +7919,7 @@ const Amain = () => {
                       <div className="sub-buttons3">
                         <button
                           className={`sub-btn van-create ${isVanDrawingMode ? 'active' : ''}`}
+                          disabled={isSavingVanRoute}
                           onClick={handleToggleVanDrawing}
                         >
                           <svg width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.354 13.646l2.853 2.854-2.854 2.854-.707-.707L21.293 17H17v4.293l1.646-1.646.707.707-2.853 2.853-2.854-2.854.707-.707L16 21.293V17h-4.293l1.646 1.646-.707.707L9.793 16.5l2.854-2.854.707.707L11.707 16H16v-4.293l-1.646 1.646-.707-.707L16.5 9.793l2.854 2.854-.707.707L17 11.707V16h4.293l-1.646-1.646zM9 6H6.537L2.468 18l-.947-.321L5.48 6H4V1h5v2h9v1H9zM8 5V2H5v3z" /><path fill="none" d="M0 0h24v24H0z" /></svg>
