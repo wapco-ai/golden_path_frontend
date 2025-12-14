@@ -34,7 +34,7 @@ import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { getLanguageName } from '../utils/languageNames';
 import { deleteFile, uploadFile } from '../services/fileService';
-import { createVanEdge, createVanNode } from '../services/adminVanService';
+import { createVanEdge, createVanNode, deleteVanNode } from '../services/adminVanService';
 import { createTempBlockArea } from '../services/tempBlockAreasService';
 
 
@@ -516,6 +516,7 @@ const Amain = () => {
     return selectedLayer;
   }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
   const isVanEdgesLayerActive = activeEditableLayer?.id === 'van-edges';
+  const isVanNodesLayerActive = activeEditableLayer?.id === 'van-nodes';
   const isTempAreaLayerActive = activeEditableLayer?.id === 'temp-areas-outline';
   const refreshActiveEditableLayerTiles = useCallback(() => {
     if (!activeEditableLayer?.id) return;
@@ -523,7 +524,7 @@ const Amain = () => {
     refreshLayerTiles(activeEditableLayer.id);
   }, [activeEditableLayer?.id, refreshLayerTiles]);
   useEffect(() => {
-    if (isVanEdgesLayerActive && activeMenu === 'mapmanage' && openSubMenu !== 3) {
+    if ((isVanEdgesLayerActive || isVanNodesLayerActive) && activeMenu === 'mapmanage' && openSubMenu !== 3) {
       setOpenSubMenu(3);
     }
 
@@ -531,7 +532,7 @@ const Amain = () => {
       setIsVanDrawingMode(false);
       setVanLineCoordinates([]);
     }
-  }, [activeMenu, isVanDrawingMode, isVanEdgesLayerActive, openSubMenu]);
+  }, [activeMenu, isVanDrawingMode, isVanEdgesLayerActive, isVanNodesLayerActive, openSubMenu]);
   useEffect(() => {
     if (isTempAreaLayerActive && activeMenu === 'mapmanage') {
       setOpenSubMenu(1);
@@ -555,6 +556,12 @@ const Amain = () => {
     ? selectedFeatureProperties?.area_id
     || selectedFeatureProperties?.areaId
     || selectedFeatureProperties?.areaID
+    || selectedFeatureProperties?.id
+    : null;
+  const selectedVanNodeId = isVanNodesLayerActive
+    ? selectedFeatureProperties?.node_id
+    || selectedFeatureProperties?.nodeId
+    || selectedFeatureProperties?.nodeID
     || selectedFeatureProperties?.id
     : null;
   const showDoorTools = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && !!selectedDoorId && !!selectedEditableFeature;
@@ -4732,6 +4739,31 @@ const Amain = () => {
     }
   };
 
+  const handleVanNodeDelete = async () => {
+    if (!isVanNodesLayerActive) {
+      toast.error('برای حذف گره ون، لایه گره ون باید در حالت ویرایش فعال باشد');
+      return;
+    }
+
+    if (!selectedVanNodeId) {
+      toast.error('هیچ گره ونی برای حذف انتخاب نشده است');
+      return;
+    }
+
+    const confirmDelete = window.confirm(`آیا از حذف گره ون انتخاب‌شده (شناسه ${selectedVanNodeId}) مطمئن هستید؟ این عملیات قابل بازگشت نیست.`);
+
+    if (!confirmDelete) return;
+
+    try {
+      await deleteVanNode(selectedVanNodeId);
+      toast.success('گره ون با موفقیت حذف شد');
+      setSelectedEditableFeature(null);
+      refreshActiveEditableLayerTiles();
+    } catch (error) {
+      toast.error(error?.message || 'حذف گره ون ناموفق بود');
+    }
+  };
+
   const handleCancelLocationMarker = () => {
     setIsLocationMarkerMode(false);
 
@@ -7972,7 +8004,7 @@ const Amain = () => {
                             <path d="M16 5l3 3" />
                           </svg>
                         </button>
-                        <button className="sub-btn delete-van-node">
+                        <button className="sub-btn delete-van-node" onClick={handleVanNodeDelete}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M4 7l16 0" />
