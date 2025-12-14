@@ -516,6 +516,7 @@ const Amain = () => {
     return selectedLayer;
   }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
   const isVanEdgesLayerActive = activeEditableLayer?.id === 'van-edges';
+  const isTempAreaLayerActive = activeEditableLayer?.id === 'temp-areas-outline';
   useEffect(() => {
     if (isVanEdgesLayerActive && activeMenu === 'mapmanage' && openSubMenu !== 3) {
       setOpenSubMenu(3);
@@ -526,6 +527,17 @@ const Amain = () => {
       setVanLineCoordinates([]);
     }
   }, [activeMenu, isVanDrawingMode, isVanEdgesLayerActive, openSubMenu]);
+  useEffect(() => {
+    if (isTempAreaLayerActive && activeMenu === 'mapmanage') {
+      setOpenSubMenu(1);
+      return;
+    }
+
+    if (!isTempAreaLayerActive && isTempAreaDrawingMode) {
+      setIsTempAreaDrawingMode(false);
+      setTempAreaVertices([]);
+    }
+  }, [activeMenu, isTempAreaLayerActive, isTempAreaDrawingMode]);
   const selectedFeatureProperties = selectedEditableFeature?.features?.[0]?.properties;
   const selectedFeatureCoordinates = selectedEditableFeature?.features?.[0]?.geometry?.coordinates;
   const selectedDoorId = selectedFeatureProperties?.door_id
@@ -540,7 +552,6 @@ const Amain = () => {
     || selectedFeatureProperties?.areaID
     || selectedFeatureProperties?.id
     : null;
-  const isTempAreaLayerActive = activeEditableLayer?.id === 'temp-areas-outline';
   const showDoorTools = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && !!selectedDoorId && !!selectedEditableFeature;
   const isActiveLayerPointBased = useMemo(
     () => activeEditableLayer?.type === 'circle' || activeEditableLayer?.type === 'symbol',
@@ -3751,7 +3762,7 @@ const Amain = () => {
       }
 
       if (activeEditableLayer.id === 'temp-areas-outline') {
-        setOpenSubMenu(0);
+        setOpenSubMenu(1);
       }
 
       if (activeEditableLayer.id === 'areas-outline') {
@@ -3856,6 +3867,11 @@ const Amain = () => {
 
       if (!activeEditableLayer) {
         console.warn('هیچ لایه قابل ویرایشی انتخاب نشده است.');
+        return;
+      }
+
+      if (isTempAreaDrawingMode && isTempAreaLayerActive) {
+        setTempAreaVertices((prev) => [...prev, [lngLat.lng, lngLat.lat]]);
         return;
       }
 
@@ -7850,7 +7866,7 @@ const Amain = () => {
                             <path d="M3 15l0 .01" />
                           </svg>
                         </button>
-                        <button className="sub-btn create-temp-area">
+                        <button className="sub-btn create-temp-area" onClick={handleToggleTempAreaDrawing}>
                           <svg width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.354 13.646l2.853 2.854-2.854 2.854-.707-.707L21.293 17H17v4.293l1.646-1.646.707.707-2.853 2.853-2.854-2.854.707-.707L16 21.293V17h-4.293l1.646 1.646-.707.707L9.793 16.5l2.854-2.854.707.707L11.707 16H16v-4.293l-1.646 1.646-.707-.707L16.5 9.793l2.854 2.854-.707.707L17 11.707V16h4.293l-1.646-1.646zM9 6H6.537L2.468 18l-.947-.321L5.48 6H4V1h5v2h9v1H9zM8 5V2H5v3z" /><path fill="none" d="M0 0h24v24H0z" /></svg>
                         </button>
                         <button className="sub-btn edit-temp-area">
