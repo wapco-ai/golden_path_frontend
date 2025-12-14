@@ -4427,21 +4427,6 @@ const Amain = () => {
     });
   }, []);
 
-  const buildTempAreaGeometry = useCallback((vertices = []) => {
-    if (!Array.isArray(vertices) || !vertices.length) return null;
-
-    if (vertices.length === 1) {
-      return { type: 'Point', coordinates: vertices[0] };
-    }
-
-    if (vertices.length === 2) {
-      return { type: 'LineString', coordinates: vertices };
-    }
-
-    const closedRing = [...vertices, vertices[0]];
-    return { type: 'Polygon', coordinates: [closedRing] };
-  }, []);
-
   const buildVertexMarkers = useCallback(() => {
     if (!map || !isAreaEditMode) {
       clearVertexMarkers();
