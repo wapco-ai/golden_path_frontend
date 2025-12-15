@@ -2868,6 +2868,48 @@
         "language": "PLPGSQL",
         "parameters": [
             {
+                "data_type": "integer",
+                "parameter_mode": "IN",
+                "parameter_name": "z",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "integer",
+                "parameter_mode": "IN",
+                "parameter_name": "x",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "integer",
+                "parameter_mode": "IN",
+                "parameter_name": "y",
+                "ordinal_position": 3
+            },
+            {
+                "data_type": "smallint",
+                "parameter_mode": "IN",
+                "parameter_name": "p_floor",
+                "ordinal_position": 4
+            },
+            {
+                "data_type": "timestamp with time zone",
+                "parameter_mode": "IN",
+                "parameter_name": "p_now",
+                "ordinal_position": 5
+            }
+        ],
+        "return_type": "bytea",
+        "function_body": "\r\nDECLARE\r\n  tile_bbox_3857 geometry;\r\n  tile_bbox_32640 geometry;\r\nBEGIN\r\n  -- BBOX tile در WebMercator\r\n  tile_bbox_3857  := ST_TileEnvelope(z, x, y);\r\n  tile_bbox_32640 := ST_Transform(tile_bbox_3857, 32640);\r\n\r\n  RETURN (\r\n    SELECT ST_AsMVT(tile, 'temp_block_areas_live', 4096, 'geom')\r\n    FROM (\r\n      SELECT\r\n        ST_AsMVTGeom(\r\n          ST_Transform(t.geom, 3857),\r\n          tile_bbox_3857,\r\n          4096,\r\n          64,\r\n          true\r\n        ) AS geom,\r\n\r\n        t.id,\r\n        t.floor,\r\n        t.restrict_type,\r\n        t.valid_from,\r\n        t.valid_to,\r\n        t.created_by,\r\n        t.reason\r\n\r\n      FROM temp_block_areas_live t\r\n      WHERE\r\n        t.floor = p_floor\r\n        AND p_now BETWEEN t.valid_from AND t.valid_to\r\n\r\n        -- فیلتر فضایی برای استفاده از GiST و جلوگیری از اسکن کامل\r\n        AND t.geom && tile_bbox_32640\r\n        AND ST_Intersects(t.geom, tile_bbox_32640)\r\n    ) AS tile\r\n    WHERE geom IS NOT NULL\r\n  );\r\nEND;\r\n",
+        "function_name": "fn_temp_block_areas_live_mvt",
+        "security_type": "INVOKER",
+        "full_definition": "CREATE OR REPLACE FUNCTION public.fn_temp_block_areas_live_mvt(z integer, x integer, y integer, p_floor smallint, p_now timestamp with time zone DEFAULT now())\n RETURNS bytea\n LANGUAGE plpgsql\n STABLE\nAS $function$\r\nDECLARE\r\n  tile_bbox_3857 geometry;\r\n  tile_bbox_32640 geometry;\r\nBEGIN\r\n  -- BBOX tile در WebMercator\r\n  tile_bbox_3857  := ST_TileEnvelope(z, x, y);\r\n  tile_bbox_32640 := ST_Transform(tile_bbox_3857, 32640);\r\n\r\n  RETURN (\r\n    SELECT ST_AsMVT(tile, 'temp_block_areas_live', 4096, 'geom')\r\n    FROM (\r\n      SELECT\r\n        ST_AsMVTGeom(\r\n          ST_Transform(t.geom, 3857),\r\n          tile_bbox_3857,\r\n          4096,\r\n          64,\r\n          true\r\n        ) AS geom,\r\n\r\n        t.id,\r\n        t.floor,\r\n        t.restrict_type,\r\n        t.valid_from,\r\n        t.valid_to,\r\n        t.created_by,\r\n        t.reason\r\n\r\n      FROM temp_block_areas_live t\r\n      WHERE\r\n        t.floor = p_floor\r\n        AND p_now BETWEEN t.valid_from AND t.valid_to\r\n\r\n        -- فیلتر فضایی برای استفاده از GiST و جلوگیری از اسکن کامل\r\n        AND t.geom && tile_bbox_32640\r\n        AND ST_Intersects(t.geom, tile_bbox_32640)\r\n    ) AS tile\r\n    WHERE geom IS NOT NULL\r\n  );\r\nEND;\r\n$function$\n",
+        "is_deterministic": "NO"
+    },
+    {
+        "schema": "public",
+        "language": "PLPGSQL",
+        "parameters": [
+            {
                 "data_type": "bigint",
                 "parameter_mode": "IN",
                 "parameter_name": "p_poi_id",
@@ -2879,6 +2921,78 @@
         "function_name": "fn_update_poi_rating_from_feedbacks",
         "security_type": "INVOKER",
         "full_definition": "CREATE OR REPLACE FUNCTION public.fn_update_poi_rating_from_feedbacks(p_poi_id bigint)\n RETURNS void\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n  v_rating_avg   numeric;\r\n  v_rating_count int;\r\nBEGIN\r\n  SELECT\r\n    AVG(rating)::numeric,\r\n    COUNT(*)\r\n  INTO\r\n    v_rating_avg,\r\n    v_rating_count\r\n  FROM public.user_feedbacks\r\n  WHERE\r\n    target_type = 'poi'\r\n    AND target_id = p_poi_id\r\n    AND status = 'approved'\r\n    AND rating IS NOT NULL;\r\n\r\n  UPDATE public.poi_points\r\n  SET attrs = jsonb_set(\r\n                jsonb_set(\r\n                  jsonb_set(\r\n                    COALESCE(attrs, '{}'::jsonb),\r\n                    '{rating}',\r\n                    COALESCE(to_jsonb(v_rating_avg), '0'::jsonb),\r\n                    true\r\n                  ),\r\n                  '{rating_count}',\r\n                  COALESCE(to_jsonb(v_rating_count), '0'::jsonb),\r\n                  true\r\n                ),\r\n                '{views}',                       -- 👈 جدید\r\n                COALESCE(to_jsonb(v_rating_count), '0'::jsonb),\r\n                true\r\n              )\r\n  WHERE id = p_poi_id;\r\nEND;\r\n$function$\n",
+        "is_deterministic": "NO"
+    },
+    {
+        "schema": "public",
+        "language": "PLPGSQL",
+        "parameters": [
+            {
+                "data_type": "integer",
+                "parameter_mode": "IN",
+                "parameter_name": "z",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "integer",
+                "parameter_mode": "IN",
+                "parameter_name": "x",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "integer",
+                "parameter_mode": "IN",
+                "parameter_name": "y",
+                "ordinal_position": 3
+            },
+            {
+                "data_type": "smallint",
+                "parameter_mode": "IN",
+                "parameter_name": "p_floor",
+                "ordinal_position": 4
+            }
+        ],
+        "return_type": "bytea",
+        "function_body": "\r\nDECLARE\r\n  tile_bbox_3857  geometry;\r\n  tile_bbox_32640 geometry;\r\nBEGIN\r\n  tile_bbox_3857  := ST_TileEnvelope(z, x, y);\r\n  tile_bbox_32640 := ST_Transform(tile_bbox_3857, 32640);\r\n\r\n  RETURN (\r\n    SELECT ST_AsMVT(tile, 'van_edges', 4096, 'geom')\r\n    FROM (\r\n      SELECT\r\n        ST_AsMVTGeom(\r\n          ST_Transform(e.geom, 3857),\r\n          tile_bbox_3857,\r\n          4096,\r\n          64,\r\n          true\r\n        ) AS geom,\r\n\r\n        e.id,\r\n        e.src,\r\n        e.dst,\r\n        e.length_m,\r\n        e.one_way,\r\n        e.is_open,\r\n        e.attrs\r\n\r\n      FROM public.van_edges e\r\n      JOIN public.van_nodes ns ON ns.id = e.src\r\n      JOIN public.van_nodes nd ON nd.id = e.dst\r\n      WHERE\r\n        ns.floor = p_floor\r\n        AND nd.floor = p_floor\r\n        AND e.is_open IS TRUE\r\n\r\n        -- فیلتر فضایی برای سرعت\r\n        AND e.geom && tile_bbox_32640\r\n        AND ST_Intersects(e.geom, tile_bbox_32640)\r\n    ) AS tile\r\n    WHERE geom IS NOT NULL\r\n  );\r\nEND;\r\n",
+        "function_name": "fn_van_edges_mvt",
+        "security_type": "INVOKER",
+        "full_definition": "CREATE OR REPLACE FUNCTION public.fn_van_edges_mvt(z integer, x integer, y integer, p_floor smallint)\n RETURNS bytea\n LANGUAGE plpgsql\n STABLE\nAS $function$\r\nDECLARE\r\n  tile_bbox_3857  geometry;\r\n  tile_bbox_32640 geometry;\r\nBEGIN\r\n  tile_bbox_3857  := ST_TileEnvelope(z, x, y);\r\n  tile_bbox_32640 := ST_Transform(tile_bbox_3857, 32640);\r\n\r\n  RETURN (\r\n    SELECT ST_AsMVT(tile, 'van_edges', 4096, 'geom')\r\n    FROM (\r\n      SELECT\r\n        ST_AsMVTGeom(\r\n          ST_Transform(e.geom, 3857),\r\n          tile_bbox_3857,\r\n          4096,\r\n          64,\r\n          true\r\n        ) AS geom,\r\n\r\n        e.id,\r\n        e.src,\r\n        e.dst,\r\n        e.length_m,\r\n        e.one_way,\r\n        e.is_open,\r\n        e.attrs\r\n\r\n      FROM public.van_edges e\r\n      JOIN public.van_nodes ns ON ns.id = e.src\r\n      JOIN public.van_nodes nd ON nd.id = e.dst\r\n      WHERE\r\n        ns.floor = p_floor\r\n        AND nd.floor = p_floor\r\n        AND e.is_open IS TRUE\r\n\r\n        -- فیلتر فضایی برای سرعت\r\n        AND e.geom && tile_bbox_32640\r\n        AND ST_Intersects(e.geom, tile_bbox_32640)\r\n    ) AS tile\r\n    WHERE geom IS NOT NULL\r\n  );\r\nEND;\r\n$function$\n",
+        "is_deterministic": "NO"
+    },
+    {
+        "schema": "public",
+        "language": "PLPGSQL",
+        "parameters": [
+            {
+                "data_type": "integer",
+                "parameter_mode": "IN",
+                "parameter_name": "z",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "integer",
+                "parameter_mode": "IN",
+                "parameter_name": "x",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "integer",
+                "parameter_mode": "IN",
+                "parameter_name": "y",
+                "ordinal_position": 3
+            },
+            {
+                "data_type": "smallint",
+                "parameter_mode": "IN",
+                "parameter_name": "p_floor",
+                "ordinal_position": 4
+            }
+        ],
+        "return_type": "bytea",
+        "function_body": "\r\nDECLARE\r\n  tile_bbox_3857  geometry;\r\n  tile_bbox_32640 geometry;\r\nBEGIN\r\n  tile_bbox_3857  := ST_TileEnvelope(z, x, y);\r\n  tile_bbox_32640 := ST_Transform(tile_bbox_3857, 32640);\r\n\r\n  RETURN (\r\n    SELECT ST_AsMVT(tile, 'van_nodes', 4096, 'geom')\r\n    FROM (\r\n      SELECT\r\n        ST_AsMVTGeom(\r\n          ST_Transform(n.geom, 3857),\r\n          tile_bbox_3857,\r\n          4096,\r\n          64,\r\n          true\r\n        ) AS geom,\r\n\r\n        n.id,\r\n        n.floor,\r\n        n.node_type,\r\n        n.updated_at\r\n\r\n      FROM public.van_nodes n\r\n      WHERE\r\n        n.floor = p_floor\r\n\r\n        -- فیلتر فضایی برای سرعت\r\n        AND n.geom && tile_bbox_32640\r\n        AND ST_Intersects(n.geom, tile_bbox_32640)\r\n    ) AS tile\r\n    WHERE geom IS NOT NULL\r\n  );\r\nEND;\r\n",
+        "function_name": "fn_van_nodes_mvt",
+        "security_type": "INVOKER",
+        "full_definition": "CREATE OR REPLACE FUNCTION public.fn_van_nodes_mvt(z integer, x integer, y integer, p_floor smallint)\n RETURNS bytea\n LANGUAGE plpgsql\n STABLE\nAS $function$\r\nDECLARE\r\n  tile_bbox_3857  geometry;\r\n  tile_bbox_32640 geometry;\r\nBEGIN\r\n  tile_bbox_3857  := ST_TileEnvelope(z, x, y);\r\n  tile_bbox_32640 := ST_Transform(tile_bbox_3857, 32640);\r\n\r\n  RETURN (\r\n    SELECT ST_AsMVT(tile, 'van_nodes', 4096, 'geom')\r\n    FROM (\r\n      SELECT\r\n        ST_AsMVTGeom(\r\n          ST_Transform(n.geom, 3857),\r\n          tile_bbox_3857,\r\n          4096,\r\n          64,\r\n          true\r\n        ) AS geom,\r\n\r\n        n.id,\r\n        n.floor,\r\n        n.node_type,\r\n        n.updated_at\r\n\r\n      FROM public.van_nodes n\r\n      WHERE\r\n        n.floor = p_floor\r\n\r\n        -- فیلتر فضایی برای سرعت\r\n        AND n.geom && tile_bbox_32640\r\n        AND ST_Intersects(n.geom, tile_bbox_32640)\r\n    ) AS tile\r\n    WHERE geom IS NOT NULL\r\n  );\r\nEND;\r\n$function$\n",
         "is_deterministic": "NO"
     },
     {
