@@ -268,12 +268,6 @@
   font-family: 'Vazir', Tahoma, sans-serif;
 }
 
-.des-marker {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .time-marker-container {
   text-align: center;
 }
