@@ -5,12 +5,7 @@ import logo from '../assets/images/logo3.png';
 import statsImage from '../assets/images/img1.png'; // Add this import
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import {
-  ADMIN_REFRESH_TOKEN_KEY,
-  clearTokens,
-  loginAdmin,
-  refreshAdminSession
-} from '../services/adminAuthService';
+import { ADMIN_REFRESH_TOKEN_KEY, useAdminAuthStore } from '../auth/admin/adminAuthStore';
 
 const Alogin = () => {
   const [username, setUsername] = useState('');
@@ -21,33 +16,34 @@ const Alogin = () => {
   const [activeSlide, setActiveSlide] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const { accessToken, refreshToken, login, refreshSession, clearAuth } = useAdminAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const savedRefreshToken = localStorage.getItem(ADMIN_REFRESH_TOKEN_KEY);
+    const savedRefreshToken = refreshToken || localStorage.getItem(ADMIN_REFRESH_TOKEN_KEY);
 
-    if (!savedRefreshToken) {
+    if (!savedRefreshToken || accessToken) {
       return undefined;
     }
 
     let isActive = true;
-    const controller = new AbortController();
 
-    refreshAdminSession({ refreshToken: savedRefreshToken, signal: controller.signal })
+    refreshSession()
       .then(() => {
         if (isActive) {
-          navigate('/amain');
+          navigate('/admin');
         }
       })
       .catch(() => {
-        clearTokens();
+        if (isActive) {
+          clearAuth();
+        }
       });
 
     return () => {
       isActive = false;
-      controller.abort();
     };
-  }, [navigate]);
+  }, [accessToken, refreshSession, refreshToken, navigate, clearAuth]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -71,11 +67,11 @@ const Alogin = () => {
     setIsSubmitting(true);
 
     try {
-      await loginAdmin({ usernameOrEmail: username.trim(), password: password.trim() });
+      await login({ usernameOrEmail: username.trim(), password: password.trim() });
       toast.success('با موفقیت وارد شدید');
-      navigate('/amain');
+      navigate('/admin');
     } catch (error) {
-      const message = error?.message || 'در ورود خطایی رخ داد';
+      const message = error?.response?.data?.message || error?.message || 'در ورود خطایی رخ داد';
       setLoginError(message);
       toast.error(message);
     } finally {
