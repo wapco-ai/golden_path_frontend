@@ -1,5 +1,5 @@
 import React from 'react';
-import { Route } from 'react-router-dom';
+import { Navigate, Route } from 'react-router-dom';
 import AdminProtectedRoute from '../auth/admin/AdminProtectedRoute';
 import AdminGuestRoute from '../auth/admin/AdminGuestRoute';
 import AdminLayout from '../auth/admin/AdminLayout';
@@ -25,8 +25,9 @@ const adminRoutes = (
         </AdminProtectedRoute>
       )}
     >
-      <Route index element={<AdminDashboard />} />
-      <Route path="legacy" element={<Amain />} />
+      <Route index element={<Amain />} />
+      <Route path="dashboard" element={<AdminDashboard />} />
+      <Route path="legacy" element={<Navigate to="/admin" replace />} />
     </Route>
   </>
 );
