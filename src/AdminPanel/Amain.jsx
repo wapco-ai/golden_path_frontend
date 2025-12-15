@@ -850,6 +850,21 @@ const Amain = () => {
     : null;
   const isTempAreaFormDisabled = isSavingTempAreaDetails || isLoadingTempAreaDetails;
   const showDoorTools = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && !!selectedDoorId && !!selectedEditableFeature;
+  useEffect(() => {
+    const isDoorLayerActive = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID;
+
+    setOpenSubMenu((current) => {
+      if (isDoorLayerActive && showDoorTools) {
+        return 4;
+      }
+
+      if (current === 4) {
+        return null;
+      }
+
+      return current;
+    });
+  }, [activeEditableLayer?.id, showDoorTools]);
   const isActiveLayerPointBased = useMemo(
     () => activeEditableLayer?.type === 'circle' || activeEditableLayer?.type === 'symbol',
     [activeEditableLayer]
