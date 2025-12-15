@@ -18,7 +18,7 @@ import {
   fetchCulturalItems,
   updateCulturalItem
 } from '../services/culturalItemsService';
-import { useAdminLoginService } from './adminLoginServiceContext';
+import { useAdminAuthStore } from '../auth/admin/adminAuthStore';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import {
   DOOR_ACCESS_LAYER_ID,
@@ -503,7 +503,8 @@ const logDoorAccessPointDebugInfo = (mapInstance) => {
 };
 
 const Amain = () => {
-  const { adminProfile, isLoadingProfile, logout } = useAdminLoginService();
+  const { admin: adminProfile, permissions: adminPermissions, fetchProfile, logout } = useAdminAuthStore();
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [commentStats, setCommentStats] = useState({
     total: 152,
@@ -512,9 +513,18 @@ const Amain = () => {
   });
   const [map, setMap] = useState(null);
   const userPermissions = useMemo(
-    () => adminProfile?.permissions || adminProfile?.user?.permissions || [],
-    [adminProfile]
+    () => adminPermissions || adminProfile?.permissions || adminProfile?.user?.permissions || [],
+    [adminPermissions, adminProfile]
   );
+
+  useEffect(() => {
+    if (!adminProfile) {
+      setIsLoadingProfile(true);
+      fetchProfile()
+        .catch(() => {})
+        .finally(() => setIsLoadingProfile(false));
+    }
+  }, [adminProfile, fetchProfile]);
   const editableLayerOptions = useMemo(
     () => haramAdminVectorTileConfig.map((layer) => {
       const settings = layerEditSettings[layer.id] || {};

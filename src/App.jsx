@@ -15,23 +15,19 @@ import ProfileInfo from './pages/ProfileInfo';
 import Proutes from './pages/Proutes';
 import Pfp from './pages/Pfp';
 import Pmap from './pages/Pmap';
-import Amain from './AdminPanel/Amain';
-import Alogin from './AdminPanel/Alogin';
-import { AdminLoginServiceProvider } from './AdminPanel/adminLoginServiceContext';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { ToastContainer, toast } from 'react-toastify';
+import adminRoutes from './routes/adminRoutes';
 
 const useAppStyles = () => {
   const location = useLocation();
-  const isAmain = location.pathname === '/amain';
-  const isAlogin = location.pathname === '/alogin';
-  
+
   useEffect(() => {
-    if (!isAmain) {
+    if (!location.pathname.startsWith('/admin')) {
       import('./App.css');
     }
-  }, [isAmain, location.pathname]);
+  }, [location.pathname]);
 };
 
 
@@ -41,11 +37,8 @@ const AppContent = () => {
   const hideHeaderFooter = location.pathname === '/login' || location.pathname === '/profile'|| location.pathname === '/lang'
     || location.pathname === '/location' || location.pathname === '/' || location.pathname === '/mpr'|| location.pathname === '/fs'
     || location.pathname === '/rop' || location.pathname === '/rng'|| location.pathname === '/mpb'
-    || location.pathname === '/amain' || location.pathname === '/plang' || location.pathname === '/pinfo' || location.pathname === '/proutes'
-    || location.pathname === '/Pfp' || location.pathname === '/Pmap' ;
-
-  const isAmain = location.pathname === '/amain';
-  const isAlogin = location.pathname === '/alogin';
+    || location.pathname === '/plang' || location.pathname === '/pinfo' || location.pathname === '/proutes'
+    || location.pathname === '/Pfp' || location.pathname === '/Pmap' || location.pathname.startsWith('/admin');
 
   useAppStyles();
 
@@ -80,8 +73,10 @@ const AppContent = () => {
     setShowInstall(false);
   };
 
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
   return (
-    <div className={`app ${isAmain ? 'no-app-styles' : ''}`}>
+    <div className={`app ${isAdminRoute ? 'no-app-styles' : ''}`}>
       {!hideHeaderFooter && <Header />}
       <main className={`main-content ${hideHeaderFooter ? 'no-header-footer-layout' : ''}`}>
         {/* Stylish PWA Install Modal Prompt */}
@@ -112,8 +107,6 @@ const AppContent = () => {
           <Route path="/" element={<LangPage />} />
           <Route path="/mpr" element={<MapRouting/>} />
           <Route path="/rng" element={<Routing/>} />
-          <Route path="/amain" element={<Amain/>} />
-          <Route path="/alogin" element={<Alogin/>} />
           <Route path="/location" element={<Location />} />
           <Route path="/mpb" element={<MapBegin />} />
           <Route path="/pinfo" element={<ProfileInfo />} />
@@ -121,6 +114,7 @@ const AppContent = () => {
           <Route path="/plang" element={<Plang />} />
           <Route path="/proutes" element={<Proutes />} />
           <Route path="/Pfp" element={<Pfp />} />
+          {adminRoutes}
         </Routes>
       </main>
       {!hideHeaderFooter && <Footer />}
@@ -149,9 +143,7 @@ function App() {
         rtl={isRTL}
         toastClassName="custom-toast"
       />
-      <AdminLoginServiceProvider>
-        <AppContent />
-      </AdminLoginServiceProvider>
+      <AppContent />
     </Router>
   );
 }
