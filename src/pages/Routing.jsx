@@ -1454,12 +1454,12 @@ const RoutingPage = () => {
                     </div>
                     <div className="info-details">
                       <div className="info-item">
-                        {/* <div className="info-icon">
+                        <div className="info-icon">
                           {getTransportIcon(routeData.mode || transportMode)}
                         </div>
                         <div className="info-text">
                           <span className="info-value">{formatDigits(routeData.totalTime)}</span>
-                        </div> */}
+                        </div>
                       </div>
 
                       <div className="info-item">
