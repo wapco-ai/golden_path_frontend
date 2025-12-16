@@ -527,7 +527,9 @@ const Amain = () => {
   }, [adminProfile, fetchProfile]);
   const editableLayerOptions = useMemo(
     () => haramAdminVectorTileConfig.map((layer) => {
-      const settings = layerEditSettings[layer.id] || {};
+      const settings = layerEditSettings[layer.id]
+        || (layer.id === 'doorsAccessPoint' ? layerEditSettings[DOOR_ACCESS_LAYER_ID] : null)
+        || {};
 
       return {
         id: layer.id,
@@ -536,7 +538,7 @@ const Amain = () => {
         titleFa: layer.titleFa,
         type: layer.type,
         highlightColor: settings.highlightColor || '#3b82f6',
-        isEditable: settings.enabled !== false,
+        isEditable: settings.enabled === true,
         requiredPermission: settings.requiredPermission || null
       };
     }),
@@ -581,6 +583,11 @@ const Amain = () => {
   const [mapFloor, setMapFloor] = useState('همکف');
   const [isMapFloorOpen, setIsMapFloorOpen] = useState(false);
   const [openSubMenu, setOpenSubMenu] = useState(null);
+  const editableLayerActionMenuMap = useMemo(() => ({
+    'temp-areas-outline': 1,
+    'areas-outline': 2,
+    'van-nodes': 3
+  }), []);
   const refreshLayerTiles = useCallback((layerId) => {
     if (!map || !layerId) return;
 
@@ -771,34 +778,48 @@ const Amain = () => {
   const isVanEdgesLayerActive = activeEditableLayer?.id === 'van-edges';
   const isVanNodesLayerActive = activeEditableLayer?.id === 'van-nodes';
   const isTempAreaLayerActive = activeEditableLayer?.id === 'temp-areas-outline';
-  const refreshActiveEditableLayerTiles = useCallback(() => {
-    if (!activeEditableLayer?.id) return;
+  const refreshActiveEditableLayerTiles = useCallback((layerIdOverride) => {
+    const targetLayerId = layerIdOverride || activeEditableLayer?.id;
+    if (!targetLayerId) return;
 
-    refreshLayerTiles(activeEditableLayer.id);
-  }, [activeEditableLayer?.id, refreshLayerTiles]);
-  useEffect(() => {
-    if ((isVanEdgesLayerActive || isVanNodesLayerActive) && activeMenu === 'mapmanage' && openSubMenu !== 3) {
-      setOpenSubMenu(3);
+    const layerIdsToRefresh = new Set([targetLayerId]);
+
+    if (targetLayerId === 'van-nodes') {
+      layerIdsToRefresh.add('van-edges');
     }
 
+    layerIdsToRefresh.forEach((layerId) => refreshLayerTiles(layerId));
+  }, [activeEditableLayer?.id, refreshLayerTiles]);
+  useEffect(() => {
+    const mappedSubMenu = editableLayerActionMenuMap[activeEditableLayer?.id];
+    if (typeof mappedSubMenu === 'number') {
+      setOpenSubMenu(mappedSubMenu);
+      return;
+    }
+
+    setOpenSubMenu((current) => {
+      const mappedValues = Object.values(editableLayerActionMenuMap);
+      if (mappedValues.includes(current)) {
+        return null;
+      }
+
+      return current;
+    });
+  }, [activeEditableLayer?.id, editableLayerActionMenuMap]);
+  useEffect(() => {
     if (!isVanEdgesLayerActive && isVanDrawingMode) {
       setIsVanDrawingMode(false);
       setVanLineCoordinates([]);
     }
-  }, [activeMenu, isVanDrawingMode, isVanEdgesLayerActive, isVanNodesLayerActive, openSubMenu]);
+  }, [isVanDrawingMode, isVanEdgesLayerActive]);
   useEffect(() => {
-    if (isTempAreaLayerActive && activeMenu === 'mapmanage') {
-      setOpenSubMenu(1);
-      return;
-    }
-
     if (!isTempAreaLayerActive) {
       setIsTempAreaDrawingMode(false);
       setTempAreaFlowState(TEMP_AREA_FLOW_STATES.idle);
       setTempAreaVertices([]);
       tempAreaDraftGeometryRef.current = null;
     }
-  }, [activeMenu, isTempAreaLayerActive, isTempAreaDrawingMode]);
+  }, [isTempAreaLayerActive]);
   const selectedFeatureProperties = selectedEditableFeature?.features?.[0]?.properties;
   const selectedFeatureCoordinates = selectedEditableFeature?.features?.[0]?.geometry?.coordinates;
   const selectedDoorId = selectedFeatureProperties?.door_id
@@ -829,6 +850,21 @@ const Amain = () => {
     : null;
   const isTempAreaFormDisabled = isSavingTempAreaDetails || isLoadingTempAreaDetails;
   const showDoorTools = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && !!selectedDoorId && !!selectedEditableFeature;
+  useEffect(() => {
+    const isDoorLayerActive = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID;
+
+    setOpenSubMenu((current) => {
+      if (isDoorLayerActive && showDoorTools) {
+        return 4;
+      }
+
+      if (current === 4) {
+        return null;
+      }
+
+      return current;
+    });
+  }, [activeEditableLayer?.id, showDoorTools]);
   const isActiveLayerPointBased = useMemo(
     () => activeEditableLayer?.type === 'circle' || activeEditableLayer?.type === 'symbol',
     [activeEditableLayer]
@@ -3837,12 +3873,6 @@ const Amain = () => {
   }, [selectedEditableFeature, clearVertexMarkers]);
 
   useEffect(() => {
-    if (activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && selectedDoorId) {
-      setOpenSubMenu(4);
-    }
-  }, [activeEditableLayer, selectedDoorId]);
-
-  useEffect(() => {
     if (activeEditableLayer?.id !== 'areas-outline') {
       setIsAreaEditMode(false);
       clearVertexMarkers();
@@ -4046,10 +4076,6 @@ const Amain = () => {
       };
 
       setSelectedEditableFeature(selectedFeatureCollection);
-
-      if (activeEditableLayer.id === DOOR_ACCESS_LAYER_ID) {
-        setOpenSubMenu(4);
-      }
 
       if (activeEditableLayer.id === 'temp-areas-outline') {
         setOpenSubMenu(1);
@@ -4322,10 +4348,6 @@ const Amain = () => {
       };
 
       setSelectedEditableFeature(selectedFeatureCollection);
-
-      if (activeEditableLayer.id === DOOR_ACCESS_LAYER_ID) {
-        setOpenSubMenu(4);
-      }
 
       if (activeEditableLayer.id === 'areas-outline') {
         setOpenSubMenu(2);

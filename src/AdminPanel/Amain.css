@@ -35,7 +35,7 @@
   min-height: 600px !important;
 }
 
-.admin-panel-isolated .admin-sidebar {
+.admin-panel-isolated .amain-sidebar {
   width: 280px !important;
   min-width: 280px !important;
   flex-shrink: 0 !important;
@@ -208,7 +208,7 @@ body {
 }
 
 /* Sidebar Styles */
-.admin-sidebar {
+.amain-sidebar {
   background: #fff;
   display: flex;
   flex-direction: column;
