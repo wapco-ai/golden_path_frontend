@@ -7353,10 +7353,6 @@ const Amain = () => {
                   <div className="submenu-branch"></div>
                   <span>مدیریت اطلاعات فرهنگی</span>
                 </div>
-                <div className="submenu-item">
-                  <div className="submenu-branch"></div>
-                  <span>مدیریت دیدگاه‌ها</span>
-                </div>
               </div>
             )}
 

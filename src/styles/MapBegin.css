@@ -1202,7 +1202,7 @@ body.modal-open {
 }
 
 .search-bar-container.fully-expanded {
-  height: 100.7vh;
+  height: 90vh;
   transform: translateY(0);
   border-radius: 0px;
   overflow-y: auto;
@@ -1285,7 +1285,7 @@ body.modal-open {
   transition: none;
 }
 
-/* Add this to your CSS file */
+
 
 .modal-content-wrapper {
   height: calc(100% - 30px);

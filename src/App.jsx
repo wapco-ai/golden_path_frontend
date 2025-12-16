@@ -15,6 +15,7 @@ import ProfileInfo from './pages/ProfileInfo';
 import Proutes from './pages/Proutes';
 import Pfp from './pages/Pfp';
 import Pmap from './pages/Pmap';
+import Support from './pages/Support';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { ToastContainer, toast } from 'react-toastify';
@@ -38,7 +39,7 @@ const AppContent = () => {
     || location.pathname === '/location' || location.pathname === '/' || location.pathname === '/mpr'|| location.pathname === '/fs'
     || location.pathname === '/rop' || location.pathname === '/rng'|| location.pathname === '/mpb'
     || location.pathname === '/plang' || location.pathname === '/pinfo' || location.pathname === '/proutes'
-    || location.pathname === '/Pfp' || location.pathname === '/Pmap' || location.pathname.startsWith('/admin');
+    || location.pathname === '/Pfp' || location.pathname === '/Pmap' || location.pathname.startsWith('/admin') || location.pathname.startsWith('/Support');
 
   useAppStyles();
 
@@ -112,6 +113,7 @@ const AppContent = () => {
           <Route path="/pinfo" element={<ProfileInfo />} />
           <Route path="/pmap" element={<Pmap />} />
           <Route path="/plang" element={<Plang />} />
+          <Route path="/support" element={<Support />} />
           <Route path="/proutes" element={<Proutes />} />
           <Route path="/Pfp" element={<Pfp />} />
           {adminRoutes}
