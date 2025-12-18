@@ -4277,7 +4277,16 @@ const Amain = () => {
       }
 
       if (isTempAreaDrawingMode && isTempAreaLayerActive) {
-        setTempAreaVertices((prev) => [...prev, [lngLat.lng, lngLat.lat]]);
+        setTempAreaVertices((prev) => {
+          const updatedVertices = [...prev, [lngLat.lng, lngLat.lat]];
+
+          if (prev.length === 0) {
+            const remainingPoints = Math.max(3 - updatedVertices.length, 0);
+            toast.info(`نقطه اول ثبت شد؛ ${remainingPoints} نقطه دیگر تا تکمیل نیاز است.`);
+          }
+
+          return updatedVertices;
+        });
         return;
       }
 
