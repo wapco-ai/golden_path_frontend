@@ -7278,6 +7278,20 @@ body {
   flex-direction: row-reverse;
 }
 
+.temp-area-vertex-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.temp-area-vertex-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
 .sub-btn {
   width: 30px;
   height: 30px;
