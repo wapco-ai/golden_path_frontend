@@ -392,7 +392,12 @@ export const layerEditSettings = {
   'van-nodes': {
     enabled: true,
     highlightColor: '#0f172a',
-    requiredPermission: 'map:edit:areas'
+    requiredPermission: 'map:edit:van-nodes'
+  },
+  'van-edges': {
+    enabled: true,
+    highlightColor: '#0f172a',
+    requiredPermission: 'map:edit:van-edges'
   },
   doors: {
     enabled: false,

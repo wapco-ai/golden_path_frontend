@@ -56,6 +56,7 @@ const VAN_DRAW_POINT_LAYER_ID = 'van-draw-point-layer';
 const TEMP_AREA_DRAW_SOURCE_ID = 'temp-area-draw-source';
 const TEMP_AREA_DRAW_FILL_LAYER_ID = 'temp-area-draw-fill-layer';
 const TEMP_AREA_DRAW_LINE_LAYER_ID = 'temp-area-draw-line-layer';
+const TEMP_AREA_DRAW_POINT_LAYER_ID = 'temp-area-draw-point-layer';
 const TEMP_AREA_FLOW_STATES = {
   idle: 'idle',
   drawing: 'drawing',
@@ -695,6 +696,25 @@ const Amain = () => {
           ['LineString', 'Polygon'],
           true,
           false
+        ]
+      });
+    }
+
+    if (!map.getLayer(TEMP_AREA_DRAW_POINT_LAYER_ID)) {
+      map.addLayer({
+        id: TEMP_AREA_DRAW_POINT_LAYER_ID,
+        type: 'circle',
+        source: TEMP_AREA_DRAW_SOURCE_ID,
+        paint: {
+          'circle-radius': 5,
+          'circle-color': '#1e40af',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff'
+        },
+        filter: [
+          'any',
+          ['==', ['geometry-type'], 'Point'],
+          ['==', ['geometry-type'], 'MultiPoint']
         ]
       });
     }
@@ -5222,20 +5242,39 @@ const Amain = () => {
       return;
     }
 
+    if (tempAreaFlowState === TEMP_AREA_FLOW_STATES.drawing) {
+      toast.info('برای اتمام یا لغو ترسیم از دکمهٔ پایان ترسیم استفاده کنید');
+      return;
+    }
+
+    resetTempAreaFormState();
+    setTempAreaFormMode('create');
+    setTempAreaFlowState(TEMP_AREA_FLOW_STATES.drawing);
+    setTempAreaVertices([]);
+    tempAreaDraftGeometryRef.current = null;
+    setIsTempAreaDrawingMode(true);
+    toast.info('برای ترسیم محدوده موقت روی نقشه کلیک کنید');
+  };
+
+  const handleCompleteTempAreaDrawing = () => {
     if (tempAreaFlowState !== TEMP_AREA_FLOW_STATES.drawing) {
+      toast.info('برای پایان ترسیم ابتدا حالت ترسیم محدوده موقت را فعال کنید');
+      return;
+    }
+
+    const shouldFinalize = window.confirm('آیا می‌خواهید ترسیم محدوده موقت را به پایان برسانید؟ برای لغو روی «لغو» بزنید.');
+
+    if (!shouldFinalize) {
       resetTempAreaFormState();
-      setTempAreaFormMode('create');
-      setTempAreaFlowState(TEMP_AREA_FLOW_STATES.drawing);
       setTempAreaVertices([]);
+      setIsTempAreaDrawingMode(false);
       tempAreaDraftGeometryRef.current = null;
-      setIsTempAreaDrawingMode(true);
-      toast.info('برای ترسیم محدوده موقت روی نقشه کلیک کنید');
-      toast.info('برای ترسیم حداقل سه نقطه بگذارید؛ برای اتمام دکمهٔ ترسیم را دوباره بزنید');
+      toast.info('ترسیم محدوده موقت لغو شد');
       return;
     }
 
     if (tempAreaVertices.length < 3) {
-      toast.error('برای ثبت محدوده موقت حداقل سه نقطه نیاز است');
+      toast.error('برای اتمام ترسیم حداقل سه نقطه نیاز است');
       return;
     }
 
@@ -5260,6 +5299,7 @@ const Amain = () => {
       geometry
     }, geometry);
     setIsTempAreaEditModalOpen(true);
+    toast.success('ترسیم محدوده موقت به پایان رسید. جزئیات را برای ثبت تکمیل کنید');
   };
 
   const handleDeleteTempArea = async () => {
@@ -8710,6 +8750,27 @@ const Amain = () => {
                             <path d="M7 4l10 0l4 7l-9 9l-9 -9z" />
                           </svg>
                         </button>
+                        <button
+                          className={`sub-btn temp-area-complete with-label ${isTempAreaDrawingMode ? 'active' : ''}`}
+                          onClick={handleCompleteTempAreaDrawing}
+                          disabled={!isTempAreaDrawingMode}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path d="M5 12l5 5l9 -14" />
+                          </svg>
+                          <span className="sub-btn-label">اتمام ترسیم</span>
+                        </button>
                       </div>
                     )}
                   </div>
@@ -8764,6 +8825,27 @@ const Amain = () => {
                         </button>
                         <button className="sub-btn create-temp-area" onClick={handleToggleTempAreaDrawing} disabled={!isTempAreaLayerActive}>
                           <svg width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.354 13.646l2.853 2.854-2.854 2.854-.707-.707L21.293 17H17v4.293l1.646-1.646.707.707-2.853 2.853-2.854-2.854.707-.707L16 21.293V17h-4.293l1.646 1.646-.707.707L9.793 16.5l2.854-2.854.707.707L11.707 16H16v-4.293l-1.646 1.646-.707-.707L16.5 9.793l2.854 2.854-.707.707L17 11.707V16h4.293l-1.646-1.646zM9 6H6.537L2.468 18l-.947-.321L5.48 6H4V1h5v2h9v1H9zM8 5V2H5v3z" /><path fill="none" d="M0 0h24v24H0z" /></svg>
+                        </button>
+                        <button
+                          className={`sub-btn temp-area-complete with-label ${isTempAreaDrawingMode ? 'active' : ''}`}
+                          onClick={handleCompleteTempAreaDrawing}
+                          disabled={!isTempAreaDrawingMode}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path d="M5 12l5 5l9 -14" />
+                          </svg>
+                          <span className="sub-btn-label">اتمام ترسیم</span>
                         </button>
                         <button className="sub-btn edit-temp-area" onClick={handleOpenTempAreaEditModal}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">

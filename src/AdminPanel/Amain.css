@@ -7290,6 +7290,23 @@ body {
   cursor: pointer;
 }
 
+.sub-btn.with-label {
+  width: auto;
+  min-width: 30px;
+  padding: 0 8px;
+  gap: 6px;
+}
+
+.sub-btn-label {
+  font-size: 10px;
+  white-space: nowrap;
+  color: #1E2023;
+}
+
+.sub-btn:disabled .sub-btn-label {
+  color: #999;
+}
+
 /* Orientation Modal Styles */
 .orientation-modal {
   background: white;
