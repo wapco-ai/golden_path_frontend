@@ -513,6 +513,10 @@ const Amain = () => {
     rejected: 46
   });
   const [map, setMap] = useState(null);
+  const mapRef = useRef(null);
+  useEffect(() => {
+    mapRef.current = map;
+  }, [map]);
   const userPermissions = useMemo(
     () => adminPermissions || adminProfile?.permissions || adminProfile?.user?.permissions || [],
     [adminPermissions, adminProfile]
@@ -801,15 +805,16 @@ const Amain = () => {
   }, [map]);
 
   const resetMapCursor = useCallback(() => {
-    if (!map?.getCanvas) return;
+    const mapInstance = mapRef.current;
+    if (!mapInstance?.getCanvas) return;
 
-    const canvas = map.getCanvas();
+    const canvas = mapInstance.getCanvas();
     if (!canvas) return;
 
     const previousCursor = tempAreaPreviousCursorRef.current;
     canvas.style.cursor = previousCursor ?? 'grab';
     tempAreaPreviousCursorRef.current = null;
-  }, [map]);
+  }, []);
   const activeEditableLayer = useMemo(() => {
     const selectedLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
 
