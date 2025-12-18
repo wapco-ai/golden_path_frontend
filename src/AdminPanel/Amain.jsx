@@ -9321,7 +9321,6 @@ const Amain = () => {
                             </svg>
                           </button>
                         </div>
-                      </div>
                     )}
                     <div className="date-separator3"></div>
 
