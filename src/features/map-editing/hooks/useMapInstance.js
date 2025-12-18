@@ -25,10 +25,6 @@ export const useMapInstance = ({
     mapRef.current = map;
   }, [map]);
 
-  useEffect(() => {
-    applyLayerVisibilityRef.current = applyLayerVisibility;
-  }, [applyLayerVisibility]);
-
   const [mapViewState, setMapViewState] = useState({
     longitude: 59.6161,
     latitude: 36.2908,
@@ -53,6 +49,10 @@ export const useMapInstance = ({
       }
     });
   }, [layerVisibility, map]);
+
+  useEffect(() => {
+    applyLayerVisibilityRef.current = applyLayerVisibility;
+  }, [applyLayerVisibility]);
 
   const [mapFloor, setMapFloor] = useState('همکف');
   const [isLayerListOpen, setIsLayerListOpen] = useState(false);
