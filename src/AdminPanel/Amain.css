@@ -7308,6 +7308,7 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  position: relative;
 }
 
 .temp-area-vertex-actions {
@@ -7318,6 +7319,12 @@ body {
   gap: 6px;
 }
 
+.temp-area-draw-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
 .sub-btn {
   width: 30px;
   height: 30px;

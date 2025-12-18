@@ -9273,7 +9273,7 @@ const Amain = () => {
                         </button> */}
                           {isTempAreaDrawingMode && (
                             <button
-                              className="sub-btn temp-area-complete with-label active"
+                              className="sub-btn temp-area-complete with-label"
                               onClick={handleCompleteTempAreaDrawing}
                               disabled={isTempAreaVertexEditMode || isSavingTempAreaGeometry}
                             >
@@ -9294,6 +9294,7 @@ const Amain = () => {
                               <span className="sub-btn-label">اتمام ترسیم</span>
                             </button>
                           )}
+                        </div>
                         <button
                           className="sub-btn edit-temp-area"
                           onClick={handleOpenTempAreaEditModal}
