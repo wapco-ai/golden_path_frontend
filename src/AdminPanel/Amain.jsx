@@ -56,6 +56,7 @@ const VAN_DRAW_POINT_LAYER_ID = 'van-draw-point-layer';
 const TEMP_AREA_DRAW_SOURCE_ID = 'temp-area-draw-source';
 const TEMP_AREA_DRAW_FILL_LAYER_ID = 'temp-area-draw-fill-layer';
 const TEMP_AREA_DRAW_LINE_LAYER_ID = 'temp-area-draw-line-layer';
+const TEMP_AREA_DRAW_POINT_LAYER_ID = 'temp-area-draw-point-layer';
 const TEMP_AREA_FLOW_STATES = {
   idle: 'idle',
   drawing: 'drawing',
@@ -695,6 +696,25 @@ const Amain = () => {
           ['LineString', 'Polygon'],
           true,
           false
+        ]
+      });
+    }
+
+    if (!map.getLayer(TEMP_AREA_DRAW_POINT_LAYER_ID)) {
+      map.addLayer({
+        id: TEMP_AREA_DRAW_POINT_LAYER_ID,
+        type: 'circle',
+        source: TEMP_AREA_DRAW_SOURCE_ID,
+        paint: {
+          'circle-radius': 5,
+          'circle-color': '#1e40af',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff'
+        },
+        filter: [
+          'any',
+          ['==', ['geometry-type'], 'Point'],
+          ['==', ['geometry-type'], 'MultiPoint']
         ]
       });
     }
