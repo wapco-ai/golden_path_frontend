@@ -17,14 +17,4 @@ export const deleteVanNode = async (id, { signal } = {}) => {
   return response.data;
 };
 
-export const deleteVanNode = async (nodeId, { signal } = {}) => {
-  const response = await fetch(`${VAN_ADMIN_BASE_URL}/nodes/${nodeId}`, {
-    method: 'DELETE',
-    headers: buildAuthHeaders(),
-    signal
-  });
-
-  return handleResponse(response, 'حذف گره ون ناموفق بود');
-};
-
 export default createVanNode;
