@@ -17,7 +17,9 @@ export const useMapInstance = ({
 }) => {
   const internalMapRef = useRef(null);
   const mapRef = providedMapRef || internalMapRef;
-  
+
+  const [map, setMap] = useState(null);
+
   useEffect(() => {
     mapRef.current = map;
   }, [map]);
