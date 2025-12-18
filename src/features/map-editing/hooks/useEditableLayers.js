@@ -121,6 +121,7 @@ export const useEditableLayers = ({
     setSelectedEditableFeature,
     activeEditableLayer,
     isVanNodesLayerActive,
+    isVanDrawingLayerActive,
     isTempAreaLayerActive,
     refreshActiveEditableLayerTiles,
   }), [
@@ -128,6 +129,7 @@ export const useEditableLayers = ({
     selectedEditableFeature,
     activeEditableLayer,
     isVanNodesLayerActive,
+    isVanDrawingLayerActive,
     isTempAreaLayerActive,
     refreshActiveEditableLayerTiles,
   ]);
