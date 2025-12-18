@@ -787,6 +787,29 @@ const Amain = () => {
   const tempAreaOriginalGeometryRef = useRef(null);
   const tempAreaDraftGeometryRef = useRef(null);
   const tempAreaPreviousCursorRef = useRef(null);
+  const setMapCursorForTempAreaDrawing = useCallback(() => {
+    if (!map?.getCanvas) return;
+
+    const canvas = map.getCanvas();
+    if (!canvas) return;
+
+    if (tempAreaPreviousCursorRef.current === null) {
+      tempAreaPreviousCursorRef.current = canvas.style.cursor;
+    }
+
+    canvas.style.cursor = 'crosshair';
+  }, [map]);
+
+  const resetMapCursor = useCallback(() => {
+    if (!map?.getCanvas) return;
+
+    const canvas = map.getCanvas();
+    if (!canvas) return;
+
+    const previousCursor = tempAreaPreviousCursorRef.current;
+    canvas.style.cursor = previousCursor ?? 'grab';
+    tempAreaPreviousCursorRef.current = null;
+  }, [map]);
   const activeEditableLayer = useMemo(() => {
     const selectedLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
 
@@ -4980,30 +5003,6 @@ const Amain = () => {
   useEffect(() => {
     setTempAreaValidTo(buildIsoFromJalaliDateTime(tempAreaSelectedEndDate, tempAreaEndTime));
   }, [tempAreaSelectedEndDate, tempAreaEndTime]);
-
-  const setMapCursorForTempAreaDrawing = useCallback(() => {
-    if (!map?.getCanvas) return;
-
-    const canvas = map.getCanvas();
-    if (!canvas) return;
-
-    if (tempAreaPreviousCursorRef.current === null) {
-      tempAreaPreviousCursorRef.current = canvas.style.cursor;
-    }
-
-    canvas.style.cursor = 'crosshair';
-  }, [map]);
-
-  const resetMapCursor = useCallback(() => {
-    if (!map?.getCanvas) return;
-
-    const canvas = map.getCanvas();
-    if (!canvas) return;
-
-    const previousCursor = tempAreaPreviousCursorRef.current;
-    canvas.style.cursor = previousCursor ?? 'grab';
-    tempAreaPreviousCursorRef.current = null;
-  }, [map]);
 
   const resetTempAreaFormState = useCallback(() => {
     setTempAreaName('');
