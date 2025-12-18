@@ -881,8 +881,6 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   const [isAreaEditMode, setIsAreaEditMode] = useState(false);
   const [isAreaGeometryDirty, setIsAreaGeometryDirty] = useState(false);
   const [isSavingAreaGeometry, setIsSavingAreaGeometry] = useState(false);
-  const [tempAreaFlowState, setTempAreaFlowState] = useState(TEMP_AREA_FLOW_STATES.idle);
-  const [tempAreaFormMode, setTempAreaFormMode] = useState('edit');
   const selectedFeatureProperties = selectedEditableFeature?.features?.[0]?.properties;
   const selectedFeatureCoordinates = selectedEditableFeature?.features?.[0]?.geometry?.coordinates;
   const selectedDoorId = selectedFeatureProperties?.door_id
