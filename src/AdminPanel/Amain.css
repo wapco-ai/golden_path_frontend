@@ -7319,6 +7319,13 @@ body {
   gap: 6px;
 }
 
+.area-edit-actions {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  gap: 6px;
+}
+
 .temp-area-draw-group {
   display: flex;
   flex-direction: column;
