@@ -9245,7 +9245,7 @@ const Amain = () => {
                             </g>
                           </svg>
                         </button>
-                        <button
+                        {/* <button
                           className={`sub-btn temp-area-complete with-label ${isTempAreaDrawingMode ? 'active' : ''}`}
                           onClick={handleCompleteTempAreaDrawing}
                           disabled={!isTempAreaDrawingMode || isTempAreaVertexEditMode || isSavingTempAreaGeometry}
@@ -9268,7 +9268,7 @@ const Amain = () => {
                               />
                             </g>
                           </svg>
-                        </button>
+                        </button> */}
                           {isTempAreaDrawingMode && (
                             <button
                               className="sub-btn temp-area-complete with-label active"
