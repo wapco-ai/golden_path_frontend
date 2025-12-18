@@ -728,6 +728,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   const [isVanDrawingMode, setIsVanDrawingMode] = useState(false);
   const [vanLineCoordinates, setVanLineCoordinates] = useState([]);
   const [isSavingVanRoute, setIsSavingVanRoute] = useState(false);
+  const [isDeletingVanNode, setIsDeletingVanNode] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [facManagementOpen, setfacManagementOpen] = useState(false);
   const [reportsManagementOpen, setReportsManagementOpen] = useState(false);
