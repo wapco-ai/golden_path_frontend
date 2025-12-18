@@ -3106,7 +3106,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   };
 
 
-  const initializeEditMap = () => {
+  const initializeEditMap = useCallback(() => {
     // Prevent re-initializing the edit map if it already exists
     if (culturalMap) {
       console.warn('پیش از این نقشه ایجاد شده است.');
@@ -3192,21 +3192,16 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
 
     setCulturalMap(mapInstance);
     return mapInstance;
-  }
+  }, [culturalMap, selectedLocation]);
 
 
   useEffect(() => {
-    if (!isEditingCultural || !editingCulturalData) return;
+    if (!isEditingCultural || !editingCulturalData || culturalMap) return;
 
-    // Ensure not to reinitialize if already set up
-    if (culturalMap) return;
-
-    if (isEditingCultural && editingCulturalData && !culturalMap) {
-      // Initialize edit map after a short delay to ensure DOM is ready
-      editMapTimeoutRef.current = setTimeout(() => {
-        initializeEditMap();
-      }, 100);
-    }
+    // Initialize edit map after a short delay to ensure DOM is ready
+    editMapTimeoutRef.current = setTimeout(() => {
+      initializeEditMap();
+    }, 100);
 
     return () => {
       if (editMapTimeoutRef.current) {
@@ -3214,7 +3209,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
         editMapTimeoutRef.current = null;
       }
     };
-  });
+  }, [culturalMap, editingCulturalData, initializeEditMap, isEditingCultural]);
 
   const handleCulturalPrayerNextMonth = () => {
     setCulturalPrayerCalendarDate(prev => {
