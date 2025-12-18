@@ -35,7 +35,7 @@
   min-height: 600px !important;
 }
 
-.admin-panel-isolated .admin-sidebar {
+.admin-panel-isolated .amain-sidebar {
   width: 280px !important;
   min-width: 280px !important;
   flex-shrink: 0 !important;
@@ -208,7 +208,7 @@ body {
 }
 
 /* Sidebar Styles */
-.admin-sidebar {
+.amain-sidebar {
   background: #fff;
   display: flex;
   flex-direction: column;
@@ -2557,6 +2557,112 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+}
+
+.temp-area-edit-modal .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.temp-area-edit-modal .close-modal {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #1e2023;
+}
+
+.temp-area-edit-modal .dual-input {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.temp-area-edit-modal .input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.temp-area-edit-modal .date-input-display {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #f9fafb;
+  text-align: right;
+  font-size: 14px;
+  color: #1e2023;
+  cursor: pointer;
+}
+
+.temp-area-edit-modal .date-input-display:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.temp-area-edit-modal .input-label {
+  font-size: 12px;
+  color: #6f7174;
+}
+
+.temp-area-edit-modal .checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.temp-area-edit-modal .checkbox-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #1e2023;
+}
+
+.temp-area-edit-modal .temp-area-calendar {
+  margin-top: 12px;
+}
+
+.temp-area-edit-modal .inline-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.temp-area-edit-modal .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 20px 24px;
+  border-top: 1px solid #e6e6e6;
+}
+
+.temp-area-edit-modal .primary-btn,
+.temp-area-edit-modal .secondary-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.temp-area-edit-modal .primary-btn {
+  background-color: #0f71ef;
+  color: white;
+}
+
+.temp-area-edit-modal .primary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.temp-area-edit-modal .secondary-btn {
+  background-color: #f2f4f7;
+  color: #1e2023;
 }
 
 @keyframes modalSlideIn {
@@ -7136,6 +7242,31 @@ body {
   }
 }
 
+.sub-buttons-temp-area {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.temp-area-create-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.sub-buttons-temp-area .sub-btn:not(:disabled):hover,
+.sub-buttons1 .sub-btn:not(:disabled):hover {
+  background: #F5F6FF;
+  border-color: #0F71EF;
+}
+
+.sub-buttons-temp-area .sub-btn:not(:disabled):hover .sub-btn-label,
+.sub-buttons1 .sub-btn:not(:disabled):hover .sub-btn-label {
+  color: #0F71EF;
+}
+
 .sub-buttons1 {
   display: flex;
   gap: 6px;
@@ -7172,6 +7303,35 @@ body {
   flex-direction: row-reverse;
 }
 
+.temp-area-vertex-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+.temp-area-vertex-actions {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.area-edit-actions {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  gap: 6px;
+}
+
+.temp-area-draw-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
 .sub-btn {
   width: 30px;
   height: 30px;
@@ -7182,6 +7342,23 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+}
+
+.sub-btn.with-label {
+  width: auto;
+  min-width: 30px;
+  padding: 0 8px;
+  gap: 6px;
+}
+
+.sub-btn-label {
+  font-size: 10px;
+  white-space: nowrap;
+  color: #1E2023;
+}
+
+.sub-btn:disabled .sub-btn-label {
+  color: #999;
 }
 
 /* Orientation Modal Styles */

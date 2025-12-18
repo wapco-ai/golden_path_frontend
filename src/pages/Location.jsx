@@ -669,8 +669,6 @@ const Location = () => {
     }
   }, []);
 
-  // Function to check if current location matches initial QR location
-  // Add this useEffect after your current useEffect that sets initialQrLocation and currentUserLocation
   useEffect(() => {
     console.log('=== DEBUG Location Component ===');
     console.log('initialQrLocation:', initialQrLocation);
@@ -822,36 +820,94 @@ const Location = () => {
     };
   }, [language]);
 
-  // In the Location component, modify the location data fetching to handle both cases
+
   useEffect(() => {
     const fetchLocationData = async () => {
       setLoading(true);
       setError(null);
-
+  
       try {
         const requestedLocationId = getRequestedLocationId();
+        const searchParams = getSearchParams();
+        const requestedTitle = searchParams.get('title');
+        
+        // If we have a title parameter (from MPR), search by title
+        if (requestedTitle) {
+          try {
+            // Decode the title
+            const decodedTitle = decodeURIComponent(requestedTitle);
+            
+            // Fetch landmarks and search by title
+            const landmarksResponse = await fetchLandmarkPlaces({
+              language
+              // Don't pass poiId - get all landmarks
+            });
+            
+            const allLandmarks = Array.isArray(landmarksResponse?.places?.landmarkPlaces)
+              ? landmarksResponse.places.landmarkPlaces
+              : [];
+            
+            // Find landmark by title
+            const matchingLandmark = allLandmarks.find(landmark => 
+              landmark.title === decodedTitle || 
+              landmark.name === decodedTitle
+            );
+            
+            if (matchingLandmark) {
+              const normalizedData = normalizePlaceData(matchingLandmark);
+              if (normalizedData) {
+                const localizedData = localizeLocationData(normalizedData, language);
+                setLocationData(localizedData);
+                setComments(localizedData.comments || []);
+                setViews(localizedData.views || 0);
+                setOverallRating(localizedData.averageRating || 0);
+                setLoading(false);
+                return;
+              }
+            }
+          } catch (searchError) {
+            console.error('Failed to search by title:', searchError);
+            // Fall through to use locationState
+          }
+        }
+        
+        // If we have location state with fromMPR flag, use it
+        if (locationState?.fromMPR) {
+          const normalizedData = normalizePlaceData(locationState);
+          if (normalizedData) {
+            const localizedData = localizeLocationData(normalizedData, language);
+            setLocationData(localizedData);
+            setComments(localizedData.comments || []);
+            setViews(localizedData.views || 0);
+            setOverallRating(localizedData.averageRating || 0);
+            setLoading(false);
+            return;
+          }
+        }
+  
+        // Normal flow for API fetch with POI ID
         const apiResponse = await fetchLandmarkPlaces({
           language,
           poiId: requestedLocationId
         });
-
+  
         const apiLocations = Array.isArray(apiResponse?.places?.landmarkPlaces)
           ? apiResponse.places.landmarkPlaces
           : Array.isArray(apiResponse)
             ? apiResponse
             : [];
-
+  
         const matchedLocation = findMatchingLocation(apiLocations, requestedLocationId)
           || (apiLocations.length === 1 ? apiLocations[0] : null)
           || findMatchingLocation([locationState], requestedLocationId)
           || locationState;
-
+  
         const normalizedData = normalizePlaceData(matchedLocation);
-
+  
         if (!normalizedData) {
           throw new Error(intl.formatMessage({ id: 'noDataFound' }));
         }
-
+  
         const localizedData = localizeLocationData(normalizedData, language);
         setLocationData(localizedData);
         setComments(localizedData.comments || []);
@@ -863,7 +919,7 @@ const Location = () => {
         setLoading(false);
       }
     };
-
+  
     fetchLocationData();
   }, [currentLocation, language, intl, locationState]);
 

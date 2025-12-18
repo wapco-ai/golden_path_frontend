@@ -56,6 +56,8 @@ const MapRoutingPage = () => {
   const [landmarkPlaces, setLandmarkPlaces] = useState([]);
   const [showImageMarkers] = useState(true);
   const [lastAreaDoorsCoords, setLastAreaDoorsCoords] = useState(null);
+  const [isChoosingFromMap, setIsChoosingFromMap] = useState(false);
+
 
   // Separate state for map categories and modal categories
   const [mapSelectedCategory, setMapSelectedCategory] = useState(null);
@@ -82,27 +84,27 @@ const MapRoutingPage = () => {
 
   useEffect(() => {
     let isMounted = true;
-  
+
     Promise.all([
       fetchGroupMetadata({ language, withPng: true }),
       fetchSubGroups({ language, withImages: true })
     ])
       .then(([groupData, subGroupData]) => {
         if (!isMounted) return;
-  
+
         const normalizedGroups = normalizeGroupMetadata(groupData?.groups, language);
         const normalizedSubGroups = normalizeSubGroupMetadata(subGroupData?.subGroups, language);
-  
+
         console.log('Initial groups loaded:', normalizedGroups.length);
         console.log('Initial subgroups loaded for all categories');
-        
+
         setGroups(normalizedGroups);
         setSubGroups(normalizedSubGroups);
       })
       .catch((err) => {
         console.error('failed to fetch group metadata', err);
       });
-  
+
     return () => {
       isMounted = false;
     };
@@ -165,6 +167,7 @@ const MapRoutingPage = () => {
 
     loadLandmarkPlaces();
   }, [language, userLocation, intl]);
+
 
   const setOriginStore = useRouteStore(state => state.setOrigin);
   const setDestinationStore = useRouteStore(state => state.setDestination);
@@ -231,6 +234,70 @@ const MapRoutingPage = () => {
     return null;
   };
 
+
+  const handleDetailsInfo = (subGroup) => {
+    console.log('DEBUG - subGroup clicked:', subGroup);
+    console.log('subGroup.value:', subGroup.value);
+    console.log('subGroup.label:', subGroup.label);
+    console.log('subGroup.id:', subGroup.id);
+
+    // We CANNOT use subGroup.value as POI ID - it causes 422 error
+    // Instead, we'll pass the title and coordinates, and Location page will search by title
+
+    const params = new URLSearchParams();
+
+    if (subGroup.coordinates && subGroup.coordinates.length >= 2) {
+      const [lat, lng] = subGroup.coordinates;
+      if (lat && lng) {
+        params.set('lat', lat);
+        params.set('lng', lng);
+        sessionStorage.setItem('mapSelectedLat', lat.toString());
+        sessionStorage.setItem('mapSelectedLng', lng.toString());
+      }
+    }
+
+    // Pass the title for searching
+    if (subGroup.label) {
+      params.set('title', encodeURIComponent(subGroup.label));
+    }
+
+    // DO NOT pass an ID - it will cause 422 error
+    sessionStorage.removeItem('mapSelectedId'); // Clear any previous ID
+
+    const queryString = params.toString();
+    const target = queryString ? `/location?${queryString}` : '/location';
+
+    navigate(target, {
+      state: {
+        location: {
+          // No id field - we'll search by title
+          title: subGroup.label,
+          name: subGroup.label,
+          label: subGroup.label,
+          location: subGroup.address || '',
+          address: subGroup.address || '',
+          description: subGroup.description || '',
+          about: {
+            short: subGroup.description || subGroup.label,
+            full: subGroup.description || subGroup.label
+          },
+          images: Array.isArray(subGroup.img) ? subGroup.img : (subGroup.img ? [subGroup.img] : []),
+          views: subGroup.views || 0,
+          rating: subGroup.rating || 0,
+          averageRating: subGroup.rating || 0,
+          openingHours: '',
+          coordinates: subGroup.coordinates,
+          geo: subGroup.geo,
+          category: mapSelectedCategory?.label,
+          categoryIcon: mapSelectedCategory?.png,
+          fromMPR: true,
+          contents: [],
+          comments: []
+        }
+      }
+    });
+  };
+
   const getFeatureCenter = (feature) => {
     if (!feature) return null;
     const { geometry } = feature;
@@ -272,7 +339,15 @@ const MapRoutingPage = () => {
     }
   };
 
-  // Add this function to clear search and go back to categories
+  const resolveLocationId = (location) => {
+    const rawId = location?.id || location?.value;
+    if (!rawId) return null;
+
+    const normalizedId = rawId.toLowerCase();
+
+    return idMappings[normalizedId] || rawId;
+  };
+
   const handleClearCategorySearch = () => {
     setModalSelectedCategory(null);
     setModalFilteredSubGroups([]);
@@ -442,7 +517,19 @@ const MapRoutingPage = () => {
 
     console.log('Subgroup selected:', subgroup.label, 'Coordinates:', coordinates);
 
-    handleDestinationSelect(destination, { forceDestination: true });
+    // Check if we're in origin modal or destination modal
+    const isOriginSelection = showOriginModal && !showDestinationModal;
+
+    if (isOriginSelection) {
+      // For origin: Set directly without entry modal
+      setIsTracking(false);
+      setUserLocation({ name: destination.name, coordinates: destination.coordinates });
+      setShowOriginModal(false);
+      setSearchQuery('');
+    } else {
+      // For destination: Show entry modal
+      handleDestinationSelect(destination, { forceDestination: true });
+    }
   };
 
   const handleSubgroupSelectWithModal = (subgroup) => {
@@ -456,7 +543,7 @@ const MapRoutingPage = () => {
     setSelectedOption(null);
   };
 
-  // UPDATED: Handle destination selection - show entry modal first
+
   const handleDestinationSelect = (destination, options = {}) => {
     const { forceDestination = false } = options;
 
@@ -468,7 +555,7 @@ const MapRoutingPage = () => {
     const isDestinationInput = activeInput === 'destination' || forceDestination;
 
     if (isDestinationInput) {
-      // Store the destination temporarily and show entry modal
+      // Store the destination temporarily and show entry modal ONLY for destination
       setTempDestination(destination);
       setShowDestinationModal(false);
       setShowEntryModal(true);
@@ -478,7 +565,7 @@ const MapRoutingPage = () => {
         requestAreaDoors(lat, lon);
       }
     } else {
-      // When setting origin manually, disable GPS tracking
+      // When setting origin manually, disable GPS tracking and set directly (NO entry modal)
       setIsTracking(false);
       setUserLocation({ name: destination.name, coordinates: destination.coordinates });
       setShowOriginModal(false);
@@ -517,14 +604,16 @@ const MapRoutingPage = () => {
       // Store in sessionStorage for persistence
       sessionStorage.setItem('currentDestination', JSON.stringify(finalDestination));
 
-      // Close the modal
+      // Close the modal IMMEDIATELY and clear states
       setShowEntryModal(false);
       setTempDestination(null);
       setSelectedEntry(null);
 
-      // The navigation will happen automatically in the useEffect above
-      // since we now have both userLocation and selectedDestination
-    }
+      // Also close any other modals that might be open
+      setShowDestinationModal(false);
+      setShowOriginModal(false);
+      setIsSelectingFromMap(false);
+    } A
   };
 
   const handleInputChange = (e) => {
@@ -577,7 +666,7 @@ const MapRoutingPage = () => {
     return fallback;
   };
 
-  // UPDATED: Handle routing from main page subgroups - show entry modal
+
   const handleRouteFromSubgroup = (subgroup) => {
     console.log('Routing from main page subgroup:', subgroup);
 
@@ -631,6 +720,12 @@ const MapRoutingPage = () => {
     setTempDestination(destination);
     setShowEntryModal(true);
     addSearch(destination);
+
+    // IMPORTANT: Request area doors for this destination (this was missing!)
+    if (coordinates && coordinates.length >= 2) {
+      const [lat, lon] = coordinates;
+      requestAreaDoors(lat, lon);
+    }
   };
 
   // Get subgroup description based on currently loaded geoData
@@ -697,7 +792,7 @@ const MapRoutingPage = () => {
 
   const handleCategoryClick = async (category) => {
     const isSameCategory = mapSelectedCategory && mapSelectedCategory.value === category.value;
-  
+
     if (isSameCategory) {
       setMapSelectedCategory(null);
       setMapSelectedSubGroups([]);
@@ -707,62 +802,62 @@ const MapRoutingPage = () => {
       setMapEntryDoors([]);
       return;
     }
-  
+
     // Set loading state
     setMapSelectedCategory(category);
     setMapSelectedSubGroups([]); // Clear while loading
-    
+
     try {
       // Fetch FRESH subgroups for this category (same as modal does)
-      const response = await fetchSubGroups({ 
-        language, 
-        groups: category.value, 
-        withImages: true 
+      const response = await fetchSubGroups({
+        language,
+        groups: category.value,
+        withImages: true
       });
-      
+
       const normalizedSubGroups = normalizeSubGroupMetadata(response?.subGroups, language);
-      
+
       // Update the main subGroups state (for consistency)
       setSubGroups((prev) => ({
         ...prev,
         [category.value]: normalizedSubGroups[category.value] || []
       }));
-      
+
       // Get subgroups for this specific category
       const categorySubGroups = normalizedSubGroups[category.value] || [];
-      
+
       console.log('Fresh fetch for category:', category.label);
       console.log('Subgroups found:', categorySubGroups);
       console.log('Subgroups with images:', categorySubGroups.filter(sub => sub.img));
-      
+
       // Filter to get ONLY subgroups with images
       const imageSubGroups = categorySubGroups.filter(subGroup => {
-        const hasImage = Array.isArray(subGroup.img) ? 
-          subGroup.img.length > 0 : 
+        const hasImage = Array.isArray(subGroup.img) ?
+          subGroup.img.length > 0 :
           Boolean(subGroup.img);
         return hasImage;
       });
-      
+
       console.log('Image subgroups to display:', imageSubGroups.length);
-      
+
       // Set the image subgroups to display
       setMapSelectedSubGroups(imageSubGroups);
-      
+
     } catch (err) {
       console.error('Failed to fetch subgroups for category', category.label, err);
-      
+
       // Fallback to existing data in subGroups state
       const categorySubGroups = subGroups[category.value] || [];
       const imageSubGroups = categorySubGroups.filter(subGroup => {
-        const hasImage = Array.isArray(subGroup.img) ? 
-          subGroup.img.length > 0 : 
+        const hasImage = Array.isArray(subGroup.img) ?
+          subGroup.img.length > 0 :
           Boolean(subGroup.img);
         return hasImage;
       });
-      
+
       setMapSelectedSubGroups(imageSubGroups);
     }
-    
+
     // Clear any previous area doors data
     setAreaDoorsData(null);
     setAreaDoorsStatus(null);
@@ -902,7 +997,9 @@ const MapRoutingPage = () => {
     }
   };
 
+
   const handleMapSelection = () => {
+    setIsChoosingFromMap(true);
     setIsSelectingFromMap(true);
     setIsTracking(false);
     setShowDestinationModal(false);
@@ -915,6 +1012,9 @@ const MapRoutingPage = () => {
 
   const handleMapClick = (latlng, feature) => {
     if (isSelectingFromMap) {
+
+      setIsChoosingFromMap(false);
+
       const locName = feature?.properties?.name || intl.formatMessage({ id: 'mapSelectedLocation' });
       const location = {
         name: locName,
@@ -955,6 +1055,7 @@ const MapRoutingPage = () => {
   };
 
   const handleCancelMapSelection = () => {
+    setIsChoosingFromMap(false);
     setIsSelectingFromMap(false);
     if (activeInput === 'destination') {
       setShowDestinationModal(true);
@@ -1057,6 +1158,7 @@ const MapRoutingPage = () => {
           onDoorSelect={handleDoorSelect}
           landmarkPlaces={landmarkPlaces}
           showImageMarkers={showImageMarkers}
+          isChoosingFromMap={isChoosingFromMap}
         />
         {!isSelectingFromMap && (
           <button
@@ -1137,7 +1239,7 @@ const MapRoutingPage = () => {
                   </div>
                   <div className="map-subgroup-actions">
                     <button
-                      className="map-subgroup-btn route-btn"
+                      className="map-subgroup-btn"
                       onClick={() => handleRouteFromSubgroup(subGroup)}
                     >
                       <svg width="19" height="16" viewBox="0 0 19 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1145,16 +1247,20 @@ const MapRoutingPage = () => {
                       </svg>
                       <FormattedMessage id="navigate" />
                     </button>
-                    <button className="map-subgroup-btn save-btn">
+                    <button className="map-subgroup-btn">
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M6 3.50016C5.72386 3.50016 5.5 3.72402 5.5 4.00016C5.5 4.27631 5.72386 4.50016 6 4.50016H10C10.2761 4.50016 10.5 4.27631 10.5 4.00016C10.5 3.72402 10.2761 3.50016 10 3.50016H6Z" fill="#0F71EF" />
                         <path fillRule="evenodd" clipRule="evenodd" d="M7.96167 0.833496C6.57996 0.833486 5.49144 0.833479 4.64085 0.949076C3.76748 1.06777 3.07073 1.31662 2.52323 1.87005C1.97646 2.42274 1.73128 3.12484 1.6142 4.0051C1.49998 4.86384 1.49999 5.96324 1.5 7.36088V10.7595C1.49999 11.7645 1.49999 12.5603 1.56401 13.1594C1.62727 13.7514 1.76298 14.2855 2.15056 14.6427C2.4615 14.9293 2.85474 15.1099 3.27443 15.1579C3.79941 15.218 4.28959 14.9673 4.77246 14.6253C5.26108 14.2792 5.85384 13.7549 6.60169 13.0934L6.62603 13.0719C6.97274 12.7652 7.20748 12.5583 7.40333 12.4151C7.59261 12.2767 7.70818 12.2267 7.80559 12.207C7.93395 12.1812 8.06605 12.1812 8.19441 12.207C8.29182 12.2267 8.40739 12.2767 8.59667 12.4151C8.79252 12.5583 9.02726 12.7652 9.37397 13.0719L9.39835 13.0935C10.1462 13.7549 10.7389 14.2792 11.2275 14.6253C11.7104 14.9673 12.2006 15.218 12.7256 15.1579C13.1453 15.1099 13.5385 14.9293 13.8494 14.6427C14.237 14.2855 14.3727 13.7514 14.436 13.1594C14.5 12.5603 14.5 11.7645 14.5 10.7595V7.36086C14.5 5.96324 14.5 4.86383 14.3858 4.0051C14.2687 3.12484 14.0235 2.42274 13.4768 1.87005C12.9293 1.31662 12.2325 1.06777 11.3591 0.949076C10.5086 0.833479 9.42004 0.833486 8.03833 0.833496H7.96167ZM3.23413 2.57334C3.56531 2.23857 4.01501 2.04332 4.77552 1.93997C5.55097 1.83458 6.5715 1.8335 8 1.8335C9.4285 1.8335 10.449 1.83458 11.2245 1.93997C11.985 2.04332 12.4347 2.23857 12.7659 2.57334C13.0978 2.90885 13.2919 3.36562 13.3945 4.13695C13.499 4.92211 13.5 5.95498 13.5 7.39851V10.7274C13.5 11.7716 13.4993 12.5136 13.4417 13.0531C13.3826 13.606 13.2736 13.8135 13.1718 13.9074C13.0159 14.051 12.8199 14.1406 12.6119 14.1644C12.4788 14.1797 12.2557 14.1281 11.8056 13.8093C11.3665 13.4983 10.8141 13.0106 10.0365 12.3229L10.019 12.3074C9.6942 12.0201 9.42479 11.7818 9.18693 11.6079C8.93828 11.426 8.68749 11.2863 8.39188 11.2267C8.13318 11.1746 7.86682 11.1746 7.60812 11.2267C7.31251 11.2863 7.06172 11.426 6.81307 11.6079C6.57522 11.7818 6.30581 12.0201 5.98097 12.3074L5.96351 12.3229C5.18592 13.0106 4.63351 13.4983 4.19443 13.8093C3.7443 14.1281 3.52121 14.1797 3.38812 14.1644C3.18012 14.1406 2.98412 14.051 2.82825 13.9074C2.72642 13.8135 2.61743 13.606 2.55835 13.0531C2.50069 12.5136 2.5 11.7716 2.5 10.7274V7.39851C2.5 5.95498 2.50104 4.92211 2.60547 4.13695C2.70806 3.36562 2.90222 2.90885 3.23413 2.57334Z" fill="#0F71EF" />
                       </svg>
                       <FormattedMessage id="savePlace" />
                     </button>
-                    <button className="map-subgroup-btn" onClick={() => navigate('/location')}>
+                    <button
+                      className="map-subgroup-btn"
+                      onClick={() => handleDetailsInfo(subGroup)}
+                    >
                       <svg width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path fillRule="evenodd" clipRule="evenodd" d="M7.79691 0.833496H9.20341C10.1151 0.833483 11.85 0.833472 11.428 0.911179C12.0281 0.991856 12.5333 1.16445 12.9346 1.56573C13.1336 1.76471 13.2763 1.98925 13.3795 2.23825C14.0009 2.31608 14.5226 2.48705 14.9346 2.8991C15.3359 3.30038 15.5085 3.80563 15.5891 4.4057C15.6669 4.98368 15.6668 5.71856 15.6668 6.63028V9.37011C15.6668 10.2818 15.6669 11.0167 15.5891 11.5947C15.5085 12.1948 15.3359 12.7 14.9346 13.1013C14.5225 13.5133 14.0009 13.6843 13.3795 13.7622C13.2763 14.0111 13.1336 14.2356 12.9346 14.4346C12.5333 14.8359 12.0281 15.0085 11.428 15.0891C10.85 15.1669 10.1151 15.1668 9.20341 15.1668H7.79692C6.88519 15.1668 6.15031 15.1669 5.57233 15.0891C4.97226 15.0085 4.46701 14.8359 4.06573 14.4346C3.86677 14.2356 3.72403 14.0111 3.62083 13.7622C2.99946 13.6843 2.47778 13.5133 2.06573 13.1013C1.66445 12.7 1.49186 12.1948 1.41118 11.5947C1.33347 11.0167 1.33348 10.2818 1.3335 9.37011V6.63028C1.33348 5.71856 1.33347 4.98368 1.41118 4.4057C1.49186 3.80563 1.66445 3.30038 2.06573 2.8991C2.47777 2.48705 2.99944 2.31608 3.6208 2.23824C3.724 1.98925 3.86675 1.76471 4.06573 1.56573C4.46701 1.16445 4.97226 0.991856 5.57233 0.911179C6.15031 0.833472 6.88519 0.833483 7.79691 0.833496ZM3.38579 3.29381C3.09404 3.36412 2.91217 3.46688 2.77284 3.6062C2.58833 3.79071 2.46803 4.04976 2.40226 4.53894C2.33456 5.04251 2.3335 5.70992 2.3335 6.66686V9.33353C2.3335 10.2905 2.33456 10.9579 2.40226 11.4615C2.46803 11.9506 2.58833 12.2097 2.77284 12.3942C2.91217 12.5335 3.09405 12.6363 3.38579 12.7066C3.33347 12.1658 3.33348 11.5025 3.3335 10.7034V5.29691C3.33348 4.49785 3.33347 3.83462 3.38579 3.29381ZM13.6145 12.7066C13.9063 12.6363 14.0882 12.5335 14.2275 12.3942C14.412 12.2097 14.5323 11.9506 14.5981 11.4615C14.6658 10.9579 14.6668 10.2905 14.6668 9.33353V6.66686C14.6668 5.70992 14.6658 5.04251 14.5981 4.53894C14.5323 4.04976 14.412 3.79071 14.2275 3.6062C14.0882 3.46688 13.9063 3.36412 13.6145 3.29381C13.6669 3.83462 13.6668 4.49785 13.6668 5.29692V10.7034C13.6668 11.5025 13.6669 12.1658 13.6145 12.7066ZM5.70558 1.90226C5.21639 1.96803 4.95735 2.08833 4.77284 2.27284C4.58833 2.45735 4.46803 2.71639 4.40226 3.20558C4.33456 3.70914 4.3335 4.37655 4.3335 5.3335V10.6668C4.3335 11.6238 4.33456 12.2912 4.40226 12.7947C4.46803 13.2839 4.58833 13.543 4.77284 13.7275C4.95735 13.912 5.21639 14.0323 5.70558 14.0981C6.20914 14.1658 6.87655 14.1668 7.8335 14.1668H9.16683C10.1238 14.1668 10.7912 14.1658 11.2947 14.0981C11.7839 14.0323 12.043 13.912 12.2275 13.7275C12.412 13.543 12.5323 13.2839 12.5981 12.7947C12.6658 12.2912 12.6668 11.6238 12.6668 10.6668V5.3335C12.6668 4.37655 12.6658 3.70914 12.5981 3.20558C12.5323 2.71639 12.412 2.45735 12.2275 2.27284C12.043 2.08833 11.7839 1.96803 11.2947 1.90226C10.7912 1.83456 10.1238 1.8335 9.16683 1.8335H7.8335C6.87655 1.8335 6.20914 1.83456 5.70558 1.90226ZM6.00016 6.00016C6.00016 5.72402 6.22402 5.50016 6.50016 5.50016H10.5002C10.7763 5.50016 11.0002 5.72402 11.0002 6.00016C11.0002 6.27631 10.7763 6.50016 10.5002 6.50016H6.50016C6.22402 6.50016 6.00016 6.27631 6.00016 6.00016ZM6.00016 8.66683C6.00016 8.39069 6.22402 8.16683 6.50016 8.16683H10.5002C10.7763 8.16683 11.0002 8.39069 11.0002 8.66683C11.0002 8.94297 10.7763 9.16683 10.5002 9.16683H6.50016C6.22402 9.16683 6.00016 8.94297 6.00016 8.66683ZM6.00016 11.3335C6.00016 11.0574 6.22402 10.8335 6.50016 10.8335H8.50016C8.77631 10.8335 9.00016 11.0574 9.00016 11.3335C9.00016 11.6096 8.77631 11.8335 8.50016 11.8335H6.50016C6.22402 11.8335 6.00016 11.6096 6.00016 11.3335Z" fill="#0F71EF" />
+                        <path fillRule="evenodd" clipRule="evenodd" d="M7.79691 0.833496H9.20341C10.1151 0.833483 11.85 0.833472 11.428 0.911179C12.0281 0.991856 12.5333 1.16445 12.9346 1.56573C13.1336 1.76471 13.2763 1.98925 13.3795 2.23825C14.0009 2.31608 14.5226 2.48705 14.9346 2.8991C15.3359 3.30038 15.5085 3.80563 15.5891 4.4057C15.6669 4.98368 15.6668 5.71856 15.6668 6.63028V9.37011C15.6668 10.2818 15.6669 11.0167 15.5891 11.5947C15.5085 12.1948 15.3359 12.7 14.9346 13.1013C14.5225 13.5133 14.0009 13.6843 13.3795 13.7622C13.2763 14.0111 13.1336 14.2356 12.9346 14.4346C12.5333 14.8359 12.0281 15.0085 11.428 15.0891C10.85 15.1669 10.1151 15.1668 9.20341 15.1668H7.79692C6.88519 15.1668 6.15031 15.1669 5.57233 15.0891C4.97226 15.0085 4.46701 14.8359 4.06573 14.4346C3.86677 14.2356 3.72403 14.0111 3.62083 13.7622C2.99946 13.6843 2.47778 13.5133 2.06573 13.1013C1.66445 12.7 1.49186 12.1948 1.41118 11.5947C1.33347 11.0167 1.33348 10.2818 1.3335 9.37011V6.63028C1.33348 5.71856 1.33347 4.98368 1.41118 4.4057C1.49186 3.80563 1.66445 3.30038 2.06573 2.8991C2.47777 2.48705 2.99944 2.31608 3.6208 2.23824C3.724 1.98925 3.86675 1.76471 4.06573 1.56573C4.46701 1.16445 4.97226 0.991856 5.57233 0.911179C6.15031 0.833472 6.88519 0.833483 7.79691 0.833496ZM3.23413 2.57334C3.56531 2.23857 4.01501 2.04332 4.77552 1.93997C5.55097 1.83458 6.5715 1.8335 8 1.8335C9.4285 1.8335 10.449 1.83458 11.2245 1.93997C11.985 2.04332 12.4347 2.23857 12.7659 2.57334C13.0978 2.90885 13.2919 3.36562 13.3945 4.13695C13.499 4.92211 13.5 5.95498 13.5 7.39851V10.7274C13.5 11.7716 13.4993 12.5136 13.4417 13.0531C13.3826 13.606 13.2736 13.8135 13.1718 13.9074C13.0159 14.051 12.8199 14.1406 12.6119 14.1644C12.4788 14.1797 12.2557 14.1281 11.8056 13.8093C11.3665 13.4983 10.8141 13.0106 10.0365 12.3229L10.019 12.3074C9.6942 12.0201 9.42479 12.7818 9.18693 11.6079C8.93828 11.426 8.68749 11.2863 8.39188 11.2267C8.13318 11.1746 7.86682 11.1746 7.60812 11.2267C7.31251 11.2863 7.06172 11.426 6.81307 11.6079C6.57522 11.7818 6.30581 12.0201 5.98097 12.3074L5.96351 12.3229C5.18592 13.0106 4.63351 13.4983 4.19443 13.8093C3.7443 14.1281 3.52121 14.1797 3.38812 14.1644C3.18012 14.1406 2.98412 14.051 2.82825 13.9074C2.72642 13.8135 2.61743 13.606 2.55835 13.0531C2.50069 12.5136 2.5 11.7716 2.5 10.7274V7.39851C2.5 5.95498 2.50104 4.92211 2.60547 4.13695C2.70806 3.36562 2.90222 2.90885 3.23413 2.57334Z" fill="#0F71EF" />
+                        <path d="M6.00016 6.00016C6.00016 5.72402 6.22402 5.50016 6.50016 5.50016H10.5002C10.7763 5.50016 11.0002 5.72402 11.0002 6.00016C11.0002 6.27631 10.7763 6.50016 10.5002 6.50016H6.50016C6.22402 6.50016 6.00016 6.27631 6.00016 6.00016ZM6.00016 8.66683C6.00016 8.39069 6.22402 8.16683 6.50016 8.16683H10.5002C10.7763 8.16683 11.0002 8.39069 11.0002 8.66683C11.0002 8.94297 10.7763 9.16683 10.5002 9.16683H6.50016C6.22402 9.16683 6.00016 8.94297 6.00016 8.66683ZM6.00016 11.3335C6.00016 11.0574 6.22402 10.8335 6.50016 10.8335H8.50016C8.77631 10.8335 9.00016 11.0574 9.00016 11.3335C9.00016 11.6096 8.77631 11.8335 8.50016 11.8335H6.50016C6.22402 11.8335 6.00016 11.6096 6.00016 11.3335Z" fill="#0F71EF" />
                       </svg>
                       <FormattedMessage id="detailsButton" />
                     </button>
@@ -1374,7 +1480,6 @@ const MapRoutingPage = () => {
                         >
                           <div className="subgroup-info">
                             <h4>{subgroup.label}</h4>
-                            {subgroup.description && <p>{subgroup.description}</p>}
                           </div>
                         </div>
                       ))}
@@ -1398,10 +1503,6 @@ const MapRoutingPage = () => {
                             </div>
                             <span className="subgroup-search-name">{subgroup.label}</span>
                           </div>
-
-                          {subgroup.description && (
-                            <span className="subgroup-search-description">{subgroup.description}</span>
-                          )}
                         </div>
                       </div>
                     ))
@@ -1544,9 +1645,7 @@ const MapRoutingPage = () => {
                       )}
                       {selectedEntry === entryNumber && (
                         <div className="map-entry-selected-indicator">
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path fillRule="evenodd" clipRule="evenodd" d="M13.426 3.23967C13.7319 3.52844 13.753 4.00317 13.4642 4.30907L6.63088 11.5091C6.48602 11.6621 6.28666 11.7494 6.07756 11.7515C5.86846 11.7536 5.66738 11.6704 5.51938 11.5206L2.51938 8.48727C2.22541 8.18942 2.22869 7.71455 2.52654 7.42058C2.82439 7.12661 3.29926 7.12989 3.59323 7.42774L6.05982 9.93174L12.369 3.24093C12.6578 2.93503 13.1325 2.9139 13.4384 3.20267L13.426 3.23967Z" fill="green" />
-                          </svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision" text-rendering="geometricPrecision" image-rendering="optimizeQuality" fill-rule="evenodd" clipRule="evenodd" viewBox="0 0 512 512"><path fill="#3AAF3C" d="M256 0c141.39 0 256 114.61 256 256S397.39 512 256 512 0 397.39 0 256 114.61 0 256 0z" /><path fill="#0DA10D" fill-rule="nonzero" d="M391.27 143.23h19.23c-81.87 90.92-145.34 165.89-202.18 275.52-29.59-63.26-55.96-106.93-114.96-147.42l22.03-4.98c44.09 36.07 67.31 76.16 92.93 130.95 52.31-100.9 110.24-172.44 182.95-254.07z" /><path fill="#fff" fill-rule="nonzero" d="M158.04 235.26c19.67 11.33 32.46 20.75 47.71 37.55 39.53-63.63 82.44-98.89 138.24-148.93l5.45-2.11h61.06c-81.87 90.93-145.34 165.9-202.18 275.53-29.59-63.26-55.96-106.93-114.96-147.43l64.68-14.61z" /></svg>
                         </div>
                       )}
                     </div>
@@ -1554,6 +1653,7 @@ const MapRoutingPage = () => {
                 })}
               </div>
             </div>
+            <div className="footer-gradient"></div>
 
             <button
               className={`map-confirm-entry-button ${selectedEntry ? 'active' : ''}`}
@@ -1569,4 +1669,4 @@ const MapRoutingPage = () => {
   );
 };
 
-export default MapRoutingPage;
+export default MapRoutingPage; 

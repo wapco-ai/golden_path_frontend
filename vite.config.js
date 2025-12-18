@@ -56,6 +56,7 @@ export default defineConfig({
       },  
       workbox: {  
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],  
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // Set to 5 MiB for example
         runtimeCaching: [  
           {  
             urlPattern: /^https:\/\/api\.mapbox\.com\/.*/,   

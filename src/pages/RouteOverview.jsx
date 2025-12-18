@@ -35,6 +35,7 @@ const RouteOverview = () => {
   const [groups, setGroups] = useState([]);
   const [subGroups, setSubGroups] = useState({});
   const [nearbyLandmarks, setNearbyLandmarks] = useState([]);
+  const [selectedLandmark, setSelectedLandmark] = useState(null);
 
   const handleMapLoad = useCallback((event) => {
     initHaramVectorLayers(event?.target || event);
@@ -77,7 +78,7 @@ const RouteOverview = () => {
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(toRadVal(lat1)) * Math.cos(toRadVal(lat2)) *
-        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }, []);
@@ -143,6 +144,15 @@ const RouteOverview = () => {
       isMounted = false;
     };
   }, [language]);
+
+  const handleLandmarkClick = (landmark) => {
+    if (!landmark?.image) return;
+    setSelectedLandmark(landmark);
+  };
+
+  const handleCloseLandmarkModal = () => {
+    setSelectedLandmark(null);
+  };
 
   const extractPlaceCoordinates = useCallback((place = {}) => {
     const lat =
@@ -452,9 +462,12 @@ const RouteOverview = () => {
           latitude={lat}
           anchor="center"
           onClick={(e) => {
+            e.originalEvent.stopPropagation();
             if (subgroup) {
-              e.originalEvent.stopPropagation();
               handleSubgroupClick(subgroup);
+            } else if (item.landmark) {
+              // Add this handler for landmarks
+              handleLandmarkClick(item.landmark);
             }
           }}
         >
@@ -847,18 +860,31 @@ const RouteOverview = () => {
           onLoad={handleMapLoad}
           onError={handleMapError}
         >
-          <Marker longitude={routeCoordinates[0]?.[0]} latitude={routeCoordinates[0]?.[1]} anchor="bottom">
-            <div className="c-circle"></div>
-          </Marker>
-          <Marker
-            longitude={routeCoordinates[routeCoordinates.length - 1]?.[0]}
-            latitude={routeCoordinates[routeCoordinates.length - 1]?.[1]}
-            anchor="bottom"
-          >
-            <div className="des-marker">
-              <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" fill="#e74c3c" className="icon icon-tabler icons-tabler-filled icon-tabler-map-pin"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M18.364 4.636a9 9 0 0 1 .203 12.519l-.203 .21l-4.243 4.242a3 3 0 0 1 -4.097 .135l-.144 -.135l-4.244 -4.243a9 9 0 0 1 12.728 -12.728zm-6.364 3.364a3 3 0 1 0 0 6a3 3 0 0 0 0 -6z" /></svg>
-            </div>
-          </Marker>
+          {routeCoordinates.length > 0 &&
+            Array.isArray(routeCoordinates[0]) &&
+            routeCoordinates[0].length === 2 && (
+              <Marker
+                longitude={routeCoordinates[0][0]}
+                latitude={routeCoordinates[0][1]}
+                anchor="bottom"
+              >
+                <div className="c-circle"></div>
+              </Marker>
+            )}
+          {routeCoordinates.length > 1 &&
+            Array.isArray(routeCoordinates[routeCoordinates.length - 1]) && (
+              <Marker
+                longitude={routeCoordinates[routeCoordinates.length - 1][0]}
+                latitude={routeCoordinates[routeCoordinates.length - 1][1]}
+                anchor="bottom"
+              >
+                <div className="des-marker">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="#F44336">
+                    <path d="M18.364 4.636a9 9 0 0 1 .203 12.519l-.203 .21l-4.243 4.242a3 3 0 0 1 -4.097 .135l-.144 -.135l-4.244 -4.243a9 9 0 0 1 12.728 -12.728zm-6.364 3.364a3 3 0 1 0 0 6a3 3 0 1 0 0 -6z" />
+                  </svg>
+                </div>
+              </Marker>
+            )}
 
           {/* Image markers for subgroups with images */}
           {renderImageMarkers()}
@@ -961,45 +987,26 @@ const RouteOverview = () => {
           </div>
         </div>
       </div>
-      {selectedSubgroup && getSubgroupImages(selectedSubgroup).length > 0 && (
-        <div className="subgroup-modal-overlay" onClick={handleCloseModal}>
+      {selectedLandmark && selectedLandmark.image && (
+        <div className="subgroup-modal-overlay" onClick={handleCloseLandmarkModal}>
           <div className="subgroup-modal-content" onClick={(e) => e.stopPropagation()}>
-
             <div className="modal-image-section">
-              {(() => {
-                const images = getSubgroupImages(selectedSubgroup);
-                return (
-                  <div
-                    className="main-image2"
-                    style={{
-                      backgroundImage: `url(${images[selectedImageIndex] || images[0]})`
-                    }}
-                  >
-                    {images.length > 1 && (
-                      <div className="image-thumbnails2">
-                        {images.slice(0, 3).map((img, index) => (
-                          <div
-                            key={index}
-                            className={`thumbnail2 ${index === selectedImageIndex ? 'active' : ''}`}
-                            style={{ backgroundImage: `url(${img})` }}
-                            onClick={() => setSelectedImageIndex(index)}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
+              <div
+                className="main-image2"
+                style={{
+                  backgroundImage: `url(${selectedLandmark.image})`
+                }}
+              >
+              </div>
               <div className="image-fade3"></div>
             </div>
 
-            {/* <div className="modal-description">
-              <p>{selectedSubgroup.description}</p>
-            </div> */}
+            <div className="modal-description">
+              <p>{selectedLandmark.title || selectedLandmark.name}</p>
+            </div>
 
             <div className="btn-box3">
-
-              <button className="continue-route-btn" onClick={handleCloseModal}>
+              <button className="continue-route-btn" onClick={handleCloseLandmarkModal}>
                 {intl.formatMessage({ id: 'closeAndContinue' })}
               </button>
             </div>

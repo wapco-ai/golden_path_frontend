@@ -1,5 +1,6 @@
 // src/pages/Amain.jsx
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useIntl } from 'react-intl';
 import { toast } from 'react-toastify';
 import '../AdminPanel/Amain.css';
@@ -9,7 +10,7 @@ import { toJalaali, toGregorian } from 'jalaali-js';
 import ReactDatePicker from 'react-datepicker';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { centroid as turfCentroid, distance as turfDistance } from '@turf/turf';
+import { booleanValid as turfBooleanValid, centroid as turfCentroid, distance as turfDistance } from '@turf/turf';
 import {
   createCulturalItem,
   deleteCulturalItem,
@@ -18,7 +19,7 @@ import {
   fetchCulturalItems,
   updateCulturalItem
 } from '../services/culturalItemsService';
-import { useAdminLoginService } from './adminLoginServiceContext';
+import { useAdminAuthStore } from '../auth/admin/adminAuthStore';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import {
   DOOR_ACCESS_LAYER_ID,
@@ -28,14 +29,21 @@ import {
 } from '../config/vectorTiles';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
 import { createDoor, deleteDoor, getDoorInfo, moveDoor, updateDoorInfo } from '../services/adminDoorsService';
-import { deleteArea, getAreaInfo, updateAreaInfo } from '../services/adminAreasService';
+import { deleteArea, getAreaInfo, moveArea, updateAreaInfo } from '../services/adminAreasService';
 import { convertLngLatToUtm32640 } from '../utils/utm';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { getLanguageName } from '../utils/languageNames';
 import { deleteFile, uploadFile } from '../services/fileService';
 import { createVanEdge, createVanNode, deleteVanNode } from '../services/adminVanService';
-import { createTempBlockArea } from '../services/tempBlockAreasService';
+import {
+  createTempBlockArea,
+  updateTempBlockArea,
+  deleteTempBlockArea,
+  getTempBlockArea,
+  stopTempBlockArea,
+  extendTempBlockArea
+} from '../services/tempBlockAreasService';
 
 
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
@@ -49,6 +57,13 @@ const VAN_DRAW_POINT_LAYER_ID = 'van-draw-point-layer';
 const TEMP_AREA_DRAW_SOURCE_ID = 'temp-area-draw-source';
 const TEMP_AREA_DRAW_FILL_LAYER_ID = 'temp-area-draw-fill-layer';
 const TEMP_AREA_DRAW_LINE_LAYER_ID = 'temp-area-draw-line-layer';
+const TEMP_AREA_DRAW_POINT_LAYER_ID = 'temp-area-draw-point-layer';
+const TEMP_AREA_FLOW_STATES = {
+  idle: 'idle',
+  drawing: 'drawing',
+  readyToSave: 'readyToSave',
+  editing: 'editing'
+};
 
 const GENDER_OPTIONS = [
   { value: 'female', label: 'بانوان' },
@@ -108,13 +123,213 @@ const placeTypeValueToLabel = (value) => PLACE_TYPE_OPTIONS.find((option) => opt
 
 const PRAYER_EVENT_OPTIONS = [
   { value: 'fajr', label: 'نماز صبح' },
-  { value: 'dhuhr_asr', label: 'نماز ظهر و عصر' },
-  { value: 'maghrib_isha', label: 'نماز مغرب و عشاء' }
+  { value: 'dhuhr', label: 'نماز ظهر و عصر' },
+  { value: 'maghrib', label: 'نماز مغرب و عشاء' }
 ];
 
 const prayerEventLabelToValue = (label) => PRAYER_EVENT_OPTIONS.find((option) => option.label === label)?.value || label;
 const prayerEventValueToLabel = (value) => PRAYER_EVENT_OPTIONS.find((option) => option.value === value)?.label || value;
-const normalizePrayerEvents = (events = []) => events.map(prayerEventLabelToValue).filter(Boolean);
+const normalizePrayerEventValue = (value) => {
+  const cleaned = (value || '').toString().trim();
+  const lower = cleaned.toLowerCase();
+
+  if (!cleaned) return '';
+  if (['dhuhr', 'asr', 'dhuhr_asr'].includes(lower)) return 'dhuhr';
+  if (['maghrib', 'isha', 'maghrib_isha'].includes(lower)) return 'maghrib';
+  if (lower === 'fajr') return 'fajr';
+
+  return prayerEventLabelToValue(cleaned);
+};
+const normalizePrayerEvents = (events = []) => {
+  if (typeof events === 'string') {
+    const cleaned = events.trim().replace(/^\{/, '').replace(/\}$/u, '');
+    const splitEvents = cleaned
+      ? cleaned.split(',').map((event) => event.trim()).filter(Boolean)
+      : [];
+
+    return splitEvents.map(normalizePrayerEventValue).filter(Boolean);
+  }
+
+  const eventArray = Array.isArray(events)
+    ? events
+    : (events ? [events] : []);
+
+  return eventArray.map(normalizePrayerEventValue).filter(Boolean);
+};
+
+const buildPrayerRulesPayload = (selectedEvents, beforeValue, afterValue) => {
+  const before = Number.isFinite(Number(beforeValue)) ? Number(beforeValue) : 0;
+  const after = Number.isFinite(Number(afterValue)) ? Number(afterValue) : 0;
+
+  return PRAYER_EVENT_OPTIONS.reduce((rules, option) => {
+    rules[option.value] = {
+      enabled: selectedEvents.includes(option.value),
+      before,
+      after
+    };
+
+    return rules;
+  }, {});
+};
+
+const normalizePrayerRules = (prayerRules = {}) => {
+  const enabledEvents = [];
+  let before = '';
+  let after = '';
+
+  PRAYER_EVENT_OPTIONS.forEach((option) => {
+    const rule = prayerRules?.[option.value];
+
+    if (rule?.enabled) {
+      enabledEvents.push(option.value);
+
+      if (before === '' && rule?.before !== undefined && rule?.before !== null) {
+        before = String(rule.before);
+      }
+
+      if (after === '' && rule?.after !== undefined && rule?.after !== null) {
+        after = String(rule.after);
+      }
+    }
+  });
+
+  return {
+    events: enabledEvents,
+    before,
+    after
+  };
+};
+
+const extractPrayerRulesFromRestrictions = (restrictions = []) => {
+  const events = new Set();
+  let before = '';
+  let after = '';
+
+  restrictions.forEach((item) => {
+    const normalizedEvent = normalizePrayerEventValue(item?.prayer_event || item?.events || item?.event);
+
+    if (normalizedEvent) {
+      events.add(normalizedEvent);
+    }
+
+    if (before === '' && item?.before_minutes !== undefined && item?.before_minutes !== null) {
+      before = String(item.before_minutes);
+    }
+
+    if (after === '' && item?.after_minutes !== undefined && item?.after_minutes !== null) {
+      after = String(item.after_minutes);
+    }
+  });
+
+  return {
+    events: Array.from(events),
+    before,
+    after
+  };
+};
+
+const parseGeoJsonGeometry = (value) => {
+  if (!value) return null;
+
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed?.type && parsed?.coordinates ? parsed : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  if (typeof value === 'object' && value?.type && value?.coordinates) {
+    return value;
+  }
+
+  return null;
+};
+
+const mergePrayerRulesFromSource = (prayerRules = {}, restrictions = []) => {
+  const mergedRules = PRAYER_EVENT_OPTIONS.reduce((rules, option) => {
+    rules[option.value] = { enabled: false, before: 0, after: 0 };
+    return rules;
+  }, {});
+
+  Object.entries(prayerRules || {}).forEach(([key, value]) => {
+    const normalizedKey = normalizePrayerEventValue(key);
+    if (!mergedRules[normalizedKey]) return;
+
+    mergedRules[normalizedKey] = {
+      enabled: Boolean(value?.enabled),
+      before: Number.isFinite(Number(value?.before)) ? Number(value.before) : 0,
+      after: Number.isFinite(Number(value?.after)) ? Number(value.after) : 0
+    };
+  });
+
+  (restrictions || []).forEach((item) => {
+    const normalizedKey = normalizePrayerEventValue(item?.prayer_event || item?.event);
+    if (!mergedRules[normalizedKey]) return;
+
+    mergedRules[normalizedKey] = {
+      enabled: true,
+      before: Number.isFinite(Number(item?.before_minutes)) ? Number(item.before_minutes) : 0,
+      after: Number.isFinite(Number(item?.after_minutes)) ? Number(item.after_minutes) : 0
+    };
+  });
+
+  return mergedRules;
+};
+
+const convertPrayerRulesToState = (prayerRules = {}) => {
+  const enabledEvents = [];
+  let before = '';
+  let after = '';
+
+  PRAYER_EVENT_OPTIONS.forEach((option) => {
+    const rule = prayerRules[option.value];
+
+    if (rule?.enabled) {
+      enabledEvents.push(option.value);
+
+      if (before === '' && rule?.before !== undefined && rule?.before !== null) {
+        before = String(rule.before);
+      }
+
+      if (after === '' && rule?.after !== undefined && rule?.after !== null) {
+        after = String(rule.after);
+      }
+    }
+  });
+
+  return { events: enabledEvents, before, after };
+};
+
+const normalizeDateToIso = (value) => {
+  if (!value) return '';
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+};
+
+const normalizeTempAreaData = (data = {}) => {
+  const area = data?.area || data;
+  const normalizedValidFrom = normalizeDateToIso(area?.valid_from || area?.validFrom || data?.valid_from || data?.validFrom);
+  const normalizedValidTo = normalizeDateToIso(area?.valid_to || area?.validTo || data?.valid_to || data?.validTo);
+  const mergedPrayerRules = mergePrayerRulesFromSource(
+    area?.prayer_rules || area?.prayerRules || data?.prayer_rules,
+    data?.prayer_restrictions || data?.prayerRestrictions
+  );
+  const prayerState = convertPrayerRulesToState(mergedPrayerRules);
+
+  return {
+    title: area?.title || area?.name || '',
+    description: area?.reason || area?.description || '',
+    valid_from: normalizedValidFrom,
+    valid_to: normalizedValidTo,
+    is_active: Boolean(area?.is_active ?? data?.is_active ?? true),
+    prayer_rules: mergedPrayerRules,
+    prayer_state: prayerState,
+    geometry: parseGeoJsonGeometry(area?.geom_geojson_4326 || area?.geom || data?.geom_geojson_4326 || data?.geom)
+  };
+};
 
 const normalizeTransportModes = (value) => {
   if (Array.isArray(value)) {
@@ -289,22 +504,39 @@ const logDoorAccessPointDebugInfo = (mapInstance) => {
   });
 };
 
-const Amain = () => {
-  const { adminProfile, isLoadingProfile, logout } = useAdminLoginService();
-  const [activeMenu, setActiveMenu] = useState('dashboard');
+const Amain = ({ initialMenu = 'dashboard' }) => {
+  const navigate = useNavigate();
+  const { admin: adminProfile, permissions: adminPermissions, fetchProfile, logout } = useAdminAuthStore();
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [activeMenu, setActiveMenu] = useState(initialMenu);
   const [commentStats, setCommentStats] = useState({
     total: 152,
     approved: 89,
     rejected: 46
   });
   const [map, setMap] = useState(null);
+  const mapRef = useRef(null);
+  useEffect(() => {
+    mapRef.current = map;
+  }, [map]);
   const userPermissions = useMemo(
-    () => adminProfile?.permissions || adminProfile?.user?.permissions || [],
-    [adminProfile]
+    () => adminPermissions || adminProfile?.permissions || adminProfile?.user?.permissions || [],
+    [adminPermissions, adminProfile]
   );
+
+  useEffect(() => {
+    if (!adminProfile) {
+      setIsLoadingProfile(true);
+      fetchProfile()
+        .catch(() => {})
+        .finally(() => setIsLoadingProfile(false));
+    }
+  }, [adminProfile, fetchProfile]);
   const editableLayerOptions = useMemo(
     () => haramAdminVectorTileConfig.map((layer) => {
-      const settings = layerEditSettings[layer.id] || {};
+      const settings = layerEditSettings[layer.id]
+        || (layer.id === 'doorsAccessPoint' ? layerEditSettings[DOOR_ACCESS_LAYER_ID] : null)
+        || {};
 
       return {
         id: layer.id,
@@ -313,7 +545,7 @@ const Amain = () => {
         titleFa: layer.titleFa,
         type: layer.type,
         highlightColor: settings.highlightColor || '#3b82f6',
-        isEditable: settings.enabled !== false,
+        isEditable: settings.enabled === true,
         requiredPermission: settings.requiredPermission || null
       };
     }),
@@ -358,6 +590,11 @@ const Amain = () => {
   const [mapFloor, setMapFloor] = useState('همکف');
   const [isMapFloorOpen, setIsMapFloorOpen] = useState(false);
   const [openSubMenu, setOpenSubMenu] = useState(null);
+  const editableLayerActionMenuMap = useMemo(() => ({
+    'temp-areas-outline': 1,
+    'areas-outline': 2,
+    'van-nodes': 3
+  }), []);
   const refreshLayerTiles = useCallback((layerId) => {
     if (!map || !layerId) return;
 
@@ -468,6 +705,21 @@ const Amain = () => {
         ]
       });
     }
+
+    if (!map.getLayer(TEMP_AREA_DRAW_POINT_LAYER_ID)) {
+      map.addLayer({
+        id: TEMP_AREA_DRAW_POINT_LAYER_ID,
+        type: 'circle',
+        source: TEMP_AREA_DRAW_SOURCE_ID,
+        paint: {
+          'circle-radius': 6,
+          'circle-color': '#d3516f',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff'
+        },
+        filter: ['==', ['geometry-type'], 'Point']
+      });
+    }
   }, [map]);
   const unknownComments = commentStats.total - commentStats.approved - commentStats.rejected;
   const approvedDegrees = (commentStats.approved / commentStats.total) * 360;
@@ -482,11 +734,42 @@ const Amain = () => {
   const [reportsManagementOpen, setReportsManagementOpen] = useState(false);
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const currentJalaliDate = useMemo(() => {
+    const now = new Date();
+    return toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  }, []);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const calendarRef = useRef(null);
   const [breadcrumbPath, setBreadcrumbPath] = useState(['منوی اصلی', 'داشبورد', 'آمار کلی استارتاپ من']);
   const [currentReportView, setCurrentReportView] = useState(null);
+  const menuRouteMap = useMemo(() => ({
+    dashboard: '/admin/dashboard',
+    mapmanage: '/admin/map',
+    facmanage: '/admin/content',
+    usermanage: '/admin/users',
+    reports: '/admin/reports'
+  }), []);
+
+  const getMenuBreadcrumbPath = useCallback((menuName, breadcrumbLabel = '') => {
+    if (menuName === 'dashboard') {
+      return ['منوی اصلی', 'داشبورد', 'آمار کلی استارتاپ من'];
+    }
+    if (menuName === 'mapmanage') {
+      return ['منوی اصلی', 'مدیریت نقشه'];
+    }
+    if (menuName === 'facmanage') {
+      return ['منوی اصلی', 'مدیریت امکانات'];
+    }
+    if (menuName === 'usermanage') {
+      return ['منوی اصلی', 'مدیریت کاربران'];
+    }
+    if (menuName === 'reports') {
+      return ['منوی اصلی', 'گزارشات'];
+    }
+
+    return ['منوی اصلی', breadcrumbLabel];
+  }, []);
   const [pieChartTimeFilter, setPieChartTimeFilter] = useState('ماه اخیر');
   const [barChartTimeFilter, setBarChartTimeFilter] = useState('هفته اخیر');
   const [isPieChartFilterOpen, setIsPieChartFilterOpen] = useState(false);
@@ -500,13 +783,85 @@ const Amain = () => {
   const [isCreatingDoor, setIsCreatingDoor] = useState(false);
   const [isPlaceCovered, setIsPlaceCovered] = useState(null);
   const [isAreaEditMode, setIsAreaEditMode] = useState(false);
+  const [isAreaGeometryDirty, setIsAreaGeometryDirty] = useState(false);
+  const [isSavingAreaGeometry, setIsSavingAreaGeometry] = useState(false);
+  const [tempAreaFlowState, setTempAreaFlowState] = useState(TEMP_AREA_FLOW_STATES.idle);
+  const [tempAreaFormMode, setTempAreaFormMode] = useState('edit');
   const [isTempAreaDrawingMode, setIsTempAreaDrawingMode] = useState(false);
   const [tempAreaVertices, setTempAreaVertices] = useState([]);
+  const [isTempAreaMoveMode, setIsTempAreaMoveMode] = useState(false);
+  const [tempAreaMoveGeometry, setTempAreaMoveGeometry] = useState(null);
+  const [isTempAreaVertexEditMode, setIsTempAreaVertexEditMode] = useState(false);
+  const [isTempAreaGeometryDirty, setIsTempAreaGeometryDirty] = useState(false);
+  const [isSavingTempAreaGeometry, setIsSavingTempAreaGeometry] = useState(false);
+  const [isTempAreaEditModalOpen, setIsTempAreaEditModalOpen] = useState(false);
+  const [tempAreaName, setTempAreaName] = useState('');
+  const [tempAreaDescription, setTempAreaDescription] = useState('');
+  const [tempAreaValidFrom, setTempAreaValidFrom] = useState('');
+  const [tempAreaValidTo, setTempAreaValidTo] = useState('');
+  const [tempAreaStartTime, setTempAreaStartTime] = useState('');
+  const [tempAreaEndTime, setTempAreaEndTime] = useState('');
+  const [tempAreaSelectedStartDate, setTempAreaSelectedStartDate] = useState(null);
+  const [tempAreaSelectedEndDate, setTempAreaSelectedEndDate] = useState(null);
+  const [tempAreaCalendarDate, setTempAreaCalendarDate] = useState(() => ({
+    year: currentJalaliDate.jy,
+    month: currentJalaliDate.jm
+  }));
+  const [activeTempAreaDateField, setActiveTempAreaDateField] = useState(null);
+  const [tempAreaPrayerEvents, setTempAreaPrayerEvents] = useState([]);
+  const [tempAreaPrayerBefore, setTempAreaPrayerBefore] = useState('');
+  const [tempAreaPrayerAfter, setTempAreaPrayerAfter] = useState('');
+  const [tempAreaIsActive, setTempAreaIsActive] = useState(true);
+  const [isLoadingTempAreaDetails, setIsLoadingTempAreaDetails] = useState(false);
+  const [isSavingTempAreaDetails, setIsSavingTempAreaDetails] = useState(false);
   const vertexMarkersRef = useRef([]);
+  const areaOriginalGeometryRef = useRef(null);
+  const tempAreaVertexMarkersRef = useRef([]);
+  const clearVertexMarkers = useCallback(() => {
+    vertexMarkersRef.current.forEach((marker) => marker?.remove());
+    vertexMarkersRef.current = [];
+  }, []);
+
+  const clearTempAreaVertexMarkers = useCallback(() => {
+    tempAreaVertexMarkersRef.current.forEach((marker) => marker?.remove());
+    tempAreaVertexMarkersRef.current = [];
+  }, []);
   const [locationMarker, setLocationMarker] = useState(null);
   const [activeEditableLayerId, setActiveEditableLayerId] = useState('');
   const hasUserClearedEditableLayer = useRef(false);
   const [selectedEditableFeature, setSelectedEditableFeature] = useState(null);
+  const tempAreaOriginalGeometryRef = useRef(null);
+  const tempAreaVertexOriginalGeometryRef = useRef(null);
+  const tempAreaVertexWorkingGeometryRef = useRef(null);
+  const tempAreaVertexEditIdRef = useRef(null);
+  const tempAreaVertexDirtyRef = useRef(false);
+  const tempAreaVertexSelectionRef = useRef(null);
+  const tempAreaDraftGeometryRef = useRef(null);
+  const tempAreaPreviousCursorRef = useRef(null);
+  const setMapCursorForTempAreaDrawing = useCallback(() => {
+    if (!map?.getCanvas) return;
+
+    const canvas = map.getCanvas();
+    if (!canvas) return;
+
+    if (tempAreaPreviousCursorRef.current === null) {
+      tempAreaPreviousCursorRef.current = canvas.style.cursor;
+    }
+
+    canvas.style.cursor = 'crosshair';
+  }, [map]);
+
+  const resetMapCursor = useCallback(() => {
+    const mapInstance = mapRef.current;
+    if (!mapInstance?.getCanvas) return;
+
+    const canvas = mapInstance.getCanvas();
+    if (!canvas) return;
+
+    const previousCursor = tempAreaPreviousCursorRef.current;
+    canvas.style.cursor = previousCursor ?? 'grab';
+    tempAreaPreviousCursorRef.current = null;
+  }, []);
   const activeEditableLayer = useMemo(() => {
     const selectedLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
 
@@ -516,18 +871,59 @@ const Amain = () => {
 
     return selectedLayer;
   }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
-  const isVanEdgesLayerActive = activeEditableLayer?.id === 'van-edges';
   const isVanNodesLayerActive = activeEditableLayer?.id === 'van-nodes';
-  useEffect(() => {
-    if ((isVanEdgesLayerActive || isVanNodesLayerActive) && activeMenu === 'mapmanage' && openSubMenu !== 3) {
-      setOpenSubMenu(3);
+  const isVanDrawingLayerActive = isVanNodesLayerActive;
+  const isTempAreaLayerActive = activeEditableLayer?.id === 'temp-areas-outline';
+  const refreshActiveEditableLayerTiles = useCallback((layerIdOverride) => {
+    const targetLayerId = layerIdOverride || activeEditableLayer?.id;
+    if (!targetLayerId) return;
+
+    const layerIdsToRefresh = new Set([targetLayerId]);
+
+    if (targetLayerId === 'van-nodes') {
+      layerIdsToRefresh.add('van-edges');
     }
 
-    if (!isVanEdgesLayerActive && isVanDrawingMode) {
+    layerIdsToRefresh.forEach((layerId) => refreshLayerTiles(layerId));
+  }, [activeEditableLayer?.id, refreshLayerTiles]);
+  useEffect(() => {
+    const mappedSubMenu = editableLayerActionMenuMap[activeEditableLayer?.id];
+    if (typeof mappedSubMenu === 'number') {
+      setOpenSubMenu(mappedSubMenu);
+      return;
+    }
+
+    setOpenSubMenu((current) => {
+      const mappedValues = Object.values(editableLayerActionMenuMap);
+      if (mappedValues.includes(current)) {
+        return null;
+      }
+
+      return current;
+    });
+  }, [activeEditableLayer?.id, editableLayerActionMenuMap]);
+  useEffect(() => {
+    if (!isVanDrawingLayerActive && isVanDrawingMode) {
       setIsVanDrawingMode(false);
       setVanLineCoordinates([]);
     }
-  }, [activeMenu, isVanDrawingMode, isVanEdgesLayerActive, isVanNodesLayerActive, openSubMenu]);
+  }, [isVanDrawingMode, isVanDrawingLayerActive]);
+  useEffect(() => {
+    if (!isTempAreaLayerActive) {
+      setIsTempAreaDrawingMode(false);
+      setTempAreaFlowState(TEMP_AREA_FLOW_STATES.idle);
+      setTempAreaVertices([]);
+      tempAreaDraftGeometryRef.current = null;
+      setIsTempAreaVertexEditMode(false);
+      setIsTempAreaGeometryDirty(false);
+      tempAreaVertexOriginalGeometryRef.current = null;
+      tempAreaVertexWorkingGeometryRef.current = null;
+      tempAreaVertexEditIdRef.current = null;
+      tempAreaVertexSelectionRef.current = null;
+      clearTempAreaVertexMarkers();
+    }
+    resetMapCursor();
+  }, [isTempAreaLayerActive, resetMapCursor, clearTempAreaVertexMarkers]);
   const selectedFeatureProperties = selectedEditableFeature?.features?.[0]?.properties;
   const selectedFeatureCoordinates = selectedEditableFeature?.features?.[0]?.geometry?.coordinates;
   const selectedDoorId = selectedFeatureProperties?.door_id
@@ -542,14 +938,77 @@ const Amain = () => {
     || selectedFeatureProperties?.areaID
     || selectedFeatureProperties?.id
     : null;
+  const selectedTempAreaId = isTempAreaLayerActive
+    ? selectedFeatureProperties?.temp_block_area_id
+    || selectedFeatureProperties?.tempBlockAreaId
+    || selectedFeatureProperties?.tempBlockAreaID
+    || selectedFeatureProperties?.tempAreaId
+    || selectedFeatureProperties?.temp_area_id
+    || selectedFeatureProperties?.id
+    : null;
   const selectedVanNodeId = isVanNodesLayerActive
     ? selectedFeatureProperties?.node_id
     || selectedFeatureProperties?.nodeId
     || selectedFeatureProperties?.nodeID
     || selectedFeatureProperties?.id
     : null;
-  const isTempAreaLayerActive = activeEditableLayer?.id === 'temp-areas-outline';
+  const applyAreaGeometryToSelection = useCallback((geometry) => {
+    if (!geometry) return null;
+
+    let nextSelection = null;
+
+    setSelectedEditableFeature((current) => {
+      const feature = current?.features?.[0];
+      if (!feature) return current;
+
+      const updatedFeature = { ...feature, geometry };
+      nextSelection = { ...current, features: [updatedFeature] };
+      return nextSelection;
+    });
+
+    return nextSelection;
+  }, []);
+  const applyTempAreaGeometryToSelection = useCallback((geometry) => {
+    if (!geometry) return null;
+
+    let nextSelection = null;
+
+    setSelectedEditableFeature((current) => {
+      const feature = current?.features?.[0];
+      if (!feature) return current;
+
+      const updatedFeature = { ...feature, geometry };
+      nextSelection = { ...current, features: [updatedFeature] };
+      return nextSelection;
+    });
+
+    if (nextSelection) {
+      tempAreaVertexSelectionRef.current = nextSelection;
+    }
+
+    return nextSelection;
+  }, [setSelectedEditableFeature]);
+
+  useEffect(() => {
+    tempAreaVertexDirtyRef.current = isTempAreaGeometryDirty;
+  }, [isTempAreaGeometryDirty]);
+  const isTempAreaFormDisabled = isSavingTempAreaDetails || isLoadingTempAreaDetails;
   const showDoorTools = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && !!selectedDoorId && !!selectedEditableFeature;
+  useEffect(() => {
+    const isDoorLayerActive = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID;
+
+    setOpenSubMenu((current) => {
+      if (isDoorLayerActive && showDoorTools) {
+        return 4;
+      }
+
+      if (current === 4) {
+        return null;
+      }
+
+      return current;
+    });
+  }, [activeEditableLayer?.id, showDoorTools]);
   const isActiveLayerPointBased = useMemo(
     () => activeEditableLayer?.type === 'circle' || activeEditableLayer?.type === 'symbol',
     [activeEditableLayer]
@@ -576,10 +1035,6 @@ const Amain = () => {
     },
     [intl]
   );
-  const currentJalaliDate = useMemo(() => {
-    const now = new Date();
-    return toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
-  }, []);
 
   const [isAddPlaceModalOpen, setIsAddPlaceModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
@@ -1334,7 +1789,11 @@ const Amain = () => {
   };
 
   const getPrayerRestrictionParts = (restriction = {}) => {
-    const normalizedEvents = normalizePrayerEvents(restriction?.events).sort();
+    const normalizedEvents = normalizePrayerEvents(
+      restriction?.events
+      ?? restriction?.prayer_event
+      ?? restriction?.prayerEvent
+    ).sort();
     const dateScope = normalizeDateScopeArray(
       restriction?.isoDateScope?.length ? restriction.isoDateScope : restriction?.date_scope,
       restriction?.date
@@ -3405,8 +3864,9 @@ const Amain = () => {
       setVanLineCoordinates([]);
       setIsTempAreaDrawingMode(false);
       setTempAreaVertices([]);
+      resetMapCursor();
     }
-  }, [activeMenu]);
+  }, [activeMenu, resetMapCursor]);
 
   useEffect(() => {
 
@@ -3486,6 +3946,9 @@ const Amain = () => {
   useEffect(() => {
     if (activeMenu !== 'mapmanage') {
       setSelectedEditableFeature(null);
+      setIsTempAreaMoveMode(false);
+      setTempAreaMoveGeometry(null);
+      tempAreaOriginalGeometryRef.current = null;
     }
   }, [activeMenu]);
 
@@ -3498,11 +3961,6 @@ const Amain = () => {
       hasUserClearedEditableLayer.current = false;
     }
   }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
-
-  const clearVertexMarkers = useCallback(() => {
-    vertexMarkersRef.current.forEach((marker) => marker?.remove());
-    vertexMarkersRef.current = [];
-  }, []);
 
   useEffect(() => {
     setSelectedEditableFeature(null);
@@ -3550,19 +4008,17 @@ const Amain = () => {
   useEffect(() => {
     if (!selectedEditableFeature) {
       setIsAreaEditMode(false);
+      setIsAreaGeometryDirty(false);
+      areaOriginalGeometryRef.current = null;
       clearVertexMarkers();
     }
   }, [selectedEditableFeature, clearVertexMarkers]);
 
   useEffect(() => {
-    if (activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && selectedDoorId) {
-      setOpenSubMenu(4);
-    }
-  }, [activeEditableLayer, selectedDoorId]);
-
-  useEffect(() => {
     if (activeEditableLayer?.id !== 'areas-outline') {
       setIsAreaEditMode(false);
+      setIsAreaGeometryDirty(false);
+      areaOriginalGeometryRef.current = null;
       clearVertexMarkers();
     }
   }, [activeEditableLayer, clearVertexMarkers]);
@@ -3571,12 +4027,24 @@ const Amain = () => {
     if (!isTempAreaLayerActive) {
       setIsTempAreaDrawingMode(false);
       setTempAreaVertices([]);
+      setIsTempAreaMoveMode(false);
+      setTempAreaMoveGeometry(null);
+      tempAreaOriginalGeometryRef.current = null;
     }
-  }, [isTempAreaLayerActive]);
+    resetMapCursor();
+  }, [isTempAreaLayerActive, resetMapCursor]);
 
   useEffect(() => {
     setIsDoorMoveMode(false);
   }, [selectedDoorId]);
+
+  useEffect(() => {
+    if (!isTempAreaLayerActive || !selectedEditableFeature) {
+      setIsTempAreaMoveMode(false);
+      setTempAreaMoveGeometry(null);
+      tempAreaOriginalGeometryRef.current = null;
+    }
+  }, [isTempAreaLayerActive, selectedEditableFeature]);
 
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
@@ -3754,12 +4222,8 @@ const Amain = () => {
 
       setSelectedEditableFeature(selectedFeatureCollection);
 
-      if (activeEditableLayer.id === DOOR_ACCESS_LAYER_ID) {
-        setOpenSubMenu(4);
-      }
-
       if (activeEditableLayer.id === 'temp-areas-outline') {
-        setOpenSubMenu(0);
+        setOpenSubMenu(1);
       }
 
       if (activeEditableLayer.id === 'areas-outline') {
@@ -3801,6 +4265,43 @@ const Amain = () => {
     const closedRing = [...vertices, vertices[0]];
     return { type: 'Polygon', coordinates: [closedRing] };
   }, []);
+
+  const isTempAreaPolygonValid = useCallback((geometry) => {
+    if (!geometry || geometry.type !== 'Polygon') return false;
+
+    const ring = geometry.coordinates?.[0] || [];
+    if (ring.length < 4) return false;
+
+    try {
+      return turfBooleanValid({ type: 'Feature', geometry });
+    } catch (error) {
+      return false;
+    }
+  }, []);
+
+  const translateCoordinatesByDelta = useCallback((coordinates, delta) => {
+    if (!map) return coordinates;
+
+    if (!Array.isArray(coordinates)) return coordinates;
+
+    if (typeof coordinates[0] === 'number' && typeof coordinates[1] === 'number') {
+      const projected = map.project({ lng: coordinates[0], lat: coordinates[1] });
+      const movedPoint = { x: projected.x + (delta?.x || 0), y: projected.y + (delta?.y || 0) };
+      const { lng, lat } = map.unproject(movedPoint);
+      return [lng, lat];
+    }
+
+    return coordinates.map((coord) => translateCoordinatesByDelta(coord, delta));
+  }, [map]);
+
+  const translateGeometryByDelta = useCallback((geometry, delta) => {
+    if (!geometry?.type || !geometry?.coordinates || !map) return null;
+
+    return {
+      ...geometry,
+      coordinates: translateCoordinatesByDelta(geometry.coordinates, delta)
+    };
+  }, [map, translateCoordinatesByDelta]);
 
   useEffect(() => {
     if (!map) return undefined;
@@ -3848,7 +4349,7 @@ const Amain = () => {
     const handleMapClick = async (event) => {
       const { lngLat, point } = event;
 
-      if (isVanDrawingMode && isVanEdgesLayerActive) {
+      if (isVanDrawingMode && isVanDrawingLayerActive) {
         const newCoordinate = [lngLat.lng, lngLat.lat];
 
         setVanLineCoordinates((prev) => {
@@ -3864,6 +4365,68 @@ const Amain = () => {
 
       if (!activeEditableLayer) {
         console.warn('هیچ لایه قابل ویرایشی انتخاب نشده است.');
+        return;
+      }
+
+      if (isTempAreaVertexEditMode && isTempAreaLayerActive) {
+        if (isTempAreaGeometryDirty) {
+          toast.error('اول ذخیره یا لغو کن');
+          return;
+        }
+
+        clearTempAreaVertexMarkers();
+        setIsTempAreaVertexEditMode(false);
+        setIsTempAreaGeometryDirty(false);
+        tempAreaVertexOriginalGeometryRef.current = null;
+        tempAreaVertexWorkingGeometryRef.current = null;
+        tempAreaVertexEditIdRef.current = null;
+        tempAreaVertexSelectionRef.current = null;
+      }
+
+      if (isTempAreaMoveMode && isTempAreaLayerActive && selectedTempAreaId) {
+        const selectedFeature = selectedEditableFeature?.features?.[0];
+        const baseGeometry = tempAreaMoveGeometry || selectedFeature?.geometry;
+        const centerCoordinates = getFeatureCenterCoordinates(selectedFeature);
+
+        if (!selectedFeature || !baseGeometry || !centerCoordinates) {
+          toast.error('برای جابجایی محدوده موقت، ابتدا یک محدوده معتبر انتخاب کنید');
+          setIsTempAreaMoveMode(false);
+          setTempAreaMoveGeometry(null);
+          tempAreaOriginalGeometryRef.current = null;
+          return;
+        }
+
+        const centerPoint = map.project({ lng: centerCoordinates[0], lat: centerCoordinates[1] });
+        const delta = { x: point.x - centerPoint.x, y: point.y - centerPoint.y };
+        const translatedGeometry = translateGeometryByDelta(baseGeometry, delta);
+
+        if (!translatedGeometry) {
+          toast.error('جابجایی محدوده موقت امکان‌پذیر نیست');
+          return;
+        }
+
+        setTempAreaMoveGeometry(translatedGeometry);
+        setSelectedEditableFeature((current) => {
+          const feature = current?.features?.[0];
+          if (!feature) return current;
+          const updatedFeature = { ...feature, geometry: translatedGeometry };
+          return { ...current, features: [updatedFeature] };
+        });
+
+        return;
+      }
+
+      if (isTempAreaDrawingMode && isTempAreaLayerActive) {
+        setTempAreaVertices((prev) => {
+          const updatedVertices = [...prev, [lngLat.lng, lngLat.lat]];
+
+          if (prev.length === 0) {
+            const remainingPoints = Math.max(3 - updatedVertices.length, 0);
+            toast.info(`نقطه اول ثبت شد؛ ${remainingPoints} نقطه دیگر تا تکمیل نیاز است.`);
+          }
+
+          return updatedVertices;
+        });
         return;
       }
 
@@ -3894,8 +4457,7 @@ const Amain = () => {
           };
 
           setSelectedEditableFeature(movedFeature);
-          refreshLayerTiles(DOOR_ACCESS_LAYER_ID);
-          refreshLayerTiles('doors');
+          refreshActiveEditableLayerTiles();
           toast.success(moveResponse?.message || 'درب با موفقیت جابجا شد');
         } catch (error) {
           toast.error(error?.message || 'جابجایی درب ناموفق بود');
@@ -3956,10 +4518,6 @@ const Amain = () => {
 
       setSelectedEditableFeature(selectedFeatureCollection);
 
-      if (activeEditableLayer.id === DOOR_ACCESS_LAYER_ID) {
-        setOpenSubMenu(4);
-      }
-
       if (activeEditableLayer.id === 'areas-outline') {
         setOpenSubMenu(2);
       }
@@ -3975,19 +4533,33 @@ const Amain = () => {
 
     map.on('click', handleMapClick);
 
-    return () => map.off('click', handleMapClick);
+    return () => {
+      map.off('click', handleMapClick);
+      resetMapCursor();
+    };
   }, [
     map,
     activeMenu,
     activeEditableLayer,
     isVanDrawingMode,
-    isVanEdgesLayerActive,
+    isVanDrawingLayerActive,
     mapFloor,
     isDoorMoveMode,
     selectedDoorId,
     selectedFeatureProperties,
     selectedDoorAccessPointId,
-    refreshLayerTiles
+    isTempAreaMoveMode,
+    isTempAreaLayerActive,
+    isTempAreaDrawingMode,
+    selectedTempAreaId,
+    selectedEditableFeature,
+    tempAreaMoveGeometry,
+    translateGeometryByDelta,
+    isTempAreaVertexEditMode,
+    isTempAreaGeometryDirty,
+    clearTempAreaVertexMarkers,
+    refreshActiveEditableLayerTiles,
+    resetMapCursor
   ]);
 
   const handleZoomIn = () => {
@@ -4420,6 +4992,8 @@ const Amain = () => {
     });
     setSelectedEditableFeature(null);
     setIsAreaEditMode(false);
+    setIsAreaGeometryDirty(false);
+    areaOriginalGeometryRef.current = null;
   };
 
   const rebuildSelectionFromVertices = useCallback((geometryType, updatedVertices) => {
@@ -4428,12 +5002,16 @@ const Amain = () => {
     const updatedGeometry = rebuildGeometryFromVertices(geometryType, updatedVertices);
     if (!updatedGeometry) return;
 
+    if (isAreaEditMode) {
+      setIsAreaGeometryDirty(true);
+    }
+
     setSelectedEditableFeature((current) => {
       if (!current?.features?.[0]) return current;
       const updatedFeature = { ...current.features[0], geometry: updatedGeometry };
       return { ...current, features: [updatedFeature] };
     });
-  }, []);
+  }, [isAreaEditMode]);
 
   const buildVertexMarkers = useCallback(() => {
     if (!map || !isAreaEditMode) {
@@ -4493,57 +5071,740 @@ const Amain = () => {
       return;
     }
 
-    setIsAreaEditMode((current) => !current);
+    if (!isAreaEditMode) {
+      const geometry = selectedEditableFeature?.features?.[0]?.geometry;
+      areaOriginalGeometryRef.current = geometry ? JSON.parse(JSON.stringify(geometry)) : null;
+      setIsAreaGeometryDirty(false);
+      setIsAreaEditMode(true);
+      return;
+    }
+
+    if (isAreaGeometryDirty && areaOriginalGeometryRef.current) {
+      applyAreaGeometryToSelection(areaOriginalGeometryRef.current);
+    }
+
+    setIsAreaGeometryDirty(false);
+    areaOriginalGeometryRef.current = null;
+    setIsAreaEditMode(false);
   };
 
-  const handleToggleTempAreaDrawing = async () => {
-    if (!isTempAreaLayerActive) {
-      toast.error('برای ثبت محدوده موقت، لایه محدوده موقت را فعال کنید');
-      setOpenSubMenu(0);
+  const handleSaveAreaGeometry = async () => {
+    if (!isAreaEditMode) {
+      toast.info('ابتدا حالت ویرایش محدوده را فعال کنید');
       return;
     }
 
-    if (!isTempAreaDrawingMode) {
-      setTempAreaVertices([]);
-      setIsTempAreaDrawingMode(true);
-      toast.info('برای ترسیم محدوده موقت روی نقشه کلیک کنید');
+    if (activeEditableLayer?.id !== 'areas-outline') {
+      toast.error('برای ذخیره هندسه، لایه محدوده‌ها باید فعال باشد');
       return;
     }
 
-    if (tempAreaVertices.length < 3) {
-      toast.error('برای ثبت محدوده موقت حداقل سه نقطه نیاز است');
+    if (!selectedEditableFeature || !selectedAreaId) {
+      toast.error('هیچ محدوده‌ای برای ذخیره انتخاب نشده است');
       return;
     }
 
-    const geometry = buildTempAreaGeometry(tempAreaVertices);
+    const geometry = selectedEditableFeature?.features?.[0]?.geometry;
+
+    if (!geometry) {
+      toast.error('هندسه محدوده برای ذخیره در دسترس نیست');
+      return;
+    }
+
+    try {
+      setIsSavingAreaGeometry(true);
+      await moveArea(selectedAreaId, { geom_geojson_4326: geometry });
+      toast.success('هندسه محدوده ذخیره شد');
+      areaOriginalGeometryRef.current = geometry ? JSON.parse(JSON.stringify(geometry)) : null;
+      setIsAreaGeometryDirty(false);
+      setIsAreaEditMode(false);
+      refreshActiveEditableLayerTiles();
+    } catch (error) {
+      toast.error(error?.message || 'ذخیره هندسه محدوده ناموفق بود');
+    } finally {
+      setIsSavingAreaGeometry(false);
+    }
+  };
+
+  const handleCancelAreaGeometry = () => {
+    if (!isAreaEditMode) return;
+
+    if (areaOriginalGeometryRef.current) {
+      applyAreaGeometryToSelection(JSON.parse(JSON.stringify(areaOriginalGeometryRef.current)));
+    }
+
+    setIsAreaGeometryDirty(false);
+    areaOriginalGeometryRef.current = null;
+    setIsAreaEditMode(false);
+    toast.info('ویرایش محدوده لغو شد');
+  };
+
+  const exitTempAreaVertexEditMode = useCallback((options = {}) => {
+    const { restoreOriginal = false } = options;
+
+    if (restoreOriginal && tempAreaVertexOriginalGeometryRef.current) {
+      applyTempAreaGeometryToSelection(tempAreaVertexOriginalGeometryRef.current);
+    }
+
+    clearTempAreaVertexMarkers();
+    setIsTempAreaVertexEditMode(false);
+    setIsTempAreaGeometryDirty(false);
+    tempAreaVertexOriginalGeometryRef.current = null;
+    tempAreaVertexWorkingGeometryRef.current = null;
+    tempAreaVertexEditIdRef.current = null;
+    tempAreaVertexSelectionRef.current = null;
+  }, [applyTempAreaGeometryToSelection, clearTempAreaVertexMarkers]);
+
+  const buildTempAreaVertexMarkers = useCallback(() => {
+    if (!map || !isTempAreaVertexEditMode) {
+      clearTempAreaVertexMarkers();
+      return;
+    }
+
+    if (!isTempAreaLayerActive || !selectedEditableFeature || !selectedTempAreaId) {
+      clearTempAreaVertexMarkers();
+      return;
+    }
+
+    if (tempAreaVertexEditIdRef.current && tempAreaVertexEditIdRef.current !== selectedTempAreaId) {
+      clearTempAreaVertexMarkers();
+      return;
+    }
+
+    const geometry = tempAreaVertexWorkingGeometryRef.current || selectedEditableFeature?.features?.[0]?.geometry;
 
     if (!geometry || geometry.type !== 'Polygon') {
-      toast.error('امکان ساخت هندسه معتبر برای محدوده وجود ندارد');
+      clearTempAreaVertexMarkers();
       return;
     }
 
-    const reason = window.prompt('علت ایجاد محدوده موقت را وارد کنید (اختیاری)');
+    tempAreaVertexWorkingGeometryRef.current = geometry;
 
-    if (reason === null) {
-      toast.info('ذخیره محدوده موقت لغو شد');
+    const vertices = extractEditableVertices(geometry);
+
+    if (!vertices.length) {
+      clearTempAreaVertexMarkers();
+      return;
+    }
+
+    clearTempAreaVertexMarkers();
+
+    const highlightColor = activeEditableLayer?.highlightColor || '#0f172a';
+
+    const newMarkers = vertices.map((coord, index) => {
+      const marker = new maplibregl.Marker({ color: highlightColor, draggable: true, scale: 0.85 })
+        .setLngLat(coord)
+        .addTo(map);
+
+      const updateGeometryFromMarkers = () => {
+        const updatedVertices = newMarkers.map((m) => {
+          const { lng, lat } = m.getLngLat();
+          return [lng, lat];
+        });
+
+        const normalizedGeometry = rebuildGeometryFromVertices('Polygon', updatedVertices);
+        tempAreaVertexWorkingGeometryRef.current = normalizedGeometry;
+        applyTempAreaGeometryToSelection(normalizedGeometry);
+
+        if (!tempAreaVertexDirtyRef.current) {
+          setIsTempAreaGeometryDirty(true);
+        }
+      };
+
+      marker.on('drag', updateGeometryFromMarkers);
+      marker.on('dragend', updateGeometryFromMarkers);
+      marker.getElement().setAttribute('data-temp-area-vertex-index', index);
+
+      return marker;
+    });
+
+    tempAreaVertexMarkersRef.current = newMarkers;
+  }, [
+    map,
+    isTempAreaVertexEditMode,
+    isTempAreaLayerActive,
+    selectedEditableFeature,
+    selectedTempAreaId,
+    activeEditableLayer,
+    clearTempAreaVertexMarkers,
+    applyTempAreaGeometryToSelection,
+    rebuildGeometryFromVertices
+  ]);
+
+  useEffect(() => {
+    buildTempAreaVertexMarkers();
+
+    return () => {
+      clearTempAreaVertexMarkers();
+    };
+  }, [buildTempAreaVertexMarkers, clearTempAreaVertexMarkers]);
+
+  useEffect(() => {
+    if (!isTempAreaVertexEditMode) return;
+
+    if (activeMenu !== 'mapmanage') {
+      exitTempAreaVertexEditMode({ restoreOriginal: false });
+    }
+  }, [activeMenu, isTempAreaVertexEditMode, exitTempAreaVertexEditMode]);
+
+  const handleToggleTempAreaVertexEdit = () => {
+    if (!isTempAreaLayerActive) {
+      toast.error('برای ویرایش راس‌های محدوده موقت، لایه مربوطه را فعال کنید');
+      setOpenSubMenu(1);
+      return;
+    }
+
+    if (!selectedEditableFeature || !selectedTempAreaId) {
+      toast.error('برای ویرایش راس‌های محدوده موقت، ابتدا محدوده را انتخاب کنید');
+      return;
+    }
+
+    if (isTempAreaMoveMode) {
+      toast.error('برای ویرایش راس‌ها، ابتدا حالت جابجایی را غیرفعال کنید');
+      return;
+    }
+
+    const geometry = selectedEditableFeature?.features?.[0]?.geometry;
+
+    if (!geometry || geometry.type !== 'Polygon') {
+      toast.error('ویرایش راس‌ها فقط برای پلیگون محدوده موقت ممکن است');
+      return;
+    }
+
+    if (isTempAreaVertexEditMode) {
+      exitTempAreaVertexEditMode({ restoreOriginal: true });
+      return;
+    }
+
+    tempAreaVertexOriginalGeometryRef.current = JSON.parse(JSON.stringify(geometry));
+    tempAreaVertexWorkingGeometryRef.current = JSON.parse(JSON.stringify(geometry));
+    tempAreaVertexEditIdRef.current = selectedTempAreaId;
+    tempAreaVertexSelectionRef.current = selectedEditableFeature;
+    setIsTempAreaGeometryDirty(false);
+    setIsTempAreaVertexEditMode(true);
+    toast.info('حالت ویرایش راس‌های محدوده موقت فعال شد');
+  };
+
+  const handleCancelTempAreaVertexEdit = () => {
+    if (!isTempAreaVertexEditMode) return;
+
+    exitTempAreaVertexEditMode({ restoreOriginal: true });
+  };
+
+  const handleSaveTempAreaVertexEdit = async () => {
+    if (!isTempAreaVertexEditMode) return;
+
+    const workingGeometry = tempAreaVertexWorkingGeometryRef.current
+      || selectedEditableFeature?.features?.[0]?.geometry
+      || tempAreaVertexOriginalGeometryRef.current;
+
+    if (!workingGeometry || workingGeometry.type !== 'Polygon') {
+      toast.error('هندسه محدوده موقت برای ذخیره معتبر نیست');
+      return;
+    }
+
+    const normalizedGeometry = rebuildGeometryFromVertices('Polygon', extractEditableVertices(workingGeometry));
+
+    if (!normalizedGeometry || !isTempAreaPolygonValid(normalizedGeometry)) {
+      toast.error('هندسه محدوده موقت معتبر نیست. لطفاً پلیگون بدون خودتقاطع ایجاد کنید.');
+      return;
+    }
+
+    if (!selectedTempAreaId) {
+      toast.error('محدوده موقتی برای ذخیره انتخاب نشده است');
+      return;
+    }
+
+    const payload = {
+      floor: floorLabelToValue(mapFloor),
+      restrict_type: selectedFeatureProperties?.restrict_type || selectedFeatureProperties?.restrictType || 'close',
+      geom_geojson_4326: normalizedGeometry,
+      reason: selectedFeatureProperties?.reason ?? selectedFeatureProperties?.description ?? null
+    };
+
+    try {
+      setIsSavingTempAreaGeometry(true);
+      await updateTempBlockArea(selectedTempAreaId, payload);
+      applyTempAreaGeometryToSelection(normalizedGeometry);
+      toast.success('تغییرات راس‌های محدوده موقت ذخیره شد');
+      setIsTempAreaGeometryDirty(false);
+      exitTempAreaVertexEditMode({ restoreOriginal: false });
+      refreshActiveEditableLayerTiles();
+    } catch (error) {
+      toast.error(error?.message || 'ذخیره تغییرات محدوده موقت ناموفق بود');
+    } finally {
+      setIsSavingTempAreaGeometry(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isTempAreaVertexEditMode) return;
+
+    if (!isTempAreaLayerActive || !selectedEditableFeature || !selectedTempAreaId) {
+      exitTempAreaVertexEditMode({ restoreOriginal: false });
+      return;
+    }
+
+    if (tempAreaVertexEditIdRef.current && selectedTempAreaId !== tempAreaVertexEditIdRef.current) {
+      if (tempAreaVertexDirtyRef.current) {
+        toast.error('اول ذخیره یا لغو کن');
+        if (tempAreaVertexSelectionRef.current) {
+          setSelectedEditableFeature(tempAreaVertexSelectionRef.current);
+        }
+        return;
+      }
+
+      exitTempAreaVertexEditMode({ restoreOriginal: false });
+    }
+  }, [
+    isTempAreaVertexEditMode,
+    isTempAreaLayerActive,
+    selectedEditableFeature,
+    selectedTempAreaId,
+    exitTempAreaVertexEditMode,
+    setSelectedEditableFeature
+  ]);
+
+  const formatDateTimeLocal = (value) => {
+    if (!value) return '';
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) return '';
+
+    return date.toISOString().slice(0, 16);
+  };
+
+  const convertIsoToJalaliDateTime = (value) => {
+    if (!value) return { date: null, time: '' };
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return { date: null, time: '' };
+
+    const jalali = toJalaali(date.getFullYear(), date.getMonth() + 1, date.getDate());
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+
+    return {
+      date: { year: jalali.jy, month: jalali.jm, day: jalali.jd },
+      time: `${hours}:${minutes}`
+    };
+  };
+
+  const buildIsoFromJalaliDateTime = (dateParts, time) => {
+    if (!dateParts || !time) return '';
+
+    const [hours, minutes] = time.split(':');
+    if (hours === undefined || minutes === undefined) return '';
+
+    const { gy, gm, gd } = toGregorian(dateParts.year, dateParts.month, dateParts.day);
+    const isoDate = new Date(Date.UTC(gy, gm - 1, gd, Number(hours), Number(minutes)));
+
+    if (Number.isNaN(isoDate.getTime())) return '';
+
+    return isoDate.toISOString();
+  };
+
+  const formatTempAreaDateLabel = (dateParts, time) => {
+    if (!dateParts || !time) return 'انتخاب تاریخ';
+    return `روز ${dateParts.day} ${getJalaliMonthName(dateParts.month)} ${dateParts.year} - ${time}`;
+  };
+
+  useEffect(() => {
+    setTempAreaValidFrom(buildIsoFromJalaliDateTime(tempAreaSelectedStartDate, tempAreaStartTime));
+  }, [tempAreaSelectedStartDate, tempAreaStartTime]);
+
+  useEffect(() => {
+    setTempAreaValidTo(buildIsoFromJalaliDateTime(tempAreaSelectedEndDate, tempAreaEndTime));
+  }, [tempAreaSelectedEndDate, tempAreaEndTime]);
+
+  const resetTempAreaFormState = useCallback(() => {
+    setTempAreaName('');
+    setTempAreaDescription('');
+    setTempAreaValidFrom('');
+    setTempAreaValidTo('');
+    setTempAreaStartTime('');
+    setTempAreaEndTime('');
+    setTempAreaSelectedStartDate(null);
+    setTempAreaSelectedEndDate(null);
+    setTempAreaCalendarDate({ year: currentJalaliDate.jy, month: currentJalaliDate.jm });
+    setTempAreaPrayerEvents([]);
+    setTempAreaPrayerBefore('');
+    setTempAreaPrayerAfter('');
+    setTempAreaIsActive(true);
+    setActiveTempAreaDateField(null);
+    setTempAreaFlowState(TEMP_AREA_FLOW_STATES.idle);
+    setTempAreaFormMode('edit');
+    tempAreaDraftGeometryRef.current = null;
+    resetMapCursor();
+  }, [currentJalaliDate.jm, currentJalaliDate.jy, resetMapCursor]);
+
+  const populateTempAreaFormFromData = useCallback((normalizedData = {}, geometryOverride = null) => {
+    const start = convertIsoToJalaliDateTime(normalizedData.valid_from);
+    const end = convertIsoToJalaliDateTime(normalizedData.valid_to);
+    const prayerState = normalizedData.prayer_state || normalizePrayerRules(normalizedData.prayer_rules || {});
+
+    setTempAreaName(normalizedData.title || '');
+    setTempAreaDescription(normalizedData.description || '');
+    setTempAreaValidFrom(formatDateTimeLocal(normalizedData.valid_from));
+    setTempAreaValidTo(formatDateTimeLocal(normalizedData.valid_to));
+    setTempAreaSelectedStartDate(start.date);
+    setTempAreaStartTime(start.time);
+    setTempAreaSelectedEndDate(end.date);
+    setTempAreaEndTime(end.time);
+    if (start?.date) {
+      setTempAreaCalendarDate({ year: start.date.year, month: start.date.month });
+    }
+    setTempAreaPrayerEvents(prayerState.events || []);
+    setTempAreaPrayerBefore(prayerState.before || '');
+    setTempAreaPrayerAfter(prayerState.after || '');
+    setTempAreaIsActive(Boolean(normalizedData.is_active ?? true));
+    tempAreaDraftGeometryRef.current = geometryOverride || normalizedData.geometry || tempAreaDraftGeometryRef.current;
+  }, [convertIsoToJalaliDateTime, formatDateTimeLocal]);
+
+  const handleOpenTempAreaEditModal = async () => {
+    if (!isTempAreaLayerActive) {
+      toast.error('برای ویرایش محدوده موقت، لایه محدوده‌های موقت را فعال کنید');
+      return;
+    }
+
+    if (!selectedEditableFeature || !selectedTempAreaId) {
+      toast.error('برای ویرایش محدوده موقت، ابتدا یک محدوده را انتخاب کنید');
+      return;
+    }
+
+    setTempAreaFormMode('edit');
+    setTempAreaFlowState(TEMP_AREA_FLOW_STATES.editing);
+    tempAreaDraftGeometryRef.current = null;
+
+    const prefillData = normalizeTempAreaData(selectedFeatureProperties || {});
+    populateTempAreaFormFromData(prefillData, selectedEditableFeature?.features?.[0]?.geometry);
+    setIsTempAreaEditModalOpen(true);
+
+    try {
+      setIsLoadingTempAreaDetails(true);
+      const tempAreaDetails = await getTempBlockArea(selectedTempAreaId);
+      const normalizedDetails = normalizeTempAreaData(tempAreaDetails);
+      populateTempAreaFormFromData(normalizedDetails, normalizedDetails.geometry || selectedEditableFeature?.features?.[0]?.geometry);
+    } catch (error) {
+      toast.error(error?.message || 'دریافت اطلاعات محدوده موقت ناموفق بود');
+    } finally {
+      setIsLoadingTempAreaDetails(false);
+    }
+  };
+
+  const handleSaveTempAreaDetails = async () => {
+    const isEditMode = tempAreaFormMode === 'edit';
+
+    if (isEditMode && (!selectedEditableFeature || !selectedTempAreaId)) {
+      toast.error('هیچ محدوده موقتی برای ویرایش انتخاب نشده است');
+      return;
+    }
+
+    const geometry = isEditMode
+      ? (tempAreaMoveGeometry || selectedEditableFeature?.features?.[0]?.geometry)
+      : (tempAreaDraftGeometryRef.current || buildTempAreaGeometry(tempAreaVertices));
+
+    if (!geometry || geometry.type !== 'Polygon') {
+      toast.error('هندسه محدوده موقت در دسترس نیست');
+      return;
+    }
+
+    if (!isTempAreaPolygonValid(geometry)) {
+      toast.error('هندسه محدوده موقت معتبر نیست. لطفاً پلیگون بدون خودتقاطع رسم کنید.');
+      return;
+    }
+
+    if (!tempAreaValidFrom || !tempAreaValidTo) {
+      toast.error('بازه زمانی معتبر برای محدوده موقت انتخاب نشده است');
+      return;
+    }
+
+    const payload = {
+      floor: floorLabelToValue(mapFloor),
+      title: tempAreaName?.trim() || null,
+      reason: tempAreaDescription?.trim() || null,
+      is_active: tempAreaIsActive,
+      valid_from: tempAreaValidFrom ? new Date(tempAreaValidFrom).toISOString() : null,
+      valid_to: tempAreaValidTo ? new Date(tempAreaValidTo).toISOString() : null,
+      geom_geojson_4326: geometry,
+      prayer_rules: buildPrayerRulesPayload(tempAreaPrayerEvents, tempAreaPrayerBefore, tempAreaPrayerAfter)
+    };
+
+    try {
+      setIsSavingTempAreaDetails(true);
+
+      if (isEditMode) {
+        await updateTempBlockArea(selectedTempAreaId, payload);
+        toast.success('اطلاعات محدوده موقت با موفقیت به‌روزرسانی شد');
+      } else {
+        await createTempBlockArea(payload);
+        toast.success('محدوده موقت با موفقیت ثبت شد');
+      }
+
+      setIsTempAreaEditModalOpen(false);
+      setIsTempAreaDrawingMode(false);
+      setTempAreaFlowState(TEMP_AREA_FLOW_STATES.idle);
+      setTempAreaVertices([]);
+      tempAreaDraftGeometryRef.current = null;
+      resetTempAreaFormState();
+      refreshActiveEditableLayerTiles();
+    } catch (error) {
+      toast.error(error?.message || (isEditMode ? 'به‌روزرسانی محدوده موقت ناموفق بود' : 'ثبت محدوده موقت ناموفق بود'));
+    } finally {
+      setIsSavingTempAreaDetails(false);
+    }
+  };
+
+  const handleCloseTempAreaModal = () => {
+    if (isSavingTempAreaDetails || isLoadingTempAreaDetails) return;
+
+    setIsTempAreaEditModalOpen(false);
+    setIsTempAreaDrawingMode(false);
+    setTempAreaFlowState(TEMP_AREA_FLOW_STATES.idle);
+    resetTempAreaFormState();
+    tempAreaDraftGeometryRef.current = null;
+  };
+
+  const handleTempAreaMoveToggle = async () => {
+    if (!isTempAreaLayerActive) {
+      toast.error('برای جابجایی محدوده موقت، لایه محدوده موقت را فعال کنید');
+      setOpenSubMenu(1);
+      return;
+    }
+
+    if (!selectedEditableFeature || !selectedTempAreaId) {
+      toast.error('برای جابجایی محدوده موقت، ابتدا یک محدوده را انتخاب کنید');
+      return;
+    }
+
+    if (isTempAreaVertexEditMode) {
+      if (isTempAreaGeometryDirty) {
+        toast.error('اول ذخیره یا لغو کن');
+        return;
+      }
+
+      exitTempAreaVertexEditMode({ restoreOriginal: false });
+    }
+
+    const selectedFeature = selectedEditableFeature?.features?.[0];
+    const currentGeometry = tempAreaMoveGeometry || selectedFeature?.geometry;
+
+    if (!isTempAreaMoveMode) {
+      tempAreaOriginalGeometryRef.current = selectedFeature?.geometry || null;
+      setTempAreaMoveGeometry(null);
+      setIsTempAreaMoveMode(true);
+      toast.info('برای جابجایی محدوده موقت، روی موقعیت جدید در نقشه کلیک کنید');
+      return;
+    }
+
+    if (!currentGeometry) {
+      toast.error('هندسه محدوده موقت برای ذخیره در دسترس نیست');
+      setIsTempAreaMoveMode(false);
+      return;
+    }
+
+    const hasMoved = tempAreaOriginalGeometryRef.current
+      ? JSON.stringify(currentGeometry) !== JSON.stringify(tempAreaOriginalGeometryRef.current)
+      : true;
+
+    if (!hasMoved) {
+      toast.error('محدوده موقت جابجا نشده است');
+      setIsTempAreaMoveMode(false);
       return;
     }
 
     const payload = {
       floor: floorLabelToValue(mapFloor),
       restrict_type: 'close',
-      geom_geojson_4326: geometry,
-      reason: reason?.trim() ? reason.trim() : null
+      geom_geojson_4326: currentGeometry,
+      reason: selectedFeatureProperties?.reason ?? selectedFeatureProperties?.description ?? null
     };
 
     try {
-      await createTempBlockArea(payload);
-      toast.success('محدوده موقت با موفقیت ذخیره شد');
+      await updateTempBlockArea(selectedTempAreaId, payload);
+      toast.success('جابجایی محدوده موقت با موفقیت ذخیره شد');
+      refreshActiveEditableLayerTiles();
+    } catch (error) {
+      toast.error(error?.message || 'ذخیره جابجایی محدوده موقت ناموفق بود');
+      return;
+    } finally {
+      setIsTempAreaMoveMode(false);
+      setTempAreaMoveGeometry(null);
+      tempAreaOriginalGeometryRef.current = null;
+    }
+  };
+
+  const handleStopTempArea = async () => {
+    if (!selectedTempAreaId) {
+      toast.error('محدوده موقتی برای توقف انتخاب نشده است');
+      return;
+    }
+
+    const confirmStop = window.confirm('آیا از توقف فوری محدوده موقت مطمئن هستید؟');
+    if (!confirmStop) return;
+
+    try {
+      setIsSavingTempAreaDetails(true);
+      await stopTempBlockArea(selectedTempAreaId, {});
+      toast.success('محدوده موقت با موفقیت متوقف شد');
+      setIsTempAreaEditModalOpen(false);
+      resetTempAreaFormState();
+      refreshActiveEditableLayerTiles();
+    } catch (error) {
+      toast.error(error?.message || 'توقف محدوده موقت ناموفق بود');
+    } finally {
+      setIsSavingTempAreaDetails(false);
+    }
+  };
+
+  const handleExtendTempArea = async () => {
+    if (!selectedTempAreaId) {
+      toast.error('محدوده‌ای برای تمدید انتخاب نشده است');
+      return;
+    }
+
+    if (!tempAreaValidTo) {
+      toast.error('زمان پایان جدید برای تمدید محدوده تعیین نشده است');
+      return;
+    }
+
+    const payload = {
+      valid_from: tempAreaValidFrom ? new Date(tempAreaValidFrom).toISOString() : null,
+      valid_to: new Date(tempAreaValidTo).toISOString(),
+      is_active: tempAreaIsActive,
+      prayer_rules: buildPrayerRulesPayload(tempAreaPrayerEvents, tempAreaPrayerBefore, tempAreaPrayerAfter)
+    };
+
+    try {
+      setIsSavingTempAreaDetails(true);
+      await extendTempBlockArea(selectedTempAreaId, payload);
+      toast.success('زمان محدوده موقت با موفقیت تمدید شد');
+      setIsTempAreaEditModalOpen(false);
+      resetTempAreaFormState();
+      refreshActiveEditableLayerTiles();
+    } catch (error) {
+      toast.error(error?.message || 'تمدید محدوده موقت ناموفق بود');
+    } finally {
+      setIsSavingTempAreaDetails(false);
+    }
+  };
+
+  const handleToggleTempAreaDrawing = async () => {
+    if (!isTempAreaLayerActive) {
+      toast.error('برای ثبت محدوده موقت، لایه محدوده موقت را فعال کنید');
+      setOpenSubMenu(1);
+      return;
+    }
+
+    if (isTempAreaVertexEditMode) {
+      if (isTempAreaGeometryDirty) {
+        toast.error('اول ذخیره یا لغو کن');
+        return;
+      }
+
+      exitTempAreaVertexEditMode({ restoreOriginal: false });
+    }
+
+    ensureTempAreaDrawLayers();
+
+    if (tempAreaFlowState === TEMP_AREA_FLOW_STATES.drawing) {
+      toast.info('برای اتمام یا لغو ترسیم از دکمهٔ پایان ترسیم استفاده کنید');
+      return;
+    }
+
+    resetTempAreaFormState();
+    setTempAreaFormMode('create');
+    setTempAreaFlowState(TEMP_AREA_FLOW_STATES.drawing);
+    setTempAreaVertices([]);
+    tempAreaDraftGeometryRef.current = null;
+    setMapCursorForTempAreaDrawing();
+    setIsTempAreaDrawingMode(true);
+    toast.info('برای ترسیم محدوده موقت روی نقشه کلیک کنید');
+  };
+
+  const handleCompleteTempAreaDrawing = () => {
+    if (tempAreaFlowState !== TEMP_AREA_FLOW_STATES.drawing) {
+      toast.info('برای پایان ترسیم ابتدا حالت ترسیم محدوده موقت را فعال کنید');
+      return;
+    }
+
+    const shouldFinalize = window.confirm('آیا می‌خواهید ترسیم محدوده موقت را به پایان برسانید؟ برای لغو روی «لغو» بزنید.');
+
+    if (!shouldFinalize) {
+      resetTempAreaFormState();
+      setTempAreaVertices([]);
+      setIsTempAreaDrawingMode(false);
+      tempAreaDraftGeometryRef.current = null;
+      resetMapCursor();
+      toast.info('ترسیم محدوده موقت لغو شد');
+      return;
+    }
+
+    if (tempAreaVertices.length < 3) {
+      toast.error('برای اتمام ترسیم حداقل سه نقطه نیاز است');
+      return;
+    }
+
+    const geometry = buildTempAreaGeometry(tempAreaVertices);
+
+    if (!geometry || geometry.type !== 'Polygon' || !isTempAreaPolygonValid(geometry)) {
+      toast.error('امکان ساخت هندسه معتبر برای محدوده وجود ندارد');
+      return;
+    }
+
+    tempAreaDraftGeometryRef.current = geometry;
+    setIsTempAreaDrawingMode(false);
+    resetMapCursor();
+    setTempAreaFlowState(TEMP_AREA_FLOW_STATES.readyToSave);
+    setTempAreaFormMode('create');
+    populateTempAreaFormFromData({
+      title: '',
+      description: '',
+      valid_from: '',
+      valid_to: '',
+      is_active: true,
+      prayer_rules: buildPrayerRulesPayload([], 0, 0),
+      geometry
+    }, geometry);
+    setIsTempAreaEditModalOpen(true);
+    toast.success('ترسیم محدوده موقت به پایان رسید. جزئیات را برای ثبت تکمیل کنید');
+  };
+
+  const handleDeleteTempArea = async () => {
+    if (!isTempAreaLayerActive) {
+      toast.error('برای حذف محدوده موقت، لایه محدوده موقت باید فعال باشد');
+      return;
+    }
+
+    if (!selectedTempAreaId) {
+      toast.error('محدوده موقتی برای حذف انتخاب نشده است');
+      return;
+    }
+
+    const promptText = window.prompt(
+      `برای حذف محدوده موقت با شناسه ${selectedTempAreaId}، عبارت "حذف" را وارد کنید:`
+    );
+
+    if (promptText === null) {
+      toast.info('حذف محدوده موقت لغو شد');
+      return;
+    }
+
+    if (promptText.trim() !== 'حذف') {
+      toast.error('برای تأیید حذف باید دقیقاً عبارت "حذف" را وارد کنید');
+      return;
+    }
+
+    try {
+      await deleteTempBlockArea(selectedTempAreaId);
+      toast.success('محدوده موقت با موفقیت حذف شد');
+      setSelectedEditableFeature(null);
       setIsTempAreaDrawingMode(false);
       setTempAreaVertices([]);
-      refreshLayerTiles('temp-areas-outline');
+      refreshActiveEditableLayerTiles();
     } catch (error) {
-      toast.error(error?.message || 'ثبت محدوده موقت ناموفق بود');
+      toast.error(error?.message || 'حذف محدوده موقت ناموفق بود');
     }
   };
 
@@ -4582,7 +5843,7 @@ const Amain = () => {
       toast.success('محدوده با موفقیت حذف شد');
       setSelectedEditableFeature(null);
       setIsAreaEditMode(false);
-      refreshLayerTiles('areas-outline');
+      refreshActiveEditableLayerTiles();
     } catch (error) {
       toast.error(error?.message || 'حذف محدوده ناموفق بود');
     }
@@ -4675,10 +5936,9 @@ const Amain = () => {
       });
     }
 
-    refreshLayerTiles('van-edges');
-    refreshLayerTiles('van-nodes');
+    refreshActiveEditableLayerTiles();
     toast.success('مسیر ون با موفقیت ذخیره شد');
-  }, [mapFloor, refreshLayerTiles, vanLineCoordinates]);
+  }, [mapFloor, refreshActiveEditableLayerTiles, vanLineCoordinates]);
 
   const handleToggleVanDrawing = async () => {
     if (!map) {
@@ -4686,8 +5946,8 @@ const Amain = () => {
       return;
     }
 
-    if (!isVanEdgesLayerActive) {
-      toast.error('برای ترسیم مسیر ون، لایه مسیر ون را در حالت ویرایش فعال کنید');
+    if (!isVanDrawingLayerActive) {
+      toast.error('برای ترسیم مسیر ون، لایه گره‌های ون باید در حالت ویرایش فعال باشد');
       return;
     }
 
@@ -4721,9 +5981,9 @@ const Amain = () => {
     }
   };
 
-  const handleDeleteVanNode = async () => {
+  const handleVanNodeDelete = async () => {
     if (!isVanNodesLayerActive) {
-      toast.error('برای حذف گره ون، لایه گره‌های ون باید فعال باشد');
+      toast.error('برای حذف گره ون، لایه گره ون باید در حالت ویرایش فعال باشد');
       return;
     }
 
@@ -4733,19 +5993,16 @@ const Amain = () => {
     }
 
     const confirmDelete = window.confirm(`آیا از حذف گره ون انتخاب‌شده (شناسه ${selectedVanNodeId}) مطمئن هستید؟ این عملیات قابل بازگشت نیست.`);
+
     if (!confirmDelete) return;
 
     try {
-      setIsDeletingVanNode(true);
       await deleteVanNode(selectedVanNodeId);
       toast.success('گره ون با موفقیت حذف شد');
       setSelectedEditableFeature(null);
-      refreshLayerTiles('van-nodes');
-      refreshLayerTiles('van-edges');
+      refreshActiveEditableLayerTiles();
     } catch (error) {
       toast.error(error?.message || 'حذف گره ون ناموفق بود');
-    } finally {
-      setIsDeletingVanNode(false);
     }
   };
 
@@ -4793,8 +6050,7 @@ const Amain = () => {
       console.log('door creation response', response);
       await openDoorInfoModal(newDoorId, newAccessPointId, false);
 
-      refreshLayerTiles(DOOR_ACCESS_LAYER_ID);
-      refreshLayerTiles('doors');
+      refreshActiveEditableLayerTiles();
     } catch (error) {
       toast.error(error?.message || 'ثبت درب ناموفق بود');
     } finally {
@@ -4857,27 +6113,20 @@ const Amain = () => {
       resetCulturalForm();
     }
 
+    setCurrentReportView(null);
+    setBreadcrumbPath(getMenuBreadcrumbPath(menuName, breadcrumbLabel));
 
-    if (menuName === 'dashboard') {
-      setCurrentReportView(null);
-      setBreadcrumbPath(['منوی اصلی', 'داشبورد', 'آمار کلی استارتاپ من']);
-    } else if (menuName === 'mapmanage') {
-      setCurrentReportView(null);
-      setBreadcrumbPath(['منوی اصلی', 'مدیریت نقشه']);
-    } else if (menuName === 'facmanage') {
-      setCurrentReportView(null);
-      setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات']);
-    } else if (menuName === 'usermanage') {
-      setCurrentReportView(null);
-      setBreadcrumbPath(['منوی اصلی', 'مدیریت کاربران']);
-    } else if (menuName === 'reports') {
-      setCurrentReportView(null);
-      setBreadcrumbPath(['منوی اصلی', 'گزارشات']);
-    } else {
-      setCurrentReportView(null);
-      setBreadcrumbPath(['منوی اصلی', breadcrumbLabel]);
+    const targetPath = menuRouteMap[menuName];
+    if (targetPath) {
+      navigate(targetPath);
     }
   };
+
+  useEffect(() => {
+    setActiveMenu(initialMenu);
+    setCurrentReportView(null);
+    setBreadcrumbPath(getMenuBreadcrumbPath(initialMenu, breadcrumbPath?.[1] || ''));
+  }, [getMenuBreadcrumbPath, initialMenu]);
 
   const handleLayerToggle = (layerId) => {
     setLayerVisibility((prev) => {
@@ -4916,35 +6165,85 @@ const Amain = () => {
     };
   });
 
-  const mapApiPrayerRestrictionsToForm = (apiRestrictions = []) => apiRestrictions.map((restriction, index) => {
-    const derivedIsoScope = Array.isArray(restriction?.date_scope) && restriction.date_scope.length
-      ? restriction.date_scope
-      : buildDateScopeIso(restriction?.date);
+  const mapApiPrayerRestrictionsToForm = (apiRestrictions = []) => {
+    const aggregated = [];
 
-    const normalizedEvents = normalizePrayerEvents(restriction?.events);
+    apiRestrictions.forEach((restriction, index) => {
+      const derivedIsoScope = Array.isArray(restriction?.date_scope) && restriction.date_scope.length
+        ? restriction.date_scope
+        : buildDateScopeIso(restriction?.date);
 
-    const isAllDaysScope = Array.isArray(derivedIsoScope) && derivedIsoScope.includes('ALL_DAYS');
-    const dateLabel = isAllDaysScope
-      ? 'همه روزها'
-      : derivedIsoScope?.length
-        ? derivedIsoScope.join(' / ')
-        : restriction?.date || 'همه روزها';
+      const normalizedEvents = normalizePrayerEvents(
+        restriction?.events
+        ?? restriction?.prayer_event
+        ?? restriction?.prayerEvent
+      );
 
-    const eventLabels = normalizedEvents.map(prayerEventValueToLabel);
+      const isAllDaysScope = Array.isArray(derivedIsoScope) && derivedIsoScope.includes('ALL_DAYS');
+      const dateLabel = isAllDaysScope
+        ? 'همه روزها'
+        : derivedIsoScope?.length
+          ? derivedIsoScope.join(' / ')
+          : restriction?.date || 'همه روزها';
 
-    return {
-      id: restriction?.id || index,
-      events: normalizedEvents,
-      before: restriction?.before_minutes ?? restriction?.before ?? '',
-      after: restriction?.after_minutes ?? restriction?.after ?? '',
-      date: dateLabel,
-      isoDateScope: derivedIsoScope?.length ? derivedIsoScope : [],
-      title: restriction?.title
-        || (eventLabels.length
-          ? `${eventLabels.join(' و ')} : ${restriction.before || 0} دقیقه قبل الی ${restriction.after || 0} دقیقه بعد`
-          : '')
-    };
-  });
+      const beforeValue = restriction?.before_minutes ?? restriction?.before ?? '';
+      const afterValue = restriction?.after_minutes ?? restriction?.after ?? '';
+
+      const aggregateKey = JSON.stringify({
+        before: beforeValue,
+        after: afterValue,
+        dateScope: derivedIsoScope?.join('|') || '',
+        gender: Array.isArray(restriction?.gender)
+          ? restriction.gender.map(normalizeGenderValue).filter(Boolean).join('|')
+          : ''
+      });
+
+      const existing = aggregated.find((item) => item.key === aggregateKey);
+
+      if (existing) {
+        normalizedEvents.forEach((event) => existing.events.add(event));
+        if (!existing.title) existing.title = restriction?.title || '';
+        return;
+      }
+
+      const eventsSet = new Set(normalizedEvents);
+
+      aggregated.push({
+        key: aggregateKey,
+        id: restriction?.id || index,
+        events: eventsSet,
+        before: beforeValue,
+        after: afterValue,
+        dateLabel,
+        isoDateScope: derivedIsoScope?.length ? derivedIsoScope : [],
+        title: restriction?.title || ''
+      });
+    });
+
+    return aggregated.map((item, idx) => {
+      const events = Array.from(item.events);
+      const eventLabels = events.map(prayerEventValueToLabel);
+      const isAllDaysScope = Array.isArray(item?.isoDateScope) && item.isoDateScope.includes('ALL_DAYS');
+      const dateLabel = isAllDaysScope
+        ? 'همه روزها'
+        : item?.isoDateScope?.length
+          ? item.isoDateScope.join(' / ')
+          : item?.dateLabel || 'همه روزها';
+
+      return {
+        id: item?.id ?? idx,
+        events,
+        before: item?.before,
+        after: item?.after,
+        date: dateLabel,
+        isoDateScope: item?.isoDateScope || [],
+        title: item?.title
+          || (eventLabels.length
+            ? `${eventLabels.join(' و ')} : ${item.before || 0} دقیقه قبل الی ${item.after || 0} دقیقه بعد`
+            : '')
+      };
+    });
+  };
 
   const buildTimeRestrictionsPayload = () => {
     const payload = timeRestrictions.map((restriction) => ({
@@ -5086,6 +6385,7 @@ const Amain = () => {
           const response = await updateDoorInfo(lastCreatedDoorId, payload);
           toast.success(response?.message || 'اطلاعات مکان با موفقیت ثبت شد');
         }
+        refreshActiveEditableLayerTiles();
         setIsAddPlaceModalOpen(false);
         resetForm();
         setCurrentStep(1);
@@ -5188,6 +6488,7 @@ const Amain = () => {
       toast.success('درب با موفقیت حذف شد');
       setSelectedEditableFeature(null);
       setOpenSubMenu(null);
+      refreshActiveEditableLayerTiles();
     } catch (error) {
       toast.error(error?.message || 'حذف درب ناموفق بود');
     }
@@ -6229,6 +7530,83 @@ const Amain = () => {
     return days;
   };
 
+  const handleTempAreaPrevMonth = () => {
+    setTempAreaCalendarDate(prev => {
+      let newMonth = prev.month - 1;
+      let newYear = prev.year;
+      if (newMonth < 1) {
+        newMonth = 12;
+        newYear--;
+      }
+      return { ...prev, month: newMonth, year: newYear };
+    });
+  };
+
+  const handleTempAreaNextMonth = () => {
+    setTempAreaCalendarDate(prev => {
+      let newMonth = prev.month + 1;
+      let newYear = prev.year;
+      if (newMonth > 12) {
+        newMonth = 1;
+        newYear++;
+      }
+      return { ...prev, month: newMonth, year: newYear };
+    });
+  };
+
+  const renderTempAreaJalaliCalendarDays = () => {
+    const { year, month } = tempAreaCalendarDate;
+    const now = new Date();
+    const today = toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+
+    const firstDay = jalaliMonthStart(year, month);
+    const daysInMonth = jalaliMonthLength(year, month);
+    const days = [];
+
+    for (let i = 0; i < firstDay; i++) {
+      days.push(<div key={`temp-empty-${i}`} className="calendar-day empty"></div>);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const isToday = year === today.jy && month === today.jm && day === today.jd;
+      const isStart = tempAreaSelectedStartDate
+        && tempAreaSelectedStartDate.year === year
+        && tempAreaSelectedStartDate.month === month
+        && tempAreaSelectedStartDate.day === day;
+      const isEnd = tempAreaSelectedEndDate
+        && tempAreaSelectedEndDate.year === year
+        && tempAreaSelectedEndDate.month === month
+        && tempAreaSelectedEndDate.day === day;
+      const isInRange = tempAreaSelectedStartDate && tempAreaSelectedEndDate
+        ? compareJalaliDates({ year, month, day }, tempAreaSelectedStartDate) >= 0
+        && compareJalaliDates({ year, month, day }, tempAreaSelectedEndDate) <= 0
+        : false;
+
+      days.push(
+        <div
+          key={`temp-${day}`}
+          className={`calendar-day ${isToday ? 'today' : ''} ${isStart ? 'selected' : ''} ${isEnd ? 'selected-end' : ''} ${isInRange ? 'in-range' : ''}`}
+          onClick={() => {
+            if (isTempAreaFormDisabled) return;
+
+            const selectedDate = { year, month, day };
+            if (activeTempAreaDateField === 'start') {
+              setTempAreaSelectedStartDate(selectedDate);
+              setActiveTempAreaDateField(null);
+            } else if (activeTempAreaDateField === 'end') {
+              setTempAreaSelectedEndDate(selectedDate);
+              setActiveTempAreaDateField(null);
+            }
+          }}
+        >
+          {day}
+        </div>
+      );
+    }
+
+    return days;
+  };
+
   // Calculate pagination data
   const totalItems = filteredUsers.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -6508,10 +7886,6 @@ const Amain = () => {
                 >
                   <div className="submenu-branch"></div>
                   <span>مدیریت اطلاعات فرهنگی</span>
-                </div>
-                <div className="submenu-item">
-                  <div className="submenu-branch"></div>
-                  <span>مدیریت دیدگاه‌ها</span>
                 </div>
               </div>
             )}
@@ -7816,10 +9190,11 @@ const Amain = () => {
                       </svg>
                     </div>
                     {openSubMenu === 0 && (
-                      <div className="sub-buttons-temp-area">
+                      <div className="sub-buttons-temp-area temp-area-create-stack">
                         <button
                           className={`sub-btn temp-area-create ${isTempAreaDrawingMode ? 'active' : ''}`}
                           onClick={handleToggleTempAreaDrawing}
+                          disabled={!isTempAreaLayerActive}
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -7837,6 +9212,29 @@ const Amain = () => {
                             <path d="M7 4l10 0l4 7l-9 9l-9 -9z" />
                           </svg>
                         </button>
+                        {isTempAreaDrawingMode && (
+                          <button
+                            className="sub-btn temp-area-complete with-label active"
+                            onClick={handleCompleteTempAreaDrawing}
+                            disabled={!isTempAreaDrawingMode}
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="20"
+                              height="20"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path d="M5 12l5 5l9 -14" />
+                            </svg>
+                            <span className="sub-btn-label">اتمام ترسیم</span>
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -7872,7 +9270,11 @@ const Amain = () => {
                     </div>
                     {openSubMenu === 1 && (
                       <div className="sub-buttons1">
-                        <button className="sub-btn move-temp-area">
+                        <button
+                          className={`sub-btn move-temp-area ${isTempAreaMoveMode ? 'active' : ''}`}
+                          onClick={handleTempAreaMoveToggle}
+                          disabled={!isTempAreaLayerActive || isTempAreaVertexEditMode || isSavingTempAreaGeometry}
+                        >
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-drag-drop">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M19 11v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2" />
@@ -7886,33 +9288,161 @@ const Amain = () => {
                             <path d="M3 15l0 .01" />
                           </svg>
                         </button>
-                        <button className="sub-btn create-temp-area">
-                          <svg width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.354 13.646l2.853 2.854-2.854 2.854-.707-.707L21.293 17H17v4.293l1.646-1.646.707.707-2.853 2.853-2.854-2.854.707-.707L16 21.293V17h-4.293l1.646 1.646-.707.707L9.793 16.5l2.854-2.854.707.707L11.707 16H16v-4.293l-1.646 1.646-.707-.707L16.5 9.793l2.854 2.854-.707.707L17 11.707V16h4.293l-1.646-1.646zM9 6H6.537L2.468 18l-.947-.321L5.48 6H4V1h5v2h9v1H9zM8 5V2H5v3z" /><path fill="none" d="M0 0h24v24H0z" /></svg>
-                        </button>
-                        <button className="sub-btn edit-temp-area">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                            <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
-                            <path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" />
-                            <path d="M16 5l3 3" />
+                        <div className="temp-area-vertex-group">
+                          <button
+                            className={`sub-btn temp-area-vertex ${isTempAreaVertexEditMode ? 'active' : ''}`}
+                            onClick={handleToggleTempAreaVertexEdit}
+                            disabled={!isTempAreaLayerActive || isSavingTempAreaGeometry}
+                          >
+                            <svg
+                              version="1.1"
+                              id="Layer_1"
+                              xmlns="http://www.w3.org/2000/svg"
+                              xmlnsXlink="http://www.w3.org/1999/xlink"
+                              x="0px"
+                              y="0px"
+                              viewBox="0 0 116.28 122.88"
+                              xmlSpace="preserve"
+                            >
+                              <g>
+                                <path
+                                  className="st0"
+                                  d="M42.85,22.45L77.49,8l29.87,30.77L93.42,73.3c-23.64,6.55-45.66,16.11-66.45,27.96l-4.22-5.24l41.23-40.88 c0.83,0.38,1.73,0.57,2.64,0.57c0,0,0.01,0,0.01,0c3.56,0,6.44-2.88,6.44-6.44c0-3.55-2.88-6.44-6.44-6.44 c-3.55,0-6.44,2.88-6.44,6.44c0,1.15,0.3,2.23,0.83,3.16L20.22,92.97l-5.66-5.17C27.01,67.42,36.53,45.69,42.85,22.45L42.85,22.45z M87.36,0l28.93,29.64l-2.64,2.57l-2.64,2.57L82.08,5.13l2.64-2.57L87.36,0L87.36,0z M18.99,107.36 c13.56,12.48,21.54,7.04,32.83-0.68c9.34-6.38,20.63-14.09,37.75-16.64c1.22-4.1,5.02-7.09,9.51-7.09c5.48,0,9.92-4.44,9.92,9.92 c0,5.48-4.44,9.92-9.92,9.92c-3.85,0-7.19-2.19-8.83-5.4c-15.32,2.43-25.69,9.51-34.28,15.37c-14.47,9.88-24.58,16.78-42.3-0.24 c-1.19,0.48-2.46,0.73-3.74,0.73c0,0-0.01,0-0.01,0c-5.48,0-9.92-4.44-9.92-9.92c0-5.48,4.44-9.92,9.92-9.92 c5.48,0,9.92,4.44,9.92,9.92c0,0,0,0.01,0,0.01C19.84,104.73,19.55,106.09,18.99,107.36L18.99,107.36L18.99,107.36z"
+                                />
+                              </g>
+                            </svg>
+                            </button>
+                            {isTempAreaVertexEditMode && (
+                              <div className="temp-area-vertex-actions">
+                                <button
+                                  className="sub-btn temp-area-save with-label"
+                                  onClick={handleSaveTempAreaVertexEdit}
+                                  disabled={!isTempAreaGeometryDirty || isSavingTempAreaGeometry}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M9 11l3 3l8 -8" />
+                                    <path d="M20 12v6a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h9" />
+                                  </svg>
+                                  <span className="sub-btn-label">ذخیره</span>
+                                </button>
+                                <button
+                                  className="sub-btn temp-area-cancel with-label"
+                                  onClick={handleCancelTempAreaVertexEdit}
+                                  disabled={isSavingTempAreaGeometry}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M18 6l-12 12" />
+                                    <path d="M6 6l12 12" />
+                                  </svg>
+                                  <span className="sub-btn-label">لغو</span>
+                                </button>
+                              </div>
+                            )}
+                        </div>
+                        <button
+                          className="sub-btn create-temp-area"
+                          onClick={handleToggleTempAreaDrawing}
+                          disabled={!isTempAreaLayerActive || isTempAreaVertexEditMode || isSavingTempAreaGeometry}
+                        >
+                          <svg
+                            version="1.1"
+                            id="Layer_1"
+                            xmlns="http://www.w3.org/2000/svg"
+                            xmlnsXlink="http://www.w3.org/1999/xlink"
+                            x="0px"
+                            y="0px"
+                            viewBox="0 0 106.67 122.88"
+                            xmlSpace="preserve"
+                          >
+                            <g>
+                              <path
+                                className="st0"
+                                d="M87.73,0c1.3-0.01,2.42,0.43,3.39,1.35l14.16,13.55c0.92,0.88,1.37,2.04,1.39,3.32 c0.02,1.3-0.36,2.49-1.26,3.39l-7.54,7.84L76.95,9.25l7.46-7.77C85.32,0.53,86.43,0.02,87.73,0L87.73,0L87.73,0z M21.44,72.88 c2.56-0.79,5.26,0.65,6.05,3.2c0.79,2.56-0.65,5.26-3.2,6.05c-7.45,2.28-12.44,6.7-14.1,10.85c-0.44,1.11-0.59,2.12-0.42,2.96 c0.13,0.63,0.51,1.21,1.14,1.66c2.72,1.99,8.58,2.5,18.42,0.11c4.76-1.16,2.81-0.68,5.99-1.27c6.32-1.17,12.63-1.97,17.72-1.72 c6.68,0.33,11.7,2.48,13.41,7.61c1.11,3.32,0.8,6.2,0.52,8.78c-0.1,0.93-0.19,1.79-0.15,2.36c0,0.02,1.01-0.05,5.9-0.44 c5.66-0.45,11.52-2.68,17.3-4.89c2.97-1.13,5.91-2.25,9.25-3.28c2.56-0.78,5.26,0.67,6.03,3.22c0.78,2.56-0.67,5.26-3.22,6.03 c-2.59,0.79-5.59,1.94-8.6,3.08c-6.45,2.46-12.96,4.94-20,5.5c-12.88,1.01-15.87-2.63-16.33-8.48c-0.11-1.38,0.03-2.71,0.18-4.14 c0.17-1.6,0.36-3.39-0.07-4.69c-0.19-0.58-2.02-0.88-4.68-1c-4.26-0.21-9.84,0.51-15.52,1.57c-2.83,0.52-0.8,0.02-5.45,1.15 c-12.96,3.15-21.57,1.81-26.39-1.71c-2.71-1.97-4.32-4.56-4.94-7.47c-0.58-2.71-0.25-5.63,0.91-8.54 C3.81,82.85,11.04,76.06,21.44,72.88L21.44,72.88L21.44,72.88z M44.06,51.71l12.84,12.35l-15.7,4.22 c-0.57,0.11-0.79-0.12-0.69-0.64L44.06,51.71L44.06,51.71L44.06,51.71z M70.31,16.13l20.91,20.14L62.66,66.41l-25.59,6.86 c-0.92,0.18-1.28-0.18-1.13-1.05l5.8-25.94L70.31,16.13L70.31,16.13L70.31,16.13z"
+                              />
+                            </g>
                           </svg>
                         </button>
-                        <button className="sub-btn delete-temp-area">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                            <path d="M4 7l16 0" />
-                            <path d="M10 11l0 6" />
-                            <path d="M14 11l0 6" />
-                            <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
-                            <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
+                        {/* <button
+                          className={`sub-btn temp-area-complete with-label ${isTempAreaDrawingMode ? 'active' : ''}`}
+                          onClick={handleCompleteTempAreaDrawing}
+                          disabled={!isTempAreaDrawingMode || isTempAreaVertexEditMode || isSavingTempAreaGeometry}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <g>
+                              <path
+                                className="st0"
+                                d="M87.73,0c1.3-0.01,2.42,0.43,3.39,1.35l14.16,13.55c0.92,0.88,1.37,2.04,1.39,3.32 c0.02,1.3-0.36,2.49-1.26,3.39l-7.54,7.84L76.95,9.25l7.46-7.77C85.32,0.53,86.43,0.02,87.73,0L87.73,0L87.73,0z M21.44,72.88 c2.56-0.79,5.26,0.65,6.05,3.2c0.79,2.56-0.65,5.26-3.2,6.05c-7.45,2.28-12.44,6.7-14.1,10.85c-0.44,1.11-0.59,2.12-0.42,2.96 c0.13,0.63,0.51,1.21,1.14,1.66c2.72,1.99,8.58,2.5,18.42,0.11c4.76-1.16,2.81-0.68,5.99-1.27c6.32-1.17,12.63-1.97,17.72-1.72 c6.68,0.33,11.7,2.48,13.41,7.61c1.11,3.32,0.8,6.2,0.52,8.78c-0.1,0.93-0.19,1.79-0.15,2.36c0,0.02,1.01-0.05,5.9-0.44 c5.66-0.45,11.52-2.68,17.3-4.89c2.97-1.13,5.91-2.25,9.25-3.28c2.56-0.78,5.26,0.67,6.03,3.22c0.78,2.56-0.67,5.26-3.22,6.03 c-2.59,0.79-5.59,1.94-8.6,3.08c-6.45,2.46-12.96,4.94-20,5.5c-12.88,1.01-15.87-2.63-16.33-8.48c-0.11-1.38,0.03-2.71,0.18-4.14 c0.17-1.6,0.36-3.39-0.07-4.69c-0.19-0.58-2.02-0.88-4.68-1c-4.26-0.21-9.84,0.51-15.52,1.57c-2.83,0.52-0.8,0.02-5.45,1.15 c-12.96,3.15-21.57,1.81-26.39-1.71c-2.71-1.97-4.32-4.56-4.94-7.47c-0.58-2.71-0.25-5.63,0.91-8.54 C3.81,82.85,11.04,76.06,21.44,72.88L21.44,72.88L21.44,72.88z M44.06,51.71l12.84,12.35l-15.7,4.22 c-0.57,0.11-0.79-0.12-0.69-0.64L44.06,51.71L44.06,51.71L44.06,51.71z M70.31,16.13l20.91,20.14L62.66,66.41l-25.59,6.86 c-0.92,0.18-1.28-0.18-1.13-1.05l5.8-25.94L70.31,16.13L70.31,16.13L70.31,16.13z"
+                              />
+                            </g>
                           </svg>
-                        </button>
-                      </div>
+                        </button> */}
+                          {isTempAreaDrawingMode && (
+                            <button
+                              className="sub-btn temp-area-complete with-label"
+                              onClick={handleCompleteTempAreaDrawing}
+                              disabled={isTempAreaVertexEditMode || isSavingTempAreaGeometry}
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="20"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M5 12l5 5l9 -14" />
+                              </svg>
+                              <span className="sub-btn-label">اتمام ترسیم</span>
+                            </button>
+                          )}
+                          <button
+                            className="sub-btn edit-temp-area"
+                            onClick={handleOpenTempAreaEditModal}
+                            disabled={isTempAreaVertexEditMode || isSavingTempAreaGeometry}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
+                              <path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" />
+                              <path d="M16 5l3 3" />
+                            </svg>
+                          </button>
+                          <button
+                            className="sub-btn delete-temp-area"
+                            onClick={handleDeleteTempArea}
+                            disabled={isTempAreaVertexEditMode || isSavingTempAreaGeometry}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path d="M4 7l16 0" />
+                              <path d="M10 11l0 6" />
+                              <path d="M14 11l0 6" />
+                              <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
+                              <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
+                            </svg>
+                          </button>
+                        </div>
                     )}
                     <div className="date-separator3"></div>
 
                     {/* Button 2 */}
-                    <div className={`action-button ${openSubMenu === 2 ? 'selected' : ''}`}
+                    <div className={`action-button area-mange ${openSubMenu === 2 ? 'selected' : ''}`}
                       onClick={() => {
                         setOpenSubMenu(openSubMenu === 2 ? null : 2);
                         // Reset location marker mode when other buttons are clicked
@@ -7924,7 +9454,11 @@ const Amain = () => {
                     </div>
                     {openSubMenu === 2 && (
                       <div className="sub-buttons2">
-                        <button className="sub-btn" onClick={handleAreaEditModeToggle}>
+                        <button
+                          className={`sub-btn move-area ${isAreaEditMode ? 'active' : ''}`}
+                          onClick={handleAreaEditModeToggle}
+                          disabled={isSavingAreaGeometry}
+                        >
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-drag-drop">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M19 11v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2" />
@@ -7938,7 +9472,34 @@ const Amain = () => {
                             <path d="M3 15l0 .01" />
                           </svg>
                         </button>
-                        <button className="sub-btn" onClick={handleOpenAddPlaceWithRoofOption}>
+                        {isAreaEditMode && (
+                          <div className="area-edit-actions">
+                            <button
+                              className="sub-btn area-save with-label"
+                              onClick={handleSaveAreaGeometry}
+                              disabled={isSavingAreaGeometry}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M5 12l5 5l9 -14" />
+                              </svg>
+                              <span className="sub-btn-label">اتمام ترسیم</span>
+                            </button>
+                            <button
+                              className="sub-btn area-cancel with-label"
+                              onClick={handleCancelAreaGeometry}
+                              disabled={isSavingAreaGeometry}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M18 6l-12 12" />
+                                <path d="M6 6l12 12" />
+                              </svg>
+                              <span className="sub-btn-label">لغو</span>
+                            </button>
+                          </div>
+                        )}
+                        <button className="sub-btn edit-area" onClick={handleOpenAddPlaceWithRoofOption}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
@@ -7946,7 +9507,7 @@ const Amain = () => {
                             <path d="M16 5l3 3" />
                           </svg>
                         </button>
-                        <button className="sub-btn" onClick={handleDeleteSelectedArea}>
+                        <button className="sub-btn delete-area" onClick={handleDeleteSelectedArea}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M4 7l16 0" />
@@ -7988,11 +9549,7 @@ const Amain = () => {
                             <path d="M16 5l3 3" />
                           </svg>
                         </button>
-                        <button
-                          className="sub-btn delete-van-node"
-                          disabled={!isVanNodesLayerActive || !selectedVanNodeId || isDeletingVanNode}
-                          onClick={handleDeleteVanNode}
-                        >
+                        <button className="sub-btn delete-van-node" onClick={handleVanNodeDelete}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M4 7l16 0" />
@@ -8007,7 +9564,7 @@ const Amain = () => {
                     <div className="date-separator3"></div>
 
                     {/* Button 4 - Location Marker */}
-                    <div className={`action-button ${isLocationMarkerMode ? 'selected' : ''}`}
+                    <div className={`action-button manage-door-point ${isLocationMarkerMode ? 'selected' : ''}`}
                       onClick={() => {
                         handleLocationMarkerSelect();
                         setOpenSubMenu(openSubMenu === 4 ? null : 4);
@@ -8018,7 +9575,7 @@ const Amain = () => {
                     </div>
                     {openSubMenu === 4 && showDoorTools && (
                       <div className="sub-buttons4">
-                        <button className="sub-btn" onClick={handleDoorMoveStart}>
+                        <button className="sub-btn move-door-point" onClick={handleDoorMoveStart}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-drag-drop">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M19 11v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2" />
@@ -8032,7 +9589,7 @@ const Amain = () => {
                             <path d="M3 15l0 .01" />
                           </svg>
                         </button>
-                        <button className="sub-btn" onClick={handleDoorEdit}>
+                        <button className="sub-btn edit-door-point" onClick={handleDoorEdit}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
@@ -8040,7 +9597,7 @@ const Amain = () => {
                             <path d="M16 5l3 3" />
                           </svg>
                         </button>
-                        <button className="sub-btn" onClick={handleDoorDelete}>
+                        <button className="sub-btn delete-door-point" onClick={handleDoorDelete}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M4 7l16 0" />
@@ -8605,6 +10162,253 @@ const Amain = () => {
             )}
         </div>
       </div>
+      {isTempAreaEditModalOpen && (
+        <div className="modal-overlay">
+          <div className="add-place-modal temp-area-edit-modal">
+            <div className="modal-header">
+              <div className="step-text">
+                {tempAreaFormMode === 'create' ? 'ثبت محدوده موقت' : 'ویرایش محدوده موقت'}
+              </div>
+              <button className="close-modal" onClick={handleCloseTempAreaModal} aria-label="بستن" disabled={isTempAreaFormDisabled}>
+                ×
+              </button>
+            </div>
+
+            <div className="modal-content">
+              {isLoadingTempAreaDetails && (
+                <div className="form-group">
+                  <div className="info-message">در حال دریافت اطلاعات محدوده موقت از سرور...</div>
+                </div>
+              )}
+
+              <div className="form-section">
+                <div className="form-group">
+                  <label className="form-label">نام محدوده</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="نام محدوده موقت"
+                    value={tempAreaName}
+                    onChange={(e) => setTempAreaName(e.target.value)}
+                    disabled={isTempAreaFormDisabled}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">توضیحات</label>
+                  <textarea
+                    className="form-textarea"
+                    placeholder="توضیحات تکمیلی درباره علت ایجاد این محدوده"
+                    value={tempAreaDescription}
+                    onChange={(e) => setTempAreaDescription(e.target.value)}
+                    disabled={isTempAreaFormDisabled}
+                    rows="3"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">محدوده زمانی</label>
+                  <div className="dual-input">
+                    <div className="input-wrapper">
+                      <span className="input-label">شروع</span>
+                      <button
+                        type="button"
+                        className="date-input-display"
+                        onClick={() => {
+                          if (isTempAreaFormDisabled) return;
+                          if (tempAreaSelectedStartDate) {
+                            setTempAreaCalendarDate({
+                              year: tempAreaSelectedStartDate.year,
+                              month: tempAreaSelectedStartDate.month
+                            });
+                          }
+                          setActiveTempAreaDateField('start');
+                        }}
+                        disabled={isTempAreaFormDisabled}
+                      >
+                        {formatTempAreaDateLabel(tempAreaSelectedStartDate, tempAreaStartTime)}
+                      </button>
+                      <input
+                        type="time"
+                        className="form-input"
+                        value={tempAreaStartTime}
+                        onChange={(e) => setTempAreaStartTime(e.target.value)}
+                        disabled={isTempAreaFormDisabled}
+                      />
+                    </div>
+                    <div className="input-wrapper">
+                      <span className="input-label">پایان</span>
+                      <button
+                        type="button"
+                        className="date-input-display"
+                        onClick={() => {
+                          if (isTempAreaFormDisabled) return;
+                          if (tempAreaSelectedEndDate) {
+                            setTempAreaCalendarDate({
+                              year: tempAreaSelectedEndDate.year,
+                              month: tempAreaSelectedEndDate.month
+                            });
+                          }
+                          setActiveTempAreaDateField('end');
+                        }}
+                        disabled={isTempAreaFormDisabled}
+                      >
+                        {formatTempAreaDateLabel(tempAreaSelectedEndDate, tempAreaEndTime)}
+                      </button>
+                      <input
+                        type="time"
+                        className="form-input"
+                        value={tempAreaEndTime}
+                        onChange={(e) => setTempAreaEndTime(e.target.value)}
+                        disabled={isTempAreaFormDisabled}
+                      />
+                    </div>
+                  </div>
+                  {activeTempAreaDateField && (
+                    <div className="jalali-calendar temp-area-calendar">
+                      <div className="calendar-header">
+                        <div className="month-year-selector">
+                          <select
+                            value={tempAreaCalendarDate.month}
+                            onChange={(e) => setTempAreaCalendarDate(prev => ({ ...prev, month: parseInt(e.target.value) }))}
+                            className="month-select"
+                          >
+                            {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                              <option key={month} value={month}>
+                                {getJalaliMonthName(month)}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={tempAreaCalendarDate.year}
+                            onChange={(e) => setTempAreaCalendarDate(prev => ({ ...prev, year: parseInt(e.target.value) }))}
+                            className="year-select"
+                          >
+                            {jalaliYearOptions.map(year => (
+                              <option key={year} value={year}>{year}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="calendar-nav">
+                          <button className="nav-btn prev" onClick={handleTempAreaPrevMonth}>
+                            ‹
+                          </button>
+                          <button className="nav-btn next" onClick={handleTempAreaNextMonth}>
+                            ›
+                          </button>
+                        </div>
+                      </div>
+                      <div className="day-names">
+                        <div className="day-name">ش</div>
+                        <div className="day-name">ی</div>
+                        <div className="day-name">د</div>
+                        <div className="day-name">س</div>
+                        <div className="day-name">چ</div>
+                        <div className="day-name">پ</div>
+                        <div className="day-name">ج</div>
+                      </div>
+                      <div className="calendar-days">
+                        {renderTempAreaJalaliCalendarDays()}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">محدودیت بر اساس اوقات شرعی</label>
+                  <div className="prayer-restrictions">
+                    <div className="checkbox-group">
+                      {PRAYER_EVENT_OPTIONS.map((option) => (
+                        <label key={option.value} className="checkbox-item">
+                          <input
+                            type="checkbox"
+                            checked={tempAreaPrayerEvents.includes(option.value)}
+                            onChange={(e) => {
+                              const { checked } = e.target;
+
+                              setTempAreaPrayerEvents((current) => {
+                                if (checked) {
+                                  return Array.from(new Set([...current, option.value]));
+                                }
+
+                                return current.filter((event) => event !== option.value);
+                              });
+                            }}
+                            disabled={isTempAreaFormDisabled}
+                          />
+                          <span>{option.label}</span>
+                        </label>
+                      ))}
+                    </div>
+
+                    <div className="dual-input">
+                      <div className="input-wrapper">
+                        <span className="input-label">دقایق قبل</span>
+                        <input
+                          type="number"
+                          min="0"
+                          className="form-input"
+                          value={tempAreaPrayerBefore}
+                          onChange={(e) => setTempAreaPrayerBefore(e.target.value)}
+                          disabled={isTempAreaFormDisabled}
+                        />
+                      </div>
+                      <div className="input-wrapper">
+                        <span className="input-label">دقایق بعد</span>
+                        <input
+                          type="number"
+                          min="0"
+                          className="form-input"
+                          value={tempAreaPrayerAfter}
+                          onChange={(e) => setTempAreaPrayerAfter(e.target.value)}
+                          disabled={isTempAreaFormDisabled}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-group inline-group">
+                  <label className="form-label">وضعیت محدوده</label>
+                  <label className="checkbox-item">
+                    <input
+                      type="checkbox"
+                      checked={tempAreaIsActive}
+                      onChange={(e) => setTempAreaIsActive(e.target.checked)}
+                      disabled={isTempAreaFormDisabled}
+                    />
+                    <span>این محدوده فعال باشد</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button className="secondary-btn" onClick={handleCloseTempAreaModal} disabled={isTempAreaFormDisabled}>
+                انصراف
+              </button>
+              {tempAreaFormMode === 'edit' && (
+                <>
+                  <button className="secondary-btn" onClick={handleExtendTempArea} disabled={isTempAreaFormDisabled}>
+                    تمدید با بازه زمانی فعلی
+                  </button>
+                  <button className="secondary-btn" onClick={handleStopTempArea} disabled={isTempAreaFormDisabled}>
+                    توقف فوری
+                  </button>
+                </>
+              )}
+              <button className="primary-btn" onClick={handleSaveTempAreaDetails} disabled={isTempAreaFormDisabled}>
+                {isSavingTempAreaDetails
+                  ? 'در حال ذخیره...'
+                  : tempAreaFormMode === 'create'
+                    ? 'ثبت محدوده'
+                    : 'ثبت تغییرات'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add Place Modal */}
       {isAddPlaceModalOpen && (
         <div className="modal-overlay">
@@ -10735,7 +12539,22 @@ const Amain = () => {
                               className="remove-file-btn"
                               onClick={() => handleRemoveFile(primaryImage.id, 'image')}
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-x"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="red"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="icon icon-tabler icons-tabler-outline icon-tabler-x"
+                              >
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M18 6l-12 12" />
+                                <path d="M6 6l12 12" />
+                              </svg>
                             </button>
                           </div>
                         </div>
@@ -10784,7 +12603,22 @@ const Amain = () => {
                                   className="remove-file-btn-small"
                                   onClick={() => handleRemoveFile(file.id, 'image')}
                                 >
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-x"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="red"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className="icon icon-tabler icons-tabler-outline icon-tabler-x"
+                                  >
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M18 6l-12 12" />
+                                    <path d="M6 6l12 12" />
+                                  </svg>
                                 </button>
                               </div>
                             </div>

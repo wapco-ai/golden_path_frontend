@@ -1,4 +1,5 @@
 import appConfig from '../config/appConfig.js';
+import { USER_ACCESS_TOKEN_KEY, useUserAuthStore } from '../auth/user/userAuthStore';
 
 const createGuestFeedbackToken = () => {
   if (typeof window === 'undefined') return null;
@@ -29,11 +30,14 @@ const resolveAuthToken = (providedToken) => {
     return appConfig.userFeedbackAuthToken;
   }
 
+  const storeToken = useUserAuthStore.getState().accessToken;
+  if (storeToken) return storeToken;
+
   if (typeof window !== 'undefined') {
-    const sessionToken = window.sessionStorage?.getItem?.('authToken');
+    const sessionToken = window.sessionStorage?.getItem?.(USER_ACCESS_TOKEN_KEY);
     if (sessionToken) return sessionToken;
 
-    const localToken = window.localStorage?.getItem?.('authToken');
+    const localToken = window.localStorage?.getItem?.(USER_ACCESS_TOKEN_KEY);
     if (localToken) return localToken;
   }
 
