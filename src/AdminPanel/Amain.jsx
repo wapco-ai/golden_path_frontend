@@ -786,6 +786,7 @@ const Amain = () => {
   const [selectedEditableFeature, setSelectedEditableFeature] = useState(null);
   const tempAreaOriginalGeometryRef = useRef(null);
   const tempAreaDraftGeometryRef = useRef(null);
+  const tempAreaPreviousCursorRef = useRef(null);
   const activeEditableLayer = useMemo(() => {
     const selectedLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
 
@@ -839,7 +840,8 @@ const Amain = () => {
       setTempAreaVertices([]);
       tempAreaDraftGeometryRef.current = null;
     }
-  }, [isTempAreaLayerActive]);
+    resetMapCursor();
+  }, [isTempAreaLayerActive, resetMapCursor]);
   const selectedFeatureProperties = selectedEditableFeature?.features?.[0]?.properties;
   const selectedFeatureCoordinates = selectedEditableFeature?.features?.[0]?.geometry?.coordinates;
   const selectedDoorId = selectedFeatureProperties?.door_id
@@ -3740,8 +3742,9 @@ const Amain = () => {
       setVanLineCoordinates([]);
       setIsTempAreaDrawingMode(false);
       setTempAreaVertices([]);
+      resetMapCursor();
     }
-  }, [activeMenu]);
+  }, [activeMenu, resetMapCursor]);
 
   useEffect(() => {
 
@@ -3907,7 +3910,8 @@ const Amain = () => {
       setTempAreaMoveGeometry(null);
       tempAreaOriginalGeometryRef.current = null;
     }
-  }, [isTempAreaLayerActive]);
+    resetMapCursor();
+  }, [isTempAreaLayerActive, resetMapCursor]);
 
   useEffect(() => {
     setIsDoorMoveMode(false);
@@ -4393,7 +4397,10 @@ const Amain = () => {
 
     map.on('click', handleMapClick);
 
-    return () => map.off('click', handleMapClick);
+    return () => {
+      map.off('click', handleMapClick);
+      resetMapCursor();
+    };
   }, [
     map,
     activeMenu,
@@ -4411,7 +4418,8 @@ const Amain = () => {
     selectedEditableFeature,
     tempAreaMoveGeometry,
     translateGeometryByDelta,
-    refreshActiveEditableLayerTiles
+    refreshActiveEditableLayerTiles,
+    resetMapCursor
   ]);
 
   const handleZoomIn = () => {
@@ -4973,6 +4981,30 @@ const Amain = () => {
     setTempAreaValidTo(buildIsoFromJalaliDateTime(tempAreaSelectedEndDate, tempAreaEndTime));
   }, [tempAreaSelectedEndDate, tempAreaEndTime]);
 
+  const setMapCursorForTempAreaDrawing = useCallback(() => {
+    if (!map?.getCanvas) return;
+
+    const canvas = map.getCanvas();
+    if (!canvas) return;
+
+    if (tempAreaPreviousCursorRef.current === null) {
+      tempAreaPreviousCursorRef.current = canvas.style.cursor;
+    }
+
+    canvas.style.cursor = 'crosshair';
+  }, [map]);
+
+  const resetMapCursor = useCallback(() => {
+    if (!map?.getCanvas) return;
+
+    const canvas = map.getCanvas();
+    if (!canvas) return;
+
+    const previousCursor = tempAreaPreviousCursorRef.current;
+    canvas.style.cursor = previousCursor ?? 'grab';
+    tempAreaPreviousCursorRef.current = null;
+  }, [map]);
+
   const resetTempAreaFormState = useCallback(() => {
     setTempAreaName('');
     setTempAreaDescription('');
@@ -4991,7 +5023,8 @@ const Amain = () => {
     setTempAreaFlowState(TEMP_AREA_FLOW_STATES.idle);
     setTempAreaFormMode('edit');
     tempAreaDraftGeometryRef.current = null;
-  }, [currentJalaliDate.jm, currentJalaliDate.jy]);
+    resetMapCursor();
+  }, [currentJalaliDate.jm, currentJalaliDate.jy, resetMapCursor]);
 
   const populateTempAreaFormFromData = useCallback((normalizedData = {}, geometryOverride = null) => {
     const start = convertIsoToJalaliDateTime(normalizedData.valid_from);
@@ -5252,6 +5285,7 @@ const Amain = () => {
     setTempAreaFlowState(TEMP_AREA_FLOW_STATES.drawing);
     setTempAreaVertices([]);
     tempAreaDraftGeometryRef.current = null;
+    setMapCursorForTempAreaDrawing();
     setIsTempAreaDrawingMode(true);
     toast.info('برای ترسیم محدوده موقت روی نقشه کلیک کنید');
   };
@@ -5269,6 +5303,7 @@ const Amain = () => {
       setTempAreaVertices([]);
       setIsTempAreaDrawingMode(false);
       tempAreaDraftGeometryRef.current = null;
+      resetMapCursor();
       toast.info('ترسیم محدوده موقت لغو شد');
       return;
     }
@@ -5287,6 +5322,7 @@ const Amain = () => {
 
     tempAreaDraftGeometryRef.current = geometry;
     setIsTempAreaDrawingMode(false);
+    resetMapCursor();
     setTempAreaFlowState(TEMP_AREA_FLOW_STATES.readyToSave);
     setTempAreaFormMode('create');
     populateTempAreaFormFromData({
