@@ -712,6 +712,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
     setSelectedEditableFeature,
     activeEditableLayer,
     isVanNodesLayerActive,
+    isVanDrawingLayerActive,
     isTempAreaLayerActive,
     refreshActiveEditableLayerTiles,
   } = editableLayersState;
