@@ -784,6 +784,15 @@ const Amain = () => {
   const [isSavingTempAreaDetails, setIsSavingTempAreaDetails] = useState(false);
   const vertexMarkersRef = useRef([]);
   const tempAreaVertexMarkersRef = useRef([]);
+  const clearVertexMarkers = useCallback(() => {
+    vertexMarkersRef.current.forEach((marker) => marker?.remove());
+    vertexMarkersRef.current = [];
+  }, []);
+
+  const clearTempAreaVertexMarkers = useCallback(() => {
+    tempAreaVertexMarkersRef.current.forEach((marker) => marker?.remove());
+    tempAreaVertexMarkersRef.current = [];
+  }, []);
   const [locationMarker, setLocationMarker] = useState(null);
   const [activeEditableLayerId, setActiveEditableLayerId] = useState('');
   const hasUserClearedEditableLayer = useRef(false);
@@ -3903,16 +3912,6 @@ const Amain = () => {
       hasUserClearedEditableLayer.current = false;
     }
   }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
-
-  const clearVertexMarkers = useCallback(() => {
-    vertexMarkersRef.current.forEach((marker) => marker?.remove());
-    vertexMarkersRef.current = [];
-  }, []);
-
-  const clearTempAreaVertexMarkers = useCallback(() => {
-    tempAreaVertexMarkersRef.current.forEach((marker) => marker?.remove());
-    tempAreaVertexMarkersRef.current = [];
-  }, []);
 
   useEffect(() => {
     setSelectedEditableFeature(null);
