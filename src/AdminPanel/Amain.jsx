@@ -710,16 +710,12 @@ const Amain = () => {
         type: 'circle',
         source: TEMP_AREA_DRAW_SOURCE_ID,
         paint: {
-          'circle-radius': 5,
-          'circle-color': '#1e40af',
+          'circle-radius': 6,
+          'circle-color': '#d3516f',
           'circle-stroke-width': 2,
           'circle-stroke-color': '#ffffff'
         },
-        filter: [
-          'any',
-          ['==', ['geometry-type'], 'Point'],
-          ['==', ['geometry-type'], 'MultiPoint']
-        ]
+        filter: ['==', ['geometry-type'], 'Point']
       });
     }
   }, [map]);
@@ -4442,6 +4438,7 @@ const Amain = () => {
     selectedDoorAccessPointId,
     isTempAreaMoveMode,
     isTempAreaLayerActive,
+    isTempAreaDrawingMode,
     selectedTempAreaId,
     selectedEditableFeature,
     tempAreaMoveGeometry,
@@ -5278,6 +5275,8 @@ const Amain = () => {
       setOpenSubMenu(1);
       return;
     }
+
+    ensureTempAreaDrawLayers();
 
     if (tempAreaFlowState === TEMP_AREA_FLOW_STATES.drawing) {
       toast.info('برای اتمام یا لغو ترسیم از دکمهٔ پایان ترسیم استفاده کنید');
