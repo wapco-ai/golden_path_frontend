@@ -1,5 +1,6 @@
 // src/pages/Amain.jsx
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useIntl } from 'react-intl';
 import { toast } from 'react-toastify';
 import '../AdminPanel/Amain.css';
@@ -503,10 +504,11 @@ const logDoorAccessPointDebugInfo = (mapInstance) => {
   });
 };
 
-const Amain = () => {
+const Amain = ({ initialMenu = 'dashboard' }) => {
+  const navigate = useNavigate();
   const { admin: adminProfile, permissions: adminPermissions, fetchProfile, logout } = useAdminAuthStore();
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
-  const [activeMenu, setActiveMenu] = useState('dashboard');
+  const [activeMenu, setActiveMenu] = useState(initialMenu);
   const [commentStats, setCommentStats] = useState({
     total: 152,
     approved: 89,
@@ -740,6 +742,33 @@ const Amain = () => {
   const calendarRef = useRef(null);
   const [breadcrumbPath, setBreadcrumbPath] = useState(['منوی اصلی', 'داشبورد', 'آمار کلی استارتاپ من']);
   const [currentReportView, setCurrentReportView] = useState(null);
+  const menuRouteMap = useMemo(() => ({
+    dashboard: '/admin/dashboard',
+    mapmanage: '/admin/map',
+    facmanage: '/admin/content',
+    usermanage: '/admin/users',
+    reports: '/admin/reports'
+  }), []);
+
+  const getMenuBreadcrumbPath = useCallback((menuName, breadcrumbLabel = '') => {
+    if (menuName === 'dashboard') {
+      return ['منوی اصلی', 'داشبورد', 'آمار کلی استارتاپ من'];
+    }
+    if (menuName === 'mapmanage') {
+      return ['منوی اصلی', 'مدیریت نقشه'];
+    }
+    if (menuName === 'facmanage') {
+      return ['منوی اصلی', 'مدیریت امکانات'];
+    }
+    if (menuName === 'usermanage') {
+      return ['منوی اصلی', 'مدیریت کاربران'];
+    }
+    if (menuName === 'reports') {
+      return ['منوی اصلی', 'گزارشات'];
+    }
+
+    return ['منوی اصلی', breadcrumbLabel];
+  }, []);
   const [pieChartTimeFilter, setPieChartTimeFilter] = useState('ماه اخیر');
   const [barChartTimeFilter, setBarChartTimeFilter] = useState('هفته اخیر');
   const [isPieChartFilterOpen, setIsPieChartFilterOpen] = useState(false);
@@ -6083,27 +6112,20 @@ const Amain = () => {
       resetCulturalForm();
     }
 
+    setCurrentReportView(null);
+    setBreadcrumbPath(getMenuBreadcrumbPath(menuName, breadcrumbLabel));
 
-    if (menuName === 'dashboard') {
-      setCurrentReportView(null);
-      setBreadcrumbPath(['منوی اصلی', 'داشبورد', 'آمار کلی استارتاپ من']);
-    } else if (menuName === 'mapmanage') {
-      setCurrentReportView(null);
-      setBreadcrumbPath(['منوی اصلی', 'مدیریت نقشه']);
-    } else if (menuName === 'facmanage') {
-      setCurrentReportView(null);
-      setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات']);
-    } else if (menuName === 'usermanage') {
-      setCurrentReportView(null);
-      setBreadcrumbPath(['منوی اصلی', 'مدیریت کاربران']);
-    } else if (menuName === 'reports') {
-      setCurrentReportView(null);
-      setBreadcrumbPath(['منوی اصلی', 'گزارشات']);
-    } else {
-      setCurrentReportView(null);
-      setBreadcrumbPath(['منوی اصلی', breadcrumbLabel]);
+    const targetPath = menuRouteMap[menuName];
+    if (targetPath) {
+      navigate(targetPath);
     }
   };
+
+  useEffect(() => {
+    setActiveMenu(initialMenu);
+    setCurrentReportView(null);
+    setBreadcrumbPath(getMenuBreadcrumbPath(initialMenu, breadcrumbPath?.[1] || ''));
+  }, [getMenuBreadcrumbPath, initialMenu]);
 
   const handleLayerToggle = (layerId) => {
     setLayerVisibility((prev) => {
