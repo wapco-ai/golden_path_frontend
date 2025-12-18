@@ -44,6 +44,11 @@ import {
   stopTempBlockArea,
   extendTempBlockArea
 } from '../services/tempBlockAreasService';
+import { MapLayout } from '../features/map-editing/MapLayout';
+import { useMapInstance } from '../features/map-editing/hooks/useMapInstance';
+import { useTempAreaDrawing } from '../features/map-editing/hooks/useTempAreaDrawing';
+import { useVanRouting } from '../features/map-editing/hooks/useVanRouting';
+import { useEditableLayers } from '../features/map-editing/hooks/useEditableLayers';
 
 
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
@@ -514,11 +519,166 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
     approved: 89,
     rejected: 46
   });
-  const [map, setMap] = useState(null);
+  const [locationMarker, setLocationMarker] = useState(null);
+  const [openSubMenu, setOpenSubMenu] = useState(null);
+  const editableLayerActionMenuMap = useMemo(() => ({
+    'temp-areas-outline': 1,
+    'areas-outline': 2,
+    'van-nodes': 3
+  }), []);
+  const currentJalaliDate = useMemo(() => {
+    const now = new Date();
+    return toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  }, []);
   const mapRef = useRef(null);
-  useEffect(() => {
-    mapRef.current = map;
-  }, [map]);
+  const tempAreaState = useTempAreaDrawing({
+    mapRef,
+    initialCalendarDate: { year: currentJalaliDate.jy, month: currentJalaliDate.jm },
+  });
+  const {
+    areaOriginalGeometryRef,
+    tempAreaPreviousCursorRef,
+    tempAreaVertexMarkersRef,
+    tempAreaVertexOriginalGeometryRef,
+    tempAreaVertexWorkingGeometryRef,
+    tempAreaVertexEditIdRef,
+    tempAreaVertexDirtyRef,
+    tempAreaVertexSelectionRef,
+    tempAreaDraftGeometryRef,
+    vertexMarkersRef,
+    setMapCursorForTempAreaDrawing,
+    resetMapCursor,
+    clearTempAreaVertexMarkers,
+    clearVertexMarkers,
+    tempAreaFlowState,
+    setTempAreaFlowState,
+    tempAreaFormMode,
+    setTempAreaFormMode,
+    isTempAreaDrawingMode,
+    setIsTempAreaDrawingMode,
+    tempAreaVertices,
+    setTempAreaVertices,
+    isTempAreaMoveMode,
+    setIsTempAreaMoveMode,
+    tempAreaMoveGeometry,
+    setTempAreaMoveGeometry,
+    isTempAreaVertexEditMode,
+    setIsTempAreaVertexEditMode,
+    isTempAreaGeometryDirty,
+    setIsTempAreaGeometryDirty,
+    isSavingTempAreaGeometry,
+    setIsSavingTempAreaGeometry,
+    isTempAreaEditModalOpen,
+    setIsTempAreaEditModalOpen,
+    tempAreaName,
+    setTempAreaName,
+    tempAreaDescription,
+    setTempAreaDescription,
+    tempAreaValidFrom,
+    setTempAreaValidFrom,
+    tempAreaValidTo,
+    setTempAreaValidTo,
+    tempAreaStartTime,
+    setTempAreaStartTime,
+    tempAreaEndTime,
+    setTempAreaEndTime,
+    tempAreaSelectedStartDate,
+    setTempAreaSelectedStartDate,
+    tempAreaSelectedEndDate,
+    setTempAreaSelectedEndDate,
+    tempAreaCalendarDate,
+    setTempAreaCalendarDate,
+    activeTempAreaDateField,
+    setActiveTempAreaDateField,
+    tempAreaPrayerEvents,
+    setTempAreaPrayerEvents,
+    tempAreaPrayerBefore,
+    setTempAreaPrayerBefore,
+    tempAreaPrayerAfter,
+    setTempAreaPrayerAfter,
+    tempAreaIsActive,
+    setTempAreaIsActive,
+    isLoadingTempAreaDetails,
+    setIsLoadingTempAreaDetails,
+    isSavingTempAreaDetails,
+    setIsSavingTempAreaDetails,
+  } = tempAreaState;
+  const vanRoutingState = useVanRouting();
+  const {
+    isVanDrawingMode,
+    setIsVanDrawingMode,
+    vanLineCoordinates,
+    setVanLineCoordinates,
+    isSavingVanRoute,
+    setIsSavingVanRoute,
+    isDeletingVanNode,
+    setIsDeletingVanNode,
+  } = vanRoutingState;
+  const mapState = useMapInstance({
+    activeMenu,
+    floorLabelToValue,
+    floorValueToLabel,
+    onMapRemoved: () => {
+      setIsVanDrawingMode(false);
+      setVanLineCoordinates([]);
+      setIsTempAreaDrawingMode(false);
+      setTempAreaVertices([]);
+    },
+    resetMapCursor,
+    locationMarker,
+    setLocationMarker,
+    mapRef,
+  });
+  const {
+    map,
+    setMap,
+    mapViewState,
+    setMapViewState,
+    layerVisibility,
+    setLayerVisibility,
+    applyLayerVisibility,
+    mapFloor,
+    setMapFloor,
+    isLayerListOpen,
+    setIsLayerListOpen,
+    isMapFloorOpen,
+    setIsMapFloorOpen,
+    refreshLayerTiles,
+  } = mapState;
+  const editableLayersState = useEditableLayers({
+    editableLayerOptions,
+    canUserEditLayer,
+    editableLayerActionMenuMap,
+    setOpenSubMenu,
+    refreshLayerTiles,
+    isVanDrawingMode,
+    setIsVanDrawingMode,
+    setVanLineCoordinates,
+    setIsTempAreaDrawingMode,
+    setTempAreaFlowState,
+    setTempAreaVertices,
+    tempAreaFlowStates: TEMP_AREA_FLOW_STATES,
+    clearTempAreaVertexMarkers,
+    resetMapCursor,
+    tempAreaDraftGeometryRef,
+    setIsTempAreaVertexEditMode,
+    setIsTempAreaGeometryDirty,
+    tempAreaVertexOriginalGeometryRef,
+    tempAreaVertexWorkingGeometryRef,
+    tempAreaVertexEditIdRef,
+    tempAreaVertexSelectionRef,
+  });
+  const {
+    activeEditableLayerId,
+    setActiveEditableLayerId,
+    hasUserClearedEditableLayer,
+    selectedEditableFeature,
+    setSelectedEditableFeature,
+    activeEditableLayer,
+    isVanNodesLayerActive,
+    isTempAreaLayerActive,
+    refreshActiveEditableLayerTiles,
+  } = editableLayersState;
   const userPermissions = useMemo(
     () => adminPermissions || adminProfile?.permissions || adminProfile?.user?.permissions || [],
     [adminPermissions, adminProfile]
@@ -564,62 +724,6 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
     [userPermissions]
   );
 
-  const [mapViewState, setMapViewState] = useState({
-    longitude: 59.6161,
-    latitude: 36.2908,
-    center: [59.6159, 36.2875],
-    zoom: 16
-  });
-  const buildInitialLayerVisibility = () => haramAdminVectorTileConfig.reduce((acc, layer) => {
-    acc[layer.id] = !!layer.visibleByDefault;
-    return acc;
-  }, {});
-
-  const [layerVisibility, setLayerVisibility] = useState(buildInitialLayerVisibility);
-  const applyLayerVisibility = useCallback((mapInstance, visibilityState = layerVisibility) => {
-    const targetMap = mapInstance || map;
-    if (!targetMap) return;
-
-    haramAdminVectorTileConfig.forEach((layer) => {
-      if (targetMap.getLayer(layer.id)) {
-        targetMap.setLayoutProperty(layer.id, 'visibility', visibilityState?.[layer.id] ? 'visible' : 'none');
-      }
-    });
-  }, [layerVisibility, map]);
-  const [isLayerListOpen, setIsLayerListOpen] = useState(false);
-  const [mapFloor, setMapFloor] = useState('همکف');
-  const [isMapFloorOpen, setIsMapFloorOpen] = useState(false);
-  const [openSubMenu, setOpenSubMenu] = useState(null);
-  const editableLayerActionMenuMap = useMemo(() => ({
-    'temp-areas-outline': 1,
-    'areas-outline': 2,
-    'van-nodes': 3
-  }), []);
-  const refreshLayerTiles = useCallback((layerId) => {
-    if (!map || !layerId) return;
-
-    const layerConfig = haramAdminVectorTileConfig.find((layer) => layer.id === layerId);
-    if (!layerConfig) return;
-
-    const source = map.getSource(layerConfig.sourceId);
-    const tileUrlFactory = typeof layerConfig.tileUrlFactory === 'function'
-      ? layerConfig.tileUrlFactory
-      : null;
-
-    const baseTileUrl = tileUrlFactory
-      ? tileUrlFactory({ floor: floorLabelToValue(mapFloor) })
-      : layerConfig.tileUrl;
-
-    if (!source || typeof source.setTiles !== 'function' || !baseTileUrl) return;
-
-    const cacheBustedUrl = `${baseTileUrl}${baseTileUrl.includes('?') ? '&' : '?'}cacheBust=${Date.now()}`;
-
-    source.setTiles([cacheBustedUrl]);
-
-    if (typeof map.triggerRepaint === 'function') {
-      map.triggerRepaint();
-    }
-  }, [map, mapFloor]);
   const ensureVanDrawLayers = useCallback(() => {
     if (!map) return;
 
@@ -725,19 +829,11 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   const approvedDegrees = (commentStats.approved / commentStats.total) * 360;
   const rejectedDegrees = (commentStats.rejected / commentStats.total) * 360;
   const unknownDegrees = (unknownComments / commentStats.total) * 360;
-  const [isVanDrawingMode, setIsVanDrawingMode] = useState(false);
-  const [vanLineCoordinates, setVanLineCoordinates] = useState([]);
-  const [isSavingVanRoute, setIsSavingVanRoute] = useState(false);
-  const [isDeletingVanNode, setIsDeletingVanNode] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [facManagementOpen, setfacManagementOpen] = useState(false);
   const [reportsManagementOpen, setReportsManagementOpen] = useState(false);
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const currentJalaliDate = useMemo(() => {
-    const now = new Date();
-    return toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
-  }, []);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const calendarRef = useRef(null);
@@ -787,143 +883,6 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   const [isSavingAreaGeometry, setIsSavingAreaGeometry] = useState(false);
   const [tempAreaFlowState, setTempAreaFlowState] = useState(TEMP_AREA_FLOW_STATES.idle);
   const [tempAreaFormMode, setTempAreaFormMode] = useState('edit');
-  const [isTempAreaDrawingMode, setIsTempAreaDrawingMode] = useState(false);
-  const [tempAreaVertices, setTempAreaVertices] = useState([]);
-  const [isTempAreaMoveMode, setIsTempAreaMoveMode] = useState(false);
-  const [tempAreaMoveGeometry, setTempAreaMoveGeometry] = useState(null);
-  const [isTempAreaVertexEditMode, setIsTempAreaVertexEditMode] = useState(false);
-  const [isTempAreaGeometryDirty, setIsTempAreaGeometryDirty] = useState(false);
-  const [isSavingTempAreaGeometry, setIsSavingTempAreaGeometry] = useState(false);
-  const [isTempAreaEditModalOpen, setIsTempAreaEditModalOpen] = useState(false);
-  const [tempAreaName, setTempAreaName] = useState('');
-  const [tempAreaDescription, setTempAreaDescription] = useState('');
-  const [tempAreaValidFrom, setTempAreaValidFrom] = useState('');
-  const [tempAreaValidTo, setTempAreaValidTo] = useState('');
-  const [tempAreaStartTime, setTempAreaStartTime] = useState('');
-  const [tempAreaEndTime, setTempAreaEndTime] = useState('');
-  const [tempAreaSelectedStartDate, setTempAreaSelectedStartDate] = useState(null);
-  const [tempAreaSelectedEndDate, setTempAreaSelectedEndDate] = useState(null);
-  const [tempAreaCalendarDate, setTempAreaCalendarDate] = useState(() => ({
-    year: currentJalaliDate.jy,
-    month: currentJalaliDate.jm
-  }));
-  const [activeTempAreaDateField, setActiveTempAreaDateField] = useState(null);
-  const [tempAreaPrayerEvents, setTempAreaPrayerEvents] = useState([]);
-  const [tempAreaPrayerBefore, setTempAreaPrayerBefore] = useState('');
-  const [tempAreaPrayerAfter, setTempAreaPrayerAfter] = useState('');
-  const [tempAreaIsActive, setTempAreaIsActive] = useState(true);
-  const [isLoadingTempAreaDetails, setIsLoadingTempAreaDetails] = useState(false);
-  const [isSavingTempAreaDetails, setIsSavingTempAreaDetails] = useState(false);
-  const vertexMarkersRef = useRef([]);
-  const areaOriginalGeometryRef = useRef(null);
-  const tempAreaVertexMarkersRef = useRef([]);
-  const clearVertexMarkers = useCallback(() => {
-    vertexMarkersRef.current.forEach((marker) => marker?.remove());
-    vertexMarkersRef.current = [];
-  }, []);
-
-  const clearTempAreaVertexMarkers = useCallback(() => {
-    tempAreaVertexMarkersRef.current.forEach((marker) => marker?.remove());
-    tempAreaVertexMarkersRef.current = [];
-  }, []);
-  const [locationMarker, setLocationMarker] = useState(null);
-  const [activeEditableLayerId, setActiveEditableLayerId] = useState('');
-  const hasUserClearedEditableLayer = useRef(false);
-  const [selectedEditableFeature, setSelectedEditableFeature] = useState(null);
-  const tempAreaOriginalGeometryRef = useRef(null);
-  const tempAreaVertexOriginalGeometryRef = useRef(null);
-  const tempAreaVertexWorkingGeometryRef = useRef(null);
-  const tempAreaVertexEditIdRef = useRef(null);
-  const tempAreaVertexDirtyRef = useRef(false);
-  const tempAreaVertexSelectionRef = useRef(null);
-  const tempAreaDraftGeometryRef = useRef(null);
-  const tempAreaPreviousCursorRef = useRef(null);
-  const setMapCursorForTempAreaDrawing = useCallback(() => {
-    if (!map?.getCanvas) return;
-
-    const canvas = map.getCanvas();
-    if (!canvas) return;
-
-    if (tempAreaPreviousCursorRef.current === null) {
-      tempAreaPreviousCursorRef.current = canvas.style.cursor;
-    }
-
-    canvas.style.cursor = 'crosshair';
-  }, [map]);
-
-  const resetMapCursor = useCallback(() => {
-    const mapInstance = mapRef.current;
-    if (!mapInstance?.getCanvas) return;
-
-    const canvas = mapInstance.getCanvas();
-    if (!canvas) return;
-
-    const previousCursor = tempAreaPreviousCursorRef.current;
-    canvas.style.cursor = previousCursor ?? 'grab';
-    tempAreaPreviousCursorRef.current = null;
-  }, []);
-  const activeEditableLayer = useMemo(() => {
-    const selectedLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
-
-    if (!canUserEditLayer(selectedLayer)) {
-      return null;
-    }
-
-    return selectedLayer;
-  }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
-  const isVanNodesLayerActive = activeEditableLayer?.id === 'van-nodes';
-  const isVanDrawingLayerActive = isVanNodesLayerActive;
-  const isTempAreaLayerActive = activeEditableLayer?.id === 'temp-areas-outline';
-  const refreshActiveEditableLayerTiles = useCallback((layerIdOverride) => {
-    const targetLayerId = layerIdOverride || activeEditableLayer?.id;
-    if (!targetLayerId) return;
-
-    const layerIdsToRefresh = new Set([targetLayerId]);
-
-    if (targetLayerId === 'van-nodes') {
-      layerIdsToRefresh.add('van-edges');
-    }
-
-    layerIdsToRefresh.forEach((layerId) => refreshLayerTiles(layerId));
-  }, [activeEditableLayer?.id, refreshLayerTiles]);
-  useEffect(() => {
-    const mappedSubMenu = editableLayerActionMenuMap[activeEditableLayer?.id];
-    if (typeof mappedSubMenu === 'number') {
-      setOpenSubMenu(mappedSubMenu);
-      return;
-    }
-
-    setOpenSubMenu((current) => {
-      const mappedValues = Object.values(editableLayerActionMenuMap);
-      if (mappedValues.includes(current)) {
-        return null;
-      }
-
-      return current;
-    });
-  }, [activeEditableLayer?.id, editableLayerActionMenuMap]);
-  useEffect(() => {
-    if (!isVanDrawingLayerActive && isVanDrawingMode) {
-      setIsVanDrawingMode(false);
-      setVanLineCoordinates([]);
-    }
-  }, [isVanDrawingMode, isVanDrawingLayerActive]);
-  useEffect(() => {
-    if (!isTempAreaLayerActive) {
-      setIsTempAreaDrawingMode(false);
-      setTempAreaFlowState(TEMP_AREA_FLOW_STATES.idle);
-      setTempAreaVertices([]);
-      tempAreaDraftGeometryRef.current = null;
-      setIsTempAreaVertexEditMode(false);
-      setIsTempAreaGeometryDirty(false);
-      tempAreaVertexOriginalGeometryRef.current = null;
-      tempAreaVertexWorkingGeometryRef.current = null;
-      tempAreaVertexEditIdRef.current = null;
-      tempAreaVertexSelectionRef.current = null;
-      clearTempAreaVertexMarkers();
-    }
-    resetMapCursor();
-  }, [isTempAreaLayerActive, resetMapCursor, clearTempAreaVertexMarkers]);
   const selectedFeatureProperties = selectedEditableFeature?.features?.[0]?.properties;
   const selectedFeatureCoordinates = selectedEditableFeature?.features?.[0]?.geometry?.coordinates;
   const selectedDoorId = selectedFeatureProperties?.door_id
@@ -9167,9 +9126,17 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
             </div>
           ) : activeMenu === 'mapmanage' ? (
             /* Map Management Section */
-            <div className="map-management-section">
-              <div className="map-container">
-                <div id="map-container" className="map-instance"></div>
+            <MapLayout
+              value={{
+                map: mapState,
+                tempArea: tempAreaState,
+                vanRouting: vanRoutingState,
+                editableLayers: editableLayersState,
+              }}
+            >
+              <div className="map-management-section">
+                <div className="map-container">
+                  <div id="map-container" className="map-instance"></div>
 
                 {/* Top Left - Map Type Selector */}
                 <div className="map-control-top-left">
@@ -9807,6 +9774,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
 
               </div>
             </div>
+            </MapLayout>
           ) : (
             /* Charts Section */
             <div className="charts-section">
