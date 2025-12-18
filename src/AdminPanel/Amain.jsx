@@ -645,6 +645,42 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
     setIsMapFloorOpen,
     refreshLayerTiles,
   } = mapState;
+  const editableLayerOptions = useMemo(
+    () => haramAdminVectorTileConfig.map((layer) => {
+      const settings = layerEditSettings[layer.id]
+        || (layer.id === 'doorsAccessPoint' ? layerEditSettings[DOOR_ACCESS_LAYER_ID] : null)
+        || {};
+
+      return {
+        id: layer.id,
+        sourceId: layer.sourceId,
+        label: layer.titleFa || layer.id,
+        titleFa: layer.titleFa,
+        type: layer.type,
+        highlightColor: settings.highlightColor || '#3b82f6',
+        isEditable: settings.enabled === true,
+        requiredPermission: settings.requiredPermission || null
+      };
+    }),
+    []
+  );
+  const userPermissions = useMemo(
+    () => adminPermissions || adminProfile?.permissions || adminProfile?.user?.permissions || [],
+    [adminPermissions, adminProfile]
+  );
+  const canUserEditLayer = useCallback(
+    (layer) => {
+      if (!layer?.isEditable) return false;
+      if (!layer?.requiredPermission) return true;
+
+      const permissions = Array.isArray(userPermissions) ? userPermissions : [];
+      if (!permissions.length) return true;
+
+      return permissions.includes(layer.requiredPermission);
+    },
+    [userPermissions]
+  );
+
   const editableLayersState = useEditableLayers({
     editableLayerOptions,
     canUserEditLayer,
@@ -679,10 +715,6 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
     isTempAreaLayerActive,
     refreshActiveEditableLayerTiles,
   } = editableLayersState;
-  const userPermissions = useMemo(
-    () => adminPermissions || adminProfile?.permissions || adminProfile?.user?.permissions || [],
-    [adminPermissions, adminProfile]
-  );
 
   useEffect(() => {
     if (!adminProfile) {
@@ -692,37 +724,6 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
         .finally(() => setIsLoadingProfile(false));
     }
   }, [adminProfile, fetchProfile]);
-  const editableLayerOptions = useMemo(
-    () => haramAdminVectorTileConfig.map((layer) => {
-      const settings = layerEditSettings[layer.id]
-        || (layer.id === 'doorsAccessPoint' ? layerEditSettings[DOOR_ACCESS_LAYER_ID] : null)
-        || {};
-
-      return {
-        id: layer.id,
-        sourceId: layer.sourceId,
-        label: layer.titleFa || layer.id,
-        titleFa: layer.titleFa,
-        type: layer.type,
-        highlightColor: settings.highlightColor || '#3b82f6',
-        isEditable: settings.enabled === true,
-        requiredPermission: settings.requiredPermission || null
-      };
-    }),
-    []
-  );
-  const canUserEditLayer = useCallback(
-    (layer) => {
-      if (!layer?.isEditable) return false;
-      if (!layer?.requiredPermission) return true;
-
-      const permissions = Array.isArray(userPermissions) ? userPermissions : [];
-      if (!permissions.length) return true;
-
-      return permissions.includes(layer.requiredPermission);
-    },
-    [userPermissions]
-  );
 
   const ensureVanDrawLayers = useCallback(() => {
     if (!map) return;
