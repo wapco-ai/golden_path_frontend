@@ -759,6 +759,9 @@ const Amain = () => {
   const [tempAreaVertices, setTempAreaVertices] = useState([]);
   const [isTempAreaMoveMode, setIsTempAreaMoveMode] = useState(false);
   const [tempAreaMoveGeometry, setTempAreaMoveGeometry] = useState(null);
+  const [isTempAreaVertexEditMode, setIsTempAreaVertexEditMode] = useState(false);
+  const [isTempAreaGeometryDirty, setIsTempAreaGeometryDirty] = useState(false);
+  const [isSavingTempAreaGeometry, setIsSavingTempAreaGeometry] = useState(false);
   const [isTempAreaEditModalOpen, setIsTempAreaEditModalOpen] = useState(false);
   const [tempAreaName, setTempAreaName] = useState('');
   const [tempAreaDescription, setTempAreaDescription] = useState('');
@@ -780,11 +783,17 @@ const Amain = () => {
   const [isLoadingTempAreaDetails, setIsLoadingTempAreaDetails] = useState(false);
   const [isSavingTempAreaDetails, setIsSavingTempAreaDetails] = useState(false);
   const vertexMarkersRef = useRef([]);
+  const tempAreaVertexMarkersRef = useRef([]);
   const [locationMarker, setLocationMarker] = useState(null);
   const [activeEditableLayerId, setActiveEditableLayerId] = useState('');
   const hasUserClearedEditableLayer = useRef(false);
   const [selectedEditableFeature, setSelectedEditableFeature] = useState(null);
   const tempAreaOriginalGeometryRef = useRef(null);
+  const tempAreaVertexOriginalGeometryRef = useRef(null);
+  const tempAreaVertexWorkingGeometryRef = useRef(null);
+  const tempAreaVertexEditIdRef = useRef(null);
+  const tempAreaVertexDirtyRef = useRef(false);
+  const tempAreaVertexSelectionRef = useRef(null);
   const tempAreaDraftGeometryRef = useRef(null);
   const tempAreaPreviousCursorRef = useRef(null);
   const setMapCursorForTempAreaDrawing = useCallback(() => {
@@ -863,9 +872,16 @@ const Amain = () => {
       setTempAreaFlowState(TEMP_AREA_FLOW_STATES.idle);
       setTempAreaVertices([]);
       tempAreaDraftGeometryRef.current = null;
+      setIsTempAreaVertexEditMode(false);
+      setIsTempAreaGeometryDirty(false);
+      tempAreaVertexOriginalGeometryRef.current = null;
+      tempAreaVertexWorkingGeometryRef.current = null;
+      tempAreaVertexEditIdRef.current = null;
+      tempAreaVertexSelectionRef.current = null;
+      clearTempAreaVertexMarkers();
     }
     resetMapCursor();
-  }, [isTempAreaLayerActive, resetMapCursor]);
+  }, [isTempAreaLayerActive, resetMapCursor, clearTempAreaVertexMarkers]);
   const selectedFeatureProperties = selectedEditableFeature?.features?.[0]?.properties;
   const selectedFeatureCoordinates = selectedEditableFeature?.features?.[0]?.geometry?.coordinates;
   const selectedDoorId = selectedFeatureProperties?.door_id
@@ -894,6 +910,30 @@ const Amain = () => {
     || selectedFeatureProperties?.nodeID
     || selectedFeatureProperties?.id
     : null;
+  const applyTempAreaGeometryToSelection = useCallback((geometry) => {
+    if (!geometry) return null;
+
+    let nextSelection = null;
+
+    setSelectedEditableFeature((current) => {
+      const feature = current?.features?.[0];
+      if (!feature) return current;
+
+      const updatedFeature = { ...feature, geometry };
+      nextSelection = { ...current, features: [updatedFeature] };
+      return nextSelection;
+    });
+
+    if (nextSelection) {
+      tempAreaVertexSelectionRef.current = nextSelection;
+    }
+
+    return nextSelection;
+  }, [setSelectedEditableFeature]);
+
+  useEffect(() => {
+    tempAreaVertexDirtyRef.current = isTempAreaGeometryDirty;
+  }, [isTempAreaGeometryDirty]);
   const isTempAreaFormDisabled = isSavingTempAreaDetails || isLoadingTempAreaDetails;
   const showDoorTools = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && !!selectedDoorId && !!selectedEditableFeature;
   useEffect(() => {
@@ -3869,6 +3909,11 @@ const Amain = () => {
     vertexMarkersRef.current = [];
   }, []);
 
+  const clearTempAreaVertexMarkers = useCallback(() => {
+    tempAreaVertexMarkersRef.current.forEach((marker) => marker?.remove());
+    tempAreaVertexMarkersRef.current = [];
+  }, []);
+
   useEffect(() => {
     setSelectedEditableFeature(null);
   }, [activeEditableLayerId]);
@@ -4271,6 +4316,21 @@ const Amain = () => {
         return;
       }
 
+      if (isTempAreaVertexEditMode && isTempAreaLayerActive) {
+        if (isTempAreaGeometryDirty) {
+          toast.error('اول ذخیره یا لغو کن');
+          return;
+        }
+
+        clearTempAreaVertexMarkers();
+        setIsTempAreaVertexEditMode(false);
+        setIsTempAreaGeometryDirty(false);
+        tempAreaVertexOriginalGeometryRef.current = null;
+        tempAreaVertexWorkingGeometryRef.current = null;
+        tempAreaVertexEditIdRef.current = null;
+        tempAreaVertexSelectionRef.current = null;
+      }
+
       if (isTempAreaMoveMode && isTempAreaLayerActive && selectedTempAreaId) {
         const selectedFeature = selectedEditableFeature?.features?.[0];
         const baseGeometry = tempAreaMoveGeometry || selectedFeature?.geometry;
@@ -4443,6 +4503,9 @@ const Amain = () => {
     selectedEditableFeature,
     tempAreaMoveGeometry,
     translateGeometryByDelta,
+    isTempAreaVertexEditMode,
+    isTempAreaGeometryDirty,
+    clearTempAreaVertexMarkers,
     refreshActiveEditableLayerTiles,
     resetMapCursor
   ]);
@@ -4953,6 +5016,232 @@ const Amain = () => {
     setIsAreaEditMode((current) => !current);
   };
 
+  const exitTempAreaVertexEditMode = useCallback((options = {}) => {
+    const { restoreOriginal = false } = options;
+
+    if (restoreOriginal && tempAreaVertexOriginalGeometryRef.current) {
+      applyTempAreaGeometryToSelection(tempAreaVertexOriginalGeometryRef.current);
+    }
+
+    clearTempAreaVertexMarkers();
+    setIsTempAreaVertexEditMode(false);
+    setIsTempAreaGeometryDirty(false);
+    tempAreaVertexOriginalGeometryRef.current = null;
+    tempAreaVertexWorkingGeometryRef.current = null;
+    tempAreaVertexEditIdRef.current = null;
+    tempAreaVertexSelectionRef.current = null;
+  }, [applyTempAreaGeometryToSelection, clearTempAreaVertexMarkers]);
+
+  const buildTempAreaVertexMarkers = useCallback(() => {
+    if (!map || !isTempAreaVertexEditMode) {
+      clearTempAreaVertexMarkers();
+      return;
+    }
+
+    if (!isTempAreaLayerActive || !selectedEditableFeature || !selectedTempAreaId) {
+      clearTempAreaVertexMarkers();
+      return;
+    }
+
+    if (tempAreaVertexEditIdRef.current && tempAreaVertexEditIdRef.current !== selectedTempAreaId) {
+      clearTempAreaVertexMarkers();
+      return;
+    }
+
+    const geometry = tempAreaVertexWorkingGeometryRef.current || selectedEditableFeature?.features?.[0]?.geometry;
+
+    if (!geometry || geometry.type !== 'Polygon') {
+      clearTempAreaVertexMarkers();
+      return;
+    }
+
+    tempAreaVertexWorkingGeometryRef.current = geometry;
+
+    const vertices = extractEditableVertices(geometry);
+
+    if (!vertices.length) {
+      clearTempAreaVertexMarkers();
+      return;
+    }
+
+    clearTempAreaVertexMarkers();
+
+    const highlightColor = activeEditableLayer?.highlightColor || '#0f172a';
+
+    const newMarkers = vertices.map((coord, index) => {
+      const marker = new maplibregl.Marker({ color: highlightColor, draggable: true, scale: 0.85 })
+        .setLngLat(coord)
+        .addTo(map);
+
+      const updateGeometryFromMarkers = () => {
+        const updatedVertices = newMarkers.map((m) => {
+          const { lng, lat } = m.getLngLat();
+          return [lng, lat];
+        });
+
+        const normalizedGeometry = rebuildGeometryFromVertices('Polygon', updatedVertices);
+        tempAreaVertexWorkingGeometryRef.current = normalizedGeometry;
+        applyTempAreaGeometryToSelection(normalizedGeometry);
+
+        if (!tempAreaVertexDirtyRef.current) {
+          setIsTempAreaGeometryDirty(true);
+        }
+      };
+
+      marker.on('drag', updateGeometryFromMarkers);
+      marker.on('dragend', updateGeometryFromMarkers);
+      marker.getElement().setAttribute('data-temp-area-vertex-index', index);
+
+      return marker;
+    });
+
+    tempAreaVertexMarkersRef.current = newMarkers;
+  }, [
+    map,
+    isTempAreaVertexEditMode,
+    isTempAreaLayerActive,
+    selectedEditableFeature,
+    selectedTempAreaId,
+    activeEditableLayer,
+    clearTempAreaVertexMarkers,
+    applyTempAreaGeometryToSelection,
+    rebuildGeometryFromVertices
+  ]);
+
+  useEffect(() => {
+    buildTempAreaVertexMarkers();
+
+    return () => {
+      clearTempAreaVertexMarkers();
+    };
+  }, [buildTempAreaVertexMarkers, clearTempAreaVertexMarkers]);
+
+  useEffect(() => {
+    if (!isTempAreaVertexEditMode) return;
+
+    if (activeMenu !== 'mapmanage') {
+      exitTempAreaVertexEditMode({ restoreOriginal: false });
+    }
+  }, [activeMenu, isTempAreaVertexEditMode, exitTempAreaVertexEditMode]);
+
+  const handleToggleTempAreaVertexEdit = () => {
+    if (!isTempAreaLayerActive) {
+      toast.error('برای ویرایش راس‌های محدوده موقت، لایه مربوطه را فعال کنید');
+      setOpenSubMenu(1);
+      return;
+    }
+
+    if (!selectedEditableFeature || !selectedTempAreaId) {
+      toast.error('برای ویرایش راس‌های محدوده موقت، ابتدا محدوده را انتخاب کنید');
+      return;
+    }
+
+    if (isTempAreaMoveMode) {
+      toast.error('برای ویرایش راس‌ها، ابتدا حالت جابجایی را غیرفعال کنید');
+      return;
+    }
+
+    const geometry = selectedEditableFeature?.features?.[0]?.geometry;
+
+    if (!geometry || geometry.type !== 'Polygon') {
+      toast.error('ویرایش راس‌ها فقط برای پلیگون محدوده موقت ممکن است');
+      return;
+    }
+
+    if (isTempAreaVertexEditMode) {
+      exitTempAreaVertexEditMode({ restoreOriginal: true });
+      return;
+    }
+
+    tempAreaVertexOriginalGeometryRef.current = JSON.parse(JSON.stringify(geometry));
+    tempAreaVertexWorkingGeometryRef.current = JSON.parse(JSON.stringify(geometry));
+    tempAreaVertexEditIdRef.current = selectedTempAreaId;
+    tempAreaVertexSelectionRef.current = selectedEditableFeature;
+    setIsTempAreaGeometryDirty(false);
+    setIsTempAreaVertexEditMode(true);
+    toast.info('حالت ویرایش راس‌های محدوده موقت فعال شد');
+  };
+
+  const handleCancelTempAreaVertexEdit = () => {
+    if (!isTempAreaVertexEditMode) return;
+
+    exitTempAreaVertexEditMode({ restoreOriginal: true });
+  };
+
+  const handleSaveTempAreaVertexEdit = async () => {
+    if (!isTempAreaVertexEditMode) return;
+
+    const workingGeometry = tempAreaVertexWorkingGeometryRef.current
+      || selectedEditableFeature?.features?.[0]?.geometry
+      || tempAreaVertexOriginalGeometryRef.current;
+
+    if (!workingGeometry || workingGeometry.type !== 'Polygon') {
+      toast.error('هندسه محدوده موقت برای ذخیره معتبر نیست');
+      return;
+    }
+
+    const normalizedGeometry = rebuildGeometryFromVertices('Polygon', extractEditableVertices(workingGeometry));
+
+    if (!normalizedGeometry || !isTempAreaPolygonValid(normalizedGeometry)) {
+      toast.error('هندسه محدوده موقت معتبر نیست. لطفاً پلیگون بدون خودتقاطع ایجاد کنید.');
+      return;
+    }
+
+    if (!selectedTempAreaId) {
+      toast.error('محدوده موقتی برای ذخیره انتخاب نشده است');
+      return;
+    }
+
+    const payload = {
+      floor: floorLabelToValue(mapFloor),
+      restrict_type: selectedFeatureProperties?.restrict_type || selectedFeatureProperties?.restrictType || 'close',
+      geom_geojson_4326: normalizedGeometry,
+      reason: selectedFeatureProperties?.reason ?? selectedFeatureProperties?.description ?? null
+    };
+
+    try {
+      setIsSavingTempAreaGeometry(true);
+      await updateTempBlockArea(selectedTempAreaId, payload);
+      applyTempAreaGeometryToSelection(normalizedGeometry);
+      toast.success('تغییرات راس‌های محدوده موقت ذخیره شد');
+      setIsTempAreaGeometryDirty(false);
+      exitTempAreaVertexEditMode({ restoreOriginal: false });
+      refreshActiveEditableLayerTiles();
+    } catch (error) {
+      toast.error(error?.message || 'ذخیره تغییرات محدوده موقت ناموفق بود');
+    } finally {
+      setIsSavingTempAreaGeometry(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isTempAreaVertexEditMode) return;
+
+    if (!isTempAreaLayerActive || !selectedEditableFeature || !selectedTempAreaId) {
+      exitTempAreaVertexEditMode({ restoreOriginal: false });
+      return;
+    }
+
+    if (tempAreaVertexEditIdRef.current && selectedTempAreaId !== tempAreaVertexEditIdRef.current) {
+      if (tempAreaVertexDirtyRef.current) {
+        toast.error('اول ذخیره یا لغو کن');
+        if (tempAreaVertexSelectionRef.current) {
+          setSelectedEditableFeature(tempAreaVertexSelectionRef.current);
+        }
+        return;
+      }
+
+      exitTempAreaVertexEditMode({ restoreOriginal: false });
+    }
+  }, [
+    isTempAreaVertexEditMode,
+    isTempAreaLayerActive,
+    selectedEditableFeature,
+    selectedTempAreaId,
+    exitTempAreaVertexEditMode,
+    setSelectedEditableFeature
+  ]);
+
   const formatDateTimeLocal = (value) => {
     if (!value) return '';
 
@@ -5166,6 +5455,15 @@ const Amain = () => {
       return;
     }
 
+    if (isTempAreaVertexEditMode) {
+      if (isTempAreaGeometryDirty) {
+        toast.error('اول ذخیره یا لغو کن');
+        return;
+      }
+
+      exitTempAreaVertexEditMode({ restoreOriginal: false });
+    }
+
     const selectedFeature = selectedEditableFeature?.features?.[0];
     const currentGeometry = tempAreaMoveGeometry || selectedFeature?.geometry;
 
@@ -5274,6 +5572,15 @@ const Amain = () => {
       toast.error('برای ثبت محدوده موقت، لایه محدوده موقت را فعال کنید');
       setOpenSubMenu(1);
       return;
+    }
+
+    if (isTempAreaVertexEditMode) {
+      if (isTempAreaGeometryDirty) {
+        toast.error('اول ذخیره یا لغو کن');
+        return;
+      }
+
+      exitTempAreaVertexEditMode({ restoreOriginal: false });
     }
 
     ensureTempAreaDrawLayers();
@@ -8848,6 +9155,7 @@ const Amain = () => {
                         <button
                           className={`sub-btn move-temp-area ${isTempAreaMoveMode ? 'active' : ''}`}
                           onClick={handleTempAreaMoveToggle}
+                          disabled={!isTempAreaLayerActive || isTempAreaVertexEditMode || isSavingTempAreaGeometry}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-drag-drop">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
@@ -8862,13 +9170,58 @@ const Amain = () => {
                             <path d="M3 15l0 .01" />
                           </svg>
                         </button>
-                        <button className="sub-btn create-temp-area" onClick={handleToggleTempAreaDrawing} disabled={!isTempAreaLayerActive}>
+                        <button
+                          className={`sub-btn temp-area-vertex ${isTempAreaVertexEditMode ? 'active' : ''}`}
+                          onClick={handleToggleTempAreaVertexEdit}
+                          disabled={!isTempAreaLayerActive || isSavingTempAreaGeometry}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path d="M4 7l8 -4l8 4l-8 13z" />
+                            <path d="M4 7l8 13" />
+                            <path d="M12 20l8 -13" />
+                            <path d="M4 7h16" />
+                          </svg>
+                        </button>
+                        {(isTempAreaGeometryDirty || isSavingTempAreaGeometry) && (
+                          <>
+                            <button
+                              className="sub-btn temp-area-save with-label"
+                              onClick={handleSaveTempAreaVertexEdit}
+                              disabled={!isTempAreaGeometryDirty || isSavingTempAreaGeometry}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M9 11l3 3l8 -8" />
+                                <path d="M20 12v6a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h9" />
+                              </svg>
+                              <span className="sub-btn-label">ذخیره</span>
+                            </button>
+                            <button
+                              className="sub-btn temp-area-cancel with-label"
+                              onClick={handleCancelTempAreaVertexEdit}
+                              disabled={isSavingTempAreaGeometry}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M18 6l-12 12" />
+                                <path d="M6 6l12 12" />
+                              </svg>
+                              <span className="sub-btn-label">لغو</span>
+                            </button>
+                          </>
+                        )}
+                        <button
+                          className="sub-btn create-temp-area"
+                          onClick={handleToggleTempAreaDrawing}
+                          disabled={!isTempAreaLayerActive || isTempAreaVertexEditMode || isSavingTempAreaGeometry}
+                        >
                           <svg width="24px" height="24px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.354 13.646l2.853 2.854-2.854 2.854-.707-.707L21.293 17H17v4.293l1.646-1.646.707.707-2.853 2.853-2.854-2.854.707-.707L16 21.293V17h-4.293l1.646 1.646-.707.707L9.793 16.5l2.854-2.854.707.707L11.707 16H16v-4.293l-1.646 1.646-.707-.707L16.5 9.793l2.854 2.854-.707.707L17 11.707V16h4.293l-1.646-1.646zM9 6H6.537L2.468 18l-.947-.321L5.48 6H4V1h5v2h9v1H9zM8 5V2H5v3z" /><path fill="none" d="M0 0h24v24H0z" /></svg>
                         </button>
                         <button
                           className={`sub-btn temp-area-complete with-label ${isTempAreaDrawingMode ? 'active' : ''}`}
                           onClick={handleCompleteTempAreaDrawing}
-                          disabled={!isTempAreaDrawingMode}
+                          disabled={!isTempAreaDrawingMode || isTempAreaVertexEditMode || isSavingTempAreaGeometry}
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -8886,7 +9239,11 @@ const Amain = () => {
                           </svg>
                           <span className="sub-btn-label">اتمام ترسیم</span>
                         </button>
-                        <button className="sub-btn edit-temp-area" onClick={handleOpenTempAreaEditModal}>
+                        <button
+                          className="sub-btn edit-temp-area"
+                          onClick={handleOpenTempAreaEditModal}
+                          disabled={isTempAreaVertexEditMode || isSavingTempAreaGeometry}
+                        >
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
@@ -8894,7 +9251,11 @@ const Amain = () => {
                             <path d="M16 5l3 3" />
                           </svg>
                         </button>
-                        <button className="sub-btn delete-temp-area" onClick={handleDeleteTempArea}>
+                        <button
+                          className="sub-btn delete-temp-area"
+                          onClick={handleDeleteTempArea}
+                          disabled={isTempAreaVertexEditMode || isSavingTempAreaGeometry}
+                        >
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M4 7l16 0" />
