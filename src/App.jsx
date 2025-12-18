@@ -139,7 +139,7 @@ function App() {
   }, []);
 
   return (
-    <Router>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <ToastContainer
         position={isRTL ? toast.POSITION.TOP_LEFT : toast.POSITION.TOP_RIGHT}
         rtl={isRTL}
