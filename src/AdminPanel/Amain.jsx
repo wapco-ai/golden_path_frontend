@@ -796,8 +796,8 @@ const Amain = () => {
 
     return selectedLayer;
   }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
-  const isVanEdgesLayerActive = activeEditableLayer?.id === 'van-edges';
   const isVanNodesLayerActive = activeEditableLayer?.id === 'van-nodes';
+  const isVanDrawingLayerActive = isVanNodesLayerActive;
   const isTempAreaLayerActive = activeEditableLayer?.id === 'temp-areas-outline';
   const refreshActiveEditableLayerTiles = useCallback((layerIdOverride) => {
     const targetLayerId = layerIdOverride || activeEditableLayer?.id;
@@ -828,11 +828,11 @@ const Amain = () => {
     });
   }, [activeEditableLayer?.id, editableLayerActionMenuMap]);
   useEffect(() => {
-    if (!isVanEdgesLayerActive && isVanDrawingMode) {
+    if (!isVanDrawingLayerActive && isVanDrawingMode) {
       setIsVanDrawingMode(false);
       setVanLineCoordinates([]);
     }
-  }, [isVanDrawingMode, isVanEdgesLayerActive]);
+  }, [isVanDrawingMode, isVanDrawingLayerActive]);
   useEffect(() => {
     if (!isTempAreaLayerActive) {
       setIsTempAreaDrawingMode(false);
@@ -4228,7 +4228,7 @@ const Amain = () => {
     const handleMapClick = async (event) => {
       const { lngLat, point } = event;
 
-      if (isVanDrawingMode && isVanEdgesLayerActive) {
+      if (isVanDrawingMode && isVanDrawingLayerActive) {
         const newCoordinate = [lngLat.lng, lngLat.lat];
 
         setVanLineCoordinates((prev) => {
@@ -4406,7 +4406,7 @@ const Amain = () => {
     activeMenu,
     activeEditableLayer,
     isVanDrawingMode,
-    isVanEdgesLayerActive,
+    isVanDrawingLayerActive,
     mapFloor,
     isDoorMoveMode,
     selectedDoorId,
@@ -5513,8 +5513,8 @@ const Amain = () => {
       return;
     }
 
-    if (!isVanEdgesLayerActive) {
-      toast.error('برای ترسیم مسیر ون، لایه مسیر ون را در حالت ویرایش فعال کنید');
+    if (!isVanDrawingLayerActive) {
+      toast.error('برای ترسیم مسیر ون، لایه گره‌های ون باید در حالت ویرایش فعال باشد');
       return;
     }
 
