@@ -17,12 +17,17 @@ export const useMapInstance = ({
 }) => {
   const internalMapRef = useRef(null);
   const mapRef = providedMapRef || internalMapRef;
+  const applyLayerVisibilityRef = useRef(null);
 
   const [map, setMap] = useState(null);
 
   useEffect(() => {
     mapRef.current = map;
   }, [map]);
+
+  useEffect(() => {
+    applyLayerVisibilityRef.current = applyLayerVisibility;
+  }, [applyLayerVisibility]);
 
   const [mapViewState, setMapViewState] = useState({
     longitude: 59.6161,
@@ -99,33 +104,10 @@ export const useMapInstance = ({
   }, [mapFloor, floorLabelToValue]);
 
   useEffect(() => {
-    if (activeMenu === 'mapmanage') {
-      const initializeMap = () => {
-        const mapInstance = new maplibregl.Map({
-          container: 'map-container',
-          style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
-          center: [59.6161, 36.2888],
-          zoom: 16,
-        });
-
-        mapInstance.addControl(new maplibregl.NavigationControl());
-        mapInstance.on('load', (event) => {
-          initHaramVectorLayers(event, haramAdminVectorTileConfig);
-          applyLayerVisibility(mapInstance);
-        });
-        setMap(mapInstance);
-
-        return () => {
-          mapInstance.remove();
-        };
-      };
-
-      if (document.getElementById('map-container')) {
-        initializeMap();
-      }
-    } else {
-      if (map) {
-        map.remove();
+    if (activeMenu !== 'mapmanage') {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
         setMap(null);
 
         if (locationMarker) {
@@ -139,8 +121,38 @@ export const useMapInstance = ({
       }
 
       resetMapCursor?.();
+      return;
     }
-  }, [activeMenu, applyLayerVisibility, locationMarker, map, onMapRemoved, resetMapCursor, setLocationMarker]);
+
+    if (!document.getElementById('map-container') || mapRef.current) {
+      return;
+    }
+
+    const mapInstance = new maplibregl.Map({
+      container: 'map-container',
+      style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+      center: [59.6161, 36.2888],
+      zoom: 16,
+    });
+
+    mapInstance.addControl(new maplibregl.NavigationControl());
+
+    const handleLoad = (event) => {
+      initHaramVectorLayers(event, haramAdminVectorTileConfig);
+      applyLayerVisibilityRef.current?.(mapInstance);
+    };
+
+    mapInstance.on('load', handleLoad);
+    mapRef.current = mapInstance;
+    setMap(mapInstance);
+
+    return () => {
+      mapInstance.off('load', handleLoad);
+      mapInstance.remove();
+      mapRef.current = null;
+      setMap(null);
+    };
+  }, [activeMenu, locationMarker, onMapRemoved, resetMapCursor, setLocationMarker]);
 
   return useMemo(() => ({
     map,
