@@ -704,6 +704,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
     tempAreaVertexEditIdRef,
     tempAreaVertexSelectionRef,
   });
+  const tempAreaOriginalGeometryRef = useRef(null);
   const {
     activeEditableLayerId,
     setActiveEditableLayerId,
