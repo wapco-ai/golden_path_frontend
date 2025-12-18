@@ -28,7 +28,7 @@ import {
 } from '../config/vectorTiles';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
 import { createDoor, deleteDoor, getDoorInfo, moveDoor, updateDoorInfo } from '../services/adminDoorsService';
-import { deleteArea, getAreaInfo, updateAreaInfo } from '../services/adminAreasService';
+import { deleteArea, getAreaInfo, moveArea, updateAreaInfo } from '../services/adminAreasService';
 import { convertLngLatToUtm32640 } from '../utils/utm';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
@@ -753,6 +753,8 @@ const Amain = () => {
   const [isCreatingDoor, setIsCreatingDoor] = useState(false);
   const [isPlaceCovered, setIsPlaceCovered] = useState(null);
   const [isAreaEditMode, setIsAreaEditMode] = useState(false);
+  const [isAreaGeometryDirty, setIsAreaGeometryDirty] = useState(false);
+  const [isSavingAreaGeometry, setIsSavingAreaGeometry] = useState(false);
   const [tempAreaFlowState, setTempAreaFlowState] = useState(TEMP_AREA_FLOW_STATES.idle);
   const [tempAreaFormMode, setTempAreaFormMode] = useState('edit');
   const [isTempAreaDrawingMode, setIsTempAreaDrawingMode] = useState(false);
@@ -783,6 +785,7 @@ const Amain = () => {
   const [isLoadingTempAreaDetails, setIsLoadingTempAreaDetails] = useState(false);
   const [isSavingTempAreaDetails, setIsSavingTempAreaDetails] = useState(false);
   const vertexMarkersRef = useRef([]);
+  const areaOriginalGeometryRef = useRef(null);
   const tempAreaVertexMarkersRef = useRef([]);
   const clearVertexMarkers = useCallback(() => {
     vertexMarkersRef.current.forEach((marker) => marker?.remove());
@@ -919,6 +922,22 @@ const Amain = () => {
     || selectedFeatureProperties?.nodeID
     || selectedFeatureProperties?.id
     : null;
+  const applyAreaGeometryToSelection = useCallback((geometry) => {
+    if (!geometry) return null;
+
+    let nextSelection = null;
+
+    setSelectedEditableFeature((current) => {
+      const feature = current?.features?.[0];
+      if (!feature) return current;
+
+      const updatedFeature = { ...feature, geometry };
+      nextSelection = { ...current, features: [updatedFeature] };
+      return nextSelection;
+    });
+
+    return nextSelection;
+  }, []);
   const applyTempAreaGeometryToSelection = useCallback((geometry) => {
     if (!geometry) return null;
 
@@ -3959,6 +3978,8 @@ const Amain = () => {
   useEffect(() => {
     if (!selectedEditableFeature) {
       setIsAreaEditMode(false);
+      setIsAreaGeometryDirty(false);
+      areaOriginalGeometryRef.current = null;
       clearVertexMarkers();
     }
   }, [selectedEditableFeature, clearVertexMarkers]);
@@ -3966,6 +3987,8 @@ const Amain = () => {
   useEffect(() => {
     if (activeEditableLayer?.id !== 'areas-outline') {
       setIsAreaEditMode(false);
+      setIsAreaGeometryDirty(false);
+      areaOriginalGeometryRef.current = null;
       clearVertexMarkers();
     }
   }, [activeEditableLayer, clearVertexMarkers]);
@@ -4939,6 +4962,8 @@ const Amain = () => {
     });
     setSelectedEditableFeature(null);
     setIsAreaEditMode(false);
+    setIsAreaGeometryDirty(false);
+    areaOriginalGeometryRef.current = null;
   };
 
   const rebuildSelectionFromVertices = useCallback((geometryType, updatedVertices) => {
@@ -4947,12 +4972,16 @@ const Amain = () => {
     const updatedGeometry = rebuildGeometryFromVertices(geometryType, updatedVertices);
     if (!updatedGeometry) return;
 
+    if (isAreaEditMode) {
+      setIsAreaGeometryDirty(true);
+    }
+
     setSelectedEditableFeature((current) => {
       if (!current?.features?.[0]) return current;
       const updatedFeature = { ...current.features[0], geometry: updatedGeometry };
       return { ...current, features: [updatedFeature] };
     });
-  }, []);
+  }, [isAreaEditMode]);
 
   const buildVertexMarkers = useCallback(() => {
     if (!map || !isAreaEditMode) {
@@ -5012,7 +5041,72 @@ const Amain = () => {
       return;
     }
 
-    setIsAreaEditMode((current) => !current);
+    if (!isAreaEditMode) {
+      const geometry = selectedEditableFeature?.features?.[0]?.geometry;
+      areaOriginalGeometryRef.current = geometry ? JSON.parse(JSON.stringify(geometry)) : null;
+      setIsAreaGeometryDirty(false);
+      setIsAreaEditMode(true);
+      return;
+    }
+
+    if (isAreaGeometryDirty && areaOriginalGeometryRef.current) {
+      applyAreaGeometryToSelection(areaOriginalGeometryRef.current);
+    }
+
+    setIsAreaGeometryDirty(false);
+    areaOriginalGeometryRef.current = null;
+    setIsAreaEditMode(false);
+  };
+
+  const handleSaveAreaGeometry = async () => {
+    if (!isAreaEditMode) {
+      toast.info('ابتدا حالت ویرایش محدوده را فعال کنید');
+      return;
+    }
+
+    if (activeEditableLayer?.id !== 'areas-outline') {
+      toast.error('برای ذخیره هندسه، لایه محدوده‌ها باید فعال باشد');
+      return;
+    }
+
+    if (!selectedEditableFeature || !selectedAreaId) {
+      toast.error('هیچ محدوده‌ای برای ذخیره انتخاب نشده است');
+      return;
+    }
+
+    const geometry = selectedEditableFeature?.features?.[0]?.geometry;
+
+    if (!geometry) {
+      toast.error('هندسه محدوده برای ذخیره در دسترس نیست');
+      return;
+    }
+
+    try {
+      setIsSavingAreaGeometry(true);
+      await moveArea(selectedAreaId, { geom_geojson_4326: geometry });
+      toast.success('هندسه محدوده ذخیره شد');
+      areaOriginalGeometryRef.current = geometry ? JSON.parse(JSON.stringify(geometry)) : null;
+      setIsAreaGeometryDirty(false);
+      setIsAreaEditMode(false);
+      refreshActiveEditableLayerTiles();
+    } catch (error) {
+      toast.error(error?.message || 'ذخیره هندسه محدوده ناموفق بود');
+    } finally {
+      setIsSavingAreaGeometry(false);
+    }
+  };
+
+  const handleCancelAreaGeometry = () => {
+    if (!isAreaEditMode) return;
+
+    if (areaOriginalGeometryRef.current) {
+      applyAreaGeometryToSelection(JSON.parse(JSON.stringify(areaOriginalGeometryRef.current)));
+    }
+
+    setIsAreaGeometryDirty(false);
+    areaOriginalGeometryRef.current = null;
+    setIsAreaEditMode(false);
+    toast.info('ویرایش محدوده لغو شد');
   };
 
   const exitTempAreaVertexEditMode = useCallback((options = {}) => {
@@ -9337,7 +9431,11 @@ const Amain = () => {
                     </div>
                     {openSubMenu === 2 && (
                       <div className="sub-buttons2">
-                        <button className="sub-btn move-area" onClick={handleAreaEditModeToggle}>
+                        <button
+                          className={`sub-btn move-area ${isAreaEditMode ? 'active' : ''}`}
+                          onClick={handleAreaEditModeToggle}
+                          disabled={isSavingAreaGeometry}
+                        >
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-drag-drop">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M19 11v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2" />
@@ -9351,6 +9449,33 @@ const Amain = () => {
                             <path d="M3 15l0 .01" />
                           </svg>
                         </button>
+                        {isAreaEditMode && (
+                          <div className="area-edit-actions">
+                            <button
+                              className="sub-btn area-save with-label"
+                              onClick={handleSaveAreaGeometry}
+                              disabled={isSavingAreaGeometry}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M5 12l5 5l9 -14" />
+                              </svg>
+                              <span className="sub-btn-label">اتمام ترسیم</span>
+                            </button>
+                            <button
+                              className="sub-btn area-cancel with-label"
+                              onClick={handleCancelAreaGeometry}
+                              disabled={isSavingAreaGeometry}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M18 6l-12 12" />
+                                <path d="M6 6l12 12" />
+                              </svg>
+                              <span className="sub-btn-label">لغو</span>
+                            </button>
+                          </div>
+                        )}
                         <button className="sub-btn edit-area" onClick={handleOpenAddPlaceWithRoofOption}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
