@@ -509,6 +509,8 @@ const logDoorAccessPointDebugInfo = (mapInstance) => {
   });
 };
 
+const mapHasStyle = (mapInstance) => Boolean(mapInstance?.style);
+
 const Amain = ({ initialMenu = 'dashboard' }) => {
   const navigate = useNavigate();
   const { admin: adminProfile, permissions: adminPermissions, fetchProfile, logout } = useAdminAuthStore();
@@ -3781,52 +3783,32 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
 
   // Map initialization effect
   useEffect(() => {
-    if (activeMenu === 'mapmanage') {
-      // Initialize map when map management is active
-      const initializeMap = () => {
-        const mapInstance = new maplibregl.Map({
-          container: 'map-container',
-          style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
-          center: [59.6161, 36.2888], // Imam Reza Shrine coordinates in Mashhad, Iran
-          zoom: 16, // Increased zoom to show more detail
-        });
-
-        mapInstance.addControl(new maplibregl.NavigationControl());
-        mapInstance.on('load', (event) => {
-          initHaramVectorLayers(event, haramAdminVectorTileConfig);
-          console.log('Haram vector layers loaded successfully in Amain map');
-          logDoorAccessPointDebugInfo(mapInstance);
-          applyLayerVisibility(mapInstance);
-        });
-        setMap(mapInstance);
-
-        return () => {
-          mapInstance.remove();
-        };
-      };
-
-      if (document.getElementById('map-container')) {
-        initializeMap();
-      }
-    } else {
-      // Clean up map when leaving map management
-      if (map) {
-        map.remove();
-        setMap(null);
-
-        if (locationMarker) {
-          locationMarker.remove();
-          setLocationMarker(null);
-        }
-      }
-
+    if (activeMenu !== 'mapmanage') {
       setIsVanDrawingMode(false);
       setVanLineCoordinates([]);
       setIsTempAreaDrawingMode(false);
       setTempAreaVertices([]);
       resetMapCursor();
+      return undefined;
     }
-  }, [activeMenu, resetMapCursor]);
+
+    if (!map || !mapHasStyle(map)) return undefined;
+
+    const handleLoad = (event) => {
+      logDoorAccessPointDebugInfo(map);
+      applyLayerVisibility(map);
+    };
+
+    if (map.isStyleLoaded()) {
+      handleLoad({ type: 'load', target: map });
+      return undefined;
+    }
+
+    map.once('load', handleLoad);
+    return () => {
+      map.off('load', handleLoad);
+    };
+  }, [activeMenu, map, applyLayerVisibility, resetMapCursor]);
 
   useEffect(() => {
 
@@ -3856,7 +3838,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   }, [isEditingCultural, editingCulturalId, cleanupCulturalMap, culturalMap]);
 
   useEffect(() => {
-    if (!map || activeMenu !== 'mapmanage') return undefined;
+    if (!map || !mapHasStyle(map) || activeMenu !== 'mapmanage') return undefined;
 
     if (map.isStyleLoaded()) {
       applyLayerVisibility(map);
@@ -3872,7 +3854,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   }, [map, activeMenu, layerVisibility, applyLayerVisibility]);
 
   useEffect(() => {
-    if (!map || activeMenu !== 'mapmanage') return undefined;
+    if (!map || !mapHasStyle(map) || activeMenu !== 'mapmanage') return undefined;
 
     if (map.isStyleLoaded()) {
       ensureVanDrawLayers();
@@ -3888,7 +3870,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   }, [map, activeMenu, ensureVanDrawLayers]);
 
   useEffect(() => {
-    if (!map || activeMenu !== 'mapmanage') return undefined;
+    if (!map || !mapHasStyle(map) || activeMenu !== 'mapmanage') return undefined;
 
     if (map.isStyleLoaded()) {
       ensureTempAreaDrawLayers();
@@ -3927,7 +3909,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   }, [activeEditableLayerId]);
 
   useEffect(() => {
-    if (!map || activeMenu !== 'mapmanage') return;
+    if (!map || !mapHasStyle(map) || activeMenu !== 'mapmanage') return;
 
     const vanSource = map.getSource(VAN_DRAW_SOURCE_ID);
 
@@ -4007,7 +3989,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   }, [isTempAreaLayerActive, selectedEditableFeature]);
 
   useEffect(() => {
-    if (!map || activeMenu !== 'mapmanage') return undefined;
+    if (!map || !mapHasStyle(map) || activeMenu !== 'mapmanage') return undefined;
 
     const ensureHighlightLayer = () => {
       const highlightColor = activeEditableLayer?.highlightColor || '#3b82f6';
@@ -4124,7 +4106,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   }, [map, activeMenu, activeEditableLayer]);
 
   useEffect(() => {
-    if (!map || activeMenu !== 'mapmanage') return undefined;
+    if (!map || !mapHasStyle(map) || activeMenu !== 'mapmanage') return undefined;
 
     const selectNearestFeature = () => {
       if (!activeEditableLayer) {
@@ -4201,7 +4183,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   }, [map, activeMenu, activeEditableLayer]);
 
   useEffect(() => {
-    if (!map) return undefined;
+    if (!map || !mapHasStyle(map)) return undefined;
 
     const source = map.getSource(SELECTED_EDITABLE_FEATURE_SOURCE_ID);
     if (source?.setData) {
@@ -4264,7 +4246,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   }, [map, translateCoordinatesByDelta]);
 
   useEffect(() => {
-    if (!map) return undefined;
+    if (!map || !mapHasStyle(map)) return undefined;
 
     const source = map.getSource(TEMP_AREA_DRAW_SOURCE_ID);
     if (!source?.setData) return undefined;
@@ -4284,7 +4266,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   }, [map, tempAreaVertices, buildTempAreaGeometry]);
 
   useEffect(() => {
-    if (!map) return undefined;
+    if (!map || !mapHasStyle(map)) return undefined;
 
     const source = map.getSource(TEMP_AREA_DRAW_SOURCE_ID);
     if (!source?.setData) return undefined;
