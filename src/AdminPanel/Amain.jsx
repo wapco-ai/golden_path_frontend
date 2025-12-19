@@ -348,13 +348,19 @@ const normalizeTransportModes = (value) => {
 
 const dedupeByValue = (items = []) => {
   const seen = new Set();
+
   return items.filter((item) => {
-    const value = item?.value;
+    const value = item?.value ?? '';
+    const label = typeof item?.label === 'string'
+      ? item.label
+      : JSON.stringify(item?.label ?? '');
 
-    if (!value) return true;
-    if (seen.has(value)) return false;
+    if (!value && !label) return true;
 
-    seen.add(value);
+    const key = `${value}::${label}`;
+    if (seen.has(key)) return false;
+
+    seen.add(key);
     return true;
   });
 };
