@@ -99,26 +99,70 @@ const extractCoordinates = (item) => {
   return null;
 };
 
+const resolveGroupKey = (item) => {
+  const group = item?.group ?? item?.group_id ?? item?.groupId;
+
+  if (typeof group === 'object' && group !== null) {
+    return group.value ?? group.id ?? group.key ?? undefined;
+  }
+
+  return group ?? undefined;
+};
+
+const normalizeSubGroupItem = (item, language) => ({
+  ...item,
+  label: localizeField(item?.label, language) || item?.value,
+  address: localizeField(item?.address, language),
+  description: localizeField(item?.description, language),
+  coordinates: extractCoordinates(item) || undefined
+});
+
+const extractNestedSubGroups = (item) => {
+  const nested = item?.subGroups ?? item?.sub_groups ?? item?.sub_groups_list;
+  return Array.isArray(nested) ? nested : null;
+};
+
+const appendNormalizedItems = (acc, groupKey, items, language) => {
+  if (!groupKey || !Array.isArray(items)) return acc;
+
+  const normalizedItems = items.map((entry) => normalizeSubGroupItem(entry, language));
+  return {
+    ...acc,
+    [groupKey]: [
+      ...(acc[groupKey] || []),
+      ...normalizedItems
+    ]
+  };
+};
+
 export const normalizeSubGroupMetadata = (subGroups, language) => {
   if (!subGroups || typeof subGroups !== 'object') {
     return {};
   }
 
-  return Object.entries(subGroups).reduce((acc, [groupKey, items]) => {
-    const normalizedItems = Array.isArray(items)
-      ? items.map((item) => ({
-        ...item,
-        label: localizeField(item.label, language) || item.value,
-        address: localizeField(item.address, language),
-        description: localizeField(item.description, language),
-        coordinates: extractCoordinates(item) || undefined
-      }))
-      : [];
+  // If the API returns an array (e.g. when requesting a single group),
+  // group the items by their group identifier so consumers can still
+  // access them via the expected group key.
+  if (Array.isArray(subGroups)) {
+    return subGroups.reduce((acc, item) => {
+      const groupKey = resolveGroupKey(item);
+      const nestedItems = extractNestedSubGroups(item);
 
-    return {
-      ...acc,
-      [groupKey]: normalizedItems
-    };
+      if (nestedItems) {
+        return appendNormalizedItems(acc, groupKey, nestedItems, language);
+      }
+
+      if (!groupKey) return acc;
+
+      return appendNormalizedItems(acc, groupKey, [item], language);
+    }, {});
+  }
+
+  return Object.entries(subGroups).reduce((acc, [groupKey, items]) => {
+    const nestedItems = extractNestedSubGroups(items);
+    const safeItems = nestedItems || (Array.isArray(items) ? items : []);
+
+    return appendNormalizedItems(acc, groupKey, safeItems, language);
   }, {});
 };
 
