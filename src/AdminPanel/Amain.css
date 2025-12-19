@@ -7025,7 +7025,7 @@ body {
 
 .edit-form-input {
   width: 100%;
-  padding: 12px 50px 12px 12px;
+  padding: 12px 12px 12px 50px;
   border: 1px solid #D9D9D9;
   border-radius: 8px;
   font-size: 14px;
@@ -7055,7 +7055,7 @@ body {
 
 .language-input-btn-edit {
   position: absolute;
-  right: 12px;
+  left: 12px;
   top: 32%;
   transform: translateY(-50%);
   background: none;
@@ -7069,7 +7069,7 @@ body {
 
 .language-input-btn-edit1 {
   position: absolute;
-  right: 12px;
+  left: 12px;
   top: 50%;
   transform: translateY(-50%);
   background: none;
