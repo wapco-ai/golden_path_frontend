@@ -117,24 +117,6 @@ const normalizeSubGroupItem = (item, language) => ({
   coordinates: extractCoordinates(item) || undefined
 });
 
-const extractNestedSubGroups = (item) => {
-  const nested = item?.subGroups ?? item?.sub_groups ?? item?.sub_groups_list;
-  return Array.isArray(nested) ? nested : null;
-};
-
-const appendNormalizedItems = (acc, groupKey, items, language) => {
-  if (!groupKey || !Array.isArray(items)) return acc;
-
-  const normalizedItems = items.map((entry) => normalizeSubGroupItem(entry, language));
-  return {
-    ...acc,
-    [groupKey]: [
-      ...(acc[groupKey] || []),
-      ...normalizedItems
-    ]
-  };
-};
-
 export const normalizeSubGroupMetadata = (subGroups, language) => {
   if (!subGroups || typeof subGroups !== 'object') {
     return {};
@@ -146,23 +128,25 @@ export const normalizeSubGroupMetadata = (subGroups, language) => {
   if (Array.isArray(subGroups)) {
     return subGroups.reduce((acc, item) => {
       const groupKey = resolveGroupKey(item);
-      const nestedItems = extractNestedSubGroups(item);
-
-      if (nestedItems) {
-        return appendNormalizedItems(acc, groupKey, nestedItems, language);
-      }
-
       if (!groupKey) return acc;
 
-      return appendNormalizedItems(acc, groupKey, [item], language);
+      const normalizedItems = acc[groupKey] || [];
+      return {
+        ...acc,
+        [groupKey]: [...normalizedItems, normalizeSubGroupItem(item, language)]
+      };
     }, {});
   }
 
   return Object.entries(subGroups).reduce((acc, [groupKey, items]) => {
-    const nestedItems = extractNestedSubGroups(items);
-    const safeItems = nestedItems || (Array.isArray(items) ? items : []);
+    const normalizedItems = Array.isArray(items)
+      ? items.map((item) => normalizeSubGroupItem(item, language))
+      : [];
 
-    return appendNormalizedItems(acc, groupKey, safeItems, language);
+    return {
+      ...acc,
+      [groupKey]: normalizedItems
+    };
   }, {});
 };
 
