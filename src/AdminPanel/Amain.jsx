@@ -513,6 +513,7 @@ const Amain = () => {
     rejected: 46
   });
   const [map, setMap] = useState(null);
+  const [mapLayerAvailabilityVersion, setMapLayerAvailabilityVersion] = useState(0);
   const mapRef = useRef(null);
   useEffect(() => {
     mapRef.current = map;
@@ -560,6 +561,14 @@ const Amain = () => {
       return permissions.includes(layer.requiredPermission);
     },
     [userPermissions]
+  );
+  const isMapLayerAvailable = useCallback(
+    (layerId) => {
+      if (!map || !layerId) return false;
+
+      return Boolean(map.getLayer(layerId));
+    },
+    [map, mapLayerAvailabilityVersion]
   );
 
   const [mapViewState, setMapViewState] = useState({
@@ -839,8 +848,12 @@ const Amain = () => {
       return null;
     }
 
+    if (!isMapLayerAvailable(selectedLayer?.id)) {
+      return null;
+    }
+
     return selectedLayer;
-  }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
+  }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer, isMapLayerAvailable]);
   const isVanNodesLayerActive = activeEditableLayer?.id === 'van-nodes';
   const isVanDrawingLayerActive = isVanNodesLayerActive;
   const isTempAreaLayerActive = activeEditableLayer?.id === 'temp-areas-outline';
@@ -3839,6 +3852,20 @@ const Amain = () => {
   }, [activeMenu, resetMapCursor]);
 
   useEffect(() => {
+    if (!map) return undefined;
+
+    const updateLayerAvailability = () => setMapLayerAvailabilityVersion((current) => current + 1);
+
+    map.on('load', updateLayerAvailability);
+    map.on('styledata', updateLayerAvailability);
+
+    return () => {
+      map.off('load', updateLayerAvailability);
+      map.off('styledata', updateLayerAvailability);
+    };
+  }, [map]);
+
+  useEffect(() => {
 
     if (isEditingCultural && editingCulturalId && document.getElementById('edit-cultural-map-container')) {
       if (editMapTimeoutRef.current) {
@@ -4948,7 +4975,9 @@ const Amain = () => {
   const handleEditableLayerSelect = (layerId) => {
     const layerOption = editableLayerOptions.find((layer) => layer.id === layerId);
 
-    if (!canUserEditLayer(layerOption)) return;
+    const isLayerAvailable = isMapLayerAvailable(layerId);
+
+    if (!canUserEditLayer(layerOption) || !isLayerAvailable) return;
 
     setActiveEditableLayerId((current) => {
       const isSameLayer = current === layerId;
@@ -9615,14 +9644,18 @@ const Amain = () => {
                         {haramAdminVectorTileConfig.map(layer => {
                           const layerOption = editableLayerOptions.find((option) => option.id === layer.id);
                           const isLayerActive = activeEditableLayer?.id === layer.id;
-                          const isLayerSelectable = canUserEditLayer(layerOption);
+                          const hasCorrespondingLayer = isMapLayerAvailable(layer.id);
+                          const canEditLayer = canUserEditLayer(layerOption);
+                          const isLayerSelectable = canEditLayer && hasCorrespondingLayer;
                           const editButtonTitle = !layerOption?.isEditable
                             ? 'ویرایش برای این لایه غیرفعال است'
-                            : !isLayerSelectable
-                              ? 'دسترسی لازم برای ویرایش این لایه را ندارید'
-                              : isLayerActive
-                                ? 'غیرفعال کردن ویرایش این لایه'
-                                : 'فعال‌سازی ویرایش این لایه';
+                            : !hasCorrespondingLayer
+                              ? 'لایه متناظر روی نقشه موجود نیست'
+                              : !canEditLayer
+                                ? 'دسترسی لازم برای ویرایش این لایه را ندارید'
+                                : isLayerActive
+                                  ? 'غیرفعال کردن ویرایش این لایه'
+                                  : 'فعال‌سازی ویرایش این لایه';
 
                           return (
                             <label
