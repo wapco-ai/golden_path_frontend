@@ -10493,11 +10493,11 @@ const Amain = () => {
                               disabled={isLoadingGroups}
                             >
                               <option value="" disabled>گروه اصلی</option>
-                              {groupOptions.map((group) => (
-                                <option key={group.value} value={group.value}>
-                                  {group.label}
-                                </option>
-                              ))}
+                                {groupOptions.map((group, index) => (
+                                  <option key={`group-${group.value}-${index}`} value={group.value}>
+                                    {group.label}
+                                  </option>
+                                ))}
                             </select>
                           </div>
 
@@ -10509,11 +10509,11 @@ const Amain = () => {
                               disabled={!placeCategory || isLoadingSubGroups}
                             >
                               <option value="" disabled>زیرگروه</option>
-                              {subGroupOptions.map((subGroup) => (
-                                <option key={subGroup.value} value={subGroup.value}>
-                                  {subGroup.label}
-                                </option>
-                              ))}
+                                {subGroupOptions.map((subGroup, index) => (
+                                  <option key={`subgroup-${subGroup.value}-${index}`} value={subGroup.value}>
+                                    {subGroup.label}
+                                  </option>
+                                ))}
                             </select>
                           </div>
 
