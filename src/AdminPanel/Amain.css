@@ -7317,6 +7317,10 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .area-edit-actions {
