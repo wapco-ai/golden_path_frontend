@@ -1,6 +1,5 @@
 // src/pages/Amain.jsx
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useIntl } from 'react-intl';
 import { toast } from 'react-toastify';
 import '../AdminPanel/Amain.css';
@@ -44,11 +43,6 @@ import {
   stopTempBlockArea,
   extendTempBlockArea
 } from '../services/tempBlockAreasService';
-import { MapLayout } from '../features/map-editing/MapLayout';
-import { useMapInstance } from '../features/map-editing/hooks/useMapInstance';
-import { useTempAreaDrawing } from '../features/map-editing/hooks/useTempAreaDrawing';
-import { useVanRouting } from '../features/map-editing/hooks/useVanRouting';
-import { useEditableLayers } from '../features/map-editing/hooks/useEditableLayers';
 
 
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
@@ -509,144 +503,33 @@ const logDoorAccessPointDebugInfo = (mapInstance) => {
   });
 };
 
-const mapHasStyle = (mapInstance) => Boolean(mapInstance?.style);
-
-const Amain = ({ initialMenu = 'dashboard' }) => {
-  const navigate = useNavigate();
+const Amain = () => {
   const { admin: adminProfile, permissions: adminPermissions, fetchProfile, logout } = useAdminAuthStore();
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
-  const [activeMenu, setActiveMenu] = useState(initialMenu);
+  const [activeMenu, setActiveMenu] = useState('dashboard');
   const [commentStats, setCommentStats] = useState({
     total: 152,
     approved: 89,
     rejected: 46
   });
-  const [locationMarker, setLocationMarker] = useState(null);
-  const [openSubMenu, setOpenSubMenu] = useState(null);
-  const editableLayerActionMenuMap = useMemo(() => ({
-    'temp-areas-outline': 1,
-    'areas-outline': 2,
-    'van-nodes': 3
-  }), []);
-  const currentJalaliDate = useMemo(() => {
-    const now = new Date();
-    return toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
-  }, []);
+  const [map, setMap] = useState(null);
   const mapRef = useRef(null);
-  const tempAreaState = useTempAreaDrawing({
-    mapRef,
-    initialCalendarDate: { year: currentJalaliDate.jy, month: currentJalaliDate.jm },
-  });
-  const {
-    areaOriginalGeometryRef,
-    tempAreaPreviousCursorRef,
-    tempAreaVertexMarkersRef,
-    tempAreaVertexOriginalGeometryRef,
-    tempAreaVertexWorkingGeometryRef,
-    tempAreaVertexEditIdRef,
-    tempAreaVertexDirtyRef,
-    tempAreaVertexSelectionRef,
-    tempAreaDraftGeometryRef,
-    vertexMarkersRef,
-    setMapCursorForTempAreaDrawing,
-    resetMapCursor,
-    clearTempAreaVertexMarkers,
-    clearVertexMarkers,
-    tempAreaFlowState,
-    setTempAreaFlowState,
-    tempAreaFormMode,
-    setTempAreaFormMode,
-    isTempAreaDrawingMode,
-    setIsTempAreaDrawingMode,
-    tempAreaVertices,
-    setTempAreaVertices,
-    isTempAreaMoveMode,
-    setIsTempAreaMoveMode,
-    tempAreaMoveGeometry,
-    setTempAreaMoveGeometry,
-    isTempAreaVertexEditMode,
-    setIsTempAreaVertexEditMode,
-    isTempAreaGeometryDirty,
-    setIsTempAreaGeometryDirty,
-    isSavingTempAreaGeometry,
-    setIsSavingTempAreaGeometry,
-    isTempAreaEditModalOpen,
-    setIsTempAreaEditModalOpen,
-    tempAreaName,
-    setTempAreaName,
-    tempAreaDescription,
-    setTempAreaDescription,
-    tempAreaValidFrom,
-    setTempAreaValidFrom,
-    tempAreaValidTo,
-    setTempAreaValidTo,
-    tempAreaStartTime,
-    setTempAreaStartTime,
-    tempAreaEndTime,
-    setTempAreaEndTime,
-    tempAreaSelectedStartDate,
-    setTempAreaSelectedStartDate,
-    tempAreaSelectedEndDate,
-    setTempAreaSelectedEndDate,
-    tempAreaCalendarDate,
-    setTempAreaCalendarDate,
-    activeTempAreaDateField,
-    setActiveTempAreaDateField,
-    tempAreaPrayerEvents,
-    setTempAreaPrayerEvents,
-    tempAreaPrayerBefore,
-    setTempAreaPrayerBefore,
-    tempAreaPrayerAfter,
-    setTempAreaPrayerAfter,
-    tempAreaIsActive,
-    setTempAreaIsActive,
-    isLoadingTempAreaDetails,
-    setIsLoadingTempAreaDetails,
-    isSavingTempAreaDetails,
-    setIsSavingTempAreaDetails,
-  } = tempAreaState;
-  const vanRoutingState = useVanRouting();
-  const {
-    isVanDrawingMode,
-    setIsVanDrawingMode,
-    vanLineCoordinates,
-    setVanLineCoordinates,
-    isSavingVanRoute,
-    setIsSavingVanRoute,
-    isDeletingVanNode,
-    setIsDeletingVanNode,
-  } = vanRoutingState;
-  const mapState = useMapInstance({
-    activeMenu,
-    floorLabelToValue,
-    floorValueToLabel,
-    onMapRemoved: () => {
-      setIsVanDrawingMode(false);
-      setVanLineCoordinates([]);
-      setIsTempAreaDrawingMode(false);
-      setTempAreaVertices([]);
-    },
-    resetMapCursor,
-    locationMarker,
-    setLocationMarker,
-    mapRef,
-  });
-  const {
-    map,
-    setMap,
-    mapViewState,
-    setMapViewState,
-    layerVisibility,
-    setLayerVisibility,
-    applyLayerVisibility,
-    mapFloor,
-    setMapFloor,
-    isLayerListOpen,
-    setIsLayerListOpen,
-    isMapFloorOpen,
-    setIsMapFloorOpen,
-    refreshLayerTiles,
-  } = mapState;
+  useEffect(() => {
+    mapRef.current = map;
+  }, [map]);
+  const userPermissions = useMemo(
+    () => adminPermissions || adminProfile?.permissions || adminProfile?.user?.permissions || [],
+    [adminPermissions, adminProfile]
+  );
+
+  useEffect(() => {
+    if (!adminProfile) {
+      setIsLoadingProfile(true);
+      fetchProfile()
+        .catch(() => {})
+        .finally(() => setIsLoadingProfile(false));
+    }
+  }, [adminProfile, fetchProfile]);
   const editableLayerOptions = useMemo(
     () => haramAdminVectorTileConfig.map((layer) => {
       const settings = layerEditSettings[layer.id]
@@ -666,10 +549,6 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
     }),
     []
   );
-  const userPermissions = useMemo(
-    () => adminPermissions || adminProfile?.permissions || adminProfile?.user?.permissions || [],
-    [adminPermissions, adminProfile]
-  );
   const canUserEditLayer = useCallback(
     (layer) => {
       if (!layer?.isEditable) return false;
@@ -683,52 +562,62 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
     [userPermissions]
   );
 
-  const editableLayersState = useEditableLayers({
-    editableLayerOptions,
-    canUserEditLayer,
-    editableLayerActionMenuMap,
-    setOpenSubMenu,
-    refreshLayerTiles,
-    isVanDrawingMode,
-    setIsVanDrawingMode,
-    setVanLineCoordinates,
-    setIsTempAreaDrawingMode,
-    setTempAreaFlowState,
-    setTempAreaVertices,
-    tempAreaFlowStates: TEMP_AREA_FLOW_STATES,
-    clearTempAreaVertexMarkers,
-    resetMapCursor,
-    tempAreaDraftGeometryRef,
-    setIsTempAreaVertexEditMode,
-    setIsTempAreaGeometryDirty,
-    tempAreaVertexOriginalGeometryRef,
-    tempAreaVertexWorkingGeometryRef,
-    tempAreaVertexEditIdRef,
-    tempAreaVertexSelectionRef,
+  const [mapViewState, setMapViewState] = useState({
+    longitude: 59.6161,
+    latitude: 36.2908,
+    center: [59.6159, 36.2875],
+    zoom: 16
   });
-  const tempAreaOriginalGeometryRef = useRef(null);
-  const {
-    activeEditableLayerId,
-    setActiveEditableLayerId,
-    hasUserClearedEditableLayer,
-    selectedEditableFeature,
-    setSelectedEditableFeature,
-    activeEditableLayer,
-    isVanNodesLayerActive,
-    isVanDrawingLayerActive,
-    isTempAreaLayerActive,
-    refreshActiveEditableLayerTiles,
-  } = editableLayersState;
+  const buildInitialLayerVisibility = () => haramAdminVectorTileConfig.reduce((acc, layer) => {
+    acc[layer.id] = !!layer.visibleByDefault;
+    return acc;
+  }, {});
 
-  useEffect(() => {
-    if (!adminProfile) {
-      setIsLoadingProfile(true);
-      fetchProfile()
-        .catch(() => {})
-        .finally(() => setIsLoadingProfile(false));
+  const [layerVisibility, setLayerVisibility] = useState(buildInitialLayerVisibility);
+  const applyLayerVisibility = useCallback((mapInstance, visibilityState = layerVisibility) => {
+    const targetMap = mapInstance || map;
+    if (!targetMap) return;
+
+    haramAdminVectorTileConfig.forEach((layer) => {
+      if (targetMap.getLayer(layer.id)) {
+        targetMap.setLayoutProperty(layer.id, 'visibility', visibilityState?.[layer.id] ? 'visible' : 'none');
+      }
+    });
+  }, [layerVisibility, map]);
+  const [isLayerListOpen, setIsLayerListOpen] = useState(false);
+  const [mapFloor, setMapFloor] = useState('همکف');
+  const [isMapFloorOpen, setIsMapFloorOpen] = useState(false);
+  const [openSubMenu, setOpenSubMenu] = useState(null);
+  const editableLayerActionMenuMap = useMemo(() => ({
+    'temp-areas-outline': 1,
+    'areas-outline': 2,
+    'van-nodes': 3
+  }), []);
+  const refreshLayerTiles = useCallback((layerId) => {
+    if (!map || !layerId) return;
+
+    const layerConfig = haramAdminVectorTileConfig.find((layer) => layer.id === layerId);
+    if (!layerConfig) return;
+
+    const source = map.getSource(layerConfig.sourceId);
+    const tileUrlFactory = typeof layerConfig.tileUrlFactory === 'function'
+      ? layerConfig.tileUrlFactory
+      : null;
+
+    const baseTileUrl = tileUrlFactory
+      ? tileUrlFactory({ floor: floorLabelToValue(mapFloor) })
+      : layerConfig.tileUrl;
+
+    if (!source || typeof source.setTiles !== 'function' || !baseTileUrl) return;
+
+    const cacheBustedUrl = `${baseTileUrl}${baseTileUrl.includes('?') ? '&' : '?'}cacheBust=${Date.now()}`;
+
+    source.setTiles([cacheBustedUrl]);
+
+    if (typeof map.triggerRepaint === 'function') {
+      map.triggerRepaint();
     }
-  }, [adminProfile, fetchProfile]);
-
+  }, [map, mapFloor]);
   const ensureVanDrawLayers = useCallback(() => {
     if (!map) return;
 
@@ -834,43 +723,23 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   const approvedDegrees = (commentStats.approved / commentStats.total) * 360;
   const rejectedDegrees = (commentStats.rejected / commentStats.total) * 360;
   const unknownDegrees = (unknownComments / commentStats.total) * 360;
+  const [isVanDrawingMode, setIsVanDrawingMode] = useState(false);
+  const [vanLineCoordinates, setVanLineCoordinates] = useState([]);
+  const [isSavingVanRoute, setIsSavingVanRoute] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [facManagementOpen, setfacManagementOpen] = useState(false);
   const [reportsManagementOpen, setReportsManagementOpen] = useState(false);
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const currentJalaliDate = useMemo(() => {
+    const now = new Date();
+    return toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  }, []);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const calendarRef = useRef(null);
   const [breadcrumbPath, setBreadcrumbPath] = useState(['منوی اصلی', 'داشبورد', 'آمار کلی استارتاپ من']);
   const [currentReportView, setCurrentReportView] = useState(null);
-  const menuRouteMap = useMemo(() => ({
-    dashboard: '/admin/dashboard',
-    mapmanage: '/admin/map',
-    facmanage: '/admin/content',
-    usermanage: '/admin/users',
-    reports: '/admin/reports'
-  }), []);
-
-  const getMenuBreadcrumbPath = useCallback((menuName, breadcrumbLabel = '') => {
-    if (menuName === 'dashboard') {
-      return ['منوی اصلی', 'داشبورد', 'آمار کلی استارتاپ من'];
-    }
-    if (menuName === 'mapmanage') {
-      return ['منوی اصلی', 'مدیریت نقشه'];
-    }
-    if (menuName === 'facmanage') {
-      return ['منوی اصلی', 'مدیریت امکانات'];
-    }
-    if (menuName === 'usermanage') {
-      return ['منوی اصلی', 'مدیریت کاربران'];
-    }
-    if (menuName === 'reports') {
-      return ['منوی اصلی', 'گزارشات'];
-    }
-
-    return ['منوی اصلی', breadcrumbLabel];
-  }, []);
   const [pieChartTimeFilter, setPieChartTimeFilter] = useState('ماه اخیر');
   const [barChartTimeFilter, setBarChartTimeFilter] = useState('هفته اخیر');
   const [isPieChartFilterOpen, setIsPieChartFilterOpen] = useState(false);
@@ -886,6 +755,145 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   const [isAreaEditMode, setIsAreaEditMode] = useState(false);
   const [isAreaGeometryDirty, setIsAreaGeometryDirty] = useState(false);
   const [isSavingAreaGeometry, setIsSavingAreaGeometry] = useState(false);
+  const [tempAreaFlowState, setTempAreaFlowState] = useState(TEMP_AREA_FLOW_STATES.idle);
+  const [tempAreaFormMode, setTempAreaFormMode] = useState('edit');
+  const [isTempAreaDrawingMode, setIsTempAreaDrawingMode] = useState(false);
+  const [tempAreaVertices, setTempAreaVertices] = useState([]);
+  const [isTempAreaMoveMode, setIsTempAreaMoveMode] = useState(false);
+  const [tempAreaMoveGeometry, setTempAreaMoveGeometry] = useState(null);
+  const [isTempAreaVertexEditMode, setIsTempAreaVertexEditMode] = useState(false);
+  const [isTempAreaGeometryDirty, setIsTempAreaGeometryDirty] = useState(false);
+  const [isSavingTempAreaGeometry, setIsSavingTempAreaGeometry] = useState(false);
+  const [isTempAreaEditModalOpen, setIsTempAreaEditModalOpen] = useState(false);
+  const [tempAreaName, setTempAreaName] = useState('');
+  const [tempAreaDescription, setTempAreaDescription] = useState('');
+  const [tempAreaValidFrom, setTempAreaValidFrom] = useState('');
+  const [tempAreaValidTo, setTempAreaValidTo] = useState('');
+  const [tempAreaStartTime, setTempAreaStartTime] = useState('');
+  const [tempAreaEndTime, setTempAreaEndTime] = useState('');
+  const [tempAreaSelectedStartDate, setTempAreaSelectedStartDate] = useState(null);
+  const [tempAreaSelectedEndDate, setTempAreaSelectedEndDate] = useState(null);
+  const [tempAreaCalendarDate, setTempAreaCalendarDate] = useState(() => ({
+    year: currentJalaliDate.jy,
+    month: currentJalaliDate.jm
+  }));
+  const [activeTempAreaDateField, setActiveTempAreaDateField] = useState(null);
+  const [tempAreaPrayerEvents, setTempAreaPrayerEvents] = useState([]);
+  const [tempAreaPrayerBefore, setTempAreaPrayerBefore] = useState('');
+  const [tempAreaPrayerAfter, setTempAreaPrayerAfter] = useState('');
+  const [tempAreaIsActive, setTempAreaIsActive] = useState(true);
+  const [isLoadingTempAreaDetails, setIsLoadingTempAreaDetails] = useState(false);
+  const [isSavingTempAreaDetails, setIsSavingTempAreaDetails] = useState(false);
+  const vertexMarkersRef = useRef([]);
+  const areaOriginalGeometryRef = useRef(null);
+  const tempAreaVertexMarkersRef = useRef([]);
+  const clearVertexMarkers = useCallback(() => {
+    vertexMarkersRef.current.forEach((marker) => marker?.remove());
+    vertexMarkersRef.current = [];
+  }, []);
+
+  const clearTempAreaVertexMarkers = useCallback(() => {
+    tempAreaVertexMarkersRef.current.forEach((marker) => marker?.remove());
+    tempAreaVertexMarkersRef.current = [];
+  }, []);
+  const [locationMarker, setLocationMarker] = useState(null);
+  const [activeEditableLayerId, setActiveEditableLayerId] = useState('');
+  const hasUserClearedEditableLayer = useRef(false);
+  const [selectedEditableFeature, setSelectedEditableFeature] = useState(null);
+  const tempAreaOriginalGeometryRef = useRef(null);
+  const tempAreaVertexOriginalGeometryRef = useRef(null);
+  const tempAreaVertexWorkingGeometryRef = useRef(null);
+  const tempAreaVertexEditIdRef = useRef(null);
+  const tempAreaVertexDirtyRef = useRef(false);
+  const tempAreaVertexSelectionRef = useRef(null);
+  const tempAreaDraftGeometryRef = useRef(null);
+  const tempAreaPreviousCursorRef = useRef(null);
+  const setMapCursorForTempAreaDrawing = useCallback(() => {
+    if (!map?.getCanvas) return;
+
+    const canvas = map.getCanvas();
+    if (!canvas) return;
+
+    if (tempAreaPreviousCursorRef.current === null) {
+      tempAreaPreviousCursorRef.current = canvas.style.cursor;
+    }
+
+    canvas.style.cursor = 'crosshair';
+  }, [map]);
+
+  const resetMapCursor = useCallback(() => {
+    const mapInstance = mapRef.current;
+    if (!mapInstance?.getCanvas) return;
+
+    const canvas = mapInstance.getCanvas();
+    if (!canvas) return;
+
+    const previousCursor = tempAreaPreviousCursorRef.current;
+    canvas.style.cursor = previousCursor ?? 'grab';
+    tempAreaPreviousCursorRef.current = null;
+  }, []);
+  const activeEditableLayer = useMemo(() => {
+    const selectedLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
+
+    if (!canUserEditLayer(selectedLayer)) {
+      return null;
+    }
+
+    return selectedLayer;
+  }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
+  const isVanNodesLayerActive = activeEditableLayer?.id === 'van-nodes';
+  const isVanDrawingLayerActive = isVanNodesLayerActive;
+  const isTempAreaLayerActive = activeEditableLayer?.id === 'temp-areas-outline';
+  const refreshActiveEditableLayerTiles = useCallback((layerIdOverride) => {
+    const targetLayerId = layerIdOverride || activeEditableLayer?.id;
+    if (!targetLayerId) return;
+
+    const layerIdsToRefresh = new Set([targetLayerId]);
+
+    if (targetLayerId === 'van-nodes') {
+      layerIdsToRefresh.add('van-edges');
+    }
+
+    layerIdsToRefresh.forEach((layerId) => refreshLayerTiles(layerId));
+  }, [activeEditableLayer?.id, refreshLayerTiles]);
+  useEffect(() => {
+    const mappedSubMenu = editableLayerActionMenuMap[activeEditableLayer?.id];
+    if (typeof mappedSubMenu === 'number') {
+      setOpenSubMenu(mappedSubMenu);
+      return;
+    }
+
+    setOpenSubMenu((current) => {
+      const mappedValues = Object.values(editableLayerActionMenuMap);
+      if (mappedValues.includes(current)) {
+        return null;
+      }
+
+      return current;
+    });
+  }, [activeEditableLayer?.id, editableLayerActionMenuMap]);
+  useEffect(() => {
+    if (!isVanDrawingLayerActive && isVanDrawingMode) {
+      setIsVanDrawingMode(false);
+      setVanLineCoordinates([]);
+    }
+  }, [isVanDrawingMode, isVanDrawingLayerActive]);
+  useEffect(() => {
+    if (!isTempAreaLayerActive) {
+      setIsTempAreaDrawingMode(false);
+      setTempAreaFlowState(TEMP_AREA_FLOW_STATES.idle);
+      setTempAreaVertices([]);
+      tempAreaDraftGeometryRef.current = null;
+      setIsTempAreaVertexEditMode(false);
+      setIsTempAreaGeometryDirty(false);
+      tempAreaVertexOriginalGeometryRef.current = null;
+      tempAreaVertexWorkingGeometryRef.current = null;
+      tempAreaVertexEditIdRef.current = null;
+      tempAreaVertexSelectionRef.current = null;
+      clearTempAreaVertexMarkers();
+    }
+    resetMapCursor();
+  }, [isTempAreaLayerActive, resetMapCursor, clearTempAreaVertexMarkers]);
   const selectedFeatureProperties = selectedEditableFeature?.features?.[0]?.properties;
   const selectedFeatureCoordinates = selectedEditableFeature?.features?.[0]?.geometry?.coordinates;
   const selectedDoorId = selectedFeatureProperties?.door_id
@@ -3106,7 +3114,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   };
 
 
-  const initializeEditMap = useCallback(() => {
+  const initializeEditMap = () => {
     // Prevent re-initializing the edit map if it already exists
     if (culturalMap) {
       console.warn('پیش از این نقشه ایجاد شده است.');
@@ -3192,16 +3200,21 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
 
     setCulturalMap(mapInstance);
     return mapInstance;
-  }, [culturalMap, selectedLocation]);
+  }
 
 
   useEffect(() => {
-    if (!isEditingCultural || !editingCulturalData || culturalMap) return;
+    if (!isEditingCultural || !editingCulturalData) return;
 
-    // Initialize edit map after a short delay to ensure DOM is ready
-    editMapTimeoutRef.current = setTimeout(() => {
-      initializeEditMap();
-    }, 100);
+    // Ensure not to reinitialize if already set up
+    if (culturalMap) return;
+
+    if (isEditingCultural && editingCulturalData && !culturalMap) {
+      // Initialize edit map after a short delay to ensure DOM is ready
+      editMapTimeoutRef.current = setTimeout(() => {
+        initializeEditMap();
+      }, 100);
+    }
 
     return () => {
       if (editMapTimeoutRef.current) {
@@ -3209,7 +3222,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
         editMapTimeoutRef.current = null;
       }
     };
-  }, [culturalMap, editingCulturalData, initializeEditMap, isEditingCultural]);
+  });
 
   const handleCulturalPrayerNextMonth = () => {
     setCulturalPrayerCalendarDate(prev => {
@@ -3778,32 +3791,52 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
 
   // Map initialization effect
   useEffect(() => {
-    if (activeMenu !== 'mapmanage') {
+    if (activeMenu === 'mapmanage') {
+      // Initialize map when map management is active
+      const initializeMap = () => {
+        const mapInstance = new maplibregl.Map({
+          container: 'map-container',
+          style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+          center: [59.6161, 36.2888], // Imam Reza Shrine coordinates in Mashhad, Iran
+          zoom: 16, // Increased zoom to show more detail
+        });
+
+        mapInstance.addControl(new maplibregl.NavigationControl());
+        mapInstance.on('load', (event) => {
+          initHaramVectorLayers(event, haramAdminVectorTileConfig);
+          console.log('Haram vector layers loaded successfully in Amain map');
+          logDoorAccessPointDebugInfo(mapInstance);
+          applyLayerVisibility(mapInstance);
+        });
+        setMap(mapInstance);
+
+        return () => {
+          mapInstance.remove();
+        };
+      };
+
+      if (document.getElementById('map-container')) {
+        initializeMap();
+      }
+    } else {
+      // Clean up map when leaving map management
+      if (map) {
+        map.remove();
+        setMap(null);
+
+        if (locationMarker) {
+          locationMarker.remove();
+          setLocationMarker(null);
+        }
+      }
+
       setIsVanDrawingMode(false);
       setVanLineCoordinates([]);
       setIsTempAreaDrawingMode(false);
       setTempAreaVertices([]);
       resetMapCursor();
-      return undefined;
     }
-
-    if (!map || !mapHasStyle(map)) return undefined;
-
-    const handleLoad = (event) => {
-      logDoorAccessPointDebugInfo(map);
-      applyLayerVisibility(map);
-    };
-
-    if (map.isStyleLoaded()) {
-      handleLoad({ type: 'load', target: map });
-      return undefined;
-    }
-
-    map.once('load', handleLoad);
-    return () => {
-      map.off('load', handleLoad);
-    };
-  }, [activeMenu, map, applyLayerVisibility, resetMapCursor]);
+  }, [activeMenu, resetMapCursor]);
 
   useEffect(() => {
 
@@ -3833,7 +3866,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   }, [isEditingCultural, editingCulturalId, cleanupCulturalMap, culturalMap]);
 
   useEffect(() => {
-    if (!map || !mapHasStyle(map) || activeMenu !== 'mapmanage') return undefined;
+    if (!map || activeMenu !== 'mapmanage') return undefined;
 
     if (map.isStyleLoaded()) {
       applyLayerVisibility(map);
@@ -3849,7 +3882,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   }, [map, activeMenu, layerVisibility, applyLayerVisibility]);
 
   useEffect(() => {
-    if (!map || !mapHasStyle(map) || activeMenu !== 'mapmanage') return undefined;
+    if (!map || activeMenu !== 'mapmanage') return undefined;
 
     if (map.isStyleLoaded()) {
       ensureVanDrawLayers();
@@ -3865,7 +3898,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   }, [map, activeMenu, ensureVanDrawLayers]);
 
   useEffect(() => {
-    if (!map || !mapHasStyle(map) || activeMenu !== 'mapmanage') return undefined;
+    if (!map || activeMenu !== 'mapmanage') return undefined;
 
     if (map.isStyleLoaded()) {
       ensureTempAreaDrawLayers();
@@ -3904,7 +3937,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   }, [activeEditableLayerId]);
 
   useEffect(() => {
-    if (!map || !mapHasStyle(map) || activeMenu !== 'mapmanage') return;
+    if (!map || activeMenu !== 'mapmanage') return;
 
     const vanSource = map.getSource(VAN_DRAW_SOURCE_ID);
 
@@ -3984,7 +4017,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   }, [isTempAreaLayerActive, selectedEditableFeature]);
 
   useEffect(() => {
-    if (!map || !mapHasStyle(map) || activeMenu !== 'mapmanage') return undefined;
+    if (!map || activeMenu !== 'mapmanage') return undefined;
 
     const ensureHighlightLayer = () => {
       const highlightColor = activeEditableLayer?.highlightColor || '#3b82f6';
@@ -4101,7 +4134,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   }, [map, activeMenu, activeEditableLayer]);
 
   useEffect(() => {
-    if (!map || !mapHasStyle(map) || activeMenu !== 'mapmanage') return undefined;
+    if (!map || activeMenu !== 'mapmanage') return undefined;
 
     const selectNearestFeature = () => {
       if (!activeEditableLayer) {
@@ -4178,7 +4211,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   }, [map, activeMenu, activeEditableLayer]);
 
   useEffect(() => {
-    if (!map || !mapHasStyle(map)) return undefined;
+    if (!map) return undefined;
 
     const source = map.getSource(SELECTED_EDITABLE_FEATURE_SOURCE_ID);
     if (source?.setData) {
@@ -4241,7 +4274,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   }, [map, translateCoordinatesByDelta]);
 
   useEffect(() => {
-    if (!map || !mapHasStyle(map)) return undefined;
+    if (!map) return undefined;
 
     const source = map.getSource(TEMP_AREA_DRAW_SOURCE_ID);
     if (!source?.setData) return undefined;
@@ -4261,7 +4294,7 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
   }, [map, tempAreaVertices, buildTempAreaGeometry]);
 
   useEffect(() => {
-    if (!map || !mapHasStyle(map)) return undefined;
+    if (!map) return undefined;
 
     const source = map.getSource(TEMP_AREA_DRAW_SOURCE_ID);
     if (!source?.setData) return undefined;
@@ -6050,20 +6083,27 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
       resetCulturalForm();
     }
 
-    setCurrentReportView(null);
-    setBreadcrumbPath(getMenuBreadcrumbPath(menuName, breadcrumbLabel));
 
-    const targetPath = menuRouteMap[menuName];
-    if (targetPath) {
-      navigate(targetPath);
+    if (menuName === 'dashboard') {
+      setCurrentReportView(null);
+      setBreadcrumbPath(['منوی اصلی', 'داشبورد', 'آمار کلی استارتاپ من']);
+    } else if (menuName === 'mapmanage') {
+      setCurrentReportView(null);
+      setBreadcrumbPath(['منوی اصلی', 'مدیریت نقشه']);
+    } else if (menuName === 'facmanage') {
+      setCurrentReportView(null);
+      setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات']);
+    } else if (menuName === 'usermanage') {
+      setCurrentReportView(null);
+      setBreadcrumbPath(['منوی اصلی', 'مدیریت کاربران']);
+    } else if (menuName === 'reports') {
+      setCurrentReportView(null);
+      setBreadcrumbPath(['منوی اصلی', 'گزارشات']);
+    } else {
+      setCurrentReportView(null);
+      setBreadcrumbPath(['منوی اصلی', breadcrumbLabel]);
     }
   };
-
-  useEffect(() => {
-    setActiveMenu(initialMenu);
-    setCurrentReportView(null);
-    setBreadcrumbPath(getMenuBreadcrumbPath(initialMenu, breadcrumbPath?.[1] || ''));
-  }, [getMenuBreadcrumbPath, initialMenu]);
 
   const handleLayerToggle = (layerId) => {
     setLayerVisibility((prev) => {
@@ -9104,17 +9144,9 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
             </div>
           ) : activeMenu === 'mapmanage' ? (
             /* Map Management Section */
-            <MapLayout
-              value={{
-                map: mapState,
-                tempArea: tempAreaState,
-                vanRouting: vanRoutingState,
-                editableLayers: editableLayersState,
-              }}
-            >
-              <div className="map-management-section">
-                <div className="map-container">
-                  <div id="map-container" className="map-instance"></div>
+            <div className="map-management-section">
+              <div className="map-container">
+                <div id="map-container" className="map-instance"></div>
 
                 {/* Top Left - Map Type Selector */}
                 <div className="map-control-top-left">
@@ -9752,7 +9784,6 @@ const Amain = ({ initialMenu = 'dashboard' }) => {
 
               </div>
             </div>
-            </MapLayout>
           ) : (
             /* Charts Section */
             <div className="charts-section">
