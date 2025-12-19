@@ -8630,8 +8630,8 @@ const Amain = () => {
                           disabled={!culturalPlaceCategory || isLoadingCulturalSubGroups}
                         >
                           <option value="" disabled>زیرگروه فرهنگی</option>
-                          {culturalSubGroupOptions.map((subGroup) => (
-                            <option key={`cultural-edit-subgroup-${subGroup.value}`} value={subGroup.value}>
+                          {culturalSubGroupOptions.map((subGroup, index) => (
+                            <option key={`cultural-edit-subgroup-${subGroup.value}-${index}`} value={subGroup.value}>
                               {subGroup.label}
                             </option>
                           ))}
@@ -11881,8 +11881,8 @@ const Amain = () => {
                             disabled={!culturalPlaceCategory || isLoadingCulturalSubGroups}
                           >
                             <option value="" disabled>زیرگروه فرهنگی</option>
-                            {culturalSubGroupOptions.map((subGroup) => (
-                              <option key={`cultural-subgroup-${subGroup.value}`} value={subGroup.value}>
+                            {culturalSubGroupOptions.map((subGroup, index) => (
+                              <option key={`cultural-subgroup-${subGroup.value}-${index}`} value={subGroup.value}>
                                 {subGroup.label}
                               </option>
                             ))}
