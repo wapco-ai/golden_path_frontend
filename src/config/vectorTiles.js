@@ -330,7 +330,7 @@ export const haramAdminVectorTileConfig = [
     type: 'line',
     minzoom: 15,
     maxzoom: 22,
-    visibleByDefault: false,
+    visibleByDefault: true,
     paint: {
       'line-color': '#ffddcc',
       'line-width': 2
