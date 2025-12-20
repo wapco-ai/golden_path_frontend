@@ -6,7 +6,7 @@ const isProd = process.env.NODE_ENV === 'production';
 
 export default defineConfig({
   // base: process.env.BASE_URL || '/',
-  base: isProd ? '/golden_path_backend/' : '/',
+  base: isProd ? '/' : '/',
   // Add this for PWA  
   publicDir: 'public',
   resolve: {
@@ -33,8 +33,8 @@ export default defineConfig({
         theme_color: '#ffffff',  
         background_color: '#f0f2f5',  
         display: 'standalone',  
-        scope: '/golden_path_backend/',  
-        start_url: '/golden_path_backend/',  
+        scope: '/',  
+        start_url: '/',  
         icons: [  
           {  
             src: '/icons/pwa-192x192.png',  
