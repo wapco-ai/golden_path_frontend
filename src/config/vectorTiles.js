@@ -134,6 +134,42 @@ const buildTempAreasTileUrlFactory = () => ({ floor } = {}) => {
   return `${TEMP_AREAS_FUNCTION_TILE_BASE}?${params.toString()}`;
 };
 
+const buildIconDataUri = (fillColor, label) => {
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+  <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+    <defs>
+      <filter id="shadow" x="-15%" y="-15%" width="130%" height="130%">
+        <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.25)" />
+      </filter>
+    </defs>
+    <rect x="10" y="10" width="76" height="76" rx="16" fill="${fillColor}" filter="url(#shadow)" />
+    <rect x="30" y="20" width="36" height="56" rx="6" fill="rgba(255,255,255,0.18)" stroke="#ffffff" stroke-width="3" />
+    <circle cx="58" cy="48" r="4" fill="#ffffff" />
+    <text x="28" y="80" text-anchor="start" font-family="Arial" font-size="22" font-weight="700" fill="#ffffff">${label}</text>
+  </svg>`;
+
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+};
+
+const DOOR_ICON_IMAGES = {
+  entrance: {
+    name: 'door-icon-entrance',
+    url: buildIconDataUri('#0ea5e9', 'E')
+  },
+  exit: {
+    name: 'door-icon-exit',
+    url: buildIconDataUri('#f97316', 'X')
+  },
+  emergency: {
+    name: 'door-icon-emergency',
+    url: buildIconDataUri('#ef4444', '!')
+  },
+  default: {
+    name: 'door-icon-default',
+    url: buildIconDataUri('#475569', 'D')
+  }
+};
+
 
 export const haramVectorTileConfig = [
   {
@@ -340,6 +376,32 @@ export const haramAdminVectorTileConfig = [
     paint: {
       'line-color': '#ff3b30',
       'line-width': 2
+    }
+  },
+  {
+    id: 'doors-icons',
+    titleFa: 'آیکون درب‌ها',
+    table: 'public.fn_doors_mvt',
+    sourceId: 'fn_doors_mvt',
+    sourceLayer: DOORS_VECTOR_LAYER_NAME,
+    tileUrlFactory: buildDoorsTileUrlFactory(),
+    type: 'symbol',
+    minzoom: 15,
+    maxzoom: 22,
+    visibleByDefault: true,
+    images: Object.values(DOOR_ICON_IMAGES),
+    layout: {
+      'icon-image': [
+        'match',
+        ['get', 'place_function'],
+        'entrance', DOOR_ICON_IMAGES.entrance.name,
+        'exit', DOOR_ICON_IMAGES.exit.name,
+        'emergency', DOOR_ICON_IMAGES.emergency.name,
+        /* default */ DOOR_ICON_IMAGES.default.name
+      ],
+      'icon-size': 0.75,
+      'icon-allow-overlap': true,
+      'symbol-placement': 'line-center'
     }
   },
   {

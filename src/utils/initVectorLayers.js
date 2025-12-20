@@ -61,6 +61,50 @@ const defaultLayoutByType = {
   }
 };
 
+const collectRequiredImages = (vectorTileConfig) => vectorTileConfig
+  .filter((layerCfg) => Array.isArray(layerCfg.images))
+  .flatMap((layerCfg) => layerCfg.images);
+
+const ensureRequiredImages = (map, vectorTileConfig) => {
+  if (!map || typeof map.loadImage !== 'function' || typeof map.addImage !== 'function') {
+    return Promise.resolve();
+  }
+
+  const requiredImages = collectRequiredImages(vectorTileConfig);
+  if (!requiredImages.length) {
+    return Promise.resolve();
+  }
+
+  if (!map.__haramImagePromises) {
+    map.__haramImagePromises = {};
+  }
+
+  const imagePromises = requiredImages.map(({ name, url, options }) => {
+    if (!name || !url) return Promise.resolve();
+    if (map.hasImage(name)) return Promise.resolve();
+    if (map.__haramImagePromises[name]) return map.__haramImagePromises[name];
+
+    map.__haramImagePromises[name] = new Promise((resolve) => {
+      map.loadImage(url, (error, image) => {
+        if (error || !image) {
+          console.warn('Failed to load map icon', name, error);
+          resolve();
+          return;
+        }
+
+        if (!map.hasImage(name)) {
+          map.addImage(name, image, options || {});
+        }
+        resolve();
+      });
+    });
+
+    return map.__haramImagePromises[name];
+  });
+
+  return Promise.all(imagePromises);
+};
+
 const FLAG_KEY = '__haramVectorTilesBound';
 
 const resolveMap = (mapOrRef) => {
@@ -168,11 +212,17 @@ export const initHaramVectorLayers = (mapOrEventTarget, vectorTileConfig = haram
 
   const sourceMeta = buildSourceMeta(vectorTileConfig);
 
-  ensureSourcesAndLayers(map, vectorTileConfig, sourceMeta);
-  ensureFloorSync(map, sourceMeta);
+  ensureRequiredImages(map, vectorTileConfig)
+    .catch((error) => {
+      console.warn('Vector tile icon preload failed', error);
+    })
+    .finally(() => {
+      ensureSourcesAndLayers(map, vectorTileConfig, sourceMeta);
+      ensureFloorSync(map, sourceMeta);
 
-  if (!map[FLAG_KEY] && typeof map.on === 'function') {
-    map[FLAG_KEY] = true;
-    map.on('styledata', () => ensureSourcesAndLayers(map, vectorTileConfig, sourceMeta));
-  }
+      if (!map[FLAG_KEY] && typeof map.on === 'function') {
+        map[FLAG_KEY] = true;
+        map.on('styledata', () => ensureSourcesAndLayers(map, vectorTileConfig, sourceMeta));
+      }
+    });
 };
