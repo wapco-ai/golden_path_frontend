@@ -3819,7 +3819,7 @@ const Amain = () => {
           null,
           true
         );
-
+        
 
         const mapInstance = new maplibregl.Map({
           container: 'map-container',
