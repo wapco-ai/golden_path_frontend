@@ -1020,6 +1020,8 @@ const Amain = () => {
   const isAreaLayerActive = activeEditableLayer?.id === 'areas-outline';
   const intl = useIntl();
   const language = intl?.locale || 'fa';
+  const isRtlLanguage = ['fa', 'ar', 'ur'].includes(language);
+  const mapStyle = isRtlLanguage ? './rtl/style.json' : './rtl/style-en.json';
   const translateLabel = useCallback(
     (labelKey) => {
       if (!labelKey || typeof labelKey !== 'string') return labelKey;
@@ -3830,7 +3832,7 @@ const Amain = () => {
         
         const mapInstance = new maplibregl.Map({
           container: 'map-container',
-          style: './rtl/style.json',
+          style: mapStyle,
           center: [59.6161, 36.2888], // Imam Reza Shrine coordinates in Mashhad, Iran
           zoom: 16, // Increased zoom to show more detail
         });
