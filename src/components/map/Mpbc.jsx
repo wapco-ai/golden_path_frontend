@@ -8,6 +8,7 @@ import { useLangStore } from '../../store/langStore';
 import { loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
 import { getLocationTitleById } from '../../utils/getLocationTitle';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
+import { createHaramVectorTileConfig } from '../../config/vectorTiles';
 
 import appConfig from '../../config/appConfig';
 const DEFAULT_VECTOR_TILE_FLOOR = 0;
@@ -149,8 +150,8 @@ const styleKey = `style-${isRtl ? "rtl" : "en"}`;
   }, [onUserMove]);
 
   const handleMapLoad = useCallback((event) => {
-    initHaramVectorLayers(event?.target || event);
-  }, []);
+    initHaramVectorLayers(event?.target || event, createHaramVectorTileConfig(language));
+  }, [language]);
 
   const extractPlaceCoordinates = useCallback((place = {}) => {
     const lat =
