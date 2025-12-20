@@ -1196,7 +1196,8 @@ body.modal-open {
 .search-bar-container.expanded {
   height: 50vh;
   transform: translateY(0);
-  border-radius: 0px;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
   overflow: hidden;
   touch-action: none;
 }
@@ -1204,7 +1205,8 @@ body.modal-open {
 .search-bar-container.fully-expanded {
   height: 90vh;
   transform: translateY(0);
-  border-radius: 0px;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
   overflow-y: auto;
   touch-action: auto;
   transition: transform 0.3s ease-out, height 0.3s ease-out;
