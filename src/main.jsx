@@ -7,8 +7,10 @@ import './index.css';
 import { useGPSStore } from './store/gpsStore.js';
 import { DEFAULT_TILE_FLOOR } from './config/vectorTiles.js';
 import { initializeSessionFloor } from './utils/sessionFloor.js';
+import { ensureMaplibreRtlPlugin } from './utils/mapLibreConfig.js';
 
 initializeSessionFloor(DEFAULT_TILE_FLOOR);
+ensureMaplibreRtlPlugin();
 
 // Check URL parameters for QR code location (works with ? before or after #)
 let search = window.location.search;
