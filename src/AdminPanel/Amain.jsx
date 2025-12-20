@@ -48,7 +48,7 @@ import {
 function ensureRtlOnce() {
   if (window.__RTL_PLUGIN_SET__) return;
   window.__RTL_PLUGIN_SET__ = true;
-  maplibregl.setRTLTextPlugin("/rtl/mapbox-gl-rtl-text.js", true);
+  maplibregl.setRTLTextPlugin("/rtl/mapbox-gl-rtl-text.js", undefined, true);
 }
 
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;

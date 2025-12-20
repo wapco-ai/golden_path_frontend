@@ -22,7 +22,7 @@ import { initializeSessionFloor } from './utils/sessionFloor.js';
 function ensureRtlOnce() {
   if (window.__RTL_PLUGIN_SET__) return;
   window.__RTL_PLUGIN_SET__ = true;
-  maplibregl.setRTLTextPlugin("/rtl/mapbox-gl-rtl-text.js", true);
+  maplibregl.setRTLTextPlugin("/rtl/mapbox-gl-rtl-text.js", undefined, true);
 }
 
 
