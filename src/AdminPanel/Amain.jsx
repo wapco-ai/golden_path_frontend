@@ -28,7 +28,7 @@ import {
 } from '../config/vectorTiles';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
 import { createDoor, deleteDoor, getDoorInfo, moveDoor, updateDoorInfo } from '../services/adminDoorsService';
-import { deleteArea, getAreaInfo, updateAreaInfo } from '../services/adminAreasService';
+import { deleteArea, getAreaInfo, moveArea, updateAreaInfo } from '../services/adminAreasService';
 import { convertLngLatToUtm32640 } from '../utils/utm';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
@@ -56,6 +56,7 @@ const VAN_DRAW_POINT_LAYER_ID = 'van-draw-point-layer';
 const TEMP_AREA_DRAW_SOURCE_ID = 'temp-area-draw-source';
 const TEMP_AREA_DRAW_FILL_LAYER_ID = 'temp-area-draw-fill-layer';
 const TEMP_AREA_DRAW_LINE_LAYER_ID = 'temp-area-draw-line-layer';
+const TEMP_AREA_DRAW_POINT_LAYER_ID = 'temp-area-draw-point-layer';
 const TEMP_AREA_FLOW_STATES = {
   idle: 'idle',
   drawing: 'drawing',
@@ -347,13 +348,19 @@ const normalizeTransportModes = (value) => {
 
 const dedupeByValue = (items = []) => {
   const seen = new Set();
+
   return items.filter((item) => {
-    const value = item?.value;
+    const value = item?.value ?? '';
+    const label = typeof item?.label === 'string'
+      ? item.label
+      : JSON.stringify(item?.label ?? '');
 
-    if (!value) return true;
-    if (seen.has(value)) return false;
+    if (!value && !label) return true;
 
-    seen.add(value);
+    const key = `${value}::${label}`;
+    if (seen.has(key)) return false;
+
+    seen.add(key);
     return true;
   });
 };
@@ -512,6 +519,11 @@ const Amain = () => {
     rejected: 46
   });
   const [map, setMap] = useState(null);
+  const [mapLayerAvailabilityVersion, setMapLayerAvailabilityVersion] = useState(0);
+  const mapRef = useRef(null);
+  useEffect(() => {
+    mapRef.current = map;
+  }, [map]);
   const userPermissions = useMemo(
     () => adminPermissions || adminProfile?.permissions || adminProfile?.user?.permissions || [],
     [adminPermissions, adminProfile]
@@ -555,6 +567,14 @@ const Amain = () => {
       return permissions.includes(layer.requiredPermission);
     },
     [userPermissions]
+  );
+  const isMapLayerAvailable = useCallback(
+    (layerId) => {
+      if (!map || !layerId) return false;
+
+      return Boolean(map.getLayer(layerId));
+    },
+    [map, mapLayerAvailabilityVersion]
   );
 
   const [mapViewState, setMapViewState] = useState({
@@ -698,6 +718,21 @@ const Amain = () => {
         ]
       });
     }
+
+    if (!map.getLayer(TEMP_AREA_DRAW_POINT_LAYER_ID)) {
+      map.addLayer({
+        id: TEMP_AREA_DRAW_POINT_LAYER_ID,
+        type: 'circle',
+        source: TEMP_AREA_DRAW_SOURCE_ID,
+        paint: {
+          'circle-radius': 6,
+          'circle-color': '#d3516f',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff'
+        },
+        filter: ['==', ['geometry-type'], 'Point']
+      });
+    }
   }, [map]);
   const unknownComments = commentStats.total - commentStats.approved - commentStats.rejected;
   const approvedDegrees = (commentStats.approved / commentStats.total) * 360;
@@ -733,12 +768,17 @@ const Amain = () => {
   const [isCreatingDoor, setIsCreatingDoor] = useState(false);
   const [isPlaceCovered, setIsPlaceCovered] = useState(null);
   const [isAreaEditMode, setIsAreaEditMode] = useState(false);
+  const [isAreaGeometryDirty, setIsAreaGeometryDirty] = useState(false);
+  const [isSavingAreaGeometry, setIsSavingAreaGeometry] = useState(false);
   const [tempAreaFlowState, setTempAreaFlowState] = useState(TEMP_AREA_FLOW_STATES.idle);
   const [tempAreaFormMode, setTempAreaFormMode] = useState('edit');
   const [isTempAreaDrawingMode, setIsTempAreaDrawingMode] = useState(false);
   const [tempAreaVertices, setTempAreaVertices] = useState([]);
   const [isTempAreaMoveMode, setIsTempAreaMoveMode] = useState(false);
   const [tempAreaMoveGeometry, setTempAreaMoveGeometry] = useState(null);
+  const [isTempAreaVertexEditMode, setIsTempAreaVertexEditMode] = useState(false);
+  const [isTempAreaGeometryDirty, setIsTempAreaGeometryDirty] = useState(false);
+  const [isSavingTempAreaGeometry, setIsSavingTempAreaGeometry] = useState(false);
   const [isTempAreaEditModalOpen, setIsTempAreaEditModalOpen] = useState(false);
   const [tempAreaName, setTempAreaName] = useState('');
   const [tempAreaDescription, setTempAreaDescription] = useState('');
@@ -760,12 +800,53 @@ const Amain = () => {
   const [isLoadingTempAreaDetails, setIsLoadingTempAreaDetails] = useState(false);
   const [isSavingTempAreaDetails, setIsSavingTempAreaDetails] = useState(false);
   const vertexMarkersRef = useRef([]);
+  const areaOriginalGeometryRef = useRef(null);
+  const tempAreaVertexMarkersRef = useRef([]);
+  const clearVertexMarkers = useCallback(() => {
+    vertexMarkersRef.current.forEach((marker) => marker?.remove());
+    vertexMarkersRef.current = [];
+  }, []);
+
+  const clearTempAreaVertexMarkers = useCallback(() => {
+    tempAreaVertexMarkersRef.current.forEach((marker) => marker?.remove());
+    tempAreaVertexMarkersRef.current = [];
+  }, []);
   const [locationMarker, setLocationMarker] = useState(null);
   const [activeEditableLayerId, setActiveEditableLayerId] = useState('');
   const hasUserClearedEditableLayer = useRef(false);
   const [selectedEditableFeature, setSelectedEditableFeature] = useState(null);
   const tempAreaOriginalGeometryRef = useRef(null);
+  const tempAreaVertexOriginalGeometryRef = useRef(null);
+  const tempAreaVertexWorkingGeometryRef = useRef(null);
+  const tempAreaVertexEditIdRef = useRef(null);
+  const tempAreaVertexDirtyRef = useRef(false);
+  const tempAreaVertexSelectionRef = useRef(null);
   const tempAreaDraftGeometryRef = useRef(null);
+  const tempAreaPreviousCursorRef = useRef(null);
+  const setMapCursorForTempAreaDrawing = useCallback(() => {
+    if (!map?.getCanvas) return;
+
+    const canvas = map.getCanvas();
+    if (!canvas) return;
+
+    if (tempAreaPreviousCursorRef.current === null) {
+      tempAreaPreviousCursorRef.current = canvas.style.cursor;
+    }
+
+    canvas.style.cursor = 'crosshair';
+  }, [map]);
+
+  const resetMapCursor = useCallback(() => {
+    const mapInstance = mapRef.current;
+    if (!mapInstance?.getCanvas) return;
+
+    const canvas = mapInstance.getCanvas();
+    if (!canvas) return;
+
+    const previousCursor = tempAreaPreviousCursorRef.current;
+    canvas.style.cursor = previousCursor ?? 'grab';
+    tempAreaPreviousCursorRef.current = null;
+  }, []);
   const activeEditableLayer = useMemo(() => {
     const selectedLayer = editableLayerOptions.find((layer) => layer.id === activeEditableLayerId);
 
@@ -773,10 +854,14 @@ const Amain = () => {
       return null;
     }
 
+    if (!isMapLayerAvailable(selectedLayer?.id)) {
+      return null;
+    }
+
     return selectedLayer;
-  }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
-  const isVanEdgesLayerActive = activeEditableLayer?.id === 'van-edges';
+  }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer, isMapLayerAvailable]);
   const isVanNodesLayerActive = activeEditableLayer?.id === 'van-nodes';
+  const isVanDrawingLayerActive = isVanNodesLayerActive;
   const isTempAreaLayerActive = activeEditableLayer?.id === 'temp-areas-outline';
   const refreshActiveEditableLayerTiles = useCallback((layerIdOverride) => {
     const targetLayerId = layerIdOverride || activeEditableLayer?.id;
@@ -807,19 +892,27 @@ const Amain = () => {
     });
   }, [activeEditableLayer?.id, editableLayerActionMenuMap]);
   useEffect(() => {
-    if (!isVanEdgesLayerActive && isVanDrawingMode) {
+    if (!isVanDrawingLayerActive && isVanDrawingMode) {
       setIsVanDrawingMode(false);
       setVanLineCoordinates([]);
     }
-  }, [isVanDrawingMode, isVanEdgesLayerActive]);
+  }, [isVanDrawingMode, isVanDrawingLayerActive]);
   useEffect(() => {
     if (!isTempAreaLayerActive) {
       setIsTempAreaDrawingMode(false);
       setTempAreaFlowState(TEMP_AREA_FLOW_STATES.idle);
       setTempAreaVertices([]);
       tempAreaDraftGeometryRef.current = null;
+      setIsTempAreaVertexEditMode(false);
+      setIsTempAreaGeometryDirty(false);
+      tempAreaVertexOriginalGeometryRef.current = null;
+      tempAreaVertexWorkingGeometryRef.current = null;
+      tempAreaVertexEditIdRef.current = null;
+      tempAreaVertexSelectionRef.current = null;
+      clearTempAreaVertexMarkers();
     }
-  }, [isTempAreaLayerActive]);
+    resetMapCursor();
+  }, [isTempAreaLayerActive, resetMapCursor, clearTempAreaVertexMarkers]);
   const selectedFeatureProperties = selectedEditableFeature?.features?.[0]?.properties;
   const selectedFeatureCoordinates = selectedEditableFeature?.features?.[0]?.geometry?.coordinates;
   const selectedDoorId = selectedFeatureProperties?.door_id
@@ -848,6 +941,46 @@ const Amain = () => {
     || selectedFeatureProperties?.nodeID
     || selectedFeatureProperties?.id
     : null;
+  const applyAreaGeometryToSelection = useCallback((geometry) => {
+    if (!geometry) return null;
+
+    let nextSelection = null;
+
+    setSelectedEditableFeature((current) => {
+      const feature = current?.features?.[0];
+      if (!feature) return current;
+
+      const updatedFeature = { ...feature, geometry };
+      nextSelection = { ...current, features: [updatedFeature] };
+      return nextSelection;
+    });
+
+    return nextSelection;
+  }, []);
+  const applyTempAreaGeometryToSelection = useCallback((geometry) => {
+    if (!geometry) return null;
+
+    let nextSelection = null;
+
+    setSelectedEditableFeature((current) => {
+      const feature = current?.features?.[0];
+      if (!feature) return current;
+
+      const updatedFeature = { ...feature, geometry };
+      nextSelection = { ...current, features: [updatedFeature] };
+      return nextSelection;
+    });
+
+    if (nextSelection) {
+      tempAreaVertexSelectionRef.current = nextSelection;
+    }
+
+    return nextSelection;
+  }, [setSelectedEditableFeature]);
+
+  useEffect(() => {
+    tempAreaVertexDirtyRef.current = isTempAreaGeometryDirty;
+  }, [isTempAreaGeometryDirty]);
   const isTempAreaFormDisabled = isSavingTempAreaDetails || isLoadingTempAreaDetails;
   const showDoorTools = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && !!selectedDoorId && !!selectedEditableFeature;
   useEffect(() => {
@@ -3720,8 +3853,23 @@ const Amain = () => {
       setVanLineCoordinates([]);
       setIsTempAreaDrawingMode(false);
       setTempAreaVertices([]);
+      resetMapCursor();
     }
-  }, [activeMenu]);
+  }, [activeMenu, resetMapCursor]);
+
+  useEffect(() => {
+    if (!map) return undefined;
+
+    const updateLayerAvailability = () => setMapLayerAvailabilityVersion((current) => current + 1);
+
+    map.on('load', updateLayerAvailability);
+    map.on('styledata', updateLayerAvailability);
+
+    return () => {
+      map.off('load', updateLayerAvailability);
+      map.off('styledata', updateLayerAvailability);
+    };
+  }, [map]);
 
   useEffect(() => {
 
@@ -3817,11 +3965,6 @@ const Amain = () => {
     }
   }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
 
-  const clearVertexMarkers = useCallback(() => {
-    vertexMarkersRef.current.forEach((marker) => marker?.remove());
-    vertexMarkersRef.current = [];
-  }, []);
-
   useEffect(() => {
     setSelectedEditableFeature(null);
   }, [activeEditableLayerId]);
@@ -3868,6 +4011,8 @@ const Amain = () => {
   useEffect(() => {
     if (!selectedEditableFeature) {
       setIsAreaEditMode(false);
+      setIsAreaGeometryDirty(false);
+      areaOriginalGeometryRef.current = null;
       clearVertexMarkers();
     }
   }, [selectedEditableFeature, clearVertexMarkers]);
@@ -3875,6 +4020,8 @@ const Amain = () => {
   useEffect(() => {
     if (activeEditableLayer?.id !== 'areas-outline') {
       setIsAreaEditMode(false);
+      setIsAreaGeometryDirty(false);
+      areaOriginalGeometryRef.current = null;
       clearVertexMarkers();
     }
   }, [activeEditableLayer, clearVertexMarkers]);
@@ -3887,7 +4034,8 @@ const Amain = () => {
       setTempAreaMoveGeometry(null);
       tempAreaOriginalGeometryRef.current = null;
     }
-  }, [isTempAreaLayerActive]);
+    resetMapCursor();
+  }, [isTempAreaLayerActive, resetMapCursor]);
 
   useEffect(() => {
     setIsDoorMoveMode(false);
@@ -4204,7 +4352,7 @@ const Amain = () => {
     const handleMapClick = async (event) => {
       const { lngLat, point } = event;
 
-      if (isVanDrawingMode && isVanEdgesLayerActive) {
+      if (isVanDrawingMode && isVanDrawingLayerActive) {
         const newCoordinate = [lngLat.lng, lngLat.lat];
 
         setVanLineCoordinates((prev) => {
@@ -4221,6 +4369,21 @@ const Amain = () => {
       if (!activeEditableLayer) {
         console.warn('هیچ لایه قابل ویرایشی انتخاب نشده است.');
         return;
+      }
+
+      if (isTempAreaVertexEditMode && isTempAreaLayerActive) {
+        if (isTempAreaGeometryDirty) {
+          toast.error('اول ذخیره یا لغو کن');
+          return;
+        }
+
+        clearTempAreaVertexMarkers();
+        setIsTempAreaVertexEditMode(false);
+        setIsTempAreaGeometryDirty(false);
+        tempAreaVertexOriginalGeometryRef.current = null;
+        tempAreaVertexWorkingGeometryRef.current = null;
+        tempAreaVertexEditIdRef.current = null;
+        tempAreaVertexSelectionRef.current = null;
       }
 
       if (isTempAreaMoveMode && isTempAreaLayerActive && selectedTempAreaId) {
@@ -4257,7 +4420,16 @@ const Amain = () => {
       }
 
       if (isTempAreaDrawingMode && isTempAreaLayerActive) {
-        setTempAreaVertices((prev) => [...prev, [lngLat.lng, lngLat.lat]]);
+        setTempAreaVertices((prev) => {
+          const updatedVertices = [...prev, [lngLat.lng, lngLat.lat]];
+
+          if (prev.length === 0) {
+            const remainingPoints = Math.max(3 - updatedVertices.length, 0);
+            toast.info(`نقطه اول ثبت شد؛ ${remainingPoints} نقطه دیگر تا تکمیل نیاز است.`);
+          }
+
+          return updatedVertices;
+        });
         return;
       }
 
@@ -4364,13 +4536,16 @@ const Amain = () => {
 
     map.on('click', handleMapClick);
 
-    return () => map.off('click', handleMapClick);
+    return () => {
+      map.off('click', handleMapClick);
+      resetMapCursor();
+    };
   }, [
     map,
     activeMenu,
     activeEditableLayer,
     isVanDrawingMode,
-    isVanEdgesLayerActive,
+    isVanDrawingLayerActive,
     mapFloor,
     isDoorMoveMode,
     selectedDoorId,
@@ -4378,11 +4553,16 @@ const Amain = () => {
     selectedDoorAccessPointId,
     isTempAreaMoveMode,
     isTempAreaLayerActive,
+    isTempAreaDrawingMode,
     selectedTempAreaId,
     selectedEditableFeature,
     tempAreaMoveGeometry,
     translateGeometryByDelta,
-    refreshActiveEditableLayerTiles
+    isTempAreaVertexEditMode,
+    isTempAreaGeometryDirty,
+    clearTempAreaVertexMarkers,
+    refreshActiveEditableLayerTiles,
+    resetMapCursor
   ]);
 
   const handleZoomIn = () => {
@@ -4801,7 +4981,9 @@ const Amain = () => {
   const handleEditableLayerSelect = (layerId) => {
     const layerOption = editableLayerOptions.find((layer) => layer.id === layerId);
 
-    if (!canUserEditLayer(layerOption)) return;
+    const isLayerAvailable = isMapLayerAvailable(layerId);
+
+    if (!canUserEditLayer(layerOption) || !isLayerAvailable) return;
 
     setActiveEditableLayerId((current) => {
       const isSameLayer = current === layerId;
@@ -4815,6 +4997,8 @@ const Amain = () => {
     });
     setSelectedEditableFeature(null);
     setIsAreaEditMode(false);
+    setIsAreaGeometryDirty(false);
+    areaOriginalGeometryRef.current = null;
   };
 
   const rebuildSelectionFromVertices = useCallback((geometryType, updatedVertices) => {
@@ -4823,12 +5007,16 @@ const Amain = () => {
     const updatedGeometry = rebuildGeometryFromVertices(geometryType, updatedVertices);
     if (!updatedGeometry) return;
 
+    if (isAreaEditMode) {
+      setIsAreaGeometryDirty(true);
+    }
+
     setSelectedEditableFeature((current) => {
       if (!current?.features?.[0]) return current;
       const updatedFeature = { ...current.features[0], geometry: updatedGeometry };
       return { ...current, features: [updatedFeature] };
     });
-  }, []);
+  }, [isAreaEditMode]);
 
   const buildVertexMarkers = useCallback(() => {
     if (!map || !isAreaEditMode) {
@@ -4888,8 +5076,299 @@ const Amain = () => {
       return;
     }
 
-    setIsAreaEditMode((current) => !current);
+    if (!isAreaEditMode) {
+      const geometry = selectedEditableFeature?.features?.[0]?.geometry;
+      areaOriginalGeometryRef.current = geometry ? JSON.parse(JSON.stringify(geometry)) : null;
+      setIsAreaGeometryDirty(false);
+      setIsAreaEditMode(true);
+      return;
+    }
+
+    if (isAreaGeometryDirty && areaOriginalGeometryRef.current) {
+      applyAreaGeometryToSelection(areaOriginalGeometryRef.current);
+    }
+
+    setIsAreaGeometryDirty(false);
+    areaOriginalGeometryRef.current = null;
+    setIsAreaEditMode(false);
   };
+
+  const handleSaveAreaGeometry = async () => {
+    if (!isAreaEditMode) {
+      toast.info('ابتدا حالت ویرایش محدوده را فعال کنید');
+      return;
+    }
+
+    if (activeEditableLayer?.id !== 'areas-outline') {
+      toast.error('برای ذخیره هندسه، لایه محدوده‌ها باید فعال باشد');
+      return;
+    }
+
+    if (!selectedEditableFeature || !selectedAreaId) {
+      toast.error('هیچ محدوده‌ای برای ذخیره انتخاب نشده است');
+      return;
+    }
+
+    const geometry = selectedEditableFeature?.features?.[0]?.geometry;
+
+    if (!geometry) {
+      toast.error('هندسه محدوده برای ذخیره در دسترس نیست');
+      return;
+    }
+
+    try {
+      setIsSavingAreaGeometry(true);
+      await moveArea(selectedAreaId, { geom_geojson_4326: geometry });
+      toast.success('هندسه محدوده ذخیره شد');
+      areaOriginalGeometryRef.current = geometry ? JSON.parse(JSON.stringify(geometry)) : null;
+      setIsAreaGeometryDirty(false);
+      setIsAreaEditMode(false);
+      refreshActiveEditableLayerTiles();
+    } catch (error) {
+      toast.error(error?.message || 'ذخیره هندسه محدوده ناموفق بود');
+    } finally {
+      setIsSavingAreaGeometry(false);
+    }
+  };
+
+  const handleCancelAreaGeometry = () => {
+    if (!isAreaEditMode) return;
+
+    if (areaOriginalGeometryRef.current) {
+      applyAreaGeometryToSelection(JSON.parse(JSON.stringify(areaOriginalGeometryRef.current)));
+    }
+
+    setIsAreaGeometryDirty(false);
+    areaOriginalGeometryRef.current = null;
+    setIsAreaEditMode(false);
+    toast.info('ویرایش محدوده لغو شد');
+  };
+
+  const exitTempAreaVertexEditMode = useCallback((options = {}) => {
+    const { restoreOriginal = false } = options;
+
+    if (restoreOriginal && tempAreaVertexOriginalGeometryRef.current) {
+      applyTempAreaGeometryToSelection(tempAreaVertexOriginalGeometryRef.current);
+    }
+
+    clearTempAreaVertexMarkers();
+    setIsTempAreaVertexEditMode(false);
+    setIsTempAreaGeometryDirty(false);
+    tempAreaVertexOriginalGeometryRef.current = null;
+    tempAreaVertexWorkingGeometryRef.current = null;
+    tempAreaVertexEditIdRef.current = null;
+    tempAreaVertexSelectionRef.current = null;
+  }, [applyTempAreaGeometryToSelection, clearTempAreaVertexMarkers]);
+
+  const buildTempAreaVertexMarkers = useCallback(() => {
+    if (!map || !isTempAreaVertexEditMode) {
+      clearTempAreaVertexMarkers();
+      return;
+    }
+
+    if (!isTempAreaLayerActive || !selectedEditableFeature || !selectedTempAreaId) {
+      clearTempAreaVertexMarkers();
+      return;
+    }
+
+    if (tempAreaVertexEditIdRef.current && tempAreaVertexEditIdRef.current !== selectedTempAreaId) {
+      clearTempAreaVertexMarkers();
+      return;
+    }
+
+    const geometry = tempAreaVertexWorkingGeometryRef.current || selectedEditableFeature?.features?.[0]?.geometry;
+
+    if (!geometry || geometry.type !== 'Polygon') {
+      clearTempAreaVertexMarkers();
+      return;
+    }
+
+    tempAreaVertexWorkingGeometryRef.current = geometry;
+
+    const vertices = extractEditableVertices(geometry);
+
+    if (!vertices.length) {
+      clearTempAreaVertexMarkers();
+      return;
+    }
+
+    clearTempAreaVertexMarkers();
+
+    const highlightColor = activeEditableLayer?.highlightColor || '#0f172a';
+
+    const newMarkers = vertices.map((coord, index) => {
+      const marker = new maplibregl.Marker({ color: highlightColor, draggable: true, scale: 0.85 })
+        .setLngLat(coord)
+        .addTo(map);
+
+      const updateGeometryFromMarkers = () => {
+        const updatedVertices = newMarkers.map((m) => {
+          const { lng, lat } = m.getLngLat();
+          return [lng, lat];
+        });
+
+        const normalizedGeometry = rebuildGeometryFromVertices('Polygon', updatedVertices);
+        tempAreaVertexWorkingGeometryRef.current = normalizedGeometry;
+        applyTempAreaGeometryToSelection(normalizedGeometry);
+
+        if (!tempAreaVertexDirtyRef.current) {
+          setIsTempAreaGeometryDirty(true);
+        }
+      };
+
+      marker.on('drag', updateGeometryFromMarkers);
+      marker.on('dragend', updateGeometryFromMarkers);
+      marker.getElement().setAttribute('data-temp-area-vertex-index', index);
+
+      return marker;
+    });
+
+    tempAreaVertexMarkersRef.current = newMarkers;
+  }, [
+    map,
+    isTempAreaVertexEditMode,
+    isTempAreaLayerActive,
+    selectedEditableFeature,
+    selectedTempAreaId,
+    activeEditableLayer,
+    clearTempAreaVertexMarkers,
+    applyTempAreaGeometryToSelection,
+    rebuildGeometryFromVertices
+  ]);
+
+  useEffect(() => {
+    buildTempAreaVertexMarkers();
+
+    return () => {
+      clearTempAreaVertexMarkers();
+    };
+  }, [buildTempAreaVertexMarkers, clearTempAreaVertexMarkers]);
+
+  useEffect(() => {
+    if (!isTempAreaVertexEditMode) return;
+
+    if (activeMenu !== 'mapmanage') {
+      exitTempAreaVertexEditMode({ restoreOriginal: false });
+    }
+  }, [activeMenu, isTempAreaVertexEditMode, exitTempAreaVertexEditMode]);
+
+  const handleToggleTempAreaVertexEdit = () => {
+    if (!isTempAreaLayerActive) {
+      toast.error('برای ویرایش راس‌های محدوده موقت، لایه مربوطه را فعال کنید');
+      setOpenSubMenu(1);
+      return;
+    }
+
+    if (!selectedEditableFeature || !selectedTempAreaId) {
+      toast.error('برای ویرایش راس‌های محدوده موقت، ابتدا محدوده را انتخاب کنید');
+      return;
+    }
+
+    if (isTempAreaMoveMode) {
+      toast.error('برای ویرایش راس‌ها، ابتدا حالت جابجایی را غیرفعال کنید');
+      return;
+    }
+
+    const geometry = selectedEditableFeature?.features?.[0]?.geometry;
+
+    if (!geometry || geometry.type !== 'Polygon') {
+      toast.error('ویرایش راس‌ها فقط برای پلیگون محدوده موقت ممکن است');
+      return;
+    }
+
+    if (isTempAreaVertexEditMode) {
+      exitTempAreaVertexEditMode({ restoreOriginal: true });
+      return;
+    }
+
+    tempAreaVertexOriginalGeometryRef.current = JSON.parse(JSON.stringify(geometry));
+    tempAreaVertexWorkingGeometryRef.current = JSON.parse(JSON.stringify(geometry));
+    tempAreaVertexEditIdRef.current = selectedTempAreaId;
+    tempAreaVertexSelectionRef.current = selectedEditableFeature;
+    setIsTempAreaGeometryDirty(false);
+    setIsTempAreaVertexEditMode(true);
+    toast.info('حالت ویرایش راس‌های محدوده موقت فعال شد');
+  };
+
+  const handleCancelTempAreaVertexEdit = () => {
+    if (!isTempAreaVertexEditMode) return;
+
+    exitTempAreaVertexEditMode({ restoreOriginal: true });
+  };
+
+  const handleSaveTempAreaVertexEdit = async () => {
+    if (!isTempAreaVertexEditMode) return;
+
+    const workingGeometry = tempAreaVertexWorkingGeometryRef.current
+      || selectedEditableFeature?.features?.[0]?.geometry
+      || tempAreaVertexOriginalGeometryRef.current;
+
+    if (!workingGeometry || workingGeometry.type !== 'Polygon') {
+      toast.error('هندسه محدوده موقت برای ذخیره معتبر نیست');
+      return;
+    }
+
+    const normalizedGeometry = rebuildGeometryFromVertices('Polygon', extractEditableVertices(workingGeometry));
+
+    if (!normalizedGeometry || !isTempAreaPolygonValid(normalizedGeometry)) {
+      toast.error('هندسه محدوده موقت معتبر نیست. لطفاً پلیگون بدون خودتقاطع ایجاد کنید.');
+      return;
+    }
+
+    if (!selectedTempAreaId) {
+      toast.error('محدوده موقتی برای ذخیره انتخاب نشده است');
+      return;
+    }
+
+    const payload = {
+      floor: floorLabelToValue(mapFloor),
+      restrict_type: selectedFeatureProperties?.restrict_type || selectedFeatureProperties?.restrictType || 'close',
+      geom_geojson_4326: normalizedGeometry,
+      reason: selectedFeatureProperties?.reason ?? selectedFeatureProperties?.description ?? null
+    };
+
+    try {
+      setIsSavingTempAreaGeometry(true);
+      await updateTempBlockArea(selectedTempAreaId, payload);
+      applyTempAreaGeometryToSelection(normalizedGeometry);
+      toast.success('تغییرات راس‌های محدوده موقت ذخیره شد');
+      setIsTempAreaGeometryDirty(false);
+      exitTempAreaVertexEditMode({ restoreOriginal: false });
+      refreshActiveEditableLayerTiles();
+    } catch (error) {
+      toast.error(error?.message || 'ذخیره تغییرات محدوده موقت ناموفق بود');
+    } finally {
+      setIsSavingTempAreaGeometry(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isTempAreaVertexEditMode) return;
+
+    if (!isTempAreaLayerActive || !selectedEditableFeature || !selectedTempAreaId) {
+      exitTempAreaVertexEditMode({ restoreOriginal: false });
+      return;
+    }
+
+    if (tempAreaVertexEditIdRef.current && selectedTempAreaId !== tempAreaVertexEditIdRef.current) {
+      if (tempAreaVertexDirtyRef.current) {
+        toast.error('اول ذخیره یا لغو کن');
+        if (tempAreaVertexSelectionRef.current) {
+          setSelectedEditableFeature(tempAreaVertexSelectionRef.current);
+        }
+        return;
+      }
+
+      exitTempAreaVertexEditMode({ restoreOriginal: false });
+    }
+  }, [
+    isTempAreaVertexEditMode,
+    isTempAreaLayerActive,
+    selectedEditableFeature,
+    selectedTempAreaId,
+    exitTempAreaVertexEditMode,
+    setSelectedEditableFeature
+  ]);
 
   const formatDateTimeLocal = (value) => {
     if (!value) return '';
@@ -4962,7 +5441,8 @@ const Amain = () => {
     setTempAreaFlowState(TEMP_AREA_FLOW_STATES.idle);
     setTempAreaFormMode('edit');
     tempAreaDraftGeometryRef.current = null;
-  }, [currentJalaliDate.jm, currentJalaliDate.jy]);
+    resetMapCursor();
+  }, [currentJalaliDate.jm, currentJalaliDate.jy, resetMapCursor]);
 
   const populateTempAreaFormFromData = useCallback((normalizedData = {}, geometryOverride = null) => {
     const start = convertIsoToJalaliDateTime(normalizedData.valid_from);
@@ -5103,6 +5583,15 @@ const Amain = () => {
       return;
     }
 
+    if (isTempAreaVertexEditMode) {
+      if (isTempAreaGeometryDirty) {
+        toast.error('اول ذخیره یا لغو کن');
+        return;
+      }
+
+      exitTempAreaVertexEditMode({ restoreOriginal: false });
+    }
+
     const selectedFeature = selectedEditableFeature?.features?.[0];
     const currentGeometry = tempAreaMoveGeometry || selectedFeature?.geometry;
 
@@ -5213,19 +5702,52 @@ const Amain = () => {
       return;
     }
 
+    if (isTempAreaVertexEditMode) {
+      if (isTempAreaGeometryDirty) {
+        toast.error('اول ذخیره یا لغو کن');
+        return;
+      }
+
+      exitTempAreaVertexEditMode({ restoreOriginal: false });
+    }
+
+    ensureTempAreaDrawLayers();
+
+    if (tempAreaFlowState === TEMP_AREA_FLOW_STATES.drawing) {
+      toast.info('برای اتمام یا لغو ترسیم از دکمهٔ پایان ترسیم استفاده کنید');
+      return;
+    }
+
+    resetTempAreaFormState();
+    setTempAreaFormMode('create');
+    setTempAreaFlowState(TEMP_AREA_FLOW_STATES.drawing);
+    setTempAreaVertices([]);
+    tempAreaDraftGeometryRef.current = null;
+    setMapCursorForTempAreaDrawing();
+    setIsTempAreaDrawingMode(true);
+    toast.info('برای ترسیم محدوده موقت روی نقشه کلیک کنید');
+  };
+
+  const handleCompleteTempAreaDrawing = () => {
     if (tempAreaFlowState !== TEMP_AREA_FLOW_STATES.drawing) {
+      toast.info('برای پایان ترسیم ابتدا حالت ترسیم محدوده موقت را فعال کنید');
+      return;
+    }
+
+    const shouldFinalize = window.confirm('آیا می‌خواهید ترسیم محدوده موقت را به پایان برسانید؟ برای لغو روی «لغو» بزنید.');
+
+    if (!shouldFinalize) {
       resetTempAreaFormState();
-      setTempAreaFormMode('create');
-      setTempAreaFlowState(TEMP_AREA_FLOW_STATES.drawing);
       setTempAreaVertices([]);
+      setIsTempAreaDrawingMode(false);
       tempAreaDraftGeometryRef.current = null;
-      setIsTempAreaDrawingMode(true);
-      toast.info('برای ترسیم محدوده موقت روی نقشه کلیک کنید');
+      resetMapCursor();
+      toast.info('ترسیم محدوده موقت لغو شد');
       return;
     }
 
     if (tempAreaVertices.length < 3) {
-      toast.error('برای ثبت محدوده موقت حداقل سه نقطه نیاز است');
+      toast.error('برای اتمام ترسیم حداقل سه نقطه نیاز است');
       return;
     }
 
@@ -5238,6 +5760,7 @@ const Amain = () => {
 
     tempAreaDraftGeometryRef.current = geometry;
     setIsTempAreaDrawingMode(false);
+    resetMapCursor();
     setTempAreaFlowState(TEMP_AREA_FLOW_STATES.readyToSave);
     setTempAreaFormMode('create');
     populateTempAreaFormFromData({
@@ -5250,6 +5773,7 @@ const Amain = () => {
       geometry
     }, geometry);
     setIsTempAreaEditModalOpen(true);
+    toast.success('ترسیم محدوده موقت به پایان رسید. جزئیات را برای ثبت تکمیل کنید');
   };
 
   const handleDeleteTempArea = async () => {
@@ -5427,8 +5951,8 @@ const Amain = () => {
       return;
     }
 
-    if (!isVanEdgesLayerActive) {
-      toast.error('برای ترسیم مسیر ون، لایه مسیر ون را در حالت ویرایش فعال کنید');
+    if (!isVanDrawingLayerActive) {
+      toast.error('برای ترسیم مسیر ون، لایه گره‌های ون باید در حالت ویرایش فعال باشد');
       return;
     }
 
@@ -8106,8 +8630,8 @@ const Amain = () => {
                           disabled={!culturalPlaceCategory || isLoadingCulturalSubGroups}
                         >
                           <option value="" disabled>زیرگروه فرهنگی</option>
-                          {culturalSubGroupOptions.map((subGroup) => (
-                            <option key={`cultural-edit-subgroup-${subGroup.value}`} value={subGroup.value}>
+                          {culturalSubGroupOptions.map((subGroup, index) => (
+                            <option key={`cultural-edit-subgroup-${subGroup.value}-${index}`} value={subGroup.value}>
                               {subGroup.label}
                             </option>
                           ))}
@@ -8678,7 +9202,7 @@ const Amain = () => {
                       </svg>
                     </div>
                     {openSubMenu === 0 && (
-                      <div className="sub-buttons-temp-area">
+                      <div className="sub-buttons-temp-area temp-area-create-stack">
                         <button
                           className={`sub-btn temp-area-create ${isTempAreaDrawingMode ? 'active' : ''}`}
                           onClick={handleToggleTempAreaDrawing}
@@ -8700,6 +9224,29 @@ const Amain = () => {
                             <path d="M7 4l10 0l4 7l-9 9l-9 -9z" />
                           </svg>
                         </button>
+                        {isTempAreaDrawingMode && (
+                          <button
+                            className="sub-btn temp-area-complete with-label active"
+                            onClick={handleCompleteTempAreaDrawing}
+                            disabled={!isTempAreaDrawingMode}
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="20"
+                              height="20"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path d="M5 12l5 5l9 -14" />
+                            </svg>
+                            <span className="sub-btn-label">اتمام ترسیم</span>
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -8738,42 +9285,180 @@ const Amain = () => {
                         <button
                           className={`sub-btn move-temp-area ${isTempAreaMoveMode ? 'active' : ''}`}
                           onClick={handleTempAreaMoveToggle}
+                          disabled={!isTempAreaLayerActive || isTempAreaVertexEditMode || isSavingTempAreaGeometry}
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-drag-drop">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                            <path d="M19 11v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2" />
-                            <path d="M13 13l9 3l-4 2l-2 4l-3 -9" />
-                            <path d="M3 3l0 .01" />
-                            <path d="M7 3l0 .01" />
-                            <path d="M11 3l0 .01" />
-                            <path d="M15 3l0 .01" />
-                            <path d="M3 7l0 .01" />
-                            <path d="M3 11l0 .01" />
-                            <path d="M3 15l0 .01" />
+                          <svg xmlns="http://www.w3.org/2000/svg" shapeRendering="geometricPrecision" textRendering="geometricPrecision" imageRendering="optimizeQuality" fillRule="evenodd" clipRule="evenodd" viewBox="0 0 512 512"><path fill-rule="nonzero" d="M318.633 104.048h-49.644v94.774c22.158 5.014 39.533 22.56 44.319 44.772h94.644v-78.986L512 256l-104.048 91.392V268.989h-94.774c-4.968 21.952-22.237 39.221-44.189 44.189v94.774h78.403L256 512l-91.392-104.048H243.594v-94.644c-22.212-4.786-39.758-22.161-44.772-44.319h-94.774v78.403L0 256l104.048-91.392V243.594h94.644c4.83-22.419 22.483-40.072 44.902-44.902v-94.644h-78.986L256 0l91.392 104.048h-28.759z"/></svg>
+                        </button>
+                        <div className="temp-area-vertex-group">
+                          <button
+                            className={`sub-btn temp-area-vertex ${isTempAreaVertexEditMode ? 'active' : ''}`}
+                            onClick={handleToggleTempAreaVertexEdit}
+                            disabled={!isTempAreaLayerActive || isSavingTempAreaGeometry}
+                          >
+                            <svg
+                              version="1.1"
+                              id="Layer_1"
+                              xmlns="http://www.w3.org/2000/svg"
+                              xmlnsXlink="http://www.w3.org/1999/xlink"
+                              x="0px"
+                              y="0px"
+                              viewBox="0 0 116.28 122.88"
+                              xmlSpace="preserve"
+                            >
+                              <g>
+                                <path
+                                  className="st0"
+                                  d="M42.85,22.45L77.49,8l29.87,30.77L93.42,73.3c-23.64,6.55-45.66,16.11-66.45,27.96l-4.22-5.24l41.23-40.88 c0.83,0.38,1.73,0.57,2.64,0.57c0,0,0.01,0,0.01,0c3.56,0,6.44-2.88,6.44-6.44c0-3.55-2.88-6.44-6.44-6.44 c-3.55,0-6.44,2.88-6.44,6.44c0,1.15,0.3,2.23,0.83,3.16L20.22,92.97l-5.66-5.17C27.01,67.42,36.53,45.69,42.85,22.45L42.85,22.45z M87.36,0l28.93,29.64l-2.64,2.57l-2.64,2.57L82.08,5.13l2.64-2.57L87.36,0L87.36,0z M18.99,107.36 c13.56,12.48,21.54,7.04,32.83-0.68c9.34-6.38,20.63-14.09,37.75-16.64c1.22-4.1,5.02-7.09,9.51-7.09c5.48,0,9.92-4.44,9.92,9.92 c0,5.48-4.44,9.92-9.92,9.92c-3.85,0-7.19-2.19-8.83-5.4c-15.32,2.43-25.69,9.51-34.28,15.37c-14.47,9.88-24.58,16.78-42.3-0.24 c-1.19,0.48-2.46,0.73-3.74,0.73c0,0-0.01,0-0.01,0c-5.48,0-9.92-4.44-9.92-9.92c0-5.48,4.44-9.92,9.92-9.92 c5.48,0,9.92,4.44,9.92,9.92c0,0,0,0.01,0,0.01C19.84,104.73,19.55,106.09,18.99,107.36L18.99,107.36L18.99,107.36z"
+                                />
+                              </g>
+                            </svg>
+                            </button>
+                            {isTempAreaVertexEditMode && (
+                              <div className="temp-area-vertex-actions">
+                                <button
+                                  className="sub-btn temp-area-save with-label"
+                                  onClick={handleSaveTempAreaVertexEdit}
+                                  disabled={!isTempAreaGeometryDirty || isSavingTempAreaGeometry}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M9 11l3 3l8 -8" />
+                                    <path d="M20 12v6a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h9" />
+                                  </svg>
+                                  <span className="sub-btn-label">ذخیره</span>
+                                </button>
+                                <button
+                                  className="sub-btn temp-area-cancel with-label"
+                                  onClick={handleCancelTempAreaVertexEdit}
+                                  disabled={isSavingTempAreaGeometry}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M18 6l-12 12" />
+                                    <path d="M6 6l12 12" />
+                                  </svg>
+                                  <span className="sub-btn-label">لغو</span>
+                                </button>
+                              </div>
+                            )}
+                        </div>
+                        <div className="temp-area-draw-group">
+                          <button
+                            className="sub-btn create-temp-area"
+                            onClick={handleToggleTempAreaDrawing}
+                            disabled={!isTempAreaLayerActive || isTempAreaVertexEditMode || isSavingTempAreaGeometry}
+                          >
+                            <svg
+                              version="1.1"
+                              id="Layer_1"
+                              xmlns="http://www.w3.org/2000/svg"
+                              xmlnsXlink="http://www.w3.org/1999/xlink"
+                              x="0px"
+                              y="0px"
+                              viewBox="0 0 106.67 122.88"
+                              xmlSpace="preserve"
+                            >
+                              <g>
+                                <path
+                                  className="st0"
+                                  d="M87.73,0c1.3-0.01,2.42,0.43,3.39,1.35l14.16,13.55c0.92,0.88,1.37,2.04,1.39,3.32 c0.02,1.3-0.36,2.49-1.26,3.39l-7.54,7.84L76.95,9.25l7.46-7.77C85.32,0.53,86.43,0.02,87.73,0L87.73,0L87.73,0z M21.44,72.88 c2.56-0.79,5.26,0.65,6.05,3.2c0.79,2.56-0.65,5.26-3.2,6.05c-7.45,2.28-12.44,6.7-14.1,10.85c-0.44,1.11-0.59,2.12-0.42,2.96 c0.13,0.63,0.51,1.21,1.14,1.66c2.72,1.99,8.58,2.5,18.42,0.11c4.76-1.16,2.81-0.68,5.99-1.27c6.32-1.17,12.63-1.97,17.72-1.72 c6.68,0.33,11.7,2.48,13.41,7.61c1.11,3.32,0.8,6.2,0.52,8.78c-0.1,0.93-0.19,1.79-0.15,2.36c0,0.02,1.01-0.05,5.9-0.44 c5.66-0.45,11.52-2.68,17.3-4.89c2.97-1.13,5.91-2.25,9.25-3.28c2.56-0.78,5.26,0.67,6.03,3.22c0.78,2.56-0.67,5.26-3.22,6.03 c-2.59,0.79-5.59,1.94-8.6,3.08c-6.45,2.46-12.96,4.94-20,5.5c-12.88,1.01-15.87-2.63-16.33-8.48c-0.11-1.38,0.03-2.71,0.18-4.14 c0.17-1.6,0.36-3.39-0.07-4.69c-0.19-0.58-2.02-0.88-4.68-1c-4.26-0.21-9.84,0.51-15.52,1.57c-2.83,0.52-0.8,0.02-5.45,1.15 c-12.96,3.15-21.57,1.81-26.39-1.71c-2.71-1.97-4.32-4.56-4.94-7.47c-0.58-2.71-0.25-5.63,0.91-8.54 C3.81,82.85,11.04,76.06,21.44,72.88L21.44,72.88L21.44,72.88z M44.06,51.71l12.84,12.35l-15.7,4.22 c-0.57,0.11-0.79-0.12-0.69-0.64L44.06,51.71L44.06,51.71L44.06,51.71z M70.31,16.13l20.91,20.14L62.66,66.41l-25.59,6.86 c-0.92,0.18-1.28-0.18-1.13-1.05l5.8-25.94L70.31,16.13L70.31,16.13L70.31,16.13z"
+                                />
+                              </g>
+                            </svg>
+                          </button>
+                          {isTempAreaDrawingMode && (
+                            <button
+                              className="sub-btn temp-area-complete with-label"
+                              onClick={handleCompleteTempAreaDrawing}
+                              disabled={isTempAreaVertexEditMode || isSavingTempAreaGeometry}
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="20"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M5 12l5 5l9 -14" />
+                              </svg>
+                              <span className="sub-btn-label">اتمام ترسیم</span>
+                            </button>
+                          )}
+                        </div>
+                        {/* <button
+                          className={`sub-btn temp-area-complete with-label ${isTempAreaDrawingMode ? 'active' : ''}`}
+                          onClick={handleCompleteTempAreaDrawing}
+                          disabled={!isTempAreaDrawingMode || isTempAreaVertexEditMode || isSavingTempAreaGeometry}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <g>
+                              <path
+                                className="st0"
+                                d="M87.73,0c1.3-0.01,2.42,0.43,3.39,1.35l14.16,13.55c0.92,0.88,1.37,2.04,1.39,3.32 c0.02,1.3-0.36,2.49-1.26,3.39l-7.54,7.84L76.95,9.25l7.46-7.77C85.32,0.53,86.43,0.02,87.73,0L87.73,0L87.73,0z M21.44,72.88 c2.56-0.79,5.26,0.65,6.05,3.2c0.79,2.56-0.65,5.26-3.2,6.05c-7.45,2.28-12.44,6.7-14.1,10.85c-0.44,1.11-0.59,2.12-0.42,2.96 c0.13,0.63,0.51,1.21,1.14,1.66c2.72,1.99,8.58,2.5,18.42,0.11c4.76-1.16,2.81-0.68,5.99-1.27c6.32-1.17,12.63-1.97,17.72-1.72 c6.68,0.33,11.7,2.48,13.41,7.61c1.11,3.32,0.8,6.2,0.52,8.78c-0.1,0.93-0.19,1.79-0.15,2.36c0,0.02,1.01-0.05,5.9-0.44 c5.66-0.45,11.52-2.68,17.3-4.89c2.97-1.13,5.91-2.25,9.25-3.28c2.56-0.78,5.26,0.67,6.03,3.22c0.78,2.56-0.67,5.26-3.22,6.03 c-2.59,0.79-5.59,1.94-8.6,3.08c-6.45,2.46-12.96,4.94-20,5.5c-12.88,1.01-15.87-2.63-16.33-8.48c-0.11-1.38,0.03-2.71,0.18-4.14 c0.17-1.6,0.36-3.39-0.07-4.69c-0.19-0.58-2.02-0.88-4.68-1c-4.26-0.21-9.84,0.51-15.52,1.57c-2.83,0.52-0.8,0.02-5.45,1.15 c-12.96,3.15-21.57,1.81-26.39-1.71c-2.71-1.97-4.32-4.56-4.94-7.47c-0.58-2.71-0.25-5.63,0.91-8.54 C3.81,82.85,11.04,76.06,21.44,72.88L21.44,72.88L21.44,72.88z M44.06,51.71l12.84,12.35l-15.7,4.22 c-0.57,0.11-0.79-0.12-0.69-0.64L44.06,51.71L44.06,51.71L44.06,51.71z M70.31,16.13l20.91,20.14L62.66,66.41l-25.59,6.86 c-0.92,0.18-1.28-0.18-1.13-1.05l5.8-25.94L70.31,16.13L70.31,16.13L70.31,16.13z"
+                              />
+                            </g>
                           </svg>
-                        </button>
-                        <button className="sub-btn create-temp-area" onClick={handleToggleTempAreaDrawing} disabled={!isTempAreaLayerActive}>
-                          <svg width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.354 13.646l2.853 2.854-2.854 2.854-.707-.707L21.293 17H17v4.293l1.646-1.646.707.707-2.853 2.853-2.854-2.854.707-.707L16 21.293V17h-4.293l1.646 1.646-.707.707L9.793 16.5l2.854-2.854.707.707L11.707 16H16v-4.293l-1.646 1.646-.707-.707L16.5 9.793l2.854 2.854-.707.707L17 11.707V16h4.293l-1.646-1.646zM9 6H6.537L2.468 18l-.947-.321L5.48 6H4V1h5v2h9v1H9zM8 5V2H5v3z" /><path fill="none" d="M0 0h24v24H0z" /></svg>
-                        </button>
-                        <button className="sub-btn edit-temp-area" onClick={handleOpenTempAreaEditModal}>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                            <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
-                            <path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" />
-                            <path d="M16 5l3 3" />
-                          </svg>
-                        </button>
-                        <button className="sub-btn delete-temp-area" onClick={handleDeleteTempArea}>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                            <path d="M4 7l16 0" />
-                            <path d="M10 11l0 6" />
-                            <path d="M14 11l0 6" />
-                            <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
-                            <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
-                          </svg>
-                        </button>
-                      </div>
+                        </button> */}
+                          {isTempAreaDrawingMode && (
+                            <button
+                              className="sub-btn temp-area-complete with-label"
+                              onClick={handleCompleteTempAreaDrawing}
+                              disabled={isTempAreaVertexEditMode || isSavingTempAreaGeometry}
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="20"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M5 12l5 5l9 -14" />
+                              </svg>
+                              <span className="sub-btn-label">اتمام ترسیم</span>
+                            </button>
+                          )}
+                          <button
+                            className="sub-btn edit-temp-area"
+                            onClick={handleOpenTempAreaEditModal}
+                            disabled={isTempAreaVertexEditMode || isSavingTempAreaGeometry}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" shapeRendering="geometricPrecision" textRendering="geometricPrecision" imageRendering="optimizeQuality" fillRule="evenodd" clipRule="evenodd" viewBox="0 0 512 438.76"><path d="M61.42 0h338.91c33.78 0 61.42 27.65 61.42 61.42V178.3c-2.65-.26-5.31-.34-7.96-.22-1.79.05-3.59.2-5.4.44-10.99 1.52-22.13 6.81-30.32 14.38H242.91v87.19h83.02l-27.87 26.32h-55.15v87.19h9.12l-6.73 34.81H61.42C27.65 428.41 0 400.77 0 366.98V61.42C0 27.64 27.64 0 61.42 0zm303.35 428.24-72.14 10.52 14.58-75.31 57.56 64.79zm-33.7-86.51L450.8 228.58c2.23-2.19 6.19-3.1 8.3-.83l51.52 55.84c2.31 2.56 1.54 6.26-.96 8.62L388.57 406.56l-57.5-64.83zM30.13 306.41h186.46v87.19H30.13v-87.19zm0-227.01h186.46v87.18H30.13V79.4zm0 113.5h186.46v87.19H30.13V192.9zM242.91 79.4h186.47v87.18H242.91V79.4z"/></svg>
+                          </button>
+                          <button
+                            className="sub-btn delete-temp-area"
+                            onClick={handleDeleteTempArea}
+                            disabled={isTempAreaVertexEditMode || isSavingTempAreaGeometry}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path d="M4 7l16 0" />
+                              <path d="M10 11l0 6" />
+                              <path d="M14 11l0 6" />
+                              <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
+                              <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
+                            </svg>
+                          </button>
+                        </div>
                     )}
                     <div className="date-separator3"></div>
 
@@ -8790,27 +9475,42 @@ const Amain = () => {
                     </div>
                     {openSubMenu === 2 && (
                       <div className="sub-buttons2">
-                        <button className="sub-btn move-area" onClick={handleAreaEditModeToggle}>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-drag-drop">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                            <path d="M19 11v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2" />
-                            <path d="M13 13l9 3l-4 2l-2 4l-3 -9" />
-                            <path d="M3 3l0 .01" />
-                            <path d="M7 3l0 .01" />
-                            <path d="M11 3l0 .01" />
-                            <path d="M15 3l0 .01" />
-                            <path d="M3 7l0 .01" />
-                            <path d="M3 11l0 .01" />
-                            <path d="M3 15l0 .01" />
-                          </svg>
+                        <button
+                          className={`sub-btn move-area ${isAreaEditMode ? 'active' : ''}`}
+                          onClick={handleAreaEditModeToggle}
+                          disabled={isSavingAreaGeometry}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" shapeRendering="geometricPrecision" textRendering="geometricPrecision" imageRendering="optimizeQuality" fillRule="evenodd" clipRule="evenodd" viewBox="0 0 512 512"><path fill-rule="nonzero" d="M318.633 104.048h-49.644v94.774c22.158 5.014 39.533 22.56 44.319 44.772h94.644v-78.986L512 256l-104.048 91.392V268.989h-94.774c-4.968 21.952-22.237 39.221-44.189 44.189v94.774h78.403L256 512l-91.392-104.048H243.594v-94.644c-22.212-4.786-39.758-22.161-44.772-44.319h-94.774v78.403L0 256l104.048-91.392V243.594h94.644c4.83-22.419 22.483-40.072 44.902-44.902v-94.644h-78.986L256 0l91.392 104.048h-28.759z"/></svg>
                         </button>
+                        {isAreaEditMode && (
+                          <div className="area-edit-actions">
+                            <button
+                              className="sub-btn area-save with-label"
+                              onClick={handleSaveAreaGeometry}
+                              disabled={isSavingAreaGeometry}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M5 12l5 5l9 -14" />
+                              </svg>
+                              <span className="sub-btn-label">اتمام ترسیم</span>
+                            </button>
+                            <button
+                              className="sub-btn area-cancel with-label"
+                              onClick={handleCancelAreaGeometry}
+                              disabled={isSavingAreaGeometry}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M18 6l-12 12" />
+                                <path d="M6 6l12 12" />
+                              </svg>
+                              <span className="sub-btn-label">لغو</span>
+                            </button>
+                          </div>
+                        )}
                         <button className="sub-btn edit-area" onClick={handleOpenAddPlaceWithRoofOption}>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                            <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
-                            <path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" />
-                            <path d="M16 5l3 3" />
-                          </svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" shapeRendering="geometricPrecision" textRendering="geometricPrecision" imageRendering="optimizeQuality" fillRule="evenodd" clipRule="evenodd" viewBox="0 0 512 438.76"><path d="M61.42 0h338.91c33.78 0 61.42 27.65 61.42 61.42V178.3c-2.65-.26-5.31-.34-7.96-.22-1.79.05-3.59.2-5.4.44-10.99 1.52-22.13 6.81-30.32 14.38H242.91v87.19h83.02l-27.87 26.32h-55.15v87.19h9.12l-6.73 34.81H61.42C27.65 428.41 0 400.77 0 366.98V61.42C0 27.64 27.64 0 61.42 0zm303.35 428.24-72.14 10.52 14.58-75.31 57.56 64.79zm-33.7-86.51L450.8 228.58c2.23-2.19 6.19-3.1 8.3-.83l51.52 55.84c2.31 2.56 1.54 6.26-.96 8.62L388.57 406.56l-57.5-64.83zM30.13 306.41h186.46v87.19H30.13v-87.19zm0-227.01h186.46v87.18H30.13V79.4zm0 113.5h186.46v87.19H30.13V192.9zM242.91 79.4h186.47v87.18H242.91V79.4z"/></svg>
                         </button>
                         <button className="sub-btn delete-area" onClick={handleDeleteSelectedArea}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
@@ -8844,15 +9544,10 @@ const Amain = () => {
                           disabled={isSavingVanRoute}
                           onClick={handleToggleVanDrawing}
                         >
-                          <svg width="800px" height="800px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.354 13.646l2.853 2.854-2.854 2.854-.707-.707L21.293 17H17v4.293l1.646-1.646.707.707-2.853 2.853-2.854-2.854.707-.707L16 21.293V17h-4.293l1.646 1.646-.707.707L9.793 16.5l2.854-2.854.707.707L11.707 16H16v-4.293l-1.646 1.646-.707-.707L16.5 9.793l2.854 2.854-.707.707L17 11.707V16h4.293l-1.646-1.646zM9 6H6.537L2.468 18l-.947-.321L5.48 6H4V1h5v2h9v1H9zM8 5V2H5v3z" /><path fill="none" d="M0 0h24v24H0z" /></svg>
+                          <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 106.67 122.88" xmlSpace="preserve"><g><path className="st0" d="M87.73,0c1.3-0.01,2.42,0.43,3.39,1.35l14.16,13.55c0.92,0.88,1.37,2.04,1.39,3.32 c0.02,1.3-0.36,2.49-1.26,3.39l-7.54,7.84L76.95,9.25l7.46-7.77C85.32,0.53,86.43,0.02,87.73,0L87.73,0L87.73,0z M21.44,72.88 c2.56-0.79,5.26,0.65,6.05,3.2c0.79,2.56-0.65,5.26-3.2,6.05c-7.45,2.28-12.44,6.7-14.1,10.85c-0.44,1.11-0.59,2.12-0.42,2.96 c0.13,0.63,0.51,1.21,1.14,1.66c2.72,1.99,8.58,2.5,18.42,0.11c4.76-1.16,2.81-0.68,5.99-1.27c6.32-1.17,12.63-1.97,17.72-1.72 c6.68,0.33,11.7,2.48,13.41,7.61c1.11,3.32,0.8,6.2,0.52,8.78c-0.1,0.93-0.19,1.79-0.15,2.36c0,0.02,1.01-0.05,5.9-0.44 c5.66-0.45,11.52-2.68,17.3-4.89c2.97-1.13,5.91-2.25,9.25-3.28c2.56-0.78,5.26,0.67,6.03,3.22c0.78,2.56-0.67,5.26-3.22,6.03 c-2.59,0.79-5.59,1.94-8.6,3.08c-6.45,2.46-12.96,4.94-20,5.5c-12.88,1.01-15.87-2.63-16.33-8.48c-0.11-1.38,0.03-2.71,0.18-4.14 c0.17-1.6,0.36-3.39-0.07-4.69c-0.19-0.58-2.02-0.88-4.68-1c-4.26-0.21-9.84,0.51-15.52,1.57c-2.83,0.52-0.8,0.02-5.45,1.15 c-12.96,3.15-21.57,1.81-26.39-1.71c-2.71-1.97-4.32-4.56-4.94-7.47c-0.58-2.71-0.25-5.63,0.91-8.54 C3.81,82.85,11.04,76.06,21.44,72.88L21.44,72.88L21.44,72.88z M44.06,51.71l12.84,12.35l-15.7,4.22 c-0.57,0.11-0.79-0.12-0.69-0.64L44.06,51.71L44.06,51.71L44.06,51.71z M70.31,16.13l20.91,20.14L62.66,66.41l-25.59,6.86 c-0.92,0.18-1.28-0.18-1.13-1.05l5.8-25.94L70.31,16.13L70.31,16.13L70.31,16.13z"/></g></svg>
                         </button>
                         <button className="sub-btn move-van-node">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                            <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
-                            <path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" />
-                            <path d="M16 5l3 3" />
-                          </svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" shapeRendering="geometricPrecision" textRendering="geometricPrecision" imageRendering="optimizeQuality" fillRule="evenodd" clipRule="evenodd" viewBox="0 0 512 512"><path fillRule="nonzero" d="M318.633 104.048h-49.644v94.774c22.158 5.014 39.533 22.56 44.319 44.772h94.644v-78.986L512 256l-104.048 91.392V268.989h-94.774c-4.968 21.952-22.237 39.221-44.189 44.189v94.774h78.403L256 512l-91.392-104.048H243.594v-94.644c-22.212-4.786-39.758-22.161-44.772-44.319h-94.774v78.403L0 256l104.048-91.392V243.594h94.644c4.83-22.419 22.483-40.072 44.902-44.902v-94.644h-78.986L256 0l91.392 104.048h-28.759z"/></svg>
                         </button>
                         <button className="sub-btn delete-van-node" onClick={handleVanNodeDelete}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
@@ -8881,26 +9576,10 @@ const Amain = () => {
                     {openSubMenu === 4 && showDoorTools && (
                       <div className="sub-buttons4">
                         <button className="sub-btn move-door-point" onClick={handleDoorMoveStart}>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-drag-drop">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                            <path d="M19 11v-2a2 2 0 0 0 -2 -2h-8a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2" />
-                            <path d="M13 13l9 3l-4 2l-2 4l-3 -9" />
-                            <path d="M3 3l0 .01" />
-                            <path d="M7 3l0 .01" />
-                            <path d="M11 3l0 .01" />
-                            <path d="M15 3l0 .01" />
-                            <path d="M3 7l0 .01" />
-                            <path d="M3 11l0 .01" />
-                            <path d="M3 15l0 .01" />
-                          </svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" shapeRendering="geometricPrecision" textRendering="geometricPrecision" imageRendering="optimizeQuality" fillRule="evenodd" clipRule="evenodd" viewBox="0 0 512 512"><path fill-rule="nonzero" d="M318.633 104.048h-49.644v94.774c22.158 5.014 39.533 22.56 44.319 44.772h94.644v-78.986L512 256l-104.048 91.392V268.989h-94.774c-4.968 21.952-22.237 39.221-44.189 44.189v94.774h78.403L256 512l-91.392-104.048H243.594v-94.644c-22.212-4.786-39.758-22.161-44.772-44.319h-94.774v78.403L0 256l104.048-91.392V243.594h94.644c4.83-22.419 22.483-40.072 44.902-44.902v-94.644h-78.986L256 0l91.392 104.048h-28.759z"/></svg>
                         </button>
                         <button className="sub-btn edit-door-point" onClick={handleDoorEdit}>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-edit">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                            <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
-                            <path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" />
-                            <path d="M16 5l3 3" />
-                          </svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" shapeRendering="geometricPrecision" textRendering="geometricPrecision" imageRendering="optimizeQuality" fillRule="evenodd" clipRule="evenodd" viewBox="0 0 512 438.76"><path d="M61.42 0h338.91c33.78 0 61.42 27.65 61.42 61.42V178.3c-2.65-.26-5.31-.34-7.96-.22-1.79.05-3.59.2-5.4.44-10.99 1.52-22.13 6.81-30.32 14.38H242.91v87.19h83.02l-27.87 26.32h-55.15v87.19h9.12l-6.73 34.81H61.42C27.65 428.41 0 400.77 0 366.98V61.42C0 27.64 27.64 0 61.42 0zm303.35 428.24-72.14 10.52 14.58-75.31 57.56 64.79zm-33.7-86.51L450.8 228.58c2.23-2.19 6.19-3.1 8.3-.83l51.52 55.84c2.31 2.56 1.54 6.26-.96 8.62L388.57 406.56l-57.5-64.83zM30.13 306.41h186.46v87.19H30.13v-87.19zm0-227.01h186.46v87.18H30.13V79.4zm0 113.5h186.46v87.19H30.13V192.9zM242.91 79.4h186.47v87.18H242.91V79.4z"/></svg>
                         </button>
                         <button className="sub-btn delete-door-point" onClick={handleDoorDelete}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
@@ -8948,14 +9627,18 @@ const Amain = () => {
                         {haramAdminVectorTileConfig.map(layer => {
                           const layerOption = editableLayerOptions.find((option) => option.id === layer.id);
                           const isLayerActive = activeEditableLayer?.id === layer.id;
-                          const isLayerSelectable = canUserEditLayer(layerOption);
+                          const hasCorrespondingLayer = isMapLayerAvailable(layer.id);
+                          const canEditLayer = canUserEditLayer(layerOption);
+                          const isLayerSelectable = canEditLayer && hasCorrespondingLayer;
                           const editButtonTitle = !layerOption?.isEditable
                             ? 'ویرایش برای این لایه غیرفعال است'
-                            : !isLayerSelectable
-                              ? 'دسترسی لازم برای ویرایش این لایه را ندارید'
-                              : isLayerActive
-                                ? 'غیرفعال کردن ویرایش این لایه'
-                                : 'فعال‌سازی ویرایش این لایه';
+                            : !hasCorrespondingLayer
+                              ? 'لایه متناظر روی نقشه موجود نیست'
+                              : !canEditLayer
+                                ? 'دسترسی لازم برای ویرایش این لایه را ندارید'
+                                : isLayerActive
+                                  ? 'غیرفعال کردن ویرایش این لایه'
+                                  : 'فعال‌سازی ویرایش این لایه';
 
                           return (
                             <label
@@ -9810,11 +10493,11 @@ const Amain = () => {
                               disabled={isLoadingGroups}
                             >
                               <option value="" disabled>گروه اصلی</option>
-                              {groupOptions.map((group) => (
-                                <option key={group.value} value={group.value}>
-                                  {group.label}
-                                </option>
-                              ))}
+                                {groupOptions.map((group, index) => (
+                                  <option key={`group-${group.value}-${index}`} value={group.value}>
+                                    {group.label}
+                                  </option>
+                                ))}
                             </select>
                           </div>
 
@@ -9826,11 +10509,11 @@ const Amain = () => {
                               disabled={!placeCategory || isLoadingSubGroups}
                             >
                               <option value="" disabled>زیرگروه</option>
-                              {subGroupOptions.map((subGroup) => (
-                                <option key={subGroup.value} value={subGroup.value}>
-                                  {subGroup.label}
-                                </option>
-                              ))}
+                                {subGroupOptions.map((subGroup, index) => (
+                                  <option key={`subgroup-${subGroup.value}-${index}`} value={subGroup.value}>
+                                    {subGroup.label}
+                                  </option>
+                                ))}
                             </select>
                           </div>
 
@@ -11198,8 +11881,8 @@ const Amain = () => {
                             disabled={!culturalPlaceCategory || isLoadingCulturalSubGroups}
                           >
                             <option value="" disabled>زیرگروه فرهنگی</option>
-                            {culturalSubGroupOptions.map((subGroup) => (
-                              <option key={`cultural-subgroup-${subGroup.value}`} value={subGroup.value}>
+                            {culturalSubGroupOptions.map((subGroup, index) => (
+                              <option key={`cultural-subgroup-${subGroup.value}-${index}`} value={subGroup.value}>
                                 {subGroup.label}
                               </option>
                             ))}
@@ -11844,7 +12527,22 @@ const Amain = () => {
                               className="remove-file-btn"
                               onClick={() => handleRemoveFile(primaryImage.id, 'image')}
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-x"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="red"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="icon icon-tabler icons-tabler-outline icon-tabler-x"
+                              >
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M18 6l-12 12" />
+                                <path d="M6 6l12 12" />
+                              </svg>
                             </button>
                           </div>
                         </div>
@@ -11893,7 +12591,22 @@ const Amain = () => {
                                   className="remove-file-btn-small"
                                   onClick={() => handleRemoveFile(file.id, 'image')}
                                 >
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-x"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="red"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className="icon icon-tabler icons-tabler-outline icon-tabler-x"
+                                  >
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M18 6l-12 12" />
+                                    <path d="M6 6l12 12" />
+                                  </svg>
                                 </button>
                               </div>
                             </div>

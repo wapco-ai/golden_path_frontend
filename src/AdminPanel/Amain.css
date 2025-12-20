@@ -2790,7 +2790,7 @@ body {
 
 .dropdown-field select {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M3.64645 5.64645C3.84171 5.45118 4.15829 5.45118 4.35355 5.64645L8 9.29289L11.6464 5.64645C11.8417 5.45118 12.1583 5.45118 12.3536 5.64645C12.5488 5.84171 12.5488 6.15829 12.3536 6.35355L8.35355 10.3536C8.15829 10.5488 7.84171 10.5488 7.64645 10.3536L3.64645 6.35355C3.45118 6.15829 3.45118 5.84171 3.64645 5.64645Z' fill='%231E2023'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fillRule='evenodd' clipRule='evenodd' d='M3.64645 5.64645C3.84171 5.45118 4.15829 5.45118 4.35355 5.64645L8 9.29289L11.6464 5.64645C11.8417 5.45118 12.1583 5.45118 12.3536 5.64645C12.5488 5.84171 12.5488 6.15829 12.3536 6.35355L8.35355 10.3536C8.15829 10.5488 7.84171 10.5488 7.64645 10.3536L3.64645 6.35355C3.45118 6.15829 3.45118 5.84171 3.64645 5.64645Z' fill='%231E2023'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: left 12px center;
   background-size: 16px;
@@ -7025,7 +7025,7 @@ body {
 
 .edit-form-input {
   width: 100%;
-  padding: 12px 50px 12px 12px;
+  padding: 12px 12px 12px 50px;
   border: 1px solid #D9D9D9;
   border-radius: 8px;
   font-size: 14px;
@@ -7055,7 +7055,7 @@ body {
 
 .language-input-btn-edit {
   position: absolute;
-  right: 12px;
+  left: 12px;
   top: 32%;
   transform: translateY(-50%);
   background: none;
@@ -7069,7 +7069,7 @@ body {
 
 .language-input-btn-edit1 {
   position: absolute;
-  right: 12px;
+  left: 12px;
   top: 50%;
   transform: translateY(-50%);
   background: none;
@@ -7242,6 +7242,31 @@ body {
   }
 }
 
+.sub-buttons-temp-area {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.temp-area-create-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.sub-buttons-temp-area .sub-btn:not(:disabled):hover,
+.sub-buttons1 .sub-btn:not(:disabled):hover {
+  background: #F5F6FF;
+  border-color: #0F71EF;
+}
+
+.sub-buttons-temp-area .sub-btn:not(:disabled):hover .sub-btn-label,
+.sub-buttons1 .sub-btn:not(:disabled):hover .sub-btn-label {
+  color: #0F71EF;
+}
+
 .sub-buttons1 {
   display: flex;
   gap: 6px;
@@ -7278,6 +7303,47 @@ body {
   flex-direction: row-reverse;
 }
 
+.temp-area-vertex-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+.temp-area-vertex-actions {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 100%;
+  transform: translateX(-50%);
+}
+
+.area-edit-actions {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  gap: 6px;
+}
+
+.temp-area-draw-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+.temp-area-complete {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+}
 .sub-btn {
   width: 30px;
   height: 30px;
@@ -7288,6 +7354,23 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+}
+
+.sub-btn.with-label {
+  width: auto;
+  min-width: 30px;
+  padding: 0 8px;
+  gap: 6px;
+}
+
+.sub-btn-label {
+  font-size: 10px;
+  white-space: nowrap;
+  color: #1E2023;
+}
+
+.sub-btn:disabled .sub-btn-label {
+  color: #999;
 }
 
 /* Orientation Modal Styles */

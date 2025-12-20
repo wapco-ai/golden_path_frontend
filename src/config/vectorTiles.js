@@ -330,7 +330,7 @@ export const haramAdminVectorTileConfig = [
     type: 'line',
     minzoom: 15,
     maxzoom: 22,
-    visibleByDefault: false,
+    visibleByDefault: true,
     paint: {
       'line-color': '#ffddcc',
       'line-width': 2
@@ -392,7 +392,7 @@ export const layerEditSettings = {
   'van-nodes': {
     enabled: true,
     highlightColor: '#0f172a',
-    requiredPermission: 'map:edit:areas'
+    requiredPermission: 'map:edit:van-nodes'
   },
   doors: {
     enabled: false,

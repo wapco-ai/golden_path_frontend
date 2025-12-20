@@ -99,20 +99,48 @@ const extractCoordinates = (item) => {
   return null;
 };
 
+const resolveGroupKey = (item) => {
+  const group = item?.group ?? item?.group_id ?? item?.groupId;
+
+  if (typeof group === 'object' && group !== null) {
+    return group.value ?? group.id ?? group.key ?? undefined;
+  }
+
+  return group ?? undefined;
+};
+
+const normalizeSubGroupItem = (item, language) => ({
+  ...item,
+  label: localizeField(item?.label, language) || item?.value,
+  address: localizeField(item?.address, language),
+  description: localizeField(item?.description, language),
+  coordinates: extractCoordinates(item) || undefined
+});
+
 export const normalizeSubGroupMetadata = (subGroups, language) => {
   if (!subGroups || typeof subGroups !== 'object') {
     return {};
   }
 
+  // If the API returns an array (e.g. when requesting a single group),
+  // group the items by their group identifier so consumers can still
+  // access them via the expected group key.
+  if (Array.isArray(subGroups)) {
+    return subGroups.reduce((acc, item) => {
+      const groupKey = resolveGroupKey(item);
+      if (!groupKey) return acc;
+
+      const normalizedItems = acc[groupKey] || [];
+      return {
+        ...acc,
+        [groupKey]: [...normalizedItems, normalizeSubGroupItem(item, language)]
+      };
+    }, {});
+  }
+
   return Object.entries(subGroups).reduce((acc, [groupKey, items]) => {
     const normalizedItems = Array.isArray(items)
-      ? items.map((item) => ({
-        ...item,
-        label: localizeField(item.label, language) || item.value,
-        address: localizeField(item.address, language),
-        description: localizeField(item.description, language),
-        coordinates: extractCoordinates(item) || undefined
-      }))
+      ? items.map((item) => normalizeSubGroupItem(item, language))
       : [];
 
     return {
