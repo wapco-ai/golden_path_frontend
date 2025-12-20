@@ -9,6 +9,14 @@ import { getLocationTitleById } from '../../utils/getLocationTitle';
 import { loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
 
+function ensureRtlOnce() {
+  if (window.__RTL_PLUGIN_SET__) return;
+  window.__RTL_PLUGIN_SET__ = true;
+  maplibregl.setRTLTextPlugin("/rtl/mapbox-gl-rtl-text.js", true);
+}
+
+ensureRtlOnce();
+
 const groupColors = {
   sahn: '#4caf50',
   eyvan: '#2196f3',

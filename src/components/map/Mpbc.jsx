@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
 import { useIntl } from 'react-intl';
 import maplibregl from 'maplibre-gl';
@@ -8,6 +8,46 @@ import { useLangStore } from '../../store/langStore';
 import { loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
 import { getLocationTitleById } from '../../utils/getLocationTitle';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
+
+import appConfig from '../../config/appConfig';
+const DEFAULT_VECTOR_TILE_FLOOR = 0;
+export const TILE_BASE_URL = appConfig.tileBaseUrl;
+export const DEFAULT_TILE_LANG = import.meta?.env?.VITE_TILE_LANG?.trim() || 'fa';
+export const DEFAULT_TILE_FLOOR = import.meta?.env?.VITE_TILE_FLOOR?.trim();
+export const DEFAULT_TILE_GENDER = import.meta?.env?.VITE_TILE_GENDER?.trim();
+const AREAS_FUNCTION_SOURCE_LAYER = 'public.fn_areas_mvt';
+const AREAS_VECTOR_LAYER_NAME = 'areas';
+const AREAS_FUNCTION_TILE_BASE = `${TILE_BASE_URL}/${AREAS_FUNCTION_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
+const buildAreasTileUrlFactory = (lang) => ({ floor } = {}) => {
+  const params = new URLSearchParams();
+  if (lang) params.set('p_lang', lang);
+
+  const fallbackFloor = typeof floor !== 'undefined' ? floor : DEFAULT_TILE_FLOOR;
+  params.set('p_floor', normalizeFloorValue(fallbackFloor));
+
+  if (DEFAULT_TILE_GENDER) {
+    params.set('p_gender', DEFAULT_TILE_GENDER);
+  }
+  console.log("buildAreasTileUrlFactory lang:", lang, "floor:", fallbackFloor);
+
+  return `${AREAS_FUNCTION_TILE_BASE}?${params.toString()}`;
+};
+
+
+const normalizeFloorValue = (floor) => {
+  if (typeof floor === 'number' && !Number.isNaN(floor)) {
+    return floor;
+  }
+
+  if (typeof floor === 'string' && floor.trim() !== '') {
+    const parsed = Number(floor);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+
+  return DEFAULT_VECTOR_TILE_FLOOR;
+};
 
 
 const groupColors = {
@@ -89,7 +129,17 @@ const Mpbc = ({
   const [routeCoords, setRouteCoords] = useState(null);
   const language = useLangStore((state) => state.language);
   const [selectedFeatureForBubble, setSelectedFeatureForBubble] = useState(null);
-  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
+  const { handleMapError } = useOfflineMapStyle();
+
+  const areasTiles = useMemo(() => {
+    return [buildAreasTileUrlFactory(language)({ floor: viewState?.floor })];
+  }, [language, viewState?.floor]);
+
+  // import styleRtl from "../rtl/style.json";
+// import styleEn from "../rtl/style-en.json";
+const isRtl = ["fa","ar","ur"].includes(language);
+const mapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
+const styleKey = `style-${isRtl ? "rtl" : "en"}`;
 
   const onMove = useCallback((evt) => {
     setViewState(evt.viewState);
@@ -143,7 +193,7 @@ const Mpbc = ({
 
     return null;
   }, []);
-  
+
 
   // Initialize map focus and user location based on QR entry or GPS tracking
   useEffect(() => {
@@ -680,7 +730,9 @@ const Mpbc = ({
     <Map
       key={styleKey}
       mapLib={maplibregl}
+      // key={styleKey}
       mapStyle={mapStyle}
+      // mapStyle={(language === "fa" || language === "ar" || language === "ur") ? "./rtl/style.json" : "./rtl/style-en.json"}
       styleDiffing={false}
       style={{ width: '100%', height: '100%' }}
       {...viewState}
@@ -756,6 +808,35 @@ const Mpbc = ({
         </Source>
       )}
 
+      {language && (
+        <Source
+          id="areas-mvt"
+          type="vector"
+          tiles={areasTiles}
+        >
+          <Layer
+            key={`areas-label-${language}`}              // با تغییر زبان ری‌مانت میشه
+            id="areas-label"
+            type="symbol"
+            source-layer={AREAS_VECTOR_LAYER_NAME}
+            minzoom={15}
+            layout={{
+              "text-field": ["coalesce", ["get", `label`], ["get", "lable"], ""],
+              "text-font": (language === "fa" || language === "ar" || language === "ur")
+                ? ["Vazirmatn Regular"]
+                : ["Open Sans Regular"],
+              "text-size": 12,
+              "text-anchor": "center",
+              "text-justify": (language === "fa" || language === "ar" || language === "ur") ? "right" : "left",
+            }}
+            paint={{
+              "text-halo-color": "#fff",
+              "text-halo-width": 2,
+            }}
+          />
+        </Source>
+      )}
+
       {/* Door lines */}
       {doorLineFeatures.length > 0 && (
         <Source
@@ -778,7 +859,7 @@ const Mpbc = ({
         </Source>
       )}
 
-
+      
       {/* Image markers for subgroups with images */}
       {renderImageMarkers()}
 

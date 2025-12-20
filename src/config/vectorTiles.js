@@ -181,27 +181,36 @@ export const haramVectorTileConfig = [
     }
   },
   {
-    id: 'areas-labels',
-    titleFa: 'نام محدوده‌ها',
-    table: 'public.fn_areas_mvt',
-    sourceId: 'fn_areas_mvt',
-    sourceLayer: AREAS_VECTOR_LAYER_NAME, // باید همونی باشه که در areas-outline استفاده می‌کنی
+    id: 'areas-label',
+    titleFa: 'برچسب محدوده‌ها',
+    table: 'public.fn_areas_mvt',          // همون
+    sourceId: 'fn_areas_mvt',              // همون
+    sourceLayer: AREAS_VECTOR_LAYER_NAME,  // همون
     tileUrlFactory: buildAreasTileUrlFactory(),
     type: 'symbol',
-    minzoom: 16,
+    minzoom: 15,
     maxzoom: 22,
-    visibleByDefault: false,
+    visibleByDefault: true,
     layout: {
-      'text-field': ['get', 'label'],          // یا name_fa، بسته به پراپرتی MVT
-      'text-font': ['Vazirmatn Regular'],     // دقیقا اسم فولدر glyphها
-      'text-size': 13,
+      // اسم فیلدی که از MVT میاد را اینجا بگذار
+      'text-field': ['coalesce', ['get', 'label'], ['get', 'name'], ''],
+      'text-size': 12,
       'text-anchor': 'center',
-      'text-allow-overlap': true
+      'text-allow-overlap': false,
+      'text-ignore-placement': false,
+      // فونت‌ها (باید داخل glyphs استایل شما موجود باشند)
+      'text-font': ['Vazirmatn Regular'],
+
+      // کمک به خوانایی RTL
+      'text-justify': 'right',
+      // اگر فونت RTL داری:
+      // برای راست‌به‌چپ معمولاً کمک می‌کند:
+      'text-writing-mode': ['horizontal']
     },
     paint: {
-      'text-color': '#222222',
-      'text-halo-color': '#ffffff',
-      'text-halo-width': 1.2
+      'text-color': '#111',
+      'text-halo-color': '#fff',
+      'text-halo-width': 2
     }
   },
   {
@@ -283,12 +292,11 @@ export const haramAdminVectorTileConfig = [
       'text-allow-overlap': false,
       'text-ignore-placement': false,
       // فونت‌ها (باید داخل glyphs استایل شما موجود باشند)
-      // 'text-font': ['Vazirmatn Regular', 'Noto Sans Arabic Regular', 'Arial Unicode MS Regular'],
+      'text-font': ['Vazirmatn Regular'],
 
       // کمک به خوانایی RTL
       'text-justify': 'right',
       // اگر فونت RTL داری:
-      'text-font': ['Vazirmatn Regular', 'Noto Sans Regular', 'Arial Unicode MS Regular'],
       // برای راست‌به‌چپ معمولاً کمک می‌کند:
       'text-writing-mode': ['horizontal']
     },

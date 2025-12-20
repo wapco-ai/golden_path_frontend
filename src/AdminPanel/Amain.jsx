@@ -9,6 +9,7 @@ import { toJalaali, toGregorian } from 'jalaali-js';
 import ReactDatePicker from 'react-datepicker';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+
 import { booleanValid as turfBooleanValid, centroid as turfCentroid, distance as turfDistance } from '@turf/turf';
 import {
   createCulturalItem,
@@ -44,6 +45,11 @@ import {
   extendTempBlockArea
 } from '../services/tempBlockAreasService';
 
+function ensureRtlOnce() {
+  if (window.__RTL_PLUGIN_SET__) return;
+  window.__RTL_PLUGIN_SET__ = true;
+  maplibregl.setRTLTextPlugin("/rtl/mapbox-gl-rtl-text.js", true);
+}
 
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
 const SELECTED_EDITABLE_FEATURE_SOURCE_ID = 'selected-editable-feature-source';
@@ -3814,16 +3820,17 @@ const Amain = () => {
       // Initialize map when map management is active
       const initializeMap = () => {
         // خیلی مهم: قبل از new Map
-        maplibregl.setRTLTextPlugin(
-          "/rtl/mapbox-gl-rtl-text.js", // از public سرو میشه
-          null,
-          true
-        );
+        // maplibregl.setRTLTextPlugin(
+        //   "/rtl/mapbox-gl-rtl-text.js", // از public سرو میشه
+        //   null,
+        //   true
+        // );
         
-
+        ensureRtlOnce();
+        
         const mapInstance = new maplibregl.Map({
           container: 'map-container',
-          style: '/rtl/style.json',
+          style: './rtl/style.json',
           center: [59.6161, 36.2888], // Imam Reza Shrine coordinates in Mashhad, Iran
           zoom: 16, // Increased zoom to show more detail
         });
