@@ -137,7 +137,7 @@ function Profile() {
       <div className="profile-sections">
         {/* Account Section */}
         <div className="profile-section">
-          <h2 className="section-title">
+          <h2 className="section-title-p">
             <FormattedMessage id="accountSection" />
           </h2>
           <div className="section-item">
@@ -194,7 +194,7 @@ function Profile() {
 
         {/* Setting */}
         <div className="profile-section">
-          <h2 className="section-title">
+          <h2 className="section-title-p">
             <FormattedMessage id="settings" />
           </h2>
           <div className="section-item">
@@ -234,7 +234,7 @@ function Profile() {
 
         {/* Support Section */}
         <div className="profile-section">
-          <h2 className="section-title">
+          <h2 className="section-title-p">
             <FormattedMessage id="supportSection" />
           </h2>
           <div className="section-item">
@@ -261,7 +261,7 @@ function Profile() {
               </svg>
 
             </span>
-            <span className="item-text">
+            <span className="item-text" onClick={() => navigate('/Faq')}>
               <FormattedMessage id="faq" />
             </span>
             <span className="item-arrow">
@@ -277,7 +277,7 @@ function Profile() {
               </svg>
 
             </span>
-            <span className="item-text">
+            <span className="item-text" onClick={() => navigate('/Rules')}>
               <FormattedMessage id="termsRegulation" />
             </span>
             <span className="item-arrow">
@@ -295,7 +295,7 @@ function Profile() {
                 className="custom-logo-icon"
               />
             </span>
-            <span className="item-text">
+            <span className="item-text" onClick={() => navigate('/aboutus')}>
               <FormattedMessage id="aboutUs" />
             </span>
             <span className="item-arrow">
@@ -312,7 +312,7 @@ function Profile() {
                 className="custom-logo-icon"
               />
             </span>
-            <span className="item-text">
+            <span className="item-text" onClick={() => navigate('/contactus')}>
               <FormattedMessage id="contactUs" />
             </span>
             <span className="item-arrow">

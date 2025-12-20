@@ -16,6 +16,10 @@ import Proutes from './pages/Proutes';
 import Pfp from './pages/Pfp';
 import Pmap from './pages/Pmap';
 import Support from './pages/Support';
+import ContactUs from './pages/ContactUs';
+import AboutUs from './pages/AboutUs';
+import Rules from './pages/Rules';
+import Faq from './pages/Faq';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { ToastContainer, toast } from 'react-toastify';
@@ -39,7 +43,9 @@ const AppContent = () => {
     || location.pathname === '/location' || location.pathname === '/' || location.pathname === '/mpr'|| location.pathname === '/fs'
     || location.pathname === '/rop' || location.pathname === '/rng'|| location.pathname === '/mpb'
     || location.pathname === '/plang' || location.pathname === '/pinfo' || location.pathname === '/proutes'
-    || location.pathname === '/Pfp' || location.pathname === '/Pmap' || location.pathname.startsWith('/admin') || location.pathname.startsWith('/Support');
+    || location.pathname === '/Pfp' || location.pathname === '/Pmap' || location.pathname.startsWith('/admin') || location.pathname.startsWith('/Support')
+    || location.pathname.startsWith('/Rules') || location.pathname.startsWith('/ContactUs') || location.pathname.startsWith('/AboutUs')
+    || location.pathname.startsWith('/Faq');
 
   useAppStyles();
 
@@ -113,9 +119,13 @@ const AppContent = () => {
           <Route path="/pinfo" element={<ProfileInfo />} />
           <Route path="/pmap" element={<Pmap />} />
           <Route path="/plang" element={<Plang />} />
+          <Route path="/rules" element={<Rules />} />
           <Route path="/support" element={<Support />} />
+          <Route path="/contactus" element={<ContactUs />} />
+          <Route path="/aboutus" element={<AboutUs />} /><Route path="/contactus" element={<ContactUs />} />
           <Route path="/proutes" element={<Proutes />} />
           <Route path="/Pfp" element={<Pfp />} />
+          <Route path="/faq" element={<Faq />} />
           {adminRoutes}
         </Routes>
       </main>
