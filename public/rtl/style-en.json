@@ -9,7 +9,7 @@
     }
   },
   "sprite": "https://tiles.basemaps.cartocdn.com/gl/voyager-gl-style/sprite",
-  "glyphs": "https://tiles.basemaps.cartocdn.com/fonts/{fontstack}/{range}.pbf",
+  "glyphs": "http://localhost:8080/fonts/{fontstack}/{range}.pbf",
   "layers": [
     {
       "id": "background",
