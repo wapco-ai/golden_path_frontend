@@ -265,6 +265,40 @@ export const haramAdminVectorTileConfig = [
     }
   },
   {
+    id: 'areas-label',
+    titleFa: 'برچسب محدوده‌ها',
+    table: 'public.fn_areas_mvt',          // همون
+    sourceId: 'fn_areas_mvt',              // همون
+    sourceLayer: AREAS_VECTOR_LAYER_NAME,  // همون
+    tileUrlFactory: buildAreasTileUrlFactory(),
+    type: 'symbol',
+    minzoom: 15,
+    maxzoom: 22,
+    visibleByDefault: true,
+    layout: {
+      // اسم فیلدی که از MVT میاد را اینجا بگذار
+      'text-field': ['coalesce', ['get', 'label'], ['get', 'name'], ''],
+      'text-size': 12,
+      'text-anchor': 'center',
+      'text-allow-overlap': false,
+      'text-ignore-placement': false,
+      // فونت‌ها (باید داخل glyphs استایل شما موجود باشند)
+      // 'text-font': ['Vazirmatn Regular', 'Noto Sans Arabic Regular', 'Arial Unicode MS Regular'],
+
+      // کمک به خوانایی RTL
+      'text-justify': 'right',
+      // اگر فونت RTL داری:
+      'text-font': ['Vazirmatn Regular', 'Noto Sans Regular', 'Arial Unicode MS Regular'],
+      // برای راست‌به‌چپ معمولاً کمک می‌کند:
+      'text-writing-mode': ['horizontal']
+    },
+    paint: {
+      'text-color': '#111',
+      'text-halo-color': '#fff',
+      'text-halo-width': 2
+    }
+  },
+  {
     id: 'temp-areas-outline',
     titleFa: 'محدوده‌ موقت',
     table: 'public.fn_temp_block_areas_live_mvt',
