@@ -62,7 +62,19 @@ const normalizeFloorValue = (floor) => {
   return DEFAULT_VECTOR_TILE_FLOOR;
 };
 
-const buildFnTileUrlFactory = ({ entityTables }) => {
+const normalizeLang = (lang) => {
+  if (typeof lang === 'string') {
+    const trimmed = lang.trim();
+    if (trimmed) {
+      return trimmed;
+    }
+  }
+
+  return DEFAULT_TILE_LANG;
+};
+
+const buildFnTileUrlFactory = ({ entityTables, lang } = {}) => {
+  const normalizedLang = normalizeLang(lang);
   const normalizedEntities = Array.isArray(entityTables)
     ? entityTables.filter(Boolean).join(',')
     : entityTables;
@@ -70,8 +82,8 @@ const buildFnTileUrlFactory = ({ entityTables }) => {
   return ({ floor } = {}) => {
     const params = new URLSearchParams();
 
-    if (DEFAULT_TILE_LANG) {
-      params.set('p_lang', DEFAULT_TILE_LANG);
+    if (normalizedLang) {
+      params.set('p_lang', normalizedLang);
     }
 
     const fallbackFloor = typeof floor !== 'undefined' ? floor : DEFAULT_TILE_FLOOR;
@@ -100,11 +112,12 @@ const buildFloorOnlyTileUrlFactory = (tileBaseUrl) => ({ floor } = {}) => {
 // const buildAreasTileUrlFactory = () => buildFloorOnlyTileUrlFactory(AREAS_FUNCTION_TILE_BASE);
 const buildDoorsTileUrlFactory = () => buildFloorOnlyTileUrlFactory(DOORS_FUNCTION_TILE_BASE);
 
-const buildAreasTileUrlFactory = () => ({ floor } = {}) => {
+const buildAreasTileUrlFactory = (lang) => ({ floor } = {}) => {
   const params = new URLSearchParams();
+  const normalizedLang = normalizeLang(lang);
 
-  if (DEFAULT_TILE_LANG) {
-    params.set('p_lang', DEFAULT_TILE_LANG);
+  if (normalizedLang) {
+    params.set('p_lang', normalizedLang);
   }
 
   const fallbackFloor = typeof floor !== 'undefined' ? floor : DEFAULT_TILE_FLOOR;
@@ -117,11 +130,12 @@ const buildAreasTileUrlFactory = () => ({ floor } = {}) => {
   return `${AREAS_FUNCTION_TILE_BASE}?${params.toString()}`;
 };
 
-const buildTempAreasTileUrlFactory = () => ({ floor } = {}) => {
+const buildTempAreasTileUrlFactory = (lang) => ({ floor } = {}) => {
   const params = new URLSearchParams();
+  const normalizedLang = normalizeLang(lang);
 
-  if (DEFAULT_TILE_LANG) {
-    params.set('p_lang', DEFAULT_TILE_LANG);
+  if (normalizedLang) {
+    params.set('p_lang', normalizedLang);
   }
 
   const fallbackFloor = typeof floor !== 'undefined' ? floor : DEFAULT_TILE_FLOOR;
@@ -134,45 +148,52 @@ const buildTempAreasTileUrlFactory = () => ({ floor } = {}) => {
   return `${TEMP_AREAS_FUNCTION_TILE_BASE}?${params.toString()}`;
 };
 
-const DOOR_ICON_IMAGE_URIS = {
-  entrance:
-    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAAA80lEQVR4nO3VsQkCURRFQSuw/wYsTkwMDMzWwMAFI0Hc5565cBp4A/8fDmZmZma22vF0XvS9AABoBwBAOwB7A7je7he9AgCgHQAA7QAAaAcAQDsAANoBANAOAIB2AAC0AwCgHQAA7QAAaAcAQDsAANoBANAOAIB2AAC0AwCgHYAftKwGAMD2BwEgAFMCAKAdAADtAABoBwBAOwAA2gEA0A4AgGfLh9v6cAAGHA/ADhoJsPVRAAw4DIBIIwH2/u4DGBQAAO8AWx8FwIDDAIg0EqD0HwAAAGAEQDUAANoBqAHoswAAaAcAQDsA/wZgZmZmtus9AC1QWUkpUtbuAAAAAElFTkSuQmCC'.replace(/\s+/g, ''),
-  exit:
-    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAAA70lEQVR4nO3YIQ7CQBRFUVbBRlk2BoEABQJBFaGElGHuecl1Vf+ISbrbmZmZmdli18P+pu8FAEA7AADaAZgN4HS+HPUMAIB2AAC0AwCgHQAA7QAAaAcAQDsAANoBANAOAIB2AAC0AwCgHQAA7QAAaAcAQDsAANoBANAOAIB2ADbothgAAL8/CAABGCUAANoBANAOAIB2AAC0AwCgHQAA7QAAePTqn/k3vh81AAAADAHwznFnOTqAgQIA4DOMWQIAAMBwAN4AAAAAbAyw9rizYAAAAGAIgGoAALQDUAPQugAAaAcAQDsA/wZgZmZmNvXu4VF2ZsSch+oAAAAASUVORK5CYII='.replace(/\s+/g, ''),
-  emergency:
-    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAAA30lEQVR4nO3YMQrCQBRF0Swu+9+IhRYWdklpqoAgZpx7HtwNzCk+zLKYmZmZ2WH3dd30vQAAaAcAQDsAswE8nq+b3gEA0A4AgHYAALQDAKAdAADtAABoBwBAOwAA2gEA0A4AgHYAALQDAKAdAADtAABoBwBAOwAA2gEA0A7AD9oOAwDg+gcBIACjBABAOwAA2gEA0A4AgHYAALQDAKAdAADnnf2lzxAAAAAAAAAAAAAAAAAADAcwewAAtBsewA0AAADAhQCzBwBAOwA1AH0WAADtAABoB+DfAMzMzMym3g6CmRBFFhPi6AAAAABJRU5ErkJggg=='.replace(/\s+/g, ''),
-  default:
-    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAAA60lEQVR4nO3RIQ7CUBRFwe6OFbAI1o5BIHBFIKghgUDob8/c5Lin3kyTmZmZmS12OJ5m/S4AANoBANAOwN4ALtfbWc8AAGgHAEA7AADaAQDQDgCAdgAAtAMAoB0AAO0AAGgHAEA7AADaAQDQDgCAdgAAtAMAoB0AAO0AAGgH4A/NiwEAsP5DAAjAKAEA0A4AgHYAALQDAKAdAADtAABoBwDAo/mNrf0sAAM8DMDOGhLgm5utBQAAAAAAAAAAAAAAAABDALza2s8CMMDDAOysYQCqAQDQDkANQJ8FAEA7AADaAdgagJmZmdmudwe09l0RDGMWhQAAAABJRU5ErkJggg=='.replace(/\s+/g, '')
+const buildIconDataUri = (fillColor, label) => {
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+  <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+    <defs>
+      <filter id="shadow" x="-15%" y="-15%" width="130%" height="130%">
+        <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.25)" />
+      </filter>
+    </defs>
+    <circle cx="48" cy="48" r="42" fill="${fillColor}" filter="url(#shadow)" />
+    <text x="48" y="57" text-anchor="middle" font-family="Arial" font-size="40" font-weight="700" fill="#ffffff">${label}</text>
+  </svg>`;
+
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 };
 
 const DOOR_ICON_IMAGES = {
   entrance: {
     name: 'door-icon-entrance',
-    url: DOOR_ICON_IMAGE_URIS.entrance
+    url: buildIconDataUri('#0ea5e9', 'E')
   },
   exit: {
     name: 'door-icon-exit',
-    url: DOOR_ICON_IMAGE_URIS.exit
+    url: buildIconDataUri('#f97316', 'X')
   },
   emergency: {
     name: 'door-icon-emergency',
-    url: DOOR_ICON_IMAGE_URIS.emergency
+    url: buildIconDataUri('#ef4444', '!')
   },
   default: {
     name: 'door-icon-default',
-    url: DOOR_ICON_IMAGE_URIS.default
+    url: buildIconDataUri('#475569', 'D')
   }
 };
 
 
-export const haramVectorTileConfig = [
+const buildHaramVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
+  const tileLang = normalizeLang(lang);
+
+  return [
   {
     id: 'areas-outline',
     titleFa: 'مرز محدوده‌ها',
     table: 'public.fn_areas_mvt',
     sourceId: 'fn_areas_mvt',
     sourceLayer: AREAS_VECTOR_LAYER_NAME,
-    tileUrlFactory: buildAreasTileUrlFactory(),
+    tileUrlFactory: buildAreasTileUrlFactory(tileLang),
     type: 'line',
     minzoom: 14,
     maxzoom: 22,
@@ -192,7 +213,7 @@ export const haramVectorTileConfig = [
     table: 'public.fn_areas_mvt',
     sourceId: 'fn_areas_mvt',
     sourceLayer: 'areas',
-    tileUrlFactory: buildAreasTileUrlFactory(),
+    tileUrlFactory: buildAreasTileUrlFactory(tileLang),
     type: 'fill',
     minzoom: 14,
     maxzoom: 22,
@@ -216,7 +237,7 @@ export const haramVectorTileConfig = [
     table: 'public.fn_areas_mvt',          // همون
     sourceId: 'fn_areas_mvt',              // همون
     sourceLayer: AREAS_VECTOR_LAYER_NAME,  // همون
-    tileUrlFactory: buildAreasTileUrlFactory(),
+    tileUrlFactory: buildAreasTileUrlFactory(tileLang),
     type: 'symbol',
     minzoom: 15,
     maxzoom: 22,
@@ -277,39 +298,43 @@ export const haramVectorTileConfig = [
       'line-width': 2
     }
   }
-]
+  ];
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////َ ADMIN //////////////////////////////////////////////
 
-export const haramAdminVectorTileConfig = [
-  {
-    id: 'areas-outline',
-    titleFa: 'محدوده‌ها',
-    table: 'public.fn_areas_mvt',
-    sourceId: 'fn_areas_mvt',
-    sourceLayer: AREAS_VECTOR_LAYER_NAME,
-    tileUrlFactory: buildAreasTileUrlFactory(),
-    type: 'line',
-    minzoom: 14,
-    maxzoom: 22,
-    visibleByDefault: true,
-    paint: {
-      'line-color': '#d1c2fa',
-      'line-width': 2
+const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
+  const tileLang = normalizeLang(lang);
+
+  return [
+    {
+      id: 'areas-outline',
+      titleFa: 'محدوده‌ها',
+      table: 'public.fn_areas_mvt',
+      sourceId: 'fn_areas_mvt',
+      sourceLayer: AREAS_VECTOR_LAYER_NAME,
+      tileUrlFactory: buildAreasTileUrlFactory(tileLang),
+      type: 'line',
+      minzoom: 14,
+      maxzoom: 22,
+      visibleByDefault: true,
+      paint: {
+        'line-color': '#d1c2fa',
+        'line-width': 2
+      },
+      layout: {
+        'line-cap': 'round',
+        'line-join': 'round'
+      }
     },
-    layout: {
-      'line-cap': 'round',
-      'line-join': 'round'
-    }
-  },
   {
     id: 'areas-label',
     titleFa: 'برچسب محدوده‌ها',
     table: 'public.fn_areas_mvt',          // همون
     sourceId: 'fn_areas_mvt',              // همون
     sourceLayer: AREAS_VECTOR_LAYER_NAME,  // همون
-    tileUrlFactory: buildAreasTileUrlFactory(),
+    tileUrlFactory: buildAreasTileUrlFactory(tileLang),
     type: 'symbol',
     minzoom: 15,
     maxzoom: 22,
@@ -342,7 +367,7 @@ export const haramAdminVectorTileConfig = [
     table: 'public.fn_temp_block_areas_live_mvt',
     sourceId: 'fn_temp_block_areas_live_mvt',
     sourceLayer: TEMP_AREAS_VECTOR_LAYER_NAME,
-    tileUrlFactory: buildTempAreasTileUrlFactory(),
+    tileUrlFactory: buildTempAreasTileUrlFactory(tileLang),
     type: 'line',
     minzoom: 14,
     maxzoom: 22,
@@ -393,7 +418,7 @@ export const haramAdminVectorTileConfig = [
         'emergency', DOOR_ICON_IMAGES.emergency.name,
         /* default */ DOOR_ICON_IMAGES.default.name
       ],
-      'icon-size': 0.75,
+      'icon-size': 0.65,
       'icon-allow-overlap': true,
       'symbol-placement': 'line-center'
     }
@@ -474,7 +499,14 @@ export const haramAdminVectorTileConfig = [
       'circle-stroke-width': 1.5
     }
   }
-];
+  ];
+};
+
+export const createHaramVectorTileConfig = (lang = DEFAULT_TILE_LANG) => buildHaramVectorTileConfig(lang);
+export const createHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => buildHaramAdminVectorTileConfig(lang);
+
+export const haramVectorTileConfig = createHaramVectorTileConfig();
+export const haramAdminVectorTileConfig = createHaramAdminVectorTileConfig();
 
 export const layerEditSettings = {
   'areas-outline': {
