@@ -134,6 +134,36 @@ const buildTempAreasTileUrlFactory = () => ({ floor } = {}) => {
   return `${TEMP_AREAS_FUNCTION_TILE_BASE}?${params.toString()}`;
 };
 
+const DOOR_ICON_IMAGE_URIS = {
+  entrance:
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAAA80lEQVR4nO3VsQkCURRFQSuw/wYsTkwMDMzWwMAFI0Hc5565cBp4A/8fDmZmZma22vF0XvS9AABoBwBAOwB7A7je7he9AgCgHQAA7QAAaAcAQDsAANoBANAOAIB2AAC0AwCgHQAA7QAAaAcAQDsAANoBANAOAIB2AAC0AwCgHYAftKwGAMD2BwEgAFMCAKAdAADtAABoBwBAOwAA2gEA0A4AgGfLh9v6cAAGHA/ADhoJsPVRAAw4DIBIIwH2/u4DGBQAAO8AWx8FwIDDAIg0EqD0HwAAAGAEQDUAANoBqAHoswAAaAcAQDsA/wZgZmZmtus9AC1QWUkpUtbuAAAAAElFTkSuQmCC'.replace(/\s+/g, ''),
+  exit:
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAAA70lEQVR4nO3YIQ7CQBRFUVbBRlk2BoEABQJBFaGElGHuecl1Vf+ISbrbmZmZmdli18P+pu8FAEA7AADaAZgN4HS+HPUMAIB2AAC0AwCgHQAA7QAAaAcAQDsAANoBANAOAIB2AAC0AwCgHQAA7QAAaAcAQDsAANoBANAOAIB2ADbothgAAL8/CAABGCUAANoBANAOAIB2AAC0AwCgHQAA7QAAePTqn/k3vh81AAAADAHwznFnOTqAgQIA4DOMWQIAAMBwAN4AAAAAbAyw9rizYAAAAGAIgGoAALQDUAPQugAAaAcAQDsA/wZgZmZmNvXu4VF2ZsSch+oAAAAASUVORK5CYII='.replace(/\s+/g, ''),
+  emergency:
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAAA30lEQVR4nO3YMQrCQBRF0Swu+9+IhRYWdklpqoAgZpx7HtwNzCk+zLKYmZmZ2WH3dd30vQAAaAcAQDsAswE8nq+b3gEA0A4AgHYAALQDAKAdAADtAABoBwBAOwAA2gEA0A4AgHYAALQDAKAdAADtAABoBwBAOwAA2gEA0A7AD9oOAwDg+gcBIACjBABAOwAA2gEA0A4AgHYAALQDAKAdAADnnf2lzxAAAAAAAAAAAAAAAAAADAcwewAAtBsewA0AAADAhQCzBwBAOwA1AH0WAADtAABoB+DfAMzMzMym3g6CmRBFFhPi6AAAAABJRU5ErkJggg=='.replace(/\s+/g, ''),
+  default:
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAAA60lEQVR4nO3RIQ7CUBRFwe6OFbAI1o5BIHBFIKghgUDob8/c5Lin3kyTmZmZmS12OJ5m/S4AANoBANAOwN4ALtfbWc8AAGgHAEA7AADaAQDQDgCAdgAAtAMAoB0AAO0AAGgHAEA7AADaAQDQDgCAdgAAtAMAoB0AAO0AAGgH4A/NiwEAsP5DAAjAKAEA0A4AgHYAALQDAKAdAADtAABoBwDAo/mNrf0sAAM8DMDOGhLgm5utBQAAAAAAAAAAAAAAAABDALza2s8CMMDDAOysYQCqAQDQDkANQJ8FAEA7AADaAdgagJmZmdmudwe09l0RDGMWhQAAAABJRU5ErkJggg=='.replace(/\s+/g, '')
+};
+
+const DOOR_ICON_IMAGES = {
+  entrance: {
+    name: 'door-icon-entrance',
+    url: DOOR_ICON_IMAGE_URIS.entrance
+  },
+  exit: {
+    name: 'door-icon-exit',
+    url: DOOR_ICON_IMAGE_URIS.exit
+  },
+  emergency: {
+    name: 'door-icon-emergency',
+    url: DOOR_ICON_IMAGE_URIS.emergency
+  },
+  default: {
+    name: 'door-icon-default',
+    url: DOOR_ICON_IMAGE_URIS.default
+  }
+};
+
 
 export const haramVectorTileConfig = [
   {
@@ -340,6 +370,32 @@ export const haramAdminVectorTileConfig = [
     paint: {
       'line-color': '#ff3b30',
       'line-width': 2
+    }
+  },
+  {
+    id: 'doors-icons',
+    titleFa: 'آیکون درب‌ها',
+    table: 'public.fn_doors_mvt',
+    sourceId: 'fn_doors_mvt',
+    sourceLayer: DOORS_VECTOR_LAYER_NAME,
+    tileUrlFactory: buildDoorsTileUrlFactory(),
+    type: 'symbol',
+    minzoom: 15,
+    maxzoom: 22,
+    visibleByDefault: true,
+    images: Object.values(DOOR_ICON_IMAGES),
+    layout: {
+      'icon-image': [
+        'match',
+        ['get', 'place_function'],
+        'entrance', DOOR_ICON_IMAGES.entrance.name,
+        'exit', DOOR_ICON_IMAGES.exit.name,
+        'emergency', DOOR_ICON_IMAGES.emergency.name,
+        /* default */ DOOR_ICON_IMAGES.default.name
+      ],
+      'icon-size': 0.75,
+      'icon-allow-overlap': true,
+      'symbol-placement': 'line-center'
     }
   },
   {
