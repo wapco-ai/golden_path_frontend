@@ -8,7 +8,14 @@ export const offlineFallbackStyle = {
   version: 8,
   name: 'offline-fallback',
   // glyphs: MAPLIBRE_GLYPHS_URL,
-  sources: {},
+  sources: {
+    [BASE_RASTER_SOURCE_ID]: {
+      type: 'raster',
+      tileSize: 256,
+      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      attribution: '© OpenStreetMap contributors'
+    }
+  },
   layers: [
     {
       id: 'offline-background',
@@ -16,10 +23,18 @@ export const offlineFallbackStyle = {
       paint: {
         'background-color': '#0b192f'
       }
+    },
+    {
+      id: 'offline-raster',
+      type: 'raster',
+      source: BASE_RASTER_SOURCE_ID,
+      minzoom: 0,
+      maxzoom: 19
     }
   ],
   metadata: {
-    description: 'Fallback style used when map tiles cannot be loaded'
+    description:
+      'Fallback style used when Carto basemap tiles cannot be loaded; serves OSM raster tiles instead.'
   }
 };
 
