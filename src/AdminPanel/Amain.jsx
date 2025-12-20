@@ -48,7 +48,7 @@ import {
 function ensureRtlOnce() {
   if (window.__RTL_PLUGIN_SET__) return;
   window.__RTL_PLUGIN_SET__ = true;
-  maplibregl.setRTLTextPlugin("/rtl/mapbox-gl-rtl-text.js", undefined, true);
+  maplibregl.setRTLTextPlugin("/rtl/mapbox-gl-rtl-text.js", null, true);
 }
 
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
@@ -10544,6 +10544,8 @@ const Amain = () => {
                               <option value="" disabled>کارکرد گروه</option>
                               <option value="door">درب</option>
                               <option value="connection">نقطه اتصال</option>
+                              <option value="elevator">آسانسور</option>
+                              <option value="escalator">پله برقی</option>
                             </select>
                           </div>
                         </div>
