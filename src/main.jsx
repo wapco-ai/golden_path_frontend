@@ -7,6 +7,24 @@ import './index.css';
 import { useGPSStore } from './store/gpsStore.js';
 import { DEFAULT_TILE_FLOOR } from './config/vectorTiles.js';
 import { initializeSessionFloor } from './utils/sessionFloor.js';
+// main.jsx
+// import maplibregl from 'maplibre-gl';
+// import 'maplibre-gl/dist/maplibre-gl.css';
+
+// const rtlUrl = "/rtl/mapbox-gl-rtl-text.js";
+
+// // فقط یکبار در کل اپ
+// if (!window.__RTL_PLUGIN_SET__) {
+//   window.__RTL_PLUGIN_SET__ = true;
+//   maplibregl.setRTLTextPlugin(rtlUrl, true);
+// }
+
+function ensureRtlOnce() {
+  if (window.__RTL_PLUGIN_SET__) return;
+  window.__RTL_PLUGIN_SET__ = true;
+  maplibregl.setRTLTextPlugin("/rtl/mapbox-gl-rtl-text.js", undefined, true);
+}
+
 
 initializeSessionFloor(DEFAULT_TILE_FLOOR);
 

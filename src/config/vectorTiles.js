@@ -62,7 +62,19 @@ const normalizeFloorValue = (floor) => {
   return DEFAULT_VECTOR_TILE_FLOOR;
 };
 
-const buildFnTileUrlFactory = ({ entityTables }) => {
+const normalizeLang = (lang) => {
+  if (typeof lang === 'string') {
+    const trimmed = lang.trim();
+    if (trimmed) {
+      return trimmed;
+    }
+  }
+
+  return DEFAULT_TILE_LANG;
+};
+
+const buildFnTileUrlFactory = ({ entityTables, lang } = {}) => {
+  const normalizedLang = normalizeLang(lang);
   const normalizedEntities = Array.isArray(entityTables)
     ? entityTables.filter(Boolean).join(',')
     : entityTables;
@@ -70,8 +82,8 @@ const buildFnTileUrlFactory = ({ entityTables }) => {
   return ({ floor } = {}) => {
     const params = new URLSearchParams();
 
-    if (DEFAULT_TILE_LANG) {
-      params.set('p_lang', DEFAULT_TILE_LANG);
+    if (normalizedLang) {
+      params.set('p_lang', normalizedLang);
     }
 
     const fallbackFloor = typeof floor !== 'undefined' ? floor : DEFAULT_TILE_FLOOR;
@@ -100,11 +112,12 @@ const buildFloorOnlyTileUrlFactory = (tileBaseUrl) => ({ floor } = {}) => {
 // const buildAreasTileUrlFactory = () => buildFloorOnlyTileUrlFactory(AREAS_FUNCTION_TILE_BASE);
 const buildDoorsTileUrlFactory = () => buildFloorOnlyTileUrlFactory(DOORS_FUNCTION_TILE_BASE);
 
-const buildAreasTileUrlFactory = () => ({ floor } = {}) => {
+const buildAreasTileUrlFactory = (lang) => ({ floor } = {}) => {
   const params = new URLSearchParams();
+  const normalizedLang = normalizeLang(lang);
 
-  if (DEFAULT_TILE_LANG) {
-    params.set('p_lang', DEFAULT_TILE_LANG);
+  if (normalizedLang) {
+    params.set('p_lang', normalizedLang);
   }
 
   const fallbackFloor = typeof floor !== 'undefined' ? floor : DEFAULT_TILE_FLOOR;
@@ -117,11 +130,12 @@ const buildAreasTileUrlFactory = () => ({ floor } = {}) => {
   return `${AREAS_FUNCTION_TILE_BASE}?${params.toString()}`;
 };
 
-const buildTempAreasTileUrlFactory = () => ({ floor } = {}) => {
+const buildTempAreasTileUrlFactory = (lang) => ({ floor } = {}) => {
   const params = new URLSearchParams();
+  const normalizedLang = normalizeLang(lang);
 
-  if (DEFAULT_TILE_LANG) {
-    params.set('p_lang', DEFAULT_TILE_LANG);
+  if (normalizedLang) {
+    params.set('p_lang', normalizedLang);
   }
 
   const fallbackFloor = typeof floor !== 'undefined' ? floor : DEFAULT_TILE_FLOOR;
@@ -134,15 +148,52 @@ const buildTempAreasTileUrlFactory = () => ({ floor } = {}) => {
   return `${TEMP_AREAS_FUNCTION_TILE_BASE}?${params.toString()}`;
 };
 
+const buildIconDataUri = (fillColor, label) => {
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+  <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+    <defs>
+      <filter id="shadow" x="-15%" y="-15%" width="130%" height="130%">
+        <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.25)" />
+      </filter>
+    </defs>
+    <circle cx="48" cy="48" r="42" fill="${fillColor}" filter="url(#shadow)" />
+    <text x="48" y="57" text-anchor="middle" font-family="Arial" font-size="40" font-weight="700" fill="#ffffff">${label}</text>
+  </svg>`;
 
-export const haramVectorTileConfig = [
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+};
+
+const DOOR_ICON_IMAGES = {
+  entrance: {
+    name: 'door-icon-entrance',
+    url: buildIconDataUri('#0ea5e9', 'E')
+  },
+  exit: {
+    name: 'door-icon-exit',
+    url: buildIconDataUri('#f97316', 'X')
+  },
+  emergency: {
+    name: 'door-icon-emergency',
+    url: buildIconDataUri('#ef4444', '!')
+  },
+  default: {
+    name: 'door-icon-default',
+    url: buildIconDataUri('#475569', 'D')
+  }
+};
+
+
+const buildHaramVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
+  const tileLang = normalizeLang(lang);
+
+  return [
   {
     id: 'areas-outline',
     titleFa: 'مرز محدوده‌ها',
     table: 'public.fn_areas_mvt',
     sourceId: 'fn_areas_mvt',
     sourceLayer: AREAS_VECTOR_LAYER_NAME,
-    tileUrlFactory: buildAreasTileUrlFactory(),
+    tileUrlFactory: buildAreasTileUrlFactory(tileLang),
     type: 'line',
     minzoom: 14,
     maxzoom: 22,
@@ -162,7 +213,7 @@ export const haramVectorTileConfig = [
     table: 'public.fn_areas_mvt',
     sourceId: 'fn_areas_mvt',
     sourceLayer: 'areas',
-    tileUrlFactory: buildAreasTileUrlFactory(),
+    tileUrlFactory: buildAreasTileUrlFactory(tileLang),
     type: 'fill',
     minzoom: 14,
     maxzoom: 22,
@@ -181,27 +232,36 @@ export const haramVectorTileConfig = [
     }
   },
   {
-    id: 'areas-labels',
-    titleFa: 'نام محدوده‌ها',
-    table: 'public.fn_areas_mvt',
-    sourceId: 'fn_areas_mvt',
-    sourceLayer: AREAS_VECTOR_LAYER_NAME, // باید همونی باشه که در areas-outline استفاده می‌کنی
-    tileUrlFactory: buildAreasTileUrlFactory(),
+    id: 'areas-label',
+    titleFa: 'برچسب محدوده‌ها',
+    table: 'public.fn_areas_mvt',          // همون
+    sourceId: 'fn_areas_mvt',              // همون
+    sourceLayer: AREAS_VECTOR_LAYER_NAME,  // همون
+    tileUrlFactory: buildAreasTileUrlFactory(tileLang),
     type: 'symbol',
-    minzoom: 16,
+    minzoom: 15,
     maxzoom: 22,
-    visibleByDefault: false,
+    visibleByDefault: true,
     layout: {
-      'text-field': ['get', 'label'],          // یا name_fa، بسته به پراپرتی MVT
-      'text-font': ['Vazirmatn Regular'],     // دقیقا اسم فولدر glyphها
-      'text-size': 13,
+      // اسم فیلدی که از MVT میاد را اینجا بگذار
+      'text-field': ['coalesce', ['get', 'label'], ['get', 'name'], ''],
+      'text-size': 12,
       'text-anchor': 'center',
-      'text-allow-overlap': true
+      'text-allow-overlap': false,
+      'text-ignore-placement': false,
+      // فونت‌ها (باید داخل glyphs استایل شما موجود باشند)
+      'text-font': ['Vazirmatn Regular'],
+
+      // کمک به خوانایی RTL
+      'text-justify': 'right',
+      // اگر فونت RTL داری:
+      // برای راست‌به‌چپ معمولاً کمک می‌کند:
+      'text-writing-mode': ['horizontal']
     },
     paint: {
-      'text-color': '#222222',
-      'text-halo-color': '#ffffff',
-      'text-halo-width': 1.2
+      'text-color': '#111',
+      'text-halo-color': '#fff',
+      'text-halo-width': 2
     }
   },
   {
@@ -238,30 +298,67 @@ export const haramVectorTileConfig = [
       'line-width': 2
     }
   }
-]
+  ];
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////َ ADMIN //////////////////////////////////////////////
 
-export const haramAdminVectorTileConfig = [
+const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
+  const tileLang = normalizeLang(lang);
+
+  return [
+    {
+      id: 'areas-outline',
+      titleFa: 'محدوده‌ها',
+      table: 'public.fn_areas_mvt',
+      sourceId: 'fn_areas_mvt',
+      sourceLayer: AREAS_VECTOR_LAYER_NAME,
+      tileUrlFactory: buildAreasTileUrlFactory(tileLang),
+      type: 'line',
+      minzoom: 14,
+      maxzoom: 22,
+      visibleByDefault: true,
+      paint: {
+        'line-color': '#d1c2fa',
+        'line-width': 2
+      },
+      layout: {
+        'line-cap': 'round',
+        'line-join': 'round'
+      }
+    },
   {
-    id: 'areas-outline',
-    titleFa: 'محدوده‌ها',
-    table: 'public.fn_areas_mvt',
-    sourceId: 'fn_areas_mvt',
-    sourceLayer: AREAS_VECTOR_LAYER_NAME,
-    tileUrlFactory: buildAreasTileUrlFactory(),
-    type: 'line',
-    minzoom: 14,
+    id: 'areas-label',
+    titleFa: 'برچسب محدوده‌ها',
+    table: 'public.fn_areas_mvt',          // همون
+    sourceId: 'fn_areas_mvt',              // همون
+    sourceLayer: AREAS_VECTOR_LAYER_NAME,  // همون
+    tileUrlFactory: buildAreasTileUrlFactory(tileLang),
+    type: 'symbol',
+    minzoom: 15,
     maxzoom: 22,
     visibleByDefault: true,
-    paint: {
-      'line-color': '#d1c2fa',
-      'line-width': 2
-    },
     layout: {
-      'line-cap': 'round',
-      'line-join': 'round'
+      // اسم فیلدی که از MVT میاد را اینجا بگذار
+      'text-field': ['coalesce', ['get', 'label'], ['get', 'name'], ''],
+      'text-size': 12,
+      'text-anchor': 'center',
+      'text-allow-overlap': false,
+      'text-ignore-placement': false,
+      // فونت‌ها (باید داخل glyphs استایل شما موجود باشند)
+      'text-font': ['Vazirmatn Regular'],
+
+      // کمک به خوانایی RTL
+      'text-justify': 'right',
+      // اگر فونت RTL داری:
+      // برای راست‌به‌چپ معمولاً کمک می‌کند:
+      'text-writing-mode': ['horizontal']
+    },
+    paint: {
+      'text-color': '#111',
+      'text-halo-color': '#fff',
+      'text-halo-width': 2
     }
   },
   {
@@ -270,7 +367,7 @@ export const haramAdminVectorTileConfig = [
     table: 'public.fn_temp_block_areas_live_mvt',
     sourceId: 'fn_temp_block_areas_live_mvt',
     sourceLayer: TEMP_AREAS_VECTOR_LAYER_NAME,
-    tileUrlFactory: buildTempAreasTileUrlFactory(),
+    tileUrlFactory: buildTempAreasTileUrlFactory(tileLang),
     type: 'line',
     minzoom: 14,
     maxzoom: 22,
@@ -298,6 +395,32 @@ export const haramAdminVectorTileConfig = [
     paint: {
       'line-color': '#ff3b30',
       'line-width': 2
+    }
+  },
+  {
+    id: 'doors-icons',
+    titleFa: 'آیکون درب‌ها',
+    table: 'public.fn_doors_mvt',
+    sourceId: 'fn_doors_mvt',
+    sourceLayer: DOORS_VECTOR_LAYER_NAME,
+    tileUrlFactory: buildDoorsTileUrlFactory(),
+    type: 'symbol',
+    minzoom: 15,
+    maxzoom: 22,
+    visibleByDefault: true,
+    images: Object.values(DOOR_ICON_IMAGES),
+    layout: {
+      'icon-image': [
+        'match',
+        ['get', 'place_function'],
+        'entrance', DOOR_ICON_IMAGES.entrance.name,
+        'exit', DOOR_ICON_IMAGES.exit.name,
+        'emergency', DOOR_ICON_IMAGES.emergency.name,
+        /* default */ DOOR_ICON_IMAGES.default.name
+      ],
+      'icon-size': 0.65,
+      'icon-allow-overlap': true,
+      'symbol-placement': 'line-center'
     }
   },
   {
@@ -376,7 +499,14 @@ export const haramAdminVectorTileConfig = [
       'circle-stroke-width': 1.5
     }
   }
-];
+  ];
+};
+
+export const createHaramVectorTileConfig = (lang = DEFAULT_TILE_LANG) => buildHaramVectorTileConfig(lang);
+export const createHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => buildHaramAdminVectorTileConfig(lang);
+
+export const haramVectorTileConfig = createHaramVectorTileConfig();
+export const haramAdminVectorTileConfig = createHaramAdminVectorTileConfig();
 
 export const layerEditSettings = {
   'areas-outline': {
