@@ -8599,7 +8599,7 @@ const Amain = () => {
                       <div className="error-message-edit">لطفا حداقل یک نوع مکان را انتخاب کنید</div>
                     )}
                   </div>
-                  {/* Add this after the Cultural Type Selection section in edit page */}
+
                   <div className="edit-form-section">
                     <h3 className="edit-form-title">تعیین گروه این مکان فرهنگی</h3>
                     <div className="dropdown-group-cultural-edit">
