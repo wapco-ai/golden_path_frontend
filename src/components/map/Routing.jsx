@@ -5,11 +5,17 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
 import useLocaleDigits from '../../utils/useLocaleDigits';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
+import { useLangStore } from '../../store/langStore';
+import { createHaramVectorTileConfig } from '../../config/vectorTiles';
 
 
 const Routing = ({ userLocation, routeSteps, currentStep }) => {
   const formatDigits = useLocaleDigits();
-  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
+  const language = useLangStore((state) => state.language);
+  const isRtl = ["fa", "ar", "ur"].includes(language);
+  const baseMapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
+  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
+  const mapRenderKey = `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
   const initialPoint = routeSteps && routeSteps.length > 0
     ? (Array.isArray(routeSteps[0]?.coordinates?.[0])
       ? routeSteps[0].coordinates[0]
@@ -55,13 +61,13 @@ const Routing = ({ userLocation, routeSteps, currentStep }) => {
   const fullGeo = { type: 'Feature', geometry: { type: 'LineString', coordinates: routePath } };
 
   const handleMapLoad = useCallback((event) => {
-    initHaramVectorLayers(event?.target || event);
-  }, []);
+    initHaramVectorLayers(event?.target || event, createHaramVectorTileConfig(language));
+  }, [language]);
 
   return (
     <div ref={null} className="route-map">
       <Map
-        key={styleKey}
+        key={mapRenderKey}
         mapLib={maplibregl}
         mapStyle={mapStyle}
         styleDiffing={false}

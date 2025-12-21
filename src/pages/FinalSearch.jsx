@@ -15,6 +15,7 @@ import { analyzeRoute } from '../utils/routeAnalysis';
 import useLocaleDigits from '../utils/useLocaleDigits';
 import { toast } from 'react-toastify';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
+import { createHaramVectorTileConfig } from '../config/vectorTiles';
 import { requestRouting } from '../services/routingService';
 import appConfig from '../config/appConfig';
 
@@ -36,7 +37,11 @@ const FinalSearch = () => {
   const navigate = useNavigate();
   const intl = useIntl();
   const formatDigits = useLocaleDigits();
-  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
+  const language = useLangStore((state) => state.language);
+  const isRtl = ["fa", "ar", "ur"].includes(language);
+  const baseMapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
+  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
+  const mapRenderKey = `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
   const {
     origin: storedOrigin,
     destination: storedDestination,
@@ -53,7 +58,6 @@ const FinalSearch = () => {
     setAlternativeRoutes: storeSetAlternativeRoutes,
     setGender: storeSetGender
   } = useRouteStore();
-  const language = useLangStore((state) => state.language);
   const qrLat = sessionStorage.getItem('qrLat');
   const qrLng = sessionStorage.getItem('qrLng');
   const storedRouteSahns = sessionStorage.getItem('routeSahns')
@@ -99,8 +103,8 @@ const FinalSearch = () => {
   const [altPopupMinutes, setAltPopupMinutes] = useState([]);
 
   const handleVectorTileLoad = useCallback((event) => {
-    initHaramVectorLayers(event?.target || event);
-  }, []);
+    initHaramVectorLayers(event?.target || event, createHaramVectorTileConfig(language));
+  }, [language]);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [geoData, setGeoData] = useState(null);
@@ -720,7 +724,7 @@ const FinalSearch = () => {
           </div>
         </div>
         <Map
-          key={styleKey}
+          key={mapRenderKey}
           ref={mapRef}
           mapLib={maplibregl}
           mapStyle={mapStyle}

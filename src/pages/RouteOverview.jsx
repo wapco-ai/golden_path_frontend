@@ -10,6 +10,7 @@ import { useRouteStore } from '../store/routeStore';
 import useLocaleDigits from '../utils/useLocaleDigits';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import { useLangStore } from '../store/langStore';
+import { createHaramVectorTileConfig } from '../config/vectorTiles';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { fetchLandmarkPlaces } from '../services/landmarkService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
@@ -22,6 +23,10 @@ const RouteOverview = () => {
   const intl = useIntl();
   const language = useLangStore(state => state.language);
   const formatDigits = useLocaleDigits();
+  const isRtl = ["fa", "ar", "ur"].includes(language);
+  const baseMapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
+  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
+  const mapRenderKey = `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
 
   const mapRef = useRef(null);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -38,9 +43,9 @@ const RouteOverview = () => {
   const [selectedLandmark, setSelectedLandmark] = useState(null);
 
   const handleMapLoad = useCallback((event) => {
-    initHaramVectorLayers(event?.target || event);
+    initHaramVectorLayers(event?.target || event, createHaramVectorTileConfig(language));
     setMapLoaded(true);
-  }, []);
+  }, [language]);
 
   const toRad = deg => (deg * Math.PI) / 180;
   const toDeg = rad => (rad * 180) / Math.PI;
@@ -95,12 +100,11 @@ const RouteOverview = () => {
     setAlternativeRoutes
   } = useRouteStore();
   const routeCoordinates = routeGeo?.geometry?.coordinates || [];
-  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
   const initialRouteFlyDone = useRef(false);
 
   useEffect(() => {
     setMapLoaded(false);
-  }, [styleKey]);
+  }, [mapRenderKey]);
 
   const getSubgroupImages = (subgroup) => {
     const imageSource = subgroup?.img;
@@ -849,7 +853,7 @@ const RouteOverview = () => {
 
       <div className="route-map-container">
         <Map
-          key={styleKey}
+          key={mapRenderKey}
           ref={mapRef}
           mapLib={maplibregl}
           mapStyle={mapStyle}
