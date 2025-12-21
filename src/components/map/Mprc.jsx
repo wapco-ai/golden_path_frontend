@@ -7,6 +7,7 @@ import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
 import { useLangStore } from '../../store/langStore';
 import { getLocationTitleById } from '../../utils/getLocationTitle';
 import { loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
+import { createHaramVectorTileConfig } from '../../config/vectorTiles';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
 
 function ensureRtlOnce() {
@@ -100,7 +101,10 @@ const Mprc = ({
   const [doorConnectionNodes, setDoorConnectionNodes] = useState([]);
   const [routeCoords, setRouteCoords] = useState(null);
   const language = useLangStore((state) => state.language);
-  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
+  const isRtl = ["fa", "ar", "ur"].includes(language);
+  const baseMapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
+  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
+  const mapRenderKey = `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
   const areaLineColor = areaDoorsStatus === 'area_too_small' ? '#9e9e9e' : '#ff9800';
 
   const calculateViewForBounds = useCallback((bounds, options = {}) => {
@@ -148,8 +152,8 @@ const Mprc = ({
   }, [onDoorSelect]);
 
   const handleMapLoad = useCallback((event) => {
-    initHaramVectorLayers(event?.target || event);
-  }, []);
+    initHaramVectorLayers(event?.target || event, createHaramVectorTileConfig(language));
+  }, [language]);
 
   const extractPlaceCoordinates = useCallback((place = {}) => {
     const lat =
@@ -678,7 +682,7 @@ const Mprc = ({
 
   return (
     <Map
-      key={styleKey}
+      key={mapRenderKey}
       mapLib={maplibregl}
       mapStyle={mapStyle}
       styleDiffing={false}

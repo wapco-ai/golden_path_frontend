@@ -8,6 +8,8 @@ import advancedDeadReckoningService from '../../services/AdvancedDeadReckoningSe
 import ArrowMarker from './ArrowMarker';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
 import appConfig from '../../config/appConfig';
+import { useLangStore } from '../../store/langStore';
+import { createHaramVectorTileConfig } from '../../config/vectorTiles';
 
 import { forwardRef, useImperativeHandle } from 'react';
 
@@ -28,10 +30,16 @@ const RouteMap = forwardRef(({
 }, ref) => {
   const mapRef = useRef(null);
   const lastHeading = useRef(null);
+  const language = useLangStore((state) => state.language);
   const isValidUserLocation = Array.isArray(userLocation)
     && userLocation.length === 2
     && Number.isFinite(userLocation[0])
     && Number.isFinite(userLocation[1]);
+
+  const isRtl = ["fa", "ar", "ur"].includes(language);
+  const baseMapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
+  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
+  const mapRenderKey = `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
 
   const center = isValidUserLocation
     ? userLocation
@@ -47,11 +55,10 @@ const RouteMap = forwardRef(({
   const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
   const [heading, setHeading] = useState(userHeading ?? 0);
   const [terrainAvailable, setTerrainAvailable] = useState(false);
-  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
 
   const handleMapLoad = useCallback((event) => {
-    initHaramVectorLayers(event?.target || event);
-  }, []);
+    initHaramVectorLayers(event?.target || event, createHaramVectorTileConfig(language));
+  }, [language]);
 
   useEffect(() => {
     let cancelled = false;
@@ -302,7 +309,7 @@ const RouteMap = forwardRef(({
 
   return (
     <Map
-      key={styleKey}
+      key={mapRenderKey}
       ref={mapRef}
       mapLib={maplibregl}
       mapStyle={mapStyle}
