@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import osmMapStyle, { BASE_RASTER_SOURCE_ID, offlineFallbackStyle } from '../services/osmMapStyle';
 import { toast } from 'react-toastify';
 
@@ -43,6 +43,13 @@ export default function useOfflineMapStyle(initialStyle = osmMapStyle) {
   const [mapStyle, setMapStyle] = useState(initialStyle);
   const [isFallback, setIsFallback] = useState(initialStyle === offlineFallbackStyle);
   const hasSwitchedRef = useRef(initialStyle === offlineFallbackStyle);
+
+  useEffect(() => {
+    setMapStyle(initialStyle);
+    const initialFallback = initialStyle === offlineFallbackStyle;
+    setIsFallback(initialFallback);
+    hasSwitchedRef.current = initialFallback;
+  }, [initialStyle]);
 
   const handleMapError = useCallback((event) => {
     if (hasSwitchedRef.current) {
