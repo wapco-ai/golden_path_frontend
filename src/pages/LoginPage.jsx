@@ -92,7 +92,10 @@ const LoginPage = () => {
                 <FormattedMessage
                   id="sentCode"
                   values={{
-                    phone: <span dir="ltr" className="phone-number">{formattedPhone}</span>
+                    phone: (chunks) => (
+                      <span dir="ltr" className="phone-number">{chunks}</span>
+                    ),
+                    phoneNumber: formattedPhone
                   }}
                 />
               </p>
