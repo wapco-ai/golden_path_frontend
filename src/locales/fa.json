@@ -19,7 +19,7 @@
   "privacy": "حریم خصوصی",
   "language": "زبان نرم افزار",
   "enterVerification": "کد تایید را وارد کنید",
-  "sentCode": "کد تایید را به شماره {phone} ارسال کردیم",
+  "sentCode": "کد تایید را به شماره <phone>{phoneNumber}</phone> ارسال کردیم",
   "wrongPhone": "شماره موبایل اشتباه است؟",
   "edit": "ویرایش",
   "resendCode": "ارسال دوباره کد تایید تا ۵۰ ثانیه",
