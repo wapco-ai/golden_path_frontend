@@ -98,11 +98,17 @@ const LoginPage = () => {
 
           {showVerification ? (
             <div className="verification-message">
-              <p
-                dangerouslySetInnerHTML={{
-                  __html: renderedVerificationMessage
-                }}
-              />
+              <p>
+                <FormattedMessage
+                  id="sentCode"
+                  values={{
+                    phone: (chunks) => (
+                      <span dir="ltr" className="phone-number">{chunks}</span>
+                    ),
+                    phoneNumber: formattedPhone
+                  }}
+                />
+              </p>
               <div className="verification-edit">
                 <span><FormattedMessage id="wrongPhone" /></span>
                 <button
