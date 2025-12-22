@@ -27,9 +27,8 @@ import adminRoutes from './routes/adminRoutes';
 import { PublicAuthProvider } from './hooks/usePublicAuth';
 import SignupAfterOtpPage from './pages/public/SignupAfterOtpPage';
 import CompleteProfilePage from './pages/public/CompleteProfilePage';
-import PublicAuthGuard from './auth/public/PublicAuthGuard';
-import ProfileGuard from './auth/public/ProfileGuard';
 import PublicHomePage from './pages/public/PublicHomePage';
+import { PublicAuthGuard, PublicProfileGuard } from './routes/PublicAuthGuards';
 
 const useAppStyles = () => {
   const location = useLocation();
@@ -127,9 +126,9 @@ const AppContent = () => {
             path="/public-home"
             element={
               <PublicAuthGuard>
-                <ProfileGuard>
+                <PublicProfileGuard>
                   <PublicHomePage />
-                </ProfileGuard>
+                </PublicProfileGuard>
               </PublicAuthGuard>
             }
           />
@@ -174,16 +173,16 @@ function App() {
   }, []);
 
   return (
-    <PublicAuthProvider>
-      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <PublicAuthProvider>
         <ToastContainer
           position={isRTL ? toast.POSITION.TOP_LEFT : toast.POSITION.TOP_RIGHT}
           rtl={isRTL}
           toastClassName="custom-toast"
         />
         <AppContent />
-      </Router>
-    </PublicAuthProvider>
+      </PublicAuthProvider>
+    </Router>
   );
 }
 
