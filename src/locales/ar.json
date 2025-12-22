@@ -19,7 +19,7 @@
   "privacy": "الخصوصية",
   "language": "لغة التطبيق",
   "enterVerification": "أدخل رمز التحقق",
-  "sentCode": "أرسلنا رمز التحقق إلى الرقم <phone>{phoneNumber}</phone>",
+  "sentCode": "أرسلنا رمز التحقق إلى الرقم {phoneNumber}",
   "wrongPhone": "رقم الهاتف المحمول خاطئ؟",
   "edit": "تعديل",
   "resendCode": "إعادة إرسال رمز التحقق بعد ٥٠ ثانية",
