@@ -59,7 +59,7 @@ const CompleteProfilePage = () => {
     try {
       const profile = await updateProfile(form);
       if (profile?.profileCompleted) {
-        navigate('/', { replace: true });
+        navigate('/public-home', { replace: true });
       }
     } catch (error) {
       setMessage(mapApiErrorToMessage(error));

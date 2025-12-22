@@ -3,10 +3,12 @@ import { FormattedMessage, useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
 import logo from '../assets/images/logo.png';
 import '../styles/Login.css';
+import usePublicAuth from '../hooks/usePublicAuth';
 
 const LoginPage = () => {
   const intl = useIntl();
   const navigate = useNavigate();
+  const { setTokensFromOtp, bootstrap } = usePublicAuth();
   const [phone, setPhone] = useState('');
   const [showVerification, setShowVerification] = useState(false);
   const [formattedPhone, setFormattedPhone] = useState('');
@@ -91,18 +93,28 @@ const LoginPage = () => {
     }
 
     if (code === '123456') {
-      const existingProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
-      const updatedProfile = {
-        ...existingProfile,
-        phoneNumber: phone
+      const handleSuccess = async () => {
+        setShowCodeError(false);
+        const tokensFromOtp = null; // replace with real OTP verification response
+        if (tokensFromOtp?.accessToken && tokensFromOtp?.refreshToken && tokensFromOtp?.expiresIn) {
+          setTokensFromOtp(tokensFromOtp);
+          const me = await bootstrap();
+          if (me?.profileCompleted) {
+            navigate('/public-home', { replace: true });
+          } else {
+            navigate('/complete-profile', { replace: true });
+          }
+          return;
+        }
+
+        navigate(`/signup-after-otp?phone=${phone}`, { replace: true });
       };
-      localStorage.setItem('userProfile', JSON.stringify(updatedProfile));
-      setShowCodeError(false);
-      navigate('/profile');
+
+      handleSuccess();
     } else {
       setShowCodeError(true);
     }
-  }, [verificationCode, navigate, phone]);
+  }, [verificationCode, navigate, phone, bootstrap, setTokensFromOtp]);
 
   return (
     <div className="login-page">
