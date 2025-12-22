@@ -44,19 +44,14 @@ export const getProfile = async () => {
   return data;
 };
 
-export const updateProfileFallback = async (payload: Record<string, any>) => {
-  const { data } = await publicApi.put('/users/me/profile', payload);
-  return data;
-};
-
 export const updateProfile = async (payload: Record<string, any>) => {
   try {
     const { data } = await publicApi.patch('/users/me', payload);
     return data;
   } catch (error: any) {
     if (error?.response?.status === 404) {
-      const fallbackData = await updateProfileFallback(payload);
-      return fallbackData;
+      const { data } = await publicApi.put('/users/me/profile', payload);
+      return data;
     }
     throw error;
   }
@@ -68,6 +63,5 @@ export {
   refresh,
   logout,
   getProfile,
-  updateProfile,
-  updateProfileFallback
+  updateProfile
 };
