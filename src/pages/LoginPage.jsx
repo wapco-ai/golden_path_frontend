@@ -58,6 +58,16 @@ const LoginPage = () => {
     setShowVerification(true);
   };
 
+  const verificationMessage = intl.formatMessage(
+    { id: 'sentCode' },
+    { phoneNumber: formattedPhone }
+  );
+
+  const renderedVerificationMessage = verificationMessage.replace(
+    /<phone>(.*?)<\/phone>/,
+    '<span dir="ltr" class="phone-number">$1</span>'
+  );
+
   return (
     <div className="login-page">
       {showError && (
