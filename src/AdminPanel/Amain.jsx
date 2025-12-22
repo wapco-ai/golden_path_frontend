@@ -9,6 +9,7 @@ import { toJalaali, toGregorian } from 'jalaali-js';
 import ReactDatePicker from 'react-datepicker';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import PagesManage from './PagesManage';
 
 import { booleanValid as turfBooleanValid, centroid as turfCentroid, distance as turfDistance } from '@turf/turf';
 import {
@@ -2741,6 +2742,14 @@ const Amain = () => {
       };
     }
 
+    if (currentReportView === 'مدیریت صفحات') {
+      return {
+        title: 'مدیریت صفحات ایجاد شده مربوط به نرم‌افزار  آستان قدس رضوی',
+        description: ''
+      };
+    }
+
+
     if (activeMenu === 'mapmanage') {
       return {
         title: ' مدیریت نقشه و نقاط و مکان های حرم مطهر',
@@ -2752,6 +2761,7 @@ const Amain = () => {
       title: 'آمار و جزئیات کلی محصول مسیربایی حرم تا امروز',
       description: ''
     };
+
   };
 
 
@@ -3690,11 +3700,13 @@ const Amain = () => {
     setEditingCulturalData(null);
 
     if (viewName === 'کاربران ثبت نام کرده' ||
-      viewName === 'لاگ های مسیریابی کاربران') {
+      viewName === 'لاگ های مسیریابی کاربران' ||
+      viewName === ' دیدگاه ها') {
       setActiveMenu('reports');
       setBreadcrumbPath(['منوی اصلی', 'گزارشات', viewName]);
     } else if (viewName === 'مدیریت دسته بندی‌ها' ||
-      viewName === 'مدیریت اطلاعات فرهنگی') {
+      viewName === 'مدیریت اطلاعات فرهنگی' ||
+      viewName === 'مدیریت صفحات') {  // Add this
       setActiveMenu('facmanage');
       setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات', viewName]);
       resetCategoryForm();
@@ -3827,9 +3839,9 @@ const Amain = () => {
         //   null,
         //   true
         // );
-        
+
         ensureRtlOnce();
-        
+
         const mapInstance = new maplibregl.Map({
           container: 'map-container',
           style: mapStyle,
@@ -7816,6 +7828,10 @@ const Amain = () => {
                   </div>
                   <div className="submenu-item">
                     <div className="submenu-branch"></div>
+                    <span>دیدگاه ها</span>
+                  </div>
+                  <div className="submenu-item">
+                    <div className="submenu-branch"></div>
                     <span>لاگ های مسیریابی کاربران</span>
                   </div>
                 </div>
@@ -7905,7 +7921,10 @@ const Amain = () => {
                   <div className="submenu-branch"></div>
                   <span>مدیریت دسته بندی‌ها</span>
                 </div>
-                <div className="submenu-item">
+                <div
+                  className={`submenu-item ${currentReportView === 'مدیریت صفحات' ? 'active' : ''}`}  // Updated this line
+                  onClick={() => handleSubmenuClick('مدیریت صفحات')}  // Updated this line
+                >
                   <div className="submenu-branch"></div>
                   <span>مدیریت صفحات</span>
                 </div>
@@ -8073,7 +8092,9 @@ const Amain = () => {
 
 
 
-          {isEditingCultural && editingCulturalData ? (
+          {currentReportView === 'مدیریت صفحات' ? (
+            <PagesManage />
+          ) : isEditingCultural && editingCulturalData ? (
             /* Edit Cultural Information Page */
             <div className="edit-cultural-page">
 
@@ -8760,7 +8781,7 @@ const Amain = () => {
                         <td className="cultural-description-cell">
                           {item.description ? (
                             <div className="truncated-description">
-                              {item.description.split(/\s+/).slice(0, 7).join(' ')}
+                              {item.description.split(/\s+/).slice(0, 4).join(' ')}
                               {item.description.split(/\s+/).length > 7 && '...'}
                             </div>
                           ) : (
@@ -10008,6 +10029,7 @@ const Amain = () => {
           {/* User Search and Table */}
           {currentReportView !== 'مدیریت اطلاعات فرهنگی' &&
             currentReportView !== 'مدیریت دسته بندی‌ها' &&
+            currentReportView !== 'مدیریت صفحات' &&
             activeMenu !== 'mapmanage' && (
               <div className="users-section">
                 <div className="section-header">

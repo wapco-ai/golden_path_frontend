@@ -120,6 +120,7 @@ function Support() {
               </h2>
             </div>
           )}
+          <div className="header-fade"></div>
 
         </div>
         {/* Success Message */}
@@ -193,9 +194,6 @@ function Support() {
                 <p className="contact-address">
                   +98 21 1234 5678
                 </p>
-                <p className="contact-description">
-                  <FormattedMessage id="phoneSupportDesc" />
-                </p>
               </div>
             </div>
             <div className="contact-card" onClick={() => handleContactClick('support')}>
@@ -211,9 +209,6 @@ function Support() {
                 </h3>
                 <p className="contact-address">
                   support@example.com
-                </p>
-                <p className="contact-description">
-                  <FormattedMessage id="supportEmailDesc" />
                 </p>
               </div>
             </div>
