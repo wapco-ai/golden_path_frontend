@@ -1,15 +1,19 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
+import { useNavigate } from 'react-router-dom';
 import logo from '../assets/images/logo.png';
 import '../styles/Login.css';
 
 const LoginPage = () => {
   const intl = useIntl();
+  const navigate = useNavigate();
   const [phone, setPhone] = useState('');
   const [showVerification, setShowVerification] = useState(false);
   const [formattedPhone, setFormattedPhone] = useState('');
-  const [verificationCode, setVerificationCode] = useState(['', '', '', '', '']);
+  const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
   const [showError, setShowError] = useState(false);
+  const [showCodeError, setShowCodeError] = useState(false);
+  const [countdown, setCountdown] = useState(60);
 
   const isValidIranianPhone = (phone) => /^09[0-9]{9}$/.test(phone);
 
@@ -29,7 +33,7 @@ const LoginPage = () => {
       newCode[index] = value;
       setVerificationCode(newCode);
 
-      if (value && index < 4) {
+      if (value && index < 5) {
         document.getElementById(`code-input-${index + 1}`).focus();
       } else if (e.nativeEvent.inputType === 'deleteContentBackward' && !value && index > 0) {
         document.getElementById(`code-input-${index - 1}`).focus();
@@ -40,7 +44,7 @@ const LoginPage = () => {
   const handleKeyDown = (e, index) => {
     if (e.key === 'ArrowLeft' && index > 0) {
       document.getElementById(`code-input-${index - 1}`).focus();
-    } else if (e.key === 'ArrowRight' && index < 4) {
+    } else if (e.key === 'ArrowRight' && index < 5) {
       document.getElementById(`code-input-${index + 1}`).focus();
     }
   };
@@ -55,8 +59,50 @@ const LoginPage = () => {
     const persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
     const formatted = phone.split('').map(d => persianDigits[parseInt(d)]).join('');
     setFormattedPhone(formatted);
+    setVerificationCode(['', '', '', '', '', '']);
+    setShowCodeError(false);
     setShowVerification(true);
+    setCountdown(60);
   };
+
+  useEffect(() => {
+    if (!showVerification) return undefined;
+
+    setCountdown(60);
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [showVerification]);
+
+  useEffect(() => {
+    const code = verificationCode.join('');
+
+    if (code.length !== 6) {
+      setShowCodeError(false);
+      return;
+    }
+
+    if (code === '123456') {
+      const existingProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+      const updatedProfile = {
+        ...existingProfile,
+        phoneNumber: phone
+      };
+      localStorage.setItem('userProfile', JSON.stringify(updatedProfile));
+      setShowCodeError(false);
+      navigate('/profile');
+    } else {
+      setShowCodeError(true);
+    }
+  }, [verificationCode, navigate, phone]);
 
   return (
     <div className="login-page">
@@ -137,9 +183,18 @@ const LoginPage = () => {
               ))}
             </div>
 
+            {showCodeError && (
+              <div className="error-message">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="error-icon">
+                  <path fillRule="evenodd" clipRule="evenodd" d="M22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22C17.5228 22 22 17.5228 22 12ZM12 6.25C12.4142 6.25 12.75 6.58579 12.75 7V13C12.75 13.4142 12.4142 13.75 12 13.75C11.5858 13.75 11.25 13.4142 11.25 13V7C11.25 6.58579 11.5858 6.25 12 6.25ZM12 17C12.5523 17 13 16.5523 13 16C13 15.4477 12.5523 15 12 15C11.4477 15 11 15.4477 11 16C11 16.5523 11.4477 17 12 17Z" fill="#EA4335" />
+                </svg>
+                <FormattedMessage id="invalidCode" />
+              </div>
+            )}
+
             <div className="verification-resend">
               <span>
-                <FormattedMessage id="resendCode" values={{ seconds: 50 }} />
+                <FormattedMessage id="resendCode" values={{ seconds: countdown }} />
               </span>
             </div>
           </div>
