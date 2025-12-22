@@ -19,7 +19,7 @@
   "privacy": "رازداری",
   "language": "ایپ کی زبان",
   "enterVerification": "تصدیقی کوڈ درج کریں",
-  "sentCode": "ہم نے تصدیقی کوڈ نمبر {phoneNumber} پر بھیج دیا ہے",
+  "sentCode": "ہم نے تصدیقی کوڈ نمبر <phone>{phoneNumber}</phone> پر بھیج دیا ہے",
   "wrongPhone": "موبائل نمبر غلط ہے؟",
   "edit": "ترمیم کریں",
   "resendCode": "تصدیقی کوڈ دوبارہ بھیجیں (۵۰ سیکنڈ میں)",

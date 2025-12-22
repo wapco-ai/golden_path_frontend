@@ -19,7 +19,7 @@
   "privacy": "Privacy",
   "language": "App Language",
   "enterVerification": "Enter the verification code",
-  "sentCode": "We sent a verification code to {phoneNumber}",
+  "sentCode": "We sent a verification code to <phone>{phoneNumber}</phone>",
   "wrongPhone": "Is the phone number incorrect?",
   "edit": "Edit",
   "resendCode": "Resend code in 50 seconds",
