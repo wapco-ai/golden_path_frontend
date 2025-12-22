@@ -1,23 +1,29 @@
-import publicApi, { refreshTokens as baseRefreshTokens } from './publicApi';
-import { AuthTokensDTO, UserDTO } from './types';
-import { clearTokens, setTokens } from './tokenStore';
+import publicApi from './publicApi';
+import { clearTokens, setTokens } from './publicTokenStore';
 
-export const createUser = async (payload: Partial<UserDTO> & { phone: string }) => {
-  const { data } = await publicApi.post<UserDTO>('/users', payload);
+const createUser = async (payload: Record<string, any>) => {
+  const { data } = await publicApi.post('/users', payload, { headers: { Authorization: undefined }, skipAuth: true });
   return data;
 };
 
-export const getMe = async () => {
-  const { data } = await publicApi.get<UserDTO>('/auth/me');
+const me = async () => {
+  const { data } = await publicApi.get('/auth/me');
   return data;
 };
 
-export const refresh = async (refreshToken: string) => {
-  const tokens = await baseRefreshTokens(refreshToken);
-  return tokens;
+const refresh = async ({ refreshToken }: { refreshToken: string }) => {
+  const { data } = await publicApi.post(
+    '/auth/refresh',
+    { refreshToken },
+    { headers: { Authorization: undefined }, skipAuth: true }
+  );
+  if (data?.accessToken && data?.refreshToken && data?.expiresIn) {
+    setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken, expiresIn: data.expiresIn });
+  }
+  return data;
 };
 
-export const logout = async (refreshToken: string) => {
+const logout = async ({ refreshToken }: { refreshToken: string }) => {
   try {
     await publicApi.post(
       '/auth/logout',
@@ -33,35 +39,39 @@ export const logout = async (refreshToken: string) => {
   }
 };
 
-export const getProfile = async () => {
-  const { data } = await publicApi.get<UserDTO>('/users/me');
+const getProfile = async () => {
+  const { data } = await publicApi.get('/users/me');
   return data;
 };
 
-export const updateProfile = async (payload: Partial<UserDTO>) => {
-  const { data } = await publicApi.patch<UserDTO>('/users/me', payload);
+const updateProfileFallback = async (payload: Record<string, any>) => {
+  const { data } = await publicApi.put('/users/me/profile', payload);
   return data;
 };
 
-export const updateProfileFallback = async (payload: Partial<UserDTO>) => {
-  const { data } = await publicApi.put<UserDTO>('/users/me/profile', payload);
-  return data;
-};
-
-export const applyTokens = ({ accessToken, refreshToken, expiresIn, user }: AuthTokensDTO) => {
-  if (accessToken && refreshToken && expiresIn) {
-    setTokens({ accessToken, refreshToken, expiresIn });
+const updateProfile = async (payload: Record<string, any>) => {
+  try {
+    const { data } = await publicApi.patch('/users/me', payload);
+    return data;
+  } catch (error: any) {
+    if (error?.response?.status === 404) {
+      const fallbackData = await updateProfileFallback(payload);
+      return fallbackData;
+    }
+    throw error;
   }
-  return user;
 };
 
-export default {
+const publicAuthClient = {
   createUser,
-  getMe,
+  me,
   refresh,
   logout,
   getProfile,
   updateProfile,
-  updateProfileFallback,
-  applyTokens
+  updateProfileFallback
 };
+
+export { createUser, me, refresh, logout, getProfile, updateProfile, updateProfileFallback, publicAuthClient };
+export default publicAuthClient;
+
