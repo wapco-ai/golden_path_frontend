@@ -7,8 +7,7 @@ const SignupAfterOtpPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { setUser } = usePublicAuth();
-  const initialPhone = location.state?.phone || '';
-  const [form, setForm] = useState({ phone: initialPhone, fullName: '', email: '', nationalId: '', password: '' });
+  const [form, setForm] = useState({ phone: '', fullName: '', email: '', nationalId: '', password: '' });
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
