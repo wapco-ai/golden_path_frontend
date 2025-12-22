@@ -13,7 +13,7 @@ const LoginPage = () => {
   const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
   const [showError, setShowError] = useState(false);
   const [showCodeError, setShowCodeError] = useState(false);
-  const [countdown, setCountdown] = useState(60);
+  const [countdown, setCountdown] = useState(50);
 
   const isValidIranianPhone = (phone) => /^09[0-9]{9}$/.test(phone);
 
@@ -62,13 +62,13 @@ const LoginPage = () => {
     setVerificationCode(['', '', '', '', '', '']);
     setShowCodeError(false);
     setShowVerification(true);
-    setCountdown(60);
+    setCountdown(50);
   };
 
   useEffect(() => {
     if (!showVerification) return undefined;
 
-    setCountdown(60);
+    setCountdown(50);
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
