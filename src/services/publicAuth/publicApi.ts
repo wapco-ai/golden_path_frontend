@@ -19,7 +19,11 @@ const refreshClient = axios.create({
 });
 
 const refreshTokens = async (refreshToken: string): Promise<AuthTokensDTO> => {
-  const { data } = await refreshClient.post<AuthTokensDTO>('/auth/refresh', { refreshToken }, { headers: { Authorization: undefined } });
+  const { data } = await refreshClient.post<AuthTokensDTO>(
+    '/auth/refresh',
+    { refreshToken },
+    { headers: { Authorization: undefined } }
+  );
   if (data?.accessToken && data?.refreshToken && data?.expiresIn) {
     setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken, expiresIn: data.expiresIn });
   }
