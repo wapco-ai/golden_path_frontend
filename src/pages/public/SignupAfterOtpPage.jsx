@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { createUser, getMe } from '../../services/publicAuth/publicAuthClient';
 import usePublicAuth, { mapApiErrorToFields, mapApiErrorToMessage } from '../../hooks/usePublicAuth';
 
 const SignupAfterOtpPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { setUser } = usePublicAuth();
+  const { completeSignup } = usePublicAuth();
   const [form, setForm] = useState({ phone: '', fullName: '', email: '', nationalId: '', password: '' });
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState('');
@@ -17,17 +16,23 @@ const SignupAfterOtpPage = () => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const phone = searchParams.get('phone') || location.state?.phone;
+    if (phone) {
+      setForm((prev) => ({ ...prev, phone }));
+    }
+  }, [location.search, location.state]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setErrors({});
     setMessage('');
     try {
-      await createUser(form);
-      const me = await getMe();
-      setUser(me);
+      const me = await completeSignup(form);
       if (me?.profileCompleted) {
-        navigate('/', { replace: true });
+        navigate('/public-home', { replace: true });
       } else {
         navigate('/complete-profile', { replace: true, state: { from: location } });
       }
