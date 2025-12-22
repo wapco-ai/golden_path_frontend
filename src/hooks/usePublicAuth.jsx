@@ -1,85 +1,33 @@
-import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
-import { applyTokens, getMe, logout as logoutApi, refresh as refreshApi } from '../services/publicAuth/publicAuthClient';
+import React, { createContext, useContext, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { mapApiErrorToFields, mapApiErrorToMessage } from '../services/publicAuth/errorMapping';
-import { clearTokens, getAccessToken, getRefreshToken } from '../services/publicAuth/tokenStore';
+import { clearTokens, getAccessToken, getRefreshToken } from '../services/publicAuth/publicTokenStore';
+import setupPublicAuthInterceptor from '../services/publicAuth/publicAuthInterceptor';
+import { usePublicAuthStore } from '../state/publicAuth/publicAuthStore';
 
 const PublicAuthContext = createContext(null);
 
 export const PublicAuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const bootstrapped = useRef(false);
+  const navigate = useNavigate();
+  const store = usePublicAuthStore();
 
-  const profileCompleted = Boolean(user?.profileCompleted);
-
-  const setSessionFromOtp = useCallback((tokens) => {
-    if (tokens?.accessToken && tokens?.refreshToken && tokens?.expiresIn) {
-      applyTokens(tokens);
-      if (tokens?.user) {
-        setUser(tokens.user);
-      }
-    }
-  }, []);
-
-  const bootstrap = useCallback(async () => {
-    if (bootstrapped.current || !getAccessToken()) return null;
-    bootstrapped.current = true;
-    setLoading(true);
-    try {
-      const me = await getMe();
-      setUser(me);
-      return me;
-    } catch (error) {
-      clearTokens();
-      setUser(null);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const signOut = useCallback(async () => {
-    const refreshToken = getRefreshToken();
-    try {
-      if (refreshToken) {
-        await logoutApi(refreshToken);
-      }
-    } catch (error) {
-      // ignore network errors on logout
-      console.error(error);
-    } finally {
-      clearTokens();
-      setUser(null);
-    }
-  }, []);
-
-  const ensureFreshSession = useCallback(async () => {
-    if (!getAccessToken()) return null;
-    if (!getRefreshToken()) return null;
-    try {
-      const refreshed = await refreshApi(getRefreshToken());
-      if (refreshed?.user) {
-        setUser(refreshed.user);
-      }
-      return refreshed;
-    } catch (error) {
-      await signOut();
-      throw error;
-    }
-  }, [signOut]);
+  useEffect(() => {
+    setupPublicAuthInterceptor({
+      onLogout: store.logout,
+      onUnauthenticated: () => navigate('/login', { replace: true })
+    });
+  }, [store.logout, navigate]);
 
   const value = useMemo(
     () => ({
-      user,
-      profileCompleted,
-      loading,
-      bootstrap,
-      signOut,
-      setUser,
-      setSessionFromOtp,
-      ensureFreshSession
+      ...store,
+      hasAccessToken: Boolean(getAccessToken()),
+      refreshToken: getRefreshToken(),
+      clearTokens,
+      mapApiErrorToMessage,
+      mapApiErrorToFields
     }),
-    [bootstrap, ensureFreshSession, loading, profileCompleted, signOut, user]
+    [store]
   );
 
   return <PublicAuthContext.Provider value={value}>{children}</PublicAuthContext.Provider>;
