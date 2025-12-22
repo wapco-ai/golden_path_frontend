@@ -13,11 +13,13 @@ import appConfig from '../config/appConfig';
 import { fetchLandmarkPlaces } from '../services/landmarkService';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
+import { useUserAuthStore } from '../auth/user/userAuthStore';
 
 const MapBeginPage = () => {
   const navigate = useNavigate();
   const intl = useIntl();
   const language = useLangStore(state => state.language);
+  const { accessToken, user } = useUserAuthStore();
   const [selectedOrigin, setSelectedOrigin] = useState(null);
   const storedLat = sessionStorage.getItem('qrLat');
   const storedLng = sessionStorage.getItem('qrLng');
@@ -913,6 +915,15 @@ const MapBeginPage = () => {
     navigate('/fs', { state: { place } });
   };
 
+  const handleProfileClick = () => {
+    if (accessToken && user) {
+      navigate('/profile');
+      return;
+    }
+
+    navigate('/login');
+  };
+
   return (
     <div className="map-routing-page">
       {/* Header */}
@@ -939,7 +950,7 @@ const MapBeginPage = () => {
         <h1 className="map-header-title">
           {intl.formatMessage({ id: 'mapRoutingTitle' })}
         </h1>
-        <button className="map-profile-button" onClick={() => navigate('/Profile')}>
+        <button className="map-profile-button" onClick={handleProfileClick}>
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="9.99984" cy="5" r="3.33333" fill="#1E2023" />
             <ellipse cx="9.99984" cy="14.1667" rx="5.83333" ry="3.33333" fill="#1E2023" />
