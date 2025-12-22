@@ -24,6 +24,12 @@ import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { ToastContainer, toast } from 'react-toastify';
 import adminRoutes from './routes/adminRoutes';
+import { PublicAuthProvider } from './hooks/usePublicAuth';
+import SignupAfterOtpPage from './pages/public/SignupAfterOtpPage';
+import CompleteProfilePage from './pages/public/CompleteProfilePage';
+import PublicAuthGuard from './auth/public/PublicAuthGuard';
+import ProfileGuard from './auth/public/ProfileGuard';
+import PublicHomePage from './pages/public/PublicHomePage';
 
 const useAppStyles = () => {
   const location = useLocation();
@@ -108,6 +114,25 @@ const AppContent = () => {
         )}
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup-after-otp" element={<SignupAfterOtpPage />} />
+          <Route
+            path="/complete-profile"
+            element={
+              <PublicAuthGuard>
+                <CompleteProfilePage />
+              </PublicAuthGuard>
+            }
+          />
+          <Route
+            path="/public-home"
+            element={
+              <PublicAuthGuard>
+                <ProfileGuard>
+                  <PublicHomePage />
+                </ProfileGuard>
+              </PublicAuthGuard>
+            }
+          />
           <Route path="/profile" element={<Profile />} />
           <Route path="/fs" element={<FinalSearch />} />
           <Route path="/rop" element={<RouteOverview />} />
@@ -149,14 +174,16 @@ function App() {
   }, []);
 
   return (
-    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <ToastContainer
-        position={isRTL ? toast.POSITION.TOP_LEFT : toast.POSITION.TOP_RIGHT}
-        rtl={isRTL}
-        toastClassName="custom-toast"
-      />
-      <AppContent />
-    </Router>
+    <PublicAuthProvider>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <ToastContainer
+          position={isRTL ? toast.POSITION.TOP_LEFT : toast.POSITION.TOP_RIGHT}
+          rtl={isRTL}
+          toastClassName="custom-toast"
+        />
+        <AppContent />
+      </Router>
+    </PublicAuthProvider>
   );
 }
 
