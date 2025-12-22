@@ -18,6 +18,26 @@ const IntlProviderWrapper = ({ children }) => {
     document.documentElement.dir = language === 'en' ? 'ltr' : 'rtl';
   }, [language]);
 
+  const convertDigits = (value) => {
+    if (value == null) return value;
+
+    if (typeof value === 'string' || typeof value === 'number') {
+      return toPersianDigits(value);
+    }
+
+    if (Array.isArray(value)) {
+      return value.map(convertDigits);
+    }
+
+    if (React.isValidElement(value)) {
+      return React.cloneElement(value, {
+        children: convertDigits(value.props.children)
+      });
+    }
+
+    return value;
+  };
+
   const cache = createIntlCache();
   const intl = createIntl({ locale: language, messages: messages[language], defaultLocale: 'fa' }, cache);
 
@@ -25,7 +45,7 @@ const IntlProviderWrapper = ({ children }) => {
   intl.formatMessage = (descriptor, values) => {
     let msg = originalFormatMessage(descriptor, values);
     if (['fa', 'ur', 'ar'].includes(language)) {
-      msg = toPersianDigits(msg);
+      msg = convertDigits(msg);
     }
     return msg;
   };
