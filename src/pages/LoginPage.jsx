@@ -58,16 +58,6 @@ const LoginPage = () => {
     setShowVerification(true);
   };
 
-  const verificationMessage = intl.formatMessage(
-    { id: 'sentCode' },
-    { phoneNumber: formattedPhone }
-  );
-
-  const renderedVerificationMessage = verificationMessage.replace(
-    /<phone>(.*?)<\/phone>/,
-    '<span dir="ltr" class="phone-number">$1</span>'
-  );
-
   return (
     <div className="login-page">
       {showError && (
@@ -102,10 +92,9 @@ const LoginPage = () => {
                 <FormattedMessage
                   id="sentCode"
                   values={{
-                    phone: (chunks) => (
-                      <span dir="ltr" className="phone-number">{chunks}</span>
-                    ),
-                    phoneNumber: formattedPhone
+                    phoneNumber: (
+                      <span dir="ltr" className="phone-number">{formattedPhone}</span>
+                    )
                   }}
                 />
               </p>
