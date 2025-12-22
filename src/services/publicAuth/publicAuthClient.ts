@@ -57,7 +57,7 @@ export const updateProfile = async (payload: Record<string, any>) => {
   }
 };
 
-export default {
+export {
   createUser,
   me,
   refresh,
