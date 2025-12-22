@@ -65,3 +65,7 @@ export {
   getProfile,
   updateProfile
 };
+
+export { createUser, me, refresh, logout, getProfile, updateProfile, updateProfileFallback, publicAuthClient };
+export default publicAuthClient;
+
