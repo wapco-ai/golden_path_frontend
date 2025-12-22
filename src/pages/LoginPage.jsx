@@ -3,12 +3,10 @@ import { FormattedMessage, useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
 import logo from '../assets/images/logo.png';
 import '../styles/Login.css';
-import { usePublicAuth } from '../hooks/usePublicAuth';
 
 const LoginPage = () => {
   const intl = useIntl();
   const navigate = useNavigate();
-  const { setSessionFromOtp } = usePublicAuth();
   const [phone, setPhone] = useState('');
   const [showVerification, setShowVerification] = useState(false);
   const [formattedPhone, setFormattedPhone] = useState('');
@@ -93,15 +91,18 @@ const LoginPage = () => {
     }
 
     if (code === '123456') {
+      const existingProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+      const updatedProfile = {
+        ...existingProfile,
+        phoneNumber: phone
+      };
+      localStorage.setItem('userProfile', JSON.stringify(updatedProfile));
       setShowCodeError(false);
-      // OTP verification is mocked; hand off to the post-OTP public flow with the verified phone
-      // so the signup/create-user API call can fire.
-      setSessionFromOtp();
-      navigate('/signup-after-otp', { replace: true, state: { phone } });
+      navigate('/profile');
     } else {
       setShowCodeError(true);
     }
-  }, [verificationCode, navigate, phone, setSessionFromOtp]);
+  }, [verificationCode, navigate, phone]);
 
   return (
     <div className="login-page">
