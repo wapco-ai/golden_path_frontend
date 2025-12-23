@@ -277,8 +277,17 @@ function ProfileInfo() {
 
   // Get user display name
   const getDisplayName = () => {
-    if (userData.firstName && userData.lastName) {
-      return `${userData.firstName} ${userData.lastName}`;
+    const fullName = [userData.firstName, userData.lastName]
+      .map((name) => name?.trim())
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    if (fullName) {
+      return fullName;
+    }
+    if (userData.username) {
+      return userData.username;
     }
     if (userData.username) {
       return userData.username;
