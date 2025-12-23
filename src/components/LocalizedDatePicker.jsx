@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useId, useMemo } from 'react';
 import DatePicker from 'react-multi-date-picker';
 import DateObject from 'react-date-object';
 import 'react-multi-date-picker/styles/layouts/mobile.css';
@@ -8,7 +8,7 @@ import arabic from 'react-date-object/calendars/arabic';
 import gregorian_en from 'react-date-object/locales/gregorian_en';
 import persian_fa from 'react-date-object/locales/persian_fa';
 import arabic_ar from 'react-date-object/locales/arabic_ar';
-// import urdu from 'react-date-object/locales/urdu_ur';
+import '../styles/datepicker.mobile.css';
 
 const CALENDAR_BY_LANG = {
   fa: { calendar: persian, locale: persian_fa, direction: 'rtl' },
@@ -52,6 +52,7 @@ function LocalizedDatePicker({
   inputClassName = 'form-input'
 }) {
   const { calendar, locale, direction } = CALENDAR_BY_LANG[lang] || CALENDAR_BY_LANG.en;
+  const helperId = useId();
 
   const pickerValue = useMemo(
     () => isoToDateObject(value, calendar, locale),
@@ -77,7 +78,7 @@ function LocalizedDatePicker({
   const isRtl = direction === 'rtl';
 
   return (
-    <div className={`localized-date-picker ${isRtl ? 'rtl' : 'ltr'}`} dir={direction}>
+    <div className={`gp-date-picker ${isRtl ? 'rtl' : 'ltr'}`} dir={direction}>
       <DatePicker
         value={pickerValue}
         onChange={handleChange}
@@ -85,14 +86,28 @@ function LocalizedDatePicker({
         locale={locale}
         minDate={pickerMinDate}
         maxDate={pickerMaxDate}
-        render={<input className={`${inputClassName} ${error ? 'error' : ''}`} />}
+        render={(inputValue, openCalendar) => (
+          <input
+            className={`${inputClassName} ${error ? 'error' : ''}`}
+            value={inputValue || ''}
+            readOnly
+            inputMode="none"
+            disabled={disabled}
+            aria-invalid={error || undefined}
+            aria-describedby={helperText ? helperId : undefined}
+            onFocus={() => openCalendar?.()}
+            onClick={() => openCalendar?.()}
+          />
+        )}
         format={FORMAT_STRING}
-        editable
+        editable={false}
         disabled={disabled}
         calendarPosition="bottom-center"
+        mobile
+        portal
       />
       {helperText && (
-        <div className={`helper-text ${error ? 'error' : ''}`}>
+        <div id={helperId} className={`helper-text ${error ? 'error' : ''}`}>
           {helperText}
         </div>
       )}
