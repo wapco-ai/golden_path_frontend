@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
+import apiUser from '../api/apiUser';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
-import { authMe, createUser } from '../services/publicAuthApi';
 import mapApiError from '../services/apiErrorMapper';
 import logo from '../assets/images/logo.png';
 import '../styles/Login.css';
@@ -10,7 +10,7 @@ import '../styles/Login.css';
 const LoginPage = () => {
   const intl = useIntl();
   const navigate = useNavigate();
-  const { fetchMe, setSession, accessToken, refreshToken } = useUserAuthStore();
+  const { setSession } = useUserAuthStore();
   const [phone, setPhone] = useState('');
   const [showVerification, setShowVerification] = useState(false);
   const [formattedPhone, setFormattedPhone] = useState('');
@@ -55,10 +55,23 @@ const LoginPage = () => {
     }
   };
 
-  const handleSubmitPhone = (e) => {
+  const handleSubmitPhone = async (e) => {
     e.preventDefault();
     if (!isValidIranianPhone(phone)) {
       setShowError(true);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError('');
+    setShowCodeError(false);
+
+    try {
+      await apiUser.post('/api/v1/auth/otp/request', { phone });
+    } catch (err) {
+      const mapped = mapApiError(err);
+      setSubmitError(mapped.message);
+      setIsSubmitting(false);
       return;
     }
 
@@ -69,6 +82,7 @@ const LoginPage = () => {
     setShowCodeError(false);
     setShowVerification(true);
     setCountdown(50);
+    setIsSubmitting(false);
   };
 
   useEffect(() => {
@@ -96,62 +110,51 @@ const LoginPage = () => {
       return;
     }
 
-    if (code === '123456') {
-      const runOtpSuccessFlow = async () => {
-        setIsSubmitting(true);
-        setSubmitError('');
-        try {
-          const payload = {
-            phone
-          };
+    const runOtpSuccessFlow = async () => {
+      setIsSubmitting(true);
+      setSubmitError('');
+      try {
+        const verifyResponse = await apiUser.post('/api/v1/auth/otp/verify', { phone, otp: code });
+        const { accessToken, refreshToken, expiresIn, user } = verifyResponse.data || {};
+        setSession({
+          accessToken,
+          refreshToken,
+          user: user || null,
+          expiresIn,
+          profileCompleted: user?.profileCompleted
+        });
 
-          try {
-            await createUser(payload);
-          } catch (err) {
-            const errCode = err?.response?.data?.code;
-            if (errCode !== 'PHONE_EXISTS') {
-              throw err;
-            }
-          }
+        const meData = await apiUser.get('/api/v1/auth/me').then((res) => res.data);
+        setSession({
+          accessToken,
+          refreshToken,
+          user: meData,
+          expiresIn,
+          profileCompleted: meData?.profileCompleted
+        });
 
-          let meData = null;
-          try {
-            meData = await fetchMe();
-          } catch (err) {
-            meData = await authMe();
-            setSession({
-              accessToken,
-              refreshToken,
-              user: meData,
-              profileCompleted: meData?.profileCompleted
-            });
-          }
+        const profileCompleted =
+          typeof meData?.profileCompleted === 'boolean'
+            ? meData.profileCompleted
+            : user?.profileCompleted;
 
-          const profileCompleted =
-            typeof meData?.profileCompleted === 'boolean'
-              ? meData.profileCompleted
-              : meData?.user?.profileCompleted;
-
-          setShowCodeError(false);
-          if (profileCompleted === false) {
-            navigate('/pinfo');
-          } else {
-            navigate('/profile');
-          }
-        } catch (err) {
-          setShowCodeError(true);
-          const mapped = mapApiError(err);
-          setSubmitError(mapped.message);
-        } finally {
-          setIsSubmitting(false);
+        setShowCodeError(false);
+        if (profileCompleted === false) {
+          navigate('/pinfo');
+        } else {
+          navigate('/profile');
         }
-      };
+      } catch (err) {
+        setShowCodeError(true);
+        const mapped = mapApiError(err);
+        setSubmitError(mapped.message);
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
 
-      runOtpSuccessFlow();
-    } else {
-      setShowCodeError(true);
-    }
-  }, [verificationCode, navigate, phone, fetchMe, setSession, accessToken, refreshToken]);
+    runOtpSuccessFlow();
+  }, [verificationCode, navigate, phone, setSession]);
 
   return (
     <div className="login-page">

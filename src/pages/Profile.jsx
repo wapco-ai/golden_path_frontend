@@ -8,7 +8,7 @@ import packageInfo from '../../package.json';
 import '../styles/Profile.css';
 import { createContext, useContext } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useUserAuthStore } from '../auth/user/userAuthStore';
+import { useUserAuthStore, USER_REFRESH_TOKEN_KEY } from '../auth/user/userAuthStore';
 import { authLogout, getUserMe } from '../services/publicAuthApi';
 import mapApiError from '../services/apiErrorMapper';
 
@@ -82,8 +82,9 @@ function Profile() {
 
   const handleLogout = async () => {
     try {
-      if (refreshToken) {
-        await authLogout(refreshToken);
+      const token = refreshToken || localStorage.getItem(USER_REFRESH_TOKEN_KEY);
+      if (token) {
+        await authLogout(token);
       }
     } catch (err) {
       console.error('logout failed', err);
