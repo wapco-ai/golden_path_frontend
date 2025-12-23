@@ -386,6 +386,18 @@
   gap: 8px;
 }
 
+.birthdate-container {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+}
+
+.birthdate-select {
+  width: 100%;
+}
+
 .birthdate-selects {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
