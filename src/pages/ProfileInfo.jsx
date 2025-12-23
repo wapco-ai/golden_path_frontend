@@ -7,12 +7,23 @@ import { getUserMe, updateUserMe } from '../services/publicAuthApi';
 import apiUser from '../api/apiUser';
 import mapApiError from '../services/apiErrorMapper';
 import '../styles/ProfileInfo.css';
+import { useLangStore } from '../store/langStore';
 
 function ProfileInfo() {
   const navigate = useNavigate();
   const intl = useIntl();
+  const language = useLangStore((state) => state.language);
   const fileInputRef = useRef(null);
   const { setSession, accessToken, refreshToken } = useUserAuthStore();
+
+  const calendarLocales = {
+    fa: 'fa-IR-u-ca-persian',
+    en: 'en-US-u-ca-gregory',
+    ar: 'ar-SA-u-ca-islamic-umalqura',
+    ur: 'ur-PK-u-ca-islamic'
+  };
+
+  const birthDateLocale = calendarLocales[language] || 'en-US-u-ca-gregory';
 
   // User data state - load from localStorage on component mount
   const [userData, setUserData] = useState({
@@ -503,6 +514,7 @@ function ProfileInfo() {
               value={userData.birthDate}
               onChange={(e) => handleInputChange('birthDate', e.target.value)}
               className="form-input"
+              lang={birthDateLocale}
             />
           </div>
         </div>
