@@ -16,108 +16,20 @@ function ProfileInfo() {
   const fileInputRef = useRef(null);
   const { setSession, accessToken, refreshToken } = useUserAuthStore();
 
-  const calendarConfigs = {
-    fa: { calendar: 'persian', locale: 'fa' },
-    en: { calendar: 'gregory', locale: 'en' },
-    ar: { calendar: 'islamic-umalqura', locale: 'ar' },
-    ur: { calendar: 'islamic-umalqura', locale: 'ur' }
+  const calendarLocales = {
+    fa: 'fa-IR-u-ca-persian',
+    en: 'en-US-u-ca-gregory',
+    ar: 'ar-SA-u-ca-islamic-umalqura',
+    ur: 'ur-PK-u-ca-islamic'
   };
 
-  const activeCalendar = calendarConfigs[language] || calendarConfigs.en;
-
-  const calendarFormatter = useMemo(
-    () => new Intl.DateTimeFormat(
-      `${activeCalendar.locale}-u-ca-${activeCalendar.calendar}-nu-latn`,
-      { year: 'numeric', month: 'numeric', day: 'numeric' }
-    ),
-    [activeCalendar.calendar, activeCalendar.locale]
-  );
-
-  const calendarDisplayFormatter = useMemo(
-    () => new Intl.DateTimeFormat(`${activeCalendar.locale}-u-ca-${activeCalendar.calendar}`),
-    [activeCalendar.calendar, activeCalendar.locale]
-  );
-
-  const localizedNumberFormatter = useMemo(
-    () => new Intl.NumberFormat(activeCalendar.locale),
-    [activeCalendar.locale]
-  );
-
-  const calendarParts = (date) => {
-    const parts = calendarFormatter.formatToParts(date);
-    return parts.reduce((acc, part) => {
-      if (part.type === 'year' || part.type === 'month' || part.type === 'day') {
-        acc[part.type] = Number(part.value);
-      }
-      return acc;
-    }, {});
-  };
-
-  const findGregorianDateByCalendarParts = (targetYear, targetMonth, targetDay = 1) => {
-    if (!targetYear || !targetMonth || !targetDay) return null;
-    const start = new Date(1890, 0, 1);
-    const end = new Date(2110, 0, 1);
-
-    for (let cursor = new Date(start); cursor < end; cursor.setDate(cursor.getDate() + 1)) {
-      const parts = calendarParts(cursor);
-      if (parts.year === targetYear && parts.month === targetMonth && parts.day === targetDay) {
-        return new Date(cursor);
-      }
-    }
-
-    return null;
-  };
-
-  const daysInCalendarMonth = (year, month) => {
-    if (!year || !month) return [];
-
-    const startMatch = findGregorianDateByCalendarParts(year, month, 1);
-    if (!startMatch) return [];
-
-    const days = [];
-    let cursor = new Date(startMatch);
-    while (true) {
-      const parts = calendarParts(cursor);
-      if (parts.year !== year || parts.month !== month) break;
-      days.push(parts.day);
-      cursor.setDate(cursor.getDate() + 1);
-    }
-
-    return days;
-  };
-
-  const monthNames = useMemo(() => {
-    const names = [];
-    const sampleYear = calendarParts(new Date()).year;
-    for (let monthIndex = 1; monthIndex <= 12; monthIndex += 1) {
-      const matchDate = findGregorianDateByCalendarParts(sampleYear, monthIndex, 1) || new Date();
-      const formatted = new Intl.DateTimeFormat(`${activeCalendar.locale}-u-ca-${activeCalendar.calendar}`, {
-        month: 'long'
-      }).format(matchDate);
-      names.push({ value: monthIndex, label: formatted });
-    }
-    return names;
-  }, [activeCalendar.calendar, activeCalendar.locale, calendarFormatter]);
-
-  const calendarYears = useMemo(() => {
-    const todayParts = calendarParts(new Date());
-    const years = [];
-    for (let yearCursor = todayParts.year; yearCursor >= todayParts.year - 120; yearCursor -= 1) {
-      years.push(yearCursor);
-    }
-    return years;
-  }, [calendarFormatter]);
-
-  const displayLocalizedDate = (year, month, day) => {
-    const matchedDate = findGregorianDateByCalendarParts(year, month, day);
-    if (!matchedDate) return '';
-    return calendarDisplayFormatter.format(matchedDate);
-  };
+  const birthDateLocale = calendarLocales[language] || 'en-US-u-ca-gregory';
 
   // User data state - load from localStorage on component mount
   const [userData, setUserData] = useState({
     firstName: '',
     lastName: '',
+    username: '',
     phoneNumber: '',
     province: '',
     city: '',
@@ -190,6 +102,7 @@ function ProfileInfo() {
 
         setUserData((prevData) => ({
           ...prevData,
+          username: profile?.username || profile?.userName || prevData.username,
           firstName: profile?.firstName || prevData.firstName,
           lastName: profile?.lastName || prevData.lastName,
           phoneNumber: profile?.phone || profile?.phoneNumber || prevData.phoneNumber,
@@ -401,8 +314,20 @@ function ProfileInfo() {
 
   // Get user display name
   const getDisplayName = () => {
-    if (userData.firstName && userData.lastName) {
-      return `${userData.firstName} ${userData.lastName}`;
+    const fullName = [userData.firstName, userData.lastName]
+      .map((name) => name?.trim())
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    if (fullName) {
+      return fullName;
+    }
+    if (userData.username) {
+      return userData.username;
+    }
+    if (userData.username) {
+      return userData.username;
     }
     return intl.formatMessage({ id: 'Username' });
   };
@@ -628,54 +553,15 @@ function ProfileInfo() {
               <span className="required-star">*</span>
             </label>
           </div>
-          <div className={`input-container birthdate-picker ${userData.birthDate ? 'filled' : ''}`}>
-            <div className="birthdate-selects">
-              <select
-                className="form-input"
-                value={birthDateParts.year}
-                onChange={(e) => handleBirthDatePartChange('year', e.target.value)}
-              >
-                <option value="">{intl.formatMessage({ id: 'selectYear', defaultMessage: 'Select year' })}</option>
-                {calendarYears.map((yearOption) => (
-                  <option key={yearOption} value={yearOption}>
-                    {localizedNumberFormatter.format(yearOption)}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                className="form-input"
-                value={birthDateParts.month}
-                onChange={(e) => handleBirthDatePartChange('month', e.target.value)}
-              >
-                <option value="">{intl.formatMessage({ id: 'selectMonth', defaultMessage: 'Select month' })}</option>
-                {monthNames.map((month) => (
-                  <option key={month.value} value={month.value}>
-                    {month.label}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                className="form-input"
-                value={birthDateParts.day}
-                onChange={(e) => handleBirthDatePartChange('day', e.target.value)}
-                disabled={!birthDateParts.month || !birthDateParts.year}
-              >
-                <option value="">{intl.formatMessage({ id: 'selectDay', defaultMessage: 'Select day' })}</option>
-                {dayOptions.map((day) => (
-                  <option key={day} value={day}>
-                    {localizedNumberFormatter.format(day)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="birthdate-preview">
-              {userData.birthDate
-                ? displayLocalizedDate(birthDateParts.year, birthDateParts.month, birthDateParts.day)
-                : intl.formatMessage({ id: 'selectBirthDate' })}
-            </div>
+          <div className={`input-container ${userData.birthDate ? 'filled' : ''}`}>
+            <input
+              type="date"
+              placeholder={intl.formatMessage({ id: 'selectBirthDate' })}
+              value={userData.birthDate}
+              onChange={(e) => handleInputChange('birthDate', e.target.value)}
+              className="form-input"
+              lang={birthDateLocale}
+            />
           </div>
         </div>
 
