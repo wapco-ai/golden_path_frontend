@@ -18,6 +18,7 @@ function ProfileInfo() {
   const [userData, setUserData] = useState({
     firstName: '',
     lastName: '',
+    username: '',
     phoneNumber: '',
     province: '',
     city: '',
@@ -68,6 +69,7 @@ function ProfileInfo() {
 
         setUserData((prevData) => ({
           ...prevData,
+          username: profile?.username || profile?.userName || prevData.username,
           firstName: profile?.firstName || prevData.firstName,
           lastName: profile?.lastName || prevData.lastName,
           phoneNumber: profile?.phone || profile?.phoneNumber || prevData.phoneNumber,
@@ -264,8 +266,17 @@ function ProfileInfo() {
 
   // Get user display name
   const getDisplayName = () => {
-    if (userData.firstName && userData.lastName) {
-      return `${userData.firstName} ${userData.lastName}`;
+    const fullName = [userData.firstName, userData.lastName]
+      .map((name) => name?.trim())
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    if (fullName) {
+      return fullName;
+    }
+    if (userData.username) {
+      return userData.username;
     }
     return intl.formatMessage({ id: 'Username' });
   };
