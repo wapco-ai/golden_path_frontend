@@ -7,14 +7,14 @@ import persian from 'react-date-object/calendars/persian';
 import arabic from 'react-date-object/calendars/arabic';
 import gregorian_en from 'react-date-object/locales/gregorian_en';
 import persian_fa from 'react-date-object/locales/persian_fa';
-import arabic_ar from 'react-date-object/locales/arabic';
-import urdu from 'react-date-object/locales/urdu';
+import arabic_ar from 'react-date-object/locales/arabic_ar';
+// import urdu from 'react-date-object/locales/urdu_ur';
 
 const CALENDAR_BY_LANG = {
   fa: { calendar: persian, locale: persian_fa, direction: 'rtl' },
   en: { calendar: gregorian, locale: gregorian_en, direction: 'ltr' },
   ar: { calendar: arabic, locale: arabic_ar, direction: 'rtl' },
-  ur: { calendar: arabic, locale: urdu, direction: 'rtl' }
+  ur: { calendar: arabic, locale: arabic_ar, direction: 'rtl' }
 };
 
 const FORMAT_STRING = 'YYYY-MM-DD';
