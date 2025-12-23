@@ -93,19 +93,6 @@ function ProfileInfo() {
     [birthDateParts.month, birthDateParts.year]
   );
 
-  const localizedBirthDate = useMemo(() => {
-    if (!userData.birthDate) {
-      return '';
-    }
-
-    const parsedDate = new Date(`${userData.birthDate}T00:00:00Z`);
-    if (Number.isNaN(parsedDate.getTime())) {
-      return '';
-    }
-
-    return calendarFormatter.format(parsedDate);
-  }, [calendarFormatter, userData.birthDate]);
-
   const [avatar, setAvatar] = useState(null);
   // Add message state
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -614,7 +601,7 @@ function ProfileInfo() {
               <span className="required-star">*</span>
             </label>
           </div>
-          <div className={`input-container ${userData.birthDate ? 'filled' : ''} birthdate-picker`}>
+          <div className={`input-container ${userData.birthDate ? 'filled' : ''}`}>
             <input
               type="date"
               placeholder={intl.formatMessage({ id: 'selectBirthDate' })}
@@ -623,9 +610,6 @@ function ProfileInfo() {
               className="form-input"
               lang={birthDateLocale}
             />
-            <div className="birthdate-preview" aria-live="polite">
-              {localizedBirthDate || intl.formatMessage({ id: 'selectBirthDate' })}
-            </div>
           </div>
         </div>
 
