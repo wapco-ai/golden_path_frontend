@@ -1,5 +1,5 @@
 // src/pages/ProfileInfo.jsx
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
@@ -7,12 +7,94 @@ import { getUserMe, updateUserMe } from '../services/publicAuthApi';
 import apiUser from '../api/apiUser';
 import mapApiError from '../services/apiErrorMapper';
 import '../styles/ProfileInfo.css';
+import { useLangStore } from '../store/langStore';
 
 function ProfileInfo() {
   const navigate = useNavigate();
   const intl = useIntl();
+  const language = useLangStore((state) => state.language);
   const fileInputRef = useRef(null);
   const { setSession, accessToken, refreshToken } = useUserAuthStore();
+
+  const calendarConfigs = {
+    fa: { calendar: 'persian', locale: 'fa' },
+    en: { calendar: 'gregory', locale: 'en' },
+    ar: { calendar: 'islamic-umalqura', locale: 'ar' },
+    ur: { calendar: 'islamic-umalqura', locale: 'ur' }
+  };
+
+  const activeCalendar = calendarConfigs[language] || calendarConfigs.en;
+
+  const calendarFormatter = useMemo(
+    () => new Intl.DateTimeFormat(
+      `${activeCalendar.locale}-u-ca-${activeCalendar.calendar}-nu-latn`,
+      { year: 'numeric', month: 'numeric', day: 'numeric' }
+    ),
+    [activeCalendar.calendar, activeCalendar.locale]
+  );
+
+  const calendarDisplayFormatter = useMemo(
+    () => new Intl.DateTimeFormat(`${activeCalendar.locale}-u-ca-${activeCalendar.calendar}`),
+    [activeCalendar.calendar, activeCalendar.locale]
+  );
+
+  const localizedNumberFormatter = useMemo(
+    () => new Intl.NumberFormat(activeCalendar.locale),
+    [activeCalendar.locale]
+  );
+
+  const calendarParts = (date) => {
+    const parts = calendarFormatter.formatToParts(date);
+    return parts.reduce((acc, part) => {
+      if (part.type === 'year' || part.type === 'month' || part.type === 'day') {
+        acc[part.type] = Number(part.value);
+      }
+      return acc;
+    }, {});
+  };
+
+  const findGregorianDateByCalendarParts = (targetYear, targetMonth, targetDay = 1) => {
+    if (!targetYear || !targetMonth || !targetDay) return null;
+    const start = new Date(1890, 0, 1);
+    const end = new Date(2110, 0, 1);
+
+    for (let cursor = new Date(start); cursor < end; cursor.setDate(cursor.getDate() + 1)) {
+      const parts = calendarParts(cursor);
+      if (parts.year === targetYear && parts.month === targetMonth && parts.day === targetDay) {
+        return new Date(cursor);
+      }
+    }
+
+    return null;
+  };
+
+  const monthNames = useMemo(() => {
+    const names = [];
+    const sampleYear = calendarParts(new Date()).year;
+    for (let monthIndex = 1; monthIndex <= 12; monthIndex += 1) {
+      const matchDate = findGregorianDateByCalendarParts(sampleYear, monthIndex, 1) || new Date();
+      const formatted = new Intl.DateTimeFormat(`${activeCalendar.locale}-u-ca-${activeCalendar.calendar}`, {
+        month: 'long'
+      }).format(matchDate);
+      names.push({ value: monthIndex, label: formatted });
+    }
+    return names;
+  }, [activeCalendar.calendar, activeCalendar.locale, calendarFormatter]);
+
+  const calendarYears = useMemo(() => {
+    const todayParts = calendarParts(new Date());
+    const years = [];
+    for (let yearCursor = todayParts.year; yearCursor >= todayParts.year - 120; yearCursor -= 1) {
+      years.push(yearCursor);
+    }
+    return years;
+  }, [calendarFormatter]);
+
+  const displayLocalizedDate = (year, month, day) => {
+    const matchedDate = findGregorianDateByCalendarParts(year, month, day);
+    if (!matchedDate) return '';
+    return calendarDisplayFormatter.format(matchedDate);
+  };
 
   // User data state - load from localStorage on component mount
   const [userData, setUserData] = useState({
@@ -25,6 +107,26 @@ function ProfileInfo() {
     nationalId: '',
     birthDate: ''
   });
+
+  const [birthDateParts, setBirthDateParts] = useState({ year: '', month: '', day: '' });
+
+  const dayOptions = useMemo(() => {
+    if (!birthDateParts.year || !birthDateParts.month) return [];
+
+    const startMatch = findGregorianDateByCalendarParts(birthDateParts.year, birthDateParts.month, 1);
+    if (!startMatch) return [];
+
+    const days = [];
+    let cursor = new Date(startMatch);
+    while (true) {
+      const parts = calendarParts(cursor);
+      if (parts.year !== birthDateParts.year || parts.month !== birthDateParts.month) break;
+      days.push(parts.day);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return days;
+  }, [birthDateParts.month, birthDateParts.year]);
 
   const [avatar, setAvatar] = useState(null);
   // Add message state
@@ -53,6 +155,21 @@ function ProfileInfo() {
       setAvatar(savedAvatar);
     }
   }, []);
+
+  useEffect(() => {
+    if (!userData.birthDate) {
+      setBirthDateParts({ year: '', month: '', day: '' });
+      return;
+    }
+
+    const parsedDate = new Date(`${userData.birthDate}T00:00:00Z`);
+    if (Number.isNaN(parsedDate.getTime())) {
+      setBirthDateParts({ year: '', month: '', day: '' });
+      return;
+    }
+
+    setBirthDateParts(calendarParts(parsedDate));
+  }, [calendarFormatter, userData.birthDate]);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -147,6 +264,21 @@ function ProfileInfo() {
       setCities(selectedProvince ? selectedProvince.cities : []);
       setUserData(prev => ({ ...prev, city: '' }));
     }
+  };
+
+  const handleBirthDatePartChange = (field, value) => {
+    const nextParts = { ...birthDateParts, [field]: value ? Number(value) : '' };
+    setBirthDateParts(nextParts);
+
+    if (nextParts.year && nextParts.month && nextParts.day) {
+      const gregorianDate = findGregorianDateByCalendarParts(nextParts.year, nextParts.month, nextParts.day);
+      if (gregorianDate) {
+        handleInputChange('birthDate', gregorianDate.toISOString().split('T')[0]);
+        return;
+      }
+    }
+
+    handleInputChange('birthDate', '');
   };
 
   // Handle province selection
@@ -491,14 +623,54 @@ function ProfileInfo() {
               <span className="required-star">*</span>
             </label>
           </div>
-          <div className={`input-container ${userData.birthDate ? 'filled' : ''}`}>
-            <input
-              type="date"
-              placeholder={intl.formatMessage({ id: 'selectBirthDate' })}
-              value={userData.birthDate}
-              onChange={(e) => handleInputChange('birthDate', e.target.value)}
-              className="form-input"
-            />
+          <div className={`input-container birthdate-picker ${userData.birthDate ? 'filled' : ''}`}>
+            <div className="birthdate-selects">
+              <select
+                className="form-input"
+                value={birthDateParts.year}
+                onChange={(e) => handleBirthDatePartChange('year', e.target.value)}
+              >
+                <option value="">{intl.formatMessage({ id: 'selectYear', defaultMessage: 'Select year' })}</option>
+                {calendarYears.map((yearOption) => (
+                  <option key={yearOption} value={yearOption}>
+                    {localizedNumberFormatter.format(yearOption)}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                className="form-input"
+                value={birthDateParts.month}
+                onChange={(e) => handleBirthDatePartChange('month', e.target.value)}
+              >
+                <option value="">{intl.formatMessage({ id: 'selectMonth', defaultMessage: 'Select month' })}</option>
+                {monthNames.map((month) => (
+                  <option key={month.value} value={month.value}>
+                    {month.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                className="form-input"
+                value={birthDateParts.day}
+                onChange={(e) => handleBirthDatePartChange('day', e.target.value)}
+                disabled={!birthDateParts.month || !birthDateParts.year}
+              >
+                <option value="">{intl.formatMessage({ id: 'selectDay', defaultMessage: 'Select day' })}</option>
+                {dayOptions.map((day) => (
+                  <option key={day} value={day}>
+                    {localizedNumberFormatter.format(day)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="birthdate-preview">
+              {userData.birthDate
+                ? displayLocalizedDate(birthDateParts.year, birthDateParts.month, birthDateParts.day)
+                : intl.formatMessage({ id: 'selectBirthDate' })}
+            </div>
           </div>
         </div>
 
