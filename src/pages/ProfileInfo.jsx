@@ -2,12 +2,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
+import { useUserAuthStore } from '../auth/user/userAuthStore';
+import { authMe, updateUserMe } from '../services/publicAuthApi';
+import mapApiError from '../services/apiErrorMapper';
 import '../styles/ProfileInfo.css';
 
 function ProfileInfo() {
   const navigate = useNavigate();
   const intl = useIntl();
   const fileInputRef = useRef(null);
+  const { fetchMe, setSession, accessToken, refreshToken } = useUserAuthStore();
 
   // User data state - load from localStorage on component mount
   const [userData, setUserData] = useState({
@@ -21,6 +25,7 @@ function ProfileInfo() {
   const [avatar, setAvatar] = useState(null);
   // Add message state
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Load user data from localStorage when component mounts
   useEffect(() => {
@@ -139,31 +144,64 @@ function ProfileInfo() {
   };
 
   // Handle form submission
-  const handleSubmit = () => {
-    // Format phone number before saving
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    setMessage({ type: '', text: '' });
+
+    // Format phone number before sending
     const formattedPhone = formatPhoneNumber(userData.phoneNumber);
 
-    // Save user data to localStorage
-    const userProfile = {
-      ...userData,
-      phoneNumber: formattedPhone,
-      avatar: avatar || localStorage.getItem('userAvatar'),
-      profileCompleted: true,
-      updatedAt: new Date().toISOString()
+    const payload = {
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      phone: formattedPhone,
+      province: userData.province,
+      city: userData.city
     };
 
-    localStorage.setItem('userProfile', JSON.stringify(userProfile));
+    try {
+      await updateUserMe(payload);
 
-    // Show success message
-    setMessage({
-      type: 'success',
-      text: intl.formatMessage({ id: 'profileUpdatedSuccess' })
-    });
-    
-    // Navigate back to profile after a short delay
-    setTimeout(() => {
-      navigate(-1);
-    }, 1500);
+      let meData;
+      try {
+        meData = await fetchMe();
+      } catch (err) {
+        meData = await authMe();
+        setSession({
+          accessToken,
+          refreshToken,
+          user: meData,
+          profileCompleted: meData?.profileCompleted ?? true
+        });
+      }
+
+      setMessage({
+        type: 'success',
+        text: intl.formatMessage({ id: 'profileUpdatedSuccess' })
+      });
+
+      const profileCompleted = typeof meData?.profileCompleted === 'boolean'
+        ? meData.profileCompleted
+        : true;
+
+      if (profileCompleted) {
+        setTimeout(() => {
+          navigate('/profile');
+        }, 800);
+      }
+    } catch (err) {
+      const mapped = mapApiError(err);
+      const fieldMessage = mapped.fieldMessages?.[0];
+      setMessage({
+        type: 'error',
+        text: fieldMessage || mapped.message
+      });
+      if (err?.response?.status === 401) {
+        navigate('/login');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Get user display name
@@ -175,7 +213,7 @@ function ProfileInfo() {
   };
 
   // Check if form is valid
-  const isFormValid = userData.firstName && userData.lastName;
+  const isFormValid = userData.firstName && userData.lastName && !isSubmitting;
 
   return (
     <div className="profile-info-container">
