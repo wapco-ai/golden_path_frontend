@@ -239,6 +239,7 @@
   "phoneNumber": "Mobile Number",
   "email": "Email",
   "nationalId": "National ID",
+  "enterBirthDate": "Enter your birth date",
   "birthDate": "Birth Date",
   "province": "Province",
   "city": "City",
