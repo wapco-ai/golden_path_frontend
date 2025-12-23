@@ -380,6 +380,34 @@
   border: 1px solid #f5c6cb;
 }
 
+.birthdate-picker {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.birthdate-selects {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.birthdate-selects select {
+  width: 100%;
+}
+
+.birthdate-preview {
+  font-size: 0.9rem;
+  color: #444;
+  padding: 10px;
+  border: 1px dashed #cfd2d7;
+  border-radius: 6px;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+}
+
 @keyframes slideDown {
   from {
     opacity: 0;
