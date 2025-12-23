@@ -1,6 +1,7 @@
 const codeMessages = {
   PHONE_EXISTS: 'این شماره قبلاً ثبت شده است.',
   EMAIL_EXISTS: 'این ایمیل قبلاً ثبت شده است.',
+  INVALID_OTP: 'کد تأیید نادرست است.',
   INVALID_TOKEN: 'نشست شما منقضی شده، دوباره وارد شوید.',
   TOKEN_EXPIRED: 'نشست شما منقضی شده، دوباره وارد شوید.',
   ACCOUNT_LOCKED: 'حساب شما موقتاً قفل شده است.',

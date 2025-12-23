@@ -76,9 +76,10 @@ export const useUserAuthStore = create(
         }
         const response = await userAuthClient.post('/refresh', { refreshToken });
         const { accessToken, refreshToken: newRefresh, user, expiresIn } = response.data || {};
+        const nextRefreshToken = newRefresh || refreshToken;
         get().setSession({
           accessToken,
-          refreshToken: newRefresh || refreshToken,
+          refreshToken: nextRefreshToken,
           user: user || get().user,
           expiresIn
         });

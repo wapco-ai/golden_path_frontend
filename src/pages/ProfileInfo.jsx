@@ -3,7 +3,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
-import { authMe, updateUserMe } from '../services/publicAuthApi';
+import { updateUserMe } from '../services/publicAuthApi';
+import apiUser from '../api/apiUser';
 import mapApiError from '../services/apiErrorMapper';
 import '../styles/ProfileInfo.css';
 
@@ -11,7 +12,7 @@ function ProfileInfo() {
   const navigate = useNavigate();
   const intl = useIntl();
   const fileInputRef = useRef(null);
-  const { fetchMe, setSession, accessToken, refreshToken } = useUserAuthStore();
+  const { setSession, accessToken, refreshToken } = useUserAuthStore();
 
   // User data state - load from localStorage on component mount
   const [userData, setUserData] = useState({
@@ -162,18 +163,13 @@ function ProfileInfo() {
     try {
       await updateUserMe(payload);
 
-      let meData;
-      try {
-        meData = await fetchMe();
-      } catch (err) {
-        meData = await authMe();
-        setSession({
-          accessToken,
-          refreshToken,
-          user: meData,
-          profileCompleted: meData?.profileCompleted ?? true
-        });
-      }
+      const meData = await apiUser.get('/api/v1/auth/me').then((res) => res.data);
+      setSession({
+        accessToken,
+        refreshToken,
+        user: meData,
+        profileCompleted: meData?.profileCompleted ?? true
+      });
 
       setMessage({
         type: 'success',
