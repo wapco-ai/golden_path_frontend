@@ -9,6 +9,49 @@ import mapApiError from '../services/apiErrorMapper';
 import '../styles/ProfileInfo.css';
 import { useLangStore } from '../store/langStore';
 
+const createCalendarFormatter = (locale) => new Intl.DateTimeFormat(locale, {
+  year: 'numeric',
+  month: 'numeric',
+  day: 'numeric'
+});
+
+const extractCalendarParts = (formatter, date) => {
+  if (!formatter || !date) {
+    return { year: '', month: '', day: '' };
+  }
+
+  const parts = formatter.formatToParts(date);
+  const getPart = (type) => {
+    const value = parts.find((part) => part.type === type)?.value;
+    const numberValue = Number(value);
+    return Number.isNaN(numberValue) ? '' : numberValue;
+  };
+
+  return {
+    year: getPart('year'),
+    month: getPart('month'),
+    day: getPart('day')
+  };
+};
+
+const daysInCalendarMonth = (year, month) => {
+  if (!year || !month) {
+    return [];
+  }
+
+  const totalDays = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return Array.from({ length: totalDays }, (_, index) => index + 1);
+};
+
+const findGregorianDateByCalendarParts = (year, month, day) => {
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
 function ProfileInfo() {
   const navigate = useNavigate();
   const intl = useIntl();
@@ -24,6 +67,11 @@ function ProfileInfo() {
   };
 
   const birthDateLocale = calendarLocales[language] || 'en-US-u-ca-gregory';
+
+  const calendarFormatter = useMemo(
+    () => createCalendarFormatter(birthDateLocale),
+    [birthDateLocale]
+  );
 
   // User data state - load from localStorage on component mount
   const [userData, setUserData] = useState({
@@ -85,7 +133,7 @@ function ProfileInfo() {
       return;
     }
 
-    setBirthDateParts(calendarParts(parsedDate));
+    setBirthDateParts(extractCalendarParts(calendarFormatter, parsedDate));
   }, [calendarFormatter, userData.birthDate]);
 
   useEffect(() => {
