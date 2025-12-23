@@ -8,11 +8,15 @@ import packageInfo from '../../package.json';
 import '../styles/Profile.css';
 import { createContext, useContext } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useUserAuthStore } from '../auth/user/userAuthStore';
+import { authLogout, getUserMe } from '../services/publicAuthApi';
+import mapApiError from '../services/apiErrorMapper';
 
 function Profile() {
   const navigate = useNavigate();
   const intl = useIntl();
   const appVersion = packageInfo.version;
+  const { clearSession, refreshToken } = useUserAuthStore();
 
   const NavigationContext = createContext();
 
@@ -25,6 +29,8 @@ function Profile() {
     city: '',
     avatar: null
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [profileError, setProfileError] = useState('');
 
   // Load user data from localStorage on component mount
   useEffect(() => {
@@ -34,13 +40,32 @@ function Profile() {
     }
     localStorage.setItem('appVersion', appVersion);
 
-    // Load user profile data
-    const savedProfile = localStorage.getItem('userProfile');
-    if (savedProfile) {
-      const profileData = JSON.parse(savedProfile);
-      setUserData(profileData);
-    }
-  }, [appVersion, intl]);
+    const loadProfile = async () => {
+      setIsLoading(true);
+      try {
+        const profile = await getUserMe();
+        setUserData({
+          firstName: profile.firstName || '',
+          lastName: profile.lastName || '',
+          phoneNumber: profile.phone || profile.phoneNumber || '',
+          province: profile.province || '',
+          city: profile.city || '',
+          avatar: profile.avatar || null
+        });
+      } catch (err) {
+        const mapped = mapApiError(err);
+        setProfileError(mapped.message);
+        if (err?.response?.status === 401) {
+          clearSession();
+          navigate('/login');
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [appVersion, intl, clearSession, navigate]);
 
   // Format phone number for display
   const formatPhoneNumber = (phone) => {
@@ -53,6 +78,19 @@ function Profile() {
       return `${userData.firstName} ${userData.lastName}`;
     }
     return intl.formatMessage({ id: 'Username' });
+  };
+
+  const handleLogout = async () => {
+    try {
+      if (refreshToken) {
+        await authLogout(refreshToken);
+      }
+    } catch (err) {
+      console.error('logout failed', err);
+    } finally {
+      clearSession();
+      navigate('/login');
+    }
   };
 
   return (
@@ -72,6 +110,16 @@ function Profile() {
           </h1>
         </div>
         <div className="profile-info">
+          {isLoading && (
+            <div className="profile-loading">
+              <FormattedMessage id="loading" defaultMessage="در حال بارگذاری" />
+            </div>
+          )}
+          {profileError && (
+            <div className="profile-error">
+              {profileError}
+            </div>
+          )}
           <div className="profile-avatar-container">
             <div className="profile-avatar">
               {userData.avatar ? (
@@ -328,7 +376,7 @@ function Profile() {
           <h3 className="logout-title">
             <FormattedMessage id="logoutTitle" />
           </h3>
-          <div className="logout-item">
+          <div className="logout-item" onClick={handleLogout}>
             <span className="item-icon">
               <svg width="24" height="24" viewBox="0 0 22 23" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M5.01387 11.9863C4.74538 11.7178 4.74538 11.2825 5.01387 11.014L6.8472 9.18069C7.11568 8.91221 7.55099 8.91221 7.81947 9.1807C8.08796 9.44918 8.08796 9.88448 7.81947 10.153L7.15977 10.8127L13.75 10.8127C14.1297 10.8127 14.4375 11.1205 14.4375 11.5002C14.4375 11.8799 14.1297 12.1877 13.75 12.1877L7.15977 12.1877L7.81947 12.8474C8.08796 13.1158 8.08796 13.5511 7.81947 13.8196C7.55099 14.0881 7.11568 14.0881 6.8472 13.8196L5.01387 11.9863Z" fill="#EA4335" />

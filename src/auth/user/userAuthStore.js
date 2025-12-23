@@ -7,7 +7,7 @@ export const USER_ACCESS_TOKEN_KEY = 'gp_user_access_token';
 export const USER_REFRESH_TOKEN_KEY = 'gp_user_refresh_token';
 
 const userAuthClient = axios.create({
-  baseURL: `${appConfig.apiBaseUrl}/api/v1/user/auth`,
+  baseURL: `${appConfig.apiBaseUrl}/api/v1/auth`,
   headers: {
     Accept: 'application/json'
   }
@@ -47,16 +47,26 @@ export const useUserAuthStore = create(
       refreshToken: null,
       user: null,
       expiresIn: null,
+      profileCompleted: null,
       isLoading: false,
 
-      setSession: ({ accessToken, refreshToken, user, expiresIn }) => {
-        set({ accessToken, refreshToken, user: user || null, expiresIn: expiresIn || null });
+      setSession: ({ accessToken, refreshToken, user, expiresIn, profileCompleted }) => {
+        set({
+          accessToken,
+          refreshToken,
+          user: user || null,
+          expiresIn: expiresIn || null,
+          profileCompleted:
+            typeof profileCompleted === 'boolean'
+              ? profileCompleted
+              : user?.profileCompleted ?? null
+        });
         setUserStorage({ accessToken, refreshToken });
       },
 
       clearSession: () => {
         clearUserStorage();
-        set({ accessToken: null, refreshToken: null, user: null, expiresIn: null });
+        set({ accessToken: null, refreshToken: null, user: null, expiresIn: null, profileCompleted: null });
       },
 
       refreshSession: async () => {
@@ -66,8 +76,36 @@ export const useUserAuthStore = create(
         }
         const response = await userAuthClient.post('/refresh', { refreshToken });
         const { accessToken, refreshToken: newRefresh, user, expiresIn } = response.data || {};
-        get().setSession({ accessToken, refreshToken: newRefresh || refreshToken, user: user || get().user, expiresIn });
+        get().setSession({
+          accessToken,
+          refreshToken: newRefresh || refreshToken,
+          user: user || get().user,
+          expiresIn
+        });
         return response.data;
+      },
+
+      fetchMe: async () => {
+        const token = get().accessToken || sessionStorage.getItem(USER_ACCESS_TOKEN_KEY);
+        if (!token) {
+          throw new Error('User access token missing');
+        }
+
+        const response = await axios.get(`${appConfig.apiBaseUrl}/api/v1/auth/me`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        const meData = response?.data || {};
+        get().setSession({
+          accessToken: token,
+          refreshToken: get().refreshToken || localStorage.getItem(USER_REFRESH_TOKEN_KEY),
+          user: meData,
+          profileCompleted: typeof meData.profileCompleted === 'boolean' ? meData.profileCompleted : null
+        });
+
+        return meData;
       },
 
       // OTP login flow should replace this with actual implementation
@@ -82,7 +120,8 @@ export const useUserAuthStore = create(
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         user: state.user,
-        expiresIn: state.expiresIn
+        expiresIn: state.expiresIn,
+        profileCompleted: state.profileCompleted
       })
     }
   )
