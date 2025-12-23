@@ -102,9 +102,7 @@ const LoginPage = () => {
         setSubmitError('');
         try {
           const payload = {
-            phone,
-            fullName: 'کاربر',
-            email: `u_${phone}@example.local`
+            phone
           };
 
           try {
