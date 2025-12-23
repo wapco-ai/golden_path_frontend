@@ -20,7 +20,10 @@ function ProfileInfo() {
     lastName: '',
     phoneNumber: '',
     province: '',
-    city: ''
+    city: '',
+    email: '',
+    nationalId: '',
+    birthDate: ''
   });
 
   const [avatar, setAvatar] = useState(null);
@@ -149,16 +152,39 @@ function ProfileInfo() {
     setIsSubmitting(true);
     setMessage({ type: '', text: '' });
 
+    const hasContactInfo = Boolean(userData.email || userData.nationalId);
+    if (!hasContactInfo) {
+      setIsSubmitting(false);
+      setMessage({
+        type: 'error',
+        text: intl.formatMessage({ id: 'emailOrNationalIdRequired' })
+      });
+      return;
+    }
+
     // Format phone number before sending
     const formattedPhone = formatPhoneNumber(userData.phoneNumber);
 
     const payload = {
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      phone: formattedPhone,
-      province: userData.province,
-      city: userData.city
+      fullName: `${userData.firstName} ${userData.lastName}`.trim(),
+      birthDate: userData.birthDate,
+      address: {
+        province: userData.province,
+        city: userData.city
+      }
     };
+
+    if (formattedPhone) {
+      payload.phone = formattedPhone;
+    }
+
+    if (userData.email) {
+      payload.email = userData.email;
+    }
+
+    if (userData.nationalId) {
+      payload.nationalId = userData.nationalId;
+    }
 
     try {
       await updateUserMe(payload);
@@ -209,7 +235,15 @@ function ProfileInfo() {
   };
 
   // Check if form is valid
-  const isFormValid = userData.firstName && userData.lastName && !isSubmitting;
+  const hasContactInfo = Boolean(userData.email || userData.nationalId);
+  const isFormValid =
+    userData.firstName
+    && userData.lastName
+    && userData.birthDate
+    && userData.province
+    && userData.city
+    && hasContactInfo
+    && !isSubmitting;
 
   return (
     <div className="profile-info-container">
@@ -372,6 +406,63 @@ function ProfileInfo() {
                 <path fillRule="evenodd" clipRule="evenodd" d="M2.8146 4.23518C2.5 4.6834 2.5 6.01573 2.5 8.68038V9.99264C2.5 14.691 6.03247 16.9711 8.2488 17.9392C8.85001 18.2019 9.15062 18.3332 10 18.3332C10.8494 18.3332 11.15 18.2019 11.7512 17.9392C13.9675 16.9711 17.5 14.691 17.5 9.99264V8.68038C17.5 6.01573 17.5 4.6834 17.1854 4.23518C16.8708 3.78695 15.6181 3.35813 13.1126 2.5005L12.6352 2.3371C11.3292 1.89004 10.6762 1.6665 10 1.6665C9.32384 1.6665 8.67082 1.89004 7.36477 2.3371L6.88743 2.5005C4.38194 3.35813 3.12919 3.78695 2.8146 4.23518ZM12.5495 8.74943C12.7794 8.49195 12.7571 8.09685 12.4996 7.86696C12.2421 7.63707 11.847 7.65943 11.6171 7.91691L9.10714 10.7281L8.38288 9.91691C8.15298 9.65943 7.75789 9.63707 7.50041 9.86696C7.24293 10.0969 7.22056 10.4919 7.45046 10.7494L8.64093 12.0828C8.75951 12.2156 8.9291 12.2915 9.10714 12.2915C9.28518 12.2915 9.45478 12.2156 9.57335 12.0828L12.5495 8.74943Z" fill="#0F71EF" />
               </svg>
             )}
+          </div>
+        </div>
+
+        {/* Email Field */}
+        <div className="form-field">
+          <div className="field-label-container">
+            <label className="field-label">
+              <FormattedMessage id="email" />
+            </label>
+          </div>
+          <div className={`input-container ${userData.email ? 'filled' : ''}`}>
+            <input
+              type="email"
+              placeholder={intl.formatMessage({ id: 'enterEmail' })}
+              value={userData.email}
+              onChange={(e) => handleInputChange('email', e.target.value)}
+              className="form-input"
+              dir="auto"
+            />
+          </div>
+        </div>
+
+        {/* National ID Field */}
+        <div className="form-field">
+          <div className="field-label-container">
+            <label className="field-label">
+              <FormattedMessage id="nationalId" />
+            </label>
+          </div>
+          <div className={`input-container ${userData.nationalId ? 'filled' : ''}`}>
+            <input
+              type="text"
+              placeholder={intl.formatMessage({ id: 'enterNationalId' })}
+              value={userData.nationalId}
+              onChange={(e) => handleInputChange('nationalId', e.target.value)}
+              className="form-input"
+              dir="auto"
+            />
+          </div>
+        </div>
+
+        {/* Birth Date Field */}
+        <div className="form-field">
+          <div className="field-label-container">
+            <label className="field-label">
+              <FormattedMessage id="birthDate" />
+              <span className="required-star">*</span>
+            </label>
+          </div>
+          <div className={`input-container ${userData.birthDate ? 'filled' : ''}`}>
+            <input
+              type="date"
+              placeholder={intl.formatMessage({ id: 'selectBirthDate' })}
+              value={userData.birthDate}
+              onChange={(e) => handleInputChange('birthDate', e.target.value)}
+              className="form-input"
+            />
           </div>
         </div>
 
