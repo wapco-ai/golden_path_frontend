@@ -1,5 +1,5 @@
 // src/pages/ProfileInfo.jsx
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
@@ -38,6 +38,13 @@ function ProfileInfo() {
     birthDate: ''
   });
 
+  const [birthDateParts, setBirthDateParts] = useState({ year: '', month: '', day: '' });
+
+  const dayOptions = useMemo(
+    () => daysInCalendarMonth(birthDateParts.year, birthDateParts.month),
+    [birthDateParts.month, birthDateParts.year]
+  );
+
   const [avatar, setAvatar] = useState(null);
   // Add message state
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -65,6 +72,21 @@ function ProfileInfo() {
       setAvatar(savedAvatar);
     }
   }, []);
+
+  useEffect(() => {
+    if (!userData.birthDate) {
+      setBirthDateParts({ year: '', month: '', day: '' });
+      return;
+    }
+
+    const parsedDate = new Date(`${userData.birthDate}T00:00:00Z`);
+    if (Number.isNaN(parsedDate.getTime())) {
+      setBirthDateParts({ year: '', month: '', day: '' });
+      return;
+    }
+
+    setBirthDateParts(calendarParts(parsedDate));
+  }, [calendarFormatter, userData.birthDate]);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -160,6 +182,21 @@ function ProfileInfo() {
       setCities(selectedProvince ? selectedProvince.cities : []);
       setUserData(prev => ({ ...prev, city: '' }));
     }
+  };
+
+  const handleBirthDatePartChange = (field, value) => {
+    const nextParts = { ...birthDateParts, [field]: value ? Number(value) : '' };
+    setBirthDateParts(nextParts);
+
+    if (nextParts.year && nextParts.month && nextParts.day) {
+      const gregorianDate = findGregorianDateByCalendarParts(nextParts.year, nextParts.month, nextParts.day);
+      if (gregorianDate) {
+        handleInputChange('birthDate', gregorianDate.toISOString().split('T')[0]);
+        return;
+      }
+    }
+
+    handleInputChange('birthDate', '');
   };
 
   // Handle province selection
