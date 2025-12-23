@@ -1,0 +1,26 @@
+.localized-date-picker {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.localized-date-picker__inputs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.localized-date-picker.rtl select {
+  text-align: right;
+}
+
+.localized-date-picker.ltr select {
+  text-align: left;
+}
+
+.localized-date-picker__required {
+  color: #ff5b5b;
+  font-weight: bold;
+}
