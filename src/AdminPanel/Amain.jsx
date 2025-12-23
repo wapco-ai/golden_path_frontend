@@ -38,7 +38,6 @@ import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/grou
 import { getLanguageName } from '../utils/languageNames';
 import { deleteFile, uploadFile } from '../services/fileService';
 import { createVanEdge, createVanNode, deleteVanNode } from '../services/adminVanService';
-import { useLangStore } from '../store/langStore';
 import {
   createTempBlockArea,
   updateTempBlockArea,
@@ -520,7 +519,6 @@ const logDoorAccessPointDebugInfo = (mapInstance) => {
 
 const Amain = () => {
   const { admin: adminProfile, permissions: adminPermissions, fetchProfile, logout } = useAdminAuthStore();
-  const language = useLangStore((state) => state.language);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [commentStats, setCommentStats] = useState({
@@ -6582,47 +6580,6 @@ const Amain = () => {
     return `${jalali.jd} ${jalaliMonths[jalali.jm - 1]} ${jalali.jy}`;
   };
 
-  const formatCalendarDate = (date) => {
-    if (!date) return '';
-
-    const intlOptions = { day: 'numeric', month: 'long', year: 'numeric' };
-
-    if (language === 'fa') {
-      return formatJalaliDate(date);
-    }
-
-    if (language === 'ar') {
-      return new Intl.DateTimeFormat('ar-SA-u-ca-islamic', intlOptions).format(date);
-    }
-
-    if (language === 'ur') {
-      return new Intl.DateTimeFormat('ur-PK-u-ca-islamic', intlOptions).format(date);
-    }
-
-    return new Intl.DateTimeFormat('en-US', intlOptions).format(date);
-  };
-
-  const getLocalizedMonthYearLabel = (date) => {
-    if (!date) return '';
-
-    const intlOptions = { year: 'numeric', month: 'long' };
-
-    if (language === 'fa') {
-      const jalali = toJalaali(date.getFullYear(), date.getMonth() + 1, date.getDate());
-      return `${getJalaliMonthName(jalali.jm)} ${jalali.jy}`;
-    }
-
-    if (language === 'ar') {
-      return new Intl.DateTimeFormat('ar-SA-u-ca-islamic', intlOptions).format(date);
-    }
-
-    if (language === 'ur') {
-      return new Intl.DateTimeFormat('ur-PK-u-ca-islamic', intlOptions).format(date);
-    }
-
-    return new Intl.DateTimeFormat('en-US', intlOptions).format(date);
-  };
-
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -8085,7 +8042,7 @@ const Amain = () => {
               </div>
               <div className="calendar-section">
                 <div className="date-display">
-                  {formatCalendarDate(selectedDate)}
+                  {formatJalaliDate(selectedDate)}
                 </div>
                 <button className="calendar-btn"
                   onClick={() => setIsCalendarOpen(!isCalendarOpen)}
@@ -8129,7 +8086,7 @@ const Amain = () => {
                             ‹
                           </button>
                           <span>
-                            {getLocalizedMonthYearLabel(date)}
+                            {date.toLocaleDateString('fa-IR', { year: 'numeric', month: 'long' })}
                           </span>
                           <button onClick={increaseMonth} disabled={nextMonthButtonDisabled}>
                             ›
