@@ -24,6 +24,7 @@ function Profile() {
   const [userData, setUserData] = useState({
     firstName: '',
     lastName: '',
+    username: '',
     phoneNumber: '',
     province: '',
     city: '',
@@ -47,6 +48,7 @@ function Profile() {
         setUserData({
           firstName: profile.firstName || '',
           lastName: profile.lastName || '',
+          username: profile.username || profile.userName || '',
           phoneNumber: profile.phone || profile.phoneNumber || '',
           province: profile.province || '',
           city: profile.city || '',
@@ -76,6 +78,9 @@ function Profile() {
   const getDisplayName = () => {
     if (userData.firstName && userData.lastName) {
       return `${userData.firstName} ${userData.lastName}`;
+    }
+    if (userData.username) {
+      return userData.username;
     }
     return intl.formatMessage({ id: 'Username' });
   };
