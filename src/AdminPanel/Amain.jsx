@@ -10,6 +10,7 @@ import ReactDatePicker from 'react-datepicker';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import PagesManage from './PagesManage';
+import Reviews from './Reviews';
 
 import { booleanValid as turfBooleanValid, centroid as turfCentroid, distance as turfDistance } from '@turf/turf';
 import {
@@ -2724,6 +2725,13 @@ const Amain = () => {
     if (currentReportView === 'کاربران ثبت نام کرده') {
       return {
         title: 'گزارش کاربران ثبت نام کرده در نرم افزار مسیربایی حرم تا امروز',
+        description: ''
+      };
+    }
+
+    if (currentReportView === 'دیدگاه ها') {
+      return {
+        title: '  دیدگاه های کاربران در  نرم افزار مسیربایی حرم',
         description: ''
       };
     }
@@ -7826,7 +7834,10 @@ const Amain = () => {
                     <div className="submenu-branch"></div>
                     <span>کاربران ثبت نام کرده</span>
                   </div>
-                  <div className="submenu-item">
+                  <div
+                    className={`submenu-item ${currentReportView === 'دیدگاه ها' ? 'active' : ''}`}
+                    onClick={() => handleSubmenuClick('دیدگاه ها')}
+                  >
                     <div className="submenu-branch"></div>
                     <span>دیدگاه ها</span>
                   </div>
@@ -8941,6 +8952,8 @@ const Amain = () => {
                 </div>
               </div>
             </div>
+          ) : currentReportView === 'دیدگاه ها' ? (
+            <Reviews />
           ) : currentReportView === 'مدیریت دسته بندی‌ها' ? (
             /* Category Management Section */
             <div className="category-management-section">
@@ -10030,6 +10043,7 @@ const Amain = () => {
           {currentReportView !== 'مدیریت اطلاعات فرهنگی' &&
             currentReportView !== 'مدیریت دسته بندی‌ها' &&
             currentReportView !== 'مدیریت صفحات' &&
+            currentReportView !== 'دیدگاه ها' &&
             activeMenu !== 'mapmanage' && (
               <div className="users-section">
                 <div className="section-header">

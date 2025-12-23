@@ -2549,13 +2549,13 @@ body {
 }
 
 /* Add Place Modal */
-.add-cultural-modal, .add-place-modal {
+.add-cultural-modal,
+.add-place-modal {
   background: white;
   border-radius: 16px;
   width: 90%;
   max-width: 900px;
-  max-height: 90vh;
-  min-height: 90vh;
+  height: 95vh;
   overflow: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: modalSlideIn 0.3s ease-out;
@@ -2809,7 +2809,9 @@ body {
 }
 
 /* Modal Footer */
-.modal-footer {
+.modal-footer,
+.modal-footer16,
+.modal-footer17 {
   padding: 20px 24px;
   border: none;
   display: flex;
@@ -2820,6 +2822,12 @@ body {
   padding-top: 10px;
   z-index: 1001;
   background: white;
+}
+
+.modal-footer16,
+.modal-footer17{
+  border-radius: 8px;
+  border-top: 1px solid #F2F2F2;
 }
 
 .modal-footer .cancel-btn {
@@ -5894,7 +5902,7 @@ body {
   width: 100%;
 }
 
-.description-input-with-language{
+.description-input-with-language {
   display: flex;
 }
 
@@ -6652,10 +6660,10 @@ body {
 }
 
 .edit-media-section {
- max-height: calc(88vh - 100px) !important;
- overflow-y: auto !important;
- overflow-x: hidden !important;
- border: 1px solid #D9D9D9;
+  max-height: calc(88vh - 100px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  border: 1px solid #D9D9D9;
 
 }
 
@@ -7336,6 +7344,7 @@ body {
   left: 50%;
   transform: translateX(-50%);
 }
+
 .sub-btn {
   width: 30px;
   height: 30px;
@@ -7954,7 +7963,7 @@ body {
   padding: 40px !important;
 }
 
-.subcategory-actions{
+.subcategory-actions {
   gap: 5px;
   display: flex;
   flex-direction: row;
@@ -8039,7 +8048,7 @@ body {
 }
 
 /* Add margin for the new section */
-.edit-form-section + .edit-form-section {
+.edit-form-section+.edit-form-section {
   margin-top: 24px;
 }
 
@@ -8060,7 +8069,8 @@ body {
 }
 
 
-.pages-table-container {
+.pages-table-container,
+.reviews-page {
   background: white;
   border-radius: 8px;
   overflow: hidden;
@@ -8313,8 +8323,7 @@ body {
 }
 
 .form-input-pages:focus,
-.form-input-faqs:focus
- {
+.form-input-faqs:focus {
   outline: none;
   border-color: #F2F2F2;
 }
@@ -8419,19 +8428,20 @@ body {
   align-items: flex-start;
   margin: 0px;
 }
- .form-label-with-button,
- .form-label-with-button-faqs{
+
+.form-label-with-button,
+.form-label-with-button-faqs {
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
- }
+}
 
- .form-label-with-button-faqs{
+.form-label-with-button-faqs {
   margin-bottom: 25px;
- }
+}
 
- .remove-field-btn{
+.remove-field-btn {
   background: transparent;
   border: none;
   margin-top: 15px;
@@ -8439,10 +8449,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  align-self:flex-start;
- }
+  align-self: flex-start;
+}
 
- .field-with-remove{
+.field-with-remove {
   background: transparent;
   border: none;
   cursor: pointer;
@@ -8450,9 +8460,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
- }
+}
 
- /* Add to Amain.css */
+/* Add to Amain.css */
 
 /* Input with language button */
 .input-with-language-btn {
@@ -8533,4 +8543,547 @@ body {
   font-weight: 500;
   color: #374151;
   font-size: 14px;
+}
+
+/* Reviews Page Styles */
+.reviews-page {
+  margin-top: 40px;
+  padding: 20px;
+}
+
+.comment-preview {
+  max-width: 300px;
+  word-break: break-word;
+  line-height: 1.5;
+  color: #333;
+}
+
+.operation-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+.status-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  display: flex;
+}
+
+.approve-btn {
+  background: transparent;
+  color: #10B981;
+  border: 1px solid #10B981;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.approve-btn:hover {
+  background: #059669;
+  color: white;
+}
+
+.reject-btn {
+  background: transparent;
+  color: #EF4444;
+  border: 1px solid #EF4444;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.reject-btn:hover {
+  background: #DC2626;
+  color: white;
+}
+
+.status-badge {
+  width: 90px;
+  padding: 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-badge.approved {
+  background: #139B3C;
+  color: white;
+  border: 1px solid #139B3C;
+  cursor: default;
+}
+
+.status-badge.rejected {
+  background: #EA4335;
+  color: white;
+  border: 1px solid #EA4335;
+}
+
+.status-badge.pending {
+  background: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #F59E0B;
+}
+
+.tooltip-trigger {
+  position: relative;
+  cursor: help;
+}
+
+.tooltip-content {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1E2023;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  margin-bottom: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.tooltip-content::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: #1E2023 transparent transparent transparent;
+}
+
+.tooltip-trigger:hover .tooltip-content {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Remove old rejected-status styles and add new ones */
+.rejected-status-with-tooltip {
+  position: relative;
+  display: inline-block;
+}
+
+/* Update comment preview styles */
+.comment-preview {
+  max-width: 300px;
+  word-break: break-word;
+  line-height: 1.5;
+  color: #333;
+  cursor: default;
+}
+
+/* Optional: Add a hover effect to see full comment */
+.comment-preview:hover {
+  position: relative;
+}
+
+.comment-preview:hover::after {
+  content: attr(data-full-comment);
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #1E2023;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  z-index: 100;
+  white-space: pre-wrap;
+  width: 300px;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-top: 8px;
+}
+
+/* Modals */
+
+
+.review-details-modal,
+.rejection-details-modal,
+.reject-modal {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 600px;
+}
+
+.modal-header,
+.modal-header-review-details,
+.modal-header-reject-modal,
+.modal-header-rejection-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.review-details-modal-body,
+.modal-body-reject-modal{
+  display: flex;
+  flex-direction: row;
+  padding: 20px;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 25px;
+}
+
+.modal-body-rejection-details{
+  padding: 20px;
+}
+
+.modal-header-review-details,
+.modal-header-reject-modal,
+.modal-header-rejection-details {
+  border: none;
+}
+
+.modal-header-review-detailsh3 {
+  margin: 0;
+  font-size: 16px;
+  color: #1E2023;
+}
+
+.review-details-modal-footer {
+  padding: 20px;
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  justify-content: flex-end;
+  border-top: 1px solid #F2F2F2;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6B7280;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.close-btn:hover {
+  background: #F3F4F6;
+  color: #374151;
+}
+
+/* Review Details Modal (Picture 3) */
+
+.review-comment-section {
+  flex: 1;
+}
+
+.review-comment-section h4 {
+  margin-bottom: 12px;
+  color: #1E2023;
+  font-size: 16px;
+}
+
+
+.review-details-modal .comment-text,
+.modal-body-rejection-details .comment-text{
+  background: #F9FAFB;
+  padding: 16px;
+  border-radius: 8px;
+  margin-top: 8px;
+  line-height: 1.6;
+  color: #4B5563;
+  border: 1px solid #E5E7EB;
+  max-width: 100% !important;
+  width: 100% !important;
+  max-height: 300px !important;
+  min-height: 100px !important;
+  
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+
+  word-wrap: break-word !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+
+}
+
+.review-details-modal .comment-text::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-body-rejection-details .comment-text::-webkit-scrollbar {
+  width: 6px;
+}
+
+
+.review-details-modal .comment-text::-webkit-scrollbar-track {
+  background: #F1F1F1;
+  border-radius: 3px;
+}
+
+.modal-body-rejection-details .comment-text::-webkit-scrollbar-track {
+  background: #F1F1F1;
+  border-radius: 3px;
+}
+
+
+.review-details-modal .comment-text::-webkit-scrollbar-thumb {
+  background: #C1C1C1;
+  border-radius: 3px;
+}
+
+.modal-body-rejection-details .comment-text::-webkit-scrollbar-thumb {
+  background: #C1C1C1;
+  border-radius: 3px;
+}
+
+
+.review-details-modal .comment-text::-webkit-scrollbar-thumb:hover {
+  background: #A8A8A8;
+}
+
+.modal-body-rejection-details .comment-text::-webkit-scrollbar-thumb:hover {
+  background: #A8A8A8;
+}
+
+.close-modal-btn16{
+ padding: 12px;
+ background: #3B82F6;
+ color: white;
+}
+
+.close-modal-btn16:hover {
+  background: #2563EB;
+}
+
+
+.reviewer-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap : 12px;
+}
+
+.reviewer-info h4 {
+  margin-bottom: 0px;
+  color: #1E2023;
+  font-size: 16px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 8px;
+  border-bottom: 1px solid #F3F4F6;
+  background-color: #F2F2F2;
+  border-radius: 8px;
+}
+
+.info-label {
+  color: #6B7280;
+  font-size: 13px;
+}
+
+.info-value {
+  color: #1E2023;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+/* Reject Modal (Picture 2) */
+.rejection-reason-section{
+  width: 100%;
+}
+
+.reject-modal .reason-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.checkbox-label:hover {
+  background: #F9FAFB;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.checkbox-label span {
+  color: #4B5563;
+  font-size: 14px;
+}
+
+.other-reason-input {
+  margin-top: 8px;
+  margin-left: 24px;
+}
+
+.other-reason-input textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.other-reason-input textarea:focus {
+  outline: none;
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Rejection Details Modal (Picture 1) */
+.rejection-details-modal .reasons-list {
+  margin-top: 12px;
+}
+
+.reason-item {
+  padding: 8px 0;
+  color: #4B5563;
+  font-size: 14px;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.reason-item:last-child {
+  border-bottom: none;
+}
+
+/* Action Buttons */
+.action-btn {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.confirm-btn {
+  background: #139B3C;
+  color: white;
+}
+
+.confirm-btn:hover {
+  background: #059669;
+}
+
+.reject-btn12 {
+  background: transparent;
+  color: #EA4335;
+  border: 1px solid #EA4335;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-weight: 500;
+}
+
+.reject-btn12:hover {
+  background: #DC2626;
+  color: white;
+}
+
+
+.reject-btn-modal {
+  background: #EF4444;
+  color: white;
+}
+
+.reject-btn-modal:hover {
+  background: #DC2626;
+}
+
+.confirm-reject-btn {
+  background: #EF4444;
+  color: white;
+}
+
+.confirm-reject-btn:hover:not(:disabled) {
+  background: #DC2626;
+}
+
+.confirm-reject-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancel-btn16 {
+  background: white;
+  color: #EF4444;
+  border: 1px solid #EF4444;
+}
+
+.cancel-btn16:hover {
+  background: #D9D9D9;
+}
+
+.close-modal-btn {
+  background: #3B82F6;
+  color: white;
+}
+
+.close-modal-btn:hover {
+  background: #2563EB;
+}
+
+/* Review Details Modal Footer */
+.review-details-modal .modal-footer {
+  justify-content: space-between;
+}
+
+.review-details-modal .action-btn {
+  min-width: 140px;
+}
+
+#reviews-table-container {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+.form-label-rejection-reason {
+
+  font-size: 16px;
+  font-weight: 600;
+  color: #1E2023;
+}
+
+.form-label-rejection-reason::after {
+  content: ' *';
+  color: #F44336;
 }
