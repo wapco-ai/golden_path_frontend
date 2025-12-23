@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
-import { updateUserMe } from '../services/publicAuthApi';
+import { getUserMe, updateUserMe } from '../services/publicAuthApi';
 import apiUser from '../api/apiUser';
 import mapApiError from '../services/apiErrorMapper';
 import '../styles/ProfileInfo.css';
@@ -52,6 +52,42 @@ function ProfileInfo() {
     if (savedAvatar && !avatar) {
       setAvatar(savedAvatar);
     }
+  }, []);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const profile = await getUserMe();
+        const profileProvince = profile?.address?.province || profile?.province || '';
+        const profileCity = profile?.address?.city || profile?.city || '';
+        const matchedProvince = provinces.find((province) => province.name === profileProvince);
+
+        if (matchedProvince) {
+          setCities(matchedProvince.cities);
+        }
+
+        setUserData((prevData) => ({
+          ...prevData,
+          firstName: profile?.firstName || prevData.firstName,
+          lastName: profile?.lastName || prevData.lastName,
+          phoneNumber: profile?.phone || profile?.phoneNumber || prevData.phoneNumber,
+          province: profileProvince || prevData.province,
+          city: profileCity || prevData.city,
+          email: profile?.email || prevData.email,
+          nationalId: profile?.nationalId || prevData.nationalId,
+          birthDate: (profile?.birthDate || '').split('T')[0] || prevData.birthDate
+        }));
+
+        if (profile?.avatar) {
+          setAvatar(profile.avatar);
+        }
+      } catch (err) {
+        const mapped = mapApiError(err);
+        setMessage({ type: 'error', text: mapped.message });
+      }
+    };
+
+    loadProfile();
   }, []);
 
   // Clear message after 3 seconds
