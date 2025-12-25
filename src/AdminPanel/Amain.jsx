@@ -4226,11 +4226,12 @@ const Amain = () => {
 
     if (map.isStyleLoaded()) {
       ensureHighlightLayer();
-      return undefined;
     }
 
-    map.once('load', ensureHighlightLayer);
+    map.on('style.load', ensureHighlightLayer);
+    map.on('load', ensureHighlightLayer);
     return () => {
+      map.off('style.load', ensureHighlightLayer);
       map.off('load', ensureHighlightLayer);
     };
   }, [map, activeMenu, activeEditableLayer]);
