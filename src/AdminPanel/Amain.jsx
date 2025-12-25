@@ -531,6 +531,7 @@ const Amain = () => {
   const [map, setMap] = useState(null);
   const [mapLayerAvailabilityVersion, setMapLayerAvailabilityVersion] = useState(0);
   const mapRef = useRef(null);
+  const layerTileRefreshGuardRef = useRef(new Map());
   const lastSelectedFeatureJsonRef = useRef('');
   useEffect(() => {
     mapRef.current = map;
@@ -633,8 +634,18 @@ const Amain = () => {
   ]), []);
   const selectedMapLanguage = mapLanguageOptions.find((option) => option.value === mapLanguage)
     || mapLanguageOptions[0];
+  const MIN_REFRESH_INTERVAL_MS = 1200;
   const refreshLayerTiles = useCallback((layerId) => {
     if (!map || !layerId) return;
+
+    const now = Date.now();
+    const guard = layerTileRefreshGuardRef.current;
+    const last = guard.get(layerId) || 0;
+
+    if (now - last < MIN_REFRESH_INTERVAL_MS) {
+      return;
+    }
+    guard.set(layerId, now);
 
     const layerConfig = adminVectorTileConfig.find((layer) => layer.id === layerId);
     if (!layerConfig) return;
@@ -650,12 +661,12 @@ const Amain = () => {
 
     if (!source || typeof source.setTiles !== 'function' || !baseTileUrl) return;
 
-    const cacheBustedUrl = `${baseTileUrl}${baseTileUrl.includes('?') ? '&' : '?'}cacheBust=${Date.now()}`;
+    const cacheBustedUrl = `${baseTileUrl}${baseTileUrl.includes('?') ? '&' : '?'}cacheBust=${now}`;
 
     source.setTiles([cacheBustedUrl]);
 
-    if (typeof map.triggerRepaint === 'function') {
-      map.triggerRepaint();
+    if (import.meta?.env?.DEV) {
+      console.debug('[tiles] refresh', { layerId, now, baseTileUrl });
     }
   }, [adminVectorTileConfig, map, mapFloor]);
   const ensureVanDrawLayers = useCallback(() => {
