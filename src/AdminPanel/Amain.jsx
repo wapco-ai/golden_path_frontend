@@ -4191,6 +4191,10 @@ const Amain = () => {
             'line-width': 4,
             'line-blur': 0.4
           },
+          layout: {
+            'line-cap': 'round',
+            'line-join': 'round'
+          },
           filter: [
             'match',
             ['geometry-type'],
@@ -4232,6 +4236,17 @@ const Amain = () => {
         }
       });
 
+      [
+        SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID,
+        SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID,
+        SELECTED_EDITABLE_FEATURE_LAYER_ID
+      ].forEach((layerId) => {
+        if (map.getLayer(layerId)) {
+          // Keep highlight layers above rebuilt language/style layers so selected features stay visible
+          map.moveLayer(layerId);
+        }
+      });
+
       if (map.getLayer(SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID)) {
         map.setPaintProperty(SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID, 'fill-color', highlightColor);
       }
@@ -4261,9 +4276,11 @@ const Amain = () => {
 
     map.on('style.load', ensureHighlightLayer);
     map.on('load', ensureHighlightLayer);
+    map.on('idle', ensureHighlightLayer);
     return () => {
       map.off('style.load', ensureHighlightLayer);
       map.off('load', ensureHighlightLayer);
+      map.off('idle', ensureHighlightLayer);
     };
   }, [map, activeMenu, activeEditableLayer, sanitizeFeatureForSelection]);
 
@@ -4356,9 +4373,11 @@ const Amain = () => {
     const applySelectionToSource = () => {
       const source = map.getSource(SELECTED_EDITABLE_FEATURE_SOURCE_ID);
 
-      if (!source?.setData) return;
+      if (!source?.setData) return false;
 
       source.setData(selectedEditableFeature || emptyFeatureCollection);
+
+      return true;
     };
 
     if (applySelectionToSource()) return undefined;
