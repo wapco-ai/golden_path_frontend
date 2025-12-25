@@ -4351,19 +4351,24 @@ const Amain = () => {
       source.setData(selectedEditableFeature || emptyFeatureCollection);
     };
 
-    const handleStyleLoad = () => {
-      applySelectionToSource();
+    if (applySelectionToSource()) return undefined;
+
+    const handleSourceData = () => {
+      if (applySelectionToSource()) {
+        map.off('sourcedata', handleSourceData);
+        map.off('load', handleSourceData);
+        map.off('style.load', handleSourceData);
+      }
     };
 
-    applySelectionToSource();
-    map.on('sourcedata', applySelectionToSource);
-    map.on('load', applySelectionToSource);
-    map.on('style.load', handleStyleLoad);
+    map.on('sourcedata', handleSourceData);
+    map.on('load', handleSourceData);
+    map.on('style.load', handleSourceData);
 
     return () => {
-      map.off('sourcedata', applySelectionToSource);
-      map.off('load', applySelectionToSource);
-      map.off('style.load', handleStyleLoad);
+      map.off('sourcedata', handleSourceData);
+      map.off('load', handleSourceData);
+      map.off('style.load', handleSourceData);
     };
   }, [map, activeMenu, selectedEditableFeature]);
 
