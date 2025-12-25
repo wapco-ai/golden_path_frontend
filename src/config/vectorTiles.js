@@ -398,32 +398,6 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     }
   },
   {
-    id: 'doors-icons',
-    titleFa: 'آیکون درب‌ها',
-    table: 'public.fn_doors_mvt',
-    sourceId: 'fn_doors_mvt',
-    sourceLayer: DOORS_VECTOR_LAYER_NAME,
-    tileUrlFactory: buildDoorsTileUrlFactory(),
-    type: 'symbol',
-    minzoom: 15,
-    maxzoom: 22,
-    visibleByDefault: true,
-    images: Object.values(DOOR_ICON_IMAGES),
-    layout: {
-      'icon-image': [
-        'match',
-        ['get', 'place_function'],
-        'entrance', DOOR_ICON_IMAGES.entrance.name,
-        'exit', DOOR_ICON_IMAGES.exit.name,
-        'emergency', DOOR_ICON_IMAGES.emergency.name,
-        /* default */ DOOR_ICON_IMAGES.default.name
-      ],
-      'icon-size': 0.65,
-      'icon-allow-overlap': true,
-      'symbol-placement': 'line-center'
-    }
-  },
-  {
     id: 'routing_edges_static-ground',
     titleFa: 'گراف مسیریابی',
     table: MESH_TRIANGLES_SOURCE_LAYER,
