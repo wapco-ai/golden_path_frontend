@@ -3938,14 +3938,26 @@ const Amain = () => {
   useEffect(() => {
     if (!map) return undefined;
 
-    const updateLayerAvailability = () => setMapLayerAvailabilityVersion((current) => current + 1);
+    let frameId = null;
+    const updateLayerAvailability = () => {
+      if (frameId) return;
+
+      frameId = requestAnimationFrame(() => {
+        frameId = null;
+        setMapLayerAvailabilityVersion((current) => current + 1);
+      });
+    };
 
     map.on('load', updateLayerAvailability);
-    map.on('styledata', updateLayerAvailability);
+    map.on('idle', updateLayerAvailability);
 
     return () => {
       map.off('load', updateLayerAvailability);
-      map.off('styledata', updateLayerAvailability);
+      map.off('idle', updateLayerAvailability);
+
+      if (frameId) {
+        cancelAnimationFrame(frameId);
+      }
     };
   }, [map]);
 
