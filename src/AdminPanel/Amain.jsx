@@ -27,7 +27,8 @@ import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import {
   DOOR_ACCESS_LAYER_ID,
   DOORS_ACCESS_POINT_LAYER_NAME,
-  haramAdminVectorTileConfig,
+  DEFAULT_TILE_LANG,
+  createHaramAdminVectorTileConfig,
   layerEditSettings
 } from '../config/vectorTiles';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
@@ -546,8 +547,13 @@ const Amain = () => {
         .finally(() => setIsLoadingProfile(false));
     }
   }, [adminProfile, fetchProfile]);
+  const [mapLanguage, setMapLanguage] = useState(DEFAULT_TILE_LANG || 'fa');
+  const adminVectorTileConfig = useMemo(
+    () => createHaramAdminVectorTileConfig(mapLanguage),
+    [mapLanguage]
+  );
   const editableLayerOptions = useMemo(
-    () => haramAdminVectorTileConfig.map((layer) => {
+    () => adminVectorTileConfig.map((layer) => {
       const settings = layerEditSettings[layer.id]
         || (layer.id === 'doorsAccessPoint' ? layerEditSettings[DOOR_ACCESS_LAYER_ID] : null)
         || {};
@@ -563,7 +569,7 @@ const Amain = () => {
         requiredPermission: settings.requiredPermission || null
       };
     }),
-    []
+    [adminVectorTileConfig]
   );
   const canUserEditLayer = useCallback(
     (layer) => {
@@ -592,7 +598,7 @@ const Amain = () => {
     center: [59.6159, 36.2875],
     zoom: 16
   });
-  const buildInitialLayerVisibility = () => haramAdminVectorTileConfig.reduce((acc, layer) => {
+  const buildInitialLayerVisibility = () => adminVectorTileConfig.reduce((acc, layer) => {
     acc[layer.id] = !!layer.visibleByDefault;
     return acc;
   }, {});
@@ -602,25 +608,34 @@ const Amain = () => {
     const targetMap = mapInstance || map;
     if (!targetMap) return;
 
-    haramAdminVectorTileConfig.forEach((layer) => {
+    adminVectorTileConfig.forEach((layer) => {
       if (targetMap.getLayer(layer.id)) {
         targetMap.setLayoutProperty(layer.id, 'visibility', visibilityState?.[layer.id] ? 'visible' : 'none');
       }
     });
-  }, [layerVisibility, map]);
+  }, [adminVectorTileConfig, layerVisibility, map]);
   const [isLayerListOpen, setIsLayerListOpen] = useState(false);
   const [mapFloor, setMapFloor] = useState('همکف');
   const [isMapFloorOpen, setIsMapFloorOpen] = useState(false);
+  const [isMapLanguageOpen, setIsMapLanguageOpen] = useState(false);
   const [openSubMenu, setOpenSubMenu] = useState(null);
   const editableLayerActionMenuMap = useMemo(() => ({
     'temp-areas-outline': 1,
     'areas-outline': 2,
     'van-nodes': 3
   }), []);
+  const mapLanguageOptions = useMemo(() => ([
+    { value: 'fa', label: 'فارسی' },
+    { value: 'en', label: 'English' },
+    { value: 'ar', label: 'العربية' },
+    { value: 'ur', label: 'اردو' }
+  ]), []);
+  const selectedMapLanguage = mapLanguageOptions.find((option) => option.value === mapLanguage)
+    || mapLanguageOptions[0];
   const refreshLayerTiles = useCallback((layerId) => {
     if (!map || !layerId) return;
 
-    const layerConfig = haramAdminVectorTileConfig.find((layer) => layer.id === layerId);
+    const layerConfig = adminVectorTileConfig.find((layer) => layer.id === layerId);
     if (!layerConfig) return;
 
     const source = map.getSource(layerConfig.sourceId);
@@ -641,7 +656,7 @@ const Amain = () => {
     if (typeof map.triggerRepaint === 'function') {
       map.triggerRepaint();
     }
-  }, [map, mapFloor]);
+  }, [adminVectorTileConfig, map, mapFloor]);
   const ensureVanDrawLayers = useCallback(() => {
     if (!map) return;
 
@@ -3868,7 +3883,7 @@ const Amain = () => {
 
         mapInstance.addControl(new maplibregl.NavigationControl());
         mapInstance.on('load', (event) => {
-          initHaramVectorLayers(event, haramAdminVectorTileConfig);
+          initHaramVectorLayers(event, adminVectorTileConfig);
           console.log('Haram vector layers loaded successfully in Amain map');
           logDoorAccessPointDebugInfo(mapInstance);
           applyLayerVisibility(mapInstance);
@@ -3901,7 +3916,15 @@ const Amain = () => {
       setTempAreaVertices([]);
       resetMapCursor();
     }
-  }, [activeMenu, resetMapCursor]);
+  }, [activeMenu, adminVectorTileConfig, resetMapCursor]);
+
+  useEffect(() => {
+    if (!map || activeMenu !== 'mapmanage') return;
+
+    initHaramVectorLayers(map, adminVectorTileConfig);
+    applyLayerVisibility(map);
+    refreshActiveEditableLayerTiles();
+  }, [activeMenu, adminVectorTileConfig, applyLayerVisibility, map, refreshActiveEditableLayerTiles]);
 
   useEffect(() => {
     if (!map) return undefined;
@@ -9678,7 +9701,7 @@ const Amain = () => {
                     </button>
                   )}
                   <div className="map-type-selector">
-                    <div className="map-type-display" onClick={() => { setIsLayerListOpen(!isLayerListOpen); setIsMapFloorOpen(false); }}>
+                    <div className="map-type-display" onClick={() => { setIsLayerListOpen(!isLayerListOpen); setIsMapFloorOpen(false); setIsMapLanguageOpen(false); }}>
                       <span className="stgi">لایه‌های نقشه
                         <div className="date-separator2"></div>
                       </span>
@@ -9693,7 +9716,7 @@ const Amain = () => {
                         <div className="active-editable-layer-info">
                           <span className="active-layer-label">لایه فعال برای ویرایش:</span>
                         </div>
-                        {haramAdminVectorTileConfig.map(layer => {
+                        {adminVectorTileConfig.map(layer => {
                           const layerOption = editableLayerOptions.find((option) => option.id === layer.id);
                           const isLayerActive = activeEditableLayer?.id === layer.id;
                           const hasCorrespondingLayer = isMapLayerAvailable(layer.id);
@@ -9778,7 +9801,36 @@ const Amain = () => {
                   </div>
 
                   <div className="map-type-selector">
-                    <div className="map-type-display" onClick={() => { setIsMapFloorOpen(!isMapFloorOpen); setIsLayerListOpen(false); }}>
+                    <div className="map-type-display" onClick={() => { setIsMapLanguageOpen(!isMapLanguageOpen); setIsMapFloorOpen(false); setIsLayerListOpen(false); }}>
+                      <span className="stgi">زبان نقشه
+                        <div className="date-separator2"></div>
+                      </span>
+                      <span>{selectedMapLanguage?.label}</span>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path fillRule="evenodd" clipRule="evenodd" d="M3.64645 5.64645C3.84171 5.45118 4.15829 5.45118 4.35355 5.64645L8 9.29289L11.6464 5.64645C11.8417 5.45118 12.1583 5.45118 12.3536 5.64645C12.5488 5.84171 12.5488 6.15829 12.3536 6.35355L8.35355 10.3536C8.15829 10.5488 7.84171 10.5488 7.64645 10.3536L3.64645 6.35355C3.45118 6.15829 3.45118 5.84171 3.64645 5.64645Z" fill="#1E2023" />
+                      </svg>
+                    </div>
+
+                    {isMapLanguageOpen && (
+                      <div className="map-type-dropdown">
+                        {mapLanguageOptions.map(option => (
+                          <div
+                            key={option.value}
+                            className="map-type-option"
+                            onClick={() => {
+                              setMapLanguage(option.value);
+                              setIsMapLanguageOpen(false);
+                            }}
+                          >
+                            {option.label}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="map-type-selector">
+                    <div className="map-type-display" onClick={() => { setIsMapFloorOpen(!isMapFloorOpen); setIsLayerListOpen(false); setIsMapLanguageOpen(false); }}>
                       <span className="stgi">طبقه نقشه
                         <div className="date-separator2"></div>
                       </span>
