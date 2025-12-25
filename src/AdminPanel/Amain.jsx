@@ -4315,12 +4315,33 @@ const Amain = () => {
   useEffect(() => {
     if (!map) return undefined;
 
-    const source = map.getSource(SELECTED_EDITABLE_FEATURE_SOURCE_ID);
-    if (source?.setData) {
-      source.setData(selectedEditableFeature || { type: 'FeatureCollection', features: [] });
-    }
+    const emptyFeatureCollection = { type: 'FeatureCollection', features: [] };
 
-    return undefined;
+    const applySelectionToSource = () => {
+      const source = map.getSource(SELECTED_EDITABLE_FEATURE_SOURCE_ID);
+
+      if (!source?.setData) return false;
+
+      source.setData(selectedEditableFeature || emptyFeatureCollection);
+      return true;
+    };
+
+    if (applySelectionToSource()) return undefined;
+
+    const handleSourceData = () => {
+      if (applySelectionToSource()) {
+        map.off('sourcedata', handleSourceData);
+        map.off('load', handleSourceData);
+      }
+    };
+
+    map.on('sourcedata', handleSourceData);
+    map.on('load', handleSourceData);
+
+    return () => {
+      map.off('sourcedata', handleSourceData);
+      map.off('load', handleSourceData);
+    };
   }, [map, selectedEditableFeature]);
 
   const buildTempAreaGeometry = useCallback((vertices = []) => {
