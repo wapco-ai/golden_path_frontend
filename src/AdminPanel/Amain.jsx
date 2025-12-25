@@ -3967,6 +3967,21 @@ const Amain = () => {
     // };
   }, [isEditingCultural, editingCulturalId, cleanupCulturalMap, culturalMap]);
 
+  const sanitizeFeatureForSelection = useCallback((feature) => {
+    if (!feature?.geometry) return null;
+
+    const clonedGeometry = JSON.parse(JSON.stringify(feature.geometry));
+    const clonedProperties = feature.properties ? { ...feature.properties } : {};
+    const stableId = feature.id ?? feature.properties?.id ?? feature.properties?.fid;
+
+    return {
+      type: 'Feature',
+      geometry: clonedGeometry,
+      properties: clonedProperties,
+      ...(stableId ? { id: stableId } : {})
+    };
+  }, []);
+
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
 
@@ -4156,7 +4171,13 @@ const Amain = () => {
             'fill-color': highlightColor,
             'fill-opacity': 0.08
           },
-          filter: ['==', ['geometry-type'], 'Polygon']
+          filter: [
+            'match',
+            ['geometry-type'],
+            ['Polygon', 'MultiPolygon'],
+            true,
+            false
+          ]
         });
       }
 
@@ -4234,7 +4255,7 @@ const Amain = () => {
       map.off('style.load', ensureHighlightLayer);
       map.off('load', ensureHighlightLayer);
     };
-  }, [map, activeMenu, activeEditableLayer]);
+  }, [map, activeMenu, activeEditableLayer, sanitizeFeatureForSelection]);
 
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
@@ -4288,12 +4309,16 @@ const Amain = () => {
       }
 
       const nearestFeature = featuresWithDistance[0];
-      const selectedFeatureCollection = {
-        type: 'FeatureCollection',
-        features: [nearestFeature.feature]
-      };
+      const sanitizedFeature = sanitizeFeatureForSelection(nearestFeature?.feature);
 
-      setSelectedEditableFeature(selectedFeatureCollection);
+      if (sanitizedFeature) {
+        const selectedFeatureCollection = {
+          type: 'FeatureCollection',
+          features: [sanitizedFeature]
+        };
+
+        setSelectedEditableFeature(selectedFeatureCollection);
+      }
 
       if (activeEditableLayer.id === 'temp-areas-outline') {
         setOpenSubMenu(1);
@@ -4607,25 +4632,31 @@ const Amain = () => {
         return;
       }
 
-      const nearestDoor = featuresWithDistance[0];
-      const selectedFeatureCollection = {
-        type: 'FeatureCollection',
-        features: [nearestDoor.feature]
-      };
+      const nearestFeature = featuresWithDistance[0];
+      const sanitizedFeature = sanitizeFeatureForSelection(nearestFeature?.feature);
 
-      setSelectedEditableFeature(selectedFeatureCollection);
+      if (sanitizedFeature) {
+        const selectedFeatureCollection = {
+          type: 'FeatureCollection',
+          features: [sanitizedFeature]
+        };
+
+        setSelectedEditableFeature(selectedFeatureCollection);
+      }
 
       if (activeEditableLayer.id === 'areas-outline') {
         setOpenSubMenu(2);
       }
 
-      console.log('نزدیک‌ترین فیچر انتخابی:', {
-        layerId: activeEditableLayer.id,
-        distanceMeters: Number(nearestDoor.distanceMeters.toFixed(2)),
-        clickLocation: clickCoordinates,
-        coordinates: nearestDoor.feature.geometry?.coordinates,
-        properties: nearestDoor.feature.properties
-      });
+      if (nearestFeature?.feature) {
+        console.log('نزدیک‌ترین فیچر انتخابی:', {
+          layerId: activeEditableLayer.id,
+          distanceMeters: Number(nearestFeature.distanceMeters.toFixed(2)),
+          clickLocation: clickCoordinates,
+          coordinates: nearestFeature.feature.geometry?.coordinates,
+          properties: nearestFeature.feature.properties
+        });
+      }
     };
 
     map.on('click', handleMapClick);
@@ -4656,7 +4687,8 @@ const Amain = () => {
     isTempAreaGeometryDirty,
     clearTempAreaVertexMarkers,
     refreshActiveEditableLayerTiles,
-    resetMapCursor
+    resetMapCursor,
+    sanitizeFeatureForSelection
   ]);
 
   const handleZoomIn = () => {
