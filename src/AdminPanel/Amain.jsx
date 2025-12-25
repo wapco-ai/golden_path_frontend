@@ -531,6 +531,7 @@ const Amain = () => {
   const [map, setMap] = useState(null);
   const [mapLayerAvailabilityVersion, setMapLayerAvailabilityVersion] = useState(0);
   const mapRef = useRef(null);
+  const lastSelectedFeatureJsonRef = useRef('');
   useEffect(() => {
     mapRef.current = map;
   }, [map]);
@@ -3938,14 +3939,26 @@ const Amain = () => {
   useEffect(() => {
     if (!map) return undefined;
 
-    const updateLayerAvailability = () => setMapLayerAvailabilityVersion((current) => current + 1);
+    let frameId = null;
+    const updateLayerAvailability = () => {
+      if (frameId) return;
+
+      frameId = requestAnimationFrame(() => {
+        frameId = null;
+        setMapLayerAvailabilityVersion((current) => current + 1);
+      });
+    };
 
     map.on('load', updateLayerAvailability);
-    map.on('styledata', updateLayerAvailability);
+    map.on('idle', updateLayerAvailability);
 
     return () => {
       map.off('load', updateLayerAvailability);
-      map.off('styledata', updateLayerAvailability);
+      map.off('idle', updateLayerAvailability);
+
+      if (frameId) {
+        cancelAnimationFrame(frameId);
+      }
     };
   }, [map]);
 
@@ -4375,38 +4388,42 @@ const Amain = () => {
   }, [map, activeMenu, activeEditableLayer]);
 
   useEffect(() => {
-    if (!map || activeMenu !== 'mapmanage') return undefined;
+    if (!map || activeMenu !== 'mapmanage') return;
 
     const emptyFeatureCollection = { type: 'FeatureCollection', features: [] };
+    const desiredData = selectedEditableFeature || emptyFeatureCollection;
 
-    const applySelectionToSource = () => {
+    const desiredJson = JSON.stringify(desiredData);
+
+    const tryApplySelectionToSource = () => {
       const source = map.getSource(SELECTED_EDITABLE_FEATURE_SOURCE_ID);
+      if (!source || typeof source.setData !== 'function') return false;
 
-      if (!source?.setData) return false;
+      // جلوگیری از setData تکراری (که می‌تونه رندر/رویدادهای اضافی ایجاد کنه)
+      if (lastSelectedFeatureJsonRef.current === desiredJson) return true;
 
-      source.setData(selectedEditableFeature || emptyFeatureCollection);
-
+      source.setData(desiredData);
+      lastSelectedFeatureJsonRef.current = desiredJson;
       return true;
     };
 
-    if (applySelectionToSource()) return undefined;
+    // اگر همین الان source آماده است، اعمال کن و تمام
+    if (tryApplySelectionToSource()) return;
 
-    const handleSourceData = () => {
-      if (applySelectionToSource()) {
-        map.off('sourcedata', handleSourceData);
-        map.off('load', handleSourceData);
-        map.off('style.load', handleSourceData);
+    // فقط تا زمانی که source ساخته بشه صبر کن، بعد listenerها رو بردار
+    const handleReady = () => {
+      if (tryApplySelectionToSource()) {
+        map.off('load', handleReady);
+        map.off('style.load', handleReady);
       }
     };
 
-    map.on('sourcedata', handleSourceData);
-    map.on('load', handleSourceData);
-    map.on('style.load', handleSourceData);
+    map.on('load', handleReady);
+    map.on('style.load', handleReady);
 
     return () => {
-      map.off('sourcedata', handleSourceData);
-      map.off('load', handleSourceData);
-      map.off('style.load', handleSourceData);
+      map.off('load', handleReady);
+      map.off('style.load', handleReady);
     };
   }, [map, activeMenu, selectedEditableFeature]);
 
