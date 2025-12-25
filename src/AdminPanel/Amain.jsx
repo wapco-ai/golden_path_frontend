@@ -4339,17 +4339,16 @@ const Amain = () => {
   }, [map, activeMenu, activeEditableLayer]);
 
   useEffect(() => {
-    if (!map) return undefined;
+    if (!map || activeMenu !== 'mapmanage') return undefined;
 
     const emptyFeatureCollection = { type: 'FeatureCollection', features: [] };
 
     const applySelectionToSource = () => {
       const source = map.getSource(SELECTED_EDITABLE_FEATURE_SOURCE_ID);
 
-      if (!source?.setData) return false;
+      if (!source?.setData) return;
 
       source.setData(selectedEditableFeature || emptyFeatureCollection);
-      return true;
     };
 
     if (applySelectionToSource()) return undefined;
@@ -4371,7 +4370,7 @@ const Amain = () => {
       map.off('load', handleSourceData);
       map.off('style.load', handleSourceData);
     };
-  }, [map, selectedEditableFeature]);
+  }, [map, activeMenu, selectedEditableFeature]);
 
   const buildTempAreaGeometry = useCallback((vertices = []) => {
     if (!Array.isArray(vertices) || !vertices.length) return null;
