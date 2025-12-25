@@ -11,6 +11,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import PagesManage from './PagesManage';
 import Reviews from './Reviews';
+import Feedbacks from './Feedbacks';
 
 import { booleanValid as turfBooleanValid, centroid as turfCentroid, distance as turfDistance } from '@turf/turf';
 import {
@@ -2742,6 +2743,14 @@ const Amain = () => {
         description: ''
       };
     }
+
+    if (currentReportView === 'بازخورد ها') {
+      return {
+        title: 'بازخوردهای ثبت شده ی کاربران در اپلیکیشن',
+        description: ''
+      };
+    }
+
 
     if (isEditingCultural && editingCulturalData) {
       return {
@@ -7845,6 +7854,13 @@ const Amain = () => {
                     <div className="submenu-branch"></div>
                     <span>لاگ های مسیریابی کاربران</span>
                   </div>
+                  <div
+                    className={`submenu-item ${currentReportView === 'بازخورد ها' ? 'active' : ''}`}
+                    onClick={() => handleSubmenuClick('بازخورد ها')}
+                  >
+                    <div className="submenu-branch"></div>
+                    <span>بازخورد ها</span>
+                  </div>
                 </div>
               )}
             </div>
@@ -8954,6 +8970,8 @@ const Amain = () => {
             </div>
           ) : currentReportView === 'دیدگاه ها' ? (
             <Reviews />
+          ) : currentReportView === 'بازخورد ها' ? (
+            <Feedbacks />
           ) : currentReportView === 'مدیریت دسته بندی‌ها' ? (
             /* Category Management Section */
             <div className="category-management-section">
@@ -10044,6 +10062,7 @@ const Amain = () => {
             currentReportView !== 'مدیریت دسته بندی‌ها' &&
             currentReportView !== 'مدیریت صفحات' &&
             currentReportView !== 'دیدگاه ها' &&
+            currentReportView !== 'بازخورد ها'  &&
             activeMenu !== 'mapmanage' && (
               <div className="users-section">
                 <div className="section-header">
