@@ -4222,6 +4222,16 @@ const Amain = () => {
         });
       }
 
+      [
+        SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID,
+        SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID,
+        SELECTED_EDITABLE_FEATURE_LAYER_ID
+      ].forEach((layerId) => {
+        if (map.getLayer(layerId)) {
+          map.setLayoutProperty(layerId, 'visibility', 'visible');
+        }
+      });
+
       if (map.getLayer(SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID)) {
         map.setPaintProperty(SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID, 'fill-color', highlightColor);
       }
