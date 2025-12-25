@@ -4333,15 +4333,18 @@ const Amain = () => {
       if (applySelectionToSource()) {
         map.off('sourcedata', handleSourceData);
         map.off('load', handleSourceData);
+        map.off('style.load', handleSourceData);
       }
     };
 
     map.on('sourcedata', handleSourceData);
     map.on('load', handleSourceData);
+    map.on('style.load', handleSourceData);
 
     return () => {
       map.off('sourcedata', handleSourceData);
       map.off('load', handleSourceData);
+      map.off('style.load', handleSourceData);
     };
   }, [map, selectedEditableFeature]);
 
