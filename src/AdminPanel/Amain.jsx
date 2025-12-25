@@ -1039,7 +1039,10 @@ const Amain = () => {
   const intl = useIntl();
   const language = intl?.locale || 'fa';
   const isRtlLanguage = ['fa', 'ar', 'ur'].includes(language);
-  const mapStyle = isRtlLanguage ? './rtl/style.json' : './rtl/style-en.json';
+  const mapStyle = useMemo(
+    () => (isRtlLanguage ? './rtl/style.json' : './rtl/style-en.json'),
+    [isRtlLanguage]
+  );
   const translateLabel = useCallback(
     (labelKey) => {
       if (!labelKey || typeof labelKey !== 'string') return labelKey;
@@ -3864,6 +3867,8 @@ const Amain = () => {
   useEffect(() => {
     if (activeMenu === 'mapmanage') {
       // Initialize map when map management is active
+      if (map) return;
+
       const initializeMap = () => {
         // خیلی مهم: قبل از new Map
         // maplibregl.setRTLTextPlugin(
@@ -3916,15 +3921,19 @@ const Amain = () => {
       setTempAreaVertices([]);
       resetMapCursor();
     }
-  }, [activeMenu, adminVectorTileConfig, resetMapCursor]);
+  }, [activeMenu, map, mapStyle, resetMapCursor]);
 
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return;
 
-    initHaramVectorLayers(map, adminVectorTileConfig);
     applyLayerVisibility(map);
+  }, [activeMenu, applyLayerVisibility, map]);
+
+  useEffect(() => {
+    if (!map || activeMenu !== 'mapmanage') return;
+
     refreshActiveEditableLayerTiles();
-  }, [activeMenu, adminVectorTileConfig, applyLayerVisibility, map, refreshActiveEditableLayerTiles]);
+  }, [activeMenu, map, mapFloor, mapLanguage, refreshActiveEditableLayerTiles]);
 
   useEffect(() => {
     if (!map) return undefined;
