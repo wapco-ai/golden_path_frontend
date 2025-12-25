@@ -534,6 +534,23 @@ const Amain = () => {
   useEffect(() => {
     mapRef.current = map;
   }, [map]);
+
+  useEffect(() => {
+    if (!map) return undefined;
+
+    const bumpLayerAvailability = () => setMapLayerAvailabilityVersion((version) => version + 1);
+    const events = ['styledata', 'load', 'sourcedata'];
+
+    if (map.isStyleLoaded()) {
+      bumpLayerAvailability();
+    }
+
+    events.forEach((eventName) => map.on(eventName, bumpLayerAvailability));
+
+    return () => {
+      events.forEach((eventName) => map.off(eventName, bumpLayerAvailability));
+    };
+  }, [map]);
   const userPermissions = useMemo(
     () => adminPermissions || adminProfile?.permissions || adminProfile?.user?.permissions || [],
     [adminPermissions, adminProfile]
