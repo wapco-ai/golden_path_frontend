@@ -3961,11 +3961,11 @@ const Amain = () => {
     };
 
     map.on('load', updateLayerAvailability);
-    map.on('idle', updateLayerAvailability);
+    map.on('styledata', updateLayerAvailability);
 
     return () => {
       map.off('load', updateLayerAvailability);
-      map.off('idle', updateLayerAvailability);
+      map.off('styledata', updateLayerAvailability);
 
       if (frameId) {
         cancelAnimationFrame(frameId);
