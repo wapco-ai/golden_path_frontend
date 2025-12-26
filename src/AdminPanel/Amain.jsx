@@ -859,6 +859,8 @@ const Amain = () => {
   const tempAreaVertexSelectionRef = useRef(null);
   const tempAreaDraftGeometryRef = useRef(null);
   const tempAreaPreviousCursorRef = useRef(null);
+  const prevFloorLangRef = useRef({ floor: null, lang: null });
+
   const setMapCursorForTempAreaDrawing = useCallback(() => {
     if (!map?.getCanvas) return;
 
@@ -900,7 +902,7 @@ const Amain = () => {
   const isVanDrawingLayerActive = isVanNodesLayerActive;
   const isTempAreaLayerActive = activeEditableLayer?.id === 'temp-areas-outline';
   const refreshActiveEditableLayerTiles = useCallback((layerIdOverride) => {
-    const targetLayerId = layerIdOverride || activeEditableLayer?.id;
+    const targetLayerId = layerIdOverride || activeEditableLayerId;
     if (!targetLayerId) return;
 
     const layerIdsToRefresh = new Set([targetLayerId]);
@@ -910,7 +912,7 @@ const Amain = () => {
     }
 
     layerIdsToRefresh.forEach((layerId) => refreshLayerTiles(layerId));
-  }, [activeEditableLayer?.id, refreshLayerTiles]);
+  }, [activeEditableLayerId, refreshLayerTiles]);
   useEffect(() => {
     const mappedSubMenu = editableLayerActionMenuMap[activeEditableLayer?.id];
     if (typeof mappedSubMenu === 'number') {
@@ -3944,6 +3946,11 @@ const Amain = () => {
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return;
 
+    // فقط وقتی floor/lang عوض شد تایل‌ها را رفرش کن (نه هنگام ورود به edit mode)
+    const prev = prevFloorLangRef.current;
+    if (prev.floor === mapFloor && prev.lang === mapLanguage) return;
+    prevFloorLangRef.current = { floor: mapFloor, lang: mapLanguage };
+
     refreshActiveEditableLayerTiles();
   }, [activeMenu, map, mapFloor, mapLanguage, refreshActiveEditableLayerTiles]);
 
@@ -3961,11 +3968,11 @@ const Amain = () => {
     };
 
     map.on('load', updateLayerAvailability);
-    map.on('styledata', updateLayerAvailability);
+    map.once('idle', updateLayerAvailability);
 
     return () => {
       map.off('load', updateLayerAvailability);
-      map.off('styledata', updateLayerAvailability);
+      // map.off('styledata', updateLayerAvailability);
 
       if (debounceId) {
         clearTimeout(debounceId);
@@ -4307,15 +4314,15 @@ const Amain = () => {
       ensureHighlightLayer();
     }
 
+    // فقط وقتی style/load رخ داد هایلایت‌لایه‌ها رو بساز/آپدیت کن
+    // وصل بودن به idle باعث loop رندر می‌شد چون داخلش moveLayer داریم.
     map.on('style.load', ensureHighlightLayer);
-    map.on('load', ensureHighlightLayer);
-    map.on('idle', ensureHighlightLayer);
+    map.once('load', ensureHighlightLayer);
     return () => {
       map.off('style.load', ensureHighlightLayer);
-      map.off('load', ensureHighlightLayer);
-      map.off('idle', ensureHighlightLayer);
+      map.off('load', ensureHighlightLayer); // برای اطمینان
     };
-  }, [map, activeMenu, activeEditableLayer, sanitizeFeatureForSelection]);
+  }, [map, activeMenu, activeEditableLayer]);
 
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
@@ -10236,7 +10243,7 @@ const Amain = () => {
             currentReportView !== 'مدیریت دسته بندی‌ها' &&
             currentReportView !== 'مدیریت صفحات' &&
             currentReportView !== 'دیدگاه ها' &&
-            currentReportView !== 'بازخورد ها'  &&
+            currentReportView !== 'بازخورد ها' &&
             activeMenu !== 'mapmanage' && (
               <div className="users-section">
                 <div className="section-header">
