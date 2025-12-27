@@ -108,6 +108,9 @@ const Location = () => {
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [isVideoFullscreen, setIsVideoFullscreen] = useState(false);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [showAllCommentsModal, setShowAllCommentsModal] = useState(false);
+  const [commentLimit, setCommentLimit] = useState(3);
+  const [userAvatar, setUserAvatar] = useState(null);
 
   const carouselRef = useRef(null);
   const aboutContentRef = useRef(null);
@@ -234,6 +237,21 @@ const Location = () => {
       averageRating: place.averageRating ?? place.rate ?? place.rating ?? 0
     };
   };
+
+  useEffect(() => {
+    const savedAvatar = localStorage.getItem('userAvatar');
+    if (savedAvatar) {
+      setUserAvatar(savedAvatar);
+    }
+
+    const savedProfile = localStorage.getItem('userProfile');
+    if (savedProfile) {
+      const profileData = JSON.parse(savedProfile);
+      if (profileData.avatar) {
+        setUserAvatar(profileData.avatar);
+      }
+    }
+  }, []);
 
   const findMatchingLocation = (places, requestedId) => {
     if (!requestedId || !Array.isArray(places)) return null;
@@ -825,34 +843,34 @@ const Location = () => {
     const fetchLocationData = async () => {
       setLoading(true);
       setError(null);
-  
+
       try {
         const requestedLocationId = getRequestedLocationId();
         const searchParams = getSearchParams();
         const requestedTitle = searchParams.get('title');
-        
+
         // If we have a title parameter (from MPR), search by title
         if (requestedTitle) {
           try {
             // Decode the title
             const decodedTitle = decodeURIComponent(requestedTitle);
-            
+
             // Fetch landmarks and search by title
             const landmarksResponse = await fetchLandmarkPlaces({
               language
               // Don't pass poiId - get all landmarks
             });
-            
+
             const allLandmarks = Array.isArray(landmarksResponse?.places?.landmarkPlaces)
               ? landmarksResponse.places.landmarkPlaces
               : [];
-            
+
             // Find landmark by title
-            const matchingLandmark = allLandmarks.find(landmark => 
-              landmark.title === decodedTitle || 
+            const matchingLandmark = allLandmarks.find(landmark =>
+              landmark.title === decodedTitle ||
               landmark.name === decodedTitle
             );
-            
+
             if (matchingLandmark) {
               const normalizedData = normalizePlaceData(matchingLandmark);
               if (normalizedData) {
@@ -870,7 +888,7 @@ const Location = () => {
             // Fall through to use locationState
           }
         }
-        
+
         // If we have location state with fromMPR flag, use it
         if (locationState?.fromMPR) {
           const normalizedData = normalizePlaceData(locationState);
@@ -884,30 +902,30 @@ const Location = () => {
             return;
           }
         }
-  
+
         // Normal flow for API fetch with POI ID
         const apiResponse = await fetchLandmarkPlaces({
           language,
           poiId: requestedLocationId
         });
-  
+
         const apiLocations = Array.isArray(apiResponse?.places?.landmarkPlaces)
           ? apiResponse.places.landmarkPlaces
           : Array.isArray(apiResponse)
             ? apiResponse
             : [];
-  
+
         const matchedLocation = findMatchingLocation(apiLocations, requestedLocationId)
           || (apiLocations.length === 1 ? apiLocations[0] : null)
           || findMatchingLocation([locationState], requestedLocationId)
           || locationState;
-  
+
         const normalizedData = normalizePlaceData(matchedLocation);
-  
+
         if (!normalizedData) {
           throw new Error(intl.formatMessage({ id: 'noDataFound' }));
         }
-  
+
         const localizedData = localizeLocationData(normalizedData, language);
         setLocationData(localizedData);
         setComments(localizedData.comments || []);
@@ -919,7 +937,7 @@ const Location = () => {
         setLoading(false);
       }
     };
-  
+
     fetchLocationData();
   }, [currentLocation, language, intl, locationState]);
 
@@ -1133,13 +1151,13 @@ const Location = () => {
           <h3>
             <FormattedMessage id="commentsTitle" values={{ count: comments.length }} />
           </h3>
-          <button className="view-all-btn">
+          {/* <button className="view-all-btn" onClick={() => setShowAllCommentsModal(true)}>
             <FormattedMessage id="viewAll" />
             <svg xmlns="http://www.w3.org/2000/svg" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path stroke="none" d="M0 0h24v24H0z" fill="none" />
               <path d="M15 6l-6 6l6 6" />
             </svg>
-          </button>
+          </button> */}
         </div>
 
         <div className="comment-input-wrapper" onClick={handleCommentClick}>
@@ -1170,11 +1188,36 @@ const Location = () => {
         </div>
 
         <div className="comment-list-horizontal">
-          {comments.map((item, index) => (
+          {comments.slice(0, commentLimit).map((item, index) => (
             <div key={index} className="comment-item">
               <div className="comment-header">
                 <div className="comment-author-section">
-                  <div className="profile-avatar2" />
+                  <div className="profile-avatar2">
+                    {userAvatar ? (
+                      <img
+                        src={userAvatar}
+                        alt={item.author}
+                        className="comment-avatar-img"
+                      />
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="icon icon-tabler icons-tabler-outline icon-tabler-user"
+                      >
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
+                        <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+                      </svg>
+                    )}
+                  </div>
                   <span className="comment-author">{item.author}</span>
                 </div>
                 <span className="comment-date">{item.date}</span>
@@ -1182,7 +1225,7 @@ const Location = () => {
               <div className="comment-text">{item.text}</div>
               <div className="comment-rating-section">
                 <div className="rating-stars">
-                  {[1, 2, 3, 4, 5].map((star) => (
+                  {(document.documentElement.dir === 'rtl' ? [1, 2, 3, 4, 5] : [5, 4, 3, 2, 1]).map((star) => (
                     <svg
                       key={star}
                       className={star <= item.rating ? 'filled' : ''}
@@ -1200,6 +1243,16 @@ const Location = () => {
               </div>
             </div>
           ))}
+          {comments.length > commentLimit && (
+            <div className="view-more-comments-container" onClick={() => setShowAllCommentsModal(true)}>
+              <div className="view-more-comments">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                  <path d="M9 6l6 6l-6 6" />
+                </svg>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -1232,7 +1285,7 @@ const Location = () => {
                   <FormattedMessage id="ratingPrompt" />
                 </p>
                 <div className="stars">
-                  {[5, 4, 3, 2, 1].map((star) => (
+                  {(document.documentElement.dir === 'rtl' ? [1, 2, 3, 4, 5] : [5, 4, 3, 2, 1]).map((star) => (
                     <span
                       key={star}
                       onMouseEnter={() => handleRatingHover(star)}
@@ -1347,6 +1400,79 @@ const Location = () => {
             />
           </button>
         </div>
+      )}
+      {showAllCommentsModal && (
+        <>
+          <div className="modal-overlay-location all-comments-overlay" onClick={() => setShowAllCommentsModal(false)}></div>
+          <div className="all-comments-modal">
+            <div className="all-comments-modal-header">
+              <button className="close-all-comments" onClick={() => setShowAllCommentsModal(false)}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-x">
+                  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                  <path d="M18 6l-12 12" />
+                  <path d="M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="all-comments-list">
+              {comments.map((item, index) => (
+                <div key={index} className="all-comments-item">
+                  <div className="all-comments-header">
+                    <div className="all-comments-author-section">
+                      <div className="profile-avatar2">
+                        {userAvatar ? (
+                          <img
+                            src={userAvatar}
+                            alt={item.author}
+                            className="comment-avatar-img"
+                          />
+                        ) : (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="24"
+                            height="24"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="icon icon-tabler icons-tabler-outline icon-tabler-user"
+                          >
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
+                            <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+                          </svg>
+                        )}
+                      </div>
+                      <span className="all-comments-author">{item.author}</span>
+                    </div>
+                    <span className="all-comments-date">{item.date}</span>
+                  </div>
+                  <div className="all-comments-text">{item.text}</div>
+                  <div className="all-comments-rating-section">
+                    <div className="rating-stars">
+                      {(document.documentElement.dir === 'rtl' ? [1, 2, 3, 4, 5] : [5, 4, 3, 2, 1]).map((star) => (
+                        <svg
+                          key={star}
+                          className={star <= item.rating ? 'filled' : ''}
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                        >
+                          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                          <path d="M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873z" />
+                        </svg>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

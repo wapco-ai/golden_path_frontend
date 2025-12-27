@@ -85,6 +85,8 @@ function ProfileInfo() {
 
         if (profile?.avatar) {
           setAvatar(profile.avatar);
+          localStorage.setItem('userAvatar', profile.avatar);
+          sessionStorage.setItem('userAvatar', profile.avatar);
         }
       } catch (err) {
         const mapped = mapApiError(err);
@@ -131,9 +133,10 @@ function ProfileInfo() {
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setAvatar(e.target.result);
-        // Save to localStorage for persistence
-        localStorage.setItem('userAvatar', e.target.result);
+        const avatarDataUrl = e.target.result;
+        setAvatar(avatarDataUrl);
+        localStorage.setItem('userAvatar', avatarDataUrl);
+        sessionStorage.setItem('userAvatar', avatarDataUrl);
       };
       reader.readAsDataURL(file);
     }
@@ -508,13 +511,13 @@ function ProfileInfo() {
               <span className="required-star">*</span>
             </label>
           </div>
-          <div className={`input-container birthdate-container ${userData.birthDate ? 'filled' : ''}`}>
+          <div className={`input-container ${userData.birthDate ? 'filled' : ''}`}>
             <LocalizedDatePicker
               value={userData.birthDate}
               onChange={(isoDate) => handleInputChange('birthDate', isoDate)}
               lang={language}
-              inputClassName="form-input birthdate-input"
-              helperText={!userData.birthDate ? intl.formatMessage({ id: 'enterBirthDate' }) : ''}
+              className="form-input"
+              helperText={!userData.birthDate ? '' : ''}
               error={!userData.birthDate && isSubmitting}
             />
           </div>

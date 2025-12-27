@@ -9430,3 +9430,703 @@ body {
   margin-bottom: -5px;
   pointer-events: none;
 }
+
+/* Admins Page Styles */
+.admins-page {
+  border: 1px solid #F0F0F0;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 40px;
+  padding: 20px;
+  width: 100%;
+}
+
+/* Profile cell styling */
+.user-profile-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.profile-image-small {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #E5E7EB;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6B7280;
+  font-weight: bold;
+}
+
+.username-cell {
+  color: #3B82F6;
+  font-weight: 500;
+  direction: ltr;
+  display: block;
+}
+
+/* Roles cell styling */
+.roles-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.displayed-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.role-badge {
+  background: #E0F2FE;
+  color: #0C4A6E;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  white-space: nowrap;
+  border: 1px solid #BAE6FD;
+  cursor:default;
+}
+
+.extra-roles-bubble {
+  background: #E0F2FE;
+  color: #0C4A6E;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: bold;
+  cursor:pointer;
+  border: 1px solid #BAE6FD;
+}
+
+.extra-roles-bubble:hover {
+  background: #E0F2FE;
+}
+
+/* Admin actions */
+.admin-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+.admin-btn {
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.edit-btn21 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: rgba(15, 113, 239, 0.1);
+  color: #0F71EF;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  padding: 8px;
+}
+
+.edit-btn21:hover {
+  background: rgba(15, 113, 239, 0.2);
+}
+
+.delete-btn21 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(234, 67, 53, 0.1);
+  color: #EA4335;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  padding: 8px;
+}
+
+.delete-btn21:hover {
+  background: rgba(234, 67, 53, 0.2);
+}
+
+
+/* Edit Admin Modal */
+.edit-admin-modal,
+.admin-details-modal,
+.delete-admin-modal {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 700px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header-edit-admin,
+.modal-header-admin-details,
+.modal-header-delete-admin {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+}
+
+.modal-header-edit-admin h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #1E2023;
+}
+
+.modal-body-edit-admin {
+  padding: 20px;
+}
+
+.admin-basic-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.info-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.info-field label {
+  font-size: 14px;
+  color: #6B7280;
+  font-weight: 500;
+}
+
+.readonly-field {
+  background: #F9FAFB;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #E5E7EB;
+  color: #1E2023;
+  font-size: 14px;
+}
+
+.roles-section {
+  margin-top: 24px;
+}
+
+.roles-section h4 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  color: #6B7280;
+  font-weight: 500;
+}
+
+.roles-checkboxes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 8px;
+  margin-bottom: 20px;
+}
+
+.role-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.role-checkbox-label:hover {
+  background: #F9FAFB;
+}
+
+.role-checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.role-checkbox-label span {
+  color: #4B5563;
+  font-size: 13px;
+}
+
+
+.close-details-btn,
+.confirm-delete-btn {
+  padding: 12px 24px;
+  background: #0F71EF;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  transition: background-color 0.3s;
+}
+
+.close-details-btn:hover,
+.confirm-delete-btn:hover {
+  background: #0D62D4;
+}
+
+.modal-footer-edit-admin,
+.modal-footer-admin-details,
+.modal-footer-delete-admin{
+  padding: 20px;
+  border-top: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.cancel-delete-btn {
+  background: white;
+  color: #EF4444;
+  border: 1px solid #EF4444;
+}
+
+.cancel-delete-btn:hover {
+  background: #D9D9D9;
+}
+
+/* Admin Details Modal */
+.admin-details-modal {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.modal-body-admin-details {
+  padding: 20px;
+}
+
+.admin-info-section {
+  background: #F9FAFB;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+  border: 1px solid #E5E7EB;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #F0F0F0;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.info-row:first-child {
+  padding-top: 0;
+}
+
+.info-label {
+  font-size: 13px;
+  color: #6B7280;
+  font-weight: 500;
+  min-width: 120px;
+  text-align: right;
+}
+
+.info-value {
+  font-size: 14px;
+  color: #1E2023;
+  font-weight: 500;
+  text-align: left;
+  direction: ltr;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+  text-align: center;
+}
+
+.status-badge.active {
+  background: #D1FAE5;
+  color: #065F46;
+  border: 1px solid #A7F3D0;
+}
+
+.status-badge.inactive {
+  background: #FEE2E2;
+  color: #991B1B;
+  border: 1px solid #FECACA;
+}
+
+.admin-roles-section {
+  background: #F9FAFB;
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid #E5E7EB;
+}
+
+.admin-roles-section h4 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  color: #6B7280;
+  font-weight: 500;
+}
+
+.roles-list {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  padding-right: 8px;
+}
+
+.roles-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.roles-list::-webkit-scrollbar-track {
+  background: #F1F1F1;
+  border-radius: 10px;
+}
+
+.roles-list::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 10px;
+}
+
+.role-item {
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #E5E7EB;
+  font-size: 13px;
+  color: #4B5563;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.role-item:before {
+  content: "•";
+  color: #0F71EF;
+  font-size: 16px;
+}
+
+.total-roles {
+  text-align: center;
+  padding: 8px;
+  background: #EFF6FF;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #1E40AF;
+  font-weight: 600;
+  border: 1px solid #DBEAFE;
+}
+
+/* Delete Confirmation Modal */
+.delete-admin-modal {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.modal-body-delete-admin {
+  padding: 30px 20px;
+  text-align: center;
+}
+
+.warning-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 80px;
+  height: 80px;
+  background: #FEF3C7;
+  border-radius: 50%;
+  margin: 0 auto 20px;
+  color: #D97706;
+}
+
+.modal-body-delete-admin h4 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  color: #1E2023;
+  font-weight: 600;
+}
+
+.admin-to-delete {
+  background: #FEF2F2;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 20px 0;
+  border: 1px solid #FECACA;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-to-delete strong {
+  font-size: 16px;
+  color: #1E2023;
+  font-weight: 600;
+}
+
+.admin-to-delete span {
+  font-size: 14px;
+  color: #6B7280;
+  direction: ltr;
+}
+
+.delete-warning {
+  background: #FFFBEB;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 13px;
+  color: #92400E;
+  line-height: 1.5;
+  border: 1px solid #FDE68A;
+  margin-top: 16px;
+}
+
+/* Modal footer buttons */
+.modal-footer-admin-details,
+.modal-footer-delete-admin {
+  padding: 20px;
+  border-top: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.close-details-btn {
+  padding: 10px 24px;
+  background: #0F71EF;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  transition: all 0.3s;
+  min-width: 100px;
+}
+
+.close-details-btn:hover {
+  background: #0D62D4;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 113, 239, 0.2);
+}
+
+.cancel-delete-btn {
+  padding: 10px 24px;
+  background: white;
+  color: #6B7280;
+  border: 1px solid #D1D5DB;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  transition: all 0.3s;
+  min-width: 100px;
+}
+
+.cancel-delete-btn:hover {
+  background: #F9FAFB;
+  border-color: #9CA3AF;
+}
+
+.confirm-delete-btn {
+  padding: 10px 24px;
+  background: #EF4444;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  transition: all 0.3s;
+  min-width: 120px;
+}
+
+.confirm-delete-btn:hover {
+  background: #DC2626;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+}
+
+.confirm-delete-btn:disabled,
+.cancel-delete-btn:disabled,
+.close-details-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Close button styling */
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6B7280;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: #F3F4F6;
+  color: #374151;
+}
+
+/* Modal overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Modal entrance animations */
+.edit-admin-modal,
+.admin-details-modal,
+.delete-admin-modal {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .admin-details-modal,
+  .delete-admin-modal {
+    width: 95%;
+    max-width: none;
+    margin: 16px;
+  }
+  
+  .admin-info-section,
+  .admin-roles-section {
+    padding: 16px;
+  }
+  
+  .info-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .info-label {
+    text-align: right;
+    min-width: auto;
+  }
+  
+  .roles-checkboxes {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .modal-footer-admin-details,
+  .modal-footer-delete-admin {
+    flex-direction: column;
+  }
+  
+  .close-details-btn,
+  .cancel-delete-btn,
+  .confirm-delete-btn {
+    width: 100%;
+    min-width: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .roles-checkboxes {
+    grid-template-columns: 1fr;
+  }
+  
+  .admin-basic-info {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .modal-header-edit-admin,
+  .modal-header-admin-details,
+  .modal-header-delete-admin {
+    padding: 16px;
+  }
+  
+  .modal-body-edit-admin,
+  .modal-body-admin-details,
+  .modal-body-delete-admin {
+    padding: 16px;
+  }
+  
+  .modal-footer-edit-admin,
+  .modal-footer-admin-details,
+  .modal-footer-delete-admin {
+    padding: 16px;
+  }
+}

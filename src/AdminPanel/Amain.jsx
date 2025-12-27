@@ -12,6 +12,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import PagesManage from './PagesManage';
 import Reviews from './Reviews';
 import Feedbacks from './Feedbacks';
+import Admins from './Admins';
 
 import { booleanValid as turfBooleanValid, centroid as turfCentroid, distance as turfDistance } from '@turf/turf';
 import {
@@ -2769,6 +2770,13 @@ const Amain = () => {
       };
     }
 
+    if (currentReportView === 'مدیریت ادمین ها ') {
+      return {
+        title: ' مدیریت ادمین های سیستم ',
+        description: ''
+      };
+    }
+
     if (currentReportView === 'مدیریت دسته بندی‌ها') {
       return {
         title: ' مدیریت دسته ‌بندی‌های موجود در نرم افزار آستان قدس رضوی',
@@ -3755,7 +3763,8 @@ const Amain = () => {
       setBreadcrumbPath(['منوی اصلی', 'گزارشات', viewName]);
     } else if (viewName === 'مدیریت دسته بندی‌ها' ||
       viewName === 'مدیریت اطلاعات فرهنگی' ||
-      viewName === 'مدیریت صفحات') {  // Add this
+      viewName === 'مدیریت ادمین ها ' ||
+      viewName === 'مدیریت صفحات') {
       setActiveMenu('facmanage');
       setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات', viewName]);
       resetCategoryForm();
@@ -8102,7 +8111,7 @@ const Amain = () => {
                 </div>
                 <div
                   className={`submenu-item ${currentReportView === 'مدیریت صفحات' ? 'active' : ''}`}  // Updated this line
-                  onClick={() => handleSubmenuClick('مدیریت صفحات')}  // Updated this line
+                  onClick={() => handleSubmenuClick('مدیریت صفحات')}
                 >
                   <div className="submenu-branch"></div>
                   <span>مدیریت صفحات</span>
@@ -8113,6 +8122,13 @@ const Amain = () => {
                 >
                   <div className="submenu-branch"></div>
                   <span>مدیریت اطلاعات فرهنگی</span>
+                </div>
+                <div
+                  className={`submenu-item ${currentReportView === 'مدیریت ادمین ها ' ? 'active' : ''}`}
+                  onClick={() => handleSubmenuClick(' مدیریت ادمین ها')}
+                >
+                  <div className="submenu-branch"></div>
+                  <span> مدیریت ادمین ها</span>
                 </div>
               </div>
             )}
@@ -9124,6 +9140,8 @@ const Amain = () => {
             <Reviews />
           ) : currentReportView === 'بازخورد ها' ? (
             <Feedbacks />
+          ) : currentReportView === ' مدیریت ادمین ها' ? (
+            <Admins />
           ) : currentReportView === 'مدیریت دسته بندی‌ها' ? (
             /* Category Management Section */
             <div className="category-management-section">
@@ -10244,6 +10262,7 @@ const Amain = () => {
             currentReportView !== 'مدیریت صفحات' &&
             currentReportView !== 'دیدگاه ها' &&
             currentReportView !== 'بازخورد ها' &&
+            currentReportView !== ' مدیریت ادمین ها' &&
             activeMenu !== 'mapmanage' && (
               <div className="users-section">
                 <div className="section-header">
