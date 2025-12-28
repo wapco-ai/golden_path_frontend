@@ -539,12 +539,12 @@ const Admins = () => {
                   <span className="info-label">تاریخ ایجاد:</span>
                   <span className="info-value">{selectedAdmin.createdAt}</span>
                 </div>
-                <div className="info-row">
+                {/* <div className="info-row">
                   <span className="info-label">وضعیت:</span>
                   <span className={`status-badge ${selectedAdmin.status}`}>
                     {selectedAdmin.status === 'active' ? 'فعال' : 'غیرفعال'}
                   </span>
-                </div>
+                </div> */}
               </div>
 
               <div className="admin-roles-section">
@@ -552,12 +552,9 @@ const Admins = () => {
                 <div className="roles-list">
                   {selectedAdmin.roles.map((role, index) => (
                     <div key={index} className="role-item">
-                      • {role}
+                       {role}
                     </div>
                   ))}
-                </div>
-                <div className="total-roles">
-                  مجموع: {selectedAdmin.roles.length} نقش
                 </div>
               </div>
             </div>
@@ -579,7 +576,6 @@ const Admins = () => {
         <div className="modal-overlay" id="delete-admin-modal">
           <div className="delete-admin-modal">
             <div className="modal-header-delete-admin">
-              <h3>حذف ادمین</h3>
               <button
                 className="close-btn"
                 onClick={() => setIsDeleteModalOpen(false)}
