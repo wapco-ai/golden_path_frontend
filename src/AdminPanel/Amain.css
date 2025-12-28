@@ -9478,16 +9478,21 @@ body {
   gap: 12px;
 }
 
-.profile-image-small {
+.profile-image-small2 {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #E5E7EB;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6B7280;
-  font-weight: bold;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.profile-image-small2 svg {
+  width: 24px;
+  height: 24px;
 }
 
 .username-cell {
@@ -10292,23 +10297,6 @@ body {
 }
 
 /* Profile Image Styles with SVG */
-.profile-image-small {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.profile-image-small svg {
-  width: 24px;
-  height: 24px;
-}
-
 .profile-image-large3 {
   width: 80px;
   height: 80px;
