@@ -82,6 +82,7 @@ const Admins = () => {
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [isLoading, setIsLoading] = useState(false);
   const [totalItems, setTotalItems] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Modal states
   const [selectedAdmin, setSelectedAdmin] = useState(null);
@@ -125,6 +126,14 @@ const Admins = () => {
   const handleRefresh = () => {
     loadAdmins();
     toast.success('لیست ادمین‌ها به‌روزرسانی شد');
+
+    setIsRefreshing(true);
+
+    setTimeout(() => {
+
+
+      setIsRefreshing(false);
+    }, 1000);
   };
 
   // Format roles for display (max 3 roles + bubble)
@@ -158,6 +167,7 @@ const Admins = () => {
     setSelectedAdmin(admin);
     setIsDeleteModalOpen(true);
   };
+  
 
   // Handle role selection toggle
   const handleRoleToggle = (role) => {
@@ -258,10 +268,25 @@ const Admins = () => {
           <div className="title-container">
             <div className="title-cell">
               <h3>ادمین های حال حاضر در سیستم</h3>
-              <button className="refresh-btn" onClick={handleRefresh}>
-                <svg width="18" height="18" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M11.047 5.99994C11.047 8.73518 8.8271 10.9551 6.09186 10.9551C3.35662 10.9551 1.68674 8.20002 1.68674 8.20002M1.68674 8.20002H3.92646M1.68674 8.20002V10.6776M1.13672 5.99994C1.13672 3.2647 3.3368 1.0448 6.09186 1.0448C9.39694 1.0448 11.047 3.79986 11.047 3.79986M11.047 3.79986V1.32229M11.047 3.79986H8.84692" stroke="#1E2023" strokeWidth="1.08112" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+              <button
+                className="refresh-btn"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+              >
+                {isRefreshing ? (
+                  <div className="loading-spinner" style={{
+                    width: '18px',
+                    height: '18px',
+                    border: '2px solid #f3f3f3',
+                    borderTop: '2px solid #1E2023',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }}></div>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M11.047 5.99994C11.047 8.73518 8.8271 10.9551 6.09186 10.9551C3.35662 10.9551 1.68674 8.20002 1.68674 8.20002M1.68674 8.20002H3.92646M1.68674 8.20002V10.6776M1.13672 5.99994C1.13672 3.2647 3.3368 1.0448 6.09186 1.0448C9.39694 1.0448 11.047 3.79986 11.047 3.79986M11.047 3.79986V1.32229M11.047 3.79986H8.84692" stroke="#1E2023" strokeWidth="1.08112" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
               </button>
             </div>
             <p></p>
@@ -552,7 +577,7 @@ const Admins = () => {
                 <div className="roles-list">
                   {selectedAdmin.roles.map((role, index) => (
                     <div key={index} className="role-item">
-                       {role}
+                      {role}
                     </div>
                   ))}
                 </div>

@@ -13,6 +13,7 @@ import PagesManage from './PagesManage';
 import Reviews from './Reviews';
 import Feedbacks from './Feedbacks';
 import Admins from './Admins';
+import Usersigned from './Usersigned';
 
 import { booleanValid as turfBooleanValid, centroid as turfCentroid, distance as turfDistance } from '@turf/turf';
 import {
@@ -1125,6 +1126,8 @@ const Amain = () => {
   const isSavingPlaceInfo = isSavingDoorInfo || isSavingAreaInfo;
   const isLoadingPlaceInfo = isLoadingDoorInfo || isLoadingAreaInfo;
   const [categoryManagementOpen, setCategoryManagementOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showUserModal, setShowUserModal] = useState(false);
 
 
   const [categories, setCategories] = useState([]);
@@ -2118,35 +2121,80 @@ const Amain = () => {
         fullName: 'سیدمحمدحسین میرشفیعی ',
         phone: ' ۹۱۹۳۹۳۷۸۶۹ ۹۸+',
         registerDate: ' ۱۸ مرداد ۱۴۰۴',
-        gender: 'مرد'
+        gender: 'مرد',
+        successCount: 8
       },
       {
         id: 2,
         fullName: 'محمدجواد سلگی',
         phone: '۹۱۹۳۹۳۷۸۶۹ ۹۸+',
         registerDate: '۲۰ مرداد ۱۴۰۴',
-        gender: 'مرد'
+        gender: 'مرد',
+        successCount: 12
       },
       {
         id: 3,
         fullName: 'محمد رضایی',
         phone: '۴۹۳۸۷۶۵۴۳۲ ۹۸+',
         registerDate: '۲۲ مرداد ۱۴۰۴',
-        gender: 'مرد'
+        gender: 'مرد',
+        successCount: 5
       },
       {
         id: 4,
         fullName: 'ساسان جاجرمی',
         phone: '۹۱۹۳۹۳۷۸۶۹ ۹۸+',
         registerDate: '۲۵ مرداد ۱۴۰۴',
-        gender: 'مرد'
+        gender: 'مرد',
+        successCount: 15
       },
       {
         id: 5,
         fullName: 'مرتضی یوسف نیا',
         phone: '۹۱۹۳۹۳۷۸۶۹ ۹۸+',
         registerDate: '۲۷ مرداد ۱۴۰۴',
-        gender: 'مرد'
+        gender: 'مرد',
+        successCount: 3
+      },
+      {
+        id: 6,
+        fullName: 'فاطمه محمدی',
+        phone: '۹۱۲۳۴۵۶۷۸۹ ۹۸+',
+        registerDate: '۱۵ شهریور ۱۴۰۴',
+        gender: 'زن',
+        successCount: 9
+      },
+      {
+        id: 7,
+        fullName: 'زهرا احمدی',
+        phone: '۹۱۳۵۷۹۲۴۶۸ ۹۸+',
+        registerDate: '۱۰ مهر ۱۴۰۴',
+        gender: 'زن',
+        successCount: 11
+      },
+      {
+        id: 8,
+        fullName: 'علی کریمی',
+        phone: '۹۱۴۶۸۲۵۳۹۷ ۹۸+',
+        registerDate: '۲۵ مهر ۱۴۰۴',
+        gender: 'مرد',
+        successCount: 7
+      },
+      {
+        id: 9,
+        fullName: 'حمید رضوانی',
+        phone: '۹۱۵۷۳۹۴۶۸۲ ۹۸+',
+        registerDate: '۲۰ شهریور ۱۴۰۴',
+        gender: 'مرد',
+        successCount: 14
+      },
+      {
+        id: 10,
+        fullName: 'نرجس قاسمی',
+        phone: '۹۱۶۸۲۴۵۷۳۹ ۹۸+',
+        registerDate: '۲۵ مهر ۱۴۰۴',
+        gender: 'زن',
+        successCount: 6
       },
     ];
     setUsers(mockUsers);
@@ -4097,6 +4145,17 @@ const Amain = () => {
       hasUserClearedEditableLayer.current = false;
     }
   }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
+
+  const handleDetailsClick = (user) => {
+    setSelectedUser({
+      ...user,
+      birthDate: '۱۳۷۵/۵/۲۰',
+      email: 'user.email@example.com',
+      province: 'خراسان رضوی',
+      city: 'مشهد'
+    });
+    setShowUserModal(true);
+  };
 
   useEffect(() => {
     setSelectedEditableFeature(null);
@@ -9081,61 +9140,7 @@ const Amain = () => {
               </div>
             </div>
           ) : currentReportView === 'کاربران ثبت نام کرده' ? (
-            /* Registered Users Report View */
-            <div className="reports-section">
-              <div className="report-filters">
-                <div className="filter-row">
-                  {/* Date Filter */}
-                  <div className="filter-group">
-                    <label className="filter-label">انتخاب تاریخ</label>
-                    <div className="date-input-with-separator">
-                      <div className="dtg">
-                        <span className="date-start">شروع</span>
-                        <div className="date-separator"></div>
-                        <span className="date-end">پایان</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Gender Filter */}
-                  <div className="filter-group">
-                    <label className="filter-label">انتخاب جنسیت</label>
-                    <div className="select-wrapper">
-                      <select>
-                        <option>همه</option>
-
-                        <option>فقط مردان</option>
-                        <option>فقط بانوان</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Routing Success Filter */}
-                  <div className="filter-group">
-                    <label className="filter-label">مسیریابی موفق</label>
-                    <div className="select-wrapper">
-                      <select>
-                        <option>همه</option>
-                        <option>موفق</option>
-                        <option>ناموفق</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="filter-actions">
-                  <button className="clear-filters-btn">
-                    پاک کردن فیلترها
-                  </button>
-                  <button className="export-report-btn">
-                    <p>خروجی گزارشات</p>
-                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path fillRule="evenodd" clipRule="evenodd" d="M3.69247 7.09327C3.91711 6.83119 4.31167 6.80084 4.57375 7.02548L10.0003 11.6768L15.4269 7.02548C15.689 6.80084 16.0836 6.83119 16.3082 7.09327C16.5328 7.35535 16.5025 7.74991 16.2404 7.97455L10.4071 12.9745C10.173 13.1752 9.82765 13.1752 9.59359 12.9745L3.76026 7.97455C3.49818 7.74991 3.46783 7.35535 3.69247 7.09327Z" fill="white" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
+            <Usersigned />
           ) : currentReportView === 'دیدگاه ها' ? (
             <Reviews />
           ) : currentReportView === 'بازخورد ها' ? (
@@ -10261,6 +10266,7 @@ const Amain = () => {
             currentReportView !== 'دیدگاه ها' &&
             currentReportView !== 'بازخورد ها' &&
             currentReportView !== ' مدیریت ادمین ها' &&
+            currentReportView !== 'کاربران ثبت نام کرده' &&
             activeMenu !== 'mapmanage' && (
               <div className="users-section">
                 <div className="section-header">
@@ -10317,23 +10323,35 @@ const Amain = () => {
                         <tr key={user.id}>
                           <td>
                             <div className="user-profile-cell">
-                              <div className="profile-image-small"></div>
-                              <strong>{user.fullName}</strong>
+                              <div className="user-profile-cell">
+                                <div className="profile-image-small3">
+                                  <svg fill="#ffffff" width="40px" height="40px" viewBox="0 0 36 36" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M30.61,24.52a17.16,17.16,0,0,0-25.22,0,1.51,1.51,0,0,0-.39,1v6A1.5,1.5,0,0,0,6.5,33h23A1.5,1.5,0,0,0,31,31.5v-6A1.51,1.51,0,0,0,30.61,24.52Z" class="clr-i-solid clr-i-solid-path-1"></path>
+                                    <circle cx="18" cy="10" r="7" class="clr-i-solid clr-i-solid-path-2"></circle>
+                                    <rect x="0" y="0" width="36" height="36" fill-opacity="0" />
+                                  </svg>
+                                </div>
+                                <strong>{user.fullName}</strong>
+                              </div>
                             </div>
                           </td>
                           <td>{user.phone}</td>
                           <td>{user.registerDate}</td>
                           <td>{user.gender}</td>
                           <td>
-                            <span className="success-count">{Math.floor(Math.random() * 5) + 1} بار</span>
+                            <span className="success-count-userssigned">
+                              {user.successCount} بار
+                            </span>
                           </td>
                           <td>
-                            <button className="details-btn">
-                              جزئیات بیشتر
-                              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path fillRule="evenodd" clipRule="evenodd" d="M11.0176 3.63828C11.2404 3.82922 11.2662 4.1646 11.0752 4.38737L7.12156 8.99997L11.0752 13.6126C11.2662 13.8353 11.2404 14.1707 11.0176 14.3617C10.7948 14.5526 10.4595 14.5268 10.2685 14.304L6.01851 9.3457C5.84798 9.14675 5.84798 8.85318 6.01851 8.65424L10.2685 3.6959C10.4595 3.47314 10.7948 3.44734 11.0176 3.63828Z" fill="#1E2023" />
-                              </svg>
-                            </button>
+                            <td>
+                              <button className="details-btn" onClick={() => handleDetailsClick(user)}>
+                                جزئیات بیشتر
+                                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path fillRule="evenodd" clipRule="evenodd" d="M11.0176 3.63828C11.2404 3.82922 11.2662 4.1646 11.0752 4.38737L7.12156 8.99997L11.0752 13.6126C11.2662 13.8353 11.2404 14.1707 11.0176 14.3617C10.7948 14.5526 10.4595 14.5268 10.2685 14.304L6.01851 9.3457C5.84798 9.14675 5.84798 8.85318 6.01851 8.65424L10.2685 3.6959C10.4595 3.47314 10.7948 3.44734 11.0176 3.63828Z" fill="#1E2023" />
+                                </svg>
+                              </button>
+                            </td>
                           </td>
                         </tr>
                       ))}
@@ -14413,6 +14431,111 @@ const Amain = () => {
               <button
                 className="cancel-btn"
                 onClick={() => setShowSubcategoriesModal(false)}
+              >
+                بستن
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showUserModal && selectedUser && (
+        <div className="modal-overlay" onClick={() => setShowUserModal(false)}>
+          <div
+            className="user-details-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="user-details-modal-header">
+              <h3>جزئیات کاربر</h3>
+            </div>
+
+            <div className="modal-content">
+              {/* User Profile Section */}
+              <div className="user-profile-section">
+                <div className="profile-image-large3">
+                  <svg fill="#ffffff" width="40px" height="40px" viewBox="0 0 36 36" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M30.61,24.52a17.16,17.16,0,0,0-25.22,0,1.51,1.51,0,0,0-.39,1v6A1.5,1.5,0,0,0,6.5,33h23A1.5,1.5,0,0,0,31,31.5v-6A1.51,1.51,0,0,0,30.61,24.52Z" class="clr-i-solid clr-i-solid-path-1"></path>
+                    <circle cx="18" cy="10" r="7" class="clr-i-solid clr-i-solid-path-2"></circle>
+                    <rect x="0" y="0" width="36" height="36" fill-opacity="0" />
+                  </svg>
+                </div>
+                <div className="user-basic-info">
+                  <h4>{selectedUser.fullName}</h4>
+                  <span className="detail-label">تاریخ ثبت نام: </span>
+                  <span className="detail-value">{selectedUser.registerDate}</span>
+                </div>
+              </div>
+
+              {/* User Details Grid */}
+              <div className="user-details-grid">
+                <div className="detail-item">
+                  <span className="detail-label">شماره تماس:</span>
+                  <span className="detail-value">{selectedUser.phone}</span>
+                </div>
+
+                <div className="detail-item">
+                  <span className="detail-label">آخرین ورود:</span>
+                  <span className="detail-value">{selectedUser.lastLogin}</span>
+                </div>
+
+                <div className="detail-item">
+                  <span className="detail-label">جنسیت:</span>
+                  <span className="detail-value">{selectedUser.gender}</span>
+                </div>
+
+                <div className="detail-item">
+                  <span className="detail-label">مسیریابی موفق:</span>
+                  <span className="detail-value success-badge">
+                    {selectedUser.successCount} بار
+                  </span>
+                </div>
+
+                <div className="detail-item">
+                  <span className="detail-label">تاریخ تولد:</span>
+                  <span className="detail-value">{selectedUser.birthDate || 'ثبت نشده'}</span>
+                </div>
+
+                <div className="detail-item">
+                  <span className="detail-label">آدرس ایمیل:</span>
+                  <span className="detail-value">
+                    {selectedUser.email || <span className="empty-field">ثبت نشده</span>}
+                  </span>
+                </div>
+
+                <div className="detail-item">
+                  <span className="detail-label">استان:</span>
+                  <span className="detail-value">
+                    {selectedUser.province || <span className="empty-field">ثبت نشده</span>}
+                  </span>
+                </div>
+
+                <div className="detail-item">
+                  <span className="detail-label">شهر:</span>
+                  <span className="detail-value">
+                    {selectedUser.city || <span className="empty-field">ثبت نشده</span>}
+                  </span>
+                </div>
+              </div>
+
+              {/* Additional Info Section */}
+              <div className="additional-info-section">
+                <h4>اطلاعات تکمیلی</h4>
+                <div className="info-cards">
+                  <div className="info-card">
+                    <span className="info-label">تعداد مسیرهای ذخیره شده:</span>
+                    <span className="info-value3">{Math.floor(Math.random() * 10) + 1}</span>
+                  </div>
+                  <div className="info-card">
+                    <span className="info-label">تعداد بازدید از مکان‌ها:</span>
+                    <span className="info-value3">{Math.floor(Math.random() * 50) + 10}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="modal-close-button"
+                onClick={() => setShowUserModal(false)}
               >
                 بستن
               </button>
