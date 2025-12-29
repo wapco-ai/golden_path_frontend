@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import '../AdminPanel/Amain.css';
-import * as XLSX from 'xlsx';
 
 function Usersigned() {
   const [users, setUsers] = useState([]);
@@ -47,7 +46,7 @@ function Usersigned() {
         registerDate: '۱۵ تیر ۱۴۰۴',
         lastLogin: '۲۰ مهر ۱۴۰۴',
         gender: 'مرد',
-        successCount: 8  
+        successCount: 8
       },
       {
         id: 2,
@@ -247,24 +246,148 @@ function Usersigned() {
   };
 
 
-  const handleExportToExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(
-      filteredUsers.map(user => ({
-        'نام و نام خانوادگی': user.fullName,
-        'شماره تماس': user.phone,
-        'تاریخ ثبت نام': user.registerDate,
-        'آخرین ورود': user.lastLogin,
-        'جنسیت': user.gender,
-        'مسیریابی موفق': `${Math.floor(Math.random() * 5) + 1} بار`
-      }))
-    );
+  const handleExportToExcel = async () => {
+    try {
+      // Dynamically load SheetJS from CDN
+      if (typeof window.XLSX === 'undefined') {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js';
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      }
 
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "کاربران");
+      const XLSX = window.XLSX;
 
-    // Generate Excel file
-    XLSX.writeFile(workbook, 'گزارش_کاربران.xlsx');
-    toast.success('گزارش با موفقیت دانلود شد');
+      // Prepare data
+      const data = filteredUsers.map(user => [
+        user.fullName,
+        `+۹۸ ${user.phone.replace('۹۸+', '').trim()}`,
+        user.registerDate,
+        user.lastLogin,
+        user.gender,
+        `${user.successCount} بار`
+      ]);
+
+      // Create worksheet
+      const ws = XLSX.utils.aoa_to_sheet([
+        ['نام و نام خانوادگی', 'شماره تماس', 'تاریخ ثبت نام', 'آخرین ورود', 'جنسیت', 'مسیریابی موفق'],
+        ...data
+      ]);
+
+      // Column widths
+      ws['!cols'] = [
+        { wch: 30 }, { wch: 20 }, { wch: 18 },
+        { wch: 18 }, { wch: 15 }, { wch: 18 }
+      ];
+
+      // Row heights
+      const rowCount = data.length + 1;
+      ws['!rows'] = Array(rowCount).fill().map((_, i) =>
+        i === 0 ? { hpt: 25 } : { hpt: 22 }
+      );
+
+      // Define styles for RTL Persian data
+      const headerStyle = {
+        font: {
+          name: 'Tahoma',
+          sz: 12,
+          bold: true,
+          color: { rgb: "FFFFFF" }
+        },
+        fill: {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { rgb: "1E40AF" }
+        },
+        alignment: {
+          horizontal: 'center',
+          vertical: 'center',
+          readingOrder: 2 // RTL = 2, LTR = 1
+        },
+        border: {
+          top: { style: 'thin', color: { rgb: "FFFFFF" } },
+          bottom: { style: 'thin', color: { rgb: "FFFFFF" } },
+          left: { style: 'thin', color: { rgb: "FFFFFF" } },
+          right: { style: 'thin', color: { rgb: "FFFFFF" } }
+        }
+      };
+
+      const dataStyle = {
+        font: {
+          name: 'Tahoma',
+          sz: 11,
+          color: { rgb: "000000" }
+        },
+        alignment: {
+          horizontal: 'right', // RTL alignment for Persian text
+          vertical: 'center',
+          readingOrder: 2 // RTL
+        },
+        border: {
+          top: { style: 'thin', color: { rgb: "CCCCCC" } },
+          bottom: { style: 'thin', color: { rgb: "CCCCCC" } },
+          left: { style: 'thin', color: { rgb: "CCCCCC" } },
+          right: { style: 'thin', color: { rgb: "CCCCCC" } }
+        }
+      };
+
+      const altDataStyle = {
+        ...dataStyle,
+        fill: {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { rgb: "F3F4F6" }
+        }
+      };
+
+      // Apply styles
+      const range = XLSX.utils.decode_range(ws['!ref']);
+
+      for (let R = range.s.r; R <= range.e.r; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cell_ref = XLSX.utils.encode_cell({ c: C, r: R });
+
+          if (!ws[cell_ref]) continue;
+
+          if (R === 0) {
+            // Header row - center aligned
+            ws[cell_ref].s = headerStyle;
+          } else {
+            // Data rows - right aligned for Persian text
+            // Alternate colors for better readability
+            ws[cell_ref].s = R % 2 === 1 ? altDataStyle : dataStyle;
+          }
+        }
+      }
+
+      // Create workbook with RTL sheet
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'کاربران');
+
+      // Add workbook view for RTL
+      wb.Workbook = wb.Workbook || {};
+      wb.Workbook.Views = wb.Workbook.Views || [];
+      wb.Workbook.Views.push({
+        RTL: true // Set workbook to RTL mode
+      });
+
+      // Add sheet view for RTL
+      ws['!views'] = ws['!views'] || [];
+      ws['!views'].push({
+        rightToLeft: true // Set sheet to RTL
+      });
+
+      // Generate and download
+      XLSX.writeFile(wb, `گزارش_کاربران_${new Date().toLocaleDateString('fa-IR')}.xlsx`);
+
+      toast.success('گزارش Excel با موفقیت دانلود شد');
+    } catch (error) {
+      console.error('خطا در ایجاد گزارش:', error);
+      toast.error('خطا در ایجاد گزارش');
+    }
   };
 
   // Calendar functions
@@ -566,9 +689,6 @@ function Usersigned() {
             </button>
             <button className="export-report-btn" onClick={handleExportToExcel}>
               <p>خروجی گزارشات</p>
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path fillRule="evenodd" clipRule="evenodd" d="M3.69247 7.09327C3.91711 6.83119 4.31167 6.80084 4.57375 7.02548L10.0003 11.6768L15.4269 7.02548C15.689 6.80084 16.0836 6.83119 16.3082 7.09327C16.5328 7.35535 16.5025 7.74991 16.2404 7.97455L10.4071 12.9745C10.173 13.1752 9.82765 13.1752 9.59359 12.9745L3.76026 7.97455C3.49818 7.74991 3.46783 7.35535 3.69247 7.09327Z" fill="white" />
-              </svg>
             </button>
           </div>
         </div>
@@ -738,6 +858,7 @@ function Usersigned() {
         <div className="user-details-modal-overlay" onClick={() => setShowUserModal(false)}>
           <div
             className="user-details-modal"
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="user-details-modal-header">
               <h3>جزئیات کاربر</h3>
@@ -776,7 +897,7 @@ function Usersigned() {
                   <span className="detail-label">جنسیت:</span>
                   <span className="detail-value">{selectedUser.gender}</span>
                 </div>
-                
+
                 <div className="detail-item">
                   <span className="detail-label">مسیریابی موفق:</span>
                   <span className="detail-value success-badge">

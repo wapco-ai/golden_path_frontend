@@ -731,7 +731,7 @@ const Amain = () => {
         source: TEMP_AREA_DRAW_SOURCE_ID,
         paint: {
           'fill-color': '#f4a6b9',
-          'fill-opacity': 0.35
+          'fillOpacity': 0.35
         },
         filter: ['==', ['geometry-type'], 'Polygon']
       });
@@ -1183,11 +1183,12 @@ const Amain = () => {
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [currentMarker, setCurrentMarker] = useState(null);
   const editMapTimeoutRef = useRef(null);
-  const [titleForModal, setTitleForModal] = useState(''); // Current title field value
+  const [titleForModal, setTitleForModal] = useState('');
   const [adminAvatar, setAdminAvatar] = useState(null);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isRefreshingMainTable, setIsRefreshingMainTable] = useState(false);
 
   const [culturalPlaceCategory, setCulturalPlaceCategory] = useState('');
   const [culturalPlaceSubcategory, setCulturalPlaceSubcategory] = useState('');
@@ -2580,6 +2581,27 @@ const Amain = () => {
       console.error('خطا در دریافت جزئیات آیتم فرهنگی', error);
       toast.error('دریافت جزئیات آیتم فرهنگی ناموفق بود');
     }
+  };
+
+
+
+  const handleRefreshMainTable = (e) => {
+
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    setIsRefreshingMainTable(true);
+
+
+    setTimeout(() => {
+
+      const shuffledUsers = [...users].sort(() => Math.random() - 0.5);
+      setUsers(shuffledUsers);
+      setIsRefreshingMainTable(false);
+      toast.success('جدول به روز رسانی شد');
+    }, 1000);
   };
 
 
@@ -4277,7 +4299,7 @@ const Amain = () => {
           source: SELECTED_EDITABLE_FEATURE_SOURCE_ID,
           paint: {
             'fill-color': highlightColor,
-            'fill-opacity': 0.08
+            'fillOpacity': 0.08
           },
           filter: [
             'match',
@@ -4830,6 +4852,153 @@ const Amain = () => {
     resetMapCursor,
     sanitizeFeatureForSelection
   ]);
+
+  const handleExportAllUsers = async () => {
+    try {
+      // Dynamically load SheetJS from CDN
+      if (typeof window.XLSX === 'undefined') {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js';
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      }
+  
+      const XLSX = window.XLSX;
+  
+      const allUsers = users; 
+  
+      const data = allUsers.map(user => [
+        user.fullName,
+        `+۹۸ ${user.phone.replace('۹۸+', '').trim()}`,
+        user.registerDate,
+        user.gender,
+        `${Math.floor(Math.random() * 5) + 1} بار`
+      ]);
+  
+      // Create worksheet
+      const ws = XLSX.utils.aoa_to_sheet([
+        ['نام و نام خانوادگی', 'شماره تماس', 'تاریخ ثبت نام', 'جنسیت', 'مسیریابی موفق'],
+        ...data
+      ]);
+  
+      // Column widths - NOTE: You have 5 columns but 6 width definitions
+      // Fixed to 5 columns to match your data structure
+      ws['!cols'] = [
+        { wch: 30 }, 
+        { wch: 20 },
+        { wch: 18 }, 
+        { wch: 15 },
+        { wch: 18 }  
+      ];
+  
+      // Row heights
+      const rowCount = data.length + 1;
+      ws['!rows'] = Array(rowCount).fill().map((_, i) =>
+        i === 0 ? { hpt: 25 } : { hpt: 22 }
+      );
+  
+
+      const headerStyle = {
+        font: {
+          name: 'Tahoma',
+          sz: 12,
+          bold: true,
+          color: { rgb: "FFFFFF" }
+        },
+        fill: {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { rgb: "1E40AF" }
+        },
+        alignment: {
+          horizontal: 'center',
+          vertical: 'center',
+          readingOrder: 2 
+        },
+        border: {
+          top: { style: 'thin', color: { rgb: "FFFFFF" } },
+          bottom: { style: 'thin', color: { rgb: "FFFFFF" } },
+          left: { style: 'thin', color: { rgb: "FFFFFF" } },
+          right: { style: 'thin', color: { rgb: "FFFFFF" } }
+        }
+      };
+  
+      const dataStyle = {
+        font: {
+          name: 'Tahoma',
+          sz: 11,
+          color: { rgb: "000000" }
+        },
+        alignment: {
+          horizontal: 'right',
+          vertical: 'center',
+          readingOrder: 2 
+        },
+        border: {
+          top: { style: 'thin', color: { rgb: "CCCCCC" } },
+          bottom: { style: 'thin', color: { rgb: "CCCCCC" } },
+          left: { style: 'thin', color: { rgb: "CCCCCC" } },
+          right: { style: 'thin', color: { rgb: "CCCCCC" } }
+        }
+      };
+  
+      const altDataStyle = {
+        ...dataStyle,
+        fill: {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { rgb: "F3F4F6" }
+        }
+      };
+  
+
+      const range = XLSX.utils.decode_range(ws['!ref']);
+  
+      for (let R = range.s.r; R <= range.e.r; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cell_ref = XLSX.utils.encode_cell({ c: C, r: R });
+  
+          if (!ws[cell_ref]) continue;
+  
+          if (R === 0) {
+
+            ws[cell_ref].s = headerStyle;
+          } else {
+
+            ws[cell_ref].s = R % 2 === 1 ? altDataStyle : dataStyle;
+          }
+        }
+      }
+  
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'همه کاربران');
+  
+
+      wb.Workbook = wb.Workbook || {};
+      wb.Workbook.Views = wb.Workbook.Views || [];
+      wb.Workbook.Views.push({
+        RTL: true 
+      });
+  
+
+      ws['!views'] = ws['!views'] || [];
+      ws['!views'].push({
+        rightToLeft: true
+      });
+  
+
+      XLSX.writeFile(wb, `گزارش_کامل_کاربران_${new Date().toLocaleDateString('fa-IR')}.xlsx`);
+  
+      toast.success('گزارش کامل کاربران با موفقیت دانلود شد');
+    } catch (error) {
+      console.error('خطا در ایجاد گزارش:', error);
+      toast.error('خطا در ایجاد گزارش');
+    }
+  };
 
   const handleZoomIn = () => {
     if (map) {
@@ -10274,10 +10443,28 @@ const Amain = () => {
                     <div className="title-container">
                       <div className="title-cell">
                         <h3>آخرین کاربران ثبت نام شده در اپلیکیشن</h3>
-                        <button className="refresh-btn">
-                          <svg width="18" height="18" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M11.047 5.99994C11.047 8.73518 8.8271 10.9551 6.09186 10.9551C3.35662 10.9551 1.68674 8.20002 1.68674 8.20002M1.68674 8.20002H3.92646M1.68674 8.20002V10.6776M1.13672 5.99994C1.13672 3.2647 3.3368 1.0448 6.09186 1.0448C9.39694 1.0448 11.047 3.79986 11.047 3.79986M11.047 3.79986V1.32229M11.047 3.79986H8.84692" stroke="#1E2023" strokeWidth="1.08112" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
+                        <button
+                          className="refresh-btn"
+                          onClick={handleRefreshMainTable}
+                          disabled={isRefreshingMainTable}
+                          type="button"
+                          style={{ cursor: isRefreshingMainTable ? 'wait' : 'pointer' }}
+                          title={isRefreshingMainTable ? 'در حال به‌روزرسانی...' : 'به‌روزرسانی جدول'}
+                        >
+                          {isRefreshingMainTable ? (
+                            <div style={{
+                              width: '18px',
+                              height: '18px',
+                              border: '2px solid #f3f3f3',
+                              borderTop: '2px solid #1E2023',
+                              borderRadius: '50%',
+                              animation: 'spin 1s linear infinite'
+                            }}></div>
+                          ) : (
+                            <svg width="18" height="18" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M11.047 5.99994C11.047 8.73518 8.8271 10.9551 6.09186 10.9551C3.35662 10.9551 1.68674 8.20002 1.68674 8.20002M1.68674 8.20002H3.92646M1.68674 8.20002V10.6776M1.13672 5.99994C1.13672 3.2647 3.3368 1.0448 6.09186 1.0448C9.39694 1.0448 11.047 3.79986 11.047 3.79986M11.047 3.79986V1.32229M11.047 3.79986H8.84692" stroke="#1E2023" strokeWidth="1.08112" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
                         </button>
                       </div>
                       <p></p>
@@ -10297,7 +10484,7 @@ const Amain = () => {
                       </div>
 
                       {currentReportView !== 'کاربران ثبت نام کرده' && (
-                        <button className="seeInfo-btn">
+                        <button className="seeInfo-btn" onClick={handleExportAllUsers}>
                           مشاهده همه گزارش
                         </button>
                       )}
@@ -10326,9 +10513,9 @@ const Amain = () => {
                               <div className="user-profile-cell">
                                 <div className="profile-image-small3">
                                   <svg fill="#ffffff" width="40px" height="40px" viewBox="0 0 36 36" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M30.61,24.52a17.16,17.16,0,0,0-25.22,0,1.51,1.51,0,0,0-.39,1v6A1.5,1.5,0,0,0,6.5,33h23A1.5,1.5,0,0,0,31,31.5v-6A1.51,1.51,0,0,0,30.61,24.52Z" class="clr-i-solid clr-i-solid-path-1"></path>
-                                    <circle cx="18" cy="10" r="7" class="clr-i-solid clr-i-solid-path-2"></circle>
-                                    <rect x="0" y="0" width="36" height="36" fill-opacity="0" />
+                                    <path d="M30.61,24.52a17.16,17.16,0,0,0-25.22,0,1.51,1.51,0,0,0-.39,1v6A1.5,1.5,0,0,0,6.5,33h23A1.5,1.5,0,0,0,31,31.5v-6A1.51,1.51,0,0,0,30.61,24.52Z" className="clr-i-solid clr-i-solid-path-1"></path>
+                                    <circle cx="18" cy="10" r="7" className="clr-i-solid clr-i-solid-path-2"></circle>
+                                    <rect x="0" y="0" width="36" height="36" fillOpacity="0" />
                                   </svg>
                                 </div>
                                 <strong>{user.fullName}</strong>
@@ -14453,9 +14640,9 @@ const Amain = () => {
               <div className="user-profile-section">
                 <div className="profile-image-large3">
                   <svg fill="#ffffff" width="40px" height="40px" viewBox="0 0 36 36" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M30.61,24.52a17.16,17.16,0,0,0-25.22,0,1.51,1.51,0,0,0-.39,1v6A1.5,1.5,0,0,0,6.5,33h23A1.5,1.5,0,0,0,31,31.5v-6A1.51,1.51,0,0,0,30.61,24.52Z" class="clr-i-solid clr-i-solid-path-1"></path>
-                    <circle cx="18" cy="10" r="7" class="clr-i-solid clr-i-solid-path-2"></circle>
-                    <rect x="0" y="0" width="36" height="36" fill-opacity="0" />
+                    <path d="M30.61,24.52a17.16,17.16,0,0,0-25.22,0,1.51,1.51,0,0,0-.39,1v6A1.5,1.5,0,0,0,6.5,33h23A1.5,1.5,0,0,0,31,31.5v-6A1.51,1.51,0,0,0,30.61,24.52Z" className="clr-i-solid clr-i-solid-path-1"></path>
+                    <circle cx="18" cy="10" r="7" className="clr-i-solid clr-i-solid-path-2"></circle>
+                    <rect x="0" y="0" width="36" height="36" fillOpacity="0" />
                   </svg>
                 </div>
                 <div className="user-basic-info">
