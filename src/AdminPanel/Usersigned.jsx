@@ -950,7 +950,7 @@ function Usersigned() {
 
             <div className="modal-footer">
               <button
-                className="modal-close-button"
+                className="modal-close-button-usersigned"
                 onClick={() => setShowUserModal(false)}
               >
                 بستن

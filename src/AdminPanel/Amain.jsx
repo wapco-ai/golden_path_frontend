@@ -1116,6 +1116,23 @@ const Amain = () => {
     year: currentJalaliDate.jy,
     month: currentJalaliDate.jm
   });
+
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
+
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  const [supportName, setSupportName] = useState('');
+  const [supportEmail, setSupportEmail] = useState('');
+  const [supportPhone, setSupportPhone] = useState('');
+  const [supportMessage, setSupportMessage] = useState('');
+  const [isSendingSupport, setIsSendingSupport] = useState(false);
+
   const [prayerSelectedJalaliDate, setPrayerSelectedJalaliDate] = useState(null);
   const [prayerSelectedJalaliEndDate, setPrayerSelectedJalaliEndDate] = useState(null);
   const [prayerRestrictionFormOpen, setPrayerRestrictionFormOpen] = useState(false);
@@ -2102,6 +2119,123 @@ const Amain = () => {
       // Show success message
       alert('تصویر پروفایل با موفقیت آپلود شد');
     }, 1000);
+  };
+
+  const handleSettingsClick = () => {
+    setIsSettingsModalOpen(true);
+  };
+
+  const handleChangePasswordClick = () => {
+    setIsChangePasswordModalOpen(true);
+  };
+
+  const handleSupportClick = () => {
+    setIsSupportModalOpen(true);
+  };
+
+  const handleCloseSettingsModal = () => {
+    setIsSettingsModalOpen(false);
+  };
+
+  const handleCloseChangePasswordModal = () => {
+    setIsChangePasswordModalOpen(false);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+  };
+
+  const handleCloseSupportModal = () => {
+    setIsSupportModalOpen(false);
+    setSupportName('');
+    setSupportEmail('');
+    setSupportPhone('');
+    setSupportMessage('');
+  };
+
+  const handleChangePassword = async () => {
+
+    if (!currentPassword) {
+      alert('لطفا رمز عبور فعلی را وارد کنید');
+      return;
+    }
+
+    if (!newPassword) {
+      alert('لطفا رمز عبور جدید را وارد کنید');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      alert('رمز عبور جدید باید حداقل ۶ کاراکتر باشد');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      alert('رمز عبور جدید با تأیید آن مطابقت ندارد');
+      return;
+    }
+
+    try {
+      setIsChangingPassword(true);
+
+      // Here you would make an API call to change password
+      // For now, simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      toast.success('رمز عبور با موفقیت تغییر یافت');
+      handleCloseChangePasswordModal();
+    } catch (error) {
+      toast.error('خطا در تغییر رمز عبور');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleSendSupportMessage = async () => {
+
+    if (!supportName.trim()) {
+      alert('لطفا نام خود را وارد کنید');
+      return;
+    }
+
+    if (!supportEmail.trim()) {
+      alert('لطفا ایمیل خود را وارد کنید');
+      return;
+    }
+
+    if (!supportPhone.trim()) {
+      alert('لطفا شماره تلفن خود را وارد کنید');
+      return;
+    }
+
+    if (!supportMessage.trim()) {
+      alert('لطفا پیام خود را وارد کنید');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(supportEmail)) {
+      alert('لطفا یک ایمیل معتبر وارد کنید');
+      return;
+    }
+
+    const phoneRegex = /^[\d\s\+]+$/;
+    if (!phoneRegex.test(supportPhone.replace(/\s+/g, ''))) {
+      alert('لطفا یک شماره تلفن معتبر وارد کنید');
+      return;
+    }
+
+    try {
+      setIsSendingSupport(true);
+
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      toast.success('پیام شما با موفقیت ارسال شد. تیم پشتیبانی به زودی با شما تماس خواهد گرفت.');
+      handleCloseSupportModal();
+    } catch (error) {
+      toast.error('خطا در ارسال پیام. لطفا مجددا تلاش کنید.');
+    } finally {
+      setIsSendingSupport(false);
+    }
   };
 
   const handleRemoveAvatar = () => {
@@ -4865,11 +4999,11 @@ const Amain = () => {
           document.head.appendChild(script);
         });
       }
-  
+
       const XLSX = window.XLSX;
-  
-      const allUsers = users; 
-  
+
+      const allUsers = users;
+
       const data = allUsers.map(user => [
         user.fullName,
         `+۹۸ ${user.phone.replace('۹۸+', '').trim()}`,
@@ -4877,29 +5011,29 @@ const Amain = () => {
         user.gender,
         `${Math.floor(Math.random() * 5) + 1} بار`
       ]);
-  
+
       // Create worksheet
       const ws = XLSX.utils.aoa_to_sheet([
         ['نام و نام خانوادگی', 'شماره تماس', 'تاریخ ثبت نام', 'جنسیت', 'مسیریابی موفق'],
         ...data
       ]);
-  
+
       // Column widths - NOTE: You have 5 columns but 6 width definitions
       // Fixed to 5 columns to match your data structure
       ws['!cols'] = [
-        { wch: 30 }, 
+        { wch: 30 },
         { wch: 20 },
-        { wch: 18 }, 
+        { wch: 18 },
         { wch: 15 },
-        { wch: 18 }  
+        { wch: 18 }
       ];
-  
+
       // Row heights
       const rowCount = data.length + 1;
       ws['!rows'] = Array(rowCount).fill().map((_, i) =>
         i === 0 ? { hpt: 25 } : { hpt: 22 }
       );
-  
+
 
       const headerStyle = {
         font: {
@@ -4916,7 +5050,7 @@ const Amain = () => {
         alignment: {
           horizontal: 'center',
           vertical: 'center',
-          readingOrder: 2 
+          readingOrder: 2
         },
         border: {
           top: { style: 'thin', color: { rgb: "FFFFFF" } },
@@ -4925,7 +5059,7 @@ const Amain = () => {
           right: { style: 'thin', color: { rgb: "FFFFFF" } }
         }
       };
-  
+
       const dataStyle = {
         font: {
           name: 'Tahoma',
@@ -4935,7 +5069,7 @@ const Amain = () => {
         alignment: {
           horizontal: 'right',
           vertical: 'center',
-          readingOrder: 2 
+          readingOrder: 2
         },
         border: {
           top: { style: 'thin', color: { rgb: "CCCCCC" } },
@@ -4944,7 +5078,7 @@ const Amain = () => {
           right: { style: 'thin', color: { rgb: "CCCCCC" } }
         }
       };
-  
+
       const altDataStyle = {
         ...dataStyle,
         fill: {
@@ -4953,16 +5087,16 @@ const Amain = () => {
           fgColor: { rgb: "F3F4F6" }
         }
       };
-  
+
 
       const range = XLSX.utils.decode_range(ws['!ref']);
-  
+
       for (let R = range.s.r; R <= range.e.r; ++R) {
         for (let C = range.s.c; C <= range.e.c; ++C) {
           const cell_ref = XLSX.utils.encode_cell({ c: C, r: R });
-  
+
           if (!ws[cell_ref]) continue;
-  
+
           if (R === 0) {
 
             ws[cell_ref].s = headerStyle;
@@ -4972,27 +5106,27 @@ const Amain = () => {
           }
         }
       }
-  
+
 
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'همه کاربران');
-  
+
 
       wb.Workbook = wb.Workbook || {};
       wb.Workbook.Views = wb.Workbook.Views || [];
       wb.Workbook.Views.push({
-        RTL: true 
+        RTL: true
       });
-  
+
 
       ws['!views'] = ws['!views'] || [];
       ws['!views'].push({
         rightToLeft: true
       });
-  
+
 
       XLSX.writeFile(wb, `گزارش_کامل_کاربران_${new Date().toLocaleDateString('fa-IR')}.xlsx`);
-  
+
       toast.success('گزارش کامل کاربران با موفقیت دانلود شد');
     } catch (error) {
       console.error('خطا در ایجاد گزارش:', error);
@@ -8367,39 +8501,38 @@ const Amain = () => {
 
             <span className="menu-title3"> حساب کاربری  </span>
 
-            <div className="menu-item">
-              <span className="menu-icon"><svg width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M8.99245 10.7857C7.45342 10.7857 6.20435 9.53661 6.20435 7.99758C6.20435 6.45854 7.45342 5.20947 8.99245 5.20947C10.5315 5.20947 11.7806 6.45854 11.7806 7.99758C11.7806 9.53661 10.5315 10.7857 8.99245 10.7857ZM8.99245 6.32471C8.07052 6.32471 7.31959 7.07564 7.31959 7.99758C7.31959 8.91951 8.07052 9.67044 8.99245 9.67044C9.91438 9.67044 10.6653 8.91951 10.6653 7.99758C10.6653 7.07564 9.91438 6.32471 8.99245 6.32471Z" fill="#858585" stroke="#858585" strokeWidth="0.2" />
-                <path d="M11.3792 15.5739C11.223 15.5739 11.0669 15.5516 10.9108 15.5144C10.4498 15.388 10.0632 15.098 9.81784 14.6891L9.72862 14.5404C9.28996 13.782 8.68773 13.782 8.24907 14.5404L8.16729 14.6817C7.92193 15.098 7.53532 15.3954 7.07435 15.5144C6.60595 15.6408 6.12268 15.5739 5.71375 15.3285L4.43494 14.5925C4.21024 14.4637 4.01313 14.2919 3.85487 14.0869C3.69662 13.8819 3.58033 13.6478 3.51266 13.3978C3.44499 13.1478 3.42726 12.8869 3.46049 12.6301C3.49372 12.3733 3.57725 12.1255 3.70632 11.901C3.92193 11.5218 3.98141 11.1798 3.85502 10.9642C3.72862 10.7486 3.40892 10.6222 2.97026 10.6222C1.88476 10.6222 1 9.73743 1 8.65193V7.34338C1 6.25788 1.88476 5.37312 2.97026 5.37312C3.40892 5.37312 3.72862 5.24673 3.85502 5.03112C3.98141 4.8155 3.92937 4.47349 3.70632 4.09431C3.4461 3.64078 3.37918 3.10546 3.51301 2.59989C3.64684 2.08688 3.97398 1.66309 4.43494 1.40286L5.72119 0.666803C6.56134 0.168662 7.66914 0.458625 8.17472 1.31364L8.26394 1.46234C8.7026 2.22071 9.30483 2.22071 9.74349 1.46234L9.82528 1.32108C10.3309 0.458625 11.4387 0.168662 12.2862 0.674238L13.5651 1.4103C13.7898 1.53905 13.9869 1.71083 14.1451 1.91582C14.3034 2.12081 14.4197 2.35499 14.4873 2.60497C14.555 2.85494 14.5727 3.11581 14.5395 3.37264C14.5063 3.62947 14.4227 3.87723 14.2937 4.10175C14.0781 4.48093 14.0186 4.82294 14.145 5.03855C14.2714 5.25416 14.5911 5.38056 15.0297 5.38056C16.1152 5.38056 17 6.26532 17 7.35082V8.65937C17 9.74487 16.1152 10.6296 15.0297 10.6296C14.5911 10.6296 14.2714 10.756 14.145 10.9716C14.0186 11.1872 14.0706 11.5293 14.2937 11.9084C14.5539 12.362 14.6283 12.8973 14.487 13.4029C14.4224 13.6544 14.3073 13.8902 14.1488 14.096C13.9904 14.3017 13.7918 14.4732 13.5651 14.5999L12.2788 15.3359C11.9963 15.4921 11.6914 15.5739 11.3792 15.5739ZM8.99256 12.8229C9.65427 12.8229 10.2714 13.2393 10.6952 13.9754L10.777 14.1166C10.8662 14.2727 11.0149 14.3843 11.1933 14.4289C11.3717 14.4735 11.5502 14.4512 11.6989 14.362L12.9851 13.6185C13.1814 13.5052 13.3251 13.3191 13.385 13.1006C13.4448 12.882 13.416 12.6486 13.3048 12.4512C12.881 11.7226 12.829 10.9716 13.1561 10.3991C13.4833 9.82665 14.1599 9.49952 15.0074 9.49952C15.4833 9.49952 15.8625 9.12033 15.8625 8.6445V7.33595C15.8625 6.86755 15.4833 6.48093 15.0074 6.48093C14.1599 6.48093 13.4833 6.15379 13.1561 5.5813C12.829 5.00881 12.881 4.25788 13.3048 3.52926C13.4164 3.33595 13.4461 3.10546 13.3866 2.88242C13.3271 2.65937 13.1859 2.48093 12.9926 2.36197L11.7063 1.62591C11.6287 1.58041 11.5429 1.55066 11.4538 1.53837C11.3647 1.52608 11.274 1.53148 11.187 1.55427C11.1 1.57706 11.0183 1.61679 10.9467 1.67118C10.8751 1.72558 10.8148 1.79357 10.7695 1.87126L10.6877 2.01253C10.2639 2.74859 9.64684 3.16494 8.98513 3.16494C8.32342 3.16494 7.70632 2.74859 7.28253 2.01253L7.20074 1.86383C7.10835 1.71188 6.9603 1.602 6.78811 1.55756C6.61592 1.51313 6.43319 1.53765 6.27881 1.62591L4.99256 2.36941C4.79627 2.48264 4.65258 2.66875 4.59271 2.88732C4.53285 3.10588 4.56165 3.33924 4.67286 3.53669C5.09665 4.26532 5.1487 5.01625 4.82156 5.58874C4.49442 6.16123 3.81784 6.48836 2.97026 6.48836C2.49442 6.48836 2.11524 6.86755 2.11524 7.34338V8.65193C2.11524 9.12033 2.49442 9.50695 2.97026 9.50695C3.81784 9.50695 4.49442 9.83409 4.82156 10.4066C5.1487 10.9791 5.09665 11.73 4.67286 12.4586C4.56134 12.6519 4.5316 12.8824 4.59108 13.1055C4.65056 13.3285 4.79182 13.507 4.98513 13.6259L6.27138 14.362C6.42751 14.4586 6.61338 14.4809 6.78439 14.4363C6.96282 14.3917 7.11152 14.2727 7.20818 14.1166L7.28996 13.9754C7.71375 13.2467 8.33085 12.8229 8.99256 12.8229Z" fill="#858585" stroke="#858585" strokeWidth="0.2" />
-              </svg>
+            <div className="menu-item" onClick={handleSettingsClick}>
+              <span className="menu-icon">
+                <svg width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M8.99245 10.7857C7.45342 10.7857 6.20435 9.53661 6.20435 7.99758C6.20435 6.45854 7.45342 5.20947 8.99245 5.20947C10.5315 5.20947 11.7806 6.45854 11.7806 7.99758C11.7806 9.53661 10.5315 10.7857 8.99245 10.7857ZM8.99245 6.32471C8.07052 6.32471 7.31959 7.07564 7.31959 7.99758C7.31959 8.91951 8.07052 9.67044 8.99245 9.67044C9.91438 9.67044 10.6653 8.91951 10.6653 7.99758C10.6653 7.07564 9.91438 6.32471 8.99245 6.32471Z" fill="#858585" stroke="#858585" strokeWidth="0.2" />
+                  <path d="M11.3792 15.5739C11.223 15.5739 11.0669 15.5516 10.9108 15.5144C10.4498 15.388 10.0632 15.098 9.81784 14.6891L9.72862 14.5404C9.28996 13.782 8.68773 13.782 8.24907 14.5404L8.16729 14.6817C7.92193 15.098 7.53532 15.3954 7.07435 15.5144C6.60595 15.6408 6.12268 15.5739 5.71375 15.3285L4.43494 14.5925C4.21024 14.4637 4.01313 14.2919 3.85487 14.0869C3.69662 13.8819 3.58033 13.6478 3.51266 13.3978C3.44499 13.1478 3.42726 12.8869 3.46049 12.6301C3.49372 12.3733 3.57725 12.1255 3.70632 11.901C3.92193 11.5218 3.98141 11.1798 3.85502 10.9642C3.72862 10.7486 3.40892 10.6222 2.97026 10.6222C1.88476 10.6222 1 9.73743 1 8.65193V7.34338C1 6.25788 1.88476 5.37312 2.97026 5.37312C3.40892 5.37312 3.72862 5.24673 3.85502 5.03112C3.98141 4.8155 3.92937 4.47349 3.70632 4.09431C3.4461 3.64078 3.37918 3.10546 3.51301 2.59989C3.64684 2.08688 3.97398 1.66309 4.43494 1.40286L5.72119 0.666803C6.56134 0.168662 7.66914 0.458625 8.17472 1.31364L8.26394 1.46234C8.7026 2.22071 9.30483 2.22071 9.74349 1.46234L9.82528 1.32108C10.3309 0.458625 11.4387 0.168662 12.2862 0.674238L13.5651 1.4103C13.7898 1.53905 13.9869 1.71083 14.1451 1.91582C14.3034 2.12081 14.4197 2.35499 14.4873 2.60497C14.555 2.85494 14.5727 3.11581 14.5395 3.37264C14.5063 3.62947 14.4227 3.87723 14.2937 4.10175C14.0781 4.48093 14.0186 4.82294 14.145 5.03855C14.2714 5.25416 14.5911 5.38056 15.0297 5.38056C16.1152 5.38056 17 6.26532 17 7.35082V8.65937C17 9.74487 16.1152 10.6296 15.0297 10.6296C14.5911 10.6296 14.2714 10.756 14.145 10.9716C14.0186 11.1872 14.0706 11.5293 14.2937 11.9084C14.5539 12.362 14.6283 12.8973 14.487 13.4029C14.4224 13.6544 14.3073 13.8902 14.1488 14.096C13.9904 14.3017 13.7918 14.4732 13.5651 14.5999L12.2788 15.3359C11.9963 15.4921 11.6914 15.5739 11.3792 15.5739ZM8.99256 12.8229C9.65427 12.8229 10.2714 13.2393 10.6952 13.9754L10.777 14.1166C10.8662 14.2727 11.0149 14.3843 11.1933 14.4289C11.3717 14.4735 11.5502 14.4512 11.6989 14.362L12.9851 13.6185C13.1814 13.5052 13.3251 13.3191 13.385 13.1006C13.4448 12.882 13.416 12.6486 13.3048 12.4512C12.881 11.7226 12.829 10.9716 13.1561 10.3991C13.4833 9.82665 14.1599 9.49952 15.0074 9.49952C15.4833 9.49952 15.8625 9.12033 15.8625 8.6445V7.33595C15.8625 6.86755 15.4833 6.48093 15.0074 6.48093C14.1599 6.48093 13.4833 6.15379 13.1561 5.5813C12.829 5.00881 12.881 4.25788 13.3048 3.52926C13.4164 3.33595 13.4461 3.10546 13.3866 2.88242C13.3271 2.65937 13.1859 2.48093 12.9926 2.36197L11.7063 1.62591C11.6287 1.58041 11.5429 1.55066 11.4538 1.53837C11.3647 1.52608 11.274 1.53148 11.187 1.55427C11.1 1.57706 11.0183 1.61679 10.9467 1.67118C10.8751 1.72558 10.8148 1.79357 10.7695 1.87126L10.6877 2.01253C10.2639 2.74859 9.64684 3.16494 8.98513 3.16494C8.32342 3.16494 7.70632 2.74859 7.28253 2.01253L7.20074 1.86383C7.10835 1.71188 6.9603 1.602 6.78811 1.55756C6.61592 1.51313 6.43319 1.53765 6.27881 1.62591L4.99256 2.36941C4.79627 2.48264 4.65258 2.66875 4.59271 2.88732C4.53285 3.10588 4.56165 3.33924 4.67286 3.53669C5.09665 4.26532 5.1487 5.01625 4.82156 5.58874C4.49442 6.16123 3.81784 6.48836 2.97026 6.48836C2.49442 6.48836 2.11524 6.86755 2.11524 7.34338V8.65193C2.11524 9.12033 2.49442 9.50695 2.97026 9.50695C3.81784 9.50695 4.49442 9.83409 4.82156 10.4066C5.1487 10.9791 5.09665 11.73 4.67286 12.4586C4.56134 12.6519 4.5316 12.8824 4.59108 13.1055C4.65056 13.3285 4.79182 13.507 4.98513 13.6259L6.27138 14.362C6.42751 14.4586 6.61338 14.4809 6.78439 14.4363C6.96282 14.3917 7.11152 14.2727 7.20818 14.1166L7.28996 13.9754C7.71375 13.2467 8.33085 12.8229 8.99256 12.8229Z" fill="#858585" stroke="#858585" strokeWidth="0.2" />
+                </svg>
               </span>
               <span>تنظیمات</span>
             </div>
-            <div className="menu-item">
-              <span className="menu-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g clipPath="url(#clip0_167_1041)">
-                  <path fillRule="evenodd" clipRule="evenodd" d="M6.16634 10.6667C6.16634 9.65419 6.98715 8.83337 7.99968 8.83337C9.0122 8.83337 9.83301 9.65419 9.83301 10.6667C9.83301 11.6792 9.0122 12.5 7.99968 12.5C6.98715 12.5 6.16634 11.6792 6.16634 10.6667ZM7.99968 9.83337C7.53944 9.83337 7.16634 10.2065 7.16634 10.6667C7.16634 11.1269 7.53944 11.5 7.99968 11.5C8.45991 11.5 8.83301 11.1269 8.83301 10.6667C8.83301 10.2065 8.45991 9.83337 7.99968 9.83337Z" fill="#858585" />
-                  <path fillRule="evenodd" clipRule="evenodd" d="M3.49968 6.20189V5.33337C3.49968 2.84809 5.51439 0.833374 7.99968 0.833374C10.485 0.833374 12.4997 2.84809 12.4997 5.33337V6.20189C12.6509 6.21252 12.7934 6.22636 12.9275 6.24439C13.5276 6.32507 14.0328 6.49766 14.4341 6.89894C14.8354 7.30022 15.008 7.80547 15.0887 8.40554C15.1664 8.98352 15.1664 9.7184 15.1663 10.6301V10.7033C15.1664 11.615 15.1664 12.3499 15.0887 12.9279C15.008 13.5279 14.8354 14.0332 14.4341 14.4345C14.0328 14.8358 13.5276 15.0083 12.9275 15.089C12.3495 15.1667 11.6147 15.1667 10.7029 15.1667H5.29643C4.3847 15.1667 3.64982 15.1667 3.07184 15.089C2.47177 15.0083 1.96652 14.8358 1.56524 14.4345C1.16396 14.0332 0.991368 13.5279 0.910691 12.9279C0.832984 12.3499 0.832995 11.615 0.833008 10.7033V10.6301C0.832995 9.7184 0.832984 8.98352 0.910691 8.40554C0.991368 7.80547 1.16396 7.30022 1.56524 6.89894C1.96652 6.49766 2.47177 6.32507 3.07184 6.24439C3.20593 6.22636 3.34845 6.21252 3.49968 6.20189ZM4.49968 5.33337C4.49968 3.40038 6.06668 1.83337 7.99968 1.83337C9.93267 1.83337 11.4997 3.40038 11.4997 5.33337V6.169C11.2507 6.1667 10.9853 6.1667 10.7029 6.16671H5.29643C5.01408 6.1667 4.74869 6.1667 4.49968 6.169V5.33337ZM3.20509 7.23547C2.71591 7.30124 2.45686 7.42154 2.27235 7.60605C2.08784 7.79056 1.96754 8.0496 1.90177 8.53879C1.83407 9.04235 1.83301 9.70976 1.83301 10.6667C1.83301 11.6237 1.83407 12.2911 1.90177 12.7946C1.96754 13.2838 2.08784 13.5429 2.27235 13.7274C2.45686 13.9119 2.71591 14.0322 3.20509 14.0979C3.70866 14.1656 4.37606 14.1667 5.33301 14.1667H10.6663C11.6233 14.1667 12.2907 14.1656 12.7943 14.0979C13.2834 14.0322 13.5425 13.9119 13.727 13.7274C13.9115 13.5429 14.0318 13.2838 14.0976 12.7946C14.1653 12.2911 14.1663 11.6237 14.1663 10.6667C14.1663 9.70976 14.1653 9.04235 14.0976 8.53879C14.0318 8.0496 13.9115 7.79056 13.727 7.60605C13.5425 7.42154 13.2834 7.30124 12.7943 7.23547C12.2907 7.16777 11.6233 7.16671 10.6663 7.16671H5.33301C4.37606 7.16671 3.70866 7.16777 3.20509 7.23547Z" fill="#858585" />
-                </g>
-                <defs>
-                  <clipPath id="clip0_167_1041">
-                    <rect width="16" height="16" fill="white" />
-                  </clipPath>
-                </defs>
-              </svg>
-
+            <div className="menu-item" onClick={handleChangePasswordClick}>
+              <span className="menu-icon">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <g clipPath="url(#clip0_167_1041)">
+                    <path fillRule="evenodd" clipRule="evenodd" d="M6.16634 10.6667C6.16634 9.65419 6.98715 8.83337 7.99968 8.83337C9.0122 8.83337 9.83301 9.65419 9.83301 10.6667C9.83301 11.6792 9.0122 12.5 7.99968 12.5C6.98715 12.5 6.16634 11.6792 6.16634 10.6667ZM7.99968 9.83337C7.53944 9.83337 7.16634 10.2065 7.16634 10.6667C7.16634 11.1269 7.53944 11.5 7.99968 11.5C8.45991 11.5 8.83301 11.1269 8.83301 10.6667C8.83301 10.2065 8.45991 9.83337 7.99968 9.83337Z" fill="#858585" />
+                    <path fillRule="evenodd" clipRule="evenodd" d="M3.49968 6.20189V5.33337C3.49968 2.84809 5.51439 0.833374 7.99968 0.833374C10.485 0.833374 12.4997 2.84809 12.4997 5.33337V6.20189C12.6509 6.21252 12.7934 6.22636 12.9275 6.24439C13.5276 6.32507 14.0328 6.49766 14.4341 6.89894C14.8354 7.30022 15.008 7.80547 15.0887 8.40554C15.1664 8.98352 15.1664 9.7184 15.1663 10.6301V10.7033C15.1664 11.615 15.1664 12.3499 15.0887 12.9279C15.008 13.5279 14.8354 14.0332 14.4341 14.4345C14.0328 14.8358 13.5276 15.0083 12.9275 15.089C12.3495 15.1667 11.6147 15.1667 10.7029 15.1667H5.29643C4.3847 15.1667 3.64982 15.1667 3.07184 15.089C2.47177 15.0083 1.96652 14.8358 1.56524 14.4345C1.16396 14.0332 0.991368 13.5279 0.910691 12.9279C0.832984 12.3499 0.832995 11.615 0.833008 10.7033V10.6301C0.832995 9.7184 0.832984 8.98352 0.910691 8.40554C0.991368 7.80547 1.16396 7.30022 1.56524 6.89894C1.96652 6.49766 2.47177 6.32507 3.07184 6.24439C3.20593 6.22636 3.34845 6.21252 3.49968 6.20189ZM4.49968 5.33337C4.49968 3.40038 6.06668 1.83337 7.99968 1.83337C9.93267 1.83337 11.4997 3.40038 11.4997 5.33337V6.169C11.2507 6.1667 10.9853 6.1667 10.7029 6.16671H5.29643C5.01408 6.1667 4.74869 6.1667 4.49968 6.169V5.33337ZM3.20509 7.23547C2.71591 7.30124 2.45686 7.42154 2.27235 7.60605C2.08784 7.79056 1.96754 8.0496 1.90177 8.53879C1.83407 9.04235 1.83301 9.70976 1.83301 10.6667C1.83301 11.6237 1.83407 12.2911 1.90177 12.7946C1.96754 13.2838 2.08784 13.5429 2.27235 13.7274C2.45686 13.9119 2.71591 14.0322 3.20509 14.0979C3.70866 14.1656 4.37606 14.1667 5.33301 14.1667H10.6663C11.6233 14.1667 12.2907 14.1656 12.7943 14.0979C13.2834 14.0322 13.5425 13.9119 13.727 13.7274C13.9115 13.5429 14.0318 13.2838 14.0976 12.7946C14.1653 12.2911 14.1663 11.6237 14.1663 10.6667C14.1663 9.70976 14.1653 9.04235 14.0976 8.53879C14.0318 8.0496 13.9115 7.79056 13.727 7.60605C13.5425 7.42154 13.2834 7.30124 12.7943 7.23547C12.2907 7.16777 11.6233 7.16671 10.6663 7.16671H5.33301C4.37606 7.16671 3.70866 7.16777 3.20509 7.23547Z" fill="#858585" />
+                  </g>
+                  <defs>
+                    <clipPath id="clip0_167_1041">
+                      <rect width="16" height="16" fill="white" />
+                    </clipPath>
+                  </defs>
+                </svg>
               </span>
               <span>تغییر رمز عبور</span>
             </div>
-            <div className="menu-item">
+            <div className="menu-item" onClick={handleSupportClick}>
               <span className="menu-icon">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path fillRule="evenodd" clipRule="evenodd" d="M3.14513 2.06143C3.96259 1.2008 5.31473 1.36205 5.99046 2.31777L6.83112 3.50676C7.37161 4.2712 7.32595 5.33398 6.6809 6.0131L6.51767 6.18496C6.51721 6.18614 6.51673 6.18743 6.51624 6.18882C6.50761 6.21306 6.4858 6.29025 6.50727 6.43675C6.55176 6.74044 6.7862 7.35757 7.73797 8.3596C8.69274 9.36479 9.27185 9.6017 9.54021 9.64528C9.65599 9.66408 9.71654 9.64775 9.73585 9.64095L10.0083 9.35414C10.5908 8.74086 11.499 8.62004 12.2313 9.04155L13.505 9.77466C14.5936 10.4013 14.847 11.934 13.977 12.85L13.03 13.847C12.7344 14.1582 12.3314 14.4238 11.8333 14.473C10.6174 14.593 7.80066 14.4367 4.84774 11.3278C2.09229 8.42685 1.56884 5.90358 1.50267 4.67077L1.94674 4.64693L1.50267 4.67077C1.46998 4.06166 1.7415 3.53919 2.09873 3.16309L3.14513 2.06143ZM5.17393 2.89508C4.83237 2.41198 4.21874 2.38316 3.87019 2.75012L2.82379 3.85178C2.60286 4.08438 2.48694 4.35097 2.50123 4.61717C2.55526 5.62372 2.98871 7.91857 5.5728 10.6391C8.28225 13.4917 10.7784 13.5723 11.7351 13.4778C11.9243 13.4592 12.1189 13.3542 12.3049 13.1583L13.2519 12.1613C13.6605 11.7312 13.5534 10.9563 13.0061 10.6413L11.7325 9.90823C11.3907 9.7115 10.9903 9.77229 10.7333 10.0428L10.4297 10.3625L10.0782 10.0287C10.4297 10.3625 10.4292 10.363 10.4288 10.3635L10.4278 10.3645L10.4258 10.3665L10.4216 10.3708L10.4121 10.3802C10.4052 10.3869 10.3973 10.3942 10.3883 10.4021C10.3704 10.4178 10.3482 10.4357 10.3216 10.4546C10.2682 10.4925 10.197 10.5341 10.1071 10.5696C9.92307 10.6422 9.68009 10.6811 9.37991 10.6323C8.7949 10.5373 8.02815 10.1171 7.01291 9.04829C5.99468 7.97628 5.60497 7.17647 5.51783 6.58172C5.47348 6.27901 5.50897 6.03661 5.57411 5.85357C5.60614 5.76355 5.64396 5.69178 5.67884 5.63727C5.69623 5.61009 5.71281 5.58733 5.72747 5.56881C5.73479 5.55955 5.74164 5.55135 5.74788 5.54418L5.75676 5.53419L5.76083 5.52977L5.76277 5.5277L5.76371 5.5267C5.76417 5.52621 5.76463 5.52573 6.11907 5.86238L5.76463 5.52572L5.95584 5.32441C6.25287 5.0117 6.29602 4.48211 6.01459 4.08407L5.17393 2.89508Z" fill="#858585" />
                   <path d="M8.83933 1.25338C8.88346 0.98079 9.14116 0.795874 9.41375 0.840006C9.43062 0.843236 9.48491 0.853383 9.51336 0.859718C9.57024 0.872386 9.6496 0.891892 9.74853 0.920709C9.94639 0.978338 10.2228 1.07327 10.5545 1.22536C11.2187 1.52987 12.1026 2.06254 13.0198 2.97974C13.937 3.89694 14.4697 4.78081 14.7742 5.445C14.9263 5.77674 15.0212 6.05314 15.0788 6.251C15.1076 6.34993 15.1271 6.42929 15.1398 6.48617C15.1461 6.51462 15.1508 6.53746 15.154 6.55433L15.1578 6.57513C15.202 6.84772 15.0187 7.11607 14.7461 7.1602C14.4743 7.2042 14.2183 7.02018 14.1731 6.74887C14.1717 6.74158 14.1678 6.72201 14.1637 6.70355C14.1555 6.66663 14.1413 6.60808 14.1187 6.53065C14.0736 6.37575 13.9952 6.14553 13.8651 5.86175C13.6053 5.29488 13.1379 4.51209 12.3127 3.68684C11.4874 2.8616 10.7047 2.39427 10.1378 2.13439C9.854 2.00428 9.62378 1.92593 9.46888 1.88081C9.39145 1.85826 9.29412 1.83592 9.2572 1.82769C8.98588 1.78248 8.79533 1.5252 8.83933 1.25338Z" fill="#858585" />
                   <path fillRule="evenodd" clipRule="evenodd" d="M8.99105 3.55308C9.06691 3.28756 9.34365 3.13381 9.60917 3.20967L9.47181 3.69044C9.60917 3.20967 9.6094 3.20974 9.60964 3.20981L9.61013 3.20995L9.61115 3.21024L9.61337 3.21089L9.61854 3.21244L9.63173 3.21655C9.64178 3.21976 9.65434 3.22395 9.6693 3.22926C9.69925 3.23988 9.73882 3.25499 9.78736 3.27579C9.88448 3.31742 10.0172 3.3817 10.1802 3.47817C10.5065 3.67129 10.952 3.99208 11.4753 4.51539C11.9986 5.03871 12.3194 5.48417 12.5125 5.81048C12.609 5.97348 12.6733 6.10619 12.7149 6.20332C12.7357 6.25185 12.7508 6.29143 12.7614 6.32137C12.7667 6.33633 12.7709 6.34889 12.7741 6.35894L12.7782 6.37213L12.7798 6.3773L12.7804 6.37952L12.7807 6.38054L12.7809 6.38103C12.7809 6.38127 12.781 6.3815 12.3002 6.51886L12.781 6.3815C12.8569 6.64702 12.7031 6.92376 12.4376 6.99963C12.1743 7.07484 11.9 6.92434 11.8214 6.66296L11.819 6.65578C11.8154 6.64576 11.8081 6.62604 11.7957 6.59724C11.7711 6.53968 11.7263 6.44552 11.6519 6.3198C11.5033 6.06864 11.2348 5.68914 10.7682 5.2225C10.3015 4.75587 9.92204 4.4874 9.67087 4.33875C9.54515 4.26434 9.45099 4.21961 9.39344 4.19494C9.36463 4.1826 9.34491 4.17524 9.33489 4.17169L9.32771 4.16922C9.06634 4.09064 8.91583 3.81634 8.99105 3.55308Z" fill="#858585" />
                 </svg>
-
-
               </span>
               <span>پشتیبانی</span>
             </div>
@@ -8475,7 +8608,7 @@ const Amain = () => {
                 </button>
 
                 {isCalendarOpen && (
-                  <div className="calendar-popup" ref={calendarRef}>
+                  <div className="calendar-popup2" ref={calendarRef}>
                     <ReactDatePicker
                       selected={selectedDate}
                       onChange={(date) => {
@@ -14721,11 +14854,194 @@ const Amain = () => {
 
             <div className="modal-footer">
               <button
-                className="modal-close-button"
+                className="modal-close-button-usersigned"
                 onClick={() => setShowUserModal(false)}
               >
                 بستن
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Settings Modal */}
+      {isSettingsModalOpen && (
+        <div className="modal-overlay">
+          <div className="settings-modal-container">
+            <div className="settings-modal-header">
+              <h3 className="modal-title">تنظیمات</h3>
+            </div>
+            <div className="settings-modal-body">
+              <div className="settings-content">
+                <p className="settings-message">
+                  بخش تنظیمات در حال توسعه می‌باشد. به زودی تنظیمات پیشرفته‌تری در این بخش ارائه خواهد شد.
+                </p>
+                <div className="settings-actions">
+                  <button className="btn-primary" onClick={handleCloseSettingsModal}>
+                    متوجه شدم
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {isChangePasswordModalOpen && (
+        <div className="modal-overlay">
+          <div className="changepass-modal-container">
+            <div className="changepass-modal-header">
+              <h3 className="modal-title">تغییر رمز عبور</h3>
+              <button className="modal-close-btn" onClick={handleCloseChangePasswordModal}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M18 6L6 18M6 6L18 18" stroke="#858585" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+            <div className="changepass-modal-body">
+              <div className="change-password-form">
+                <div className="form-group">
+                  <label className="form-label">رمز عبور فعلی</label>
+                  <input
+                    type="password"
+                    className="form-input-changepass"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="رمز عبور فعلی را وارد کنید"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">رمز عبور جدید</label>
+                  <input
+                    type="password"
+                    className="form-input-changepass"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="رمز عبور جدید را وارد کنید"
+                  />
+                  <div className="form-hint">رمز عبور باید حداقل ۶ کاراکتر باشد</div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">تأیید رمز عبور جدید</label>
+                  <input
+                    type="password"
+                    className="form-input-changepass"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="رمز عبور جدید را مجدداً وارد کنید"
+                  />
+                </div>
+
+                <div className="form-actions">
+                  <button
+                    className="btn-secondary"
+                    onClick={handleCloseChangePasswordModal}
+                    disabled={isChangingPassword}
+                  >
+                    انصراف
+                  </button>
+                  <button
+                    className="btn-primary"
+                    onClick={handleChangePassword}
+                    disabled={isChangingPassword}
+                  >
+                    {isChangingPassword ? 'در حال تغییر...' : 'تغییر رمز عبور'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Support Modal */}
+      {isSupportModalOpen && (
+        <div className="modal-overlay">
+          <div className="support-modal-container">
+            <div className="support-modal-header">
+              <h3 className="modal-title">اطلاعات تماس</h3>
+              <button className="modal-close-btn" onClick={handleCloseSupportModal}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M18 6L6 18M6 6L18 18" stroke="#858585" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+            <div className="support-modal-body">
+              <div className="support-content2">
+                <div className="contact-info2">
+                  <div className="contact-item">
+                    <span className="contact-icon">📞</span>
+                    <span className="contact-text">
+                      تلفن پشتیبانی : <span style={{ direction: 'ltr', display: 'inline-block', unicodeBidi: 'plaintext' }}>021-12345678</span>
+                    </span>
+                  </div>
+                  <div className="contact-item">
+                    <span className="contact-icon">✉️</span>
+                    <span className="contact-text"> ایمیل : support@masirbani.com</span>
+                  </div>
+                </div>
+
+                <div className="support-form">
+                  <h4 className="section-title-support">ارسال پیام</h4>
+                  <div className="form-group">
+                    <label className="form-label">نام و نام خانوادگی</label>
+                    <input
+                      type="text"
+                      className="form-input-support"
+                      value={supportName}
+                      onChange={(e) => setSupportName(e.target.value)}
+                      placeholder="نام خود را وارد کنید"
+                    />
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">ایمیل</label>
+                      <input
+                        type="email"
+                        className="form-input-support"
+                        value={supportEmail}
+                        onChange={(e) => setSupportEmail(e.target.value)}
+                        placeholder="email@example.com"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">شماره تلفن</label>
+                      <input
+                        type="tel"
+                        className="form-input-support"
+                        value={supportPhone}
+                        onChange={(e) => setSupportPhone(e.target.value)}
+                        placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">پیام شما</label>
+                    <textarea
+                      className="form-textarea-support"
+                      value={supportMessage}
+                      onChange={(e) => setSupportMessage(e.target.value)}
+                      placeholder="پیام خود را بنویسید..."
+                      rows="4"
+                    />
+                  </div>
+
+                  <div className="form-actions-support">
+                    <button
+                      className="btn-primary-support"
+                      onClick={handleSendSupportMessage}
+                      disabled={isSendingSupport}
+                    >
+                      {isSendingSupport ? 'در حال ارسال...' : 'ارسال پیام'}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
