@@ -8339,7 +8339,6 @@ const Amain = () => {
                 className={`menu-item ${activeMenu === 'reports' ? 'active' : ''}`}
                 onClick={() => {
                   toggleReportsManagement();
-                  handleMenuClick('reports', 'گزارشات');
                 }}
               >
                 <span className="menu-icon">
@@ -8447,7 +8446,6 @@ const Amain = () => {
               className={`menu-item ${activeMenu === 'facmanage' ? 'active' : ''}`}
               onClick={() => {
                 togglefacManagement();
-                handleMenuClick('facmanage', 'مدیریت امکانات');
               }}
             >
               <span className="menu-icon">
