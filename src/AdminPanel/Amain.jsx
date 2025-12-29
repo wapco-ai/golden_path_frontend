@@ -6692,19 +6692,14 @@ const Amain = () => {
       setCurrentReportView(null);
       setBreadcrumbPath(['منوی اصلی', 'داشبورد', 'آمار کلی استارتاپ من']);
     } else if (menuName === 'mapmanage') {
-      setCurrentReportView(null);
       setBreadcrumbPath(['منوی اصلی', 'مدیریت نقشه']);
     } else if (menuName === 'facmanage') {
-      setCurrentReportView(null);
       setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات']);
     } else if (menuName === 'usermanage') {
-      setCurrentReportView(null);
       setBreadcrumbPath(['منوی اصلی', 'مدیریت کاربران']);
     } else if (menuName === 'reports') {
-      setCurrentReportView(null);
       setBreadcrumbPath(['منوی اصلی', 'گزارشات']);
     } else {
-      setCurrentReportView(null);
       setBreadcrumbPath(['منوی اصلی', breadcrumbLabel]);
     }
   };
@@ -8339,6 +8334,7 @@ const Amain = () => {
                 className={`menu-item ${activeMenu === 'reports' ? 'active' : ''}`}
                 onClick={() => {
                   toggleReportsManagement();
+                  handleMenuClick('reports', 'گزارشات');
                 }}
               >
                 <span className="menu-icon">
@@ -8446,6 +8442,7 @@ const Amain = () => {
               className={`menu-item ${activeMenu === 'facmanage' ? 'active' : ''}`}
               onClick={() => {
                 togglefacManagement();
+                handleMenuClick('facmanage', 'مدیریت امکانات');
               }}
             >
               <span className="menu-icon">
