@@ -9542,32 +9542,30 @@ const Amain = () => {
                               </div>
                             </td>
                             <td>
-                              <td>
-                                <div className="category-image-cell">
-                                  {category.image ? (
-                                    <div className="category-icon-wrapper">
-                                      <img
-                                        src={category.image}
-                                        alt={category.title}
-                                        className="category-icon-image"
-                                        onError={(e) => {
-                                          e.target.style.display = 'none';
-                                          // Show fallback if image fails to load
-                                          const fallback = e.target.parentElement?.querySelector('.category-icon-fallback');
-                                          if (fallback) fallback.style.display = 'flex';
-                                        }}
-                                      />
-                                      <div className="category-icon-fallback" style={{ display: 'none' }}>
-                                        <span>تصویر</span>
-                                      </div>
+                              <div className="category-image-cell">
+                                {category.image ? (
+                                  <div className="category-icon-wrapper">
+                                    <img
+                                      src={category.image}
+                                      alt={category.title}
+                                      className="category-icon-image"
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        // Show fallback if image fails to load
+                                        const fallback = e.target.parentElement?.querySelector('.category-icon-fallback');
+                                        if (fallback) fallback.style.display = 'flex';
+                                      }}
+                                    />
+                                    <div className="category-icon-fallback" style={{ display: 'none' }}>
+                                      <span>تصویر</span>
                                     </div>
-                                  ) : (
-                                    <div className="category-image-placeholder">
-                                      بدون تصویر
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
+                                  </div>
+                                ) : (
+                                  <div className="category-image-placeholder">
+                                    بدون تصویر
+                                  </div>
+                                )}
+                              </div>
                             </td>
                             <td>{category.createdAt}</td>
                             <td>
@@ -10659,14 +10657,14 @@ const Amain = () => {
                             </span>
                           </td>
                           <td>
-                            <td>
+                            <div>
                               <button className="details-btn" onClick={() => handleDetailsClick(user)}>
                                 جزئیات بیشتر
                                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
                                   <path fillRule="evenodd" clipRule="evenodd" d="M11.0176 3.63828C11.2404 3.82922 11.2662 4.1646 11.0752 4.38737L7.12156 8.99997L11.0752 13.6126C11.2662 13.8353 11.2404 14.1707 11.0176 14.3617C10.7948 14.5526 10.4595 14.5268 10.2685 14.304L6.01851 9.3457C5.84798 9.14675 5.84798 8.85318 6.01851 8.65424L10.2685 3.6959C10.4595 3.47314 10.7948 3.44734 11.0176 3.63828Z" fill="#1E2023" />
                                 </svg>
                               </button>
-                            </td>
+                            </div>
                           </td>
                         </tr>
                       ))}
