@@ -24,7 +24,7 @@ import {
   fetchCulturalItems,
   updateCulturalItem
 } from '../services/culturalItemsService';
-import { useAdminAuthStore } from '../auth/admin/adminAuthStore';
+import { ADMIN_ACCESS_TOKEN_KEY, useAdminAuthStore } from '../auth/admin/adminAuthStore';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import {
   DOOR_ACCESS_LAYER_ID,
@@ -523,7 +523,13 @@ const logDoorAccessPointDebugInfo = (mapInstance) => {
 };
 
 const Amain = () => {
-  const { admin: adminProfile, permissions: adminPermissions, fetchProfile, logout } = useAdminAuthStore();
+  const {
+    admin: adminProfile,
+    permissions: adminPermissions,
+    fetchProfile,
+    logout,
+    accessToken
+  } = useAdminAuthStore();
   const API_BASE = `${appConfig.apiBaseUrl}/api/v1/admin`;
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [activeMenu, setActiveMenu] = useState('dashboard');
@@ -553,6 +559,21 @@ const Amain = () => {
         .finally(() => setIsLoadingProfile(false));
     }
   }, [adminProfile, fetchProfile]);
+  const resolveAdminToken = useCallback(
+    () => accessToken || sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY),
+    [accessToken]
+  );
+  const adminFetch = useCallback(
+    (url, options = {}) => {
+      const headers = new Headers(options.headers || {});
+      const token = resolveAdminToken();
+      if (token && !headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      return fetch(url, { ...options, headers });
+    },
+    [resolveAdminToken]
+  );
   const [mapLanguage, setMapLanguage] = useState(DEFAULT_TILE_LANG || 'fa');
   const adminVectorTileConfig = useMemo(
     () => createHaramAdminVectorTileConfig(mapLanguage),
@@ -7507,7 +7528,7 @@ const Amain = () => {
     });
 
     try {
-      const response = await fetch(`${API_BASE}/categories?${params.toString()}`);
+      const response = await adminFetch(`${API_BASE}/categories?${params.toString()}`);
       if (!response.ok) {
         throw new Error('Failed to fetch categories');
       }
@@ -7518,11 +7539,11 @@ const Amain = () => {
       console.error('Failed to fetch categories', error);
       alert('خطا در دریافت دسته بندی‌ها');
     }
-  }, [API_BASE, categoryCurrentPage, categoryItemsPerPage, categorySearchTerm]);
+  }, [API_BASE, adminFetch, categoryCurrentPage, categoryItemsPerPage, categorySearchTerm]);
 
   const fetchCategorySubcategories = useCallback(async (categoryId) => {
     try {
-      const response = await fetch(`${API_BASE}/categories/${categoryId}/subcategories`);
+      const response = await adminFetch(`${API_BASE}/categories/${categoryId}/subcategories`);
       if (!response.ok) {
         throw new Error('Failed to fetch subcategories');
       }
@@ -7541,7 +7562,7 @@ const Amain = () => {
       console.error('Failed to fetch subcategories', error);
       alert('خطا در دریافت زیرگروه‌ها');
     }
-  }, [API_BASE]);
+  }, [API_BASE, adminFetch]);
 
   useEffect(() => {
     fetchCategories();
@@ -7615,12 +7636,12 @@ const Amain = () => {
         const formData = new FormData();
         formData.append('image', newCategory.image);
         formData.append('payload', JSON.stringify(payload));
-        response = await fetch(`${API_BASE}/categories`, {
+        response = await adminFetch(`${API_BASE}/categories`, {
           method: 'POST',
           body: formData
         });
       } else {
-        response = await fetch(`${API_BASE}/categories`, {
+        response = await adminFetch(`${API_BASE}/categories`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -7652,7 +7673,7 @@ const Amain = () => {
     if (!categoryToDelete) return;
 
     try {
-      const response = await fetch(`${API_BASE}/categories/${categoryToDelete}`, {
+      const response = await adminFetch(`${API_BASE}/categories/${categoryToDelete}`, {
         method: 'DELETE'
       });
 
@@ -7727,12 +7748,12 @@ const Amain = () => {
         const formData = new FormData();
         formData.append('image', editCategoryData.icon);
         formData.append('payload', JSON.stringify(payload));
-        response = await fetch(`${API_BASE}/categories/${editingCategoryId}`, {
+        response = await adminFetch(`${API_BASE}/categories/${editingCategoryId}`, {
           method: 'PUT',
           body: formData
         });
       } else {
-        response = await fetch(`${API_BASE}/categories/${editingCategoryId}`, {
+        response = await adminFetch(`${API_BASE}/categories/${editingCategoryId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json'
@@ -7792,10 +7813,10 @@ const Amain = () => {
     if (!subcategoryTitle) return;
 
     try {
-      const response = await fetch(`${API_BASE}/categories/${editingCategoryId}/subcategories`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
+    const response = await adminFetch(`${API_BASE}/categories/${editingCategoryId}/subcategories`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
         },
         body: JSON.stringify({ title: subcategoryTitle })
       });
@@ -7820,10 +7841,10 @@ const Amain = () => {
     if (!subcategoryTitle) return;
 
     try {
-      const response = await fetch(`${API_BASE}/categories/${parentId}/subcategories`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
+    const response = await adminFetch(`${API_BASE}/categories/${parentId}/subcategories`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
         },
         body: JSON.stringify({ title: subcategoryTitle })
       });
@@ -7844,10 +7865,10 @@ const Amain = () => {
     if (!newTitle) return;
 
     try {
-      const response = await fetch(`${API_BASE}/subcategories/${subcategory.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
+    const response = await adminFetch(`${API_BASE}/subcategories/${subcategory.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
         },
         body: JSON.stringify({ title: newTitle })
       });
@@ -7866,7 +7887,7 @@ const Amain = () => {
 
   const handleDeleteSubcategory = async (subcategory) => {
     try {
-      const response = await fetch(`${API_BASE}/subcategories/${subcategory.id}`, {
+      const response = await adminFetch(`${API_BASE}/subcategories/${subcategory.id}`, {
         method: 'DELETE'
       });
 
