@@ -8368,10 +8368,10 @@ const Amain = () => {
                     <div className="submenu-branch"></div>
                     <span>دیدگاه ها</span>
                   </div>
-                  <div className="submenu-item">
+                  {/* <div className="submenu-item">
                     <div className="submenu-branch"></div>
                     <span>لاگ های مسیریابی کاربران</span>
-                  </div>
+                  </div> */}
                   <div
                     className={`submenu-item ${currentReportView === 'بازخورد ها' ? 'active' : ''}`}
                     onClick={() => handleSubmenuClick('بازخورد ها')}
@@ -8496,7 +8496,7 @@ const Amain = () => {
 
             <span className="menu-title3"> حساب کاربری  </span>
 
-            <div className="menu-item" onClick={handleSettingsClick}>
+            {/* <div className="menu-item" onClick={handleSettingsClick}>
               <span className="menu-icon">
                 <svg width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M8.99245 10.7857C7.45342 10.7857 6.20435 9.53661 6.20435 7.99758C6.20435 6.45854 7.45342 5.20947 8.99245 5.20947C10.5315 5.20947 11.7806 6.45854 11.7806 7.99758C11.7806 9.53661 10.5315 10.7857 8.99245 10.7857ZM8.99245 6.32471C8.07052 6.32471 7.31959 7.07564 7.31959 7.99758C7.31959 8.91951 8.07052 9.67044 8.99245 9.67044C9.91438 9.67044 10.6653 8.91951 10.6653 7.99758C10.6653 7.07564 9.91438 6.32471 8.99245 6.32471Z" fill="#858585" stroke="#858585" strokeWidth="0.2" />
@@ -8504,7 +8504,7 @@ const Amain = () => {
                 </svg>
               </span>
               <span>تنظیمات</span>
-            </div>
+            </div> */}
             <div className="menu-item" onClick={handleChangePasswordClick}>
               <span className="menu-icon">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">

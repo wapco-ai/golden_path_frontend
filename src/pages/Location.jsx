@@ -1333,7 +1333,31 @@ const Location = () => {
         <div className="fixed-bottom-button-container">
           <button
             className="fixed-bottom-button"
-            onClick={() => navigate('/mpr')}
+            onClick={() => {
+              // Determine if we're at QR location (origin) or selected location (destination)
+              const isOriginSelection = isAtInitialLocation();
+
+              // Set session variable to tell MPR what type of selection this is
+              if (isOriginSelection) {
+                // User is at QR location - this should be set as ORIGIN
+                sessionStorage.setItem('locationSelectionType', 'origin');
+              } else {
+                // User selected a different place - this should be set as DESTINATION
+                sessionStorage.setItem('locationSelectionType', 'destination');
+              }
+
+              // Store location data in session
+              if (locationData) {
+                sessionStorage.setItem('locationFromPage', JSON.stringify({
+                  name: locationData.title || locationData.name || locationData.label,
+                  coordinates: locationData.coordinates,
+                  location: locationData.location || '',
+                  id: locationData.id || locationData.value
+                }));
+              }
+
+              navigate('/mpr');
+            }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#FFFFFF">
               <path stroke="none" d="M0 0h24v24H0z" fill="none" />
@@ -1389,7 +1413,31 @@ const Location = () => {
         <div className="fixed-bottom-button-container">
           <button
             className="fixed-bottom-button"
-            onClick={() => navigate('/mpr')}
+            onClick={() => {
+              // Determine if we're at QR location (origin) or selected location (destination)
+              const isOriginSelection = isAtInitialLocation();
+
+              // Set session variable to tell MPR what type of selection this is
+              if (isOriginSelection) {
+                // User is at QR location - this should be set as ORIGIN
+                sessionStorage.setItem('locationSelectionType', 'origin');
+              } else {
+                // User selected a different place - this should be set as DESTINATION
+                sessionStorage.setItem('locationSelectionType', 'destination');
+              }
+
+              // Store location data in session
+              if (locationData) {
+                sessionStorage.setItem('locationFromPage', JSON.stringify({
+                  name: locationData.title || locationData.name || locationData.label,
+                  coordinates: locationData.coordinates,
+                  location: locationData.location || '',
+                  id: locationData.id || locationData.value
+                }));
+              }
+
+              navigate('/mpr');
+            }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#FFFFFF">
               <path stroke="none" d="M0 0h24v24H0z" fill="none" />

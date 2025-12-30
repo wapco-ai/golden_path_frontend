@@ -255,23 +255,6 @@
   z-index: 1000;
 }
 
-.map-current-location {
-  display: flex;
-  align-items: center;
-  padding-bottom: 15px;
-  width: 85vw;
-  position: relative;
-  padding: 12px 0px;
-  font-family: 'Vazir', Arial, sans-serif;
-}
-
-.map-location-text {
-  display: flex;
-  margin-right: 10px;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  width: 75vw;
-}
 
 .map-location-label {
   color: #4285F4;
@@ -279,10 +262,6 @@
   font-family: 'Vazir', Arial, sans-serif;
 }
 
-.map-location-name {
-  color: #4285F4;
-  font-family: 'Vazir', Arial, sans-serif;
-}
 
 .map-destination-input {
   display: flex;
@@ -359,7 +338,7 @@
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  margin-top: 15px;
+  margin-top: 30px;
   font-family: 'Vazir', Arial, sans-serif;
   display: flex;
   padding: 5px 0;
@@ -367,17 +346,33 @@
   width: 75vw;
 }
 
-.map-destination-input-wrapper input {
+.map-current-location {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 10px;
+  font-family: 'Vazir', Arial, sans-serif;
+  display: flex;
+  padding: 5px 0;
+  margin-right: 10px;
+  width: 75vw;
+}
+
+.map-destination-input-wrapper input,
+.map-current-location input {
   flex-grow: 1;
   border: none;
   background: transparent;
   font-size: 16px;
-  color: #333;
-  padding: 0;
+  color: #4285F4;
   font-family: 'Vazir', Arial, sans-serif;
+  padding: 0;
+  font-weight: 500;
 }
 
-.map-destination-input-wrapper input::placeholder {
+
+.map-destination-input-wrapper input::placeholder,
+.map-current-location input::placeholder {
   color: #999999c0;
   font-family: 'Vazir', Arial, sans-serif;
   font-size: 16px;
@@ -618,11 +613,6 @@
   transform: rotate(180deg);
 }
 
-/* Adjust origin text positioning for English */
-:root:lang(en) .map-location-text {
-  margin-right: 0px;
-  margin-left: 5px;
-}
 
 /* Swap button positioning for English */
 :root:lang(en) .map-swap-button {
@@ -659,14 +649,16 @@
 /* Input text alignment for English */
 :root:lang(en) .map-search-form input,
 :root:lang(en) .map-destination-input-wrapper input,
-:root:lang(en) .map-origin-input {
+:root:lang(en) .map-origin-input,
+:root:lang(en) .map-current-location input {
   text-align: left;
   direction: ltr;
 }
 
 /* Placeholder text alignment for English */
 :root:lang(en) .map-destination-input-wrapper input::placeholder,
-:root:lang(en) .map-origin-input::placeholder {
+:root:lang(en) .map-origin-input::placeholder,
+:root:lang(en) .map-current-location input::placeholder {
   text-align: left;
   direction: ltr;
 }
@@ -693,12 +685,6 @@
 
 
 .map-marker-destination {
-  width: 24px;
-  height: 24px;
-  background-color: white;
-  border-radius: 50%;
-  border: 4px solid #F44336;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;

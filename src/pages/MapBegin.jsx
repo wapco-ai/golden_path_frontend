@@ -68,6 +68,20 @@ const MapBeginPage = () => {
   const [groups, setGroups] = useState([]);
   const [subGroups, setSubGroups] = useState({});
   const [landmarkPlaces, setLandmarkPlaces] = useState([]);
+  const [visibleCounts, setVisibleCounts] = useState({
+    landmarkPlaces: 6,
+    mostVisited: 6,
+    nearest: 6,
+    shrineEvents: 6
+  });
+
+  const [showAllShrineEvents, setShowAllShrineEvents] = useState(false);
+  const isScannedQrLocation = isQrCodeEntry &&
+    userLocation &&
+    selectedLocation?.coordinates &&
+    userLocation.coordinates &&
+    selectedLocation.coordinates[0] === userLocation.coordinates[0] &&
+    selectedLocation.coordinates[1] === userLocation.coordinates[1];
   const clearMapSelection = () => {
     sessionStorage.removeItem('mapSelectedLat');
     sessionStorage.removeItem('mapSelectedLng');
@@ -153,28 +167,6 @@ const MapBeginPage = () => {
       }
     }
   };
-
-  // useEffect(() => {
-  //   // If a location with image is selected, show the routing panel
-  //   if (showLocationDetails && !showRouting) {
-  //     setShowRouting(true);
-  //     setExpandedSearch(false);
-  //     setIsAutoExpanding(true);
-
-  //     // Set height based on whether this is a QR code entry or normal selection
-  //     let newHeight;
-  //     if (isQrCodeEntry) {
-  //       newHeight = window.innerHeight * 0.3; // 30vh for QR code entries
-  //     } else {
-  //       newHeight = window.innerHeight * 0.41; // 41vh for normal selections
-  //     }
-
-  //     setCurrentHeight(newHeight);
-
-  //     // Reset auto expanding after a delay
-  //     setTimeout(() => setIsAutoExpanding(false), 300);
-  //   }
-  // }, [showLocationDetails, showRouting, isQrCodeEntry]);
 
   const resolveLocationId = (location) => {
     const rawId = location?.id || location?.value;
@@ -421,10 +413,8 @@ const MapBeginPage = () => {
         setShowRouting(true);
         setExpandedSearch(false);
       } else {
-        setShowLocationDetails(false);
       }
     } else {
-      setShowLocationDetails(false);
     }
   };
 
@@ -1090,11 +1080,25 @@ const MapBeginPage = () => {
                   <h2 className="selected-location-title">
                     {selectedLocation.label}
                   </h2>
-                  <div className="location-meta7">
-                    <span className="place-distance">{selectedLocation.distance} {intl.formatMessage({ id: 'meter' })}</span>
-                    <span className="place-meta-separator">|</span>
-                    <span className="place-time">{selectedLocation.time} {intl.formatMessage({ id: 'walking' })}</span>
-                  </div>
+                  {(isScannedQrLocation || selectedLocation.distance || selectedLocation.time) && (
+                    <div className="location-meta7">
+                      {isScannedQrLocation ? (
+                        <span className="place-distance">{intl.formatMessage({ id: 'youAreHere' })}</span>
+                      ) : (
+                        <>
+                          {selectedLocation.distance && (
+                            <>
+                              <span className="place-distance">{selectedLocation.distance} {intl.formatMessage({ id: 'meter' })}</span>
+                              {selectedLocation.time && <span className="place-meta-separator">|</span>}
+                            </>
+                          )}
+                          {selectedLocation.time && (
+                            <span className="place-time">{selectedLocation.time} {intl.formatMessage({ id: 'walking' })}</span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
 
                   <div className="location-description">
                     <p>
@@ -1140,7 +1144,7 @@ const MapBeginPage = () => {
                 </button>
               </div>
               <div className="shrine-events-list">
-                {eventsToShow.map((event, index) => (
+                {eventsToShow.slice(0, 6).map((event, index) => (
                   <div key={index} className="shrine-event-item">
                     <div
                       className="place-image-placeholder"
@@ -1180,6 +1184,16 @@ const MapBeginPage = () => {
                     </div>
                   </div>
                 ))}
+                {eventsToShow.length > 6 && (
+                  <div className="view-more-places-container" onClick={openEventsModal}>
+                    <div className="view-more-places">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M9 6l6 6l-6 6" />
+                      </svg>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1236,7 +1250,7 @@ const MapBeginPage = () => {
               <div className="events-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="events-modal-header">
                   <h3>{getPlacesModalTitle()}</h3>
-                  <button className="close-modal-btn" onClick={closePlacesModal}>
+                  <button className="close-modal-btn-mpb" onClick={closePlacesModal}>
                     &times;
                   </button>
                 </div>
@@ -1308,7 +1322,7 @@ const MapBeginPage = () => {
                 </button>
               </div>
               <div className="places-horizontal-list">
-                {routingData.places.landmarkPlaces.map((place, index) => (
+                {routingData.places.landmarkPlaces.slice(0, 6).map((place, index) => (
                   <div key={index} className="place-card">
                     <div className="image-container">
                       <div
@@ -1359,6 +1373,17 @@ const MapBeginPage = () => {
                     </div>
                   </div>
                 ))}
+                {/* Show scroll arrow button if there are more than 6 landmarks */}
+                {routingData.places.landmarkPlaces.length > 6 && (
+                  <div className="view-more-places-container" onClick={() => openPlacesModal('landmarkPlaces')}>
+                    <div className="view-more-places">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M9 6l6 6l-6 6" />
+                      </svg>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1378,7 +1403,7 @@ const MapBeginPage = () => {
                 </button>
               </div>
               <div className="places-horizontal-list">
-                {routingData.places.mostVisited.map((place, index) => (
+                {routingData.places.mostVisited.slice(0, 6).map((place, index) => (
                   <div key={index} className="place-card">
                     <div className="image-container">
                       <div
@@ -1421,6 +1446,16 @@ const MapBeginPage = () => {
                     </div>
                   </div>
                 ))}
+                {routingData.places.mostVisited.length > 6 && (
+                  <div className="view-more-places-container" onClick={() => openPlacesModal('mostVisited')}>
+                    <div className="view-more-places">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M9 6l6 6l-6 6" />
+                      </svg>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1440,7 +1475,7 @@ const MapBeginPage = () => {
                 </button>
               </div>
               <div className="places-horizontal-list">
-                {routingData.places.nearest.map((place, index) => (
+                {routingData.places.nearest.slice(0, 6).map((place, index) => (
                   <div key={index} className="place-card">
                     <div className="image-container">
                       <div
@@ -1483,6 +1518,16 @@ const MapBeginPage = () => {
                     </div>
                   </div>
                 ))}
+                {routingData.places.nearest.length > 6 && (
+                  <div className="view-more-places-container" onClick={() => openPlacesModal('nearest')}>
+                    <div className="view-more-places">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M9 6l6 6l-6 6" />
+                      </svg>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

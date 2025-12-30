@@ -333,5 +333,6 @@
   "faqUpdatesQuestion": "How often is the app updated?",
   "faqUpdatesAnswer": "We release updates regularly to improve performance, fix bugs, and add new features. Updates are automatic but you can also check manually in your app store.",
   "stillHaveQuestions": "Still have questions?",
-  "contactSupportDesc": "Can't find what you're looking for? Our support team is ready to help you."
+  "contactSupportDesc": "Can't find what you're looking for? Our support team is ready to help you.",
+    "resendCodeButton": "Send code again"
 }

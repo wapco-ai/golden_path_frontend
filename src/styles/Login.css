@@ -6,14 +6,13 @@
   justify-content: center;
   background: linear-gradient(to top, #ffffff 70%, #86d9f2);
   padding: 20px;
-  font-family: 'Vazir', Tahoma, sans-serif;
+  font-family: 'Vazir', Tahoma, sans-serif;;
 }
 
 .login-container {
   background: transparent;
   width: 100%;
   max-width: 450px;
-  padding: 40px;
   border-radius: 15px;
   display: flex;
   flex-direction: column;
@@ -23,14 +22,24 @@
 
 /* ===== Logo Styles ===== */
 .logo-container {
-  margin-bottom: 10px;
+  margin-bottom: 30px;
   text-align: center;
 }
 
-.login-logo {
+.login-logo2 {
   width: 200px;
   height: auto;
 }
+
+
+@media (max-width: 400px) {
+  .login-logo2 {
+    width: 170px;
+    height: 170px;
+  }
+  
+}
+
 
 /* ===== Text Content ===== */
 .login-text-content {
@@ -306,4 +315,43 @@
     opacity: 1;
     transform: translateX(-50%) translateY(0);
   }
+}
+
+/* Add these styles to your existing CSS */
+
+.resend-button {
+  background-color: transparent;
+  color: #0F71EF;
+  border: none;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  width: 100%;
+}
+
+.resend-button:hover {
+  background-color: transparent;
+    color: #0c59bf;
+}
+
+.resend-button:disabled {
+  background-color: transparent;
+  color: #4e4c4c;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Update existing verification-resend for RTL/LTR support */
+:root:lang(en) .resend-button {
+  font-family: inherit;
+}
+
+:root:lang(fa) .resend-button,
+:root:lang(ur) .resend-button,
+:root:lang(ar) .resend-button {
+  font-family: 'Vazir', Tahoma, sans-serif;
 }

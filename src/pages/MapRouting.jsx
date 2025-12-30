@@ -30,13 +30,7 @@ const MapRoutingPage = () => {
   const storedLat = sessionStorage.getItem('qrLat');
   const storedLng = sessionStorage.getItem('qrLng');
   const storedId = sessionStorage.getItem('qrId');
-  const initialUserLocation = storedLat && storedLng
-    ? {
-      name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
-      coordinates: [parseFloat(storedLat), parseFloat(storedLng)]
-    }
-    : null;
-  const [userLocation, setUserLocation] = useState(initialUserLocation);
+  const [userLocation, setUserLocation] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeInput, setActiveInput] = useState(null);
   const [isGPSEnabled, setIsGPSEnabled] = useState(false);
@@ -70,17 +64,41 @@ const MapRoutingPage = () => {
   const [searchResults, setSearchResults] = useState([]);
 
   useEffect(() => {
-    if (storedLat && storedLng && storedId) {
-      getLocationTitleById(storedId).then((title) => {
-        if (title) {
+
+    if (storedLat && storedLng) {
+      const coordinates = [parseFloat(storedLat), parseFloat(storedLng)];
+      
+
+      if (storedId) {
+        getLocationTitleById(storedId).then((title) => {
+          if (title) {
+            setUserLocation({
+              name: title,
+              coordinates: coordinates
+            });
+          } else {
+            setUserLocation({
+              name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
+              coordinates: coordinates
+            });
+          }
+        }).catch(() => {
+
           setUserLocation({
-            name: title,
-            coordinates: [parseFloat(storedLat), parseFloat(storedLng)]
+            name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
+            coordinates: coordinates
           });
-        }
-      });
+        });
+      } else {
+
+        setUserLocation({
+          name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
+          coordinates: coordinates
+        });
+      }
     }
-  }, [storedLat, storedLng, storedId, language]);
+
+  }, [storedLat, storedLng, storedId, intl]);
 
   useEffect(() => {
     let isMounted = true;
@@ -453,11 +471,11 @@ const MapRoutingPage = () => {
   ]);
 
   useEffect(() => {
-    if (userLocation && userLocation.name !== intl.formatMessage({ id: 'mapCurrentLocationName' }) &&
-      userLocation.name !== intl.formatMessage({ id: 'defaultBabRezaName' })) {
+
+    if (userLocation && userLocation.name !== intl.formatMessage({ id: 'mapCurrentLocationName' })) {
       setIsTracking(false);
     }
-  }, [userLocation]);
+  }, [userLocation, intl]);
 
   const handleSubgroupSelect = async (subgroup) => {
     setSelectedSubgroup(subgroup);
@@ -580,6 +598,45 @@ const MapRoutingPage = () => {
     }
     setSearchQuery('');
   };
+
+
+useEffect(() => {
+  const locationSelectionType = sessionStorage.getItem('locationSelectionType');
+  const locationFromPage = sessionStorage.getItem('locationFromPage');
+  
+  if (locationSelectionType && locationFromPage) {
+    try {
+      const locationData = JSON.parse(locationFromPage);
+      
+      if (locationSelectionType === 'origin') {
+
+        setIsTracking(false);
+        setUserLocation({
+          name: locationData.name,
+          coordinates: locationData.coordinates
+        });
+        sessionStorage.setItem('currentOrigin', JSON.stringify(locationData));
+      } else if (locationSelectionType === 'destination') {
+
+        setSelectedDestination({
+          name: locationData.name,
+          location: locationData.location || locationData.name,
+          coordinates: locationData.coordinates
+        });
+        sessionStorage.setItem('currentDestination', JSON.stringify(locationData));
+      }
+      
+
+      sessionStorage.removeItem('locationSelectionType');
+      sessionStorage.removeItem('locationFromPage');
+      
+    } catch (err) {
+      console.error('Failed to parse location data from session', err);
+      sessionStorage.removeItem('locationSelectionType');
+      sessionStorage.removeItem('locationFromPage');
+    }
+  }
+}, []);
 
   // NEW: Handle entry selection
   const handleEntrySelect = (entryNumber) => {
@@ -740,46 +797,67 @@ const MapRoutingPage = () => {
   };
 
   const handleSwapLocations = () => {
+    // Case 1: Only origin exists (initial state)
     if (!selectedDestination && userLocation) {
       const destData = {
         name: userLocation.name,
         location: userLocation.location || userLocation.name,
         coordinates: userLocation.coordinates
       };
-
+  
       setSelectedDestination(destData);
       sessionStorage.setItem('currentDestination', JSON.stringify(destData));
-
+  
       setUserLocation(null);
       sessionStorage.removeItem('currentOrigin');
-
+  
       setIsTracking(false);
-      return;
     }
-
-    if (userLocation && selectedDestination) {
+    // Case 2: Only destination exists (after first swap)
+    else if (!userLocation && selectedDestination) {
+      const originData = {
+        name: selectedDestination.name,
+        coordinates: selectedDestination.coordinates,
+        location: selectedDestination.location || selectedDestination.name
+      };
+  
+      setUserLocation(originData);
+      sessionStorage.setItem('currentOrigin', JSON.stringify(originData));
+  
+      setSelectedDestination(null);
+      sessionStorage.removeItem('currentDestination');
+  
+      setIsTracking(false);
+    }
+    // Case 3: Both origin and destination exist (normal swap)
+    else if (userLocation && selectedDestination) {
       const newOrigin = {
         name: selectedDestination.name,
         coordinates: selectedDestination.coordinates,
         location: selectedDestination.location || selectedDestination.name
       };
-
+  
       const newDestination = {
         name: userLocation.name,
         coordinates: userLocation.coordinates,
         location: userLocation.location || userLocation.name
       };
-
+  
       setUserLocation(newOrigin);
       setSelectedDestination(newDestination);
-
+  
       sessionStorage.setItem('currentOrigin', JSON.stringify(newOrigin));
       sessionStorage.setItem('currentDestination', JSON.stringify(newDestination));
-
+  
       setIsTracking(false);
       setTimeout(() => setIsTracking(true), 100);
     }
-
+    // Case 4: Neither exists (do nothing)
+    else {
+      return;
+    }
+  
+    // Rotation animation
     if (swapButtonRef.current) {
       swapButtonRef.current.classList.add('rotate');
       setTimeout(() => {
@@ -876,30 +954,20 @@ const MapRoutingPage = () => {
       setShowDestinationModal(true);
     } else {
       setShowOriginModal(true);
+
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           () => setIsGPSEnabled(true),
           () => setIsGPSEnabled(false)
         );
+      } else {
+        setIsGPSEnabled(false);
       }
     }
   };
 
   const handleCurrentLocationSelect = () => {
     setIsTracking(true);
-    if (storedLat && storedLng && storedId) {
-      getLocationTitleById(storedId).then((title) => {
-        setUserLocation({
-          name: title || intl.formatMessage({ id: 'mapCurrentLocationName' }),
-          coordinates: [parseFloat(storedLat), parseFloat(storedLng)]
-        });
-      });
-    } else {
-      setUserLocation((prev) => ({
-        ...prev,
-        name: intl.formatMessage({ id: 'mapCurrentLocationName' })
-      }));
-    }
     setShowOriginModal(false);
   };
 
@@ -1328,11 +1396,12 @@ const MapRoutingPage = () => {
 
               {/* Origin Input */}
               <div className="map-current-location" onClick={() => handleInputClick('origin')}>
-                <div className="map-location-text">
-                  <span className="map-location-name">
-                    {userLocation?.name || intl.formatMessage({ id: 'defaultBabRezaName' })}
-                  </span>
-                </div>
+                  <input
+                  type="text"
+                  placeholder={intl.formatMessage({ id: 'originPlaceholder' })}
+                  value={userLocation?.name || ''}
+                  readOnly
+                />
               </div>
 
               <button

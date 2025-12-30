@@ -139,7 +139,7 @@
 
 .map-gps-button {
   position: absolute;
-  bottom: 190px;
+  bottom: 230px;
   right: 18px;
   width: 54px;
   height: 54px;
@@ -399,11 +399,10 @@ body.modal-open {
 
 
 .routing-places-section {
-  background-color: white;
-  border-radius: 12px;
+  background-color: transparent;
   padding: 15px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   margin-bottom: 15px;
+  border-top: 3px solid#F2F2F2;
 }
 
 .routing-places-content {
@@ -592,11 +591,10 @@ body.modal-open {
 
 /* Shrine Events Section */
 .shrine-events-section {
-  background-color: white;
-  border-radius: 12px;
+  background-color: transparent;
   padding: 15px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   margin-bottom: 15px;
+  border-top: 3px solid#F2F2F2;
 }
 
 .shrine-events-header {
@@ -680,9 +678,22 @@ body.modal-open {
   max-height: none;
   display: flex;
   flex-direction: column;
+  animation: MslideUp 0.6s ease-out;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
   overflow: hidden;
   font-family: 'Vazir', Tahoma, sans-serif;
+}
+
+@keyframes MslideUp {
+  from {
+    opacity: 1;
+    transform: translateY(570px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .events-modal-header {
@@ -700,6 +711,22 @@ body.modal-open {
 }
 
 .close-modal-btn {
+  background: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+  color: #1e2023;
+  border: 1px solid #D9D9D9;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 25px;
+  height: 38px;
+  width: 38px;
+}
+
+
+.close-modal-btn-mpb {
   background: none;
   font-size: 1.5rem;
   cursor: pointer;
@@ -1084,11 +1111,10 @@ body.modal-open {
 
 /* Selected Location Section */
 .selected-location-section {
-  background-color: white;
+  background-color: transparent;
   border-radius: 12px;
   padding: 15px;
   margin-bottom: 15px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 
@@ -1350,4 +1376,65 @@ body.modal-open {
 
 .modal-content-wrapper::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+
+.view-more-places-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 95px;
+}
+
+.view-more-places {
+  width: 45px;
+  height: 45px;
+  background-color: rgba(30, 144, 255, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.8;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.view-more-places:hover {
+  background-color: rgba(30, 144, 255, 0.2);
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.view-more-places svg {
+  color: #1E90FF;
+  transform: rotate(180deg);
+}
+
+:root:lang(en) .view-more-places svg {
+  transform: rotate(360deg);
+}
+.places-horizontal-list,
+.shrine-events-list {
+  display: flex;
+  gap: 15px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  scrollbar-width: none;
+  align-items: center;
+}
+
+.places-horizontal-list::-webkit-scrollbar,
+.shrine-events-list::-webkit-scrollbar {
+  display: none;
+}
+
+
+.place-card,
+.shrine-event-item {
+  min-width: 280px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: #fff;
+  flex-shrink: 0;
 }

@@ -179,7 +179,7 @@ const LoginPage = () => {
           <img
             src={logo}
             alt={intl.formatMessage({ id: 'logoAlt' })}
-            className="login-logo"
+            className="login-logo2"
           />
         </div>
 
@@ -253,9 +253,32 @@ const LoginPage = () => {
             )}
 
             <div className="verification-resend">
-              <span>
-                <FormattedMessage id="resendCode" values={{ seconds: countdown }} />
-              </span>
+              {countdown > 0 ? (
+                <span>
+                  <FormattedMessage id="resendCode" values={{ seconds: countdown }} />
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="resend-button"
+                  onClick={async () => {
+                    setIsSubmitting(true);
+                    setSubmitError('');
+                    try {
+                      await apiUser.post('/api/v1/auth/otp/request', { phone });
+                      setCountdown(50);
+                    } catch (err) {
+                      const mapped = mapApiError(err);
+                      setSubmitError(mapped.message);
+                    } finally {
+                      setIsSubmitting(false);
+                    }
+                  }}
+                  disabled={isSubmitting}
+                >
+                  <FormattedMessage id="resendCodeButton" />
+                </button>
+              )}
             </div>
           </div>
         ) : (
