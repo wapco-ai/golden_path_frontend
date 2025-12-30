@@ -754,7 +754,7 @@ const Amain = () => {
         source: TEMP_AREA_DRAW_SOURCE_ID,
         paint: {
           'fill-color': '#f4a6b9',
-          'fillOpacity': 0.35
+          'fill-opacity': 0.35
         },
         filter: ['==', ['geometry-type'], 'Polygon']
       });
@@ -4454,10 +4454,10 @@ const Amain = () => {
           id: SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID,
           type: 'fill',
           source: SELECTED_EDITABLE_FEATURE_SOURCE_ID,
-          paint: {
-            'fill-color': highlightColor,
-            'fillOpacity': 0.08
-          },
+        paint: {
+          'fill-color': highlightColor,
+          'fill-opacity': 0.08
+        },
           filter: [
             'match',
             ['geometry-type'],
