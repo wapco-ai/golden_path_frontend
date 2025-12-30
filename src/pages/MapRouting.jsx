@@ -20,6 +20,7 @@ const MapRoutingPage = () => {
   const navigate = useNavigate();
   const intl = useIntl();
   const language = useLangStore(state => state.language);
+  const getCategoryLabel = (label) => intl.messages?.[label] ?? label;
   const [showDestinationModal, setShowDestinationModal] = useState(false);
   const [showOriginModal, setShowOriginModal] = useState(false);
   const [selectedDestination, setSelectedDestination] = useState(null);
@@ -1200,7 +1201,7 @@ useEffect(() => {
                   <img src={category.png} alt={category.label} width="22" height="22" />
                 </div>
                 <span className={`map-category-name ${mapSelectedCategory && mapSelectedCategory.value === category.value ? 'active' : ''}`}>
-                  {intl.formatMessage({ id: category.label })}
+                  {getCategoryLabel(category.label)}
                 </span>
               </div>
             ))}
@@ -1502,7 +1503,7 @@ useEffect(() => {
                         <img src={category.png} width="22" height="22" />
                       </div>
                       <span className={`map-category-name ${modalSelectedCategory && modalSelectedCategory.value === category.value ? 'active' : ''}`}>
-                        {intl.formatMessage({ id: category.label })}
+                        {getCategoryLabel(category.label)}
                       </span>
                     </div>
                   ))}
