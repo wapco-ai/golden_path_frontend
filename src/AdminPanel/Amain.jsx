@@ -523,7 +523,7 @@ const logDoorAccessPointDebugInfo = (mapInstance) => {
 };
 
 const Amain = () => {
-  const { admin: adminProfile, permissions: adminPermissions, fetchProfile, logout, accessToken } = useAdminAuthStore();
+  const { admin: adminProfile, permissions: adminPermissions, fetchProfile, logout } = useAdminAuthStore();
   const API_BASE = `${appConfig.apiBaseUrl}/api/v1/admin`;
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [activeMenu, setActiveMenu] = useState('dashboard');
@@ -7498,15 +7498,6 @@ const Amain = () => {
     return mod === 1 || mod === 5 || mod === 9 || mod === 13 || mod === 17 || mod === 22 || mod === 26 || mod === 30;
   };
 
-  const getAdminAccessToken = useCallback(() => {
-    return accessToken || sessionStorage.getItem('gp_admin_access_token');
-  }, [accessToken]);
-
-  const getAdminAuthHeaders = useCallback(() => {
-    const token = getAdminAccessToken();
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  }, [getAdminAccessToken]);
-
   const fetchCategories = useCallback(async () => {
     const params = new URLSearchParams({
       page: String(categoryCurrentPage),
@@ -7516,9 +7507,7 @@ const Amain = () => {
     });
 
     try {
-      const response = await fetch(`${API_BASE}/categories?${params.toString()}`, {
-        headers: getAdminAuthHeaders()
-      });
+      const response = await fetch(`${API_BASE}/categories?${params.toString()}`);
       if (!response.ok) {
         throw new Error('Failed to fetch categories');
       }
@@ -7529,13 +7518,11 @@ const Amain = () => {
       console.error('Failed to fetch categories', error);
       alert('خطا در دریافت دسته بندی‌ها');
     }
-  }, [API_BASE, categoryCurrentPage, categoryItemsPerPage, categorySearchTerm, getAdminAuthHeaders]);
+  }, [API_BASE, categoryCurrentPage, categoryItemsPerPage, categorySearchTerm]);
 
   const fetchCategorySubcategories = useCallback(async (categoryId) => {
     try {
-      const response = await fetch(`${API_BASE}/categories/${categoryId}/subcategories`, {
-        headers: getAdminAuthHeaders()
-      });
+      const response = await fetch(`${API_BASE}/categories/${categoryId}/subcategories`);
       if (!response.ok) {
         throw new Error('Failed to fetch subcategories');
       }
@@ -7554,7 +7541,7 @@ const Amain = () => {
       console.error('Failed to fetch subcategories', error);
       alert('خطا در دریافت زیرگروه‌ها');
     }
-  }, [API_BASE, getAdminAuthHeaders]);
+  }, [API_BASE]);
 
   useEffect(() => {
     fetchCategories();
@@ -7630,16 +7617,12 @@ const Amain = () => {
         formData.append('payload', JSON.stringify(payload));
         response = await fetch(`${API_BASE}/categories`, {
           method: 'POST',
-          headers: {
-            ...getAdminAuthHeaders()
-          },
           body: formData
         });
       } else {
         response = await fetch(`${API_BASE}/categories`, {
           method: 'POST',
           headers: {
-            ...getAdminAuthHeaders(),
             'Content-Type': 'application/json'
           },
           body: JSON.stringify(payload)
@@ -7670,8 +7653,7 @@ const Amain = () => {
 
     try {
       const response = await fetch(`${API_BASE}/categories/${categoryToDelete}`, {
-        method: 'DELETE',
-        headers: getAdminAuthHeaders()
+        method: 'DELETE'
       });
 
       if (response.status === 409) {
@@ -7747,16 +7729,12 @@ const Amain = () => {
         formData.append('payload', JSON.stringify(payload));
         response = await fetch(`${API_BASE}/categories/${editingCategoryId}`, {
           method: 'PUT',
-          headers: {
-            ...getAdminAuthHeaders()
-          },
           body: formData
         });
       } else {
         response = await fetch(`${API_BASE}/categories/${editingCategoryId}`, {
           method: 'PUT',
           headers: {
-            ...getAdminAuthHeaders(),
             'Content-Type': 'application/json'
           },
           body: JSON.stringify(payload)
@@ -7817,7 +7795,6 @@ const Amain = () => {
       const response = await fetch(`${API_BASE}/categories/${editingCategoryId}/subcategories`, {
         method: 'POST',
         headers: {
-          ...getAdminAuthHeaders(),
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ title: subcategoryTitle })
@@ -7846,7 +7823,6 @@ const Amain = () => {
       const response = await fetch(`${API_BASE}/categories/${parentId}/subcategories`, {
         method: 'POST',
         headers: {
-          ...getAdminAuthHeaders(),
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ title: subcategoryTitle })
@@ -7871,7 +7847,6 @@ const Amain = () => {
       const response = await fetch(`${API_BASE}/subcategories/${subcategory.id}`, {
         method: 'PUT',
         headers: {
-          ...getAdminAuthHeaders(),
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ title: newTitle })
@@ -7892,8 +7867,7 @@ const Amain = () => {
   const handleDeleteSubcategory = async (subcategory) => {
     try {
       const response = await fetch(`${API_BASE}/subcategories/${subcategory.id}`, {
-        method: 'DELETE',
-        headers: getAdminAuthHeaders()
+        method: 'DELETE'
       });
 
       if (!response.ok) {
