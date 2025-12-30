@@ -169,6 +169,44 @@ const normalizePrayerEvents = (events = []) => {
   return eventArray.map(normalizePrayerEventValue).filter(Boolean);
 };
 
+const basePath = (import.meta?.env?.BASE_URL || '/').replace(/\/$/, '');
+const withBasePath = (path) => {
+  if (!path || /^https?:\/\//i.test(path)) {
+    return path;
+  }
+
+  if (!basePath) {
+    return path;
+  }
+
+  if (path === basePath || path.startsWith(`${basePath}/`)) {
+    return path;
+  }
+
+  return `${basePath}${path.startsWith('/') ? path : `/${path}`}`;
+};
+
+const isPlainIconName = (value) => typeof value === 'string'
+  && value !== ''
+  && !value.includes('/')
+  && !/^https?:\/\//i.test(value);
+
+const buildIconUrl = (value) => {
+  if (!value) {
+    return '';
+  }
+
+  if (/^https?:\/\//i.test(value)) {
+    return value;
+  }
+
+  if (value.startsWith('/')) {
+    return withBasePath(value);
+  }
+
+  return withBasePath(`/assets/icons/${value}`);
+};
+
 const buildPrayerRulesPayload = (selectedEvents, beforeValue, afterValue) => {
   const before = Number.isFinite(Number(beforeValue)) ? Number(beforeValue) : 0;
   const after = Number.isFinite(Number(afterValue)) ? Number(afterValue) : 0;
@@ -1200,6 +1238,12 @@ const Amain = () => {
     status: 'active'
   });
   const [isIconUploaded, setIsIconUploaded] = useState(false);
+  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
+  const [iconPickerTarget, setIconPickerTarget] = useState(null);
+  const [iconOptions, setIconOptions] = useState([]);
+  const [isIconListLoading, setIsIconListLoading] = useState(false);
+  const [iconListError, setIconListError] = useState('');
+  const [iconSearchTerm, setIconSearchTerm] = useState('');
   const [culturalData, setCulturalData] = useState([]);
   const [culturalSearchTerm, setCulturalSearchTerm] = useState('');
   const [isDeleteCulturalModalOpen, setIsDeleteCulturalModalOpen] = useState(false);
@@ -7614,6 +7658,55 @@ const Amain = () => {
     }));
   };
 
+  const loadIconOptions = useCallback(async () => {
+    if (iconOptions.length > 0) return;
+
+    setIsIconListLoading(true);
+    setIconListError('');
+    try {
+      const response = await fetch(withBasePath('/assets/icons/icons.json'));
+      if (!response.ok) {
+        throw new Error('Failed to fetch icons');
+      }
+      const data = await response.json();
+      setIconOptions(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to load icon list', error);
+      setIconListError('خطا در دریافت لیست آیکون‌ها');
+    } finally {
+      setIsIconListLoading(false);
+    }
+  }, [iconOptions.length]);
+
+  const openIconPicker = useCallback((target) => {
+    setIconPickerTarget(target);
+    setIconSearchTerm('');
+    setIsIconPickerOpen(true);
+    loadIconOptions();
+  }, [loadIconOptions]);
+
+  const closeIconPicker = useCallback(() => {
+    setIsIconPickerOpen(false);
+    setIconPickerTarget(null);
+    setIconSearchTerm('');
+  }, []);
+
+  const handleIconSelect = useCallback((filename) => {
+    if (iconPickerTarget === 'edit') {
+      setEditCategoryData((prev) => ({ ...prev, icon: filename }));
+      setIsIconUploaded(true);
+    } else {
+      setNewCategory((prev) => ({ ...prev, image: filename }));
+    }
+    closeIconPicker();
+  }, [closeIconPicker, iconPickerTarget]);
+
+  const filteredIconOptions = useMemo(() => {
+    const normalizedSearch = iconSearchTerm.trim().toLowerCase();
+    if (!normalizedSearch) return iconOptions;
+    return iconOptions.filter((icon) => icon.toLowerCase().includes(normalizedSearch));
+  }, [iconOptions, iconSearchTerm]);
+
   const handleCreateCategory = async () => {
     if (!newCategory.title.trim()) {
       alert('عنوان دسته بندی الزامی است');
@@ -7629,6 +7722,9 @@ const Amain = () => {
         title: subcategory.title
       }))
     };
+    if (isPlainIconName(newCategory.image)) {
+      payload.image = newCategory.image;
+    }
 
     try {
       let response;
@@ -7741,6 +7837,9 @@ const Amain = () => {
       status: editCategoryData.status,
       languageTitles: { ...editCategoryLanguageTitles }
     };
+    if (isPlainIconName(editCategoryData.icon)) {
+      payload.image = editCategoryData.icon;
+    }
 
     try {
       let response;
@@ -7785,26 +7884,6 @@ const Amain = () => {
     } catch (error) {
       console.error('Failed to update category', error);
       alert('خطا در ویرایش دسته بندی');
-    }
-  };
-
-  const handleIconUpload = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
-        alert('فقط فایل‌های JPEG و PNG مجاز هستند');
-        return;
-      }
-
-      // Validate file size (max 2MB)
-      if (file.size > 2 * 1024 * 1024) {
-        alert('حجم فایل نباید بیشتر از ۲ مگابایت باشد');
-        return;
-      }
-
-      setEditCategoryData({ ...editCategoryData, icon: file });
-      setIsIconUploaded(true);
     }
   };
 
@@ -9632,7 +9711,7 @@ const Amain = () => {
                                 {category.image ? (
                                   <div className="category-icon-wrapper">
                                     <img
-                                      src={category.image}
+                                      src={buildIconUrl(category.image)}
                                       alt={category.title}
                                       className="category-icon-image"
                                       onError={(e) => {
@@ -12012,7 +12091,7 @@ const Amain = () => {
                       {editCategoryData.icon ? (
                         <div className="icon-preview-image">
                           <img
-                            src={typeof editCategoryData.icon === 'string' ? editCategoryData.icon : URL.createObjectURL(editCategoryData.icon)}
+                            src={editCategoryData.icon instanceof File ? URL.createObjectURL(editCategoryData.icon) : buildIconUrl(editCategoryData.icon)}
                             alt="آیکون دسته بندی"
                             className="icon-preview-img"
                             onError={(e) => {
@@ -12035,16 +12114,13 @@ const Amain = () => {
                       )}
                     </div>
                     <div className="icon-upload-actions">
-                      <input
-                        type="file"
-                        id="icon-upload"
-                        accept="image/jpeg,image/png"
-                        onChange={handleIconUpload}
-                        className="hidden-file-input"
-                      />
-                      <label htmlFor="icon-upload" className="upload-icon-btn">
+                      <button
+                        type="button"
+                        className="upload-icon-btn"
+                        onClick={() => openIconPicker('edit')}
+                      >
                         {editCategoryData.icon ? 'تغییر نماد' : 'ایجاد نماد'}
-                      </label>
+                      </button>
                       {editCategoryData.icon && (
                         <button
                           className="remove-icon-btn"
@@ -12217,7 +12293,7 @@ const Amain = () => {
                     {newCategory.image ? (
                       <div className="icon-preview-wrapper">
                         <img
-                          src={typeof newCategory.image === 'string' ? newCategory.image : URL.createObjectURL(newCategory.image)}
+                          src={newCategory.image instanceof File ? URL.createObjectURL(newCategory.image) : buildIconUrl(newCategory.image)}
                           alt="آیکون دسته بندی"
                           className="icon-preview"
                         />
@@ -12232,33 +12308,16 @@ const Amain = () => {
                       </div>
                     ) : (
                       <>
-                        <input
-                          type="file"
-                          id="new-icon-upload"
-                          accept="image/jpeg,image/png"
-                          onChange={(e) => {
-                            const file = e.target.files[0];
-                            if (file) {
-                              if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
-                                alert('فقط فایل‌های JPEG و PNG مجاز هستند');
-                                return;
-                              }
-                              if (file.size > 2 * 1024 * 1024) {
-                                alert('حجم فایل نباید بیشتر از ۲ مگابایت باشد');
-                                return;
-                              }
-                              setNewCategory({ ...newCategory, image: file });
-                            }
-                            e.target.value = ''; // Reset input
-                          }}
-                          className="hidden-file-input"
-                        />
-                        <label htmlFor="new-icon-upload" className="select-icon-btn">
+                        <button
+                          type="button"
+                          className="select-icon-btn"
+                          onClick={() => openIconPicker('new')}
+                        >
                           انتخاب نماد
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M16.6667 11.6667H11.6667V16.6667H8.33333V11.6667H3.33333V8.33333H8.33333V3.33333H11.6667V8.33333H16.6667V11.6667Z" fill="white" />
                           </svg>
-                        </label>
+                        </button>
                       </>
                     )}
                   </div>
@@ -12330,6 +12389,54 @@ const Amain = () => {
               >
                 تایید و ایجاد
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isIconPickerOpen && (
+        <div className="modal-overlay">
+          <div className="icon-picker-modal">
+            <div className="modal-header">
+              <h3>انتخاب نماد</h3>
+              <button className="modal-close-btn" onClick={closeIconPicker} type="button">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6 6L18 18M6 18L18 6" stroke="#333" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+            <div className="icon-picker-body">
+              <div className="icon-picker-search">
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="جستجوی آیکون..."
+                  value={iconSearchTerm}
+                  onChange={(event) => setIconSearchTerm(event.target.value)}
+                />
+              </div>
+              {isIconListLoading ? (
+                <div className="icon-picker-status">در حال بارگذاری...</div>
+              ) : iconListError ? (
+                <div className="icon-picker-status error">{iconListError}</div>
+              ) : (
+                <div className="icon-picker-grid">
+                  {filteredIconOptions.map((icon) => (
+                    <button
+                      type="button"
+                      key={icon}
+                      className="icon-picker-item"
+                      onClick={() => handleIconSelect(icon)}
+                    >
+                      <img src={buildIconUrl(icon)} alt={icon} />
+                      <span>{icon}</span>
+                    </button>
+                  ))}
+                  {filteredIconOptions.length === 0 && (
+                    <div className="icon-picker-empty">آیکونی یافت نشد.</div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
