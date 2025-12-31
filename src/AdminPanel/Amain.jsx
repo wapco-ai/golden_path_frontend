@@ -7733,6 +7733,7 @@ const Amain = () => {
       if (newCategory.image instanceof File) {
         const formData = new FormData();
         formData.append('icon', newCategory.image);
+        formData.append('property_target', 'group');
         formData.append('payload', JSON.stringify(payload));
         response = await adminFetch(`${API_BASE}/categories`, {
           method: 'POST',
