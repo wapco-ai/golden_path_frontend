@@ -7717,9 +7717,11 @@ const Amain = () => {
       title: newCategory.title,
       description: newCategory.description,
       status: newCategory.status,
+      property_target: 'group',
       languageTitles: { ...categoryLanguageTitles },
       subcategories: (newCategory.subcategories || []).map((subcategory) => ({
-        title: subcategory.title
+        title: subcategory.title,
+        property_target: 'subGroup'
       }))
     };
     if (isPlainIconName(newCategory.image)) {
@@ -7896,9 +7898,9 @@ const Amain = () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ title: subcategoryTitle })
-      });
+      },
+      body: JSON.stringify({ title: subcategoryTitle, property_target: 'subGroup' })
+    });
 
       if (!response.ok) {
         throw new Error('Failed to add subcategory');
@@ -7924,9 +7926,9 @@ const Amain = () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ title: subcategoryTitle })
-      });
+      },
+      body: JSON.stringify({ title: subcategoryTitle, property_target: 'subGroup' })
+    });
 
       if (!response.ok) {
         throw new Error('Failed to add subcategory');
