@@ -5077,11 +5077,23 @@ body {
   border-radius: 16px;
   width: 680px;
   max-width: 92vw;
+  height: 80vh;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   box-shadow: 0 10px 35px rgba(0, 0, 0, 0.15);
+}
+
+.icon-picker-modal .modal-header {
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: white;
 }
 
 .icon-picker-body {
