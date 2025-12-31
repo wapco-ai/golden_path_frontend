@@ -20,6 +20,7 @@ const MapBeginPage = () => {
   const location = useLocation();
   const intl = useIntl();
   const language = useLangStore(state => state.language);
+  const getCategoryLabel = (label) => intl.messages?.[label] ?? label;
   const { accessToken, user } = useUserAuthStore();
   const [selectedOrigin, setSelectedOrigin] = useState(null);
   const storedLat = sessionStorage.getItem('qrLat');
@@ -966,7 +967,7 @@ const MapBeginPage = () => {
                 <img src={category.png} alt={category.label} width="22" height="22" />
               </div>
               <span className={`map-category-name ${selectedCategory && selectedCategory.value === category.value ? 'active' : ''}`}>
-                {intl.formatMessage({ id: category.label })}
+                {getCategoryLabel(category.label)}
               </span>
             </div>
           ))}

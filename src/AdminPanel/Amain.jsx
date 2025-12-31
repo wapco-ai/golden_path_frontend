@@ -24,7 +24,7 @@ import {
   fetchCulturalItems,
   updateCulturalItem
 } from '../services/culturalItemsService';
-import { useAdminAuthStore } from '../auth/admin/adminAuthStore';
+import { ADMIN_ACCESS_TOKEN_KEY, useAdminAuthStore } from '../auth/admin/adminAuthStore';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import {
   DOOR_ACCESS_LAYER_ID,
@@ -38,6 +38,7 @@ import { createDoor, deleteDoor, getDoorInfo, moveDoor, updateDoorInfo } from '.
 import { deleteArea, getAreaInfo, moveArea, updateAreaInfo } from '../services/adminAreasService';
 import { convertLngLatToUtm32640 } from '../utils/utm';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
+import appConfig from '../config/appConfig';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { getLanguageName } from '../utils/languageNames';
 import { deleteFile, uploadFile } from '../services/fileService';
@@ -166,6 +167,44 @@ const normalizePrayerEvents = (events = []) => {
     : (events ? [events] : []);
 
   return eventArray.map(normalizePrayerEventValue).filter(Boolean);
+};
+
+const basePath = (import.meta?.env?.BASE_URL || '/').replace(/\/$/, '');
+const withBasePath = (path) => {
+  if (!path || /^https?:\/\//i.test(path)) {
+    return path;
+  }
+
+  if (!basePath) {
+    return path;
+  }
+
+  if (path === basePath || path.startsWith(`${basePath}/`)) {
+    return path;
+  }
+
+  return `${basePath}${path.startsWith('/') ? path : `/${path}`}`;
+};
+
+const isPlainIconName = (value) => typeof value === 'string'
+  && value !== ''
+  && !value.includes('/')
+  && !/^https?:\/\//i.test(value);
+
+const buildIconUrl = (value) => {
+  if (!value) {
+    return '';
+  }
+
+  if (/^https?:\/\//i.test(value)) {
+    return value;
+  }
+
+  if (value.startsWith('/')) {
+    return withBasePath(value);
+  }
+
+  return withBasePath(`/assets/icons/${value}`);
 };
 
 const buildPrayerRulesPayload = (selectedEvents, beforeValue, afterValue) => {
@@ -522,7 +561,14 @@ const logDoorAccessPointDebugInfo = (mapInstance) => {
 };
 
 const Amain = () => {
-  const { admin: adminProfile, permissions: adminPermissions, fetchProfile, logout } = useAdminAuthStore();
+  const {
+    admin: adminProfile,
+    permissions: adminPermissions,
+    fetchProfile,
+    logout,
+    accessToken
+  } = useAdminAuthStore();
+  const API_BASE = `${appConfig.apiBaseUrl}/api/v1/admin`;
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [commentStats, setCommentStats] = useState({
@@ -551,6 +597,21 @@ const Amain = () => {
         .finally(() => setIsLoadingProfile(false));
     }
   }, [adminProfile, fetchProfile]);
+  const resolveAdminToken = useCallback(
+    () => accessToken || sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY),
+    [accessToken]
+  );
+  const adminFetch = useCallback(
+    (url, options = {}) => {
+      const headers = new Headers(options.headers || {});
+      const token = resolveAdminToken();
+      if (token && !headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      return fetch(url, { ...options, headers });
+    },
+    [resolveAdminToken]
+  );
   const [mapLanguage, setMapLanguage] = useState(DEFAULT_TILE_LANG || 'fa');
   const adminVectorTileConfig = useMemo(
     () => createHaramAdminVectorTileConfig(mapLanguage),
@@ -731,7 +792,7 @@ const Amain = () => {
         source: TEMP_AREA_DRAW_SOURCE_ID,
         paint: {
           'fill-color': '#f4a6b9',
-          'fillOpacity': 0.35
+          'fill-opacity': 0.35
         },
         filter: ['==', ['geometry-type'], 'Polygon']
       });
@@ -1150,6 +1211,7 @@ const Amain = () => {
   const [categories, setCategories] = useState([]);
   const [expandedCategories, setExpandedCategories] = useState([]);
   const [categorySearchTerm, setCategorySearchTerm] = useState('');
+  const [categoryTotalItems, setCategoryTotalItems] = useState(0);
   const [isCreateCategoryModalOpen, setIsCreateCategoryModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState(null);
@@ -1176,6 +1238,12 @@ const Amain = () => {
     status: 'active'
   });
   const [isIconUploaded, setIsIconUploaded] = useState(false);
+  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
+  const [iconPickerTarget, setIconPickerTarget] = useState(null);
+  const [iconOptions, setIconOptions] = useState([]);
+  const [isIconListLoading, setIsIconListLoading] = useState(false);
+  const [iconListError, setIconListError] = useState('');
+  const [iconSearchTerm, setIconSearchTerm] = useState('');
   const [culturalData, setCulturalData] = useState([]);
   const [culturalSearchTerm, setCulturalSearchTerm] = useState('');
   const [isDeleteCulturalModalOpen, setIsDeleteCulturalModalOpen] = useState(false);
@@ -1459,8 +1527,7 @@ const Amain = () => {
   };
 
   const getCategoryPageNumbers = () => {
-    const totalItems = filteredCategories.length;
-    const totalPages = Math.ceil(totalItems / categoryItemsPerPage);
+    const totalPages = Math.ceil(categoryTotalItems / categoryItemsPerPage);
     const maxVisiblePages = 6;
     const pages = [];
 
@@ -4431,10 +4498,10 @@ const Amain = () => {
           id: SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID,
           type: 'fill',
           source: SELECTED_EDITABLE_FEATURE_SOURCE_ID,
-          paint: {
-            'fill-color': highlightColor,
-            'fillOpacity': 0.08
-          },
+        paint: {
+          'fill-color': highlightColor,
+          'fill-opacity': 0.08
+        },
           filter: [
             'match',
             ['geometry-type'],
@@ -7496,6 +7563,55 @@ const Amain = () => {
     return mod === 1 || mod === 5 || mod === 9 || mod === 13 || mod === 17 || mod === 22 || mod === 26 || mod === 30;
   };
 
+  const fetchCategories = useCallback(async () => {
+    const params = new URLSearchParams({
+      page: String(categoryCurrentPage),
+      pageSize: String(categoryItemsPerPage),
+      search: categorySearchTerm,
+      includeSubcategories: '1'
+    });
+
+    try {
+      const response = await adminFetch(`${API_BASE}/categories?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch categories');
+      }
+      const data = await response.json();
+      setCategories(Array.isArray(data.items) ? data.items : []);
+      setCategoryTotalItems(Number(data.total) || 0);
+    } catch (error) {
+      console.error('Failed to fetch categories', error);
+      alert('خطا در دریافت دسته بندی‌ها');
+    }
+  }, [API_BASE, adminFetch, categoryCurrentPage, categoryItemsPerPage, categorySearchTerm]);
+
+  const fetchCategorySubcategories = useCallback(async (categoryId) => {
+    try {
+      const response = await adminFetch(`${API_BASE}/categories/${categoryId}/subcategories`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch subcategories');
+      }
+      const data = await response.json();
+      const subcategories = Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : [];
+
+      setCategories((prev) => prev.map((category) => {
+        if (category.id !== categoryId) return category;
+        return {
+          ...category,
+          subcategories,
+          numSubcategories: subcategories.length
+        };
+      }));
+    } catch (error) {
+      console.error('Failed to fetch subcategories', error);
+      alert('خطا در دریافت زیرگروه‌ها');
+    }
+  }, [API_BASE, adminFetch]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
   const resetCategoryForm = () => {
     setNewCategory({
       title: '',
@@ -7542,39 +7658,106 @@ const Amain = () => {
     }));
   };
 
-  const handleCreateCategory = () => {
+  const loadIconOptions = useCallback(async () => {
+    if (iconOptions.length > 0) return;
+
+    setIsIconListLoading(true);
+    setIconListError('');
+    try {
+      const response = await fetch(withBasePath('/assets/icons/icons.json'));
+      if (!response.ok) {
+        throw new Error('Failed to fetch icons');
+      }
+      const data = await response.json();
+      setIconOptions(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to load icon list', error);
+      setIconListError('خطا در دریافت لیست آیکون‌ها');
+    } finally {
+      setIsIconListLoading(false);
+    }
+  }, [iconOptions.length]);
+
+  const openIconPicker = useCallback((target) => {
+    setIconPickerTarget(target);
+    setIconSearchTerm('');
+    setIsIconPickerOpen(true);
+    loadIconOptions();
+  }, [loadIconOptions]);
+
+  const closeIconPicker = useCallback(() => {
+    setIsIconPickerOpen(false);
+    setIconPickerTarget(null);
+    setIconSearchTerm('');
+  }, []);
+
+  const handleIconSelect = useCallback((filename) => {
+    if (iconPickerTarget === 'edit') {
+      setEditCategoryData((prev) => ({ ...prev, icon: filename }));
+      setIsIconUploaded(true);
+    } else {
+      setNewCategory((prev) => ({ ...prev, image: filename }));
+    }
+    closeIconPicker();
+  }, [closeIconPicker, iconPickerTarget]);
+
+  const filteredIconOptions = useMemo(() => {
+    const normalizedSearch = iconSearchTerm.trim().toLowerCase();
+    if (!normalizedSearch) return iconOptions;
+    return iconOptions.filter((icon) => icon.toLowerCase().includes(normalizedSearch));
+  }, [iconOptions, iconSearchTerm]);
+
+  const handleCreateCategory = async () => {
     if (!newCategory.title.trim()) {
       alert('عنوان دسته بندی الزامی است');
       return;
     }
 
-    // Create image URL from file
-    let imageUrl = null;
-    if (newCategory.image instanceof File) {
-      imageUrl = URL.createObjectURL(newCategory.image);
-    } else if (typeof newCategory.image === 'string') {
-      imageUrl = newCategory.image;
-    }
-
-    const categoryData = {
-      id: Date.now(),
+    const payload = {
       title: newCategory.title,
       description: newCategory.description,
-      image: imageUrl, // Use the created URL
-      icon: newCategory.image, // Keep original file reference
-      createdAt: formatJalaliDate(new Date()),
-      subcategories: newCategory.subcategories || [],
       status: newCategory.status,
-      numSubcategories: newCategory.subcategories?.length || 0,
-      languageTitles: { ...categoryLanguageTitles }
+      languageTitles: { ...categoryLanguageTitles },
+      subcategories: (newCategory.subcategories || []).map((subcategory) => ({
+        title: subcategory.title
+      }))
     };
+    if (isPlainIconName(newCategory.image)) {
+      payload.image = newCategory.image;
+    }
 
-    setCategories([...categories, categoryData]);
+    try {
+      let response;
+      if (newCategory.image instanceof File) {
+        const formData = new FormData();
+        formData.append('image', newCategory.image);
+        formData.append('payload', JSON.stringify(payload));
+        response = await adminFetch(`${API_BASE}/categories`, {
+          method: 'POST',
+          body: formData
+        });
+      } else {
+        response = await adminFetch(`${API_BASE}/categories`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+      }
 
-    // Close modal and reset form
-    setIsCreateCategoryModalOpen(false);
-    resetCategoryForm();
-    toast.success('دسته بندی با موفقیت ایجاد شد');
+      if (!response.ok) {
+        throw new Error('Failed to create category');
+      }
+
+      setIsCreateCategoryModalOpen(false);
+      resetCategoryForm();
+      toast.success('دسته بندی با موفقیت ایجاد شد');
+      fetchCategories();
+    } catch (error) {
+      console.error('Failed to create category', error);
+      alert('خطا در ایجاد دسته بندی');
+    }
   };
 
   const handleDeleteCategory = (id) => {
@@ -7582,18 +7765,44 @@ const Amain = () => {
     setIsDeleteModalOpen(true);
   };
 
-  const confirmDeleteCategory = () => {
-    setCategories(categories.filter(cat => cat.id !== categoryToDelete));
-    setIsDeleteModalOpen(false);
-    setCategoryToDelete(null);
+  const confirmDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+
+    try {
+      const response = await adminFetch(`${API_BASE}/categories/${categoryToDelete}`, {
+        method: 'DELETE'
+      });
+
+      if (response.status === 409) {
+        alert('امکان حذف این دسته بندی وجود ندارد');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to delete category');
+      }
+
+      setIsDeleteModalOpen(false);
+      setCategoryToDelete(null);
+      fetchCategories();
+    } catch (error) {
+      console.error('Failed to delete category', error);
+      alert('خطا در حذف دسته بندی');
+    }
   };
 
   const toggleCategoryExpand = (id) => {
     if (expandedCategories.includes(id)) {
       setExpandedCategories(expandedCategories.filter(catId => catId !== id));
-    } else {
-      setExpandedCategories([...expandedCategories, id]);
+      return;
     }
+
+    const targetCategory = categories.find((category) => category.id === id);
+    if (targetCategory && !Array.isArray(targetCategory.subcategories)) {
+      fetchCategorySubcategories(id);
+    }
+
+    setExpandedCategories([...expandedCategories, id]);
   };
 
   const handleEditCategory = (category) => {
@@ -7601,7 +7810,7 @@ const Amain = () => {
     setEditCategoryData({
       title: category.title,
       description: category.description || '',
-      icon: category.icon || null,
+      icon: category.image || null,
       status: category.status || 'active'
     });
 
@@ -7612,210 +7821,170 @@ const Amain = () => {
       urdu: category.languageTitles?.urdu || ''
     });
 
-    setIsIconUploaded(!!category.icon);
+    setIsIconUploaded(!!category.image);
     setIsEditCategoryModalOpen(true);
   };
 
-  const handleUpdateCategory = () => {
+  const handleUpdateCategory = async () => {
     if (!editCategoryData.title.trim()) {
       alert('عنوان دسته بندی الزامی است');
       return;
     }
 
-    // Create a proper image URL from the icon file
-    let imageUrl = editCategoryData.icon;
-
-    // If icon is a File object, create object URL
-    if (editCategoryData.icon instanceof File) {
-      imageUrl = URL.createObjectURL(editCategoryData.icon);
+    const payload = {
+      title: editCategoryData.title,
+      description: editCategoryData.description,
+      status: editCategoryData.status,
+      languageTitles: { ...editCategoryLanguageTitles }
+    };
+    if (isPlainIconName(editCategoryData.icon)) {
+      payload.image = editCategoryData.icon;
     }
-    // If it's already a string URL, keep it
-    // If it's null/undefined, keep as null
 
-    setCategories(categories.map(category => {
-      if (category.id === editingCategoryId) {
-        return {
-          ...category,
-          title: editCategoryData.title,
-          description: editCategoryData.description,
-          image: imageUrl, // Make sure we save the proper image URL
-          icon: editCategoryData.icon, // Keep the original reference
-          status: editCategoryData.status,
-          languageTitles: { ...editCategoryLanguageTitles }
-        };
-      }
-      return category;
-    }));
-
-    // Reset form and close modal
-    setIsEditCategoryModalOpen(false);
-    setEditCategoryData({
-      title: '',
-      description: '',
-      icon: null,
-      status: 'active'
-    });
-    setEditCategoryLanguageTitles({
-      english: '',
-      arabic: '',
-      urdu: ''
-    });
-    setEditingCategoryId(null);
-    setIsIconUploaded(false);
-    toast.success('دسته بندی با موفقیت ویرایش شد');
-  };
-
-  const handleIconUpload = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
-        alert('فقط فایل‌های JPEG و PNG مجاز هستند');
-        return;
+    try {
+      let response;
+      if (editCategoryData.icon instanceof File) {
+        const formData = new FormData();
+        formData.append('image', editCategoryData.icon);
+        formData.append('payload', JSON.stringify(payload));
+        response = await adminFetch(`${API_BASE}/categories/${editingCategoryId}`, {
+          method: 'PUT',
+          body: formData
+        });
+      } else {
+        response = await adminFetch(`${API_BASE}/categories/${editingCategoryId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
       }
 
-      // Validate file size (max 2MB)
-      if (file.size > 2 * 1024 * 1024) {
-        alert('حجم فایل نباید بیشتر از ۲ مگابایت باشد');
-        return;
+      if (!response.ok) {
+        throw new Error('Failed to update category');
       }
 
-      setEditCategoryData({ ...editCategoryData, icon: file });
-      setIsIconUploaded(true);
+      setIsEditCategoryModalOpen(false);
+      setEditCategoryData({
+        title: '',
+        description: '',
+        icon: null,
+        status: 'active'
+      });
+      setEditCategoryLanguageTitles({
+        english: '',
+        arabic: '',
+        urdu: ''
+      });
+      setEditingCategoryId(null);
+      setIsIconUploaded(false);
+      toast.success('دسته بندی با موفقیت ویرایش شد');
+      fetchCategories();
+    } catch (error) {
+      console.error('Failed to update category', error);
+      alert('خطا در ویرایش دسته بندی');
     }
   };
 
-  const handleAddSubcategoryInModal = () => {
+  const handleAddSubcategoryInModal = async () => {
     const subcategoryTitle = prompt('عنوان زیرگروه را وارد کنید:');
     if (!subcategoryTitle) return;
 
-    const newSubcategory = {
-      id: Date.now(),
-      title: subcategoryTitle,
-      parentId: editingCategoryId,
-      createdAt: formatJalaliDate(new Date()),
-      status: 'active'
-    };
+    try {
+    const response = await adminFetch(`${API_BASE}/categories/${editingCategoryId}/subcategories`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title: subcategoryTitle })
+      });
 
-    const updatedCategories = categories.map(category => {
-      if (category.id === editingCategoryId) {
-        const existingSubcategories = category.subcategories || [];
-        return {
-          ...category,
-          subcategories: [...existingSubcategories, newSubcategory],
-          numSubcategories: existingSubcategories.length + 1
-        };
+      if (!response.ok) {
+        throw new Error('Failed to add subcategory');
       }
-      return category;
-    });
 
-    setCategories(updatedCategories);
-    alert('زیرگروه با موفقیت اضافه شد');
+      await fetchCategorySubcategories(editingCategoryId);
+      alert('زیرگروه با موفقیت اضافه شد');
+    } catch (error) {
+      console.error('Failed to add subcategory', error);
+      alert('خطا در افزودن زیرگروه');
+    }
   };
 
-  const handleAddSubcategory = (parentId) => {
+  const handleAddSubcategory = async (parentId) => {
     const parentCategory = categories.find(cat => cat.id === parentId);
     if (!parentCategory) return;
 
     const subcategoryTitle = prompt('عنوان زیرگروه را وارد کنید:');
     if (!subcategoryTitle) return;
 
-    const newSubcategory = {
-      id: Date.now(),
-      title: subcategoryTitle,
-      parentId: parentId,
-      createdAt: formatJalaliDate(new Date()),
-      status: 'active'
-    };
+    try {
+    const response = await adminFetch(`${API_BASE}/categories/${parentId}/subcategories`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title: subcategoryTitle })
+      });
 
-    const updatedCategories = categories.map(cat => {
-      if (cat.id === parentId) {
-        return {
-          ...cat,
-          subcategories: [...(cat.subcategories || []), newSubcategory],
-          numSubcategories: (cat.subcategories || []).length + 1
-        };
+      if (!response.ok) {
+        throw new Error('Failed to add subcategory');
       }
-      return cat;
-    });
 
-    setCategories(updatedCategories);
+      await fetchCategorySubcategories(parentId);
+    } catch (error) {
+      console.error('Failed to add subcategory', error);
+      alert('خطا در افزودن زیرگروه');
+    }
   };
 
-  const handleEditSubcategory = (subcategory) => {
+  const handleEditSubcategory = async (subcategory) => {
     const newTitle = prompt('عنوان جدید زیرگروه را وارد کنید:', subcategory.title);
     if (!newTitle) return;
 
-    const updatedCategories = categories.map(cat => {
-      if (cat.id === subcategory.parentId) {
-        return {
-          ...cat,
-          subcategories: cat.subcategories.map(sub =>
-            sub.id === subcategory.id ? { ...sub, title: newTitle } : sub
-          )
-        };
-      }
-      return cat;
-    });
+    try {
+    const response = await adminFetch(`${API_BASE}/subcategories/${subcategory.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title: newTitle })
+      });
 
-    setCategories(updatedCategories);
+      if (!response.ok) {
+        throw new Error('Failed to update subcategory');
+      }
+
+      await fetchCategorySubcategories(subcategory.parentId);
+    } catch (error) {
+      console.error('Failed to update subcategory', error);
+      alert('خطا در ویرایش زیرگروه');
+    }
   };
 
 
-  const handleDeleteSubcategory = (subcategory) => {
-    const updatedCategories = categories.map(cat => {
-      if (cat.id === subcategory.parentId) {
-        return {
-          ...cat,
-          subcategories: cat.subcategories.filter(sub => sub.id !== subcategory.id),
-          numSubcategories: cat.subcategories.length - 1
-        };
-      }
-      return cat;
-    });
+  const handleDeleteSubcategory = async (subcategory) => {
+    try {
+      const response = await adminFetch(`${API_BASE}/subcategories/${subcategory.id}`, {
+        method: 'DELETE'
+      });
 
-    setCategories(updatedCategories);
+      if (!response.ok) {
+        throw new Error('Failed to delete subcategory');
+      }
+
+      await fetchCategorySubcategories(subcategory.parentId);
+    } catch (error) {
+      console.error('Failed to delete subcategory', error);
+      alert('خطا در حذف زیرگروه');
+    }
   };
-
-  // Initialize sample data
-  useEffect(() => {
-    // Sample categories data
-    const sampleCategories = [
-      {
-        id: 1,
-        title: 'صحن حرم',
-        description: "",
-        createdAt: '۱۸ مرداد ۱۴۰۴',
-        numSubcategories: 4,
-        status: 'active',
-        subcategories: [
-          { id: 11, title: 'صحن انقلاب اسلامی', parentId: 1, createdAt: '۱۸ مرداد ۱۴۰۴', status: 'active' },
-          { id: 12, title: 'صحن آزادی', parentId: 1, createdAt: '۱۸ مرداد ۱۴۰۴', status: 'active' },
-          { id: 13, title: 'صحن امام حسن مجتبی (ع)', parentId: 1, createdAt: '۱۸ مرداد ۱۴۰۴', status: 'active' },
-          { id: 14, title: 'صحن جمهوری', parentId: 1, createdAt: '۱۸ مرداد ۱۴۰۴', status: 'active' }
-        ]
-      },
-      {
-        id: 2,
-        title: 'رواق ها',
-        description: "",
-        createdAt: '۲۰ مرداد ۱۴۰۴',
-        numSubcategories: 2,
-        status: 'active',
-        subcategories: [
-          { id: 21, title: 'رواق دارالحجه', parentId: 2, createdAt: '۲۰ مرداد ۱۴۰۴', status: 'active' },
-          { id: 22, title: 'رواق دارالولایه', parentId: 2, createdAt: '۲۰ مرداد ۱۴۰۴', status: 'active' }
-        ]
-      }
-    ];
-
-    setCategories(sampleCategories);
-  }, []);
 
   // Filter categories based on search
   const filteredCategories = categories.filter(category =>
     category.title.toLowerCase().includes(categorySearchTerm.toLowerCase()) ||
-    category.description.toLowerCase().includes(categorySearchTerm.toLowerCase())
+    (category.description || '').toLowerCase().includes(categorySearchTerm.toLowerCase())
   );
 
   const handleDaySelect = (day) => {
@@ -9506,10 +9675,6 @@ const Amain = () => {
                   </thead>
                   <tbody>
                     {filteredCategories
-                      .slice(
-                        (categoryCurrentPage - 1) * categoryItemsPerPage,
-                        categoryCurrentPage * categoryItemsPerPage
-                      )
                       .map(category => (
                         <React.Fragment key={category.id}>
                           <tr key={category.id}>
@@ -9542,32 +9707,30 @@ const Amain = () => {
                               </div>
                             </td>
                             <td>
-                              <td>
-                                <div className="category-image-cell">
-                                  {category.image ? (
-                                    <div className="category-icon-wrapper">
-                                      <img
-                                        src={category.image}
-                                        alt={category.title}
-                                        className="category-icon-image"
-                                        onError={(e) => {
-                                          e.target.style.display = 'none';
-                                          // Show fallback if image fails to load
-                                          const fallback = e.target.parentElement?.querySelector('.category-icon-fallback');
-                                          if (fallback) fallback.style.display = 'flex';
-                                        }}
-                                      />
-                                      <div className="category-icon-fallback" style={{ display: 'none' }}>
-                                        <span>تصویر</span>
-                                      </div>
+                              <div className="category-image-cell">
+                                {category.image ? (
+                                  <div className="category-icon-wrapper">
+                                    <img
+                                      src={buildIconUrl(category.image)}
+                                      alt={category.title}
+                                      className="category-icon-image"
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        // Show fallback if image fails to load
+                                        const fallback = e.target.parentElement?.querySelector('.category-icon-fallback');
+                                        if (fallback) fallback.style.display = 'flex';
+                                      }}
+                                    />
+                                    <div className="category-icon-fallback" style={{ display: 'none' }}>
+                                      <span>تصویر</span>
                                     </div>
-                                  ) : (
-                                    <div className="category-image-placeholder">
-                                      بدون تصویر
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
+                                  </div>
+                                ) : (
+                                  <div className="category-image-placeholder">
+                                    بدون تصویر
+                                  </div>
+                                )}
+                              </div>
                             </td>
                             <td>{category.createdAt}</td>
                             <td>
@@ -9695,22 +9858,22 @@ const Amain = () => {
 
                     <div className="btc">
                       <button
-                        className={`pagination-btn ${categoryCurrentPage === Math.ceil(filteredCategories.length / categoryItemsPerPage) ? 'disabled' : ''}`}
+                        className={`pagination-btn ${categoryCurrentPage === Math.ceil(categoryTotalItems / categoryItemsPerPage) ? 'disabled' : ''}`}
                         onClick={() => handleCategoryPageChange(categoryCurrentPage + 1)}
-                        disabled={categoryCurrentPage === Math.ceil(filteredCategories.length / categoryItemsPerPage)}
+                        disabled={categoryCurrentPage === Math.ceil(categoryTotalItems / categoryItemsPerPage)}
                       >
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path fillRule="evenodd" clipRule="evenodd" d="M10.3254 2.95375C10.1157 2.77404 9.80007 2.79832 9.62036 3.00799L5.62036 7.67465C5.45987 7.8619 5.45987 8.1382 5.62036 8.32544L9.62036 12.9921C9.80007 13.2018 10.1157 13.2261 10.3254 13.0463C10.535 12.8666 10.5593 12.551 10.3796 12.3413L6.65853 8.00005L10.3796 3.65878C10.5593 3.44912 10.535 3.13347 10.3254 2.95375Z" fill={categoryCurrentPage === Math.ceil(filteredCategories.length / categoryItemsPerPage) ? "#C5C5C5" : "#0F71EF"} />
+                          <path fillRule="evenodd" clipRule="evenodd" d="M10.3254 2.95375C10.1157 2.77404 9.80007 2.79832 9.62036 3.00799L5.62036 7.67465C5.45987 7.8619 5.45987 8.1382 5.62036 8.32544L9.62036 12.9921C9.80007 13.2018 10.1157 13.2261 10.3254 13.0463C10.535 12.8666 10.5593 12.551 10.3796 12.3413L6.65853 8.00005L10.3796 3.65878C10.5593 3.44912 10.535 3.13347 10.3254 2.95375Z" fill={categoryCurrentPage === Math.ceil(categoryTotalItems / categoryItemsPerPage) ? "#C5C5C5" : "#0F71EF"} />
                         </svg>
                       </button>
 
                       <button
-                        className={`pagination-btn ${categoryCurrentPage === Math.ceil(filteredCategories.length / categoryItemsPerPage) ? 'disabled' : ''}`}
-                        onClick={() => handleCategoryPageChange(Math.ceil(filteredCategories.length / categoryItemsPerPage))}
-                        disabled={categoryCurrentPage === Math.ceil(filteredCategories.length / categoryItemsPerPage)}
+                        className={`pagination-btn ${categoryCurrentPage === Math.ceil(categoryTotalItems / categoryItemsPerPage) ? 'disabled' : ''}`}
+                        onClick={() => handleCategoryPageChange(Math.ceil(categoryTotalItems / categoryItemsPerPage))}
+                        disabled={categoryCurrentPage === Math.ceil(categoryTotalItems / categoryItemsPerPage)}
                       >
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path fillRule="evenodd" clipRule="evenodd" d="M11.6584 2.95363C11.4487 2.77392 11.1331 2.7982 10.9534 3.00787L6.95337 7.67453C6.79287 7.86178 6.79287 8.13808 6.95337 8.32532L10.9534 12.992C11.1331 13.2017 11.4487 13.2259 11.6584 13.0462C11.8681 12.8665 11.8923 12.5509 11.7126 12.3412L7.99154 7.99993L11.7126 3.65866C11.8923 3.44899 11.8681 3.13334 11.6584 2.95363ZM8.9916 2.9537C8.78193 2.77399 8.46628 2.79827 8.28657 3.00793L4.28657 7.6746C4.12608 7.86185 4.12608 8.13815 4.28657 8.32539L8.28657 12.9921C8.46628 13.2017 8.78193 13.226 8.9916 13.0463C9.20126 12.8666 9.22554 12.5509 9.04583 12.3413L5.32474 8L9.04583 3.65873C9.22554 3.44906 9.20126 3.13341 8.9916 2.9537Z" fill={categoryCurrentPage === Math.ceil(filteredCategories.length / categoryItemsPerPage) ? "#C5C5C5" : "#0F71EF"} />
+                          <path fillRule="evenodd" clipRule="evenodd" d="M11.6584 2.95363C11.4487 2.77392 11.1331 2.7982 10.9534 3.00787L6.95337 7.67453C6.79287 7.86178 6.79287 8.13808 6.95337 8.32532L10.9534 12.992C11.1331 13.2017 11.4487 13.2259 11.6584 13.0462C11.8681 12.8665 11.8923 12.5509 11.7126 12.3412L7.99154 7.99993L11.7126 3.65866C11.8923 3.44899 11.8681 3.13334 11.6584 2.95363ZM8.9916 2.9537C8.78193 2.77399 8.46628 2.79827 8.28657 3.00793L4.28657 7.6746C4.12608 7.86185 4.12608 8.13815 4.28657 8.32539L8.28657 12.9921C8.46628 13.2017 8.78193 13.226 8.9916 13.0463C9.20126 12.8666 9.22554 12.5509 9.04583 12.3413L5.32474 8L9.04583 3.65873C9.22554 3.44906 9.20126 3.13341 8.9916 2.9537Z" fill={categoryCurrentPage === Math.ceil(categoryTotalItems / categoryItemsPerPage) ? "#C5C5C5" : "#0F71EF"} />
                         </svg>
                       </button>
                     </div>
@@ -10659,14 +10822,14 @@ const Amain = () => {
                             </span>
                           </td>
                           <td>
-                            <td>
+                            <div>
                               <button className="details-btn" onClick={() => handleDetailsClick(user)}>
                                 جزئیات بیشتر
                                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
                                   <path fillRule="evenodd" clipRule="evenodd" d="M11.0176 3.63828C11.2404 3.82922 11.2662 4.1646 11.0752 4.38737L7.12156 8.99997L11.0752 13.6126C11.2662 13.8353 11.2404 14.1707 11.0176 14.3617C10.7948 14.5526 10.4595 14.5268 10.2685 14.304L6.01851 9.3457C5.84798 9.14675 5.84798 8.85318 6.01851 8.65424L10.2685 3.6959C10.4595 3.47314 10.7948 3.44734 11.0176 3.63828Z" fill="#1E2023" />
                                 </svg>
                               </button>
-                            </td>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -11928,7 +12091,7 @@ const Amain = () => {
                       {editCategoryData.icon ? (
                         <div className="icon-preview-image">
                           <img
-                            src={typeof editCategoryData.icon === 'string' ? editCategoryData.icon : URL.createObjectURL(editCategoryData.icon)}
+                            src={editCategoryData.icon instanceof File ? URL.createObjectURL(editCategoryData.icon) : buildIconUrl(editCategoryData.icon)}
                             alt="آیکون دسته بندی"
                             className="icon-preview-img"
                             onError={(e) => {
@@ -11951,16 +12114,13 @@ const Amain = () => {
                       )}
                     </div>
                     <div className="icon-upload-actions">
-                      <input
-                        type="file"
-                        id="icon-upload"
-                        accept="image/jpeg,image/png"
-                        onChange={handleIconUpload}
-                        className="hidden-file-input"
-                      />
-                      <label htmlFor="icon-upload" className="upload-icon-btn">
+                      <button
+                        type="button"
+                        className="upload-icon-btn"
+                        onClick={() => openIconPicker('edit')}
+                      >
                         {editCategoryData.icon ? 'تغییر نماد' : 'ایجاد نماد'}
-                      </label>
+                      </button>
                       {editCategoryData.icon && (
                         <button
                           className="remove-icon-btn"
@@ -12133,7 +12293,7 @@ const Amain = () => {
                     {newCategory.image ? (
                       <div className="icon-preview-wrapper">
                         <img
-                          src={typeof newCategory.image === 'string' ? newCategory.image : URL.createObjectURL(newCategory.image)}
+                          src={newCategory.image instanceof File ? URL.createObjectURL(newCategory.image) : buildIconUrl(newCategory.image)}
                           alt="آیکون دسته بندی"
                           className="icon-preview"
                         />
@@ -12148,33 +12308,16 @@ const Amain = () => {
                       </div>
                     ) : (
                       <>
-                        <input
-                          type="file"
-                          id="new-icon-upload"
-                          accept="image/jpeg,image/png"
-                          onChange={(e) => {
-                            const file = e.target.files[0];
-                            if (file) {
-                              if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
-                                alert('فقط فایل‌های JPEG و PNG مجاز هستند');
-                                return;
-                              }
-                              if (file.size > 2 * 1024 * 1024) {
-                                alert('حجم فایل نباید بیشتر از ۲ مگابایت باشد');
-                                return;
-                              }
-                              setNewCategory({ ...newCategory, image: file });
-                            }
-                            e.target.value = ''; // Reset input
-                          }}
-                          className="hidden-file-input"
-                        />
-                        <label htmlFor="new-icon-upload" className="select-icon-btn">
+                        <button
+                          type="button"
+                          className="select-icon-btn"
+                          onClick={() => openIconPicker('new')}
+                        >
                           انتخاب نماد
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M16.6667 11.6667H11.6667V16.6667H8.33333V11.6667H3.33333V8.33333H8.33333V3.33333H11.6667V8.33333H16.6667V11.6667Z" fill="white" />
                           </svg>
-                        </label>
+                        </button>
                       </>
                     )}
                   </div>
@@ -12246,6 +12389,54 @@ const Amain = () => {
               >
                 تایید و ایجاد
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isIconPickerOpen && (
+        <div className="modal-overlay">
+          <div className="icon-picker-modal">
+            <div className="modal-header">
+              <h3>انتخاب نماد</h3>
+              <button className="modal-close-btn" onClick={closeIconPicker} type="button">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6 6L18 18M6 18L18 6" stroke="#333" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+            <div className="icon-picker-body">
+              <div className="icon-picker-search">
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="جستجوی آیکون..."
+                  value={iconSearchTerm}
+                  onChange={(event) => setIconSearchTerm(event.target.value)}
+                />
+              </div>
+              {isIconListLoading ? (
+                <div className="icon-picker-status">در حال بارگذاری...</div>
+              ) : iconListError ? (
+                <div className="icon-picker-status error">{iconListError}</div>
+              ) : (
+                <div className="icon-picker-grid">
+                  {filteredIconOptions.map((icon) => (
+                    <button
+                      type="button"
+                      key={icon}
+                      className="icon-picker-item"
+                      onClick={() => handleIconSelect(icon)}
+                    >
+                      <img src={buildIconUrl(icon)} alt={icon} />
+                      <span>{icon}</span>
+                    </button>
+                  ))}
+                  {filteredIconOptions.length === 0 && (
+                    <div className="icon-picker-empty">آیکونی یافت نشد.</div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
