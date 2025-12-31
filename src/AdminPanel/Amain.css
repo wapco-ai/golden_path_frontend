@@ -5077,6 +5077,7 @@ body {
   border-radius: 16px;
   width: 680px;
   max-width: 92vw;
+  height: 80vh;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
@@ -5084,11 +5085,25 @@ body {
   box-shadow: 0 10px 35px rgba(0, 0, 0, 0.15);
 }
 
+.icon-picker-modal .modal-header {
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: white;
+}
+
 .icon-picker-body {
   padding: 20px 24px 24px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .icon-picker-search .form-input {
@@ -5099,7 +5114,9 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
   gap: 12px;
-  max-height: 360px;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
   overflow-y: auto;
   padding-right: 4px;
 }
