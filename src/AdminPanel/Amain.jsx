@@ -7723,14 +7723,14 @@ const Amain = () => {
       }))
     };
     if (isPlainIconName(newCategory.image)) {
-      payload.image = newCategory.image;
+      payload.icon = newCategory.image;
     }
 
     try {
       let response;
       if (newCategory.image instanceof File) {
         const formData = new FormData();
-        formData.append('image', newCategory.image);
+        formData.append('icon', newCategory.image);
         formData.append('payload', JSON.stringify(payload));
         response = await adminFetch(`${API_BASE}/categories`, {
           method: 'POST',
@@ -7838,14 +7838,14 @@ const Amain = () => {
       languageTitles: { ...editCategoryLanguageTitles }
     };
     if (isPlainIconName(editCategoryData.icon)) {
-      payload.image = editCategoryData.icon;
+      payload.icon = editCategoryData.icon;
     }
 
     try {
       let response;
       if (editCategoryData.icon instanceof File) {
         const formData = new FormData();
-        formData.append('image', editCategoryData.icon);
+        formData.append('icon', editCategoryData.icon);
         formData.append('payload', JSON.stringify(payload));
         response = await adminFetch(`${API_BASE}/categories/${editingCategoryId}`, {
           method: 'PUT',
