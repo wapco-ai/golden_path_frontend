@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useIntl } from 'react-intl';
 import axios from 'axios';
@@ -14,9 +13,11 @@ import { fetchLandmarkPlaces } from '../services/landmarkService';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const MapBeginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const intl = useIntl();
   const language = useLangStore(state => state.language);
   const { accessToken, user } = useUserAuthStore();
@@ -243,39 +244,39 @@ const MapBeginPage = () => {
 
   const handleModalTouchMove = (e) => {
     if (!isModalDragging) return;
-
+  
     const touchY = e.touches[0].clientY;
-
+  
+    // Prevent default to stop page reload/pull-to-refresh
+    e.preventDefault();
+  
     // If we're in fully expanded mode and trying to scroll down, allow scrolling
     if (expandedSearch && !preventScroll) {
       return;
     }
-
-    // Prevent default to stop scrolling
-    e.preventDefault();
-
+  
     const currentTime = Date.now();
     const deltaTime = currentTime - modalLastTouchTime;
-
+  
     if (deltaTime > 0) {
       const deltaY = modalLastTouchY - touchY;
       const newVelocity = deltaY / deltaTime;
       setModalVelocity(newVelocity);
     }
-
+  
     const deltaY = modalDragStartY - touchY;
     const newHeight = modalDragStartHeight + deltaY;
-
+  
     let resistance = 1;
     if (newHeight < 140) {
       resistance = 0.3 + (0.7 * (newHeight / 140));
     } else if (newHeight > window.innerHeight) {
       resistance = 0.3 + (0.7 * (window.innerHeight / newHeight));
     }
-
+  
     const clampedHeight = Math.max(80, Math.min(newHeight * resistance, window.innerHeight * 1.1));
     setCurrentHeight(clampedHeight);
-
+  
     setModalLastTouchY(touchY);
     setModalLastTouchTime(currentTime);
   };
@@ -458,9 +459,12 @@ const MapBeginPage = () => {
     setLastTouchTime(Date.now());
     setVelocity(0);
   };
+  
 
   const handleTouchMove = (e) => {
     if (!isDragging) return;
+    
+    e.preventDefault();
 
     const touchY = e.touches[0].clientY;
     const currentTime = Date.now();
@@ -910,7 +914,8 @@ const MapBeginPage = () => {
       navigate('/profile');
       return;
     }
-
+    
+    localStorage.setItem('profile_origin_page', location.pathname);
     navigate('/login');
   };
 

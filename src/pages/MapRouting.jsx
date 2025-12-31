@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useUserAuthStore } from '../auth/user/userAuthStore';
 import { FormattedMessage, useIntl } from 'react-intl';
 import Mprc from '../components/map/Mprc';
 import { useRouteStore } from '../store/routeStore';
@@ -19,6 +20,8 @@ import { fetchLandmarkPlaces } from '../services/landmarkService';
 const MapRoutingPage = () => {
   const navigate = useNavigate();
   const intl = useIntl();
+  const location = useLocation()
+  const { accessToken, user } = useUserAuthStore();
   const language = useLangStore(state => state.language);
   const [showDestinationModal, setShowDestinationModal] = useState(false);
   const [showOriginModal, setShowOriginModal] = useState(false);
@@ -67,7 +70,7 @@ const MapRoutingPage = () => {
 
     if (storedLat && storedLng) {
       const coordinates = [parseFloat(storedLat), parseFloat(storedLng)];
-      
+
 
       if (storedId) {
         getLocationTitleById(storedId).then((title) => {
@@ -600,43 +603,43 @@ const MapRoutingPage = () => {
   };
 
 
-useEffect(() => {
-  const locationSelectionType = sessionStorage.getItem('locationSelectionType');
-  const locationFromPage = sessionStorage.getItem('locationFromPage');
-  
-  if (locationSelectionType && locationFromPage) {
-    try {
-      const locationData = JSON.parse(locationFromPage);
-      
-      if (locationSelectionType === 'origin') {
+  useEffect(() => {
+    const locationSelectionType = sessionStorage.getItem('locationSelectionType');
+    const locationFromPage = sessionStorage.getItem('locationFromPage');
 
-        setIsTracking(false);
-        setUserLocation({
-          name: locationData.name,
-          coordinates: locationData.coordinates
-        });
-        sessionStorage.setItem('currentOrigin', JSON.stringify(locationData));
-      } else if (locationSelectionType === 'destination') {
+    if (locationSelectionType && locationFromPage) {
+      try {
+        const locationData = JSON.parse(locationFromPage);
 
-        setSelectedDestination({
-          name: locationData.name,
-          location: locationData.location || locationData.name,
-          coordinates: locationData.coordinates
-        });
-        sessionStorage.setItem('currentDestination', JSON.stringify(locationData));
+        if (locationSelectionType === 'origin') {
+
+          setIsTracking(false);
+          setUserLocation({
+            name: locationData.name,
+            coordinates: locationData.coordinates
+          });
+          sessionStorage.setItem('currentOrigin', JSON.stringify(locationData));
+        } else if (locationSelectionType === 'destination') {
+
+          setSelectedDestination({
+            name: locationData.name,
+            location: locationData.location || locationData.name,
+            coordinates: locationData.coordinates
+          });
+          sessionStorage.setItem('currentDestination', JSON.stringify(locationData));
+        }
+
+
+        sessionStorage.removeItem('locationSelectionType');
+        sessionStorage.removeItem('locationFromPage');
+
+      } catch (err) {
+        console.error('Failed to parse location data from session', err);
+        sessionStorage.removeItem('locationSelectionType');
+        sessionStorage.removeItem('locationFromPage');
       }
-      
-
-      sessionStorage.removeItem('locationSelectionType');
-      sessionStorage.removeItem('locationFromPage');
-      
-    } catch (err) {
-      console.error('Failed to parse location data from session', err);
-      sessionStorage.removeItem('locationSelectionType');
-      sessionStorage.removeItem('locationFromPage');
     }
-  }
-}, []);
+  }, []);
 
   // NEW: Handle entry selection
   const handleEntrySelect = (entryNumber) => {
@@ -804,13 +807,13 @@ useEffect(() => {
         location: userLocation.location || userLocation.name,
         coordinates: userLocation.coordinates
       };
-  
+
       setSelectedDestination(destData);
       sessionStorage.setItem('currentDestination', JSON.stringify(destData));
-  
+
       setUserLocation(null);
       sessionStorage.removeItem('currentOrigin');
-  
+
       setIsTracking(false);
     }
     // Case 2: Only destination exists (after first swap)
@@ -820,13 +823,13 @@ useEffect(() => {
         coordinates: selectedDestination.coordinates,
         location: selectedDestination.location || selectedDestination.name
       };
-  
+
       setUserLocation(originData);
       sessionStorage.setItem('currentOrigin', JSON.stringify(originData));
-  
+
       setSelectedDestination(null);
       sessionStorage.removeItem('currentDestination');
-  
+
       setIsTracking(false);
     }
     // Case 3: Both origin and destination exist (normal swap)
@@ -836,19 +839,19 @@ useEffect(() => {
         coordinates: selectedDestination.coordinates,
         location: selectedDestination.location || selectedDestination.name
       };
-  
+
       const newDestination = {
         name: userLocation.name,
         coordinates: userLocation.coordinates,
         location: userLocation.location || userLocation.name
       };
-  
+
       setUserLocation(newOrigin);
       setSelectedDestination(newDestination);
-  
+
       sessionStorage.setItem('currentOrigin', JSON.stringify(newOrigin));
       sessionStorage.setItem('currentDestination', JSON.stringify(newDestination));
-  
+
       setIsTracking(false);
       setTimeout(() => setIsTracking(true), 100);
     }
@@ -856,7 +859,7 @@ useEffect(() => {
     else {
       return;
     }
-  
+
     // Rotation animation
     if (swapButtonRef.current) {
       swapButtonRef.current.classList.add('rotate');
@@ -1178,7 +1181,14 @@ useEffect(() => {
             ? intl.formatMessage({ id: 'mapSelectFromMap' })
             : intl.formatMessage({ id: 'mapRoutingTitle' })}
         </h1>
-        <button className="map-profile-button" onClick={() => navigate('/Profile')}>
+        <button className="map-profile-button" onClick={() => {
+          if (accessToken && user) {
+            navigate('/profile');
+          } else {
+            localStorage.setItem('profile_origin_page', location.pathname);
+            navigate('/login');
+          }
+        }}>
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="9.99984" cy="5" r="3.33333" fill="#1E2023" />
             <ellipse cx="9.99984" cy="14.1667" rx="5.83333" ry="3.33333" fill="#1E2023" />
@@ -1396,7 +1406,7 @@ useEffect(() => {
 
               {/* Origin Input */}
               <div className="map-current-location" onClick={() => handleInputClick('origin')}>
-                  <input
+                <input
                   type="text"
                   placeholder={intl.formatMessage({ id: 'originPlaceholder' })}
                   value={userLocation?.name || ''}

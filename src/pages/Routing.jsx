@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useUserAuthStore } from '../auth/user/userAuthStore';
 import { FormattedMessage, useIntl } from 'react-intl';
 import RouteMap from '../components/map/RouteMap';
 import DeadReckoningControls from '../components/map/DeadReckoningControls';
@@ -17,6 +18,8 @@ import { requestRouting } from '../services/routingService';
 const RoutingPage = () => {
   const intl = useIntl();
   const formatDigits = useLocaleDigits();
+  const location = useLocation()
+  const { accessToken, user } = useUserAuthStore();
   const routeMapRef = useRef(null);
   const audioRef = useRef(typeof Audio !== 'undefined' ? new Audio() : null);
   const audioUrlRef = useRef(null);
@@ -1563,7 +1566,14 @@ const RoutingPage = () => {
                     </svg>
 
                   </button>
-                  <button className="profile-button" onClick={() => navigate('/Profile')}>
+                  <button className="map-profile-button" onClick={() => {
+                    if (accessToken && user) {
+                      navigate('/profile');
+                    } else {
+                      localStorage.setItem('profile_origin_page', location.pathname);
+                      navigate('/login');
+                    }
+                  }}>
                     <svg width="22" height="22" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <circle cx="9.99984" cy="5" r="3.33333" fill="#1E2023" />
                       <ellipse cx="9.99984" cy="14.1667" rx="5.83333" ry="3.33333" fill="#1E2023" />

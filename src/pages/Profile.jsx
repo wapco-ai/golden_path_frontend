@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -7,13 +6,14 @@ import logo from '../assets/images/logo.png';
 import packageInfo from '../../package.json';
 import '../styles/Profile.css';
 import { createContext, useContext } from 'react';
-import { useLocation } from 'react-router-dom';
 import { useUserAuthStore, USER_REFRESH_TOKEN_KEY } from '../auth/user/userAuthStore';
 import { authLogout, getUserMe } from '../services/publicAuthApi';
 import mapApiError from '../services/apiErrorMapper';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 function Profile() {
   const navigate = useNavigate();
+  const location = useLocation();
   const intl = useIntl();
   const appVersion = packageInfo.version;
   const { clearSession, refreshToken } = useUserAuthStore();
@@ -59,6 +59,8 @@ function Profile() {
         setProfileError(mapped.message);
         if (err?.response?.status === 401) {
           clearSession();
+          // Store current path as origin before going to login
+          localStorage.setItem('profile_origin_page', location.pathname);
           navigate('/login');
         }
       } finally {
@@ -72,6 +74,17 @@ function Profile() {
   // Format phone number for display
   const formatPhoneNumber = (phone) => {
     return phone.startsWith('+98') ? phone : `${phone}`;
+  };
+
+  const handleBackNavigation = () => {
+    const originFromLogin = localStorage.getItem('profile_origin_page');
+    
+    if (originFromLogin && originFromLogin !== '/login' && originFromLogin !== '/') {
+      localStorage.removeItem('profile_origin_page');
+      navigate(originFromLogin);
+    } else {
+      navigate(-1);
+    }
   };
 
   // Get user display name
@@ -104,6 +117,8 @@ function Profile() {
       console.error('logout failed', err);
     } finally {
       clearSession();
+      // Clear any stored origin on logout
+      localStorage.removeItem('profile_origin_page');
       navigate('/login');
     }
   };
@@ -113,7 +128,7 @@ function Profile() {
       {/* Profile Header with Back Arrow */}
       <div className="profile-top">
         <div className="profile-header">
-          <button className="back-arrow10" onClick={() => navigate(-1)}>
+          <button className="back-arrow10" onClick={handleBackNavigation}>
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M3.33301 10H16.6663M16.6663 10L11.6663 5M16.6663 10L11.6663 15" stroke="#1E2023" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
