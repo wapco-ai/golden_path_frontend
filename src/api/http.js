@@ -4,8 +4,22 @@ import appConfig from '../config/appConfig';
 const getAdminToken = () => {
   if (typeof window === 'undefined') return null;
 
+  const sessionToken = sessionStorage.getItem('gp_admin_access_token');
+  if (sessionToken) return sessionToken;
+
   const directToken = localStorage.getItem('admin_access_token');
   if (directToken) return directToken;
+
+  const adminStoreRaw = localStorage.getItem('gp_admin_auth_store');
+  if (adminStoreRaw) {
+    try {
+      const parsed = JSON.parse(adminStoreRaw);
+      const accessToken = parsed?.state?.accessToken;
+      if (accessToken) return accessToken;
+    } catch (error) {
+      // Ignore malformed admin store payloads
+    }
+  }
 
   const adminSessionRaw = localStorage.getItem('adminSession');
   if (!adminSessionRaw) return null;
