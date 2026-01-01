@@ -4498,10 +4498,10 @@ const Amain = () => {
           id: SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID,
           type: 'fill',
           source: SELECTED_EDITABLE_FEATURE_SOURCE_ID,
-        paint: {
-          'fill-color': highlightColor,
-          'fill-opacity': 0.08
-        },
+          paint: {
+            'fill-color': highlightColor,
+            'fill-opacity': 0.08
+          },
           filter: [
             'match',
             ['geometry-type'],
@@ -7895,13 +7895,13 @@ const Amain = () => {
     if (!subcategoryTitle) return;
 
     try {
-    const response = await adminFetch(`${API_BASE}/categories/${editingCategoryId}/subcategories`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ title: subcategoryTitle, property_target: 'subGroup' })
-    });
+      const response = await adminFetch(`${API_BASE}/categories/${editingCategoryId}/subcategories`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title: subcategoryTitle, property_target: 'subGroup' })
+      });
 
       if (!response.ok) {
         throw new Error('Failed to add subcategory');
@@ -7923,13 +7923,13 @@ const Amain = () => {
     if (!subcategoryTitle) return;
 
     try {
-    const response = await adminFetch(`${API_BASE}/categories/${parentId}/subcategories`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ title: subcategoryTitle, property_target: 'subGroup' })
-    });
+      const response = await adminFetch(`${API_BASE}/categories/${parentId}/subcategories`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title: subcategoryTitle, property_target: 'subGroup' })
+      });
 
       if (!response.ok) {
         throw new Error('Failed to add subcategory');
@@ -7947,10 +7947,10 @@ const Amain = () => {
     if (!newTitle) return;
 
     try {
-    const response = await adminFetch(`${API_BASE}/subcategories/${subcategory.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
+      const response = await adminFetch(`${API_BASE}/subcategories/${subcategory.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ title: newTitle })
       });
@@ -8693,7 +8693,7 @@ const Amain = () => {
               </span>
               <span>تغییر رمز عبور</span>
             </div>
-            <div className="menu-item" onClick={handleSupportClick}>
+            {/* <div className="menu-item" onClick={handleSupportClick}>
               <span className="menu-icon">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path fillRule="evenodd" clipRule="evenodd" d="M3.14513 2.06143C3.96259 1.2008 5.31473 1.36205 5.99046 2.31777L6.83112 3.50676C7.37161 4.2712 7.32595 5.33398 6.6809 6.0131L6.51767 6.18496C6.51721 6.18614 6.51673 6.18743 6.51624 6.18882C6.50761 6.21306 6.4858 6.29025 6.50727 6.43675C6.55176 6.74044 6.7862 7.35757 7.73797 8.3596C8.69274 9.36479 9.27185 9.6017 9.54021 9.64528C9.65599 9.66408 9.71654 9.64775 9.73585 9.64095L10.0083 9.35414C10.5908 8.74086 11.499 8.62004 12.2313 9.04155L13.505 9.77466C14.5936 10.4013 14.847 11.934 13.977 12.85L13.03 13.847C12.7344 14.1582 12.3314 14.4238 11.8333 14.473C10.6174 14.593 7.80066 14.4367 4.84774 11.3278C2.09229 8.42685 1.56884 5.90358 1.50267 4.67077L1.94674 4.64693L1.50267 4.67077C1.46998 4.06166 1.7415 3.53919 2.09873 3.16309L3.14513 2.06143ZM5.17393 2.89508C4.83237 2.41198 4.21874 2.38316 3.87019 2.75012L2.82379 3.85178C2.60286 4.08438 2.48694 4.35097 2.50123 4.61717C2.55526 5.62372 2.98871 7.91857 5.5728 10.6391C8.28225 13.4917 10.7784 13.5723 11.7351 13.4778C11.9243 13.4592 12.1189 13.3542 12.3049 13.1583L13.2519 12.1613C13.6605 11.7312 13.5534 10.9563 13.0061 10.6413L11.7325 9.90823C11.3907 9.7115 10.9903 9.77229 10.7333 10.0428L10.4297 10.3625L10.0782 10.0287C10.4297 10.3625 10.4292 10.363 10.4288 10.3635L10.4278 10.3645L10.4258 10.3665L10.4216 10.3708L10.4121 10.3802C10.4052 10.3869 10.3973 10.3942 10.3883 10.4021C10.3704 10.4178 10.3482 10.4357 10.3216 10.4546C10.2682 10.4925 10.197 10.5341 10.1071 10.5696C9.92307 10.6422 9.68009 10.6811 9.37991 10.6323C8.7949 10.5373 8.02815 10.1171 7.01291 9.04829C5.99468 7.97628 5.60497 7.17647 5.51783 6.58172C5.47348 6.27901 5.50897 6.03661 5.57411 5.85357C5.60614 5.76355 5.64396 5.69178 5.67884 5.63727C5.69623 5.61009 5.71281 5.58733 5.72747 5.56881C5.73479 5.55955 5.74164 5.55135 5.74788 5.54418L5.75676 5.53419L5.76083 5.52977L5.76277 5.5277L5.76371 5.5267C5.76417 5.52621 5.76463 5.52573 6.11907 5.86238L5.76463 5.52572L5.95584 5.32441C6.25287 5.0117 6.29602 4.48211 6.01459 4.08407L5.17393 2.89508Z" fill="#858585" />
@@ -8702,7 +8702,7 @@ const Amain = () => {
                 </svg>
               </span>
               <span>پشتیبانی</span>
-            </div>
+            </div> */}
             <div className="menu-item">
               <span className="menu-icon9">
                 <svg width="16" height="18" viewBox="0 0 16 18" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -10692,7 +10692,14 @@ const Amain = () => {
                 </div>
                 <div className="comments-table">
                   <div className="table-row2">
-                    <span>کل نظرات ثبت شده (مرداد)</span>
+                    <span>کل نظرات ثبت شده (
+                      {pieChartTimeFilter === 'ماه اخیر'
+                        ? getJalaliMonthName(currentJalaliDate.jm)
+                        : pieChartTimeFilter === 'سال اخیر'
+                          ? currentJalaliDate.jy
+                          : pieChartTimeFilter
+                      }
+                      )</span>
                     <span className="count-value">{commentStats.total}</span>
                   </div>
 
@@ -10710,13 +10717,6 @@ const Amain = () => {
                     </div>
                     <div className="count-value">{commentStats.rejected}</div>
                   </div>
-                  {/* <div className="table-row">
-                  <div className="stat-info">
-                    <div className="stat-color unknown"></div>
-                    <span>در انتظار بررسی</span>
-                  </div>
-                  <div className="count-value">{unknownComments}</div>
-                </div> */}
                 </div>
               </div>
             </div>
@@ -15145,7 +15145,7 @@ const Amain = () => {
         </div>
       )}
 
-      {/* Support Modal */}
+      {/* Support Modal
       {isSupportModalOpen && (
         <div className="modal-overlay">
           <div className="support-modal-container">
@@ -15234,7 +15234,7 @@ const Amain = () => {
             </div>
           </div>
         </div>
-      )}
+      )} */}
     </div >
 
   );
