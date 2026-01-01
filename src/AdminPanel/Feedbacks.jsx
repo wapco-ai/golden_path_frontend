@@ -35,7 +35,16 @@ const Feedbacks = () => {
   };
 
   const openDetailsModal = (feedback) => {
-    setSelectedFeedback(feedback);
+    const updatedFeedback =
+      feedback.status === 'new'
+        ? {
+          ...feedback,
+          status: 'read',
+          readAt: new Date()
+        }
+        : feedback;
+
+    setSelectedFeedback(updatedFeedback);
     setIsDetailsModalOpen(true);
   };
 
@@ -124,6 +133,15 @@ const Feedbacks = () => {
           }
           : feedback
       )
+    );
+    setSelectedFeedback((current) =>
+      current?.id === id
+        ? {
+          ...current,
+          status: 'read',
+          readAt: now
+        }
+        : current
     );
 
     try {
@@ -268,16 +286,7 @@ const Feedbacks = () => {
                     <td>
                       <div className="sender-info">
                         <span className="sender-name">{feedback.sender}</span>
-                        <span
-                          className={`status-badge ${feedback.status} ${feedback.status === 'new' ? 'clickable-status' : ''}`}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            if (feedback.status === 'new') {
-                              markAsRead(feedback.id);
-                              toast.success('بازخورد به عنوان خوانده شده علامت‌گذاری شد');
-                            }
-                          }}
-                        >
+                        <span className={`status-badge ${feedback.status}`}>
                           {feedback.status === 'new' ? 'جدید' : 'خوانده شده'}
                           {feedback.status === 'read' && feedback.readAt && (
                             <span className="read-indicator">✓</span>
@@ -297,7 +306,10 @@ const Feedbacks = () => {
                     <td>
                       <button
                         className="details-btn"
-                        onClick={() => openDetailsModal(feedback)}
+                        onClick={() => {
+                          openDetailsModal(feedback);
+                          markAsRead(feedback.id);
+                        }}
                         id={`details-btn-${feedback.id}`}
                       >
                         جزئیات بیشتر
