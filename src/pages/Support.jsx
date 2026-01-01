@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
+import { toast } from 'react-toastify';
 import headerpic from '../assets/images/header.jpg';
 import logo from '../assets/images/logo.png';
 import '../styles/Support.css';
 import { useLocation } from 'react-router-dom';
+import { sendSupportFeedback } from '../services/supportApi';
 
 function Support() {
   const navigate = useNavigate();
@@ -61,34 +63,46 @@ function Support() {
     }
   };
 
-  const handleFeedbackSubmit = () => {
+  const handleFeedbackSubmit = async () => {
     // Basic validation
     if (!feedbackSubject.trim() || !feedbackMessage.trim()) {
       alert(intl.formatMessage({ id: 'fillAllFields' }));
       return;
     }
 
+    if (isSubmitting) return;
+
     setIsSubmitting(true);
 
-    // Simulate API call delay
-    setTimeout(() => {
-      // Reset form fields - THIS IS THE KEY PART
+    try {
+      await sendSupportFeedback({
+        subject: feedbackSubject.trim(),
+        message: feedbackMessage.trim()
+      });
+
       setFeedbackSubject('');
       setFeedbackMessage('');
-      setIsSubmitting(false);
-
-      // Show success message
       setShowSuccessMessage(true);
+      toast.success(intl.formatMessage({ id: 'supportFeedbackSuccessToast' }));
 
-      // Auto-hide success message after 5 seconds
       setTimeout(() => {
         setShowSuccessMessage(false);
       }, 5000);
 
-      // Scroll to top to show the message
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error) {
+      const status = error?.response?.status;
 
-    }, 1000); // Simulate 1 second API delay
+      if (status === 400 || status === 422) {
+        toast.error(intl.formatMessage({ id: 'supportFeedbackInvalid' }));
+      } else if (!error?.response) {
+        toast.error(intl.formatMessage({ id: 'supportFeedbackNetworkError' }));
+      } else {
+        toast.error(intl.formatMessage({ id: 'supportFeedbackSubmitError' }));
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
