@@ -9759,10 +9759,29 @@ body {
   background: rgba(234, 67, 53, 0.2);
 }
 
+.add-admin-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #0F71EF;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.add-admin-btn:hover {
+  background: #0D62D4;
+}
 
 /* Edit Admin Modal */
 .edit-admin-modal,
-.admin-details-modal {
+.admin-details-modal,
+.add-admin-modal {
   background: white;
   border-radius: 12px;
   width: 90%;
@@ -9773,7 +9792,8 @@ body {
 
 
 .modal-header-edit-admin,
-.modal-header-admin-details {
+.modal-header-admin-details,
+.modal-header-add-admin {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -9799,7 +9819,8 @@ body {
   color: #1E2023;
 }
 
-.modal-body-edit-admin {
+.modal-body-edit-admin,
+.modal-body-add-admin {
   padding: 20px;
 }
 
@@ -9831,18 +9852,21 @@ body {
   font-size: 14px;
 }
 
-.roles-section {
+.roles-section,
+.roles-section-add-admin {
   margin-top: 24px;
 }
 
-.roles-section h4 {
+.roles-section h4,
+.roles-section-add-admin h4 {
   margin: 0 0 16px 0;
   font-size: 14px;
   color: #6B7280;
   font-weight: 500;
 }
 
-.roles-checkboxes {
+.roles-checkboxes,
+.roles-checkboxes-add-admin {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
@@ -9852,7 +9876,8 @@ body {
   margin-bottom: 20px;
 }
 
-.role-checkbox-label {
+.role-checkbox-label,
+.role-checkbox-label-add-admin{
   display: flex;
   align-items: center;
   gap: 8px;
@@ -9862,17 +9887,20 @@ body {
   transition: background 0.2s;
 }
 
-.role-checkbox-label:hover {
+.role-checkbox-label:hover,
+.role-checkbox-label-add-admin:hover {
   background: #F9FAFB;
 }
 
-.role-checkbox-label input[type="checkbox"] {
+.role-checkbox-label input[type="checkbox"],
+.role-checkbox-label-add-admin input[type="checkbox"] {
   width: 16px;
   height: 16px;
   cursor: pointer;
 }
 
-.role-checkbox-label span {
+.role-checkbox-label span,
+.role-checkbox-label-add-admin span {
   color: #4B5563;
   font-size: 13px;
 }
@@ -9898,7 +9926,8 @@ body {
 
 .modal-footer-edit-admin,
 .modal-footer-admin-details,
-.modal-footer-delete-admin {
+.modal-footer-delete-admin,
+.modal-footer-add-admin {
   padding: 20px;
   border-top: 1px solid #E5E7EB;
   display: flex;
@@ -9943,6 +9972,22 @@ body {
 .info-row:first-child {
   padding-top: 0;
 }
+
+.form-input-add-admin {
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid #D9D9D9;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  transition: border-color 0.3s;
+}
+
+.form-input-add-admin:focus {
+  outline: none;
+  border-color: #0F71EF;
+}
+
 
 .info-label {
   font-size: 13px;
@@ -10773,4 +10818,33 @@ body {
   display: flex;
   justify-content: flex-end;
  margin-top: 0px;
+}
+
+
+.cancel-btn-add-admin {
+  padding: 12px 24px;
+  background: transparent;
+  border: 1px solid #EA4335;
+  border-radius: 8px;
+  color: #EA4335;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  transition: all 0.3s;
+}
+
+.cancel-btn-add-admin:hover {
+  background: #F2F2F2;
+}
+
+.no-role-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background-color: transparent;
+  border: none;
+  border-radius: 16px;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 500;
+  margin: 2px;
 }
