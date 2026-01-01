@@ -740,6 +740,35 @@ const Amain = () => {
       console.debug('[tiles] refresh', { layerId, now, baseTileUrl });
     }
   }, [adminVectorTileConfig, map, mapFloor]);
+  const refreshVectorTileSources = useCallback(() => {
+    if (!map) return;
+
+    const now = Date.now();
+    const updatedSources = new Set();
+
+    adminVectorTileConfig.forEach((layerConfig) => {
+      const { sourceId } = layerConfig;
+      if (!sourceId || updatedSources.has(sourceId)) return;
+
+      const tileUrlFactory = typeof layerConfig.tileUrlFactory === 'function'
+        ? layerConfig.tileUrlFactory
+        : null;
+      const baseTileUrl = tileUrlFactory
+        ? tileUrlFactory({ floor: floorLabelToValue(mapFloor) })
+        : layerConfig.tileUrl;
+
+      const source = map.getSource(sourceId);
+      if (!source || typeof source.setTiles !== 'function' || !baseTileUrl) return;
+
+      const cacheBustedUrl = `${baseTileUrl}${baseTileUrl.includes('?') ? '&' : '?'}cacheBust=${now}`;
+      source.setTiles([cacheBustedUrl]);
+      updatedSources.add(sourceId);
+    });
+
+    if (import.meta?.env?.DEV) {
+      console.debug('[tiles] refresh sources', { now, sources: [...updatedSources] });
+    }
+  }, [adminVectorTileConfig, map, mapFloor]);
   const ensureVanDrawLayers = useCallback(() => {
     if (!map) return;
 
@@ -4239,8 +4268,8 @@ const Amain = () => {
     if (prev.floor === mapFloor && prev.lang === mapLanguage) return;
     prevFloorLangRef.current = { floor: mapFloor, lang: mapLanguage };
 
-    refreshActiveEditableLayerTiles();
-  }, [activeMenu, map, mapFloor, mapLanguage, refreshActiveEditableLayerTiles]);
+    refreshVectorTileSources();
+  }, [activeMenu, map, mapFloor, mapLanguage, refreshVectorTileSources]);
 
   useEffect(() => {
     if (!map) return undefined;
