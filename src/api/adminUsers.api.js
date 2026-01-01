@@ -10,16 +10,16 @@ export const fetchSignedUsers = async ({ page = 1, pageSize = 20, search = '' })
     params.search = search;
   }
 
-  const response = await http.get('/admin/users', { params });
+  const response = await http.get('/api/v1/admin/users', { params });
   return response.data;
 };
 
 export const fetchSignedUser = async (id) => {
-  const response = await http.get(`/admin/users/${id}`);
+  const response = await http.get(`/api/v1/admin/users/${id}`);
   return response.data;
 };
 
 export const updateSignedUserStatus = async (id, status) => {
-  const response = await http.patch(`/admin/users/${id}/status`, { status });
+  const response = await http.patch(`/api/v1/admin/users/${id}/status`, { status });
   return response.data;
 };
