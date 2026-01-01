@@ -6753,6 +6753,9 @@ const Amain = () => {
   }, [activeMenu, currentReportView]);
 
   const handleMenuClick = (menuName, breadcrumbLabel) => {
+    if (menuName !== 'reports') {
+      setCurrentReportView(null);
+    }
     setActiveMenu(menuName);
 
     if (isEditingCultural) {
