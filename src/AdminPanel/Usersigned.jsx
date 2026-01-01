@@ -183,41 +183,6 @@ function Usersigned() {
     return pages;
   }, [page, totalPages]);
 
-  const handleToggleStatus = async (user) => {
-    const currentStatus = getStatusValue(user);
-    const nextStatus = currentStatus === 'active' ? 'inactive' : 'active';
-
-    setUpdatingMap((prev) => ({ ...prev, [user.id]: true }));
-    setFilteredUsers((prev) =>
-      prev.map((item) =>
-        item.id === user.id
-          ? { ...item, status: nextStatus, isActive: nextStatus === 'active' }
-          : item
-      )
-    );
-
-    try {
-      await updateSignedUserStatus(user.id, nextStatus);
-      toast.success('وضعیت کاربر به روز شد.');
-    } catch (err) {
-      const message = getErrorMessage(err);
-      toast.error(message);
-      setFilteredUsers((prev) =>
-        prev.map((item) =>
-          item.id === user.id
-            ? { ...item, status: currentStatus, isActive: currentStatus === 'active' }
-            : item
-        )
-      );
-    } finally {
-      setUpdatingMap((prev) => {
-        const next = { ...prev };
-        delete next[user.id];
-        return next;
-      });
-    }
-  };
-
   return (
     <div className="usersigned-page">
       <div className="users-section">
