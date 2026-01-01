@@ -7,6 +7,7 @@ import adminSupportApi from '../services/adminSupportApi';
 const Feedbacks = () => {
   const [feedbacks, setFeedbacks] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [isLoading, setIsLoading] = useState(false);
@@ -16,6 +17,11 @@ const Feedbacks = () => {
   // Modal state
   const [selectedFeedback, setSelectedFeedback] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const STATUS_OPTIONS = [
+    { value: 'all', label: 'همه وضعیت‌ها' },
+    { value: 'new', label: 'جدید' },
+    { value: 'read', label: 'خوانده شده' }
+  ];
 
   useEffect(() => {
     loadFeedbacks();
@@ -61,8 +67,10 @@ const Feedbacks = () => {
   const loadFeedbacks = async ({ page = currentPage } = {}) => {
     setIsLoading(true);
     try {
+      const statusParam = statusFilter === 'read' ? 'seen' : statusFilter;
       const response = await adminSupportApi.list({
         q: searchTerm || undefined,
+        status: statusParam !== 'all' ? statusParam : undefined,
         limit: itemsPerPage,
         page
       });
@@ -89,10 +97,15 @@ const Feedbacks = () => {
 
   useEffect(() => {
     loadFeedbacks({ page: currentPage });
-  }, [currentPage, itemsPerPage, searchTerm]);
+  }, [currentPage, itemsPerPage, searchTerm, statusFilter]);
 
   const handleSearchChange = (value) => {
     setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
+  const handleStatusFilterChange = (value) => {
+    setStatusFilter(value);
     setCurrentPage(1);
   };
 
@@ -181,7 +194,7 @@ const Feedbacks = () => {
               <div className="select-wrapper feedback-status-filter">
                 <select
                   value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
+                  onChange={(event) => handleStatusFilterChange(event.target.value)}
                   aria-label="فیلتر وضعیت"
                 >
                   {STATUS_OPTIONS.map((option) => (
