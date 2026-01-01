@@ -7,11 +7,18 @@ import {
   updateSignedUserStatus
 } from '../api/adminUsers.api';
 
-const formatDateTime = (value) => {
+const formatJalaliDateTime = (value) => {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleString();
+
+  return new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+    year: 'numeric',
+    month: 'long',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date);
 };
 
 const getStatusValue = (user) => {
@@ -265,7 +272,7 @@ function Usersigned() {
                         {statusLabel}
                       </span>
                     </td>
-                    <td>{formatDateTime(user.createdAt)}</td>
+                    <td>{formatJalaliDateTime(user.createdAt)}</td>
                     <td>
                       <div className="action-buttons" style={{ display: 'flex', gap: '8px' }}>
                         <button className="details-btn" onClick={() => handleDetailsClick(user.id)}>
@@ -378,11 +385,11 @@ function Usersigned() {
                   </div>
                   <div className="detail-item">
                     <span className="detail-label">تاریخ ثبت نام:</span>
-                    <span className="detail-value">{formatDateTime(selectedUser.createdAt)}</span>
+                    <span className="detail-value">{formatJalaliDateTime(selectedUser.createdAt)}</span>
                   </div>
                   <div className="detail-item">
                     <span className="detail-label">آخرین ورود:</span>
-                    <span className="detail-value">{formatDateTime(selectedUser.lastLoginAt)}</span>
+                    <span className="detail-value">{formatJalaliDateTime(selectedUser.lastLoginAt)}</span>
                   </div>
                   <div className="detail-item">
                     <span className="detail-label">IP آخرین ورود:</span>
