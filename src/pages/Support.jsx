@@ -83,7 +83,6 @@ function Support() {
       setFeedbackSubject('');
       setFeedbackMessage('');
       setShowSuccessMessage(true);
-      toast.success(intl.formatMessage({ id: 'supportFeedbackSuccessToast' }));
 
       setTimeout(() => {
         setShowSuccessMessage(false);
