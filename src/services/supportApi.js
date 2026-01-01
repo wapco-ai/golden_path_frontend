@@ -1,10 +1,11 @@
 import apiUser from '../api/apiUser';
+import appConfig from '../config/appConfig';
 
 const REQUEST_TIMEOUT_MS = 15000;
 
 export const sendSupportFeedback = async ({ subject, message }) => {
   const response = await apiUser.post(
-    '/support/feedback',
+    appConfig.supportFeedbackUrl,
     { subject, message },
     {
       timeout: REQUEST_TIMEOUT_MS,
