@@ -207,6 +207,14 @@ const buildIconUrl = (value) => {
   return withBasePath(`/assets/icons/${value}`);
 };
 
+const resolveCategoryIcon = (category) => (
+  category?.meta?.iconRaw
+  || category?.meta?.icon
+  || category?.image
+  || category?.icon
+  || ''
+);
+
 const buildPrayerRulesPayload = (selectedEvents, beforeValue, afterValue) => {
   const before = Number.isFinite(Number(beforeValue)) ? Number(beforeValue) : 0;
   const after = Number.isFinite(Number(afterValue)) ? Number(afterValue) : 0;
@@ -7810,10 +7818,11 @@ const Amain = () => {
 
   const handleEditCategory = (category) => {
     setEditingCategoryId(category.id);
+    const resolvedIcon = resolveCategoryIcon(category);
     setEditCategoryData({
       title: category.title,
       description: category.description || '',
-      icon: category.image || null,
+      icon: resolvedIcon || null,
       status: category.status || 'active'
     });
 
@@ -7824,7 +7833,7 @@ const Amain = () => {
       urdu: category.languageTitles?.urdu || ''
     });
 
-    setIsIconUploaded(!!category.image);
+    setIsIconUploaded(!!resolvedIcon);
     setIsEditCategoryModalOpen(true);
   };
 
@@ -9711,10 +9720,10 @@ const Amain = () => {
                             </td>
                             <td>
                               <div className="category-image-cell">
-                                {category.image ? (
+                                {resolveCategoryIcon(category) ? (
                                   <div className="category-icon-wrapper">
                                     <img
-                                      src={buildIconUrl(category.image)}
+                                      src={buildIconUrl(resolveCategoryIcon(category))}
                                       alt={category.title}
                                       className="category-icon-image"
                                       onError={(e) => {
