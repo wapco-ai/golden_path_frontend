@@ -587,7 +587,6 @@ const Amain = () => {
   const [map, setMap] = useState(null);
   const [mapLayerAvailabilityVersion, setMapLayerAvailabilityVersion] = useState(0);
   const mapRef = useRef(null);
-  const mapInitRef = useRef(false);
   const layerTileRefreshGuardRef = useRef(new Map());
   const lastSelectedFeatureJsonRef = useRef('');
   useEffect(() => {
@@ -4170,10 +4169,7 @@ const Amain = () => {
   useEffect(() => {
     if (activeMenu === 'mapmanage') {
       // Initialize map when map management is active
-      if (map || mapInitRef.current) return undefined;
-      mapInitRef.current = true;
-      let rafId;
-      let isCancelled = false;
+      if (map) return;
 
       const initializeMap = () => {
         // خیلی مهم: قبل از new Map
@@ -4198,35 +4194,17 @@ const Amain = () => {
           console.log('Haram vector layers loaded successfully in Amain map');
           logDoorAccessPointDebugInfo(mapInstance);
           applyLayerVisibility(mapInstance);
-          mapInstance.resize();
         });
         setMap(mapInstance);
-        mapInitRef.current = false;
 
         return () => {
           mapInstance.remove();
         };
       };
 
-      const waitForContainer = () => {
-        if (isCancelled) return;
-        const container = document.getElementById('map-container');
-        if (!container || !container.offsetWidth || !container.offsetHeight) {
-          rafId = requestAnimationFrame(waitForContainer);
-          return;
-        }
+      if (document.getElementById('map-container')) {
         initializeMap();
-      };
-
-      waitForContainer();
-
-      return () => {
-        isCancelled = true;
-        mapInitRef.current = false;
-        if (rafId) {
-          cancelAnimationFrame(rafId);
-        }
-      };
+      }
     } else {
       // Clean up map when leaving map management
       if (map) {
@@ -4244,9 +4222,7 @@ const Amain = () => {
       setIsTempAreaDrawingMode(false);
       setTempAreaVertices([]);
       resetMapCursor();
-      mapInitRef.current = false;
     }
-    return undefined;
   }, [activeMenu, map, mapStyle, resetMapCursor]);
 
   useEffect(() => {
