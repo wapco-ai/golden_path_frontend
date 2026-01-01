@@ -84,22 +84,30 @@ const Admins = () => {
   const [totalItems, setTotalItems] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Modal states
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newAdmin, setNewAdmin] = useState({
+    firstName: '',
+    lastName: '',
+    username: '',
+    roles: []
+  });
+
+
   const [selectedAdmin, setSelectedAdmin] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  // Edit modal state
+
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Load admins on component mount
+
   useEffect(() => {
     loadAdmins();
   }, []);
 
-  // Filter admins based on search term
+
   useEffect(() => {
     const filtered = admins.filter(admin =>
       admin.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -109,18 +117,82 @@ const Admins = () => {
     );
     setFilteredAdmins(filtered);
     setTotalItems(filtered.length);
-    setCurrentPage(1); // Reset to first page when searching
+    setCurrentPage(1);
   }, [searchTerm, admins]);
 
   const loadAdmins = () => {
     setIsLoading(true);
-    // Simulate API call
+
     setTimeout(() => {
       setAdmins([...initialAdmins]);
       setFilteredAdmins([...initialAdmins]);
       setTotalItems(initialAdmins.length);
       setIsLoading(false);
     }, 500);
+  };
+
+  const openAddModal = () => {
+    setNewAdmin({
+      firstName: '',
+      lastName: '',
+      username: '',
+      roles: []
+    });
+    setIsAddModalOpen(true);
+  };
+
+
+  const handleAddAdmin = () => {
+
+    if (!newAdmin.firstName.trim() || !newAdmin.lastName.trim() || !newAdmin.username.trim()) {
+      toast.error('لطفا تمام فیلدهای الزامی را پر کنید');
+      return;
+    }
+
+
+    const usernameExists = admins.some(admin => admin.username === newAdmin.username.trim());
+    if (usernameExists) {
+      toast.error('این نام کاربری قبلاً استفاده شده است');
+      return;
+    }
+
+    setIsSaving(true);
+
+    setTimeout(() => {
+
+      const newAdminData = {
+        id: Date.now(),
+        firstName: newAdmin.firstName.trim(),
+        lastName: newAdmin.lastName.trim(),
+        username: newAdmin.username.trim(),
+        roles: [...newAdmin.roles],
+        avatar: 'https://via.placeholder.com/40',
+        createdAt: new Date().toLocaleDateString('fa-IR', { year: 'numeric', month: 'long' }),
+        status: 'active'
+      };
+
+      const updatedAdmins = [newAdminData, ...admins];
+      setAdmins(updatedAdmins);
+
+      setIsSaving(false);
+      setIsAddModalOpen(false);
+      toast.success('ادمین جدید با موفقیت اضافه شد');
+    }, 1000);
+  };
+
+
+  const handleNewAdminRoleToggle = (role) => {
+    if (newAdmin.roles.includes(role)) {
+      setNewAdmin({
+        ...newAdmin,
+        roles: newAdmin.roles.filter(r => r !== role)
+      });
+    } else {
+      setNewAdmin({
+        ...newAdmin,
+        roles: [...newAdmin.roles, role]
+      });
+    }
   };
 
   const handleRefresh = () => {
@@ -138,7 +210,12 @@ const Admins = () => {
 
   // Format roles for display (max 3 roles + bubble)
   const formatRolesForDisplay = (roles) => {
-    if (!roles || roles.length === 0) return [];
+    if (!roles || !Array.isArray(roles) || roles.length === 0) {
+      return {
+        displayed: [],
+        extraCount: 0
+      };
+    }
 
     const displayedRoles = roles.slice(0, 3);
     const extraCount = roles.length - 3;
@@ -305,6 +382,12 @@ const Admins = () => {
                 id="admin-search-input"
               />
             </div>
+            <button className="add-admin-btn" onClick={openAddModal}>
+              افزودن ادمین
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path fillRule="evenodd" clipRule="evenodd" d="M10.0003 18.3334C14.6027 18.3334 18.3337 14.6024 18.3337 10C18.3337 5.39765 14.6027 1.66669 10.0003 1.66669C5.39795 1.66669 1.66699 5.39765 1.66699 10C1.66699 14.6024 5.39795 18.3334 10.0003 18.3334ZM10.6253 7.50002C10.6253 7.15484 10.3455 6.87502 10.0003 6.87502C9.65515 6.87502 9.37533 7.15484 9.37533 7.50002L9.37532 9.37504H7.50033C7.15515 9.37504 6.87533 9.65486 6.87533 10C6.87533 10.3452 7.15515 10.625 7.50033 10.625H9.37532V12.5C9.37532 12.8452 9.65515 13.125 10.0003 13.125C10.3455 13.125 10.6253 12.8452 10.6253 12.5L10.6253 10.625H12.5003C12.8455 10.625 13.1253 10.3452 13.1253 10C13.1253 9.65486 12.8455 9.37504 12.5003 9.37504H10.6253V7.50002Z" fill="white" />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -343,9 +426,9 @@ const Admins = () => {
                       <div className="user-profile-cell">
                         <div className="profile-image-small2">
                           <svg fill="#ffffff" width="40px" height="40px" viewBox="0 0 36 36" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M30.61,24.52a17.16,17.16,0,0,0-25.22,0,1.51,1.51,0,0,0-.39,1v6A1.5,1.5,0,0,0,6.5,33h23A1.5,1.5,0,0,0,31,31.5v-6A1.51,1.51,0,0,0,30.61,24.52Z" class="clr-i-solid clr-i-solid-path-1"></path>
-                            <circle cx="18" cy="10" r="7" class="clr-i-solid clr-i-solid-path-2"></circle>
-                            <rect x="0" y="0" width="36" height="36" fill-opacity="0" />
+                            <path d="M30.61,24.52a17.16,17.16,0,0,0-25.22,0,1.51,1.51,0,0,0-.39,1v6A1.5,1.5,0,0,0,6.5,33h23A1.5,1.5,0,0,0,31,31.5v-6A1.51,1.51,0,0,0,30.61,24.52Z" className="clr-i-solid clr-i-solid-path-1"></path>
+                            <circle cx="18" cy="10" r="7" className="clr-i-solid clr-i-solid-path-2"></circle>
+                            <rect x="0" y="0" width="36" height="36" fillOpacity="0" />
                           </svg>
                         </div>
                         <strong>{admin.firstName} {admin.lastName}</strong>
@@ -357,11 +440,15 @@ const Admins = () => {
                     <td>
                       <div className="roles-cell">
                         <div className="displayed-roles">
-                          {displayed.map((role, index) => (
-                            <span key={index} className="role-badge">
-                              {role}
-                            </span>
-                          ))}
+                          {displayed.length === 0 ? (
+                            <span className="no-role-badge">بدون نقش</span>
+                          ) : (
+                            displayed.map((role, index) => (
+                              <span key={index} className="role-badge">
+                                {role}
+                              </span>
+                            ))
+                          )}
                         </div>
                         {extraCount > 0 && (
                           <span className="extra-roles-bubble" title={`${extraCount} نقش دیگر`}>
@@ -644,6 +731,94 @@ const Admins = () => {
                 id="confirm-delete-btn"
               >
                 {isSaving ? 'در حال حذف...' : 'حذف ادمین'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {isAddModalOpen && (
+        <div className="modal-overlay" id="add-admin-modal-unique">
+          <div className="add-admin-modal">
+            <div className="modal-header-add-admin">
+              <h3>افزودن ادمین جدید</h3>
+              <button
+                className="close-btn"
+                onClick={() => setIsAddModalOpen(false)}
+                id="close-add-modal"
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body-add-admin">
+              <div className="admin-basic-info">
+                <div className="info-field">
+                  <label>نام <span style={{ color: 'red' }}>*</span></label>
+                  <input
+                    type="text"
+                    className="form-input-add-admin"
+                    value={newAdmin.firstName}
+                    onChange={(e) => setNewAdmin({ ...newAdmin, firstName: e.target.value })}
+                    placeholder="نام را وارد کنید"
+                    id="add-admin-firstname"
+                  />
+                </div>
+                <div className="info-field">
+                  <label>نام خانوادگی <span style={{ color: 'red' }}>*</span></label>
+                  <input
+                    type="text"
+                    className="form-input-add-admin"
+                    value={newAdmin.lastName}
+                    onChange={(e) => setNewAdmin({ ...newAdmin, lastName: e.target.value })}
+                    placeholder="نام خانوادگی را وارد کنید"
+                    id="add-admin-lastname"
+                  />
+                </div>
+                <div className="info-field">
+                  <label>نام کاربری <span style={{ color: 'red' }}>*</span></label>
+                  <input
+                    type="text"
+                    className="form-input-add-admin"
+                    value={newAdmin.username}
+                    onChange={(e) => setNewAdmin({ ...newAdmin, username: e.target.value })}
+                    placeholder="نام کاربری را وارد کنید"
+                    id="add-admin-username"
+                  />
+                </div>
+              </div>
+
+              <div className="roles-section-add-admin">
+                <h4>انتخاب نقش‌ها </h4>
+                <div className="roles-checkboxes-add-admin">
+                  {allRoles.map((role, index) => (
+                    <label key={index} className="role-checkbox-label-add-admin">
+                      <input
+                        type="checkbox"
+                        checked={newAdmin.roles.includes(role)}
+                        onChange={() => handleNewAdminRoleToggle(role)}
+                        id={`add-role-${index}`}
+                      />
+                      <span>{role}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer-add-admin">
+              <button
+                className="cancel-btn-add-admin"
+                onClick={() => setIsAddModalOpen(false)}
+                disabled={isSaving}
+                id="cancel-add-admin-btn"
+              >
+                انصراف
+              </button>
+              <button
+                className="action-btn save-btn"
+                onClick={handleAddAdmin}
+                disabled={isSaving || !newAdmin.firstName.trim() || !newAdmin.lastName.trim() || !newAdmin.username.trim()}
+                id="add-admin-submit-btn"
+              >
+                {isSaving ? 'در حال ذخیره...' : 'افزودن ادمین'}
               </button>
             </div>
           </div>

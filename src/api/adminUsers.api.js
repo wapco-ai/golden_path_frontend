@@ -1,7 +1,5 @@
 import http from './http';
 
-const ADMIN_USERS_BASE_PATH = '/api/v1/admin/users';
-
 export const fetchSignedUsers = async ({ page = 1, pageSize = 20, search = '' }) => {
   const params = {
     page,
@@ -12,16 +10,16 @@ export const fetchSignedUsers = async ({ page = 1, pageSize = 20, search = '' })
     params.search = search;
   }
 
-  const response = await http.get(ADMIN_USERS_BASE_PATH, { params });
+  const response = await http.get('/api/v1/admin/users', { params });
   return response.data;
 };
 
 export const fetchSignedUser = async (id) => {
-  const response = await http.get(`${ADMIN_USERS_BASE_PATH}/${id}`);
+  const response = await http.get(`/api/v1/admin/users/${id}`);
   return response.data;
 };
 
 export const updateSignedUserStatus = async (id, status) => {
-  const response = await http.patch(`${ADMIN_USERS_BASE_PATH}/${id}/status`, { status });
+  const response = await http.patch(`/api/v1/admin/users/${id}/status`, { status });
   return response.data;
 };
