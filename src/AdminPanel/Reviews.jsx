@@ -1,7 +1,8 @@
 // src/pages/Reviews.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import '../AdminPanel/Amain.css';
+import adminCommentsService from '../services/adminCommentsService';
 
 const Reviews = () => {
   const [reviews, setReviews] = useState([]);
@@ -9,8 +10,9 @@ const Reviews = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(7);
   const [isLoading, setIsLoading] = useState(false);
-  const [totalItems, setTotalItems] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [totalPages, setTotalPages] = useState(1);
+  const [rejectionReasonMap, setRejectionReasonMap] = useState({});
 
   // Modal states
   const [selectedReview, setSelectedReview] = useState(null);
@@ -29,133 +31,83 @@ const Reviews = () => {
   const [isSubmittingRejection, setIsSubmittingRejection] = useState(false);
 
 
-  const sampleReviews = [
-    {
-      id: 1,
-      comment: 'لزوم امیموم متن ساخگی با تولید سادگی نامفهوم از صنعت چاپگرها و متون بلکه روزنامه و مجله در ستون و سطرآنچنان که لازم است و برای شرایط فعلی تکنولوژی مورد نیاز و کاربردهای متنوع با هدف بهبود ابزارهای کاربردی می باشد.',
-      sender: 'سیدمحمدحسین میرشفیعی',
-      date: '۱۴۰۴ مرداد',
-      section: 'عازداری فاطمیه روانی',
-      status: 'pending',
+  const mapCommentToReview = useCallback(
+    (comment) => ({
+      id: comment?.id,
+      comment: comment?.content ?? '',
+      sender: comment?.authorName || comment?.authorEmail || 'نامشخص',
+      date: comment?.createdAt ?? '',
+      section: comment?.postId != null ? String(comment.postId) : '-',
+      status: comment?.status ?? 'pending',
       operation: '',
-      rejectionReasons: []
-    },
-    {
-      id: 2,
-      comment: 'لزوم امیموم متن ساخگی با تولید سادگی نامفهوم از صنعت چاپگرها و متون بلکه روزنامه و مجله در ستون و سطرآنچنان که لازم است و برای شرایط فعلی تکنولوژی مورد نیاز و کاربردهای متنوع با هدف بهبود ابزارهای کاربردی می باشد. کتابهای زیادی در شصت و سه درصد گذشته، حال و آینده شناخت فراوان جامعه و متخصصان را می طلبد.',
-      sender: 'Ali',
-      date: '۱۴۰۴ مرداد',
-      section: 'باب الزما به صحن',
-      status: 'pending',
-      operation: '',
-      rejectionReasons: []
-    },
-    {
-      id: 3,
-      comment: 'لزوم امیموم متن ساخگی با تولید سادگی نامفهوم از صنعت چاپگرها و متون بلکه روزنامه و مجله در ستون و سطرآنچنان که لازم است. با نرم افزارها شناخت بیشتری را برای طراحان رایانه ای علی الخصوص طراحان خلاقی و فرهنگ پیشرو در زبان فارسی ایجاد کرد.',
-      sender: 'Bagherili',
-      date: '۱۴۰۴ مرداد',
-      section: 'باب الزما به صحن',
-      status: 'pending',
-      operation: '',
-      rejectionReasons: []
-    },
-    {
-      id: 4,
-      comment: 'لزوم امیموم متن ساخگی با تولید سادگی نامفهوم از صنعت چاپگرها و متون بلکه روزنامه و مجله در ستون و سطرآنچنان که لازم است. در این صورت می توان امید داشت که تمام و دشواری موجود در ارائه راهکارها و شرایط سخت تایپ به پایان رسد و زمان مورد نیاز شامل حروفچینی دستاوردهای اصلی و جوابگوی سوالات پیوسته اهل دنیای موجود طراحی اساسا مورد استفاده قرار گیرد.',
-      sender: 'محمدنیا',
-      date: '۱۴۰۴ مرداد',
-      section: 'صحن قدس',
-      status: 'pending',
-      operation: '',
-      rejectionReasons: []
-    },
-    {
-      id: 5,
-      comment: 'لزوم امیموم متن ساخگی با تولید سادگی نامفهوم از صنعت چاپگرها و متون بلکه روزنامه و مجله در ستون و سطرآنچنان که لازم است و برای شرایط فعلی تکنولوژی مورد نیاز و کاربردهای متنوع با هدف بهبود ابزارهای کاربردی می باشد. کتابهای زیادی در شصت و سه درصد گذشته، حال و آینده شناخت فراوان جامعه و متخصصان را می طلبد تا با نرم افزارها شناخت بیشتری را برای طراحان رایانه ای علی الخصوص طراحان خلاقی و فرهنگ پیشرو در زبان فارسی ایجاد کرد.',
-      sender: 'ایمان قاسمی',
-      date: '۱۴۰۴ مرداد',
-      section: 'باب الزما به صحن',
-      status: 'pending',
-      operation: '',
-      rejectionReasons: []
-    },
-    {
-      id: 6,
-      comment: 'لزوم امیموم متن ساخگی با تولید سادگی نامفهوم از صنعت چاپگرها و متون بلکه روزنامه و مجله در ستون و سطرآنچنان که لازم است. در این صورت می توان امید داشت که تمام و دشواری موجود در ارائه راهکارها و شرایط سخت تایپ به پایان رسد و زمان مورد نیاز شامل حروفچینی دستاوردهای اصلی و جوابگوی سوالات پیوسته اهل دنیای موجود طراحی اساسا مورد استفاده قرار گیرد.',
-      sender: 'نگسن سالاروند',
-      date: '۱۴۰۴ مرداد',
-      section: 'ایران طلا',
-      status: 'pending',
-      operation: '',
-      rejectionReasons: []
-    },
-    {
-      id: 7,
-      comment: 'لزوم امیموم متن ساخگی با تولید سادگی نامفهوم از صنعت چاپگرها و متون بلکه روزنامه و مجله در ستون و سطرآنچنان که لازم است و برای شرایط فعلی تکنولوژی مورد نیاز و کاربردهای متنوع با هدف بهبود ابزارهای کاربردی می باشد. کتابهای زیادی در شصت و سه درصد گذشته، حال و آینده شناخت فراوان جامعه و متخصصان را می طلبد.',
-      sender: 'Zahra78',
-      date: '۱۴۰۴ مرداد',
-      section: 'باب الزما به صحن',
-      status: 'pending',
-      operation: '',
-      rejectionReasons: []
-    }
-  ];
+      rejectionReasons: rejectionReasonMap[comment?.id] || []
+    }),
+    [rejectionReasonMap]
+  );
 
-
-  // Load reviews on component mount
-  useEffect(() => {
-    loadReviews();
-  }, []);
-
-  // Filter reviews based on search term
-  useEffect(() => {
-    const filtered = sampleReviews.filter(review =>
-      review.comment.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      review.sender.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      review.section.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setReviews(filtered);
-    setTotalItems(filtered.length);
-  }, [searchTerm]);
-
-  const loadReviews = () => {
+  const loadReviews = useCallback(async () => {
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setReviews(sampleReviews);
-      setTotalItems(sampleReviews.length);
+    try {
+      const response = await adminCommentsService.list({
+        page: currentPage,
+        perPage: itemsPerPage,
+        authorName: searchTerm || undefined,
+        authorEmail: searchTerm || undefined,
+        sortBy: 'createdAt',
+        sortOrder: 'desc'
+      });
+      const data = Array.isArray(response?.data) ? response.data : [];
+      const pagination = response?.pagination || {};
+      setReviews(data.map(mapCommentToReview));
+      setTotalPages(Math.max(1, pagination.totalPages ?? 1));
+    } catch (error) {
+      toast.error('دریافت لیست دیدگاه‌ها ناموفق بود');
+    } finally {
       setIsLoading(false);
-    }, 500);
-  };
+    }
+  }, [currentPage, itemsPerPage, mapCommentToReview, searchTerm]);
 
-  const handleRefresh = () => {
+  useEffect(() => {
     loadReviews();
-    toast.success('لیست دیدگاه‌ها به‌روزرسانی شد');
+  }, [loadReviews]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, itemsPerPage]);
+
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-
-    setTimeout(() => {
-
-
-      setIsRefreshing(false);
-    }, 1000);
+    await loadReviews();
+    toast.success('لیست دیدگاه‌ها به‌روزرسانی شد');
+    setIsRefreshing(false);
   };
 
-  const handleApproveReview = (id) => {
-    const updatedReviews = reviews.map(review => {
-      if (review.id === id) {
-        return {
-          ...review,
+  const handleApproveReview = async (id) => {
+    try {
+      await adminCommentsService.updateStatus(id, { status: 'approved' });
+      const updatedReviews = reviews.map(review => {
+        if (review.id === id) {
+          return {
+            ...review,
+            status: 'approved',
+            operation: 'تایید شده'
+          };
+        }
+        return review;
+      });
+
+      setReviews(updatedReviews);
+      if (selectedReview?.id === id) {
+        setSelectedReview({
+          ...selectedReview,
           status: 'approved',
           operation: 'تایید شده'
-        };
+        });
       }
-      return review;
-    });
-
-    setReviews(updatedReviews);
-    toast.success('دیدگاه با موفقیت تایید شد');
+      toast.success('دیدگاه با موفقیت تایید شد');
+    } catch (error) {
+      toast.error('تایید دیدگاه انجام نشد');
+    }
   };
 
   const openRejectModal = (review) => {
@@ -175,9 +127,10 @@ const Reviews = () => {
   const openRejectionDetailsModal = (review) => {
     setSelectedReview(review);
     setIsRejectionDetailsModalOpen(true);
+    fetchReviewDetails(review.id);
   };
 
-  const handleRejectReview = () => {
+  const handleRejectReview = async () => {
 
     const hasReason = Object.values(rejectionReasons).some(value => value);
     if (!hasReason) {
@@ -193,7 +146,6 @@ const Reviews = () => {
 
     setIsSubmittingRejection(true);
 
-
     const reasons = [];
     if (rejectionReasons.offensiveWords) reasons.push('کلمات و جملات هنجارشکن');
     if (rejectionReasons.adultContent) reasons.push('محتوای بزرگسالان');
@@ -202,8 +154,12 @@ const Reviews = () => {
       reasons.push(`سایر: ${otherReasonText.trim()}`);
     }
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      await adminCommentsService.updateStatus(selectedReview.id, { status: 'rejected' });
+      setRejectionReasonMap((prev) => ({
+        ...prev,
+        [selectedReview.id]: reasons
+      }));
       const updatedReviews = reviews.map(review => {
         if (review.id === selectedReview.id) {
           return {
@@ -217,10 +173,16 @@ const Reviews = () => {
       });
 
       setReviews(updatedReviews);
-      setIsSubmittingRejection(false);
+      if (selectedReview?.id === selectedReview.id) {
+        setSelectedReview({
+          ...selectedReview,
+          status: 'rejected',
+          operation: 'رد شده',
+          rejectionReasons: reasons
+        });
+      }
       setIsRejectModalOpen(false);
 
-      // Clear the form
       setRejectionReasons({
         offensiveWords: false,
         adultContent: false,
@@ -230,12 +192,33 @@ const Reviews = () => {
       setOtherReasonText('');
 
       toast.success('دیدگاه با موفقیت رد شد');
-    }, 1000);
+    } catch (error) {
+      toast.error('رد دیدگاه انجام نشد');
+    } finally {
+      setIsSubmittingRejection(false);
+    }
   };
+
+  const fetchReviewDetails = useCallback(async (reviewId) => {
+    try {
+      const response = await adminCommentsService.get(reviewId);
+      const mapped = mapCommentToReview(response);
+      setSelectedReview((prev) => {
+        if (!prev || prev.id !== reviewId) return prev;
+        return {
+          ...mapped,
+          rejectionReasons: prev.rejectionReasons || rejectionReasonMap[reviewId] || []
+        };
+      });
+    } catch (error) {
+      toast.error('دریافت جزئیات دیدگاه ناموفق بود');
+    }
+  }, [mapCommentToReview, rejectionReasonMap]);
 
   const openDetailsModal = (review) => {
     setSelectedReview(review);
     setIsDetailsModalOpen(true);
+    fetchReviewDetails(review.id);
   };
 
   const handleReasonChange = (reason) => {
@@ -254,11 +237,7 @@ const Reviews = () => {
     setCurrentPage(1);
   };
 
-  // Calculate pagination
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentReviews = reviews.slice(startIndex, endIndex);
-  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const currentReviews = useMemo(() => reviews, [reviews]);
 
   const getPageNumbers = () => {
     const pages = [];
