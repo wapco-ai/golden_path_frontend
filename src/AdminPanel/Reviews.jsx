@@ -239,6 +239,19 @@ const Reviews = () => {
 
   const currentReviews = useMemo(() => reviews, [reviews]);
 
+  const formatReviewDate = (dateValue) => {
+    if (!dateValue) return '-';
+    const parsedDate = new Date(dateValue);
+    if (Number.isNaN(parsedDate.getTime())) return '-';
+    return new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(parsedDate);
+  };
+
   const getPageNumbers = () => {
     const pages = [];
     const maxVisiblePages = 6;
@@ -365,7 +378,7 @@ const Reviews = () => {
                     </div>
                   </td>
                   <td>{review.sender}</td>
-                  <td>{review.date}</td>
+                  <td>{formatReviewDate(review.date)}</td>
                   <td>{review.section}</td>
                   <td>
                     <div className="operation-actions">
@@ -517,7 +530,7 @@ const Reviews = () => {
                 </div>
                 <div className="info-row">
                   <span className="info-label">تاریخ ارسال</span>
-                  <span className="info-value">{selectedReview.date}</span>
+                  <span className="info-value">{formatReviewDate(selectedReview.date)}</span>
                 </div>
                 <div className="info-row">
                   <span className="info-label">بخش</span>
