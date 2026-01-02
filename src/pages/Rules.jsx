@@ -3,12 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import logo from '../assets/images/logo.png';
 import '../styles/Rules.css';
+import { fetchRulesPage } from '../services/publicPagesService';
+import { useLangStore } from '../store/langStore';
 
 function Rules() {
   const navigate = useNavigate();
   const intl = useIntl();
   const [rulesShowHeaderText, setRulesShowHeaderText] = useState(false);
   const [rulesExpandedSections, setRulesExpandedSections] = useState({});
+  const language = useLangStore((state) => state.language);
+  const [rulesContent, setRulesContent] = useState(null);
 
   useEffect(() => {
 
@@ -36,6 +40,29 @@ function Rules() {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadRulesContent = async () => {
+      try {
+        const data = await fetchRulesPage(language);
+        if (isMounted) {
+          setRulesContent(data);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setRulesContent(null);
+        }
+      }
+    };
+
+    loadRulesContent();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [language]);
+
   const rulesToggleSection = (sectionId) => {
     setRulesExpandedSections(prev => ({
       ...prev,
@@ -54,7 +81,7 @@ function Rules() {
           </svg>
         </button>
         <h2 className="rules-section-title">
-          <FormattedMessage id="termsRegulation" />
+          {rulesContent?.title || <FormattedMessage id="termsRegulation" />}
         </h2>
       </div>
 
@@ -76,7 +103,7 @@ function Rules() {
             </div>
           </div>
           <p className="rules-section-description">
-            <FormattedMessage id="rulesIntro" />
+            {rulesContent?.description || <FormattedMessage id="rulesIntro" />}
           </p>
         </div>
       </div>

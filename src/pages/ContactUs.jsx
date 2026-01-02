@@ -1,12 +1,16 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import logo from '../assets/images/logo.png';
 import '../styles/ContactUs.css';
+import { fetchContactPage } from '../services/publicPagesService';
+import { useLangStore } from '../store/langStore';
 
 function ContactUs() {
   const navigate = useNavigate();
   const intl = useIntl();
+  const language = useLangStore((state) => state.language);
+  const [contactContent, setContactContent] = useState(null);
 
   useEffect(() => {
 
@@ -23,13 +27,43 @@ function ContactUs() {
     }, 10);
   }, [location.pathname]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadContactContent = async () => {
+      try {
+        const data = await fetchContactPage(language);
+        if (isMounted) {
+          setContactContent(data);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setContactContent(null);
+        }
+      }
+    };
+
+    loadContactContent();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [language]);
+
+  const contactPhones = contactContent?.phones?.slice(0, 3) || [];
+  const contactEmails = contactContent?.emails?.slice(0, 3) || [];
+  const primaryPhone = contactPhones[0] || '+98 21 1234 5678';
+  const primaryEmail = contactEmails[0] || 'info@example.com';
+  const contactAddress = contactContent?.address || intl.formatMessage({ id: 'companyAddress' });
+
   const handleAddressClick = () => {
     // For mobile, open maps app
     if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-      window.open('https://maps.google.com/?q=Masshad,+Iran', '_blank');
+      const encodedAddress = encodeURIComponent(contactAddress);
+      window.open(`https://maps.google.com/?q=${encodedAddress}`, '_blank');
     } else {
       // For desktop, show address
-      navigator.clipboard.writeText(intl.formatMessage({ id: 'companyAddress' }))
+      navigator.clipboard.writeText(contactAddress)
         .then(() => {
           alert(intl.formatMessage({ id: 'addressCopied' }));
         });
@@ -47,7 +81,7 @@ function ContactUs() {
         </button>
 
         <h1 className="contactus-title">
-          <FormattedMessage id="contactUsTitle" />
+          {contactContent?.title || <FormattedMessage id="contactUsTitle" />}
         </h1>
       </div>
 
@@ -62,7 +96,7 @@ function ContactUs() {
             <FormattedMessage id="contactWelcomeTitle" />
           </h2>
           <p className="contactus-welcome-description">
-            <FormattedMessage id="contactWelcomeDescription" />
+            {contactContent?.description || <FormattedMessage id="contactWelcomeDescription" />}
           </p>
         </div>
 
@@ -81,7 +115,7 @@ function ContactUs() {
                 <FormattedMessage id="contactEmailTitle" />
               </h3>
               <p className="contactus-card-detail">
-                info@example.com
+                {contactEmails.length ? contactEmails.join('، ') : primaryEmail}
               </p>
             </div>
           </div>
@@ -100,7 +134,7 @@ function ContactUs() {
                 <FormattedMessage id="contactPhoneTitle" />
               </h3>
               <p className="contactus-card-detail">
-                +98 21 1234 5678
+                {contactPhones.length ? contactPhones.join('، ') : primaryPhone}
               </p>
             </div>
           </div>
@@ -126,7 +160,7 @@ function ContactUs() {
                 <FormattedMessage id="contactAddressTitle" />
               </h3>
               <p className="contactus-card-detail">
-                <FormattedMessage id="companyAddress" />
+                {contactAddress}
               </p>
               <button className="contactus-card-button" onClick={handleAddressClick}>
                 <FormattedMessage id="viewOnMap" />

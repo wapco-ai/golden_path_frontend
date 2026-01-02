@@ -1,12 +1,16 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import logo from '../assets/images/logo.png';
 import '../styles/AboutUs.css';
+import { fetchAboutPage } from '../services/publicPagesService';
+import { useLangStore } from '../store/langStore';
 
 function AboutUs() {
   const navigate = useNavigate();
   const intl = useIntl();
+  const language = useLangStore((state) => state.language);
+  const [aboutContent, setAboutContent] = useState(null);
 
   useEffect(() => {
 
@@ -23,6 +27,29 @@ function AboutUs() {
     }, 10);
   }, [location.pathname]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadAboutContent = async () => {
+      try {
+        const data = await fetchAboutPage(language);
+        if (isMounted) {
+          setAboutContent(data);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setAboutContent(null);
+        }
+      }
+    };
+
+    loadAboutContent();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [language]);
+
   return (
     <div className="aboutus-page-container">
       {/* Header with Back Arrow */}
@@ -34,7 +61,7 @@ function AboutUs() {
         </button>
 
         <h1 className="aboutus-title">
-          <FormattedMessage id="aboutUsTitle" />
+          {aboutContent?.title || <FormattedMessage id="aboutUsTitle" />}
         </h1>
       </div>
 
@@ -60,7 +87,7 @@ function AboutUs() {
 
           <div className="aboutus-description-content">
             <p className="aboutus-description-text">
-              <FormattedMessage id="aboutDescription" />
+              {aboutContent?.description || <FormattedMessage id="aboutDescription" />}
             </p>
           </div>
         </div>
