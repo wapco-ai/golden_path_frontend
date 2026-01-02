@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { createIntl, createIntlCache, RawIntlProvider } from 'react-intl';
 import { useLangStore } from './store/langStore';
+import { useAdminLangStore } from './store/adminLangStore';
 import fa from './locales/fa.json';
 import en from './locales/en.json';
 import ar from './locales/ar.json';
@@ -11,8 +12,33 @@ const messages = { fa, en, ar, ur };
 
 import { toPersianDigits } from './utils/digits';
 
+const isAdminHashRoute = () => {
+  if (typeof window === 'undefined') return false;
+  const hash = window.location.hash || '';
+  const path = window.location.pathname || '';
+  return hash.startsWith('#/admin') || path.startsWith('/admin');
+};
+
 const IntlProviderWrapper = ({ children }) => {
-  const language = useLangStore((state) => state.language);
+  const [isAdminRoute, setIsAdminRoute] = useState(isAdminHashRoute());
+  const userLanguage = useLangStore((state) => state.language);
+  const adminLanguage = useAdminLangStore((state) => state.language);
+  const language = isAdminRoute ? adminLanguage : userLanguage;
+
+  useEffect(() => {
+    const handleRouteChange = () => {
+      setIsAdminRoute(isAdminHashRoute());
+    };
+
+    window.addEventListener('hashchange', handleRouteChange);
+    window.addEventListener('popstate', handleRouteChange);
+
+    return () => {
+      window.removeEventListener('hashchange', handleRouteChange);
+      window.removeEventListener('popstate', handleRouteChange);
+    };
+  }, []);
+
   useEffect(() => {
     document.documentElement.lang = language;
     document.documentElement.dir = language === 'en' ? 'ltr' : 'rtl';
