@@ -157,8 +157,8 @@ const Feedbacks = () => {
   return (
     <div className="feedbacks-page">
       {/* Page Header */}
-      <div className="section-header">
-        <div className="section-header-top">
+      <div className="section-header-feedback">
+        <div className="section-header-top-feedback">
           <div className="title-container">
             <div className="title-cell">
               <h3>
@@ -207,7 +207,6 @@ const Feedbacks = () => {
             </div>
             <p></p>
           </div>
-          <div className="left-container">
             <div className="feedback-filters">
               <div className="select-wrapper feedback-status-filter">
                 <select
@@ -222,7 +221,7 @@ const Feedbacks = () => {
                   ))}
                 </select>
               </div>
-              <div className="search-box-with-icon">
+              <div className="search-box-with-icon-feedback">
                 <svg
                   className="search-icon7"
                   width="18"
@@ -247,7 +246,6 @@ const Feedbacks = () => {
                   id="feedback-search-input"
                 />
               </div>
-            </div>
           </div>
         </div>
       </div>

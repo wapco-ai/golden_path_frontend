@@ -447,6 +447,7 @@ function ProfileInfo() {
             <label className="field-label">
               <FormattedMessage id="phoneNumber" />
             </label>
+            <span className="required-star">*</span>
           </div>
           <div className={`input-container ${isValidPhoneNumber(userData.phoneNumber) ? 'valid' : ''}`}>
             <input

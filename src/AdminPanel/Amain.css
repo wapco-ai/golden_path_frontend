@@ -994,6 +994,11 @@ body {
   width: 20vw;
 }
 
+.search-box-with-icon-feedback {
+  position: relative;
+  width: 40vw;
+}
+
 .search-input7 {
   width: 100%;
   padding: 10px 40px 10px 15px;
@@ -1447,27 +1452,35 @@ body {
 
 }
 
-.export-report-btn {
+.export-report-btn3 {
   padding: 12px;
   background: #0F71EF;
-  border: none;
   border-radius: 8px;
+  border:none;
   color: white;
   font-size: 12px;
   font-family: 'Vazir', Tahoma, sans-serif;
   display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: center;
   cursor: pointer;
   align-items: center;
-  height: 36px;
+  height: 40px;
+  width: 30%;
   transition: background-color 0.5s;
 }
 
-.export-report-btn:hover {
+.export-report-btn3:hover {
   background: #0b5fcc;
 
+}
+
+.feedback-filters{
+  display: flex;
+  flex-direction: row;
+  flex:0.6;
+  justify-content: space-between;
+  gap: 15px;
+  align-items: center;
 }
 
 
@@ -8582,7 +8595,6 @@ body {
   padding: 20px;
   background: #f9fafb;
   border-radius: 6px;
-  border: 1px dashed #d1d5db;
 }
 
 .modal-header-pages {
@@ -10847,4 +10859,35 @@ body {
   font-size: 12px;
   font-weight: 500;
   margin: 2px;
+}
+
+.section-header-feedback {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.section-header-feedback h3 {
+  margin: 0 0 10px 0;
+  color: #1e2023;
+  font-size: 16px;
+}
+
+.section-header-feedback p {
+  margin: 0;
+  color: #858585;
+  line-height: 1.5;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.section-header-top-feedback {
+  flex:1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0px;
+  width: 100vw;
 }
