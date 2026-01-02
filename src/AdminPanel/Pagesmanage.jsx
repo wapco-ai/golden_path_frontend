@@ -129,7 +129,6 @@ const PagesManage = () => {
           title: page.title,
           description: pageData?.description || ''
         });
-        setFaqs(pageData?.faqs || []);
         setNewFAQ({ question: '', answer: '' });
         break;
       case 'rules':
