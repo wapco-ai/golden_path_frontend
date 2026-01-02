@@ -24,7 +24,6 @@ import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { ToastContainer, toast } from 'react-toastify';
 import adminRoutes from './routes/adminRoutes';
-import { getPersistedLanguage, useLangStore } from './store/langStore';
 
 const useAppStyles = () => {
   const location = useLocation();
@@ -40,8 +39,6 @@ const useAppStyles = () => {
 const AppContent = () => {
   const location = useLocation();
   const intl = useIntl();
-  const language = useLangStore((state) => state.language);
-  const setLanguage = useLangStore((state) => state.setLanguage);
   const hideHeaderFooter = location.pathname === '/login' || location.pathname === '/profile'|| location.pathname === '/lang'
     || location.pathname === '/location' || location.pathname === '/' || location.pathname === '/mpr'|| location.pathname === '/fs'
     || location.pathname === '/rop' || location.pathname === '/rng'|| location.pathname === '/mpb'
@@ -54,15 +51,6 @@ const AppContent = () => {
 
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstall, setShowInstall] = useState(false);
-
-  useEffect(() => {
-    const storedLanguage = getPersistedLanguage(location.pathname);
-    const fallbackLanguage = 'fa';
-    const nextLanguage = storedLanguage || fallbackLanguage;
-    if (nextLanguage !== language) {
-      setLanguage(nextLanguage);
-    }
-  }, [language, location.pathname, setLanguage]);
 
   useEffect(() => {
     document.title = intl.formatMessage({ id: 'appTitle' });
