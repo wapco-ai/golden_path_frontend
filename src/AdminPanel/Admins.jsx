@@ -41,6 +41,8 @@ const Admins = () => {
     firstName: '',
     lastName: '',
     username: '',
+    email: '',
+    password: '',
     roles: []
   });
 
@@ -82,6 +84,8 @@ const Admins = () => {
       firstName: '',
       lastName: '',
       username: '',
+      email: '',
+      password: '',
       roles: []
     });
     setIsAddModalOpen(true);
@@ -90,7 +94,12 @@ const Admins = () => {
 
   const handleAddAdmin = async () => {
 
-    if (!newAdmin.firstName.trim() || !newAdmin.lastName.trim() || !newAdmin.username.trim()) {
+    if (!newAdmin.firstName.trim()
+      || !newAdmin.lastName.trim()
+      || !newAdmin.username.trim()
+      || !newAdmin.email.trim()
+      || !newAdmin.password.trim()
+    ) {
       toast.error('لطفا تمام فیلدهای الزامی را پر کنید');
       return;
     }
@@ -103,6 +112,8 @@ const Admins = () => {
         firstName: newAdmin.firstName.trim(),
         lastName: newAdmin.lastName.trim(),
         username: newAdmin.username.trim(),
+        email: newAdmin.email.trim(),
+        password: newAdmin.password,
         roles: [...newAdmin.roles]
       });
       setIsSaving(false);
@@ -753,6 +764,28 @@ const Admins = () => {
                     id="add-admin-username"
                   />
                 </div>
+                <div className="info-field">
+                  <label>ایمیل <span style={{ color: 'red' }}>*</span></label>
+                  <input
+                    type="email"
+                    className="form-input-add-admin"
+                    value={newAdmin.email}
+                    onChange={(e) => setNewAdmin({ ...newAdmin, email: e.target.value })}
+                    placeholder="ایمیل را وارد کنید"
+                    id="add-admin-email"
+                  />
+                </div>
+                <div className="info-field">
+                  <label>رمز عبور <span style={{ color: 'red' }}>*</span></label>
+                  <input
+                    type="password"
+                    className="form-input-add-admin"
+                    value={newAdmin.password}
+                    onChange={(e) => setNewAdmin({ ...newAdmin, password: e.target.value })}
+                    placeholder="رمز عبور را وارد کنید"
+                    id="add-admin-password"
+                  />
+                </div>
               </div>
 
               <div className="roles-section-add-admin">
@@ -784,7 +817,13 @@ const Admins = () => {
               <button
                 className="action-btn save-btn"
                 onClick={handleAddAdmin}
-                disabled={isSaving || !newAdmin.firstName.trim() || !newAdmin.lastName.trim() || !newAdmin.username.trim()}
+                disabled={isSaving
+                  || !newAdmin.firstName.trim()
+                  || !newAdmin.lastName.trim()
+                  || !newAdmin.username.trim()
+                  || !newAdmin.email.trim()
+                  || !newAdmin.password.trim()
+                }
                 id="add-admin-submit-btn"
               >
                 {isSaving ? 'در حال ذخیره...' : 'افزودن ادمین'}
