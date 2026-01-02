@@ -67,8 +67,9 @@ const Admins = () => {
         pageSize: options.pageSize ?? itemsPerPage,
         search: options.search ?? searchTerm
       });
-      setAdmins(response.items || []);
-      setTotalItems(response.meta?.totalItems ?? 0);
+      const payload = response?.data ?? response;
+      setAdmins(payload?.items || []);
+      setTotalItems(payload?.meta?.totalItems ?? 0);
     } catch (error) {
       toast.error('خطا در دریافت لیست ادمین‌ها');
     } finally {
