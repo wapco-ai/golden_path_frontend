@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import '../styles/FAQ.css';
+import { fetchFaqPage } from '../services/publicPagesService';
+import { useLangStore } from '../store/langStore';
 
 function FAQ() {
   const navigate = useNavigate();
   const intl = useIntl();
   const [faqExpandedItems, setFaqExpandedItems] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [faqItems, setFaqItems] = useState([]);
+  const language = useLangStore((state) => state.language);
   const showContactCTA = !searchQuery.trim();
 
   const handleSearchChange = (e) => {
@@ -30,6 +34,34 @@ function FAQ() {
     }, 10);
   }, [location.pathname]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadFaqContent = async () => {
+      try {
+        const data = await fetchFaqPage(language);
+        if (isMounted) {
+          const normalizedItems = (data?.items || []).map((item, index) => ({
+            id: item.id ?? `faq-${index}`,
+            question: item.question,
+            answer: item.answer
+          }));
+          setFaqItems(normalizedItems);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setFaqItems([]);
+        }
+      }
+    };
+
+    loadFaqContent();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [language]);
+
   const faqToggleItem = (itemId) => {
     setFaqExpandedItems(prev => ({
       ...prev,
@@ -37,56 +69,57 @@ function FAQ() {
     }));
   };
 
-  // FAQ Data
-  const faqItems = [
+  const defaultFaqItems = useMemo(() => ([
     {
       id: 'account',
-      question: 'faqAccountQuestion',
-      answer: 'faqAccountAnswer'
+      question: intl.formatMessage({ id: 'faqAccountQuestion' }),
+      answer: intl.formatMessage({ id: 'faqAccountAnswer' })
     },
     {
       id: 'password',
-      question: 'faqPasswordQuestion',
-      answer: 'faqPasswordAnswer'
+      question: intl.formatMessage({ id: 'faqPasswordQuestion' }),
+      answer: intl.formatMessage({ id: 'faqPasswordAnswer' })
     },
     {
       id: 'privacy',
-      question: 'faqPrivacyQuestion',
-      answer: 'faqPrivacyAnswer'
+      question: intl.formatMessage({ id: 'faqPrivacyQuestion' }),
+      answer: intl.formatMessage({ id: 'faqPrivacyAnswer' })
     },
     {
       id: 'payment',
-      question: 'faqPaymentQuestion',
-      answer: 'faqPaymentAnswer'
+      question: intl.formatMessage({ id: 'faqPaymentQuestion' }),
+      answer: intl.formatMessage({ id: 'faqPaymentAnswer' })
     },
     {
       id: 'technical',
-      question: 'faqTechnicalQuestion',
-      answer: 'faqTechnicalAnswer'
+      question: intl.formatMessage({ id: 'faqTechnicalQuestion' }),
+      answer: intl.formatMessage({ id: 'faqTechnicalAnswer' })
     },
     {
       id: 'support',
-      question: 'faqSupportQuestion',
-      answer: 'faqSupportAnswer'
+      question: intl.formatMessage({ id: 'faqSupportQuestion' }),
+      answer: intl.formatMessage({ id: 'faqSupportAnswer' })
     },
     {
       id: 'features',
-      question: 'faqFeaturesQuestion',
-      answer: 'faqFeaturesAnswer'
+      question: intl.formatMessage({ id: 'faqFeaturesQuestion' }),
+      answer: intl.formatMessage({ id: 'faqFeaturesAnswer' })
     },
     {
       id: 'updates',
-      question: 'faqUpdatesQuestion',
-      answer: 'faqUpdatesAnswer'
+      question: intl.formatMessage({ id: 'faqUpdatesQuestion' }),
+      answer: intl.formatMessage({ id: 'faqUpdatesAnswer' })
     }
-  ];
+  ]), [intl]);
 
-  const filteredFaqItems = faqItems.filter(item => {
+  const activeFaqItems = faqItems.length ? faqItems : defaultFaqItems;
+
+  const filteredFaqItems = activeFaqItems.filter(item => {
     if (!searchQuery.trim()) return true;
 
     const query = searchQuery.toLowerCase();
-    const questionText = intl.formatMessage({ id: item.question }).toLowerCase();
-    const answerText = intl.formatMessage({ id: item.answer }).toLowerCase();
+    const questionText = (item.question || '').toLowerCase();
+    const answerText = (item.answer || '').toLowerCase();
 
     return questionText.includes(query) || answerText.includes(query);
   });
@@ -146,7 +179,7 @@ function FAQ() {
                     {String(index + 1).padStart(2 )}
                   </div>
                   <div className="faq-item-question">
-                    <FormattedMessage id={item.question} />
+                    {item.question}
                   </div>
                   <div className="faq-item-arrow">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -162,7 +195,7 @@ function FAQ() {
 
                 <div className="faq-item-answer">
                   <p>
-                    <FormattedMessage id={item.answer} />
+                    {item.answer}
                   </p>
                 </div>
               </div>

@@ -7,6 +7,8 @@ import logo from '../assets/images/logo.png';
 import '../styles/Support.css';
 import { useLocation } from 'react-router-dom';
 import { sendSupportFeedback } from '../services/supportApi';
+import { fetchSupportPage } from '../services/publicPagesService';
+import { useLangStore } from '../store/langStore';
 
 function Support() {
   const navigate = useNavigate();
@@ -17,6 +19,8 @@ function Support() {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const location = useLocation();
+  const language = useLangStore((state) => state.language);
+  const [supportContent, setSupportContent] = useState(null);
 
 
   useEffect(() => {
@@ -44,20 +48,49 @@ function Support() {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSupportContent = async () => {
+      try {
+        const data = await fetchSupportPage(language);
+        if (isMounted) {
+          setSupportContent(data);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setSupportContent(null);
+        }
+      }
+    };
+
+    loadSupportContent();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [language]);
+
+  const supportPhones = supportContent?.phones?.slice(0, 3) || [];
+  const supportEmails = supportContent?.emails?.slice(0, 3) || [];
+  const primaryPhone = supportPhones[0] || '+98 21 1234 5678';
+  const primaryEmail = supportEmails[0] || 'support@example.com';
+
   const handleContactClick = (type) => {
     if (type === 'support') {
-      window.location.href = 'mailto:support@example.com';
+      window.location.href = `mailto:${primaryEmail}`;
     } else if (type === 'phone') {
       if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-        window.location.href = 'tel:+982112345678';
+        const sanitizedPhone = primaryPhone.replace(/\s+/g, '');
+        window.location.href = `tel:${sanitizedPhone}`;
       } else {
         // For desktop, copy to clipboard or show number
-        navigator.clipboard.writeText('+98 21 1234 5678')
+        navigator.clipboard.writeText(primaryPhone)
           .then(() => {
             alert(intl.formatMessage({ id: 'phoneCopied' }));
           })
           .catch(() => {
-            alert('Phone: +98 21 1234 5678');
+            alert(`Phone: ${primaryPhone}`);
           });
       }
     }
@@ -182,10 +215,10 @@ function Support() {
         {/* Contact Section */}
         <div className="support-section">
           <h2 className="section-title">
-            <FormattedMessage id="contactSupport" />
+            {supportContent?.title || <FormattedMessage id="contactSupport" />}
           </h2>
           <p className="section-description">
-            <FormattedMessage id="contactDescription" />
+            {supportContent?.description || <FormattedMessage id="contactDescription" />}
           </p>
 
           <div className="contact-cards">
@@ -205,7 +238,7 @@ function Support() {
                   <FormattedMessage id="phoneSupport" />
                 </h3>
                 <p className="contact-address">
-                  +98 21 1234 5678
+                  {supportPhones.length ? supportPhones.join('، ') : primaryPhone}
                 </p>
               </div>
             </div>
@@ -221,7 +254,7 @@ function Support() {
                   <FormattedMessage id="supportEmail" />
                 </h3>
                 <p className="contact-address">
-                  support@example.com
+                  {supportEmails.length ? supportEmails.join('، ') : primaryEmail}
                 </p>
               </div>
             </div>
