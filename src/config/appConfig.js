@@ -37,6 +37,10 @@ const defaultGroupSubGroupsUrl = `${defaultApiBaseUrl}/api/v1/groups/subgroups`;
 const defaultUserFeedbackUrl = `${defaultApiBaseUrl}/api/v1/feedbacks`;
 const defaultAdminSupportFeedbacksUrl = `${defaultApiBaseUrl}/api/v1/admin/support-feedbacks`;
 const defaultSupportFeedbackUrl = `${defaultApiBaseUrl}/api/v1/support/feedback`;
+const defaultAdminVanBaseUrl = `${defaultApiBaseUrl}/api/v1/admin/van`;
+const defaultAdminCommentsBaseUrl = `${defaultApiBaseUrl}/api/v1/admin/comments`;
+const defaultAdminUsersBaseUrl = `${defaultApiBaseUrl}/api/v1/admin/users`;
+const defaultTempBlockAreasBaseUrl = `${defaultApiBaseUrl}/api/v1/admin/temp-block-areas`;
 
 const appConfig = {
   apiBaseUrl: (import.meta?.env?.VITE_API_BASE_URL?.trim() || defaultApiBaseUrl).replace(/\/$/, ''),
@@ -49,6 +53,11 @@ const appConfig = {
   userFeedbackUrl: (import.meta?.env?.VITE_USER_FEEDBACK_URL?.trim() || defaultUserFeedbackUrl).replace(/\/$/, ''),
   adminSupportFeedbacksUrl: (import.meta?.env?.VITE_ADMIN_SUPPORT_FEEDBACKS_URL?.trim() || defaultAdminSupportFeedbacksUrl).replace(/\/$/, ''),
   supportFeedbackUrl: (import.meta?.env?.VITE_SUPPORT_FEEDBACK_URL?.trim() || defaultSupportFeedbackUrl).replace(/\/$/, ''),
+  adminVanBaseUrl: (import.meta?.env?.VITE_ADMIN_VAN_BASE_URL?.trim() || defaultAdminVanBaseUrl).replace(/\/$/, ''),
+  adminCommentsBaseUrl: (import.meta?.env?.VITE_ADMIN_COMMENTS_BASE_URL?.trim() || defaultAdminCommentsBaseUrl).replace(/\/$/, ''),
+  adminUsersBaseUrl: (import.meta?.env?.VITE_ADMIN_USERS_BASE_URL?.trim() || defaultAdminUsersBaseUrl).replace(/\/$/, ''),
+  adminTempBlockAreasBaseUrl: (import.meta?.env?.VITE_ADMIN_TEMP_BLOCK_AREAS_BASE_URL?.trim() || defaultTempBlockAreasBaseUrl).replace(/\/$/, ''),
+  adminCommentsRequestTimeoutMs: Number(import.meta?.env?.VITE_ADMIN_COMMENTS_REQUEST_TIMEOUT_MS ?? '') || 15000,
   userFeedbackAuthToken: import.meta?.env?.VITE_USER_FEEDBACK_AUTH_TOKEN?.trim() || '',
   terrainProbeUrl: import.meta?.env?.VITE_TERRAIN_PROBE_URL?.trim() || 'https://demotiles.maplibre.org/terrain-tiles/tiles/0/0/0.png',
   googleMapsDirectionsBaseUrl: import.meta?.env?.VITE_GOOGLE_MAPS_DIRECTIONS_BASE_URL?.trim() || 'https://www.google.com/maps/dir/',

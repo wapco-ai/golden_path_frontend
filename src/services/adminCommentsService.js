@@ -1,7 +1,5 @@
 import http from '../api/http';
-
-const REQUEST_TIMEOUT_MS = 15000;
-const ADMIN_COMMENTS_BASE_URL = '/api/v1/admin/comments';
+import appConfig from '../config/appConfig';
 
 export const listAdminComments = async ({
   page,
@@ -30,8 +28,8 @@ export const listAdminComments = async ({
   if (sortBy) params.sortBy = sortBy;
   if (sortOrder) params.sortOrder = sortOrder;
 
-  const response = await http.get(ADMIN_COMMENTS_BASE_URL, {
-    timeout: REQUEST_TIMEOUT_MS,
+  const response = await http.get(appConfig.adminCommentsBaseUrl, {
+    timeout: appConfig.adminCommentsRequestTimeoutMs,
     params
   });
 
@@ -39,8 +37,8 @@ export const listAdminComments = async ({
 };
 
 export const getAdminComment = async (id) => {
-  const response = await http.get(`${ADMIN_COMMENTS_BASE_URL}/${id}`, {
-    timeout: REQUEST_TIMEOUT_MS
+  const response = await http.get(`${appConfig.adminCommentsBaseUrl}/${id}`, {
+    timeout: appConfig.adminCommentsRequestTimeoutMs
   });
 
   return response.data;
@@ -48,10 +46,10 @@ export const getAdminComment = async (id) => {
 
 export const updateAdminCommentStatus = async (id, { status }) => {
   const response = await http.patch(
-    `${ADMIN_COMMENTS_BASE_URL}/${id}/status`,
+    `${appConfig.adminCommentsBaseUrl}/${id}/status`,
     { status },
     {
-      timeout: REQUEST_TIMEOUT_MS,
+      timeout: appConfig.adminCommentsRequestTimeoutMs,
       headers: {
         'Content-Type': 'application/json'
       }
@@ -62,8 +60,8 @@ export const updateAdminCommentStatus = async (id, { status }) => {
 };
 
 export const deleteAdminComment = async (id) => {
-  const response = await http.delete(`${ADMIN_COMMENTS_BASE_URL}/${id}`, {
-    timeout: REQUEST_TIMEOUT_MS
+  const response = await http.delete(`${appConfig.adminCommentsBaseUrl}/${id}`, {
+    timeout: appConfig.adminCommentsRequestTimeoutMs
   });
 
   return response.data;
