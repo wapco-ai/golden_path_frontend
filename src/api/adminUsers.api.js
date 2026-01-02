@@ -1,4 +1,5 @@
 import http from './http';
+import appConfig from '../config/appConfig';
 
 export const fetchSignedUsers = async ({ page = 1, pageSize = 20, search = '' }) => {
   const params = {
@@ -10,16 +11,16 @@ export const fetchSignedUsers = async ({ page = 1, pageSize = 20, search = '' })
     params.search = search;
   }
 
-  const response = await http.get('/api/v1/admin/users', { params });
+  const response = await http.get(appConfig.adminUsersBaseUrl, { params });
   return response.data;
 };
 
 export const fetchSignedUser = async (id) => {
-  const response = await http.get(`/api/v1/admin/users/${id}`);
+  const response = await http.get(`${appConfig.adminUsersBaseUrl}/${id}`);
   return response.data;
 };
 
 export const updateSignedUserStatus = async (id, status) => {
-  const response = await http.patch(`/api/v1/admin/users/${id}/status`, { status });
+  const response = await http.patch(`${appConfig.adminUsersBaseUrl}/${id}/status`, { status });
   return response.data;
 };

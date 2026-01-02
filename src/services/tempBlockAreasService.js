@@ -1,9 +1,8 @@
 import apiAdmin from '../api/apiAdmin';
-
-const TEMP_BLOCK_AREA_BASE_URL = '/api/v1/admin/temp-block-areas';
+import appConfig from '../config/appConfig';
 
 export const createTempBlockArea = async (payload, { signal } = {}) => {
-  const response = await apiAdmin.post(TEMP_BLOCK_AREA_BASE_URL, payload || {}, { signal });
+  const response = await apiAdmin.post(appConfig.adminTempBlockAreasBaseUrl, payload || {}, { signal });
   return response.data;
 };
 
@@ -12,7 +11,7 @@ export const updateTempBlockArea = async (id, payload, { signal } = {}) => {
     throw new Error('شناسه محدوده موقت نامعتبر است');
   }
 
-  const response = await apiAdmin.put(`${TEMP_BLOCK_AREA_BASE_URL}/${id}`, payload || {}, { signal });
+  const response = await apiAdmin.put(`${appConfig.adminTempBlockAreasBaseUrl}/${id}`, payload || {}, { signal });
   return response.data;
 };
 
@@ -21,12 +20,12 @@ export const getTempBlockArea = async (id, { signal } = {}) => {
     throw new Error('شناسه محدوده موقت نامعتبر است');
   }
 
-  const response = await apiAdmin.get(`${TEMP_BLOCK_AREA_BASE_URL}/${id}`, { signal });
+  const response = await apiAdmin.get(`${appConfig.adminTempBlockAreasBaseUrl}/${id}`, { signal });
   return response.data;
 };
 
 export const deleteTempBlockArea = async (id, { signal } = {}) => {
-  const response = await apiAdmin.delete(`${TEMP_BLOCK_AREA_BASE_URL}/${id}`, { signal });
+  const response = await apiAdmin.delete(`${appConfig.adminTempBlockAreasBaseUrl}/${id}`, { signal });
   return response.data;
 };
 
@@ -35,7 +34,7 @@ export const stopTempBlockArea = async (id, payload = {}, { signal } = {}) => {
     throw new Error('شناسه محدوده موقت نامعتبر است');
   }
 
-  const response = await apiAdmin.patch(`${TEMP_BLOCK_AREA_BASE_URL}/${id}/stop`, payload || {}, { signal });
+  const response = await apiAdmin.patch(`${appConfig.adminTempBlockAreasBaseUrl}/${id}/stop`, payload || {}, { signal });
   return response.data;
 };
 
@@ -44,7 +43,7 @@ export const extendTempBlockArea = async (id, payload = {}, { signal } = {}) => 
     throw new Error('شناسه محدوده موقت نامعتبر است');
   }
 
-  const response = await apiAdmin.patch(`${TEMP_BLOCK_AREA_BASE_URL}/${id}/extend`, payload || {}, { signal });
+  const response = await apiAdmin.patch(`${appConfig.adminTempBlockAreasBaseUrl}/${id}/extend`, payload || {}, { signal });
   return response.data;
 };
 
