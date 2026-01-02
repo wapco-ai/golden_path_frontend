@@ -1,6 +1,42 @@
 // src/pages/PagesManage.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import '../AdminPanel/Amain.css';
+import adminPagesService from '../services/adminPagesService';
+
+const PAGE_TYPES = ['support', 'rules', 'about', 'contact'];
+const EMPTY_TRANSLATIONS = {
+  englishDescription: '',
+  arabicDescription: '',
+  urduDescription: ''
+};
+const EMPTY_ADDRESS_TRANSLATIONS = {
+  englishAddress: '',
+  arabicAddress: '',
+  urduAddress: ''
+};
+const EMPTY_FAQ_TRANSLATIONS = {
+  englishQuestion: '',
+  arabicQuestion: '',
+  urduQuestion: '',
+  englishAnswer: '',
+  arabicAnswer: '',
+  urduAnswer: ''
+};
+
+const normalizeTranslations = (translations) => ({
+  ...EMPTY_TRANSLATIONS,
+  ...(translations || {})
+});
+
+const normalizeAddressTranslations = (translations) => ({
+  ...EMPTY_ADDRESS_TRANSLATIONS,
+  ...(translations || {})
+});
+
+const normalizeFaqItem = (faq) => ({
+  ...EMPTY_FAQ_TRANSLATIONS,
+  ...faq
+});
 
 const PagesManage = () => {
   // State for modals
@@ -25,44 +61,52 @@ const PagesManage = () => {
   });
   const [currentFAQIndex, setCurrentFAQIndex] = useState(null);
 
+  const initialPages = useMemo(
+    () => [
+      {
+        id: 1,
+        title: 'پشتیبانی',
+        description: '',
+        type: 'support',
+        createdAt: '۱۸ مرداد ۱۴۰۴'
+      },
+      {
+        id: 2,
+        title: 'سوالات متداول',
+        description: '',
+        type: 'faq',
+        createdAt: '۲۰ مرداد ۱۴۰۴'
+      },
+      {
+        id: 3,
+        title: 'قوانین و مقررات',
+        description: '',
+        type: 'rules',
+        createdAt: '۲۲ مرداد ۱۴۰۴'
+      },
+      {
+        id: 4,
+        title: 'درباره ما',
+        description: '',
+        type: 'about',
+        createdAt: '۲۵ مرداد ۱۴۰۴'
+      },
+      {
+        id: 5,
+        title: 'تماس با ما',
+        description: '',
+        type: 'contact',
+        createdAt: '۲۷ مرداد ۱۴۰۴'
+      }
+    ],
+    []
+  );
+
   // Initialize pages in useState with empty descriptions
-  const [pages, setPages] = useState([
-    {
-      id: 1,
-      title: 'پشتیبانی',
-      description: '',
-      type: 'support',
-      createdAt: '۱۸ مرداد ۱۴۰۴'
-    },
-    {
-      id: 2,
-      title: 'سوالات متداول',
-      description: '',
-      type: 'faq',
-      createdAt: '۲۰ مرداد ۱۴۰۴'
-    },
-    {
-      id: 3,
-      title: 'قوانین و مقررات',
-      description: '',
-      type: 'rules',
-      createdAt: '۲۲ مرداد ۱۴۰۴'
-    },
-    {
-      id: 4,
-      title: 'درباره ما',
-      description: '',
-      type: 'about',
-      createdAt: '۲۵ مرداد ۱۴۰۴'
-    },
-    {
-      id: 5,
-      title: 'تماس با ما',
-      description: '',
-      type: 'contact',
-      createdAt: '۲۷ مرداد ۱۴۰۴'
-    }
-  ]);
+  const [pages, setPages] = useState(initialPages);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
 
   const handleEditClick = (page) => {
@@ -119,104 +163,205 @@ const PagesManage = () => {
     setIsModalOpen(true);
   };
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPagesData = async () => {
+      setIsLoading(true);
+      setLoadError('');
+
+      try {
+        const results = await Promise.all(
+          PAGE_TYPES.map((type) => adminPagesService.getPage(type))
+        );
+
+        const nextPages = initialPages.map((page) => {
+          const pageResponse = results.find((item) => item?.type === page.type);
+          if (!pageResponse) return page;
+
+          const translations = normalizeTranslations(pageResponse.translations);
+          const addressTranslations = normalizeAddressTranslations(
+            pageResponse.addressTranslations
+          );
+
+          return {
+            ...page,
+            description: pageResponse.description || '',
+            phones: pageResponse.phones || [''],
+            emails: pageResponse.emails || [''],
+            address: pageResponse.address || '',
+            englishDescription: translations.englishDescription,
+            arabicDescription: translations.arabicDescription,
+            urduDescription: translations.urduDescription,
+            englishAddress: addressTranslations.englishAddress,
+            arabicAddress: addressTranslations.arabicAddress,
+            urduAddress: addressTranslations.urduAddress
+          };
+        });
+
+        if (isMounted) {
+          setPages(nextPages);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setLoadError('دریافت اطلاعات صفحات با خطا مواجه شد.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    const loadFaqs = async () => {
+      try {
+        const response = await adminPagesService.listFaqs();
+        const items = (response?.items || []).map((faq) => normalizeFaqItem(faq));
+
+        if (isMounted) {
+          setFaqs(items);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setLoadError('دریافت سوالات متداول با خطا مواجه شد.');
+        }
+      }
+    };
+
+    loadPagesData();
+    loadFaqs();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [initialPages]);
+
   // Handle add FAQ
   const handleAddFAQ = () => {
     if (newFAQ.question.trim() && newFAQ.answer.trim()) {
-      const newFAQWithLanguages = {
-        ...newFAQ,
-        id: Date.now(),
-        englishQuestion: newFAQ.englishQuestion || '',
-        arabicQuestion: newFAQ.arabicQuestion || '',
-        urduQuestion: newFAQ.urduQuestion || '',
-        englishAnswer: newFAQ.englishAnswer || '',
-        arabicAnswer: newFAQ.arabicAnswer || '',
-        urduAnswer: newFAQ.urduAnswer || ''
+      const newFAQWithLanguages = normalizeFaqItem(newFAQ);
+
+      const createFaq = async () => {
+        setIsSaving(true);
+        try {
+          const createdFaq = await adminPagesService.createFaq(newFAQWithLanguages);
+          const normalizedFaq = normalizeFaqItem(createdFaq);
+          setFaqs((prevFaqs) => [...prevFaqs, normalizedFaq]);
+          setNewFAQ({
+            question: '',
+            answer: '',
+            englishQuestion: '',
+            arabicQuestion: '',
+            urduQuestion: '',
+            englishAnswer: '',
+            arabicAnswer: '',
+            urduAnswer: ''
+          });
+          setIsFAQModalOpen(false);
+        } catch (error) {
+          alert('ذخیره سوال جدید با خطا مواجه شد.');
+        } finally {
+          setIsSaving(false);
+        }
       };
 
-      setFaqs([...faqs, newFAQWithLanguages]);
-      setNewFAQ({
-        question: '',
-        answer: '',
-        englishQuestion: '',
-        arabicQuestion: '',
-        urduQuestion: '',
-        englishAnswer: '',
-        arabicAnswer: '',
-        urduAnswer: ''
-      });
-      setIsFAQModalOpen(false);
+      createFaq();
     }
   };
 
 
   const handleRemoveFAQ = (id) => {
-    setFaqs(faqs.filter(faq => faq.id !== id));
+    const removeFaq = async () => {
+      setIsSaving(true);
+      try {
+        await adminPagesService.deleteFaq(id);
+        setFaqs((prevFaqs) => prevFaqs.filter(faq => faq.id !== id));
+      } catch (error) {
+        alert('حذف سوال با خطا مواجه شد.');
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    removeFaq();
   };
 
   const handleSaveModal = () => {
-    // Update the page data with modal data including language translations
-    const updatedPages = pages.map(page => {
-      if (page.type === currentPageToEdit) {
-        const updatedPage = {
-          ...page,
-          description: modalData.description || '',
-          ...(currentPageToEdit === 'support' && {
-            phones: modalData.phones || [''],
-            emails: modalData.emails || [''],
-            // Save language translations for support
-            englishDescription: modalData.englishDescription || '',
-            arabicDescription: modalData.arabicDescription || '',
-            urduDescription: modalData.urduDescription || ''
-          }),
-          ...(currentPageToEdit === 'faq' && {
-            faqs: faqs
-          }),
-          ...(currentPageToEdit === 'contact' && {
-            phones: modalData.phones || [''],
-            emails: modalData.emails || [''],
-            address: modalData.address || '',
-            // Save language translations for contact
-            englishDescription: modalData.englishDescription || '',
-            arabicDescription: modalData.arabicDescription || '',
-            urduDescription: modalData.urduDescription || '',
-            englishAddress: modalData.englishAddress || '',
-            arabicAddress: modalData.arabicAddress || '',
-            urduAddress: modalData.urduAddress || ''
-          }),
-          ...(currentPageToEdit === 'about' && {
-            englishDescription: modalData.englishDescription || '',
-            arabicDescription: modalData.arabicDescription || '',
-            urduDescription: modalData.urduDescription || ''
-          }),
-          ...(currentPageToEdit === 'rules' && {
-            englishDescription: modalData.englishDescription || '',
-            arabicDescription: modalData.arabicDescription || '',
-            urduDescription: modalData.urduDescription || ''
+    if (currentPageToEdit === 'faq') {
+      return;
+    }
+
+    const payload = {
+      description: modalData.description || '',
+      englishDescription: modalData.englishDescription || '',
+      arabicDescription: modalData.arabicDescription || '',
+      urduDescription: modalData.urduDescription || ''
+    };
+
+    if (currentPageToEdit === 'support') {
+      payload.phones = modalData.phones || [''];
+      payload.emails = modalData.emails || [''];
+    }
+
+    if (currentPageToEdit === 'contact') {
+      payload.phones = modalData.phones || [''];
+      payload.emails = modalData.emails || [''];
+      payload.address = modalData.address || '';
+      payload.englishAddress = modalData.englishAddress || '';
+      payload.arabicAddress = modalData.arabicAddress || '';
+      payload.urduAddress = modalData.urduAddress || '';
+    }
+
+    const savePage = async () => {
+      setIsSaving(true);
+      try {
+        const response = await adminPagesService.updatePage(currentPageToEdit, payload);
+        const translations = normalizeTranslations(response?.translations);
+        const addressTranslations = normalizeAddressTranslations(response?.addressTranslations);
+
+        setPages((prevPages) =>
+          prevPages.map((page) => {
+            if (page.type !== currentPageToEdit) return page;
+
+            return {
+              ...page,
+              description: response?.description || payload.description || '',
+              phones: response?.phones || payload.phones || page.phones || [''],
+              emails: response?.emails || payload.emails || page.emails || [''],
+              address: response?.address || payload.address || page.address || '',
+              englishDescription: translations.englishDescription,
+              arabicDescription: translations.arabicDescription,
+              urduDescription: translations.urduDescription,
+              englishAddress: addressTranslations.englishAddress,
+              arabicAddress: addressTranslations.arabicAddress,
+              urduAddress: addressTranslations.urduAddress
+            };
           })
-        };
+        );
 
-        return updatedPage;
+        alert(`تغییرات صفحه ${modalData.title} ذخیره شد`);
+        setIsModalOpen(false);
+        setCurrentPageToEdit(null);
+      } catch (error) {
+        alert('ذخیره تغییرات با خطا مواجه شد.');
+      } finally {
+        setIsSaving(false);
       }
-      return page;
-    });
+    };
 
-    // Update the pages state
-    setPages(updatedPages);
-
-    // Show success message
-    alert(`تغییرات صفحه ${modalData.title} ذخیره شد`);
-    setIsModalOpen(false);
-    setCurrentPageToEdit(null);
+    savePage();
   };
 
   // Handle modal close
   const handleCloseModal = () => {
+    if (isSaving) return;
     setIsModalOpen(false);
     setCurrentPageToEdit(null);
   };
 
   // Handle FAQ modal close
   const handleCloseFAQModal = () => {
+    if (isSaving) return;
     setIsFAQModalOpen(false);
     setNewFAQ({ question: '', answer: '' });
   };
@@ -731,6 +876,9 @@ const PagesManage = () => {
         <div className="report-header">
           <h4 className="report-title">مدیریت صفحات ایجاد شده مربوط به نرم‌افزار در اپلیکیشن</h4>
         </div>
+        {loadError && (
+          <div className="no-description">{loadError}</div>
+        )}
 
         {/* Table*/}
         <div className="pages-table-container">
@@ -743,7 +891,7 @@ const PagesManage = () => {
               </tr>
             </thead>
             <tbody>
-              {pages.map((page) => (
+      {pages.map((page) => (
                 <tr key={page.id}>
                   <td>
                     <div className="pages-title-cell">
@@ -768,6 +916,7 @@ const PagesManage = () => {
                         className={getEditButtonClass(page.type)}
                         title="ویرایش"
                         onClick={() => handleEditClick(page)}
+                        disabled={isLoading}
                       >
                         ویرایش
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -806,12 +955,14 @@ const PagesManage = () => {
               <button
                 className="modal-cancel-btn"
                 onClick={handleCloseModal}
+                disabled={isSaving}
               >
                 انصراف
               </button>
               <button
                 className="modal-save-btn"
                 onClick={handleSaveModal}
+                disabled={isSaving}
               >
                 ذخیره تغییرات
               </button>
@@ -900,13 +1051,14 @@ const PagesManage = () => {
               <button
                 className="modal-cancel-btn"
                 onClick={handleCloseFAQModal}
+                disabled={isSaving}
               >
                 انصراف
               </button>
               <button
                 className="modal-save-btn"
                 onClick={handleAddFAQ}
-                disabled={!newFAQ.question.trim() || !newFAQ.answer.trim()}
+                disabled={!newFAQ.question.trim() || !newFAQ.answer.trim() || isSaving}
               >
                 افزودن سوال
               </button>
@@ -968,7 +1120,12 @@ const PagesManage = () => {
             <div className="modal-footer">
               <button
                 className="modal-cancel-btn"
-                onClick={() => setIsLanguageModalOpen(false)}
+                onClick={() => {
+                  if (!isSaving) {
+                    setIsLanguageModalOpen(false);
+                  }
+                }}
+                disabled={isSaving}
               >
                 انصراف
               </button>
@@ -992,13 +1149,34 @@ const PagesManage = () => {
                     }));
                   } else if (currentFieldForLanguage === 'faq-question' && currentFAQIndex !== null) {
                     const updatedFaqs = [...faqs];
-                    updatedFaqs[currentFAQIndex] = {
+                    const updatedFaq = {
                       ...updatedFaqs[currentFAQIndex],
                       englishQuestion: currentLanguageData.english,
                       arabicQuestion: currentLanguageData.arabic,
                       urduQuestion: currentLanguageData.urdu
                     };
-                    setFaqs(updatedFaqs);
+
+                    const updateFaq = async () => {
+                      setIsSaving(true);
+                      try {
+                        const response = await adminPagesService.updateFaq(
+                          updatedFaq.id,
+                          updatedFaq
+                        );
+                        updatedFaqs[currentFAQIndex] = normalizeFaqItem(response);
+                        setFaqs(updatedFaqs);
+                        setIsLanguageModalOpen(false);
+                        setCurrentFieldForLanguage(null);
+                        setCurrentFAQIndex(null);
+                      } catch (error) {
+                        alert('به‌روزرسانی سوال با خطا مواجه شد.');
+                      } finally {
+                        setIsSaving(false);
+                      }
+                    };
+
+                    updateFaq();
+                    return;
                   } else if (currentFieldForLanguage === 'about-description') {
                     setModalData(prev => ({
                       ...prev,
@@ -1029,10 +1207,13 @@ const PagesManage = () => {
                     }));
                   }
 
-                  setIsLanguageModalOpen(false);
-                  setCurrentFieldForLanguage(null);
-                  setCurrentFAQIndex(null);
+                  if (!isSaving) {
+                    setIsLanguageModalOpen(false);
+                    setCurrentFieldForLanguage(null);
+                    setCurrentFAQIndex(null);
+                  }
                 }}
+                disabled={isSaving}
               >
                 تایید
               </button>
