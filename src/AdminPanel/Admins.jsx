@@ -469,7 +469,7 @@ const Admins = () => {
         </table>
 
         {/* Pagination */}
-        {!isLoading && filteredAdmins.length > 0 && (
+        {!isLoading  && (
           <div className="pagination-container" id="admins-pagination">
             <div className="pagination-controls">
               <div className="btc">
