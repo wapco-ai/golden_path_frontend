@@ -364,6 +364,7 @@ const Admins = () => {
             <tr>
               <th>نام خانوادگی</th>
               <th>نام کاربری</th>
+              <th>ایمیل</th>
               <th>نقش های داده شده</th>
               <th>عملیات</th>
             </tr>
@@ -371,13 +372,13 @@ const Admins = () => {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>
+                <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>
                   در حال بارگذاری...
                 </td>
               </tr>
             ) : currentAdmins.length === 0 ? (
               <tr>
-                <td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>
+                <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>
                   ادمینی یافت نشد
                 </td>
               </tr>
@@ -401,6 +402,9 @@ const Admins = () => {
                     </td>
                     <td>
                       <span className="username-cell">{admin.username}</span>
+                    </td>
+                    <td>
+                      <span className="username-cell">{admin.email || '-'}</span>
                     </td>
                     <td>
                       <div className="roles-cell">
