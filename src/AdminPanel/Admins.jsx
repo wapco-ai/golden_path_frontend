@@ -11,6 +11,9 @@ import {
 import '../AdminPanel/Amain.css';
 
 const Admins = () => {
+  const getServerErrorMessage = (error, fallbackMessage) =>
+    error?.response?.data?.message || error?.message || fallbackMessage;
+
   // All available roles
   const allRoles = [
     'ادمین کل داشبورد',
@@ -124,13 +127,14 @@ const Admins = () => {
       setCurrentPage(1);
       await loadAdmins({ page: 1 });
     } catch (error) {
-      if (error?.response?.status === 409) {
-        toast.error('این نام کاربری قبلاً استفاده شده است');
-      } else if (error?.response?.status === 422) {
-        toast.error('اطلاعات وارد شده معتبر نیست');
-      } else {
-        toast.error('خطا در افزودن ادمین');
-      }
+      const message =
+        getServerErrorMessage(error)
+        || (error?.response?.status === 409
+          ? 'این نام کاربری قبلاً استفاده شده است'
+          : error?.response?.status === 422
+            ? 'اطلاعات وارد شده معتبر نیست'
+            : 'خطا در افزودن ادمین');
+      toast.error(message);
     } finally {
       setIsSaving(false);
     }
@@ -268,7 +272,7 @@ const Admins = () => {
       setEditAdminPassword('');
       toast.success('اطلاعات ادمین با موفقیت به‌روزرسانی شد');
     } catch (error) {
-      toast.error('خطا در به‌روزرسانی نقش‌های ادمین');
+      toast.error(getServerErrorMessage(error, 'خطا در به‌روزرسانی نقش‌های ادمین'));
     } finally {
       setIsSaving(false);
     }
