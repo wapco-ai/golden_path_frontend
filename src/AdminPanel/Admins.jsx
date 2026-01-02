@@ -1,6 +1,13 @@
 // src/pages/Admins.jsx
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import {
+  createAdmin,
+  deleteAdmin,
+  getAdminById,
+  getAdmins,
+  updateAdminRoles
+} from '../services/adminsService';
 import '../AdminPanel/Amain.css';
 
 const Admins = () => {
@@ -20,63 +27,8 @@ const Admins = () => {
     'مدیریت کاربران ثبت نام کرده'
   ];
 
-  // Sample admins data
-  const initialAdmins = [
-    {
-      id: 1,
-      firstName: 'سیدمحمدحسین',
-      lastName: 'میرشفیعی',
-      username: 'admin1',
-      roles: ['ادمین کل داشبورد', 'مدیریت کاربران', 'مدیریت نقشه', 'مدیریت اطلاعات فرهنگی'],
-      avatar: 'https://via.placeholder.com/40',
-      createdAt: '۱۴۰۴ مرداد',
-      status: 'active'
-    },
-    {
-      id: 2,
-      firstName: 'علی',
-      lastName: 'رضایی',
-      username: 'admin2',
-      roles: ['مدیریت دسته بندی', 'مدیریت صفحات', 'مدیریت بازخورد ها'],
-      avatar: 'https://via.placeholder.com/40',
-      createdAt: '۱۴۰۴ مرداد',
-      status: 'active'
-    },
-    {
-      id: 3,
-      firstName: 'محمد',
-      lastName: 'حسینی',
-      username: 'admin3',
-      roles: ['مدیریت گزارشات', 'مدیریت دیدگاه ها', 'مدیریت لاگ های مسیریابی', 'مدیریت کاربران ثبت نام کرده'],
-      avatar: 'https://via.placeholder.com/40',
-      createdAt: '۱۴۰۴ مرداد',
-      status: 'active'
-    },
-    {
-      id: 4,
-      firstName: 'فاطمه',
-      lastName: 'محمدی',
-      username: 'admin4',
-      roles: ['مدیریت نقشه', 'مدیریت اطلاعات فرهنگی', 'مدیریت ادمین ها'],
-      avatar: 'https://via.placeholder.com/40',
-      createdAt: '۱۴۰۴ شهریور',
-      status: 'active'
-    },
-    {
-      id: 5,
-      firstName: 'ایمان',
-      lastName: 'قاسمی',
-      username: 'admin5',
-      roles: ['مدیریت بازخورد ها', 'مدیریت دیدگاه ها'],
-      avatar: 'https://via.placeholder.com/40',
-      createdAt: '۱۴۰۴ شهریور',
-      status: 'active'
-    }
-  ];
-
   // State management
   const [admins, setAdmins] = useState([]);
-  const [filteredAdmins, setFilteredAdmins] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
@@ -105,30 +57,23 @@ const Admins = () => {
 
   useEffect(() => {
     loadAdmins();
-  }, []);
+  }, [currentPage, itemsPerPage, searchTerm]);
 
-
-  useEffect(() => {
-    const filtered = admins.filter(admin =>
-      admin.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      admin.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      admin.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      admin.roles.some(role => role.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-    setFilteredAdmins(filtered);
-    setTotalItems(filtered.length);
-    setCurrentPage(1);
-  }, [searchTerm, admins]);
-
-  const loadAdmins = () => {
+  const loadAdmins = async (options = {}) => {
     setIsLoading(true);
-
-    setTimeout(() => {
-      setAdmins([...initialAdmins]);
-      setFilteredAdmins([...initialAdmins]);
-      setTotalItems(initialAdmins.length);
+    try {
+      const response = await getAdmins({
+        page: options.page ?? currentPage,
+        pageSize: options.pageSize ?? itemsPerPage,
+        search: options.search ?? searchTerm
+      });
+      setAdmins(response.items || []);
+      setTotalItems(response.meta?.totalItems ?? 0);
+    } catch (error) {
+      toast.error('خطا در دریافت لیست ادمین‌ها');
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   const openAddModal = () => {
@@ -142,7 +87,7 @@ const Admins = () => {
   };
 
 
-  const handleAddAdmin = () => {
+  const handleAddAdmin = async () => {
 
     if (!newAdmin.firstName.trim() || !newAdmin.lastName.trim() || !newAdmin.username.trim()) {
       toast.error('لطفا تمام فیلدهای الزامی را پر کنید');
@@ -150,34 +95,31 @@ const Admins = () => {
     }
 
 
-    const usernameExists = admins.some(admin => admin.username === newAdmin.username.trim());
-    if (usernameExists) {
-      toast.error('این نام کاربری قبلاً استفاده شده است');
-      return;
-    }
-
     setIsSaving(true);
 
-    setTimeout(() => {
-
-      const newAdminData = {
-        id: Date.now(),
+    try {
+      await createAdmin({
         firstName: newAdmin.firstName.trim(),
         lastName: newAdmin.lastName.trim(),
         username: newAdmin.username.trim(),
-        roles: [...newAdmin.roles],
-        avatar: 'https://via.placeholder.com/40',
-        createdAt: new Date().toLocaleDateString('fa-IR', { year: 'numeric', month: 'long' }),
-        status: 'active'
-      };
-
-      const updatedAdmins = [newAdminData, ...admins];
-      setAdmins(updatedAdmins);
-
+        roles: [...newAdmin.roles]
+      });
       setIsSaving(false);
       setIsAddModalOpen(false);
       toast.success('ادمین جدید با موفقیت اضافه شد');
-    }, 1000);
+      setCurrentPage(1);
+      await loadAdmins({ page: 1 });
+    } catch (error) {
+      if (error?.response?.status === 409) {
+        toast.error('این نام کاربری قبلاً استفاده شده است');
+      } else if (error?.response?.status === 422) {
+        toast.error('اطلاعات وارد شده معتبر نیست');
+      } else {
+        toast.error('خطا در افزودن ادمین');
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
 
@@ -195,8 +137,8 @@ const Admins = () => {
     }
   };
 
-  const handleRefresh = () => {
-    loadAdmins();
+  const handleRefresh = async () => {
+    await loadAdmins();
     toast.success('لیست ادمین‌ها به‌روزرسانی شد');
 
     setIsRefreshing(true);
@@ -234,9 +176,17 @@ const Admins = () => {
   };
 
   // Open details modal
-  const openDetailsModal = (admin) => {
-    setSelectedAdmin(admin);
-    setIsDetailsModalOpen(true);
+  const openDetailsModal = async (admin) => {
+    setIsLoading(true);
+    try {
+      const response = await getAdminById(admin.id);
+      setSelectedAdmin(response);
+      setIsDetailsModalOpen(true);
+    } catch (error) {
+      toast.error('خطا در دریافت جزئیات ادمین');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Open delete confirmation modal
@@ -256,7 +206,7 @@ const Admins = () => {
   };
 
   // Save admin edits
-  const handleSaveAdmin = () => {
+  const handleSaveAdmin = async () => {
     if (!selectedAdmin || selectedRoles.length === 0) {
       toast.error('لطفا حداقل یک نقش انتخاب کنید');
       return;
@@ -265,7 +215,8 @@ const Admins = () => {
     setIsSaving(true);
 
     // Simulate API call
-    setTimeout(() => {
+    try {
+      await updateAdminRoles(selectedAdmin.id, [...selectedRoles]);
       const updatedAdmins = admins.map(admin => {
         if (admin.id === selectedAdmin.id) {
           return {
@@ -275,35 +226,47 @@ const Admins = () => {
         }
         return admin;
       });
-
       setAdmins(updatedAdmins);
       setSelectedAdmin({
         ...selectedAdmin,
         roles: [...selectedRoles]
       });
-
       setIsSaving(false);
       setIsEditModalOpen(false);
       toast.success('نقش‌های ادمین با موفقیت به‌روزرسانی شد');
-    }, 1000);
+    } catch (error) {
+      toast.error('خطا در به‌روزرسانی نقش‌های ادمین');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Delete admin
-  const handleDeleteAdmin = () => {
+  const handleDeleteAdmin = async () => {
     if (!selectedAdmin) return;
 
     setIsSaving(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      const updatedAdmins = admins.filter(admin => admin.id !== selectedAdmin.id);
-      setAdmins(updatedAdmins);
-
+    try {
+      const response = await deleteAdmin(selectedAdmin.id);
+      if (response?.success) {
+        const updatedAdmins = admins.filter(admin => admin.id !== selectedAdmin.id);
+        setAdmins(updatedAdmins);
+        if (updatedAdmins.length === 0 && currentPage > 1) {
+          setCurrentPage(currentPage - 1);
+        } else {
+          await loadAdmins();
+        }
+      }
       setIsSaving(false);
       setIsDeleteModalOpen(false);
       setSelectedAdmin(null);
       toast.success('ادمین با موفقیت حذف شد');
-    }, 1000);
+    } catch (error) {
+      toast.error('خطا در حذف ادمین');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Pagination handlers
@@ -312,9 +275,7 @@ const Admins = () => {
   };
 
   // Calculate pagination
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentAdmins = filteredAdmins.slice(startIndex, endIndex);
+  const currentAdmins = admins;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
 
   const getPageNumbers = () => {
@@ -377,7 +338,10 @@ const Admins = () => {
                 type="text"
                 placeholder="جستجوی نام، نام خانوادگی و..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setCurrentPage(1);
+                  setSearchTerm(e.target.value);
+                }}
                 className="search-input7"
                 id="admin-search-input"
               />
