@@ -6,7 +6,7 @@ import {
   deleteAdmin,
   getAdminById,
   getAdmins,
-  updateAdminRoles
+  updateAdmin
 } from '../services/adminsService';
 import '../AdminPanel/Amain.css';
 
@@ -54,6 +54,8 @@ const Admins = () => {
 
 
   const [selectedRoles, setSelectedRoles] = useState([]);
+  const [editAdminEmail, setEditAdminEmail] = useState('');
+  const [editAdminPassword, setEditAdminPassword] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
 
@@ -184,6 +186,8 @@ const Admins = () => {
   const openEditModal = (admin) => {
     setSelectedAdmin(admin);
     setSelectedRoles([...admin.roles]); // Clone roles array
+    setEditAdminEmail(admin.email || '');
+    setEditAdminPassword('');
     setIsEditModalOpen(true);
   };
 
@@ -224,16 +228,31 @@ const Admins = () => {
       return;
     }
 
+    if (!editAdminEmail.trim()) {
+      toast.error('لطفا ایمیل را وارد کنید');
+      return;
+    }
+
     setIsSaving(true);
 
     // Simulate API call
     try {
-      await updateAdminRoles(selectedAdmin.id, [...selectedRoles]);
+      const payload = {
+        roles: [...selectedRoles],
+        email: editAdminEmail.trim()
+      };
+
+      if (editAdminPassword.trim()) {
+        payload.password = editAdminPassword;
+      }
+
+      await updateAdmin(selectedAdmin.id, payload);
       const updatedAdmins = admins.map(admin => {
         if (admin.id === selectedAdmin.id) {
           return {
             ...admin,
-            roles: [...selectedRoles]
+            roles: [...selectedRoles],
+            email: editAdminEmail.trim()
           };
         }
         return admin;
@@ -241,11 +260,13 @@ const Admins = () => {
       setAdmins(updatedAdmins);
       setSelectedAdmin({
         ...selectedAdmin,
-        roles: [...selectedRoles]
+        roles: [...selectedRoles],
+        email: editAdminEmail.trim()
       });
       setIsSaving(false);
       setIsEditModalOpen(false);
-      toast.success('نقش‌های ادمین با موفقیت به‌روزرسانی شد');
+      setEditAdminPassword('');
+      toast.success('اطلاعات ادمین با موفقیت به‌روزرسانی شد');
     } catch (error) {
       toast.error('خطا در به‌روزرسانی نقش‌های ادمین');
     } finally {
@@ -575,6 +596,27 @@ const Admins = () => {
                   <div className="readonly-field">
                     {selectedAdmin.username}
                   </div>
+                </div>
+                <div className="info-field">
+                  <label>ایمیل</label>
+                  <input
+                    type="email"
+                    className="form-input-add-admin"
+                    value={editAdminEmail}
+                    onChange={(event) => setEditAdminEmail(event.target.value)}
+                    id="edit-admin-email"
+                  />
+                </div>
+                <div className="info-field">
+                  <label>رمز عبور جدید</label>
+                  <input
+                    type="password"
+                    className="form-input-add-admin"
+                    value={editAdminPassword}
+                    onChange={(event) => setEditAdminPassword(event.target.value)}
+                    id="edit-admin-password"
+                    placeholder="در صورت نیاز تغییر دهید"
+                  />
                 </div>
               </div>
 

@@ -26,6 +26,11 @@ export const createAdmin = async (payload) => {
   return response.data;
 };
 
+export const updateAdmin = async (id, payload) => {
+  const response = await http.patch(`${ADMIN_ADMINS_BASE_URL}/${id}`, payload);
+  return response.data;
+};
+
 export const updateAdminRoles = async (id, roles) => {
   const response = await http.patch(`${ADMIN_ADMINS_BASE_URL}/${id}`, { roles });
   return response.data;
