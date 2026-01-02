@@ -114,6 +114,11 @@ const PagesManage = () => {
 
 
     const pageData = pages.find(p => p.id === page.id);
+    const baseTranslations = {
+      englishDescription: pageData?.englishDescription || '',
+      arabicDescription: pageData?.arabicDescription || '',
+      urduDescription: pageData?.urduDescription || ''
+    };
 
     switch (page.type) {
       case 'support':
@@ -121,26 +126,30 @@ const PagesManage = () => {
           title: page.title,
           description: pageData?.description || '',
           phones: pageData?.phones || [''],
-          emails: pageData?.emails || ['']
+          emails: pageData?.emails || [''],
+          ...baseTranslations
         });
         break;
       case 'faq':
         setModalData({
           title: page.title,
-          description: pageData?.description || ''
+          description: pageData?.description || '',
+          ...baseTranslations
         });
         setNewFAQ({ question: '', answer: '' });
         break;
       case 'rules':
         setModalData({
           title: page.title,
-          description: pageData?.description || ''
+          description: pageData?.description || '',
+          ...baseTranslations
         });
         break;
       case 'about':
         setModalData({
           title: page.title,
-          description: pageData?.description || ''
+          description: pageData?.description || '',
+          ...baseTranslations
         });
         break;
       case 'contact':
@@ -149,13 +158,18 @@ const PagesManage = () => {
           description: pageData?.description || '',
           phones: pageData?.phones || [''],
           emails: pageData?.emails || [''],
-          address: pageData?.address || ''
+          address: pageData?.address || '',
+          englishAddress: pageData?.englishAddress || '',
+          arabicAddress: pageData?.arabicAddress || '',
+          urduAddress: pageData?.urduAddress || '',
+          ...baseTranslations
         });
         break;
       default:
         setModalData({
           title: page.title,
-          description: pageData?.description || ''
+          description: pageData?.description || '',
+          ...baseTranslations
         });
     }
 
