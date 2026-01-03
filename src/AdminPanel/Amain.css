@@ -2861,6 +2861,16 @@ body {
   background-position: left 12px center;
   background-size: 16px;
   padding-left: 40px !important;
+  color: #1E2023 !important;
+  -webkit-text-fill-color: #1E2023;
+  background-color: #ffffff !important;
+  opacity: 1 !important;
+  background-clip: padding-box;
+}
+
+.dropdown-field select option {
+  color: #1E2023 !important;
+  background-color: #ffffff !important;
 }
 
 .dropdown-field select:disabled {
