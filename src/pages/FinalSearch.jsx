@@ -19,6 +19,7 @@ import { createHaramVectorTileConfig } from '../config/vectorTiles';
 import { requestRouting } from '../services/routingService';
 import appConfig from '../config/appConfig';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
+import { createDestination } from '../services/destinationService';
 
 const FinalSearch = () => {
   const isValidLngLat = (coords) => {
@@ -668,8 +669,46 @@ const FinalSearch = () => {
     navigate('/rop');
   };
 
-  const handleSaveDestination = () => {
+  const handleSaveDestination = async () => {
     setMenuOpen(false);
+
+    if (!destination?.coordinates || destination.coordinates.length < 2) {
+      toast.error(intl.formatMessage({ id: 'destinationSaveMissingCoordinates' }));
+      return;
+    }
+
+    if (!accessToken) {
+      toast.error(intl.formatMessage({ id: 'destinationSaveLoginRequired' }));
+      return;
+    }
+
+    try {
+      const [lat, lng] = destination.coordinates;
+      const resolvedSource = destination?.source
+        || (destination?.source_id || destination?.sourceId || destination?.poiId || destination?.id ? 'poi' : 'manual');
+      const resolvedSourceId = destination?.sourceId
+        ?? destination?.source_id
+        ?? destination?.poiId
+        ?? destination?.id
+        ?? null;
+
+      await createDestination({
+        title: destination?.name,
+        description: destination?.description,
+        coordinates: { lat, lng },
+        floor: destination?.floor,
+        source: resolvedSource,
+        sourceId: resolvedSourceId,
+        tags: destination?.tags,
+        address: destination?.address,
+        metadata: destination?.metadata
+      }, { authToken: accessToken });
+
+      toast.success(intl.formatMessage({ id: 'destinationSaved' }));
+    } catch (err) {
+      console.error('failed to save destination', err);
+      toast.error(intl.formatMessage({ id: 'destinationSaveFailed' }));
+    }
   };
 
   const handleShareRoute = () => {
