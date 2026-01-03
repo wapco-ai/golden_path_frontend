@@ -169,6 +169,7 @@
   "destinationSaveLoginRequired": "يرجى تسجيل الدخول لحفظ الوجهة",
   "destinationSaveMissingCoordinates": "يرجى اختيار وجهة أولاً",
   "shareRoute": "مشاركة",
+  "loginToEnableActions": "قم بتسجيل الدخول لتفعيل الحفظ والمشاركة",
   "transportWalk": "مشياً",
   "transportCar": "حافلة كهربائية",
   "transportWheelchair": "كرسي متحرك",

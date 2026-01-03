@@ -18,8 +18,8 @@ import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import { createHaramVectorTileConfig } from '../config/vectorTiles';
 import { requestRouting } from '../services/routingService';
 import appConfig from '../config/appConfig';
-import { useUserAuthStore } from '../auth/user/userAuthStore';
 import { createDestination } from '../services/destinationService';
+import { USER_ACCESS_TOKEN_KEY, useUserAuthStore } from '../auth/user/userAuthStore';
 
 const FinalSearch = () => {
   const isValidLngLat = (coords) => {
@@ -669,7 +669,15 @@ const FinalSearch = () => {
     navigate('/rop');
   };
 
-  const handleSaveDestination = async () => {
+  const isUserLoggedIn = Boolean(
+    accessToken ||
+    user ||
+    (typeof window !== 'undefined' && sessionStorage.getItem(USER_ACCESS_TOKEN_KEY))
+  );
+
+  const handleSaveDestination = () => {
+    if (!isUserLoggedIn) return;
+
     setMenuOpen(false);
 
     if (!destination?.coordinates || destination.coordinates.length < 2) {
@@ -712,6 +720,8 @@ const FinalSearch = () => {
   };
 
   const handleShareRoute = () => {
+    if (!isUserLoggedIn) return;
+
     setMenuOpen(false);
     if (!origin.coordinates || !destination.coordinates) return;
     const originCoords = `${origin.coordinates[0]},${origin.coordinates[1]}`;
@@ -759,14 +769,24 @@ const FinalSearch = () => {
             </button>
 
             <div className={`menu-dropdown ${menuOpen ? 'open' : ''}`}>
-              <button className="menu-item" onClick={handleSaveDestination}>
+              <button
+                className="menu-item"
+                onClick={handleSaveDestination}
+                disabled={!isUserLoggedIn}
+                title={!isUserLoggedIn ? intl.formatMessage({ id: 'loginToEnableActions' }) : undefined}
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                   <path d="M17.286 21.09q -1.69 .001 -5.288 -2.615q -3.596 2.617 -5.288 2.616q -2.726 0 -.495 -6.8q -9.389 -6.775 2.135 -6.775h.076q 1.785 -5.516 3.574 -5.516q 1.785 0 3.574 5.516h.076q 11.525 0 2.133 6.774q 2.23 6.802 -.497 6.8" />
                 </svg>
                 <FormattedMessage id="saveDestination" />
               </button>
-              <button className="menu-item" onClick={handleShareRoute}>
+              <button
+                className="menu-item"
+                onClick={handleShareRoute}
+                disabled={!isUserLoggedIn}
+                title={!isUserLoggedIn ? intl.formatMessage({ id: 'loginToEnableActions' }) : undefined}
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                   <path d="M6 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />

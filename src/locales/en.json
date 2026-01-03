@@ -170,6 +170,7 @@
   "destinationSaveLoginRequired": "Sign in to save destinations",
   "destinationSaveMissingCoordinates": "Select a destination first",
   "shareRoute": "Share",
+  "loginToEnableActions": "Log in to save destinations and share routes",
   "transportWalk": "Walking",
   "transportCar": "Electric van",
   "transportWheelchair": "Wheelchair",
