@@ -710,21 +710,6 @@ const FinalSearch = () => {
           </button>
 
           <div className="menu-container">
-            {/* Add profile button before menu button */}
-            <button className="profile-btn" onClick={() => {
-              if (accessToken && user) {
-                navigate('/profile');
-              } else {
-                localStorage.setItem('profile_origin_page', location.pathname);
-                navigate('/login');
-              }
-            }}>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="9.99984" cy="5" r="3.33333" fill="#1E2023" />
-                <ellipse cx="9.99984" cy="14.1667" rx="5.83333" ry="3.33333" fill="#1E2023" />
-              </svg>
-            </button>
-
             <button className={`menu-btn ${menuOpen ? 'active' : ''}`} onClick={() => setMenuOpen(!menuOpen)}>
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path stroke="none" d="M0 0h24v24H0z" fill="none" />
