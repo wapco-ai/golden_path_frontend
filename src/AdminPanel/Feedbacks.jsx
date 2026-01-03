@@ -207,45 +207,45 @@ const Feedbacks = () => {
             </div>
             <p></p>
           </div>
-            <div className="feedback-filters">
-              <div className="select-wrapper feedback-status-filter">
-                <select
-                  value={statusFilter}
-                  onChange={(event) => handleStatusFilterChange(event.target.value)}
-                  aria-label="فیلتر وضعیت"
-                >
-                  {STATUS_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="search-box-with-icon-feedback">
-                <svg
-                  className="search-icon7"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 20 20"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    fillRule="evenodd"
-                    clipRule="evenodd"
-                    d="M10.4167 2.29166C14.4438 2.29166 17.7084 5.55625 17.7084 9.58332C17.7084 13.6104 14.4438 16.875 10.4167 16.875C6.38963 16.875 3.12504 13.6104 3.12504 9.58332C3.12504 5.55625 6.38963 2.29166 10.4167 2.29166ZM18.9584 9.58332C18.9584 4.86589 15.1341 1.04166 10.4167 1.04166C5.69928 1.04166 1.87504 4.86589 1.87504 9.58332C1.87504 11.7171 2.65743 13.6681 3.95099 15.1652L1.22476 17.8914C0.980688 18.1355 0.980688 18.5312 1.22476 18.7753C1.46884 19.0193 1.86457 19.0193 2.10865 18.7753L4.83487 16.049C6.33192 17.3426 8.28295 18.125 10.4167 18.125C15.1341 18.125 18.9584 14.3008 18.9584 9.58332Z"
-                    fill="#858585"
-                  />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="جستجوی عنوان یا پیام..."
-                  value={searchTerm}
-                  onChange={(event) => handleSearchChange(event.target.value)}
-                  className="search-input7"
-                  id="feedback-search-input"
+          <div className="feedback-filters">
+            <div className="select-wrapper feedback-status-filter">
+              <select
+                value={statusFilter}
+                onChange={(event) => handleStatusFilterChange(event.target.value)}
+                aria-label="فیلتر وضعیت"
+              >
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="search-box-with-icon-feedback">
+              <svg
+                className="search-icon7"
+                width="18"
+                height="18"
+                viewBox="0 0 20 20"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  fillRule="evenodd"
+                  clipRule="evenodd"
+                  d="M10.4167 2.29166C14.4438 2.29166 17.7084 5.55625 17.7084 9.58332C17.7084 13.6104 14.4438 16.875 10.4167 16.875C6.38963 16.875 3.12504 13.6104 3.12504 9.58332C3.12504 5.55625 6.38963 2.29166 10.4167 2.29166ZM18.9584 9.58332C18.9584 4.86589 15.1341 1.04166 10.4167 1.04166C5.69928 1.04166 1.87504 4.86589 1.87504 9.58332C1.87504 11.7171 2.65743 13.6681 3.95099 15.1652L1.22476 17.8914C0.980688 18.1355 0.980688 18.5312 1.22476 18.7753C1.46884 19.0193 1.86457 19.0193 2.10865 18.7753L4.83487 16.049C6.33192 17.3426 8.28295 18.125 10.4167 18.125C15.1341 18.125 18.9584 14.3008 18.9584 9.58332Z"
+                  fill="#858585"
                 />
-              </div>
+              </svg>
+              <input
+                type="text"
+                placeholder="جستجوی عنوان یا پیام..."
+                value={searchTerm}
+                onChange={(event) => handleSearchChange(event.target.value)}
+                className="search-input7"
+                id="feedback-search-input"
+              />
+            </div>
           </div>
         </div>
       </div>

@@ -252,6 +252,7 @@ body {
   border: none;
   font-size: 14px;
   font-weight: 400;
+  margin-bottom: 0px;
 }
 
 .menu-item:hover {
@@ -268,6 +269,7 @@ body {
   padding: 0;
   flex-direction: column;
   align-items: stretch;
+
 }
 
 .submenu-header {
@@ -377,7 +379,6 @@ body {
 }
 
 
-.menu-item.active,
 .menu-item.active .menu-icon svg path,
 .menu-item.active .submenu-arrow path {
   color: #1e2023;
@@ -386,7 +387,6 @@ body {
 
 
 /* Hover state for menu items */
-.menu-item:hover,
 .menu-item:hover .menu-icon svg path,
 .menu-item:hover .submenu-arrow path {
   color: #1e2023;
@@ -1333,6 +1333,14 @@ body {
   min-width: 270px;
 }
 
+.filter-group-usersigned {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 370px;
+}
+
+
 .filter-group2 {
   display: flex;
   flex-direction: column;
@@ -1394,6 +1402,14 @@ body {
   margin: 0 12px;
 }
 
+.date-separator-usersigned {
+  width: 1px;
+  height: 16px;
+  background: #1E2023;
+  margin: 0 12px;
+}
+
+
 /* Updated Select Wrapper */
 .select-wrapper {
   position: relative;
@@ -1453,10 +1469,10 @@ body {
 }
 
 .export-report-btn3 {
-  padding: 12px;
+  padding: 8px 16px;
   background: #0F71EF;
   border-radius: 8px;
-  border:none;
+  border: none;
   color: white;
   font-size: 12px;
   font-family: 'Vazir', Tahoma, sans-serif;
@@ -1464,8 +1480,6 @@ body {
   justify-content: center;
   cursor: pointer;
   align-items: center;
-  height: 40px;
-  width: 30%;
   transition: background-color 0.5s;
 }
 
@@ -1474,13 +1488,17 @@ body {
 
 }
 
-.feedback-filters{
+.feedback-filters {
   display: flex;
   flex-direction: row;
-  flex:0.6;
   justify-content: space-between;
   gap: 15px;
   align-items: center;
+  width: 550px;
+}
+
+.feedback-status-filter {
+  width: 320px;
 }
 
 
@@ -8333,6 +8351,7 @@ body {
     opacity: 0;
     transform: translateY(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -9831,9 +9850,27 @@ body {
   color: #1E2023;
 }
 
-.modal-body-edit-admin,
+.modal-body-edit-admin {
+  padding: 20px;
+}
+
 .modal-body-add-admin {
   padding: 20px;
+  max-height: calc(80vh - 100px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+.bars-container.year-view {
+  gap: 4px;
+}
+
+.bars-container.year-view .bar-wrapper {
+  flex: 1;
+}
+
+.bars-container.year-view .bar {
+  width: 30px;
 }
 
 .admin-basic-info {
@@ -9889,7 +9926,7 @@ body {
 }
 
 .role-checkbox-label,
-.role-checkbox-label-add-admin{
+.role-checkbox-label-add-admin {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -10569,7 +10606,7 @@ body {
 
 }
 
-.support-modal-container{
+.support-modal-container {
   background: white;
   border-radius: 12px;
   width: 90%;
@@ -10794,7 +10831,7 @@ body {
   transition: all 0.2s;
   background: #f9fafb;
   font-family: inherit;
-  resize:none;
+  resize: none;
   min-height: 80px;
   padding: 12px;
   padding-bottom: 0px;
@@ -10829,7 +10866,7 @@ body {
 .form-actions-support {
   display: flex;
   justify-content: flex-end;
- margin-top: 0px;
+  margin-top: 0px;
 }
 
 
@@ -10884,7 +10921,7 @@ body {
 }
 
 .section-header-top-feedback {
-  flex:1;
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
