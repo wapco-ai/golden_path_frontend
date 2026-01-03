@@ -379,7 +379,6 @@ body {
 }
 
 
-.menu-item.active,
 .menu-item.active .menu-icon svg path,
 .menu-item.active .submenu-arrow path {
   color: #1e2023;
@@ -388,7 +387,6 @@ body {
 
 
 /* Hover state for menu items */
-.menu-item:hover,
 .menu-item:hover .menu-icon svg path,
 .menu-item:hover .submenu-arrow path {
   color: #1e2023;

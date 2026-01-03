@@ -4149,8 +4149,8 @@ const Amain = () => {
 
     if (viewName === 'کاربران ثبت نام کرده' ||
       viewName === 'لاگ های مسیریابی کاربران' ||
-      viewName === 'بازخورد ها ' ||
-      viewName === ' دیدگاه ها') {
+      viewName === 'بازخورد ها' ||
+      viewName === 'دیدگاه ها') {
       setActiveMenu('reports');
       setBreadcrumbPath(['منوی اصلی', 'گزارشات', viewName]);
     } else if (viewName === 'مدیریت دسته بندی‌ها' ||
@@ -4160,9 +4160,6 @@ const Amain = () => {
       setActiveMenu('facmanage');
       setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات', viewName]);
       resetCategoryForm();
-    } else {
-      setActiveMenu('usermanage');
-      setBreadcrumbPath(['منوی اصلی', 'مدیریت کاربران', viewName]);
     }
   };
 
@@ -8739,7 +8736,7 @@ const Amain = () => {
               className={`menu-item ${activeMenu === 'facmanage' ? 'active' : ''}`}
               onClick={() => {
                 togglefacManagement();
-                handleMenuClick('facmanage', 'مدیریت امکانات');
+                handleMenuClick;
               }}
             >
               <span className="menu-icon">
