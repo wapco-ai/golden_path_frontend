@@ -77,6 +77,11 @@ const TEMP_AREA_FLOW_STATES = {
   editing: 'editing'
 };
 
+const getApiErrorMessage = (error, fallbackMessage = '') => error?.response?.data?.message
+  || error?.response?.data?.errors?.operational?.is_covered?.[0]
+  || error?.message
+  || fallbackMessage;
+
 const GENDER_OPTIONS = [
   { value: 'female', label: 'بانوان' },
   { value: 'male', label: 'مردان' },
@@ -7154,11 +7159,10 @@ const Amain = () => {
         resetForm();
         setCurrentStep(1);
       } catch (error) {
-        if (isAreaLayerActive) {
-          toast.error(error?.message || 'ثبت اطلاعات محدوده ناموفق بود');
-        } else {
-          toast.error(error?.message || 'ثبت اطلاعات مکان ناموفق بود');
-        }
+        const defaultMessage = isAreaLayerActive
+          ? 'ثبت اطلاعات محدوده ناموفق بود'
+          : 'ثبت اطلاعات مکان ناموفق بود';
+        toast.error(getApiErrorMessage(error, defaultMessage));
       } finally {
         if (isAreaLayerActive) {
           setIsSavingAreaInfo(false);
