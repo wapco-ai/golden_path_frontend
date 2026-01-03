@@ -115,6 +115,7 @@ const FinalSearch = () => {
   const [hasUserSelectedRoute, setHasUserSelectedRoute] = useState(
     sessionStorage.getItem('manualRouteSelected') === 'true'
   );
+  const [lastFailedKey, setLastFailedKey] = useState(null);
 
   useEffect(() => {
     storeSetGender(selectedGender);
@@ -271,6 +272,13 @@ const FinalSearch = () => {
     const sameCoordinates = (a, b) =>
       Array.isArray(a) && Array.isArray(b) && a[0] === b[0] && a[1] === b[1];
 
+    const attemptKey = JSON.stringify({
+      origin: origin.coordinates,
+      destination: destination.coordinates,
+      transportMode,
+      gender: selectedGender
+    });
+
     const storedOrigin = (() => {
       try {
         return JSON.parse(sessionStorage.getItem('origin'));
@@ -298,6 +306,10 @@ const FinalSearch = () => {
       sessionStorage.getItem('gender') === selectedGender;
 
     if (hasStoredSelection && !hasUserSelectedRoute) {
+      return undefined;
+    }
+
+    if (attemptKey === lastFailedKey) {
       return undefined;
     }
 
@@ -344,6 +356,7 @@ const FinalSearch = () => {
         };
         setRouteInfo(summary);
         sessionStorage.setItem('routeSummaryData', JSON.stringify(summary));
+        setLastFailedKey(null);
         return;
       } catch (err) {
         if (err?.name === 'AbortError') return;
@@ -363,10 +376,12 @@ const FinalSearch = () => {
         sessionStorage.removeItem('routeSteps');
         sessionStorage.removeItem('alternativeRoutes');
         sessionStorage.removeItem('routeSahns');
+        setLastFailedKey(attemptKey);
         return;
       }
       const { geo, steps, alternatives, sahns } = result;
       persistRouteData(geo, steps, alternatives, sahns);
+      setLastFailedKey(null);
     };
 
     runRouting();
@@ -389,7 +404,8 @@ const FinalSearch = () => {
     routeInfo.distance,
     hasUserSelectedRoute,
     storedRouteGeo,
-    storedRouteSteps
+    storedRouteSteps,
+    lastFailedKey
   ]);
 
   const alternativeSummaries = React.useMemo(() => {
