@@ -2439,7 +2439,7 @@ const Amain = () => {
     setUsers(mockUsers);
   }, []);
 
-  const barData = [
+  const [barData, setBarData] = useState([
     { day: 'شنبه', value: 70, count: 175 },
     { day: 'یکشنبه', value: 45, count: 112 },
     { day: 'دوشنبه', value: 85, count: 213 },
@@ -2447,7 +2447,90 @@ const Amain = () => {
     { day: 'چهارشنبه', value: 30, count: 75 },
     { day: 'پنجشنبه', value: 90, count: 225 },
     { day: 'جمعه', value: 50, count: 125 }
-  ];
+  ]);
+
+  const generateBarData = (filter) => {
+    const now = new Date();
+    const currentJalali = toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+    const jalaliMonths = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+
+    switch (filter) {
+      case 'هفته اخیر':
+        return [
+          { day: 'شنبه', value: 70, count: 175, label: 'شنبه' },
+          { day: 'یکشنبه', value: 45, count: 112, label: 'یکشنبه' },
+          { day: 'دوشنبه', value: 85, count: 213, label: 'دوشنبه' },
+          { day: 'سه شنبه', value: 60, count: 150, label: 'سه شنبه' },
+          { day: 'چهارشنبه', value: 30, count: 75, label: 'چهارشنبه' },
+          { day: 'پنجشنبه', value: 90, count: 225, label: 'پنجشنبه' },
+          { day: 'جمعه', value: 50, count: 125, label: 'جمعه' }
+        ];
+
+      case 'ماه اخیر':
+        const currentMonth = jalaliMonths[currentJalali.jm - 1];
+        return [
+          { day: `هفته اول ${currentMonth}`, value: 65, count: 650, label: 'هفته اول' },
+          { day: `هفته دوم ${currentMonth}`, value: 80, count: 800, label: 'هفته دوم' },
+          { day: `هفته سوم ${currentMonth}`, value: 55, count: 550, label: 'هفته سوم' },
+          { day: `هفته چهارم ${currentMonth}`, value: 75, count: 750, label: 'هفته چهارم' }
+        ];
+
+      case 'سه ماه اخیر':
+        const last3Months = [];
+        for (let i = 2; i >= 0; i--) {
+          const monthIndex = (currentJalali.jm - 1 - i + 12) % 12;
+          last3Months.push(jalaliMonths[monthIndex]);
+        }
+
+        return last3Months.map((month, index) => ({
+          day: month,
+          value: [70, 60, 80][index],
+          count: [2800, 2400, 3200][index],
+          label: month
+        }));
+
+      case 'سال اخیر':
+        const yearData = [
+          { value: 60, count: 500 },  // فروردین
+          { value: 65, count: 1950 },  // اردیبهشت
+          { value: 70, count: 2100 },  // خرداد
+          { value: 75, count: 2250 },  // تیر
+          { value: 80, count: 2400 },  // مرداد
+          { value: 85, count: 2550 },  // شهریور
+          { value: 90, count: 2700 },  // مهر
+          { value: 85, count: 2550 },  // آبان
+          { value: 80, count: 2400 },  // آذر
+          { value: 75, count: 2250 },  // دی
+          { value: 70, count: 2100 },  // بهمن
+          { value: 65, count: 1950 }   // اسفند
+        ];
+
+        return jalaliMonths.map((month, index) => ({
+          day: month,
+          value: yearData[index].value,
+          count: yearData[index].count,
+          label: month
+        }));
+
+      default:
+        return generateBarData('هفته اخیر');
+    }
+  };
+
+  const getYAxisLabels = (filter) => {
+    switch (filter) {
+      case 'هفته اخیر':
+        return [250, 200, 150, 100, 50, 0];
+      case 'ماه اخیر':
+        return [1000, 800, 600, 400, 200, 0];
+      case 'سه ماه اخیر':
+        return [3500, 3000, 2500, 2000, 1500, 1000, 500, 0];
+      case 'سال اخیر':
+        return [3000, 2500, 2000, 1500, 1000, 500, 0];
+      default:
+        return [250, 200, 150, 100, 50, 0];
+    }
+  };
 
   const loadCulturalItems = useCallback(async () => {
     setIsLoadingCultural(true);
@@ -3078,7 +3161,7 @@ const Amain = () => {
       };
     }
 
-    if (currentReportView === 'مدیریت ادمین ها ') {
+    if (currentReportView === 'مدیریت ادمین‌ها') {
       return {
         title: ' مدیریت ادمین های سیستم ',
         description: ''
@@ -4066,12 +4149,13 @@ const Amain = () => {
 
     if (viewName === 'کاربران ثبت نام کرده' ||
       viewName === 'لاگ های مسیریابی کاربران' ||
+      viewName === 'بازخورد ها ' ||
       viewName === ' دیدگاه ها') {
       setActiveMenu('reports');
       setBreadcrumbPath(['منوی اصلی', 'گزارشات', viewName]);
     } else if (viewName === 'مدیریت دسته بندی‌ها' ||
       viewName === 'مدیریت اطلاعات فرهنگی' ||
-      viewName === 'مدیریت ادمین ها ' ||
+      viewName === 'مدیریت ادمین‌ها' ||
       viewName === 'مدیریت صفحات') {
       setActiveMenu('facmanage');
       setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات', viewName]);
@@ -8694,11 +8778,11 @@ const Amain = () => {
                   <span>مدیریت اطلاعات فرهنگی</span>
                 </div>
                 <div
-                  className={`submenu-item ${currentReportView === 'مدیریت ادمین ها ' ? 'active' : ''}`}
-                  onClick={() => handleSubmenuClick(' مدیریت ادمین ها')}
+                  className={`submenu-item ${currentReportView === 'مدیریت ادمین‌ها' ? 'active' : ''}`}
+                  onClick={() => handleSubmenuClick('مدیریت ادمین‌ها')}
                 >
                   <div className="submenu-branch"></div>
-                  <span> مدیریت ادمین ها</span>
+                  <span>مدیریت ادمین‌ها</span>
                 </div>
               </div>
             )}
@@ -9655,7 +9739,7 @@ const Amain = () => {
             <Reviews />
           ) : currentReportView === 'بازخورد ها' ? (
             <Feedbacks />
-          ) : currentReportView === ' مدیریت ادمین ها' ? (
+          ) : currentReportView === 'مدیریت ادمین‌ها' ? (
             <Admins />
           ) : currentReportView === 'مدیریت دسته بندی‌ها' ? (
             /* Category Management Section */
@@ -10634,8 +10718,8 @@ const Amain = () => {
                 <div className="middle-chart-content">
                   <div className="chart-header">
                     <div className="chart-title">
-                      <h3>آمار بازدید هفته اخیر کاربران</h3>
-                      <p>تعداد بازدید کاربران فعال از اپلیکیشن در هفته اخیر</p>
+                      <h3>آمار بازدید {barChartTimeFilter} کاربران</h3>
+                      <p>تعداد بازدید کاربران فعال از اپلیکیشن در {barChartTimeFilter}</p>
                     </div>
                     <div className="chart-filter" onClick={() => setIsBarChartFilterOpen(!isBarChartFilterOpen)}>
                       <span>{barChartTimeFilter}</span>
@@ -10645,52 +10729,69 @@ const Amain = () => {
 
                       {isBarChartFilterOpen && (
                         <div className="time-filter-dropdown show">
-                          <div className="time-filter-option" onClick={() => setBarChartTimeFilter('امروز')}>امروز</div>
-                          <div className="time-filter-option" onClick={() => setBarChartTimeFilter('هفته اخیر')}>هفته اخیر</div>
-                          <div className="time-filter-option" onClick={() => setBarChartTimeFilter('ماه اخیر')}>ماه اخیر</div>
-                          <div className="time-filter-option" onClick={() => setBarChartTimeFilter('سه ماه اخیر')}>سه ماه اخیر</div>
-                          <div className="time-filter-option" onClick={() => setBarChartTimeFilter('سال اخیر')}>سال اخیر</div>
+                          <div className="time-filter-option" onClick={() => {
+                            setBarChartTimeFilter('هفته اخیر');
+                            setBarData(generateBarData('هفته اخیر'));
+                          }}>هفته اخیر</div>
+                          <div className="time-filter-option" onClick={() => {
+                            setBarChartTimeFilter('ماه اخیر');
+                            setBarData(generateBarData('ماه اخیر'));
+                          }}>ماه اخیر</div>
+                          <div className="time-filter-option" onClick={() => {
+                            setBarChartTimeFilter('سه ماه اخیر');
+                            setBarData(generateBarData('سه ماه اخیر'));
+                          }}>سه ماه اخیر</div>
+                          <div className="time-filter-option" onClick={() => {
+                            setBarChartTimeFilter('سال اخیر');
+                            setBarData(generateBarData('سال اخیر'));
+                          }}>سال اخیر</div>
                         </div>
                       )}
                     </div>
                   </div>
 
                   <div className="bar-chart-container">
-
-
                     <div className="chart-area">
-                      {/* Horizontal grid lines */}
-                      <div className="grid-line"></div>
-                      <div className="grid-line"></div>
-                      <div className="grid-line"></div>
-                      <div className="grid-line"></div>
+                      {/* Horizontal grid lines - dynamically generated based on Y-axis labels */}
+                      {getYAxisLabels(barChartTimeFilter).map((label, index) => (
+                        <div key={`grid-${index}`} className="grid-line"></div>
+                      ))}
 
                       {/* Bars */}
-                      <div className="bars-container">
-                        {barData.map((bar, index) => (
-                          <div
-                            key={bar.day}
-                            className="bar-wrapper"
-                            onClick={() => setSelectedBar(selectedBar === index ? null : index)}
-                          >
+                      <div className={`bars-container ${barChartTimeFilter === 'سال اخیر' ? 'year-view' : ''}`}>
+                        {barData.map((bar, index) => {
+                          // Calculate percentage height based on Y-axis max value
+                          const yLabels = getYAxisLabels(barChartTimeFilter);
+                          const maxValue = yLabels[0]; // First label is the max value
+                          const heightPercentage = (bar.count / maxValue) * 100;
+
+                          return (
                             <div
-                              className={`bar ${selectedBar === index ? 'selected' : ''} ${selectedBar !== null && selectedBar !== index ? 'dimmed' : ''}`}
-                              style={{ height: `${bar.value}%` }}
+                              key={index}
+                              className="bar-wrapper"
+                              onClick={() => setSelectedBar(selectedBar === index ? null : index)}
                             >
-                              {selectedBar === index && (
-                                <div className="bar-value">{bar.count} نفر</div>
-                              )}
+                              <div
+                                className={`bar ${selectedBar === index ? 'selected' : ''} ${selectedBar !== null && selectedBar !== index ? 'dimmed' : ''}`}
+                                style={{
+                                  height: `${heightPercentage}%`,
+                                  width: barChartTimeFilter === 'سال اخیر' ? '30px' : '40px'
+                                }}
+                              >
+                                {selectedBar === index && (
+                                  <div className="bar-value">{bar.count.toLocaleString('fa-IR')} نفر</div>
+                                )}
+                              </div>
+                              <div className="x-label">{bar.label || bar.day}</div>
                             </div>
-                            <div className="x-label">{bar.day}</div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                     <div className="y-axis">
-                      <div className="y-label">۱۰۱ - ۲۰۰</div>
-                      <div className="y-label">۵۱ - ۱۰۰</div>
-                      <div className="y-label">۱ - ۵۰</div>
-                      <div className="y-label">۰</div>
+                      {getYAxisLabels(barChartTimeFilter).map((label, index) => (
+                        <div key={index} className="y-label">{label.toLocaleString('fa-IR')}</div>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -10769,7 +10870,7 @@ const Amain = () => {
             currentReportView !== 'مدیریت صفحات' &&
             currentReportView !== 'دیدگاه ها' &&
             currentReportView !== 'بازخورد ها' &&
-            currentReportView !== ' مدیریت ادمین ها' &&
+            currentReportView !== 'مدیریت ادمین‌ها' &&
             currentReportView !== 'کاربران ثبت نام کرده' &&
             activeMenu !== 'mapmanage' && (
               <div className="users-section">

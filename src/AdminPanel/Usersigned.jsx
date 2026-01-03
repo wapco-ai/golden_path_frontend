@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { toast } from 'react-toastify';
 import '../AdminPanel/Amain.css';
 import {
@@ -58,6 +58,16 @@ function Usersigned() {
   const [detailUserId, setDetailUserId] = useState(null);
   const [updatingMap, setUpdatingMap] = useState({});
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+  const [showStartCalendar, setShowStartCalendar] = useState(false);
+  const [showEndCalendar, setShowEndCalendar] = useState(false);
+  const [calendarDate, setCalendarDate] = useState({ year: 1403, month: 7 });
+
+  const calendarRef = useRef(null);
+  const startDateRef = useRef(null);
+  const endDateRef = useRef(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -168,6 +178,249 @@ function Usersigned() {
     }
   };
 
+  const jalaliMonths = [
+    'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+    'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
+  ];
+
+
+  const jalaliWeekdays = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
+
+  const parseJalaliDate = (dateStr) => {
+    if (!dateStr || dateStr === '—') return null;
+
+    try {
+
+      const cleaned = dateStr.replace('، ساعت', '');
+      const parts = cleaned.split(' ');
+
+      if (parts.length < 3) return null;
+
+      const day = parseInt(parts[0], 10);
+      const monthName = parts[1];
+      const year = parseInt(parts[2], 10);
+
+      const monthIndex = jalaliMonths.indexOf(monthName) + 1;
+      if (monthIndex === 0) return null;
+
+      return { year, month: monthIndex, day };
+    } catch (error) {
+      console.error('Error parsing date:', error);
+      return null;
+    }
+  };
+
+  const handlePrevMonth = () => {
+    setCalendarDate(prev => {
+      let newMonth = prev.month - 1;
+      let newYear = prev.year;
+      if (newMonth < 1) {
+        newMonth = 12;
+        newYear--;
+      }
+      return { ...prev, month: newMonth, year: newYear };
+    });
+  };
+
+  const handleNextMonth = () => {
+    setCalendarDate(prev => {
+      let newMonth = prev.month + 1;
+      let newYear = prev.year;
+      if (newMonth > 12) {
+        newMonth = 1;
+        newYear++;
+      }
+      return { ...prev, month: newMonth, year: newYear };
+    });
+  };
+
+  // Date selection
+  const handleDaySelect = (day) => {
+    const selectedDate = {
+      year: calendarDate.year,
+      month: calendarDate.month,
+      day
+    };
+
+    if (showStartCalendar) {
+      setStartDate(selectedDate);
+      setShowStartCalendar(false);
+      // Auto-show end calendar after start date is selected
+      setTimeout(() => setShowEndCalendar(true), 100);
+    } else if (showEndCalendar && startDate) {
+      setEndDate(selectedDate);
+      setShowEndCalendar(false);
+      // Trigger filtering
+      fetchUsersWithFilter(startDate, selectedDate);
+    }
+  };
+
+  // Calendar display handlers
+  const handleStartDateClick = () => {
+    setShowStartCalendar(!showStartCalendar);
+    setShowEndCalendar(false);
+  };
+
+  const handleEndDateClick = () => {
+    if (!startDate) {
+      toast.error('لطفا ابتدا تاریخ شروع را انتخاب کنید');
+      return;
+    }
+    setShowEndCalendar(!showEndCalendar);
+    setShowStartCalendar(false);
+  };
+
+  // Function to filter users by date range
+  const fetchUsersWithFilter = async (start, end) => {
+    setLoading(true);
+    try {
+      // Get all users first
+      const response = await fetchSignedUsers({
+        page: 1,
+        pageSize: 1000, // Get all users for filtering
+        search: debouncedSearch
+      });
+
+      const allUsers = response?.data || [];
+
+      // Filter by date range on client side
+      const filtered = allUsers.filter(user => {
+        const registerDate = parseJalaliDate(formatJalaliDateTime(user.createdAt));
+        if (!registerDate) return false;
+
+        const isAfterStart = !start || compareJalaliDates(registerDate, start) >= 0;
+        const isBeforeEnd = !end || compareJalaliDates(registerDate, end) <= 0;
+
+        return isAfterStart && isBeforeEnd;
+      });
+
+      setRows(filtered);
+      setMeta({
+        current_page: 1,
+        per_page: pageSize,
+        last_page: Math.ceil(filtered.length / pageSize),
+        total: filtered.length
+      });
+      setPage(1);
+
+    } catch (err) {
+      const message = getErrorMessage(err);
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Remove date filter
+  const handleRemoveDateFilter = () => {
+    setStartDate(null);
+    setEndDate(null);
+    setShowStartCalendar(false);
+    setShowEndCalendar(false);
+    // Reload original data
+    fetchUsers();
+    toast.info('فیلتر تاریخ حذف شد');
+  };
+
+  // Clear all filters
+  const handleClearAllFilters = () => {
+    setStartDate(null);
+    setEndDate(null);
+    setShowStartCalendar(false);
+    setShowEndCalendar(false);
+    setSearch('');
+    setDebouncedSearch('');
+    setPage(1);
+    fetchUsers();
+    toast.info('همه فیلترها پاک شدند');
+  };
+
+  // Render calendar days
+  const renderCalendarDays = () => {
+    const { year, month } = calendarDate;
+    const firstDay = jalaliMonthStart(year, month);
+    const daysInMonth = jalaliMonthLength(year, month);
+    const days = [];
+
+    // Empty cells for days before start of month
+    for (let i = 0; i < firstDay; i++) {
+      days.push(<div key={`empty-${i}`} className="calendar-day empty"></div>);
+    }
+
+    // Days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const isSelected =
+        (startDate && startDate.year === year && startDate.month === month && startDate.day === day) ||
+        (endDate && endDate.year === year && endDate.month === month && endDate.day === day);
+
+      const isInRange = startDate && endDate && compareJalaliDates(
+        { year, month, day },
+        startDate
+      ) >= 0 && compareJalaliDates(
+        { year, month, day },
+        endDate
+      ) <= 0;
+
+      const classes = [
+        'calendar-day',
+        isSelected ? 'selected' : '',
+        isInRange && !isSelected ? 'in-range' : ''
+      ].filter(Boolean).join(' ');
+
+      days.push(
+        <div
+          key={`day-${day}`}
+          className={classes}
+          onClick={() => handleDaySelect(day)}
+        >
+          {day}
+        </div>
+      );
+    }
+
+    return days;
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (calendarRef.current &&
+        !calendarRef.current.contains(event.target) &&
+        !startDateRef.current?.contains(event.target) &&
+        !endDateRef.current?.contains(event.target)) {
+        setShowStartCalendar(false);
+        setShowEndCalendar(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+
+  const compareJalaliDates = (date1, date2) => {
+    if (!date1 || !date2) return 0;
+
+    if (date1.year !== date2.year) return date1.year - date2.year;
+    if (date1.month !== date2.month) return date1.month - date2.month;
+    return date1.day - date2.day;
+  };
+
+
+  const jalaliMonthStart = (year, month) => {
+    const mod = (year - (month < 7 ? 474 : 473)) % 2820;
+    return (mod + 38) * 682 % 2816 < 682 ? 1 : 0;
+  };
+
+  const jalaliMonthLength = (year, month) => {
+    if (month < 7) return 31;
+    if (month < 12) return 30;
+
+    const mod = year % 33;
+    const isLeap = [1, 5, 9, 13, 17, 22, 26, 30].includes(mod);
+    return isLeap ? 30 : 29;
+  };
+
   const handleExportToExcel = async () => {
     try {
       // Dynamically load SheetJS from CDN
@@ -183,15 +436,15 @@ function Usersigned() {
 
       const XLSX = window.XLSX;
 
-      // Prepare data based on your current table structure
-      const data = rows.map(user => [
+
+      const dataToExport = rows.length > 0 ? rows : filteredUsers || [];
+      const data = dataToExport.map(user => [
         user.name || '—',
         user.mobile || '—',
         user.email || '—',
         getStatusValue(user) === 'active' ? 'فعال' : 'غیرفعال',
         formatJalaliDateTime(user.createdAt)
       ]);
-
       // Create worksheet
       const ws = XLSX.utils.aoa_to_sheet([
         ['نام', 'موبایل', 'ایمیل', 'وضعیت', 'تاریخ ثبت نام'],
@@ -345,6 +598,127 @@ function Usersigned() {
 
   return (
     <div className="usersigned-page">
+      {/* Filter Section */}
+      <div className="reports-section">
+        <div className="report-filters">
+          <div className="filter-row">
+            {/* Date Filter */}
+            <div className="filter-group-usersigned">
+              <label className="filter-label">انتخاب تاریخ</label>
+              <div className="date-input-with-separator" ref={calendarRef}>
+                <div className="dtg">
+                  <span
+                    ref={startDateRef}
+                    className="date-start"
+                    onClick={handleStartDateClick}
+                    style={{
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {startDate ? `${startDate.day} ${jalaliMonths[startDate.month - 1]} ${startDate.year}` : 'تاریخ شروع'}
+                  </span>
+                  <div className="date-separator-usersigned"></div>
+                  <span
+                    ref={endDateRef}
+                    className="date-end"
+                    onClick={handleEndDateClick}
+                    style={{
+                      cursor: startDate ? 'pointer' : 'not-allowed',
+                      opacity: startDate ? 1 : 0.5
+                    }}
+                  >
+                    {endDate ? `${endDate.day} ${jalaliMonths[endDate.month - 1]} ${endDate.year}` : 'تاریخ پایان'}
+                  </span>
+                </div>
+
+                {/* Calendar Popup */}
+                {(showStartCalendar || showEndCalendar) && (
+                  <div className="calendar-popup" style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: '0',
+                    backgroundColor: 'white',
+                    border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    padding: '15px',
+                    zIndex: '1000',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    minWidth: '280px',
+                    marginTop: '5px'
+                  }}>
+                    <div className="calendar-header" style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '15px'
+                    }}>
+                      <button onClick={handlePrevMonth} className="calendar-nav-btn" style={{
+                        background: 'none',
+                        border: 'none',
+                        fontSize: '20px',
+                        cursor: 'pointer',
+                        color: '#333',
+                      }}>
+                        ‹
+                      </button>
+                      <span className="calendar-title" style={{
+                        fontWeight: 'bold',
+                        fontSize: '16px',
+                      }}>
+                        {jalaliMonths[calendarDate.month - 1]} {calendarDate.year}
+                      </span>
+                      <button onClick={handleNextMonth} className="calendar-nav-btn" style={{
+                        background: 'none',
+                        border: 'none',
+                        fontSize: '20px',
+                        cursor: 'pointer',
+                        color: '#333',
+                      }}>
+                        ›
+                      </button>
+                    </div>
+
+                    <div className="calendar-weekdays" style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(7, 1fr)',
+                      gap: '5px',
+                      marginBottom: '10px'
+                    }}>
+                      {jalaliWeekdays.map((day, index) => (
+                        <div key={index} className="weekday" style={{
+                          textAlign: 'center',
+                          fontWeight: 'bold',
+                          fontSize: '14px',
+                          color: '#666'
+                        }}>{day}</div>
+                      ))}
+                    </div>
+
+                    <div className="calendar-days" style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(7, 1fr)',
+                      gap: '5px'
+                    }}>
+                      {renderCalendarDays()}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="filter-actions">
+            <button
+              className="clear-filters-btn"
+              onClick={handleClearAllFilters}>
+              حذف  فیلتر
+            </button>
+            <button className="export-report-btn3" onClick={handleExportToExcel}>
+              خروجی گزارشات
+            </button>
+          </div>
+        </div>
+      </div>
       <div className="users-section">
         <div className="section-header">
           <div className="section-header-top">
@@ -388,9 +762,6 @@ function Usersigned() {
                   className="search-input7"
                 />
               </div>
-              <button className="export-report-btn3" onClick={handleExportToExcel}>
-                خروجی گزارشات
-              </button>
             </div>
           </div>
         </div>
