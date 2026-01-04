@@ -117,6 +117,8 @@ const FinalSearch = () => {
     sessionStorage.getItem('manualRouteSelected') === 'true'
   );
   const [isSavingDestination, setIsSavingDestination] = useState(false);
+  const [isDestinationSaved, setIsDestinationSaved] = useState(false);
+  const lastSavedDestinationRef = useRef(null);
   const [lastFailedKey, setLastFailedKey] = useState(null);
 
   useEffect(() => {
@@ -267,12 +269,23 @@ const FinalSearch = () => {
     sessionStorage.removeItem('manualRouteSelected');
   }, [origin, destination]);
 
+  const sameCoordinates = (a, b) =>
+    Array.isArray(a) && Array.isArray(b) && a[0] === b[0] && a[1] === b[1];
+
+  useEffect(() => {
+    if (
+      lastSavedDestinationRef.current &&
+      sameCoordinates(destination?.coordinates, lastSavedDestinationRef.current.coordinates)
+    ) {
+      setIsDestinationSaved(true);
+    } else {
+      setIsDestinationSaved(false);
+    }
+  }, [destination]);
+
   useEffect(() => {
     let isMounted = true;
     const controller = new AbortController();
-
-    const sameCoordinates = (a, b) =>
-      Array.isArray(a) && Array.isArray(b) && a[0] === b[0] && a[1] === b[1];
 
     const attemptKey = JSON.stringify({
       origin: origin.coordinates,
@@ -699,6 +712,10 @@ const FinalSearch = () => {
         metadata: destination?.metadata || {}
       });
       toast.success(intl.formatMessage({ id: 'destinationSaved' }));
+      lastSavedDestinationRef.current = {
+        coordinates: destination.coordinates
+      };
+      setIsDestinationSaved(true);
     } catch (err) {
       console.error('failed to save destination', err);
       toast.error(err?.message || 'Failed to save destination');
@@ -763,7 +780,17 @@ const FinalSearch = () => {
                 disabled={!isUserLoggedIn || isSavingDestination}
                 title={!isUserLoggedIn ? intl.formatMessage({ id: 'loginToEnableActions' }) : undefined}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill={isDestinationSaved ? 'currentColor' : 'none'}
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                   <path d="M17.286 21.09q -1.69 .001 -5.288 -2.615q -3.596 2.617 -5.288 2.616q -2.726 0 -.495 -6.8q -9.389 -6.775 2.135 -6.775h.076q 1.785 -5.516 3.574 -5.516q 1.785 0 3.574 5.516h.076q 11.525 0 2.133 6.774q 2.23 6.802 -.497 6.8" />
                 </svg>
