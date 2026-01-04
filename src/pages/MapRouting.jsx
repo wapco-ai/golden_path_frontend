@@ -34,6 +34,7 @@ const MapRoutingPage = () => {
   const storedLat = sessionStorage.getItem('qrLat');
   const storedLng = sessionStorage.getItem('qrLng');
   const storedId = sessionStorage.getItem('qrId');
+  const storedQrName = sessionStorage.getItem('qrName');
   const [userLocation, setUserLocation] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeInput, setActiveInput] = useState(null);
@@ -72,10 +73,18 @@ const MapRoutingPage = () => {
     if (storedLat && storedLng) {
       const coordinates = [parseFloat(storedLat), parseFloat(storedLng)];
 
+      if (storedQrName) {
+        setUserLocation({
+          name: storedQrName,
+          coordinates
+        });
+        return;
+      }
 
       if (storedId) {
         getLocationTitleById(storedId).then((title) => {
           if (title) {
+            sessionStorage.setItem('qrName', title);
             setUserLocation({
               name: title,
               coordinates: coordinates
@@ -102,7 +111,7 @@ const MapRoutingPage = () => {
       }
     }
 
-  }, [storedLat, storedLng, storedId, intl]);
+  }, [storedLat, storedLng, storedId, storedQrName, intl]);
 
   useEffect(() => {
     let isMounted = true;

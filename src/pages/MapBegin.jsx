@@ -94,6 +94,7 @@ const MapBeginPage = () => {
     if (storedLat && storedLng && storedId) {
       getLocationTitleById(storedId).then((title) => {
         if (title) {
+          sessionStorage.setItem('qrName', title);
           setUserLocation({
             name: title,
             coordinates: [parseFloat(storedLat), parseFloat(storedLng)]
