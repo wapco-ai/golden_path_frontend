@@ -584,6 +584,34 @@ const Amain = () => {
     approved: 89,
     rejected: 46
   });
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([
+    {
+      id: 1,
+      title: 'دیدگاه جدید',
+      message: 'کاربر "سیدمحمدحسین میرشفیعی" دیدگاه جدیدی ثبت کرده است',
+      time: '10 دقیقه پیش',
+      read: false,
+      type: 'comment'
+    },
+    {
+      id: 2,
+      title: 'ثبت نام جدید',
+      message: 'کاربر جدید "فاطمه محمدی" در اپلیکیشن ثبت نام کرده است',
+      time: '5 ساعت پیش',
+      read: false,
+      type: 'user'
+    },
+    {
+      id: 3,
+      title: 'بازخورد جدید',
+      message: 'بازخورد جدیدی در بخش "مدیریت نقشه" ثبت شده است',
+      time: 'دیروز',
+      read: true,
+      type: 'feedback'
+    }
+  ]);
+
   const [map, setMap] = useState(null);
   const [mapLayerAvailabilityVersion, setMapLayerAvailabilityVersion] = useState(0);
   const mapRef = useRef(null);
@@ -960,6 +988,7 @@ const Amain = () => {
   const tempAreaDraftGeometryRef = useRef(null);
   const tempAreaPreviousCursorRef = useRef(null);
   const prevFloorLangRef = useRef({ floor: null, lang: null });
+  const unreadNotificationsCount = notifications.filter(notif => !notif.read).length;
 
   const setMapCursorForTempAreaDrawing = useCallback(() => {
     if (!map?.getCanvas) return;
@@ -1681,6 +1710,24 @@ const Amain = () => {
 
     // Reset file input
     event.target.value = '';
+  };
+
+  const handleNotificationClick = () => {
+    setShowNotifications(prev => !prev);
+  };
+
+  const handleMarkAllAsRead = () => {
+    setNotifications(prev => prev.map(notif => ({ ...notif, read: true })));
+  };
+
+  const handleMarkAsRead = (id) => {
+    setNotifications(prev => prev.map(notif =>
+      notif.id === id ? { ...notif, read: true } : notif
+    ));
+  };
+
+  const handleDeleteNotification = (id) => {
+    setNotifications(prev => prev.filter(notif => notif.id !== id));
   };
 
   // Helper function to detect file type from MIME type
@@ -3535,6 +3582,20 @@ const Amain = () => {
     return culturalSelectedRestrictionType;
   };
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showNotifications &&
+        !event.target.closest('.notifications-btn') &&
+        !event.target.closest('.notifications-popup')) {
+        setShowNotifications(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
 
   // Helper function to create custom marker element
   const createMarkerElement = () => {
@@ -8583,14 +8644,15 @@ const Amain = () => {
               className="search-box5-input"
             />
           </form> */}
-          <div className="notifications-btn">
+          <div className="notifications-btn" onClick={handleNotificationClick}>
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path fillRule="evenodd" clipRule="evenodd" d="M14.8549 2.09564C13.8149 2.09564 12.9719 2.93869 12.9719 3.97865C12.9719 5.01861 13.8149 5.86166 14.8549 5.86166C15.8948 5.86166 16.7379 5.01861 16.7379 3.97865C16.7379 2.93869 15.8948 2.09564 14.8549 2.09564ZM11.7165 3.97865C11.7165 2.24539 13.1216 0.840302 14.8549 0.840302C16.5881 0.840302 17.9932 2.24539 17.9932 3.97865C17.9932 5.71192 16.5881 7.117 14.8549 7.117C13.1216 7.117 11.7165 5.71192 11.7165 3.97865ZM7.27561 2.51409L9.8335 2.51409C10.1802 2.51409 10.4612 2.79511 10.4612 3.14176C10.4612 3.48841 10.1802 3.76943 9.8335 3.76943H7.32282C5.72701 3.76943 4.5933 3.77076 3.73326 3.88639C2.89127 3.99959 2.40616 4.21189 2.05198 4.56607C1.6978 4.92025 1.48551 5.40535 1.3723 6.24734C1.25667 7.10739 1.25534 8.2411 1.25534 9.83691C1.25534 11.4327 1.25667 12.5664 1.3723 13.4265C1.48551 14.2685 1.6978 14.7536 2.05198 15.1077C2.40616 15.4619 2.89127 15.6742 3.73326 15.7874C4.5933 15.9031 5.72701 15.9044 7.32282 15.9044H10.6704C12.2662 15.9044 13.3999 15.9031 14.26 15.7874C15.1019 15.6742 15.587 15.4619 15.9412 15.1077C16.2954 14.7536 16.5077 14.2685 16.6209 13.4265C16.7365 12.5664 16.7379 11.4327 16.7379 9.83691C16.7379 9.5248 16.7401 9.2968 16.7421 9.10081C16.7452 8.78343 16.7475 8.54995 16.7381 8.17907C16.7293 7.83253 17.0031 7.54446 17.3496 7.53565C17.6961 7.52684 17.9842 7.80063 17.993 8.14717C18.0029 8.53724 18.0004 8.80349 17.9972 9.13998C17.9953 9.33576 17.9932 9.55533 17.9932 9.83691V9.88412C17.9932 11.4221 17.9932 12.6403 17.8651 13.5937C17.7331 14.5749 17.4552 15.3691 16.8289 15.9954C16.2026 16.6217 15.4084 16.8996 14.4272 17.0316C13.4738 17.1597 12.2556 17.1597 10.7176 17.1597H7.27561C5.7376 17.1597 4.51939 17.1597 3.56598 17.0316C2.58479 16.8996 1.79062 16.6217 1.16432 15.9954C0.538022 15.3691 0.260076 14.5749 0.128158 13.5937C-2.35736e-05 12.6403 -1.29997e-05 11.4221 2.69156e-07 9.88412V9.78969C-1.29997e-05 8.25168 -2.35736e-05 7.03347 0.128158 6.08007C0.260076 5.09888 0.538022 4.30471 1.16432 3.67841C1.79062 3.05211 2.58479 2.77416 3.56598 2.64225C4.51939 2.51406 5.7376 2.51407 7.27561 2.51409ZM3.49306 6.08751C3.71498 5.8212 4.11076 5.78522 4.37707 6.00714L6.18384 7.51278C6.96462 8.16344 7.50671 8.61372 7.96437 8.90806C8.40738 9.19299 8.70782 9.28864 8.99661 9.28864C9.2854 9.28864 9.58583 9.19299 10.0288 8.90806C10.4865 8.61372 11.0286 8.16344 11.8094 7.51278C12.0757 7.29086 12.4715 7.32684 12.6934 7.59314C12.9153 7.85945 12.8793 8.25524 12.613 8.47716L12.5816 8.50337C11.8398 9.12155 11.2386 9.62259 10.7079 9.96388C10.1551 10.3194 9.61681 10.544 8.99661 10.544C8.3764 10.544 7.83807 10.3194 7.28531 9.96388C6.75467 9.6226 6.15344 9.12156 5.41166 8.50339L3.57342 6.97152C3.30711 6.7496 3.27113 6.35381 3.49306 6.08751Z" fill="#0F71EF" />
               <path d="M11.7165 3.97865C11.7165 2.24539 13.1216 0.840302 14.8549 0.840302C16.5881 0.840302 17.9932 2.24539 17.9932 3.97865C17.9932 5.71192 16.5881 7.117 14.8549 7.117C13.1216 7.117 11.7165 5.71192 11.7165 3.97865Z" fill="#03234D" />
             </svg>
-
             <span>اعلان ها</span>
-            <div className="notification-badge">3</div>
+            {unreadNotificationsCount > 0 && (
+              <div className="notification-badge">{unreadNotificationsCount}</div>
+            )}
           </div>
         </div>
 
@@ -15281,6 +15343,144 @@ const Amain = () => {
               </div>
             </div>
           </div>
+        </div>
+      )}
+      {showNotifications && (
+        <div className="notifications-popup" style={{
+          position: 'fixed',
+          top: '80px',
+          left: '20px',
+          zIndex: 9999,
+          background: 'white',
+          borderRadius: '8px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+          maxHeight: '500px',
+          overflow: 'hidden',
+          border: '1px solid #e5e7eb'
+        }}>
+          <div className="notifications-header">
+            <h3>اعلان‌ها</h3>
+            <div className="notifications-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {unreadNotificationsCount > 0 && (
+                <button
+                  className="mark-all-read-btn"
+                  onClick={handleMarkAllAsRead}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M13.3334 4L6.00008 11.3333L2.66675 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  خواندن همه
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="notifications-list">
+            {notifications.length === 0 ? (
+              <div className="empty-notifications" style={{ padding: '40px 20px', textAlign: 'center', color: '#9CA3AF' }}>
+                <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M16 16H32M16 24H28M16 32H24M38 16C38 22.6274 32.6274 28 26 28C19.3726 28 14 22.6274 14 16C14 9.37258 19.3726 4 26 4C32.6274 4 38 9.37258 38 16Z" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+                <p style={{ marginTop: '12px', fontSize: '14px' }}>هیچ اعلانی وجود ندارد</p>
+              </div>
+            ) : (
+              notifications.map(notification => (
+                <div
+                  key={notification.id}
+                  className={`notification-item ${!notification.read ? 'unread' : ''}`}
+                  onClick={() => handleMarkAsRead(notification.id)}
+                >
+                  <div className="notification-icon" style={{ flexShrink: 0, marginTop: '2px' }}>
+                    {notification.type === 'comment' && (
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10 18C14.4183 18 18 14.4183 18 10C18 5.58172 14.4183 2 10 2C5.58172 2 2 5.58172 2 10C2 11.1738 2.29295 12.2813 2.81097 13.2545L2.08301 17.0736C1.97617 17.6419 2.48913 18.1009 3.04886 17.996L6.703 17.2293C7.65491 17.7074 8.73668 18 9.87898 18H10Z" stroke="#0F71EF" strokeWidth="1.5" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                    {notification.type === 'user' && (
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M13.3334 5.83333C13.3334 7.67428 11.841 9.16667 10 9.16667C8.15907 9.16667 6.66669 7.67428 6.66669 5.83333C6.66669 3.99238 8.15907 2.5 10 2.5C11.841 2.5 13.3334 3.99238 13.3334 5.83333Z" stroke="#8B5CF6" strokeWidth="1.5" />
+                        <path d="M10 11.6667C6.77837 11.6667 4.16669 14.2783 4.16669 17.5H15.8334C15.8334 14.2783 13.2217 11.6667 10 11.6667Z" stroke="#8B5CF6" strokeWidth="1.5" />
+                      </svg>
+                    )}
+                    {notification.type === 'feedback' && (
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10 17.5C14.1421 17.5 17.5 14.1421 17.5 10C17.5 5.85786 14.1421 2.5 10 2.5C5.85786 2.5 2.5 5.85786 2.5 10C2.5 11.1578 2.82733 12.241 3.40266 13.1667L2.5 17.5L6.83333 16.5973C7.75904 17.1727 8.84221 17.5 10 17.5Z" stroke="#F59E0B" strokeWidth="1.5" strokeLinejoin="round" />
+                        <circle cx="7.5" cy="10" r="1" fill="#F59E0B" />
+                        <circle cx="10" cy="10" r="1" fill="#F59E0B" />
+                        <circle cx="12.5" cy="10" r="1" fill="#F59E0B" />
+                      </svg>
+                    )}
+                  </div>
+
+                  <div className="notification-content" style={{ flex: 1, minWidth: 0 }}>
+                    <div className="notification-title" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>{notification.title}</h4>
+                      {!notification.read && (
+                        <span className="unread-dot" style={{
+                          width: '8px',
+                          height: '8px',
+                          backgroundColor: '#0F71EF',
+                          borderRadius: '50%'
+                        }}></span>
+                      )}
+                    </div>
+                    <p className="notification-message" style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#6B7280' }}>
+                      {notification.message}
+                    </p>
+                    <div className="notification-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className="notification-time" style={{ fontSize: '12px', color: '#9CA3AF' }}>
+                        {notification.time}
+                      </span>
+                      <button
+                        className="delete-notification-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteNotification(notification.id);
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '4px'
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M1.75 3.5H2.91667H12.25" stroke="#9CA3AF" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M11.0833 3.5V11.6667C11.0833 12.0203 10.9428 12.3594 10.6928 12.6095C10.4427 12.8595 10.1036 13 9.75 13H4.25C3.89638 13 3.55724 12.8595 3.30719 12.6095C3.05714 12.3594 2.91667 12.0203 2.91667 11.6667V3.5M4.66667 3.5V2.33333C4.66667 1.97971 4.80714 1.64057 5.05719 1.39052C5.30724 1.14048 5.64638 1 6 1H8C8.35362 1 8.69276 1.14048 8.94281 1.39052C9.19286 1.64057 9.33333 1.97971 9.33333 2.33333V3.5" stroke="#9CA3AF" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M5.83334 6.41667V9.91667" stroke="#9CA3AF" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M8.16666 6.41667V9.91667" stroke="#9CA3AF" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {notifications.length > 0 && (
+            <div className="notifications-footer" style={{ padding: '16px 16px', borderTop: '1px solid #e5e7eb' }}>
+              {/* <button
+                className="view-all-btn"
+                onClick={() => {
+                  setShowNotifications(false);
+                  // Add navigation logic here if needed
+                }}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  background: '#f3f4f6',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: '#4B5563',
+                  fontSize: '14px',
+                  cursor: 'pointer'
+                }}
+              >
+                مشاهده همه اعلان‌ها
+              </button> */}
+            </div>
+          )}
         </div>
       )}
 
