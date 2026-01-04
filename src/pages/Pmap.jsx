@@ -13,6 +13,8 @@ import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import { fetchGroupMetadata } from '../services/groupService';
 import { normalizeGroupMetadata } from '../utils/groupMetadata';
+import { USER_ACCESS_TOKEN_KEY, useUserAuthStore } from '../auth/user/userAuthStore';
+import { createDestination } from '../services/destinationService';
 
 const groupColors = {
   sahn: '#4caf50',
@@ -64,6 +66,7 @@ const Pmap = () => {
   const intl = useIntl();
   const language = useLangStore(state => state.language);
   const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
+  const { accessToken, user } = useUserAuthStore();
 
   const [groups, setGroups] = useState([]);
 
@@ -81,6 +84,7 @@ const Pmap = () => {
   const [recentSearches, setRecentSearches] = useState([]);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [showBackButton, setShowBackButton] = useState(true);
+  const [isSavingDestination, setIsSavingDestination] = useState(false);
 
   const searchInputRef = useRef(null);
   const modalRef = useRef(null);
@@ -249,37 +253,49 @@ const Pmap = () => {
     return null;
   };
 
-  // Replace the current handleConfirmLocation functionality
-  const handleConfirmLocation = () => {
-    if (!selectedPlace) {
-      console.log('No location selected');
+  const isUserLoggedIn = Boolean(
+    accessToken ||
+    user ||
+    (typeof window !== 'undefined' && window.sessionStorage?.getItem?.(USER_ACCESS_TOKEN_KEY))
+  );
+
+  const handleConfirmLocation = async () => {
+    if (!selectedPlace?.coordinates) {
+      toast.error(intl.formatMessage({ id: 'generalErrorMessage' }));
       return;
     }
 
-    // Get the location name and address
-    const locationName = selectedPlace.name;
+    if (!isUserLoggedIn) {
+      toast.error(intl.formatMessage({ id: 'loginToEnableActions' }));
+      navigate('/login');
+      return;
+    }
+
+    if (isSavingDestination) return;
+
+    const locationName = selectedPlace.name || intl.formatMessage({ id: 'mapSelectedLocation' });
     const locationAddress = selectedPlace.feature?.properties?.subGroup ||
       selectedPlace.location ||
-      'حرم مطهر رضوی'; // Default address
+      intl.formatMessage({ id: 'mapSelectedLocationFromMap' });
 
-    // Create location object
-    const newLocation = {
-      id: Date.now().toString(),
-      name: locationName,
-      address: locationAddress
-    };
+    setIsSavingDestination(true);
 
-    // Get existing locations from localStorage
-    const existingLocations = JSON.parse(localStorage.getItem('savedLocations') || '[]');
-
-    // Add new location
-    const updatedLocations = [newLocation, ...existingLocations];
-
-    // Save to localStorage
-    localStorage.setItem('savedLocations', JSON.stringify(updatedLocations));
-
-    // Navigate back to pfp page
-    navigate('/pfp');
+    try {
+      await createDestination({
+        title: locationName,
+        coordinates: selectedPlace.coordinates,
+        source: 'manual',
+        address: locationAddress,
+        metadata: selectedPlace.feature?.properties || {}
+      });
+      toast.success(intl.formatMessage({ id: 'destinationSaved' }));
+      navigate('/pfp');
+    } catch (err) {
+      console.error('failed to save destination', err);
+      toast.error(err?.message || intl.formatMessage({ id: 'generalErrorMessage' }));
+    } finally {
+      setIsSavingDestination(false);
+    }
   };
 
   const filteredResults = searchQuery
@@ -437,7 +453,7 @@ const Pmap = () => {
             </div>
           </div>
 
-          <button className="pmap-confirm-button" onClick={handleConfirmLocation}>
+          <button className="pmap-confirm-button" onClick={handleConfirmLocation} disabled={isSavingDestination}>
             <FormattedMessage id="confirmLocation" />
           </button>
         </div>

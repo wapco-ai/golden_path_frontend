@@ -1,25 +1,61 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import '../styles/Pfp.css';
+import { USER_ACCESS_TOKEN_KEY, useUserAuthStore } from '../auth/user/userAuthStore';
+import { listDestinations } from '../services/destinationService';
 
 function Pfp() {
   const navigate = useNavigate();
   const intl = useIntl();
+  const { accessToken, user } = useUserAuthStore();
 
-  // Load saved locations from localStorage or use sample data
-  const [savedLocations, setSavedLocations] = useState(() => {
-    // Load from localStorage on component mount
-    const storedLocations = localStorage.getItem('savedLocations');
-    if (storedLocations) {
-      return JSON.parse(storedLocations);
-    }
-    // Return sample data if nothing in localStorage
-    return [
-    ];
-  });
+  const [savedLocations, setSavedLocations] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const displayLocations = savedLocations;
+  const isUserLoggedIn = Boolean(
+    accessToken ||
+    user ||
+    (typeof window !== 'undefined' && window.sessionStorage?.getItem?.(USER_ACCESS_TOKEN_KEY))
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+
+    const loadDestinations = async () => {
+      if (!isUserLoggedIn) {
+        setSavedLocations([]);
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const data = await listDestinations({ signal: controller.signal, pageSize: 50 });
+        if (!isMounted) return;
+        setSavedLocations(data?.items || []);
+      } catch (err) {
+        if (err?.name === 'AbortError') return;
+        if (!isMounted) return;
+        setError(err?.message || intl.formatMessage({ id: 'generalErrorMessage' }));
+        setSavedLocations([]);
+      } finally {
+        if (!isMounted) return;
+        setIsLoading(false);
+      }
+    };
+
+    loadDestinations();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [intl, isUserLoggedIn]);
 
   return (
     <div className="pfp-container">
@@ -39,7 +75,37 @@ function Pfp() {
 
       {/* Content Section */}
       <div className="pfp-content">
-        {displayLocations.length === 0 ? (
+        {isLoading ? (
+          <div className="empty-state">
+            <h2 className="empty-title">
+              <FormattedMessage id="loading" />
+            </h2>
+          </div>
+        ) : !isUserLoggedIn ? (
+          <div className="empty-state">
+            <h2 className="empty-title">
+              <FormattedMessage id="noSavedLocationsTitle" />
+            </h2>
+
+            <p className="empty-description">
+              <FormattedMessage id="loginToEnableActions" />
+            </p>
+
+            <button className="add-location-btn" onClick={() => navigate('/login')}>
+              <FormattedMessage id="login" />
+            </button>
+          </div>
+        ) : error ? (
+          <div className="empty-state">
+            <h2 className="empty-title">{error}</h2>
+            <p className="empty-description">
+              <FormattedMessage id="generalErrorMessage" />
+            </p>
+            <button className="add-location-btn" onClick={() => navigate('/pmap')}>
+              <FormattedMessage id="addLocationButton" />
+            </button>
+          </div>
+        ) : savedLocations.length === 0 ? (
           // Empty state when no locations are saved (First screenshot)
           <div className="empty-state">
             <div className="empty-icon3">
@@ -64,7 +130,7 @@ function Pfp() {
           // List of saved locations (Second screenshot)
           <div className="locations-section">
             <div className="locations-list">
-              {displayLocations.map((location) => (
+              {savedLocations.map((location) => (
                 <div key={location.id} className="location-card">
                   <div className="location-info">
                     <div className="location-favorite-icon">
@@ -75,8 +141,8 @@ function Pfp() {
                     </div>
 
                     <div className="location-details">
-                      <h3 className="location-name">{location.name}</h3>
-                      <p className="location-address">{location.address}</p>
+                      <h3 className="location-name">{location.title || location.name}</h3>
+                      <p className="location-address">{location.address || location.description || ''}</p>
                     </div>
                   </div>
 
