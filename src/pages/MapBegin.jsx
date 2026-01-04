@@ -924,7 +924,7 @@ const MapBeginPage = () => {
     <div className="map-routing-page">
       {/* Header */}
       <header className="map-routing-header">
-        <button className="map-menu-button">
+        {/* <button className="map-menu-button">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="24"
@@ -942,7 +942,7 @@ const MapBeginPage = () => {
             <path d="M4 12l16 0" />
             <path d="M4 18l16 0" />
           </svg>
-        </button>
+        </button> */}
         <h1 className="map-header-title">
           {intl.formatMessage({ id: 'mapRoutingTitle' })}
         </h1>
