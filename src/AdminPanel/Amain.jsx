@@ -2621,7 +2621,24 @@ const Amain = () => {
     setIsLoadingNotifications(true);
     try {
       const data = await fetchDashboardNotifications({ limit: 10, unreadOnly: false });
-      const normalized = Array.isArray(data) ? data : [];
+      const normalized = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.data)
+          ? data.data
+          : [];
+
+      const normalizeCreatedAt = (value) => {
+        if (typeof value === 'string' && value.includes(' ') && !value.includes('T')) {
+          const candidate = value.replace(' ', 'T');
+          const parsed = new Date(candidate);
+          if (!Number.isNaN(parsed.getTime())) {
+            return parsed.toISOString();
+          }
+        }
+
+        return value;
+      };
+
       setNotifications(normalized.map((item, index) => {
         const type = item?.type === 'new_comment'
           ? 'comment'
@@ -2629,7 +2646,8 @@ const Amain = () => {
             ? 'user'
             : 'feedback';
 
-        const createdAtText = formatDateTimeString(item?.createdAt);
+        const createdAtValue = normalizeCreatedAt(item?.createdAt);
+        const createdAtText = formatDateTimeString(createdAtValue);
 
         return {
           id: item?.id ?? `${item?.type || 'notif'}-${item?.entityId || index}-${item?.createdAt || index}`,
