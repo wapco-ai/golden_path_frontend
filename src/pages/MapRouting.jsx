@@ -74,19 +74,18 @@ const MapRoutingPage = () => {
       const coordinates = [parseFloat(storedLat), parseFloat(storedLng)];
 
       if (storedQrName) {
-        const origin = {
+        setUserLocation({
           name: storedQrName,
           coordinates
-        };
-        setUserLocation(origin);
-        sessionStorage.setItem('currentOrigin', JSON.stringify(origin));
+        });
         return;
       }
 
       if (storedId) {
         getLocationTitleById(storedId).then((title) => {
           if (title) {
-            const resolvedOrigin = {
+            sessionStorage.setItem('qrName', title);
+            setUserLocation({
               name: title,
               coordinates: coordinates
             };
@@ -122,23 +121,6 @@ const MapRoutingPage = () => {
     }
 
   }, [storedLat, storedLng, storedId, storedQrName, intl]);
-
-  useEffect(() => {
-    if (!storedLat || !storedLng || !storedQrName || !userLocation?.coordinates) return;
-
-    const qrCoordinates = [parseFloat(storedLat), parseFloat(storedLng)];
-    const fallbackName = intl.formatMessage({ id: 'mapCurrentLocationName' });
-
-    if (
-      userLocation.coordinates[0] === qrCoordinates[0] &&
-      userLocation.coordinates[1] === qrCoordinates[1] &&
-      userLocation.name === fallbackName
-    ) {
-      const correctedOrigin = { ...userLocation, name: storedQrName };
-      setUserLocation(correctedOrigin);
-      sessionStorage.setItem('currentOrigin', JSON.stringify(correctedOrigin));
-    }
-  }, [storedLat, storedLng, storedQrName, userLocation, intl]);
 
   useEffect(() => {
     let isMounted = true;
