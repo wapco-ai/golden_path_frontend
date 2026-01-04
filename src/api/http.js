@@ -32,6 +32,17 @@ const getAdminToken = () => {
   }
 };
 
+const redirectToAdminLogin = () => {
+  if (typeof window === 'undefined') return;
+
+  const loginHashPath = '#/admin/login';
+
+  // Ensure we stay within the HashRouter context to avoid dropping the main app shell
+  if (window.location.hash === loginHashPath) return;
+
+  window.location.hash = loginHashPath;
+};
+
 const http = axios.create({
   baseURL: appConfig.apiBaseUrl,
   headers: {
@@ -52,7 +63,7 @@ http.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error?.response?.status === 401 && typeof window !== 'undefined') {
-      window.location.href = '/admin/login';
+      redirectToAdminLogin();
     }
     return Promise.reject(error);
   }
