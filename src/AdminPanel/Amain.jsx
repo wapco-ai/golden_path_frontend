@@ -2621,6 +2621,7 @@ const Amain = () => {
     setIsLoadingNotifications(true);
     try {
       const data = await fetchDashboardNotifications({ limit: 10, unreadOnly: false });
+      const now = new Date();
       const normalized = Array.isArray(data)
         ? data
         : Array.isArray(data?.data)
@@ -2647,12 +2648,16 @@ const Amain = () => {
             : 'feedback';
 
         const createdAtValue = normalizeCreatedAt(item?.createdAt);
-        const createdAtText = formatDateTimeString(createdAtValue);
+        const parsedDate = new Date(createdAtValue || Date.now());
+        const validDate = Number.isNaN(parsedDate.getTime()) ? now : parsedDate;
+        const safeDate = validDate > now ? now : validDate;
+        const createdAtText = formatDateTimeString(safeDate);
 
         return {
           id: item?.id ?? `${item?.type || 'notif'}-${item?.entityId || index}-${item?.createdAt || index}`,
           title: item?.title || 'اعلان',
           message: item?.message || '',
+          createdAt: safeDate.toISOString(),
           time: createdAtText,
           read: Boolean(item?.read),
           type
@@ -3257,7 +3262,9 @@ const Amain = () => {
 
     // Categorize each notification
     notifications.forEach(notification => {
-      const notificationDate = new Date(notification.createdAt || Date.now());
+      const parsedDate = new Date(notification?.createdAt || Date.now());
+      const validDate = Number.isNaN(parsedDate.getTime()) ? now : parsedDate;
+      const notificationDate = validDate > now ? now : validDate;
 
       // Find which period this notification belongs to
       let targetPeriod = null;
