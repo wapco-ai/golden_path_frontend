@@ -19,7 +19,7 @@ import { createHaramVectorTileConfig } from '../config/vectorTiles';
 import { requestRouting } from '../services/routingService';
 import appConfig from '../config/appConfig';
 import { USER_ACCESS_TOKEN_KEY, useUserAuthStore } from '../auth/user/userAuthStore';
-import { createDestination } from '../services/destinationService';
+// import { createDestination } from '../services/destinationService';
 
 const FinalSearch = () => {
   const isValidLngLat = (coords) => {
