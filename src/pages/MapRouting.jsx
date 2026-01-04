@@ -88,26 +88,35 @@ const MapRoutingPage = () => {
             setUserLocation({
               name: title,
               coordinates: coordinates
-            });
+            };
+            sessionStorage.setItem('qrName', title);
+            sessionStorage.setItem('currentOrigin', JSON.stringify(resolvedOrigin));
+            setUserLocation(resolvedOrigin);
           } else {
-            setUserLocation({
+            const fallbackOrigin = {
               name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
               coordinates: coordinates
-            });
+            };
+            sessionStorage.setItem('currentOrigin', JSON.stringify(fallbackOrigin));
+            setUserLocation(fallbackOrigin);
           }
         }).catch(() => {
 
-          setUserLocation({
+          const fallbackOrigin = {
             name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
             coordinates: coordinates
-          });
+          };
+          sessionStorage.setItem('currentOrigin', JSON.stringify(fallbackOrigin));
+          setUserLocation(fallbackOrigin);
         });
       } else {
 
-        setUserLocation({
+        const fallbackOrigin = {
           name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
           coordinates: coordinates
-        });
+        };
+        sessionStorage.setItem('currentOrigin', JSON.stringify(fallbackOrigin));
+        setUserLocation(fallbackOrigin);
       }
     }
 
