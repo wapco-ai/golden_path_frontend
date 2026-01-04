@@ -553,6 +553,7 @@ const extractEditableVertices = (geometry = {}) => {
   return [];
 };
 
+
 const rebuildGeometryFromVertices = (geometryType, vertices = []) => {
   if (!Array.isArray(vertices) || vertices.length === 0) return null;
 
@@ -1070,6 +1071,7 @@ const Amain = () => {
     canvas.style.cursor = 'crosshair';
   }, [map]);
 
+
   const resetMapCursor = useCallback(() => {
     const mapInstance = mapRef.current;
     if (!mapInstance?.getCanvas) return;
@@ -1339,6 +1341,7 @@ const Amain = () => {
   const [categoryManagementOpen, setCategoryManagementOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
+
 
 
   const [categories, setCategories] = useState([]);
@@ -2096,6 +2099,7 @@ const Amain = () => {
       dedupKey
     };
   };
+
 
   const buildCulturalPrayerRestrictionsPayload = () => {
     const seen = new Set();
@@ -3180,6 +3184,180 @@ const Amain = () => {
     }
   }, [currentMarker, culturalMap]);
 
+  const formatJalaliDate = (date) => {
+    const jalali = toJalaali(date.getFullYear(), date.getMonth() + 1, date.getDate());
+
+    const jalaliMonths = [
+      'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+      'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
+    ];
+
+    return `${jalali.jd} ${jalaliMonths[jalali.jm - 1]} ${jalali.jy}`;
+  };
+
+
+  const categorizeNotificationsByPeriod = (notifications) => {
+    const now = new Date();
+    const twelveHoursAgo = new Date(now.getTime() - (12 * 60 * 60 * 1000));
+    const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+    const fortyEightHoursAgo = new Date(now.getTime() - (48 * 60 * 60 * 1000));
+
+    // Create period buckets
+    const periods = [
+      {
+        label: 'last12Hours',
+        start: twelveHoursAgo,
+        end: now,
+        displayText: '12 ساعت گذشته'
+      },
+      {
+        label: '12to24Hours',
+        start: twentyFourHoursAgo,
+        end: twelveHoursAgo,
+        displayText: 'دیروز'
+      },
+      {
+        label: '24to48Hours',
+        start: fortyEightHoursAgo,
+        end: twentyFourHoursAgo,
+        displayText: 'پریروز'
+      }
+    ];
+
+    // Categorize notifications by type and period
+    const categorized = {};
+
+    // Initialize structure
+    periods.forEach(period => {
+      categorized[period.label] = {
+        displayText: period.displayText,
+        comments: [],
+        feedbacks: [],
+        users: []
+      };
+    });
+
+    // Categorize each notification
+    notifications.forEach(notification => {
+      const notificationDate = new Date(notification.createdAt || Date.now());
+
+      // Find which period this notification belongs to
+      let targetPeriod = null;
+      for (const period of periods) {
+        if (notificationDate >= period.start && notificationDate < period.end) {
+          targetPeriod = period.label;
+          break;
+        }
+      }
+
+      // If notification is older than 48 hours, use actual date
+      if (!targetPeriod && notificationDate < fortyEightHoursAgo) {
+        targetPeriod = 'older';
+        if (!categorized.older) {
+          categorized.older = {};
+        }
+        const dateKey = formatJalaliDate(notificationDate);
+        if (!categorized.older[dateKey]) {
+          categorized.older[dateKey] = {
+            displayText: dateKey,
+            comments: [],
+            feedbacks: [],
+            users: []
+          };
+        }
+      }
+
+      // Categorize by type
+      if (targetPeriod) {
+        const periodData = targetPeriod === 'older'
+          ? categorized.older[formatJalaliDate(notificationDate)]
+          : categorized[targetPeriod];
+
+        if (notification.type === 'comment') {
+          periodData.comments.push(notification);
+        } else if (notification.type === 'feedback') {
+          periodData.feedbacks.push(notification);
+        } else if (notification.type === 'user') {
+          periodData.users.push(notification);
+        }
+      }
+    });
+
+    return categorized;
+  };
+
+
+  const categorizedData = categorizeNotificationsByPeriod(notifications);
+
+  const getNotificationDisplayData = (categorizedData) => {
+    const displayData = [];
+
+
+    Object.entries(categorizedData).forEach(([periodKey, periodData]) => {
+      if (typeof periodData === 'object' && !Array.isArray(periodData)) {
+
+        if (periodKey === 'older') {
+          Object.entries(periodData).forEach(([dateKey, dateData]) => {
+            if (dateData.comments.length > 0) {
+              displayData.push({
+                type: 'comment',
+                count: dateData.comments.length,
+                timeText: `${dateData.displayText}`,
+                period: 'older'
+              });
+            }
+            if (dateData.feedbacks.length > 0) {
+              displayData.push({
+                type: 'feedback',
+                count: dateData.feedbacks.length,
+                timeText: `${dateData.displayText}`,
+                period: 'older'
+              });
+            }
+            if (dateData.users.length > 0) {
+              displayData.push({
+                type: 'user',
+                count: dateData.users.length,
+                timeText: `${dateData.displayText}`,
+                period: 'older'
+              });
+            }
+          });
+        } else {
+          // For regular time periods
+          if (periodData.comments.length > 0) {
+            displayData.push({
+              type: 'comment',
+              count: periodData.comments.length,
+              timeText: periodData.displayText,
+              period: periodKey
+            });
+          }
+          if (periodData.feedbacks.length > 0) {
+            displayData.push({
+              type: 'feedback',
+              count: periodData.feedbacks.length,
+              timeText: periodData.displayText,
+              period: periodKey
+            });
+          }
+          if (periodData.users.length > 0) {
+            displayData.push({
+              type: 'user',
+              count: periodData.users.length,
+              timeText: periodData.displayText,
+              period: periodKey
+            });
+          }
+        }
+      }
+    });
+
+    return displayData;
+  };
+
+  const categorizedDisplayData = getNotificationDisplayData(categorizedData);
+  const hasUnreadInLast12Hours = categorizedDisplayData.some(item => item.period === 'last12Hours');
 
   const exitEditMode = () => {
     // Clean up map and marker FIRST
@@ -7473,17 +7651,6 @@ const Amain = () => {
     'همکف',
     'منفی ۱'
   ];
-
-  const formatJalaliDate = (date) => {
-    const jalali = toJalaali(date.getFullYear(), date.getMonth() + 1, date.getDate());
-
-    const jalaliMonths = [
-      'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
-      'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
-    ];
-
-    return `${jalali.jd} ${jalaliMonths[jalali.jm - 1]} ${jalali.jy}`;
-  };
 
 
   useEffect(() => {
@@ -15484,7 +15651,7 @@ const Amain = () => {
           <div className="notifications-header">
             <h3>اعلان‌ها</h3>
             <div className="notifications-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              {unreadNotificationsCount > 0 && (
+              {hasUnreadInLast12Hours && (
                 <button
                   className="mark-all-read-btn"
                   onClick={handleMarkAllAsRead}
@@ -15499,11 +15666,7 @@ const Amain = () => {
           </div>
 
           <div className="notifications-list">
-            {isLoadingNotifications ? (
-              <div className="empty-notifications" style={{ padding: '40px 20px', textAlign: 'center', color: '#9CA3AF' }}>
-                در حال بارگذاری اعلان‌ها...
-              </div>
-            ) : notifications.length === 0 ? (
+            {categorizedDisplayData.length === 0 ? (
               <div className="empty-notifications" style={{ padding: '40px 20px', textAlign: 'center', color: '#9CA3AF' }}>
                 <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M16 16H32M16 24H28M16 32H24M38 16C38 22.6274 32.6274 28 26 28C19.3726 28 14 22.6274 14 16C14 9.37258 19.3726 4 26 4C32.6274 4 38 9.37258 38 16Z" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" />
@@ -15511,25 +15674,24 @@ const Amain = () => {
                 <p style={{ marginTop: '12px', fontSize: '14px' }}>هیچ اعلانی وجود ندارد</p>
               </div>
             ) : (
-              notifications.map(notification => (
+              categorizedDisplayData.map((item, index) => (
                 <div
-                  key={notification.id}
-                  className={`notification-item ${!notification.read ? 'unread' : ''}`}
-                  onClick={() => handleMarkAsRead(notification.id)}
+                  key={index}
+                  className={`notification-item ${item.period === 'last12Hours' ? 'unread' : ''}`}
                 >
                   <div className="notification-icon" style={{ flexShrink: 0, marginTop: '2px' }}>
-                    {notification.type === 'comment' && (
+                    {item.type === 'comment' && (
                       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M10 18C14.4183 18 18 14.4183 18 10C18 5.58172 14.4183 2 10 2C5.58172 2 2 5.58172 2 10C2 11.1738 2.29295 12.2813 2.81097 13.2545L2.08301 17.0736C1.97617 17.6419 2.48913 18.1009 3.04886 17.996L6.703 17.2293C7.65491 17.7074 8.73668 18 9.87898 18H10Z" stroke="#0F71EF" strokeWidth="1.5" strokeLinejoin="round" />
                       </svg>
                     )}
-                    {notification.type === 'user' && (
+                    {item.type === 'user' && (
                       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M13.3334 5.83333C13.3334 7.67428 11.841 9.16667 10 9.16667C8.15907 9.16667 6.66669 7.67428 6.66669 5.83333C6.66669 3.99238 8.15907 2.5 10 2.5C11.841 2.5 13.3334 3.99238 13.3334 5.83333Z" stroke="#8B5CF6" strokeWidth="1.5" />
                         <path d="M10 11.6667C6.77837 11.6667 4.16669 14.2783 4.16669 17.5H15.8334C15.8334 14.2783 13.2217 11.6667 10 11.6667Z" stroke="#8B5CF6" strokeWidth="1.5" />
                       </svg>
                     )}
-                    {notification.type === 'feedback' && (
+                    {item.type === 'feedback' && (
                       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M10 17.5C14.1421 17.5 17.5 14.1421 17.5 10C17.5 5.85786 14.1421 2.5 10 2.5C5.85786 2.5 2.5 5.85786 2.5 10C2.5 11.1578 2.82733 12.241 3.40266 13.1667L2.5 17.5L6.83333 16.5973C7.75904 17.1727 8.84221 17.5 10 17.5Z" stroke="#F59E0B" strokeWidth="1.5" strokeLinejoin="round" />
                         <circle cx="7.5" cy="10" r="1" fill="#F59E0B" />
@@ -15541,8 +15703,12 @@ const Amain = () => {
 
                   <div className="notification-content" style={{ flex: 1, minWidth: 0 }}>
                     <div className="notification-title" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>{notification.title}</h4>
-                      {!notification.read && (
+                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>
+                        {item.type === 'comment' ? 'دیدگاه جدید' :
+                          item.type === 'feedback' ? 'بازخورد جدید' :
+                            'کاربر جدید'}
+                      </h4>
+                      {item.period === 'last12Hours' && (
                         <span className="unread-dot" style={{
                           width: '8px',
                           height: '8px',
@@ -15552,32 +15718,12 @@ const Amain = () => {
                       )}
                     </div>
                     <p className="notification-message" style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#6B7280' }}>
-                      {notification.message}
+                      {`${item.count} ${item.type === 'comment' ? 'کامنت' : item.type === 'feedback' ? 'بازخورد' : 'کاربر'} جدید در ${item.timeText} ثبت ${item.type === 'user' ? 'نام کرده‌اند' : 'شد'}`}
                     </p>
                     <div className="notification-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span className="notification-time" style={{ fontSize: '12px', color: '#9CA3AF' }}>
-                        {notification.time}
+                        {item.timeText}
                       </span>
-                      <button
-                        className="delete-notification-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteNotification(notification.id);
-                        }}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          cursor: 'pointer',
-                          padding: '4px'
-                        }}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M1.75 3.5H2.91667H12.25" stroke="#9CA3AF" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                          <path d="M11.0833 3.5V11.6667C11.0833 12.0203 10.9428 12.3594 10.6928 12.6095C10.4427 12.8595 10.1036 13 9.75 13H4.25C3.89638 13 3.55724 12.8595 3.30719 12.6095C3.05714 12.3594 2.91667 12.0203 2.91667 11.6667V3.5M4.66667 3.5V2.33333C4.66667 1.97971 4.80714 1.64057 5.05719 1.39052C5.30724 1.14048 5.64638 1 6 1H8C8.35362 1 8.69276 1.14048 8.94281 1.39052C9.19286 1.64057 9.33333 1.97971 9.33333 2.33333V3.5" stroke="#9CA3AF" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                          <path d="M5.83334 6.41667V9.91667" stroke="#9CA3AF" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                          <path d="M8.16666 6.41667V9.91667" stroke="#9CA3AF" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -15585,7 +15731,7 @@ const Amain = () => {
             )}
           </div>
 
-          {notifications.length > 0 && (
+          {categorizedDisplayData.length > 0 && (
             <div className="notifications-footer" style={{ padding: '16px 16px', borderTop: '1px solid #e5e7eb' }}>
               {/* <button
                 className="view-all-btn"

@@ -34,6 +34,7 @@ const MapRoutingPage = () => {
   const storedLat = sessionStorage.getItem('qrLat');
   const storedLng = sessionStorage.getItem('qrLng');
   const storedId = sessionStorage.getItem('qrId');
+  const storedQrName = sessionStorage.getItem('qrName');
   const [userLocation, setUserLocation] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeInput, setActiveInput] = useState(null);
@@ -72,10 +73,18 @@ const MapRoutingPage = () => {
     if (storedLat && storedLng) {
       const coordinates = [parseFloat(storedLat), parseFloat(storedLng)];
 
+      if (storedQrName) {
+        setUserLocation({
+          name: storedQrName,
+          coordinates
+        });
+        return;
+      }
 
       if (storedId) {
         getLocationTitleById(storedId).then((title) => {
           if (title) {
+            sessionStorage.setItem('qrName', title);
             setUserLocation({
               name: title,
               coordinates: coordinates
@@ -102,7 +111,7 @@ const MapRoutingPage = () => {
       }
     }
 
-  }, [storedLat, storedLng, storedId, intl]);
+  }, [storedLat, storedLng, storedId, storedQrName, intl]);
 
   useEffect(() => {
     let isMounted = true;
@@ -190,6 +199,7 @@ const MapRoutingPage = () => {
     loadLandmarkPlaces();
   }, [language, userLocation, intl]);
 
+  
 
   const setOriginStore = useRouteStore(state => state.setOrigin);
   const setDestinationStore = useRouteStore(state => state.setDestination);
@@ -423,6 +433,11 @@ const MapRoutingPage = () => {
     }
   }, []);
 
+  const handleClearCategorySelection = () => {
+    setMapSelectedCategory(null);
+    setMapSelectedSubGroups([]);
+  };
+
   const handleBackFromCategory = () => {
     setModalSelectedCategory(null);
     setModalFilteredSubGroups([]);
@@ -552,6 +567,7 @@ const MapRoutingPage = () => {
       // For destination: Show entry modal
       handleDestinationSelect(destination, { forceDestination: true });
     }
+    handleClearCategorySelection();
   };
 
   const handleSubgroupSelectWithModal = (subgroup) => {
@@ -647,7 +663,7 @@ const MapRoutingPage = () => {
     setSelectedEntry(entryNumber);
   };
 
-  // NEW: Confirm entry and proceed with routing
+
   const handleConfirmEntry = () => {
     if (tempDestination && selectedEntry) {
       const selectedDoor = mapEntryDoors.find((door) => door?.doorNo === selectedEntry);
@@ -658,23 +674,26 @@ const MapRoutingPage = () => {
         ...(selectedDoor ? { door: selectedDoor } : {}),
         ...(doorCoordinates ? { coordinates: doorCoordinates } : {})
       };
-
+  
       setSelectedDestination(finalDestination);
       addSearch(finalDestination);
-
-      // Store in sessionStorage for persistence
+  
+   
       sessionStorage.setItem('currentDestination', JSON.stringify(finalDestination));
+  
 
-      // Close the modal IMMEDIATELY and clear states
       setShowEntryModal(false);
       setTempDestination(null);
       setSelectedEntry(null);
-
-      // Also close any other modals that might be open
+  
+     
       setShowDestinationModal(false);
       setShowOriginModal(false);
       setIsSelectingFromMap(false);
-    } A
+  
+
+      handleClearCategorySelection();
+    }
   };
 
   const handleInputChange = (e) => {
@@ -730,15 +749,15 @@ const MapRoutingPage = () => {
 
   const handleRouteFromSubgroup = (subgroup) => {
     console.log('Routing from main page subgroup:', subgroup);
-
+  
     let coordinates = null;
+  
 
-    // Try to get coordinates from geoData first
     if (geoData) {
       const feature = geoData.features.find(
         f => f.properties?.subGroupValue === subgroup.value
       );
-
+  
       if (feature) {
         const center = getFeatureCenter(feature);
         if (center) {
@@ -746,13 +765,13 @@ const MapRoutingPage = () => {
         }
       }
     }
+  
 
-    // If no coordinates from geoData, check if subgroup has its own coordinates
     if (!coordinates && subgroup.coordinates) {
       coordinates = subgroup.coordinates;
     }
+  
 
-    // If still no coordinates, try to find any feature with this subgroup value
     if (!coordinates && geoData) {
       const anyFeature = geoData.features.find(
         f => f.properties?.subGroupValue === subgroup.value
@@ -764,8 +783,8 @@ const MapRoutingPage = () => {
         }
       }
     }
+  
 
-    // Create destination object
     const destination = {
       id: subgroup.value,
       name: subgroup.label,
@@ -774,22 +793,23 @@ const MapRoutingPage = () => {
         (subgroup.location || subgroup.label),
       coordinates: coordinates
     };
-
+  
     console.log('Setting destination from main page:', destination);
+  
 
-    // Store temporarily and show entry modal
     setTempDestination(destination);
     setShowEntryModal(true);
     addSearch(destination);
 
-    // IMPORTANT: Request area doors for this destination (this was missing!)
     if (coordinates && coordinates.length >= 2) {
       const [lat, lon] = coordinates;
       requestAreaDoors(lat, lon);
     }
+  
+ 
+    handleClearCategorySelection();
   };
 
-  // Get subgroup description based on currently loaded geoData
   const getLocalizedSubgroupDescription = (geoData, value, fallback) => {
     if (geoData) {
       const feature = geoData.features.find(
