@@ -51,6 +51,13 @@ import {
   stopTempBlockArea,
   extendTempBlockArea
 } from '../services/tempBlockAreasService';
+import {
+  fetchDashboardSummary,
+  fetchDashboardUserVisits,
+  fetchDashboardCommentStats,
+  fetchDashboardNotifications,
+  fetchDashboardRecentUsers
+} from '../services/adminDashboardService';
 
 function ensureRtlOnce() {
   if (window.__RTL_PLUGIN_SET__) return;
@@ -81,6 +88,65 @@ const getApiErrorMessage = (error, fallbackMessage = '') => error?.response?.dat
   || error?.response?.data?.errors?.operational?.is_covered?.[0]
   || error?.message
   || fallbackMessage;
+
+const DASHBOARD_RANGE_MAP = {
+  'هفته اخیر': 'week',
+  'ماه اخیر': 'month',
+  'سه ماه اخیر': 'quarter',
+  'سال اخیر': 'year'
+};
+
+const mapTimeFilterToRange = (label) => DASHBOARD_RANGE_MAP[label] || 'week';
+
+const mapCommentFilterToRange = (label) => {
+  if (label === 'امروز') {
+    return 'week';
+  }
+
+  return mapTimeFilterToRange(label);
+};
+
+const buildYAxisLabelsFromMax = (maxValue) => {
+  const numericMax = Number(maxValue) || 0;
+  if (numericMax <= 0) {
+    return [];
+  }
+
+  const step = Math.max(1, Math.ceil(numericMax / 5));
+  const labels = [];
+  for (let value = step * 5; value >= 0; value -= step) {
+    labels.push(value);
+    if (labels.length >= 6 && value <= 0) break;
+  }
+
+  if (labels[labels.length - 1] !== 0) {
+    labels.push(0);
+  }
+
+  return labels;
+};
+
+const formatNumberFa = (value) => {
+  if (value === null || value === undefined) return '۰';
+
+  const numericValue = Number(value);
+  if (Number.isNaN(numericValue)) {
+    return String(value);
+  }
+
+  return numericValue.toLocaleString('fa-IR');
+};
+
+const formatDateTimeString = (value) => {
+  if (!value) return '';
+
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleString('fa-IR');
+  }
+
+  return value;
+};
 
 const GENDER_OPTIONS = [
   { value: 'female', label: 'بانوان' },
@@ -585,59 +651,22 @@ const Amain = () => {
   const API_BASE = `${appConfig.apiBaseUrl}/api/v1/admin`;
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [activeMenu, setActiveMenu] = useState('dashboard');
-  const [commentStats, setCommentStats] = useState({
-    total: 152,
-    approved: 89,
-    rejected: 46
+  const [dashboardSummary, setDashboardSummary] = useState({
+    totalUsers: 0,
+    successfulNavigations: 0,
+    culturalCenters: 0,
+    lastUpdated: ''
   });
+  const [isLoadingDashboardSummary, setIsLoadingDashboardSummary] = useState(false);
+  const [commentStats, setCommentStats] = useState({
+    total: 0,
+    approved: 0,
+    rejected: 0
+  });
+  const [isLoadingCommentStats, setIsLoadingCommentStats] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      title: 'دیدگاه جدید',
-      message: 'کاربر "سیدمحمدحسین میرشفیعی" دیدگاه جدیدی ثبت کرده است',
-      time: '10 دقیقه پیش',
-      read: false,
-      type: 'comment',
-      createdAt: new Date(Date.now() - (30 * 60 * 1000)).toISOString() // 30 minutes ago
-    },
-    {
-      id: 2,
-      title: 'دیدگاه جدید',
-      message: 'کاربر "محمد رضایی" دیدگاه جدیدی ثبت کرده است',
-      time: '2 ساعت پیش',
-      read: false,
-      type: 'comment',
-      createdAt: new Date(Date.now() - (2 * 60 * 60 * 1000)).toISOString() // 2 hours ago
-    },
-    {
-      id: 3,
-      title: 'بازخورد جدید',
-      message: 'بازخورد جدیدی در بخش "مدیریت نقشه" ثبت شده است',
-      time: '4 ساعت پیش',
-      read: false,
-      type: 'feedback',
-      createdAt: new Date(Date.now() - (4 * 60 * 60 * 1000)).toISOString() // 4 hours ago
-    },
-    {
-      id: 4,
-      title: 'بازخورد جدید',
-      message: 'بازخورد جدیدی در بخش "مدیریت نقشه" ثبت شده است',
-      time: 'دیروز',
-      read: true,
-      type: 'feedback',
-      createdAt: new Date(Date.now() - (36 * 60 * 60 * 1000)).toISOString() // 36 hours ago
-    },
-    {
-      id: 6,
-      title: 'ثبت نام جدید',
-      message: 'کاربر جدید "علی کریمی" در اپلیکیشن ثبت نام کرده است',
-      time: 'پریروز',
-      read: true,
-      type: 'user',
-      createdAt: new Date(Date.now() - (60 * 60 * 60 * 1000)).toISOString() // 60 hours ago
-    }
-  ]);
+  const [notifications, setNotifications] = useState([]);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
 
   const [map, setMap] = useState(null);
   const [mapLayerAvailabilityVersion, setMapLayerAvailabilityVersion] = useState(0);
@@ -925,10 +954,13 @@ const Amain = () => {
       });
     }
   }, [map]);
-  const unknownComments = commentStats.total - commentStats.approved - commentStats.rejected;
-  const approvedDegrees = (commentStats.approved / commentStats.total) * 360;
-  const rejectedDegrees = (commentStats.rejected / commentStats.total) * 360;
-  const unknownDegrees = (unknownComments / commentStats.total) * 360;
+  const safeCommentTotal = Math.max(0, Number(commentStats.total) || 0);
+  const safeApprovedComments = Math.max(0, Number(commentStats.approved) || 0);
+  const safeRejectedComments = Math.max(0, Number(commentStats.rejected) || 0);
+  const unknownComments = Math.max(0, safeCommentTotal - safeApprovedComments - safeRejectedComments);
+  const approvedDegrees = safeCommentTotal ? (safeApprovedComments / safeCommentTotal) * 360 : 0;
+  const rejectedDegrees = safeCommentTotal ? (safeRejectedComments / safeCommentTotal) * 360 : 0;
+  const unknownDegrees = safeCommentTotal ? (unknownComments / safeCommentTotal) * 360 : 0;
   const [isVanDrawingMode, setIsVanDrawingMode] = useState(false);
   const [vanLineCoordinates, setVanLineCoordinates] = useState([]);
   const [isSavingVanRoute, setIsSavingVanRoute] = useState(false);
@@ -936,6 +968,12 @@ const Amain = () => {
   const [facManagementOpen, setfacManagementOpen] = useState(false);
   const [reportsManagementOpen, setReportsManagementOpen] = useState(false);
   const [users, setUsers] = useState([]);
+  const [recentUsersPagination, setRecentUsersPagination] = useState({
+    page: 1,
+    pageSize: 6,
+    total: 0,
+    pages: 1
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const currentJalaliDate = useMemo(() => {
     const now = new Date();
@@ -953,6 +991,9 @@ const Amain = () => {
   const [selectedBar, setSelectedBar] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(6);
+  const [isLoadingBarChart, setIsLoadingBarChart] = useState(false);
+  const [barChartYAxisOverrides, setBarChartYAxisOverrides] = useState({});
+  const [isLoadingRecentUsers, setIsLoadingRecentUsers] = useState(false);
   const contentRef = useRef(null);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [isLocationMarkerMode, setIsLocationMarkerMode] = useState(false);
@@ -2425,106 +2466,7 @@ const Amain = () => {
     setIsAvatarModalOpen(false);
     alert('تصویر پروفایل حذف شد');
   };
-
-
-
-  // Sample data for demonstration
-  useEffect(() => {
-    // Mock user data
-    const mockUsers = [
-      {
-        id: 1,
-        fullName: 'سیدمحمدحسین میرشفیعی ',
-        phone: ' ۹۱۹۳۹۳۷۸۶۹ ۹۸+',
-        registerDate: ' ۱۸ مرداد ۱۴۰۴',
-        gender: 'مرد',
-        successCount: 8
-      },
-      {
-        id: 2,
-        fullName: 'محمدجواد سلگی',
-        phone: '۹۱۹۳۹۳۷۸۶۹ ۹۸+',
-        registerDate: '۲۰ مرداد ۱۴۰۴',
-        gender: 'مرد',
-        successCount: 12
-      },
-      {
-        id: 3,
-        fullName: 'محمد رضایی',
-        phone: '۴۹۳۸۷۶۵۴۳۲ ۹۸+',
-        registerDate: '۲۲ مرداد ۱۴۰۴',
-        gender: 'مرد',
-        successCount: 5
-      },
-      {
-        id: 4,
-        fullName: 'ساسان جاجرمی',
-        phone: '۹۱۹۳۹۳۷۸۶۹ ۹۸+',
-        registerDate: '۲۵ مرداد ۱۴۰۴',
-        gender: 'مرد',
-        successCount: 15
-      },
-      {
-        id: 5,
-        fullName: 'مرتضی یوسف نیا',
-        phone: '۹۱۹۳۹۳۷۸۶۹ ۹۸+',
-        registerDate: '۲۷ مرداد ۱۴۰۴',
-        gender: 'مرد',
-        successCount: 3
-      },
-      {
-        id: 6,
-        fullName: 'فاطمه محمدی',
-        phone: '۹۱۲۳۴۵۶۷۸۹ ۹۸+',
-        registerDate: '۱۵ شهریور ۱۴۰۴',
-        gender: 'زن',
-        successCount: 9
-      },
-      {
-        id: 7,
-        fullName: 'زهرا احمدی',
-        phone: '۹۱۳۵۷۹۲۴۶۸ ۹۸+',
-        registerDate: '۱۰ مهر ۱۴۰۴',
-        gender: 'زن',
-        successCount: 11
-      },
-      {
-        id: 8,
-        fullName: 'علی کریمی',
-        phone: '۹۱۴۶۸۲۵۳۹۷ ۹۸+',
-        registerDate: '۲۵ مهر ۱۴۰۴',
-        gender: 'مرد',
-        successCount: 7
-      },
-      {
-        id: 9,
-        fullName: 'حمید رضوانی',
-        phone: '۹۱۵۷۳۹۴۶۸۲ ۹۸+',
-        registerDate: '۲۰ شهریور ۱۴۰۴',
-        gender: 'مرد',
-        successCount: 14
-      },
-      {
-        id: 10,
-        fullName: 'نرجس قاسمی',
-        phone: '۹۱۶۸۲۴۵۷۳۹ ۹۸+',
-        registerDate: '۲۵ مهر ۱۴۰۴',
-        gender: 'زن',
-        successCount: 6
-      },
-    ];
-    setUsers(mockUsers);
-  }, []);
-
-  const [barData, setBarData] = useState([
-    { day: 'شنبه', value: 70, count: 175 },
-    { day: 'یکشنبه', value: 45, count: 112 },
-    { day: 'دوشنبه', value: 85, count: 213 },
-    { day: 'سه شنبه', value: 60, count: 150 },
-    { day: 'چهارشنبه', value: 30, count: 75 },
-    { day: 'پنجشنبه', value: 90, count: 225 },
-    { day: 'جمعه', value: 50, count: 125 }
-  ]);
+  const [barData, setBarData] = useState([]);
 
   const generateBarData = (filter) => {
     const now = new Date();
@@ -2595,6 +2537,11 @@ const Amain = () => {
   };
 
   const getYAxisLabels = (filter) => {
+    const overrideLabels = barChartYAxisOverrides[filter];
+    if (overrideLabels?.length) {
+      return overrideLabels;
+    }
+
     switch (filter) {
       case 'هفته اخیر':
         return [250, 200, 150, 100, 50, 0];
@@ -2608,6 +2555,161 @@ const Amain = () => {
         return [250, 200, 150, 100, 50, 0];
     }
   };
+
+  const loadDashboardSummary = useCallback(async () => {
+    setIsLoadingDashboardSummary(true);
+    try {
+      const data = await fetchDashboardSummary();
+      setDashboardSummary({
+        totalUsers: data?.totalUsers ?? 0,
+        successfulNavigations: data?.successfulNavigations ?? 0,
+        culturalCenters: data?.culturalCenters ?? 0,
+        lastUpdated: data?.lastUpdated || ''
+      });
+    } catch (error) {
+      console.error('خطا در دریافت خلاصه داشبورد', error);
+      toast.error('خطا در دریافت خلاصه داشبورد');
+    } finally {
+      setIsLoadingDashboardSummary(false);
+    }
+  }, []);
+
+  const loadUserVisits = useCallback(async (filter = barChartTimeFilter) => {
+    setIsLoadingBarChart(true);
+    setSelectedBar(null);
+    try {
+      const data = await fetchDashboardUserVisits({ range: mapTimeFilterToRange(filter) });
+      const normalizedBars = (data?.labels || []).map((label, index) => ({
+        day: label,
+        label,
+        count: Number(data?.data?.[index]) || 0
+      }));
+
+      setBarData(normalizedBars.length ? normalizedBars : generateBarData(filter));
+
+      const yAxisLabels = buildYAxisLabelsFromMax(data?.maxYAxis);
+      if (yAxisLabels.length) {
+        setBarChartYAxisOverrides((prev) => ({ ...prev, [filter]: yAxisLabels }));
+      }
+    } catch (error) {
+      console.error('خطا در دریافت آمار بازدید کاربران', error);
+      toast.error('خطا در دریافت آمار بازدید کاربران');
+      setBarData(generateBarData(filter));
+    } finally {
+      setIsLoadingBarChart(false);
+    }
+  }, [barChartTimeFilter]);
+
+  const loadCommentStats = useCallback(async (filter = pieChartTimeFilter) => {
+    setIsLoadingCommentStats(true);
+    try {
+      const data = await fetchDashboardCommentStats({ range: mapCommentFilterToRange(filter) });
+      setCommentStats({
+        total: data?.total ?? 0,
+        approved: data?.approved ?? 0,
+        rejected: data?.rejected ?? 0
+      });
+    } catch (error) {
+      console.error('خطا در دریافت آمار دیدگاه‌ها', error);
+      toast.error('خطا در دریافت آمار دیدگاه‌ها');
+    } finally {
+      setIsLoadingCommentStats(false);
+    }
+  }, [pieChartTimeFilter]);
+
+  const loadNotifications = useCallback(async () => {
+    setIsLoadingNotifications(true);
+    try {
+      const data = await fetchDashboardNotifications({ limit: 10, unreadOnly: false });
+      const normalized = Array.isArray(data) ? data : [];
+      setNotifications(normalized.map((item, index) => {
+        const type = item?.type === 'new_comment'
+          ? 'comment'
+          : item?.type === 'new_user'
+            ? 'user'
+            : 'feedback';
+
+        const createdAtText = formatDateTimeString(item?.createdAt);
+
+        return {
+          id: item?.id ?? `${item?.type || 'notif'}-${item?.entityId || index}-${item?.createdAt || index}`,
+          title: item?.title || 'اعلان',
+          message: item?.message || '',
+          time: createdAtText,
+          read: Boolean(item?.read),
+          type
+        };
+      }));
+    } catch (error) {
+      console.error('خطا در دریافت اعلان‌ها', error);
+      toast.error('خطا در دریافت اعلان‌ها');
+    } finally {
+      setIsLoadingNotifications(false);
+    }
+  }, []);
+
+  const loadRecentUsers = useCallback(async ({
+    page = 1,
+    pageSize = itemsPerPage,
+    search = ''
+  } = {}) => {
+    setIsLoadingRecentUsers(true);
+    try {
+      const data = await fetchDashboardRecentUsers({ page, pageSize, search });
+      const normalizedUsers = Array.isArray(data?.data) ? data.data : [];
+
+      setUsers(normalizedUsers.map((user, index) => ({
+        id: user?.id ?? index,
+        fullName: user?.name || user?.fullName || user?.email || '---',
+        phone: user?.phone || '-',
+        registerDate: formatDateTimeString(user?.joinDate) || '',
+        gender: user?.gender || '-',
+        successCount: Number(user?.successCount) || 0
+      })));
+
+      if (data?.pagination) {
+        const { page: respPage, pageSize: respPageSize, total, pages } = data.pagination;
+        setRecentUsersPagination({
+          page: respPage ?? page,
+          pageSize: respPageSize ?? pageSize,
+          total: total ?? normalizedUsers.length,
+          pages: pages ?? Math.max(1, Math.ceil((total ?? normalizedUsers.length) / (respPageSize || pageSize || 1)))
+        });
+      } else {
+        setRecentUsersPagination({
+          page,
+          pageSize,
+          total: normalizedUsers.length,
+          pages: Math.max(1, Math.ceil(normalizedUsers.length / (pageSize || 1)))
+        });
+      }
+    } catch (error) {
+      console.error('خطا در دریافت کاربران اخیر', error);
+      toast.error('خطا در دریافت کاربران اخیر');
+    } finally {
+      setIsLoadingRecentUsers(false);
+    }
+  }, [itemsPerPage]);
+
+  useEffect(() => {
+    loadDashboardSummary();
+  }, [loadDashboardSummary]);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
+
+  useEffect(() => {
+    loadUserVisits(barChartTimeFilter);
+  }, [barChartTimeFilter, loadUserVisits]);
+
+  useEffect(() => {
+    loadCommentStats(pieChartTimeFilter);
+  }, [pieChartTimeFilter, loadCommentStats]);
+
+  useEffect(() => {
+    loadRecentUsers({ page: currentPage, pageSize: itemsPerPage, search: searchTerm });
+  }, [currentPage, itemsPerPage, searchTerm, loadRecentUsers]);
 
   const loadCulturalItems = useCallback(async () => {
     setIsLoadingCultural(true);
@@ -2983,7 +3085,7 @@ const Amain = () => {
 
 
 
-  const handleRefreshMainTable = (e) => {
+  const handleRefreshMainTable = async (e) => {
 
     if (e) {
       e.preventDefault();
@@ -2992,14 +3094,15 @@ const Amain = () => {
 
     setIsRefreshingMainTable(true);
 
-
-    setTimeout(() => {
-
-      const shuffledUsers = [...users].sort(() => Math.random() - 0.5);
-      setUsers(shuffledUsers);
-      setIsRefreshingMainTable(false);
+    try {
+      await loadRecentUsers({ page: currentPage, pageSize: itemsPerPage, search: searchTerm });
       toast.success('جدول به روز رسانی شد');
-    }, 1000);
+    } catch (error) {
+      console.error('به‌روزرسانی جدول ناموفق بود', error);
+      toast.error('به‌روزرسانی جدول ناموفق بود');
+    } finally {
+      setIsRefreshingMainTable(false);
+    }
   };
 
 
@@ -4394,10 +4497,11 @@ const Amain = () => {
 
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
+    setCurrentPage(1);
   };
 
-  const filteredUsers = users.filter(user =>
-    user.fullName.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredUsers = users.filter((user) =>
+    (user.fullName || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleDateChange = (date) => {
@@ -8731,11 +8835,9 @@ const Amain = () => {
   };
 
   // Calculate pagination data
-  const totalItems = filteredUsers.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentUsers = filteredUsers.slice(startIndex, endIndex);
+  const totalItems = recentUsersPagination?.total ?? filteredUsers.length;
+  const totalPages = Math.max(1, recentUsersPagination?.pages || Math.ceil(totalItems / itemsPerPage) || 1);
+  const currentUsers = filteredUsers;
 
   const adminDisplayName =
     adminProfile?.fullName ||
@@ -10911,7 +11013,7 @@ const Amain = () => {
             /* Charts Section */
             <div className="charts-section">
               {/* Middle Chart Container */}
-              <div className="chart-container-middle">
+              <div className="chart-container-middle" aria-busy={isLoadingBarChart}>
                 {/* Top stats section */}
                 <div className="stats-cards-container">
                   <div className="stat-card">
@@ -10926,7 +11028,7 @@ const Amain = () => {
                     </div>
                     <div className="stat-card-content">
                       <div className="stat-card-title">تعداد کاربران</div>
-                      <div className="stat-card-value">۱,۴۵۶,۰۰۳</div>
+                      <div className="stat-card-value">{isLoadingDashboardSummary ? '...' : formatNumberFa(dashboardSummary.totalUsers)}</div>
                     </div>
                   </div>
 
@@ -10943,7 +11045,7 @@ const Amain = () => {
                     </div>
                     <div className="stat-card-content">
                       <div className="stat-card-title">مسیریابی های موفق</div>
-                      <div className="stat-card-value">۷۲۸,۱۰۵</div>
+                      <div className="stat-card-value">{isLoadingDashboardSummary ? '...' : formatNumberFa(dashboardSummary.successfulNavigations)}</div>
                     </div>
                   </div>
 
@@ -10960,7 +11062,7 @@ const Amain = () => {
                     </div>
                     <div className="stat-card-content">
                       <div className="stat-card-title">مراکز فرهنگی موجود</div>
-                      <div className="stat-card-value">۱۵۶</div>
+                      <div className="stat-card-value">{isLoadingDashboardSummary ? '...' : formatNumberFa(dashboardSummary.culturalCenters)}</div>
                     </div>
                   </div>
                 </div>
@@ -10980,22 +11082,18 @@ const Amain = () => {
 
                       {isBarChartFilterOpen && (
                         <div className="time-filter-dropdown show">
-                          <div className="time-filter-option" onClick={() => {
-                            setBarChartTimeFilter('هفته اخیر');
-                            setBarData(generateBarData('هفته اخیر'));
-                          }}>هفته اخیر</div>
-                          <div className="time-filter-option" onClick={() => {
-                            setBarChartTimeFilter('ماه اخیر');
-                            setBarData(generateBarData('ماه اخیر'));
-                          }}>ماه اخیر</div>
-                          <div className="time-filter-option" onClick={() => {
-                            setBarChartTimeFilter('سه ماه اخیر');
-                            setBarData(generateBarData('سه ماه اخیر'));
-                          }}>سه ماه اخیر</div>
-                          <div className="time-filter-option" onClick={() => {
-                            setBarChartTimeFilter('سال اخیر');
-                            setBarData(generateBarData('سال اخیر'));
-                          }}>سال اخیر</div>
+                        <div className="time-filter-option" onClick={() => {
+                          setBarChartTimeFilter('هفته اخیر');
+                        }}>هفته اخیر</div>
+                        <div className="time-filter-option" onClick={() => {
+                          setBarChartTimeFilter('ماه اخیر');
+                        }}>ماه اخیر</div>
+                        <div className="time-filter-option" onClick={() => {
+                          setBarChartTimeFilter('سه ماه اخیر');
+                        }}>سه ماه اخیر</div>
+                        <div className="time-filter-option" onClick={() => {
+                          setBarChartTimeFilter('سال اخیر');
+                        }}>سال اخیر</div>
                         </div>
                       )}
                     </div>
@@ -11013,8 +11111,8 @@ const Amain = () => {
                         {barData.map((bar, index) => {
                           // Calculate percentage height based on Y-axis max value
                           const yLabels = getYAxisLabels(barChartTimeFilter);
-                          const maxValue = yLabels[0]; // First label is the max value
-                          const heightPercentage = (bar.count / maxValue) * 100;
+                          const maxValue = yLabels[0] || 0; // First label is the max value
+                          const heightPercentage = maxValue ? (bar.count / maxValue) * 100 : 0;
 
                           return (
                             <div
@@ -11093,7 +11191,7 @@ const Amain = () => {
                           : pieChartTimeFilter
                       }
                       )</span>
-                    <span className="count-value">{commentStats.total}</span>
+                    <span className="count-value">{isLoadingCommentStats ? '...' : commentStats.total}</span>
                   </div>
 
                   <div className="table-row">
@@ -11101,14 +11199,14 @@ const Amain = () => {
                       <div className="stat-color approved"></div>
                       <span>تایید و انتشار</span>
                     </div>
-                    <div className="count-value">{commentStats.approved}</div>
+                    <div className="count-value">{isLoadingCommentStats ? '...' : commentStats.approved}</div>
                   </div>
                   <div className="table-row">
                     <div className="stat-info">
                       <div className="stat-color rejected"></div>
                       <span>رد شده</span>
                     </div>
-                    <div className="count-value">{commentStats.rejected}</div>
+                    <div className="count-value">{isLoadingCommentStats ? '...' : commentStats.rejected}</div>
                   </div>
                 </div>
               </div>
@@ -11133,10 +11231,10 @@ const Amain = () => {
                         <button
                           className="refresh-btn"
                           onClick={handleRefreshMainTable}
-                          disabled={isRefreshingMainTable}
+                          disabled={isRefreshingMainTable || isLoadingRecentUsers}
                           type="button"
-                          style={{ cursor: isRefreshingMainTable ? 'wait' : 'pointer' }}
-                          title={isRefreshingMainTable ? 'در حال به‌روزرسانی...' : 'به‌روزرسانی جدول'}
+                          style={{ cursor: (isRefreshingMainTable || isLoadingRecentUsers) ? 'wait' : 'pointer' }}
+                          title={(isRefreshingMainTable || isLoadingRecentUsers) ? 'در حال به‌روزرسانی...' : 'به‌روزرسانی جدول'}
                         >
                           {isRefreshingMainTable ? (
                             <div style={{
