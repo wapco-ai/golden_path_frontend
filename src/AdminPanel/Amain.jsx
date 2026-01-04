@@ -1056,7 +1056,11 @@ const Amain = () => {
   const tempAreaDraftGeometryRef = useRef(null);
   const tempAreaPreviousCursorRef = useRef(null);
   const prevFloorLangRef = useRef({ floor: null, lang: null });
-  const unreadNotificationsCount = notifications.filter(notif => !notif.read).length;
+  const unreadNotifications = useMemo(
+    () => notifications.filter(notif => !notif.read),
+    [notifications]
+  );
+  const unreadNotificationsCount = unreadNotifications.length;
 
   const setMapCursorForTempAreaDrawing = useCallback(() => {
     if (!map?.getCanvas) return;
@@ -3321,59 +3325,33 @@ const Amain = () => {
     Object.entries(categorizedData).forEach(([periodKey, periodData]) => {
       if (typeof periodData === 'object' && !Array.isArray(periodData)) {
 
+        const buildDisplayItem = (type, items, displayText, period) => {
+          const totalCount = items.length;
+
+          if (totalCount === 0) return;
+
+          const unreadCount = items.filter(item => !item.read).length;
+
+          displayData.push({
+            type,
+            count: totalCount,
+            unreadCount,
+            timeText: displayText,
+            period
+          });
+        };
+
         if (periodKey === 'older') {
           Object.entries(periodData).forEach(([dateKey, dateData]) => {
-            if (dateData.comments.length > 0) {
-              displayData.push({
-                type: 'comment',
-                count: dateData.comments.length,
-                timeText: `${dateData.displayText}`,
-                period: 'older'
-              });
-            }
-            if (dateData.feedbacks.length > 0) {
-              displayData.push({
-                type: 'feedback',
-                count: dateData.feedbacks.length,
-                timeText: `${dateData.displayText}`,
-                period: 'older'
-              });
-            }
-            if (dateData.users.length > 0) {
-              displayData.push({
-                type: 'user',
-                count: dateData.users.length,
-                timeText: `${dateData.displayText}`,
-                period: 'older'
-              });
-            }
+            buildDisplayItem('comment', dateData.comments, `${dateData.displayText}`, 'older');
+            buildDisplayItem('feedback', dateData.feedbacks, `${dateData.displayText}`, 'older');
+            buildDisplayItem('user', dateData.users, `${dateData.displayText}`, 'older');
           });
         } else {
           // For regular time periods
-          if (periodData.comments.length > 0) {
-            displayData.push({
-              type: 'comment',
-              count: periodData.comments.length,
-              timeText: periodData.displayText,
-              period: periodKey
-            });
-          }
-          if (periodData.feedbacks.length > 0) {
-            displayData.push({
-              type: 'feedback',
-              count: periodData.feedbacks.length,
-              timeText: periodData.displayText,
-              period: periodKey
-            });
-          }
-          if (periodData.users.length > 0) {
-            displayData.push({
-              type: 'user',
-              count: periodData.users.length,
-              timeText: periodData.displayText,
-              period: periodKey
-            });
-          }
+          buildDisplayItem('comment', periodData.comments, periodData.displayText, periodKey);
+          buildDisplayItem('feedback', periodData.feedbacks, periodData.displayText, periodKey);
+          buildDisplayItem('user', periodData.users, periodData.displayText, periodKey);
         }
       }
     });
@@ -3382,7 +3360,9 @@ const Amain = () => {
   };
 
   const categorizedDisplayData = getNotificationDisplayData(categorizedData);
-  const hasUnreadInLast12Hours = categorizedDisplayData.some(item => item.period === 'last12Hours');
+  const hasUnreadInLast12Hours = categorizedDisplayData.some(
+    (item) => item.period === 'last12Hours' && item.unreadCount > 0
+  );
 
   const exitEditMode = () => {
     // Clean up map and marker FIRST
@@ -15702,7 +15682,7 @@ const Amain = () => {
               categorizedDisplayData.map((item, index) => (
                 <div
                   key={index}
-                  className={`notification-item ${item.period === 'last12Hours' ? 'unread' : ''}`}
+                  className={`notification-item ${item.unreadCount > 0 ? 'unread' : ''}`}
                 >
                   <div className="notification-icon" style={{ flexShrink: 0, marginTop: '2px' }}>
                     {item.type === 'comment' && (
@@ -15733,7 +15713,7 @@ const Amain = () => {
                           item.type === 'feedback' ? 'بازخورد جدید' :
                             'کاربر جدید'}
                       </h4>
-                      {item.period === 'last12Hours' && (
+                      {item.unreadCount > 0 && (
                         <span className="unread-dot" style={{
                           width: '8px',
                           height: '8px',
