@@ -84,11 +84,11 @@ const MapRoutingPage = () => {
       if (storedId) {
         getLocationTitleById(storedId).then((title) => {
           if (title) {
-            sessionStorage.setItem('qrName', title);
-            setUserLocation({
+            const resolvedOrigin = {
               name: title,
-              coordinates: coordinates
+              coordinates
             };
+
             sessionStorage.setItem('qrName', title);
             sessionStorage.setItem('currentOrigin', JSON.stringify(resolvedOrigin));
             setUserLocation(resolvedOrigin);
