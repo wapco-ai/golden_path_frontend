@@ -34,6 +34,7 @@ const MapRoutingPage = () => {
   const storedLat = sessionStorage.getItem('qrLat');
   const storedLng = sessionStorage.getItem('qrLng');
   const storedId = sessionStorage.getItem('qrId');
+  const storedQrName = sessionStorage.getItem('qrName');
   const [userLocation, setUserLocation] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeInput, setActiveInput] = useState(null);
@@ -72,37 +73,72 @@ const MapRoutingPage = () => {
     if (storedLat && storedLng) {
       const coordinates = [parseFloat(storedLat), parseFloat(storedLng)];
 
+      if (storedQrName) {
+        const origin = {
+          name: storedQrName,
+          coordinates
+        };
+        setUserLocation(origin);
+        sessionStorage.setItem('currentOrigin', JSON.stringify(origin));
+        return;
+      }
 
       if (storedId) {
         getLocationTitleById(storedId).then((title) => {
           if (title) {
-            setUserLocation({
+            const resolvedOrigin = {
               name: title,
               coordinates: coordinates
-            });
+            };
+            sessionStorage.setItem('qrName', title);
+            sessionStorage.setItem('currentOrigin', JSON.stringify(resolvedOrigin));
+            setUserLocation(resolvedOrigin);
           } else {
-            setUserLocation({
+            const fallbackOrigin = {
               name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
               coordinates: coordinates
-            });
+            };
+            sessionStorage.setItem('currentOrigin', JSON.stringify(fallbackOrigin));
+            setUserLocation(fallbackOrigin);
           }
         }).catch(() => {
 
-          setUserLocation({
+          const fallbackOrigin = {
             name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
             coordinates: coordinates
-          });
+          };
+          sessionStorage.setItem('currentOrigin', JSON.stringify(fallbackOrigin));
+          setUserLocation(fallbackOrigin);
         });
       } else {
 
-        setUserLocation({
+        const fallbackOrigin = {
           name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
           coordinates: coordinates
-        });
+        };
+        sessionStorage.setItem('currentOrigin', JSON.stringify(fallbackOrigin));
+        setUserLocation(fallbackOrigin);
       }
     }
 
-  }, [storedLat, storedLng, storedId, intl]);
+  }, [storedLat, storedLng, storedId, storedQrName, intl]);
+
+  useEffect(() => {
+    if (!storedLat || !storedLng || !storedQrName || !userLocation?.coordinates) return;
+
+    const qrCoordinates = [parseFloat(storedLat), parseFloat(storedLng)];
+    const fallbackName = intl.formatMessage({ id: 'mapCurrentLocationName' });
+
+    if (
+      userLocation.coordinates[0] === qrCoordinates[0] &&
+      userLocation.coordinates[1] === qrCoordinates[1] &&
+      userLocation.name === fallbackName
+    ) {
+      const correctedOrigin = { ...userLocation, name: storedQrName };
+      setUserLocation(correctedOrigin);
+      sessionStorage.setItem('currentOrigin', JSON.stringify(correctedOrigin));
+    }
+  }, [storedLat, storedLng, storedQrName, userLocation, intl]);
 
   useEffect(() => {
     let isMounted = true;
