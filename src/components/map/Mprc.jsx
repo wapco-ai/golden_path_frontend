@@ -202,32 +202,15 @@ const Mprc = ({
     const storedLat = sessionStorage.getItem('qrLat');
     const storedLng = sessionStorage.getItem('qrLng');
     const storedId = sessionStorage.getItem('qrId');
-    const storedQrName = sessionStorage.getItem('qrName');
 
     if (storedLat && storedLng) {
       const coords = {
         lat: parseFloat(storedLat),
         lng: parseFloat(storedLng)
       };
-
-      const hasCustomOrigin =
-        userLocation?.name &&
-        userLocation.name !== intl.formatMessage({ id: 'mapCurrentLocationName' });
-
       setUserCoords(coords);
-
-      if (hasCustomOrigin) {
-        setViewState(v => ({
-          ...v,
-          latitude: coords.lat,
-          longitude: coords.lng,
-          zoom: 18
-        }));
-        return; // Keep the scanned origin name
-      }
-
       (async () => {
-        let name = storedQrName?.trim() || intl.formatMessage({ id: 'mapCurrentLocationName' });
+        let name = intl.formatMessage({ id: 'mapCurrentLocationName' });
         if (storedId) {
           const title = await getLocationTitleById(storedId);
 
@@ -289,7 +272,7 @@ const Mprc = ({
     return () => {
       if (watchId) navigator.geolocation.clearWatch(watchId);
     };
-  }, [setUserLocation, intl, isTracking, userLocation]);
+  }, [setUserLocation, intl, isTracking]);
 
   // Update user location and optionally center map when it changes
   // In MapComponent.js, update the useEffect that handles userLocation changes:
