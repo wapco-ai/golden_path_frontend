@@ -17,6 +17,19 @@ const resolveAuthToken = () => {
   return null;
 };
 
+const buildAuthHeaders = () => {
+  const headers = {
+    Accept: 'application/json'
+  };
+
+  const token = resolveAuthToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  return headers;
+};
+
 const normalizeCoordinates = ({ x, y, coordinates }) => {
   const hasXY = Number.isFinite(x) && Number.isFinite(y);
   if (hasXY) return { x, y };
@@ -70,14 +83,9 @@ export const createDestination = async ({
   }
 
   const headers = {
-    'Content-Type': 'application/json',
-    Accept: 'application/json'
+    ...buildAuthHeaders(),
+    'Content-Type': 'application/json'
   };
-
-  const token = resolveAuthToken();
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
 
   const response = await fetch(appConfig.destinationsUrl, {
     method: 'POST',
@@ -95,3 +103,39 @@ export const createDestination = async ({
 };
 
 export default createDestination;
+
+export const listDestinations = async ({
+  page = 1,
+  pageSize = 20,
+  query,
+  source,
+  tag,
+  signal
+} = {}) => {
+  const searchParams = new URLSearchParams();
+
+  if (page) searchParams.append('page', page);
+  if (pageSize) searchParams.append('page_size', pageSize);
+  if (query) searchParams.append('q', query);
+  if (source) searchParams.append('source', source);
+  if (tag) searchParams.append('tag', tag);
+
+  const requestUrl = `${appConfig.destinationsUrl}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+
+  const response = await fetch(requestUrl, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    signal
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data?.message || 'Failed to load destinations');
+  }
+
+  return {
+    items: data?.items || [],
+    pagination: data?.pagination || null
+  };
+};
