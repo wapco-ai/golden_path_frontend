@@ -19,7 +19,7 @@ import { createHaramVectorTileConfig } from '../config/vectorTiles';
 import { requestRouting } from '../services/routingService';
 import appConfig from '../config/appConfig';
 import { USER_ACCESS_TOKEN_KEY, useUserAuthStore } from '../auth/user/userAuthStore';
-// import { createDestination } from '../services/destinationService';
+import { createDestination } from '../services/destinationService';
 
 const FinalSearch = () => {
   const isValidLngLat = (coords) => {
@@ -116,6 +116,7 @@ const FinalSearch = () => {
   const [hasUserSelectedRoute, setHasUserSelectedRoute] = useState(
     sessionStorage.getItem('manualRouteSelected') === 'true'
   );
+  const [isSavingDestination, setIsSavingDestination] = useState(false);
   const [lastFailedKey, setLastFailedKey] = useState(null);
 
   useEffect(() => {
@@ -675,10 +676,35 @@ const FinalSearch = () => {
     (typeof window !== 'undefined' && sessionStorage.getItem(USER_ACCESS_TOKEN_KEY))
   );
 
-  const handleSaveDestination = () => {
-    if (!isUserLoggedIn) return;
+  const handleSaveDestination = async () => {
+    if (!isUserLoggedIn || isSavingDestination) return;
+
+    if (!destination?.coordinates) {
+      toast.error(intl.formatMessage({ id: 'destinationPlaceholder' }));
+      return;
+    }
 
     setMenuOpen(false);
+    setIsSavingDestination(true);
+
+    try {
+      await createDestination({
+        title: destination?.name || intl.formatMessage({ id: 'destination' }),
+        coordinates: destination.coordinates,
+        floor: destination?.floor,
+        source: destination?.source || 'manual',
+        sourceId: destination?.id || destination?.source_id || null,
+        tags: ['favorite'],
+        address: destination?.address || '',
+        metadata: destination?.metadata || {}
+      });
+      toast.success(intl.formatMessage({ id: 'destinationSaved' }));
+    } catch (err) {
+      console.error('failed to save destination', err);
+      toast.error(err?.message || 'Failed to save destination');
+    } finally {
+      setIsSavingDestination(false);
+    }
   };
 
   const handleShareRoute = () => {
@@ -734,7 +760,7 @@ const FinalSearch = () => {
               <button
                 className="menu-item"
                 onClick={handleSaveDestination}
-                disabled={!isUserLoggedIn}
+                disabled={!isUserLoggedIn || isSavingDestination}
                 title={!isUserLoggedIn ? intl.formatMessage({ id: 'loginToEnableActions' }) : undefined}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
