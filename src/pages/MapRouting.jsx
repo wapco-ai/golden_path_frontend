@@ -104,6 +104,30 @@ const MapRoutingPage = () => {
 
   }, [storedLat, storedLng, storedId, intl]);
 
+  // Ensure QR-scanned locations keep their actual title instead of being overwritten
+  useEffect(() => {
+    const qrBasedName = intl.formatMessage({ id: 'mapCurrentLocationName' });
+    const qrCoordinatesMatch = storedLat && storedLng &&
+      userLocation?.coordinates?.[0] === parseFloat(storedLat) &&
+      userLocation?.coordinates?.[1] === parseFloat(storedLng);
+
+    // Only update when the name is the generic GPS label but we have QR metadata
+    if (qrCoordinatesMatch && storedId && userLocation?.name === qrBasedName) {
+      getLocationTitleById(storedId).then((title) => {
+        if (title) {
+          const updatedLocation = {
+            name: title,
+            coordinates: [parseFloat(storedLat), parseFloat(storedLng)]
+          };
+          setUserLocation(updatedLocation);
+          sessionStorage.setItem('currentOrigin', JSON.stringify(updatedLocation));
+        }
+      }).catch(() => {
+        // If title lookup fails, keep the existing value
+      });
+    }
+  }, [storedLat, storedLng, storedId, intl, userLocation]);
+
   useEffect(() => {
     let isMounted = true;
 
