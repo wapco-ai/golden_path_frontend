@@ -18,7 +18,8 @@ import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import { createHaramVectorTileConfig } from '../config/vectorTiles';
 import { requestRouting } from '../services/routingService';
 import appConfig from '../config/appConfig';
-import { useUserAuthStore } from '../auth/user/userAuthStore';
+import { USER_ACCESS_TOKEN_KEY, useUserAuthStore } from '../auth/user/userAuthStore';
+// import { createDestination } from '../services/destinationService';
 
 const FinalSearch = () => {
   const isValidLngLat = (coords) => {
@@ -115,6 +116,7 @@ const FinalSearch = () => {
   const [hasUserSelectedRoute, setHasUserSelectedRoute] = useState(
     sessionStorage.getItem('manualRouteSelected') === 'true'
   );
+  const [lastFailedKey, setLastFailedKey] = useState(null);
 
   useEffect(() => {
     storeSetGender(selectedGender);
@@ -271,6 +273,13 @@ const FinalSearch = () => {
     const sameCoordinates = (a, b) =>
       Array.isArray(a) && Array.isArray(b) && a[0] === b[0] && a[1] === b[1];
 
+    const attemptKey = JSON.stringify({
+      origin: origin.coordinates,
+      destination: destination.coordinates,
+      transportMode,
+      gender: selectedGender
+    });
+
     const storedOrigin = (() => {
       try {
         return JSON.parse(sessionStorage.getItem('origin'));
@@ -298,6 +307,10 @@ const FinalSearch = () => {
       sessionStorage.getItem('gender') === selectedGender;
 
     if (hasStoredSelection && !hasUserSelectedRoute) {
+      return undefined;
+    }
+
+    if (attemptKey === lastFailedKey) {
       return undefined;
     }
 
@@ -344,6 +357,7 @@ const FinalSearch = () => {
         };
         setRouteInfo(summary);
         sessionStorage.setItem('routeSummaryData', JSON.stringify(summary));
+        setLastFailedKey(null);
         return;
       } catch (err) {
         if (err?.name === 'AbortError') return;
@@ -363,10 +377,12 @@ const FinalSearch = () => {
         sessionStorage.removeItem('routeSteps');
         sessionStorage.removeItem('alternativeRoutes');
         sessionStorage.removeItem('routeSahns');
+        setLastFailedKey(attemptKey);
         return;
       }
       const { geo, steps, alternatives, sahns } = result;
       persistRouteData(geo, steps, alternatives, sahns);
+      setLastFailedKey(null);
     };
 
     runRouting();
@@ -389,7 +405,8 @@ const FinalSearch = () => {
     routeInfo.distance,
     hasUserSelectedRoute,
     storedRouteGeo,
-    storedRouteSteps
+    storedRouteSteps,
+    lastFailedKey
   ]);
 
   const alternativeSummaries = React.useMemo(() => {
@@ -652,11 +669,21 @@ const FinalSearch = () => {
     navigate('/rop');
   };
 
+  const isUserLoggedIn = Boolean(
+    accessToken ||
+    user ||
+    (typeof window !== 'undefined' && sessionStorage.getItem(USER_ACCESS_TOKEN_KEY))
+  );
+
   const handleSaveDestination = () => {
+    if (!isUserLoggedIn) return;
+
     setMenuOpen(false);
   };
 
   const handleShareRoute = () => {
+    if (!isUserLoggedIn) return;
+
     setMenuOpen(false);
     if (!origin.coordinates || !destination.coordinates) return;
     const originCoords = `${origin.coordinates[0]},${origin.coordinates[1]}`;
@@ -694,21 +721,6 @@ const FinalSearch = () => {
           </button>
 
           <div className="menu-container">
-            {/* Add profile button before menu button */}
-            <button className="profile-btn" onClick={() => {
-              if (accessToken && user) {
-                navigate('/profile');
-              } else {
-                localStorage.setItem('profile_origin_page', location.pathname);
-                navigate('/login');
-              }
-            }}>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="9.99984" cy="5" r="3.33333" fill="#1E2023" />
-                <ellipse cx="9.99984" cy="14.1667" rx="5.83333" ry="3.33333" fill="#1E2023" />
-              </svg>
-            </button>
-
             <button className={`menu-btn ${menuOpen ? 'active' : ''}`} onClick={() => setMenuOpen(!menuOpen)}>
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path stroke="none" d="M0 0h24v24H0z" fill="none" />
@@ -719,14 +731,24 @@ const FinalSearch = () => {
             </button>
 
             <div className={`menu-dropdown ${menuOpen ? 'open' : ''}`}>
-              <button className="menu-item" onClick={handleSaveDestination}>
+              <button
+                className="menu-item"
+                onClick={handleSaveDestination}
+                disabled={!isUserLoggedIn}
+                title={!isUserLoggedIn ? intl.formatMessage({ id: 'loginToEnableActions' }) : undefined}
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                   <path d="M17.286 21.09q -1.69 .001 -5.288 -2.615q -3.596 2.617 -5.288 2.616q -2.726 0 -.495 -6.8q -9.389 -6.775 2.135 -6.775h.076q 1.785 -5.516 3.574 -5.516q 1.785 0 3.574 5.516h.076q 11.525 0 2.133 6.774q 2.23 6.802 -.497 6.8" />
                 </svg>
                 <FormattedMessage id="saveDestination" />
               </button>
-              <button className="menu-item" onClick={handleShareRoute}>
+              <button
+                className="menu-item"
+                onClick={handleShareRoute}
+                disabled={!isUserLoggedIn}
+                title={!isUserLoggedIn ? intl.formatMessage({ id: 'loginToEnableActions' }) : undefined}
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                   <path d="M6 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />

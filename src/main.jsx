@@ -58,17 +58,24 @@ if (lat && lng) {
 
 import { registerSW } from 'virtual:pwa-register';
 
-// Use the plugin's registration method instead of manual registration
-const updateSW = registerSW({
-  onNeedRefresh() {
-    console.log('New content is available; please refresh.');
-    // You can show a UI prompt to refresh here
-  },
-  onOfflineReady() {
-    console.log('Content is cached for offline use.');
-    // You can show a "ready for offline use" message here
-  }
-}); 
+if (import.meta.env.PROD) {
+  // Use the plugin's registration method instead of manual registration
+  registerSW({
+    onNeedRefresh() {
+      console.log('New content is available; please refresh.');
+      // You can show a UI prompt to refresh here
+    },
+    onOfflineReady() {
+      console.log('Content is cached for offline use.');
+      // You can show a "ready for offline use" message here
+    }
+  });
+} else if ('serviceWorker' in navigator) {
+  // Ensure stale production service workers do not interfere with the dev server
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    registrations.forEach((registration) => registration.unregister());
+  });
+}
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

@@ -486,12 +486,12 @@ export const layerEditSettings = {
   'areas-outline': {
     enabled: true,
     highlightColor: '#0f172a',
-    requiredPermission: 'map:edit:areas'
+    // requiredPermission: 'map:edit:areas'
   },
   'temp-areas-outline': {
     enabled: true,
     highlightColor: '#0f172a',
-    requiredPermission: 'map:edit:areas'
+    // requiredPermission: 'map:edit:areas'
   },
   'van-nodes': {
     enabled: true,
@@ -501,17 +501,17 @@ export const layerEditSettings = {
   doors: {
     enabled: false,
     highlightColor: '#f43f5e',
-    requiredPermission: 'map:edit:doors'
+    // requiredPermission: 'map:edit:doors'
   },
   'routing_edges_static-ground': {
     enabled: false,
     highlightColor: '#0ea5e9',
-    requiredPermission: 'map:edit:routing'
+    // requiredPermission: 'map:edit:routing'
   },
   [DOOR_ACCESS_LAYER_ID]: {
     enabled: true,
     highlightColor: '#f97316',
-    requiredPermission: 'map:edit:doors'
+    // requiredPermission: 'map:edit:doors'
   }
 };
 
