@@ -1539,6 +1539,7 @@ const Amain = () => {
   const [isFileLanguageModalOpen, setIsFileLanguageModalOpen] = useState(false);
   const [categoryCurrentPage, setCategoryCurrentPage] = useState(1);
   const [categoryItemsPerPage, setCategoryItemsPerPage] = useState(7);
+  const [categoryError, setCategoryError] = useState('');
 
   const buildMediaUrl = (media, defaultMime = 'image/jpeg') => {
     if (!media) return null;
@@ -8076,15 +8077,19 @@ const Amain = () => {
 
     try {
       const response = await adminFetch(`${API_BASE}/categories?${params.toString()}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch categories');
-      }
       const data = await response.json();
+      if (!response.ok) {
+        const errorMessage = getApiErrorMessage({ response: { data } }, 'خطا در دریافت دسته‌بندی‌ها');
+        throw new Error(errorMessage);
+      }
       setCategories(Array.isArray(data.items) ? data.items : []);
       setCategoryTotalItems(Number(data.total) || 0);
+      setCategoryError('');
     } catch (error) {
       console.error('Failed to fetch categories', error);
-      alert('خطا در دریافت دسته بندی‌ها');
+      const errorMessage = getApiErrorMessage(error, 'خطا در دریافت دسته‌بندی‌ها');
+      setCategoryError(errorMessage);
+      toast.error(errorMessage);
     }
   }, [API_BASE, adminFetch, categoryCurrentPage, categoryItemsPerPage, categorySearchTerm]);
 
@@ -10164,6 +10169,12 @@ const Amain = () => {
                   </div>
                 </div>
               </div>
+
+              {categoryError && (
+                <div className="category-error-message">
+                  {categoryError}
+                </div>
+              )}
 
               {/* Categories Table */}
               <div className="categories-table-container">
