@@ -75,6 +75,7 @@ const RoutingPage = () => {
     setAlternativeRoutes
   } = useRouteStore();
   const language = useLangStore(state => state.language);
+  const routingRequestRef = useRef({ key: null, promise: null });
 
   const [originalViewState, setOriginalViewState] = useState({
     zoom: is3DView ? 17 : 18,
@@ -224,43 +225,67 @@ const RoutingPage = () => {
   }, [setAlternativeRoutes, setRouteGeo, setRouteSteps]);
 
   const buildRouteWithFallback = useCallback(async (orig, dest, controller) => {
-    try {
-      const result = await requestRouting({
-        origin: orig,
-        destination: dest,
-        mode: transportMode,
-        gender,
-        lang: language,
-        maxAlternatives: 2,
-        signal: controller?.signal
-      });
-      if (result?.geo && result?.steps) {
-        persistRouteData(result.geo, result.steps, result.alternatives, result.sahns || []);
-        return true;
-      }
-    } catch (err) {
-      if (err?.name !== 'AbortError') {
-        console.warn('routing service failed, falling back to local analysis', err);
-      }
+    const key = JSON.stringify([
+      orig?.coordinates,
+      dest?.coordinates,
+      transportMode,
+      gender,
+      language
+    ]);
+
+    if (routingRequestRef.current.key === key && routingRequestRef.current.promise) {
+      return routingRequestRef.current.promise;
     }
 
-    try {
-      const geoData = await loadGeoJsonData({ language, signal: controller?.signal });
-      const analysis = analyzeRoute(orig, dest, geoData, transportMode, gender);
-      if (!analysis) {
-        toast.error(intl.formatMessage({ id: 'noRouteFound' }));
-        persistRouteData(null, [], []);
-        return false;
+    const runBuild = (async () => {
+      try {
+        const result = await requestRouting({
+          origin: orig,
+          destination: dest,
+          mode: transportMode,
+          gender,
+          lang: language,
+          maxAlternatives: 2,
+          signal: controller?.signal
+        });
+        if (result?.geo && result?.steps) {
+          persistRouteData(result.geo, result.steps, result.alternatives, result.sahns || []);
+          return true;
+        }
+      } catch (err) {
+        if (err?.name !== 'AbortError') {
+          console.warn('routing service failed, falling back to local analysis', err);
+        }
       }
-      const { geo, steps, alternatives, sahns } = analysis;
-      persistRouteData(geo, steps, alternatives, sahns);
-      return true;
-    } catch (err) {
-      if (err?.name !== 'AbortError') {
-        console.error('failed to rebuild route', err);
+
+      try {
+        const geoData = await loadGeoJsonData({ language, signal: controller?.signal });
+        const analysis = analyzeRoute(orig, dest, geoData, transportMode, gender);
+        if (!analysis) {
+          toast.error(intl.formatMessage({ id: 'noRouteFound' }));
+          persistRouteData(null, [], []);
+          return false;
+        }
+        const { geo, steps, alternatives, sahns } = analysis;
+        persistRouteData(geo, steps, alternatives, sahns);
+        return true;
+      } catch (err) {
+        if (err?.name !== 'AbortError') {
+          console.error('failed to rebuild route', err);
+        }
+      }
+      return false;
+    })();
+
+    routingRequestRef.current = { key, promise: runBuild };
+
+    try {
+      return await runBuild;
+    } finally {
+      if (routingRequestRef.current.promise === runBuild) {
+        routingRequestRef.current = { key: null, promise: null };
       }
     }
-    return false;
   }, [gender, intl, language, persistRouteData, transportMode]);
 
   useEffect(() => {
