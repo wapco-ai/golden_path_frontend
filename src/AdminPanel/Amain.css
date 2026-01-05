@@ -2626,11 +2626,23 @@ body {
   justify-content: space-between;
 }
 
+.temp-area-edit-modal {
+  max-width: 780px;
+  width: min(780px, 92%);
+  height: auto;
+  max-height: 90vh;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16);
+}
+
 .temp-area-edit-modal .modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding: 18px 22px;
+  border-bottom: 1px solid #eef1f6;
+  background: linear-gradient(180deg, #fbfcff 0%, #f7f9fd 100%);
+  border-radius: 16px 16px 0 0;
 }
 
 .temp-area-edit-modal .close-modal {
@@ -2643,22 +2655,22 @@ body {
 
 .temp-area-edit-modal .dual-input {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
 }
 
 .temp-area-edit-modal .input-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .temp-area-edit-modal .date-input-display {
   width: 100%;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  padding: 10px 12px;
-  background: #f9fafb;
+  border: 1px solid #d8deea;
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #f8fbff;
   text-align: right;
   font-size: 14px;
   color: #1e2023;
@@ -2672,7 +2684,8 @@ body {
 
 .temp-area-edit-modal .input-label {
   font-size: 12px;
-  color: #6f7174;
+  color: #5f6572;
+  font-weight: 600;
 }
 
 .temp-area-edit-modal .checkbox-group {
@@ -2700,12 +2713,58 @@ body {
   gap: 12px;
 }
 
+.temp-area-edit-modal .modal-content {
+  padding: 20px 22px 8px;
+  background: #f5f7fb;
+  max-height: calc(90vh - 160px) !important;
+}
+
+.temp-area-edit-modal .form-section {
+  background: #ffffff;
+  border: 1px solid #eef1f6;
+  border-radius: 12px;
+  padding: 18px 16px;
+  display: grid;
+  gap: 16px;
+  box-shadow: 0 6px 24px rgba(15, 24, 52, 0.06);
+}
+
+.temp-area-edit-modal .form-group {
+  margin-bottom: 0;
+}
+
+.temp-area-edit-modal .form-label {
+  margin-bottom: 10px;
+  color: #161a1d;
+}
+
+.temp-area-edit-modal .form-input,
+.temp-area-edit-modal .form-textarea {
+  border-radius: 10px;
+  border-color: #d8deea;
+  background: #fbfcff;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.temp-area-edit-modal .form-input:focus,
+.temp-area-edit-modal .form-textarea:focus,
+.temp-area-edit-modal .date-input-display:focus-visible {
+  border-color: #0f71ef;
+  box-shadow: 0 0 0 3px rgba(15, 113, 239, 0.12);
+  outline: none;
+}
+
+.temp-area-edit-modal .form-textarea {
+  min-height: 96px;
+}
+
 .temp-area-edit-modal .modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  padding: 16px 20px 24px;
-  border-top: 1px solid #e6e6e6;
+  gap: 10px;
+  padding: 14px 20px 18px;
+  border-top: 1px solid #eef1f6;
+  background: #ffffff;
 }
 
 .temp-area-edit-modal .primary-btn,
@@ -2720,6 +2779,8 @@ body {
 .temp-area-edit-modal .primary-btn {
   background-color: #0f71ef;
   color: white;
+  box-shadow: 0 8px 20px rgba(15, 113, 239, 0.26);
+  font-weight: 600;
 }
 
 .temp-area-edit-modal .primary-btn:disabled {
@@ -2728,8 +2789,9 @@ body {
 }
 
 .temp-area-edit-modal .secondary-btn {
-  background-color: #f2f4f7;
+  background-color: #f5f7fb;
   color: #1e2023;
+  border: 1px solid #e1e6ef;
 }
 
 @keyframes modalSlideIn {
