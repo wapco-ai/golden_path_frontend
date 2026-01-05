@@ -1252,6 +1252,7 @@ const Amain = () => {
   const [isEditingDoorInfo, setIsEditingDoorInfo] = useState(false);
   const [isDoorMoveMode, setIsDoorMoveMode] = useState(false);
   const isAreaLayerActive = activeEditableLayer?.id === 'areas-outline';
+  const isDoorAccessLayerActive = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID;
   const intl = useIntl();
   const language = intl?.locale || 'fa';
   const isRtlLanguage = ['fa', 'ar', 'ur'].includes(language);
@@ -7552,7 +7553,8 @@ const Amain = () => {
 
   const handleAddPlaceConfirm = async () => {
     if (currentStep === 1) {
-      const hasRequiredGrouping = isAreaLayerActive || (placeCategory && placeSubcategory && placeFunction);
+      const hasRequiredGrouping = isAreaLayerActive
+        || (isDoorAccessLayerActive ? Boolean(placeFunction) : (placeCategory && placeSubcategory && placeFunction));
 
       if (placeName && hasRequiredGrouping) {
         setCurrentStep(2);
@@ -11776,49 +11778,53 @@ const Amain = () => {
                       <div className="form-group">
                         <label className="form-label">تعیین گروه این مکان </label>
                         <div className="dropdown-group">
-                          <div className="dropdown-field">
-                            <select
-                              className="form-input"
-                              value={placeCategory}
-                              onChange={(e) => {
-                                setPlaceCategory(e.target.value);
-                                setPlaceSubcategory('');
-                              }}
-                              disabled={isLoadingGroups}
-                            >
-                              <option value="" disabled>گروه اصلی</option>
-                              {groupOptions.map((group, index) => (
-                                <option key={`group-${group.value}-${index}`} value={group.value}>
-                                  {group.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                          {!isDoorAccessLayerActive && (
+                            <>
+                              <div className="dropdown-field">
+                                <select
+                                  className="form-input"
+                                  value={placeCategory}
+                                  onChange={(e) => {
+                                    setPlaceCategory(e.target.value);
+                                    setPlaceSubcategory('');
+                                  }}
+                                  disabled={isLoadingGroups}
+                                >
+                                  <option value="" disabled>گروه اصلی</option>
+                                  {groupOptions.map((group, index) => (
+                                    <option key={`group-${group.value}-${index}`} value={group.value}>
+                                      {group.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div className="dropdown-field">
+                                <select
+                                  className="form-input"
+                                  value={placeSubcategory}
+                                  onChange={(e) => setPlaceSubcategory(e.target.value)}
+                                  disabled={!placeCategory || isLoadingSubGroups}
+                                >
+                                  <option value="" disabled>زیرگروه</option>
+                                  {subGroupOptions.map((subGroup, index) => (
+                                    <option key={`subgroup-${subGroup.value}-${index}`} value={subGroup.value}>
+                                      {subGroup.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </>
+                          )}
 
                           <div className="dropdown-field">
-                            <select
-                              className="form-input"
-                              value={placeSubcategory}
-                              onChange={(e) => setPlaceSubcategory(e.target.value)}
-                              disabled={!placeCategory || isLoadingSubGroups}
-                            >
-                              <option value="" disabled>زیرگروه</option>
-                              {subGroupOptions.map((subGroup, index) => (
-                                <option key={`subgroup-${subGroup.value}-${index}`} value={subGroup.value}>
-                                  {subGroup.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div className="dropdown-field">
-                            <select
-                              className="form-input"
-                              value={placeFunction}
-                              onChange={(e) => setPlaceFunction(e.target.value)}
-                              disabled={!placeSubcategory}
-                            >
-                              <option value="" disabled>کارکرد گروه</option>
+                              <select
+                                className="form-input"
+                                value={placeFunction}
+                                onChange={(e) => setPlaceFunction(e.target.value)}
+                                disabled={!placeSubcategory && !isDoorAccessLayerActive}
+                              >
+                                <option value="" disabled>کارکرد گروه</option>
                               <option value="door">درب</option>
                               <option value="connection">نقطه اتصال</option>
                               <option value="elevator">آسانسور</option>
