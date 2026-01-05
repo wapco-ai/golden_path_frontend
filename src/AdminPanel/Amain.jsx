@@ -7083,6 +7083,10 @@ const Amain = () => {
   };
 
   const handleLocationMarkerSelect = () => {
+    if (activeEditableLayerId !== DOOR_ACCESS_LAYER_ID) {
+      handleEditableLayerSelect(DOOR_ACCESS_LAYER_ID);
+    }
+
     setIsLocationMarkerMode(true);
 
     if (!map) return;
