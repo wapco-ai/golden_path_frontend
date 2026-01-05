@@ -3525,41 +3525,6 @@ const Amain = () => {
     };
   }, [language, translateLabel]);
 
-  useEffect(() => {
-    if (!culturalPlaceCategory) {
-      setCulturalSubGroupOptions([]);
-      setCulturalPlaceSubcategory('');
-      return;
-    }
-
-    let isMounted = true;
-    setIsLoadingCulturalSubGroups(true);
-    setCulturalSubGroupOptions([]);
-
-    fetchSubGroups({ language, groups: [culturalPlaceCategory], withImages: false })
-      .then((subGroupData) => {
-        if (!isMounted) return;
-        const normalized = normalizeSubGroupMetadata(subGroupData?.subGroups, language);
-        const translatedSubGroups = (normalized[culturalPlaceCategory] || []).map((subGroup) => ({
-          ...subGroup,
-          label: translateLabel(subGroup.label)
-        }));
-        setCulturalSubGroupOptions(dedupeByValue(translatedSubGroups));
-      })
-      .catch((error) => {
-        console.error('Failed to load sub groups for cultural', error);
-        toast.error('بارگذاری زیرگروه‌ها با مشکل مواجه شد');
-      })
-      .finally(() => {
-        if (!isMounted) return;
-        setIsLoadingCulturalSubGroups(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [language, culturalPlaceCategory, translateLabel]);
-
   const resetEditFormWithoutMapCleanup = () => {
     setCulturalTitle('');
     setCulturalDescription('');
