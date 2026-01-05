@@ -2972,48 +2972,20 @@ const Amain = () => {
     fetchCategories();
   }, [fetchCategories]);
 
-  const culturalGroupOptions = useMemo(() => (
-    categories.map((category) => {
-      const value = category.id ?? category.value ?? category._id ?? category.title;
-      const rawLabel = category.title || category.label || category.name || value;
-      const label = typeof rawLabel === 'object' ? translateLabel(rawLabel) : rawLabel;
+  const culturalGroupOptions = useMemo(() => dedupeByValue(groupOptions), [groupOptions]);
 
-      return {
-        value,
-        label
-      };
-    }).filter((option) => option.value !== undefined && option.label)
-  ), [categories, translateLabel]);
+  const fetchCulturalSubGroupOptions = useCallback(async (groupId) => {
+    if (!groupId) return [];
 
-  const mapSubcategoriesToOptions = useCallback((subcategories = []) => dedupeByValue(
-    subcategories.map((subcategory) => {
-      const value = subcategory.id ?? subcategory.value ?? subcategory._id ?? subcategory.title;
-      const rawLabel = subcategory.title || subcategory.label || subcategory.name || value;
-      const label = typeof rawLabel === 'object' ? translateLabel(rawLabel) : rawLabel;
+    const subGroupData = await fetchSubGroups({ language, groups: [groupId], withImages: false });
+    const normalized = normalizeSubGroupMetadata(subGroupData?.subGroups, language);
+    const translatedSubGroups = (normalized[groupId] || []).map((subGroup) => ({
+      ...subGroup,
+      label: translateLabel(subGroup.label)
+    }));
 
-      return {
-        value,
-        label
-      };
-    }).filter((option) => option.value !== undefined && option.label)
-  ), [translateLabel]);
-
-  const findCategoryById = useCallback((categoryId) => {
-    if (!categoryId) return null;
-
-    const targetId = String(categoryId);
-    return categories.find((category) => {
-      const value = category.id ?? category.value ?? category._id ?? category.title;
-      return String(value) === targetId;
-    }) || null;
-  }, [categories]);
-
-  const getCulturalSubGroupsForCategory = useCallback((categoryId) => {
-    const category = findCategoryById(categoryId);
-    const subcategories = Array.isArray(category?.subcategories) ? category.subcategories : [];
-
-    return mapSubcategoriesToOptions(subcategories);
-  }, [findCategoryById, mapSubcategoriesToOptions]);
+    return dedupeByValue(translatedSubGroups);
+  }, [language, translateLabel]);
 
   const toggleUserManagement = () => {
     setUserManagementOpen(!userManagementOpen);
@@ -3116,14 +3088,12 @@ const Amain = () => {
       if (groupId) {
         setIsLoadingCulturalSubGroups(true);
         try {
-          let subGroupList = getCulturalSubGroupsForCategory(groupId);
-
-          if (subGroupList.length === 0) {
-            const fetchedSubcategories = await fetchCategorySubcategories(groupId);
-            subGroupList = mapSubcategoriesToOptions(fetchedSubcategories || []);
-          }
+          const subGroupList = await fetchCulturalSubGroupOptions(groupId);
 
           setCulturalSubGroupOptions(subGroupList);
+          if (subGroupId && !subGroupList.some((sub) => String(sub.value) === String(subGroupId))) {
+            setCulturalPlaceSubcategory('');
+          }
         } catch (error) {
           console.error('Failed to load sub groups for edit', error);
         } finally {
@@ -4463,37 +4433,28 @@ const Amain = () => {
       return undefined;
     }
 
-    const applyOptions = (options) => {
-      if (!isMounted) return;
-      setCulturalSubGroupOptions(options);
+    fetchCulturalSubGroupOptions(culturalPlaceCategory)
+      .then((options) => {
+        if (!isMounted) return;
+        setCulturalSubGroupOptions(options);
 
-      if (culturalPlaceSubcategory && !options.some((sub) => String(sub.value) === String(culturalPlaceSubcategory))) {
-        setCulturalPlaceSubcategory('');
-      }
-      setIsLoadingCulturalSubGroups(false);
-    };
-
-    const selectedCategory = findCategoryById(culturalPlaceCategory);
-    const hasFetchedSubcategories = Array.isArray(selectedCategory?.subcategories);
-    const localOptions = getCulturalSubGroupsForCategory(culturalPlaceCategory);
-
-    if (hasFetchedSubcategories) {
-      applyOptions(localOptions);
-    } else {
-      fetchCategorySubcategories(culturalPlaceCategory)
-        .then((subcategories) => {
-          applyOptions(mapSubcategoriesToOptions(subcategories || []));
-        })
-        .catch((error) => {
-          console.error('Failed to load sub groups for cultural edit', error);
-          setIsLoadingCulturalSubGroups(false);
-        });
-    }
+        if (culturalPlaceSubcategory && !options.some((sub) => String(sub.value) === String(culturalPlaceSubcategory))) {
+          setCulturalPlaceSubcategory('');
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load sub groups for cultural edit', error);
+        toast.error('بارگذاری زیرگروه‌های فرهنگی با مشکل مواجه شد');
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setIsLoadingCulturalSubGroups(false);
+      });
 
     return () => {
       isMounted = false;
     };
-  }, [culturalPlaceCategory, culturalPlaceSubcategory, fetchCategorySubcategories, findCategoryById, getCulturalSubGroupsForCategory, mapSubcategoriesToOptions]);
+  }, [culturalPlaceCategory, culturalPlaceSubcategory, fetchCulturalSubGroupOptions]);
 
   const handleSaveCulturalData = async () => {
     if (!selectedPlaceType) {
