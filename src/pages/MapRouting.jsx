@@ -465,15 +465,33 @@ const MapRoutingPage = () => {
     setSearchQuery('');
   };
 
-  // Get subgroup label based on currently loaded geoData
+  const getLocalizedValue = (value) => {
+    if (!value) return value;
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      return value[language] || value.fa || Object.values(value).find(Boolean) || '';
+    }
+    return value;
+  };
+
+  const getSubgroupByValue = (value) => {
+    if (!value) return null;
+    const target = value.toString();
+    return Object.values(subGroups)
+      .flat()
+      .find((item) => item?.value?.toString?.() === target);
+  };
+
+  // Get subgroup label based on currently loaded geoData or subgroup metadata
   const getLocalizedSubgroupLabel = (geoData, value, fallback) => {
+    const subgroup = getSubgroupByValue(value);
+    if (subgroup?.label) return subgroup.label;
     if (geoData) {
       const feature = geoData.features.find(
         f => f.properties?.subGroupValue === value
       );
       if (feature?.properties?.subGroup) return feature.properties.subGroup;
     }
-    return fallback;
+    return getLocalizedValue(fallback);
   };
 
   const filteredDestinations = searchQuery.trim().length >= 2
@@ -867,13 +885,15 @@ const MapRoutingPage = () => {
   };
 
   const getLocalizedSubgroupDescription = (geoData, value, fallback) => {
+    const subgroup = getSubgroupByValue(value);
+    if (subgroup?.description) return subgroup.description;
     if (geoData) {
       const feature = geoData.features.find(
         f => f.properties?.subGroupValue === value
       );
       if (feature?.properties?.description) return feature.properties.description;
     }
-    return fallback;
+    return getLocalizedValue(fallback);
   };
 
   const handleSwapLocations = () => {
