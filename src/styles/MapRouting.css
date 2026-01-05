@@ -670,19 +670,6 @@
 }
 
 /* Map marker styles */
-.map-marker-origin {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background-color: #f6f6f7;
-  border: 7px solid #1E90FF;
-  box-shadow: 0 0 6px rgba(30, 144, 255, 0.45);
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 
 .map-marker-destination {
   display: flex;

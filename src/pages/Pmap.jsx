@@ -78,6 +78,8 @@ const Pmap = () => {
 
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showNameDescriptionModal, setShowNameDescriptionModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [geoData, setGeoData] = useState(null);
   const [geoResults, setGeoResults] = useState([]);
@@ -85,9 +87,19 @@ const Pmap = () => {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [showBackButton, setShowBackButton] = useState(true);
   const [isSavingDestination, setIsSavingDestination] = useState(false);
+  const [customName, setCustomName] = useState('');
+  const [customDescription, setCustomDescription] = useState('');
+  const [nameError, setNameError] = useState('');
 
   const searchInputRef = useRef(null);
   const modalRef = useRef(null);
+
+  // Check if user is logged in
+  const isUserLoggedIn = Boolean(
+    accessToken ||
+    user ||
+    (typeof window !== 'undefined' && window.sessionStorage?.getItem?.(USER_ACCESS_TOKEN_KEY))
+  );
 
   // Load geo data
   useEffect(() => {
@@ -98,7 +110,6 @@ const Pmap = () => {
       .then(data => {
         if (!isMounted) return;
         setGeoData(data);
-        console.log('GeoJSON loaded successfully:', data.features?.length, 'features');
       })
       .catch(err => {
         if (err?.name === 'AbortError') return;
@@ -147,7 +158,6 @@ const Pmap = () => {
   // Handle map click for location selection
   const handleMapClick = useCallback((e) => {
     const { lng, lat } = e.lngLat;
-    console.log('Map clicked at:', lat, lng);
 
     let closestFeature = null;
     let closestName = intl.formatMessage({ id: 'mapSelectedLocation' });
@@ -167,7 +177,6 @@ const Pmap = () => {
 
       if (minDist <= 0.0005 && closestFeature?.properties?.name) {
         closestName = closestFeature.properties.name;
-        console.log('Found closest feature:', closestName);
       }
     }
 
@@ -178,6 +187,13 @@ const Pmap = () => {
     };
 
     setSelectedPlace(location);
+    setCustomName(closestName);
+    setCustomDescription('');
+    setNameError('');
+    
+    // Show first modal (confirmation modal)
+    setShowConfirmModal(true);
+    setShowBackButton(false);
 
     // Add to recent searches
     setRecentSearches(prev => {
@@ -205,8 +221,12 @@ const Pmap = () => {
       coordinates: place.coordinates,
       location: place.location
     });
+    
+    setCustomName(place.name);
+    setCustomDescription('');
+    setNameError('');
 
-    setShowBackButton(true);
+    setShowConfirmModal(true);
     setShowSearchModal(false);
     setSearchQuery('');
 
@@ -228,7 +248,7 @@ const Pmap = () => {
   };
 
   const handleSelectFromMap = () => {
-    setShowBackButton(true);
+    setShowConfirmModal(true);
     setShowSearchModal(false);
   };
 
@@ -253,13 +273,7 @@ const Pmap = () => {
     return null;
   };
 
-  const isUserLoggedIn = Boolean(
-    accessToken ||
-    user ||
-    (typeof window !== 'undefined' && window.sessionStorage?.getItem?.(USER_ACCESS_TOKEN_KEY))
-  );
-
-  const handleConfirmLocation = async () => {
+  const handleConfirmLocation = () => {
     if (!selectedPlace?.coordinates) {
       toast.error(intl.formatMessage({ id: 'generalErrorMessage' }));
       return;
@@ -271,25 +285,53 @@ const Pmap = () => {
       return;
     }
 
+    // Close first modal with slide down animation
+    setShowConfirmModal(false);
+    
+    // Open second modal with slide up animation after a short delay
+    setTimeout(() => {
+      setShowNameDescriptionModal(true);
+    }, 300);
+  };
+
+  const handleCancelConfirm = () => {
+    setShowConfirmModal(false);
+    setShowBackButton(true);
+    setSelectedPlace(null);
+  };
+
+  const handleSaveLocation = async () => {
+    if (!customName.trim()) {
+      setNameError(intl.formatMessage({ id: 'nameRequiredError' }));
+      return;
+    }
+  
     if (isSavingDestination) return;
-
-    const locationName = selectedPlace.name || intl.formatMessage({ id: 'mapSelectedLocation' });
-    const locationAddress = selectedPlace.feature?.properties?.subGroup ||
-      selectedPlace.location ||
-      intl.formatMessage({ id: 'mapSelectedLocationFromMap' });
-
+  
     setIsSavingDestination(true);
-
+  
     try {
       await createDestination({
-        title: locationName,
+        title: customName.trim(),
+        description: customDescription.trim(),
         coordinates: selectedPlace.coordinates,
         source: 'manual',
-        address: locationAddress,
+        address: selectedPlace.feature?.properties?.subGroup ||
+          selectedPlace.location ||
+          intl.formatMessage({ id: 'mapSelectedLocationFromMap' }),
         metadata: selectedPlace.feature?.properties || {}
       });
+      
       toast.success(intl.formatMessage({ id: 'destinationSaved' }));
-      navigate('/pfp');
+
+      setShowNameDescriptionModal(false);
+      setShowBackButton(true);
+      setSelectedPlace(null);
+      
+      setTimeout(() => {
+        navigate('/pfp');
+      }, 500);
+      
     } catch (err) {
       console.error('failed to save destination', err);
       toast.error(err?.message || intl.formatMessage({ id: 'generalErrorMessage' }));
@@ -297,6 +339,21 @@ const Pmap = () => {
       setIsSavingDestination(false);
     }
   };
+
+  const handleCancelSave = () => {
+    // Close second modal and show first modal again
+    setShowNameDescriptionModal(false);
+    setTimeout(() => {
+      setShowConfirmModal(true);
+    }, 300);
+  };
+
+  const handleDescriptionChange = (e) => {
+    const text = e.target.value;
+    setCustomDescription(text);
+  };
+  
+  const wordCount = customDescription.trim() === '' ? 0 : customDescription.trim().split(/\s+/).length;
 
   const filteredResults = searchQuery
     ? geoResults.map((f) => {
@@ -342,15 +399,11 @@ const Pmap = () => {
   const handleMapLoad = useCallback((event) => {
     setMapLoaded(true);
     initHaramVectorLayers(event?.target || event);
-    console.log('Map loaded successfully');
   }, []);
 
   const pointFeatures = geoData
     ? geoData.features.filter(f => f.geometry.type === 'Point')
     : [];
-
-  console.log('Map features:', pointFeatures.length);
-  console.log('Selected place:', selectedPlace);
 
   return (
     <div className="pmap-page">
@@ -407,12 +460,11 @@ const Pmap = () => {
                     </svg>
                   </div>
                 </div>
-
               </Marker>
             </>
           )}
 
-          {/* All point features - Always show them */}
+          {/* All point features */}
           {pointFeatures.map((feature, idx) => {
             const [lng, lat] = feature.geometry.coordinates;
             const { group, nodeFunction } = feature.properties || {};
@@ -428,36 +480,147 @@ const Pmap = () => {
         </Map>
       </div>
 
-      {/* Search Input Box */}
-      <div className="pmap-search-container">
-        <div className="pmap-search-box">
-          <div className="pmap-search-input-wrapper" onClick={handleSearchInputClick}>
-            <button className="pmap-star-icon">
-              <svg width="22" height="22" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M7.62796 4.50731C8.6835 2.61376 9.21127 1.66699 10.0003 1.66699C10.7894 1.66699 11.3171 2.61376 12.3727 4.5073L12.6458 4.99719C12.9457 5.53527 13.0957 5.80431 13.3295 5.98183C13.5634 6.15935 13.8546 6.22524 14.4371 6.35703L14.9674 6.47702C17.0171 6.94079 18.042 7.17267 18.2858 7.95677C18.5296 8.74086 17.831 9.55788 16.4336 11.1919L16.0721 11.6147C15.675 12.079 15.4764 12.3112 15.3871 12.5984C15.2978 12.8857 15.3278 13.1954 15.3878 13.815L15.4425 14.379C15.6538 16.5592 15.7594 17.6492 15.121 18.1338C14.4827 18.6184 13.5231 18.1766 11.6039 17.293L11.1074 17.0644C10.5621 16.8133 10.2894 16.6877 10.0003 16.6877C9.71128 16.6877 9.4386 16.8133 8.89323 17.0644L8.39672 17.293C6.47755 18.1766 5.51797 18.6184 4.87962 18.1338C4.24126 17.6492 4.34689 16.5592 4.55816 14.379L4.61281 13.815C4.67285 13.1954 4.70286 12.8857 4.61354 12.5984C4.52423 12.3112 4.32568 12.079 3.92859 11.6147L3.56707 11.1919C2.1697 9.55789 1.47101 8.74086 1.71484 7.95677C1.95867 7.17267 2.98354 6.94079 5.03327 6.47702L5.56356 6.35703C6.14603 6.22524 6.43727 6.15935 6.67111 5.98183C6.90495 5.80431 7.05493 5.53527 7.35488 4.99719L7.62796 4.50731Z" fill="#0F71EF" />
-              </svg>
-            </button>
-            <input
-              type="text"
-              placeholder={intl.formatMessage({ id: 'pmapSearchPlaceholder' })}
-              value={selectedPlace ? selectedPlace.name : ''}
-              readOnly
-              className="pmap-search-input"
-            />
-            <div className="pmap-search-icons">
-              <div className="pmap-search-icon">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path fillRule="evenodd" clipRule="evenodd" d="M10.4163 2.2915C14.4434 2.2915 17.708 5.55609 17.708 9.58317C17.708 13.6102 14.4434 16.8748 10.4163 16.8748C6.38926 16.8748 3.12467 13.6102 3.12467 9.58317C3.12467 5.55609 6.38926 2.2915 10.4163 2.2915ZM18.958 9.58317C18.958 4.86574 15.1338 1.0415 10.4163 1.0415C5.69891 1.0415 1.87467 4.86574 1.87467 9.58317C1.87467 11.7169 2.65707 13.668 3.95062 15.165L1.2244 17.8912C0.980322 18.1353 0.980322 18.531 1.2244 18.7751C1.46848 19.0192 1.8642 19.0192 2.10828 18.7751L4.8345 16.0489C6.33156 17.3424 8.28258 18.1248 10.4163 18.1248C15.1338 18.1248 18.958 14.3006 18.958 9.58317Z" fill="#1E2023" />
+      {/* First Modal - Confirmation Modal (slides down) */}
+      {showConfirmModal && (
+        <div className="pmap-confirm-modal slide-down">
+          <div className="pmap-confirm-modal-content">
+            <div className="pmap-selection-info">
+              <h3 className="pmap-selection-title">
+                <FormattedMessage id="confirmLocationTitle" />
+              </h3>
+              <div className="pmap-selected-place">
+                <span className="pmap-selected-name">{selectedPlace?.name}</span>
+                {selectedPlace?.feature?.properties?.subGroup && (
+                  <span className="pmap-selected-location">{selectedPlace.feature.properties.subGroup}</span>
+                )}
+              </div>
+            </div>
+            
+            <div className="pmap-confirm-buttons">
+              <button 
+                className="pmap-cancel-button" 
+                onClick={handleCancelConfirm}
+              >
+                <FormattedMessage id="cancel" />
+              </button>
+              <button 
+                className="pmap-confirm-button" 
+                onClick={handleConfirmLocation}
+              >
+                <FormattedMessage id="confirmLocation" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Second Modal - Name & Description Modal (slides up) */}
+      {showNameDescriptionModal && (
+        <div className="pmap-name-modal slide-up">
+          <div className="pmap-name-modal-content">
+            <div className="pmap-name-modal-header">
+              <h3 className="pmap-name-modal-title">
+                <FormattedMessage id="saveLocationTitle" />
+              </h3>
+              <p className="pmap-name-modal-subtitle">
+                <FormattedMessage id="saveLocationSubtitle" />
+              </p>
+            </div>
+            
+            <div className="pmap-name-form">
+              <div className="pmap-form-group">
+                <label className="pmap-form-label">
+                  <FormattedMessage id="locationNameLabel" /> 
+                </label>
+                <input
+                  type="text"
+                  className={`pmap-form-input ${nameError ? 'error' : ''}`}
+                  value={customName}
+                  onChange={(e) => {
+                    setCustomName(e.target.value);
+                    setNameError('');
+                  }}
+                  placeholder={intl.formatMessage({ id: 'locationNamePlaceholder' })}
+                  maxLength={50}
+                />
+                {nameError && (
+                  <div className="pmap-form-error">{nameError}</div>
+                )}
+              </div>
+              
+              <div className="pmap-form-group">
+                <label className="pmap-form-label">
+                  <FormattedMessage id="locationDescriptionLabel" />
+                  <span className="pmap-word-count">
+                    ({wordCount}/60 <FormattedMessage id="words" />)
+                  </span>
+                </label>
+                <textarea
+                  className="pmap-form-textarea"
+                  value={customDescription}
+                  onChange={handleDescriptionChange}
+                  placeholder={intl.formatMessage({ id: 'locationDescriptionPlaceholder' })}
+                  rows="3"
+                  maxLength={300}
+                />
+                <div className="pmap-form-hint">
+                  <FormattedMessage id="descriptionHint" />
+                </div>
+              </div>
+            </div>
+            
+            <div className="pmap-name-modal-buttons">
+              <button 
+                className="pmap-cancel-button" 
+                onClick={handleCancelSave}
+                disabled={isSavingDestination}
+              >
+                <FormattedMessage id="cancel" />
+              </button>
+              <button 
+                className="pmap-save-button" 
+                onClick={handleSaveLocation}
+                disabled={isSavingDestination}
+              >
+                {isSavingDestination ? (
+                  <FormattedMessage id="saving" />
+                ) : (
+                  <FormattedMessage id="saveLocation" />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Search Input Box (only visible when no modals are shown) */}
+      {!showConfirmModal && !showNameDescriptionModal && (
+        <div className="pmap-search-container">
+          <div className="pmap-search-box">
+            <div className="pmap-search-input-wrapper" onClick={handleSearchInputClick}>
+              <button className="pmap-star-icon">
+                <svg width="22" height="22" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M7.62796 4.50731C8.6835 2.61376 9.21127 1.66699 10.0003 1.66699C10.7894 1.66699 11.3171 2.61376 12.3727 4.5073L12.6458 4.99719C12.9457 5.53527 13.0957 5.80431 13.3295 5.98183C13.5634 6.15935 13.8546 6.22524 14.4371 6.35703L14.9674 6.47702C17.0171 6.94079 18.042 7.17267 18.2858 7.95677C18.5296 8.74086 17.831 9.55788 16.4336 11.1919L16.0721 11.6147C15.675 12.079 15.4764 12.3112 15.3871 12.5984C15.2978 12.8857 15.3278 13.1954 15.3878 13.815L15.4425 14.379C15.6538 16.5592 15.7594 17.6492 15.121 18.1338C14.4827 18.6184 13.5231 18.1766 11.6039 17.293L11.1074 17.0644C10.5621 16.8133 10.2894 16.6877 10.0003 16.6877C9.71128 16.6877 9.4386 16.8133 8.89323 17.0644L8.39672 17.293C6.47755 18.1766 5.51797 18.6184 4.87962 18.1338C4.24126 17.6492 4.34689 16.5592 4.55816 14.379L4.61281 13.815C4.67285 13.1954 4.70286 12.8857 4.61354 12.5984C4.52423 12.3112 4.32568 12.079 3.92859 11.6147L3.56707 11.1919C2.1697 9.55789 1.47101 8.74086 1.71484 7.95677C1.95867 7.17267 2.98354 6.94079 5.03327 6.47702L5.56356 6.35703C6.14603 6.22524 6.43727 6.15935 6.67111 5.98183C6.90495 5.80431 7.05493 5.53527 7.35488 4.99719L7.62796 4.50731Z" fill="#0F71EF" />
                 </svg>
+              </button>
+              <input
+                type="text"
+                placeholder={intl.formatMessage({ id: 'pmapSearchPlaceholder' })}
+                value={selectedPlace ? selectedPlace.name : ''}
+                readOnly
+                className="pmap-search-input"
+              />
+              <div className="pmap-search-icons">
+                <div className="pmap-search-icon">
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" clipRule="evenodd" d="M10.4163 2.2915C14.4434 2.2915 17.708 5.55609 17.708 9.58317C17.708 13.6102 14.4434 16.8748 10.4163 16.8748C6.38926 16.8748 3.12467 13.6102 3.12467 9.58317C3.12467 5.55609 6.38926 2.2915 10.4163 2.2915ZM18.958 9.58317C18.958 4.86574 15.1338 1.0415 10.4163 1.0415C5.69891 1.0415 1.87467 4.86574 1.87467 9.58317C1.87467 11.7169 2.65707 13.668 3.95062 15.165L1.2244 17.8912C0.980322 18.1353 0.980322 18.531 1.2244 18.7751C1.46848 19.0192 1.8642 19.0192 2.10828 18.7751L4.8345 16.0489C6.33156 17.3424 8.28258 18.1248 10.4163 18.1248C15.1338 18.1248 18.958 14.3006 18.958 9.58317Z" fill="#1E2023" />
+                  </svg>
+                </div>
               </div>
             </div>
           </div>
-
-          <button className="pmap-confirm-button" onClick={handleConfirmLocation} disabled={isSavingDestination}>
-            <FormattedMessage id="confirmLocation" />
-          </button>
         </div>
-      </div>
+      )}
 
       {/* Search Modal */}
       {showSearchModal && (

@@ -14,6 +14,7 @@ import Plang from './pages/Plang';
 import ProfileInfo from './pages/ProfileInfo';
 import Proutes from './pages/Proutes';
 import Pfp from './pages/Pfp';
+import Notifications from './pages/Notifications';
 import Pmap from './pages/Pmap';
 import Support from './pages/Support';
 import ContactUs from './pages/ContactUs';
@@ -45,7 +46,7 @@ const AppContent = () => {
     || location.pathname === '/plang' || location.pathname === '/pinfo' || location.pathname === '/proutes'
     || location.pathname === '/Pfp' || location.pathname === '/Pmap' || location.pathname.startsWith('/admin') || location.pathname.startsWith('/Support')
     || location.pathname.startsWith('/Rules') || location.pathname.startsWith('/ContactUs') || location.pathname.startsWith('/AboutUs')
-    || location.pathname.startsWith('/Faq');
+    || location.pathname.startsWith('/Faq') || location.pathname.startsWith('/Notifications');
 
   useAppStyles();
 
@@ -120,6 +121,7 @@ const AppContent = () => {
           <Route path="/pmap" element={<Pmap />} />
           <Route path="/plang" element={<Plang />} />
           <Route path="/rules" element={<Rules />} />
+          <Route path="/notifications" element={<Notifications />} />
           <Route path="/support" element={<Support />} />
           <Route path="/contactus" element={<ContactUs />} />
           <Route path="/aboutus" element={<AboutUs />} /><Route path="/contactus" element={<ContactUs />} />

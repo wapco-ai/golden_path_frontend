@@ -61,7 +61,7 @@
   text-align: center;
   padding: 80px 20px;
   min-height: 80vh;
- margin-top: 0px;
+  margin-top: 0px;
 }
 
 .empty-icon3 {
@@ -115,22 +115,20 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  margin-bottom: 100px; /* Space for fixed add button */
 }
 
-.location-card {
+.location-card-pfp {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding-bottom: 16px;
-  padding-top: 16px;
-  padding-right: 16px;
+  padding: 16px;
+  padding-bottom: 0px;
   background: #ffffff;
   border: 1px solid #D9D9D9;
   border-radius: 12px;
-}
-
-:root:lang(en) .location-card {
-  padding-left: 16px;
+  position: relative;
+  height: 90px;
 }
 
 .location-info {
@@ -161,12 +159,16 @@
   line-height: 1.4;
 }
 
-.location-address {
-  font-size: 14px;
-  color: #858585;
+.truncated-description {
   margin: 0;
-  line-height: 1.5;
-  text-align: start;
+  word-break: break-word;
+}
+
+
+/* Options Menu Styles */
+.location-options-container {
+  position: relative;
+  flex-shrink: 0;
 }
 
 .location-options-btn {
@@ -183,6 +185,51 @@
   margin-top: 5px;
 }
 
+.location-options-btn:hover {
+  background-color: #F5F5F5;
+}
+
+.location-options-menu {
+  position: absolute;
+  top: 40px;
+  left: 0;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  min-width: 160px;
+  z-index: 1000;
+  overflow: hidden;
+  border: 1px solid #E5E5E5;
+}
+
+.location-options-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  width: 100%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #1E2023;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  transition: background-color 0.2s;
+  text-align: right;
+}
+
+.location-options-item:hover {
+  background-color: #F5F5F5;
+}
+
+.location-options-item.delete {
+  color: #DC2626;
+}
+
+.location-options-item.delete:hover {
+  background-color: #FEF2F2;
+}
+
 .add-location-section {
   position: fixed;
   bottom: 15px;
@@ -196,16 +243,214 @@
 
 .add-location-button {
   width: 100%;
-  padding: 10px;
+  padding: 14px;
   border: none;
   border-radius: 12px;
-  font-size: 1.1rem;
+  font-size: 16px;
   font-weight: 500;
   font-family: 'Vazir', Tahoma, sans-serif;
   cursor: pointer;
   transition: all 0.3s ease;
   background-color: #0F71EF;
   color: white;
+}
+
+.add-location-button:hover {
+  background-color: #0D63D4;
+}
+
+/* Edit Modal Styles */
+.pfp-edit-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1002;
+  padding: 20px;
+}
+
+.pfp-edit-modal {
+  background: white;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: modalFadeIn 0.3s ease;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pfp-edit-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #E5E5E5;
+}
+
+.pfp-edit-modal-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1E2023;
+  margin: 0;
+  font-family: 'Vazir', Tahoma, sans-serif;
+}
+
+.pfp-edit-modal-close {
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.pfp-edit-modal-close:hover {
+  background-color: #F5F5F5;
+}
+
+.pfp-edit-form {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pfp-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pfp-form-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1E2023;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pfp-word-count {
+  font-size: 12px;
+  color: #858585;
+  font-weight: normal;
+}
+
+.pfp-form-input {
+  border: 1.5px solid #E5E5E5;
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 16px;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.pfp-form-input:focus {
+  border-color: #0F71EF;
+}
+
+.pfp-form-input.error {
+  border-color: #DC2626;
+}
+
+.pfp-form-textarea {
+  border: 1.5px solid #E5E5E5;
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 16px;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  outline: none;
+  resize: vertical;
+  min-height: 100px;
+  transition: border-color 0.2s;
+}
+
+.pfp-form-textarea:focus {
+  border-color: #0F71EF;
+}
+
+.pfp-form-error {
+  color: #DC2626;
+  font-size: 12px;
+  margin-top: 4px;
+  font-family: 'Vazir', Tahoma, sans-serif;
+}
+
+.pfp-form-hint {
+  color: #858585;
+  font-size: 12px;
+  margin-top: 4px;
+  font-family: 'Vazir', Tahoma, sans-serif;
+}
+
+.pfp-edit-modal-buttons {
+  display: flex;
+  gap: 12px;
+  padding: 0 24px 24px;
+}
+
+.pfp-cancel-button {
+  flex: 1;
+  background: #F5F5F5;
+  color: #EA4335;
+  border: 1px solid #EA4335 ;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: 'Vazir', Arial, sans-serif;
+  transition: background-color 0.2s;
+}
+
+.pfp-cancel-button:hover:not(:disabled) {
+  background: #E5E5E5;
+}
+
+.pfp-cancel-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pfp-save-button {
+  flex: 1;
+  background: #0F71EF;
+  color: white;
+  border: none;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  transition: background-color 0.2s;
+}
+
+.pfp-save-button:hover:not(:disabled) {
+  background: #0D63D4;
+}
+
+.pfp-save-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* RTL Support */
@@ -217,4 +462,34 @@
 [dir="rtl"] .empty-title,
 [dir="rtl"] .empty-description {
   text-align: center;
+}
+
+/* RTL adjustments for options menu */
+:root:lang(fa) .location-options-menu,
+:root:lang(ar) .location-options-menu,
+:root:lang(ur) .location-options-menu {
+  left: 0;
+  right: auto;
+}
+
+:root:lang(en) .location-options-menu {
+  left: auto;
+  right: 0;
+}
+
+:root:lang(en) .location-options-item {
+  text-align: left;
+}
+
+/* Input text alignment for English */
+:root:lang(en) .pfp-form-input,
+:root:lang(en) .pfp-form-textarea {
+  text-align: left;
+  direction: ltr;
+}
+
+:root:lang(en) .pfp-form-input::placeholder,
+:root:lang(en) .pfp-form-textarea::placeholder {
+  text-align: left;
+  direction: ltr;
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import '../styles/Pfp.css';
@@ -13,6 +13,15 @@ function Pfp() {
   const [savedLocations, setSavedLocations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showOptionsMenu, setShowOptionsMenu] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingLocation, setEditingLocation] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editNameError, setEditNameError] = useState('');
+
+  const optionsMenuRef = useRef(null);
+  const editModalRef = useRef(null);
 
   const isUserLoggedIn = Boolean(
     accessToken ||
@@ -56,6 +65,99 @@ function Pfp() {
       controller.abort();
     };
   }, [intl, isUserLoggedIn]);
+
+  // Close options menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (optionsMenuRef.current && !optionsMenuRef.current.contains(event.target)) {
+        setShowOptionsMenu(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleOptionsClick = (e, locationId) => {
+    e.stopPropagation();
+    setShowOptionsMenu(showOptionsMenu === locationId ? null : locationId);
+  };
+
+  const handleEdit = (location) => {
+    setEditingLocation(location);
+    setEditName(location.title || location.name || '');
+    setEditDescription(location.description || '');
+    setEditNameError('');
+    setShowOptionsMenu(null);
+    setShowEditModal(true);
+  };
+
+  const handleDelete = async (locationId) => {
+    // Frontend-only delete - just remove from local state
+    if (window.confirm(intl.formatMessage({ id: 'confirmDeleteLocation' }))) {
+      setSavedLocations(prev => prev.filter(loc => loc.id !== locationId));
+      // Show success message
+      alert(intl.formatMessage({ id: 'locationDeleted' }));
+    }
+    setShowOptionsMenu(null);
+  };
+
+  const handleUpdateLocation = () => {
+    if (!editingLocation) return;
+
+    // Validate name
+    if (!editName.trim()) {
+      setEditNameError(intl.formatMessage({ id: 'nameRequiredError' }));
+      return;
+    }
+
+    // Frontend-only update - update local state
+    setSavedLocations(prev =>
+      prev.map(loc =>
+        loc.id === editingLocation.id
+          ? {
+            ...loc,
+            title: editName.trim(),
+            name: editName.trim(),
+            description: editDescription.trim()
+          }
+          : loc
+      )
+    );
+
+    // Show success message
+    alert(intl.formatMessage({ id: 'locationUpdated' }));
+    setShowEditModal(false);
+  };
+
+  const handleCancelEdit = () => {
+    setShowEditModal(false);
+    setEditingLocation(null);
+    setEditName('');
+    setEditDescription('');
+    setEditNameError('');
+  };
+
+  const handleDescriptionChange = (e) => {
+    const text = e.target.value;
+    // Limit to 60 words
+    const words = text.trim().split(/\s+/);
+    if (words.length <= 60) {
+      setEditDescription(text);
+    }
+  };
+
+  const editWordCount = editDescription.trim().split(/\s+/).filter(word => word.length > 0).length;
+
+  // Function to truncate description for display
+  const truncateDescription = (description, wordLimit = 10) => {
+    if (!description) return '';
+    const words = description.trim().split(/\s+/);
+    if (words.length <= wordLimit) return description;
+    return words.slice(0, wordLimit).join(' ') + '...';
+  };
 
   return (
     <div className="pfp-container">
@@ -106,7 +208,7 @@ function Pfp() {
             </button>
           </div>
         ) : savedLocations.length === 0 ? (
-          // Empty state when no locations are saved (First screenshot)
+          // Empty state when no locations are saved
           <div className="empty-state">
             <div className="empty-icon3">
               <svg width="57" height="56" viewBox="0 0 57 56" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -127,11 +229,11 @@ function Pfp() {
             </button>
           </div>
         ) : (
-          // List of saved locations (Second screenshot)
+          // List of saved locations
           <div className="locations-section">
             <div className="locations-list">
               {savedLocations.map((location) => (
-                <div key={location.id} className="location-card">
+                <div key={location.id} className="location-card-pfp">
                   <div className="location-info">
                     <div className="location-favorite-icon">
                       <svg width="34" height="34" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -142,31 +244,144 @@ function Pfp() {
 
                     <div className="location-details">
                       <h3 className="location-name">{location.title || location.name}</h3>
-                      <p className="location-address">{location.address || location.description || ''}</p>
+                      <div className="location-description">
+                        {location.description ? (
+                          <div className="truncated-description">
+                            {location.description.split(/\s+/).slice(0, 10).join(' ')}
+                            {location.description.split(/\s+/).length > 10 && '...'}
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
 
-                  <button className="location-options-btn">
-                    <svg width="20" height="20" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M8.00033 11.3333C8.73671 11.3333 9.33366 11.9303 9.33366 12.6667C9.33366 13.403 8.73671 14 8.00033 14C7.26395 14 6.66699 13.403 6.66699 12.6667C6.66699 11.9303 7.26395 11.3333 8.00033 11.3333Z" fill="#1E2023" />
-                      <path d="M8.00033 6.66667C8.73671 6.66667 9.33366 7.26362 9.33366 8C9.33366 8.73638 8.73671 9.33333 8.00033 9.33333C7.26395 9.33333 6.66699 8.73638 6.66699 8C6.66699 7.26362 7.26395 6.66667 8.00033 6.66667Z" fill="#1E2023" />
-                      <path d="M8.00033 2C8.73671 2 9.33366 2.59695 9.33366 3.33333C9.33366 4.06971 8.73671 4.66667 8.00033 4.66667C7.26395 4.66667 6.66699 4.06971 6.66699 3.33333C6.66699 2.59695 7.26395 2 8.00033 2Z" fill="#1E2023" />
-                    </svg>
-                  </button>
+                  <div className="location-options-container" ref={optionsMenuRef}>
+                    <button
+                      className="location-options-btn"
+                      onClick={(e) => handleOptionsClick(e, location.id)}
+                    >
+                      <svg width="20" height="20" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8.00033 11.3333C8.73671 11.3333 9.33366 11.9303 9.33366 12.6667C9.33366 13.403 8.73671 14 8.00033 14C7.26395 14 6.66699 13.403 6.66699 12.6667C6.66699 11.9303 7.26395 11.3333 8.00033 11.3333Z" fill="#1E2023" />
+                        <path d="M8.00033 6.66667C8.73671 6.66667 9.33366 7.26362 9.33366 8C9.33366 8.73638 8.73671 9.33333 8.00033 9.33333C7.26395 9.33333 6.66699 8.73638 6.66699 8C6.66699 7.26362 7.26395 6.66667 8.00033 6.66667Z" fill="#1E2023" />
+                        <path d="M8.00033 2C8.73671 2 9.33366 2.59695 9.33366 3.33333C9.33366 4.06971 8.73671 4.66667 8.00033 4.66667C7.26395 4.66667 6.66699 4.06971 6.66699 3.33333C6.66699 2.59695 7.26395 2 8.00033 2Z" fill="#1E2023" />
+                      </svg>
+                    </button>
+
+                    {showOptionsMenu === location.id && (
+                      <div className="location-options-menu">
+                        <button
+                          className="location-options-item"
+                          onClick={() => handleEdit(location)}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M11.3333 2.00001C11.5089 1.82445 11.7163 1.68415 11.9444 1.58642C12.1725 1.4887 12.4171 1.4353 12.6645 1.42902C12.912 1.42275 13.1579 1.46371 13.3898 1.5496C13.6217 1.63548 13.8353 1.76469 14.0192 1.93042C14.203 2.09616 14.3537 2.29536 14.463 2.51722C14.5724 2.73908 14.6382 2.97955 14.657 3.22651C14.6757 3.47348 14.647 3.72245 14.5724 3.95948C14.4978 4.1965 14.3788 4.41728 14.2222 4.61001L6.91532 11.9167L2.66666 13.3333L4.08332 9.08468L11.3333 2.00001Z" stroke="#1E2023" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          <span><FormattedMessage id="edit" /></span>
+                        </button>
+                        <button
+                          className="location-options-item delete"
+                          onClick={() => handleDelete(location.id)}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M2 4H3.33333H14" stroke="#DC2626" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M5.33334 4V2.66667C5.33334 2.31305 5.47381 1.97391 5.72386 1.72386C5.97391 1.47381 6.31305 1.33333 6.66667 1.33333H9.33334C9.68696 1.33333 10.0261 1.47381 10.2761 1.72386C10.5262 1.97391 10.6667 2.31305 10.6667 2.66667V4M12.6667 4V13.3333C12.6667 13.687 12.5262 14.0261 12.2761 14.2761C12.0261 14.5262 11.687 14.6667 11.3333 14.6667H4.66667C4.31305 14.6667 3.97391 14.5262 3.72386 14.2761C3.47381 14.0261 3.33334 13.687 3.33334 13.3333V4H12.6667Z" stroke="#DC2626" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M6.66666 7.33333V11.3333" stroke="#DC2626" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M9.33334 7.33333V11.3333" stroke="#DC2626" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          <span><FormattedMessage id="remove" /></span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
-                  <div className="add-location-section">
-                    <button
-                      className="add-location-button"
-                      onClick={() => navigate('/pmap')}
-                    >
-                      <FormattedMessage id="addLocationButton2" />
-                    </button>
-                  </div>
+            <div className="add-location-section">
+              <button
+                className="add-location-button"
+                onClick={() => navigate('/pmap')}
+              >
+                <FormattedMessage id="addLocationButton2" />
+              </button>
+            </div>
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {showEditModal && (
+        <div className="pfp-edit-modal-overlay">
+          <div className="pfp-edit-modal" ref={editModalRef}>
+            <div className="pfp-edit-modal-header">
+              <h3 className="pfp-edit-modal-title">
+                <FormattedMessage id="editLocationTitle" />
+              </h3>
+              <button className="pfp-edit-modal-close" onClick={handleCancelEdit}>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M5 5L15 15M15 5L5 15" stroke="#1E2023" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="pfp-edit-form">
+              <div className="pfp-form-group">
+                <label className="pfp-form-label">
+                  <FormattedMessage id="locationNameLabel" />
+                </label>
+                <input
+                  type="text"
+                  className={`pfp-form-input ${editNameError ? 'error' : ''}`}
+                  value={editName}
+                  onChange={(e) => {
+                    setEditName(e.target.value);
+                    setEditNameError('');
+                  }}
+                  placeholder={intl.formatMessage({ id: 'locationNamePlaceholder' })}
+                  maxLength={50}
+                />
+                {editNameError && (
+                  <div className="pfp-form-error">{editNameError}</div>
+                )}
+              </div>
+
+              <div className="pfp-form-group">
+                <label className="pfp-form-label">
+                  <FormattedMessage id="locationDescriptionLabel" />
+                  <span className="pfp-word-count">
+                    ({editWordCount}/60 <FormattedMessage id="words" />)
+                  </span>
+                </label>
+                <textarea
+                  className="pfp-form-textarea"
+                  value={editDescription}
+                  onChange={handleDescriptionChange}
+                  placeholder={intl.formatMessage({ id: 'locationDescriptionPlaceholder' })}
+                  rows="4"
+                  maxLength={300}
+                />
+                <div className="pfp-form-hint">
+                  <FormattedMessage id="descriptionHint" />
+                </div>
+              </div>
+            </div>
+
+            <div className="pfp-edit-modal-buttons">
+              <button
+                className="pfp-cancel-button"
+                onClick={handleCancelEdit}
+              >
+                <FormattedMessage id="cancel" />
+              </button>
+              <button
+                className="pfp-save-button"
+                onClick={handleUpdateLocation}
+              >
+                <FormattedMessage id="saveChanges" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
