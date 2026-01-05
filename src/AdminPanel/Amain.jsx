@@ -2935,30 +2935,20 @@ const Amain = () => {
   }, [API_BASE, adminFetch, categoryCurrentPage, categoryItemsPerPage, categorySearchTerm]);
 
   const fetchCategorySubcategories = useCallback(async (categoryId) => {
-    const params = new URLSearchParams({
-      page: '1',
-      pageSize: '7',
-      search: '',
-      includeSubcategories: '1'
-    });
+    if (!categoryId) return [];
 
     try {
-      const response = await adminFetch(`${API_BASE}/categories?${params.toString()}`);
+      const response = await adminFetch(`${API_BASE}/categories/${categoryId}/subcategories`);
       if (!response.ok) {
         throw new Error('Failed to fetch subcategories');
       }
 
       const data = await response.json();
-      const items = Array.isArray(data?.items) ? data.items : [];
-
-      const targetCategory = items.find((category) => {
-        const value = category.id ?? category.value ?? category._id ?? category.title;
-        return String(value) === String(categoryId);
-      });
-
-      const subcategories = Array.isArray(targetCategory?.subcategories)
-        ? targetCategory.subcategories
-        : [];
+      const subcategories = Array.isArray(data?.items)
+        ? data.items
+        : Array.isArray(data)
+          ? data
+          : [];
 
       setCategories((prev) => prev.map((category) => {
         const value = category.id ?? category.value ?? category._id ?? category.title;
