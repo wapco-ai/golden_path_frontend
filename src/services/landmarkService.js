@@ -1,13 +1,28 @@
 import appConfig from '../config/appConfig.js';
 
-export const fetchLandmarkPlaces = async ({ language = 'fa', geo, poiId } = {}) => {
+export const fetchLandmarkPlaces = async ({
+  language = 'fa',
+  geo,
+  poiId,
+  search,
+  limit,
+  signal
+} = {}) => {
   const url = appConfig.landmarkPlacesUrl;
 
   const params = new URLSearchParams();
   params.set('language', language || 'fa');
 
+  if (limit != null) {
+    params.set('limit', limit);
+  }
+
   if (poiId != null) {
     params.set('poi_id', poiId);
+  }
+
+  if (search) {
+    params.set('search', search);
   }
 
   if (geo?.lat != null && geo?.lng != null) {
@@ -16,7 +31,8 @@ export const fetchLandmarkPlaces = async ({ language = 'fa', geo, poiId } = {}) 
   }
 
   const response = await fetch(`${url}?${params.toString()}`, {
-    headers: { Accept: 'application/json' }
+    headers: { Accept: 'application/json' },
+    signal
   });
 
   if (!response.ok) {

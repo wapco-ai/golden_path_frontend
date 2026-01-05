@@ -67,6 +67,7 @@ const MapRoutingPage = () => {
   const [isCategorySelected, setIsCategorySelected] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
+  const [landmarkSearchResults, setLandmarkSearchResults] = useState([]);
 
   useEffect(() => {
 
@@ -214,7 +215,6 @@ const MapRoutingPage = () => {
 
   // Lazy loaded geojson data for destination search
   const [geoData, setGeoData] = useState(null);
-  const [geoResults, setGeoResults] = useState([]);
 
   const getDoorCoordinates = (door) => {
     if (!door?.coord4326) return null;
@@ -225,6 +225,26 @@ const MapRoutingPage = () => {
     }
 
     return null;
+  };
+
+  const extractLandmarkCoordinates = (place = {}) => {
+    const lat =
+      place.lat ??
+      place.latitude ??
+      place?.location?.lat ??
+      place?.geo?.lat ??
+      place?.coordinates?.[0] ??
+      place?.geometry?.coordinates?.[1];
+    const lng =
+      place.lng ??
+      place.longitude ??
+      place?.location?.lng ??
+      place?.geo?.lng ??
+      place?.coordinates?.[1] ??
+      place?.geometry?.coordinates?.[0];
+
+    if (lat == null || lng == null) return null;
+    return { lat: Number(lat), lng: Number(lng) };
   };
 
   const getPolygonCenter = (coords) => {
@@ -445,14 +465,16 @@ const MapRoutingPage = () => {
     setSearchQuery('');
   };
 
-  const filteredDestinations = searchQuery
-    ? geoResults.map((f) => {
-      const center = getFeatureCenter(f);
+  const filteredDestinations = searchQuery.trim().length >= 2
+    ? landmarkSearchResults.map((place) => {
+      const coords = extractLandmarkCoordinates(place);
       return {
-        id: f.properties?.uniqueId || f.id,
-        name: f.properties?.name || '',
-        location: f.properties?.subGroup || '',
-        coordinates: center ? [center[1], center[0]] : null
+        id: place.id || place.value || place.subGroupValue,
+        name: place.title || place.name || place.subGroup || '',
+        location: place.subGroup || place.address || '',
+        coordinates: coords ? [coords.lat, coords.lng] : null,
+        address: place.address,
+        description: place.description || place?.content?.body || ''
       };
     })
     : recentSearches;
@@ -697,7 +719,7 @@ const MapRoutingPage = () => {
   };
 
   const handleInputChange = (e) => {
-    setSearchQuery(e.target.value.toLowerCase());
+    setSearchQuery(e.target.value);
   };
 
   useEffect(() => {
@@ -722,18 +744,47 @@ const MapRoutingPage = () => {
   }, [language]);
 
   useEffect(() => {
-    if (geoData && searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const results = geoData.features.filter((f) => {
-        const name = (f.properties?.name || '').toLowerCase();
-        const subGroup = (f.properties?.subGroup || '').toLowerCase();
-        return name.includes(query) || subGroup.includes(query);
-      });
-      setGeoResults(results);
-    } else {
-      setGeoResults([]);
+    const trimmedQuery = searchQuery.trim();
+    if (trimmedQuery.length < 2) {
+      setLandmarkSearchResults([]);
+      return;
     }
-  }, [searchQuery, geoData]);
+
+    let isMounted = true;
+    const controller = new AbortController();
+    const geoCoordinates = userLocation?.coordinates;
+    const geo = Array.isArray(geoCoordinates) && geoCoordinates.length >= 2
+      ? { lat: geoCoordinates[0], lng: geoCoordinates[1] }
+      : null;
+
+    const timer = setTimeout(() => {
+      fetchLandmarkPlaces({
+        language,
+        geo,
+        search: trimmedQuery,
+        limit: 30,
+        signal: controller.signal
+      })
+        .then((data) => {
+          if (!isMounted) return;
+          const apiLandmarks = Array.isArray(data?.places?.landmarkPlaces)
+            ? data.places.landmarkPlaces
+            : [];
+          setLandmarkSearchResults(apiLandmarks);
+        })
+        .catch((error) => {
+          if (error?.name === 'AbortError') return;
+          console.error('Failed to search landmark places', error);
+          setLandmarkSearchResults([]);
+        });
+    }, 350);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [searchQuery, language, userLocation]);
 
   // Get subgroup label based on currently loaded geoData
   const getLocalizedSubgroupLabel = (geoData, value, fallback) => {
