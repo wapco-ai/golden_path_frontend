@@ -8973,8 +8973,8 @@ const Amain = () => {
 
             </span>
             <div
-              id="dashboard-menu-item"
-              className={`menu-item ${activeMenu === 'dashboard' ? 'active' : ''}`}
+              id="dashboard-menu-item-m"
+              className={`menu-item-m ${activeMenu === 'dashboard' ? 'active' : ''}`}
               onClick={() => handleMenuClick('dashboard', 'داشبورد')}
             >
               <span className="menu-icon">
@@ -8988,10 +8988,10 @@ const Amain = () => {
               <span> داشبورد  </span>
             </div>
 
-            <div className="menu-item with-submenu">
+            <div className="menu-item-m with-submenu">
 
               <div
-                className={`menu-item ${activeMenu === 'reports' ? 'active' : ''}`}
+                className={`menu-item-m ${activeMenu === 'reports' ? 'active' : ''}`}
                 onClick={() => {
                   toggleReportsManagement();
                   handleMenuClick('reports', 'گزارشات');
@@ -9044,7 +9044,7 @@ const Amain = () => {
             </div>
 
             <div
-              className={`menu-item ${activeMenu === 'mapmanage' ? 'active' : ''}`}
+              className={`menu-item-m ${activeMenu === 'mapmanage' ? 'active' : ''}`}
               onClick={() => handleMenuClick('mapmanage', 'مدیریت نقشه')}
             >
               <span className="menu-icon">
@@ -9084,7 +9084,7 @@ const Amain = () => {
                 </svg>
               </div> */}
 
-              {userManagementOpen && (
+              {/* {userManagementOpen && (
                 <div className="submenu-items">
                   <div className="submenu-item">
                     <div className="submenu-branch"></div>
@@ -9095,11 +9095,11 @@ const Amain = () => {
                     <span>دسترسی نقش ها به کاربران</span>
                   </div>
                 </div>
-              )}
+              )} */}
             </div>
 
             <div
-              className={`menu-item ${activeMenu === 'facmanage' ? 'active' : ''}`}
+              className={`menu-item-m ${activeMenu === 'facmanage' ? 'active' : ''}`}
               onClick={() => {
                 togglefacManagement();
                 handleMenuClick;
@@ -9127,7 +9127,7 @@ const Amain = () => {
                   <span>مدیریت دسته بندی‌ها</span>
                 </div>
                 <div
-                  className={`submenu-item ${currentReportView === 'مدیریت صفحات' ? 'active' : ''}`}  // Updated this line
+                  className={`submenu-item ${currentReportView === 'مدیریت صفحات' ? 'active' : ''}`} 
                   onClick={() => handleSubmenuClick('مدیریت صفحات')}
                 >
                   <div className="submenu-branch"></div>
@@ -10109,12 +10109,6 @@ const Amain = () => {
             <div className="category-management-section">
               {/* Header with buttons */}
               <div className="category-header-section">
-                <button className="export-category-btn">
-                  گرفتن خروجی
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path fillRule="evenodd" clipRule="evenodd" d="M3.69247 7.09327C3.91711 6.83119 4.31167 6.80084 4.57375 7.02548L10.0003 11.6768L15.4269 7.02548C15.689 6.80084 16.0836 6.83119 16.3082 7.09327C16.5328 7.35535 16.5025 7.74991 16.2404 7.97455L10.4071 12.9745C10.173 13.1752 9.82765 13.1752 9.59359 12.9745L3.76026 7.97455C3.49818 7.74991 3.46783 7.35535 3.69247 7.09327Z" fill="#1E2023" />
-                  </svg>
-                </button>
                 <button className="new-category-btn" onClick={() => setIsCreateCategoryModalOpen(true)}>
                   ایجاد دسته بندی جدید
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">

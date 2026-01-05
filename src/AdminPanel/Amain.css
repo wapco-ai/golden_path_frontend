@@ -240,7 +240,7 @@ body {
   margin-right: 25px;
 }
 
-.menu-item {
+.menu-item-m{
   display: flex;
   align-items: center;
   padding: 12px 20px;
@@ -255,7 +255,7 @@ body {
   margin-bottom: 0px;
 }
 
-.menu-item:hover {
+.menu-item-m:hover{
   background-color: white;
   color: #1e2023;
 }
@@ -265,11 +265,12 @@ body {
   color: #1e2023;
 }
 
-.menu-item.with-submenu {
+.menu-item.with-submenu,
+.menu-item-m.with-submenu{
   padding: 0;
   flex-direction: column;
   align-items: stretch;
-
+ background-color: transparent;
 }
 
 .submenu-header {
