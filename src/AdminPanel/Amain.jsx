@@ -3298,7 +3298,7 @@ const Amain = () => {
         || null;
 
       const selectedSubGroup = culturalSubGroupOptions.find(
-        (subGroup) => subGroup.value === culturalPlaceSubcategory
+        (subGroup) => String(subGroup.value) === String(culturalPlaceSubcategory)
       );
 
       const timeRestrictionsPayload = buildCulturalTimeRestrictionsPayload();
@@ -4532,7 +4532,7 @@ const Amain = () => {
     }
 
     const selectedSubGroup = culturalSubGroupOptions.find(
-      (subGroup) => subGroup.value === culturalPlaceSubcategory
+      (subGroup) => String(subGroup.value) === String(culturalPlaceSubcategory)
     );
 
     const resolveCategoryLeafId = () => {
