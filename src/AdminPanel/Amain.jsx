@@ -1270,6 +1270,25 @@ const Amain = () => {
     [intl]
   );
 
+  const resolveLocalizedCategoryLabel = useCallback(
+    (item) => {
+      const languageKey = language === 'en'
+        ? 'english'
+        : language === 'ar'
+          ? 'arabic'
+          : language === 'ur'
+            ? 'urdu'
+            : null;
+
+      return (languageKey && item?.languageTitles?.[languageKey])
+        || item?.title
+        || item?.label
+        || item?.name
+        || '';
+    },
+    [language]
+  );
+
   const [isAddPlaceModalOpen, setIsAddPlaceModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [placeName, setPlaceName] = useState('');
@@ -1420,6 +1439,7 @@ const Amain = () => {
   const [culturalSubGroupOptions, setCulturalSubGroupOptions] = useState([]);
   const [isLoadingCulturalGroups, setIsLoadingCulturalGroups] = useState(false);
   const [isLoadingCulturalSubGroups, setIsLoadingCulturalSubGroups] = useState(false);
+  const [culturalCategories, setCulturalCategories] = useState([]);
 
   const [isRestrictionModalOpen, setIsRestrictionModalOpen] = useState(false);
   const [editRestrictionFormOpen, setEditRestrictionFormOpen] = useState(false);
@@ -2934,6 +2954,33 @@ const Amain = () => {
     }
   }, [API_BASE, adminFetch, categoryCurrentPage, categoryItemsPerPage, categorySearchTerm]);
 
+  const fetchCulturalCategories = useCallback(async () => {
+    const params = new URLSearchParams({
+      page: '1',
+      pageSize: '200',
+      search: '',
+      includeSubcategories: '1'
+    });
+
+    try {
+      const response = await adminFetch(`${API_BASE}/categories?${params.toString()}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMessage = getApiErrorMessage({ response: { data } }, 'خطا در دریافت دسته‌بندی‌ها');
+        throw new Error(errorMessage);
+      }
+
+      const categoryItems = Array.isArray(data?.items) ? data.items : [];
+      setCulturalCategories(categoryItems);
+      return categoryItems;
+    } catch (error) {
+      console.error('Failed to fetch cultural categories', error);
+      toast.error('بارگذاری دسته‌بندی‌های فرهنگی با مشکل مواجه شد');
+      return [];
+    }
+  }, [API_BASE, adminFetch]);
+
   const fetchCategorySubcategories = useCallback(async (categoryId) => {
     if (!categoryId) return [];
 
@@ -2972,20 +3019,38 @@ const Amain = () => {
     fetchCategories();
   }, [fetchCategories]);
 
-  const culturalGroupOptions = useMemo(() => dedupeByValue(groupOptions), [groupOptions]);
+  const culturalGroupOptions = useMemo(
+    () => dedupeByValue(
+      (culturalCategories || []).map((category) => ({
+        ...category,
+        value: category?.id ?? category?.value ?? category?._id ?? category?.meta?.code ?? category?.title,
+        label: resolveLocalizedCategoryLabel(category)
+      }))
+    ),
+    [culturalCategories, resolveLocalizedCategoryLabel]
+  );
 
   const fetchCulturalSubGroupOptions = useCallback(async (groupId) => {
     if (!groupId) return [];
 
-    const subGroupData = await fetchSubGroups({ language, groups: [groupId], withImages: false });
-    const normalized = normalizeSubGroupMetadata(subGroupData?.subGroups, language);
-    const translatedSubGroups = (normalized[groupId] || []).map((subGroup) => ({
+    let categoryList = culturalCategories;
+    if (!categoryList || categoryList.length === 0) {
+      categoryList = await fetchCulturalCategories();
+    }
+
+    const targetCategory = categoryList.find((category) => {
+      const categoryValue = category?.id ?? category?.value ?? category?._id ?? category?.meta?.code ?? category?.title;
+      return String(categoryValue) === String(groupId);
+    });
+
+    const translatedSubGroups = (targetCategory?.subcategories || []).map((subGroup) => ({
       ...subGroup,
-      label: translateLabel(subGroup.label)
+      value: subGroup?.id ?? subGroup?.value ?? subGroup?._id ?? subGroup?.title,
+      label: resolveLocalizedCategoryLabel(subGroup)
     }));
 
     return dedupeByValue(translatedSubGroups);
-  }, [language, translateLabel]);
+  }, [culturalCategories, fetchCulturalCategories, resolveLocalizedCategoryLabel]);
 
   const toggleUserManagement = () => {
     setUserManagementOpen(!userManagementOpen);
@@ -3456,24 +3521,11 @@ const Amain = () => {
 
   useEffect(() => {
     let isMounted = true;
-
-    const languageGroup = getLanguageName(language);
-
     setIsLoadingCulturalGroups(true);
-    fetchGroupMetadata({ language, withPng: false, group: languageGroup })
-      .then((groupData) => {
+    fetchCulturalCategories()
+      .then((categories) => {
         if (!isMounted) return;
-        const normalizedGroups = normalizeGroupMetadata(groupData?.groups, language);
-        const translatedGroups = normalizedGroups.map((group) => ({
-          ...group,
-          label: translateLabel(group.label)
-        }));
-
-        setGroupOptions(dedupeByValue(translatedGroups));
-      })
-      .catch((error) => {
-        console.error('Failed to load group metadata for cultural', error);
-        toast.error('بارگذاری گروه‌ها با مشکل مواجه شد');
+        setCulturalCategories(categories);
       })
       .finally(() => {
         if (!isMounted) return;
@@ -3483,7 +3535,7 @@ const Amain = () => {
     return () => {
       isMounted = false;
     };
-  }, [language, translateLabel]);
+  }, [fetchCulturalCategories]);
 
   const resetEditFormWithoutMapCleanup = () => {
     setCulturalTitle('');
