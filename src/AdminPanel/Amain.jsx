@@ -2908,6 +2908,105 @@ const Amain = () => {
     };
   }, [language, placeCategory, translateLabel]);
 
+  const fetchCategories = useCallback(async () => {
+    const params = new URLSearchParams({
+      page: String(categoryCurrentPage),
+      pageSize: String(categoryItemsPerPage),
+      search: categorySearchTerm,
+      includeSubcategories: '1'
+    });
+
+    try {
+      const response = await adminFetch(`${API_BASE}/categories?${params.toString()}`);
+      const data = await response.json();
+      if (!response.ok) {
+        const errorMessage = getApiErrorMessage({ response: { data } }, 'خطا در دریافت دسته‌بندی‌ها');
+        throw new Error(errorMessage);
+      }
+      setCategories(Array.isArray(data.items) ? data.items : []);
+      setCategoryTotalItems(Number(data.total) || 0);
+      setCategoryError('');
+    } catch (error) {
+      console.error('Failed to fetch categories', error);
+      const errorMessage = getApiErrorMessage(error, 'خطا در دریافت دسته‌بندی‌ها');
+      setCategoryError(errorMessage);
+      toast.error(errorMessage);
+    }
+  }, [API_BASE, adminFetch, categoryCurrentPage, categoryItemsPerPage, categorySearchTerm]);
+
+  const fetchCategorySubcategories = useCallback(async (categoryId) => {
+    try {
+      const response = await adminFetch(`${API_BASE}/categories/${categoryId}/subcategories`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch subcategories');
+      }
+      const data = await response.json();
+      const subcategories = Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : [];
+
+      setCategories((prev) => prev.map((category) => {
+        if (category.id !== categoryId) return category;
+        return {
+          ...category,
+          subcategories,
+          numSubcategories: subcategories.length
+        };
+      }));
+
+      return subcategories;
+    } catch (error) {
+      console.error('Failed to fetch subcategories', error);
+      alert('خطا در دریافت زیرگروه‌ها');
+      return [];
+    }
+  }, [API_BASE, adminFetch]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  const culturalGroupOptions = useMemo(() => (
+    categories.map((category) => {
+      const value = category.id ?? category.value ?? category._id ?? category.title;
+      const rawLabel = category.title || category.label || category.name || value;
+      const label = typeof rawLabel === 'object' ? translateLabel(rawLabel) : rawLabel;
+
+      return {
+        value,
+        label
+      };
+    }).filter((option) => option.value !== undefined && option.label)
+  ), [categories, translateLabel]);
+
+  const mapSubcategoriesToOptions = useCallback((subcategories = []) => dedupeByValue(
+    subcategories.map((subcategory) => {
+      const value = subcategory.id ?? subcategory.value ?? subcategory._id ?? subcategory.title;
+      const rawLabel = subcategory.title || subcategory.label || subcategory.name || value;
+      const label = typeof rawLabel === 'object' ? translateLabel(rawLabel) : rawLabel;
+
+      return {
+        value,
+        label
+      };
+    }).filter((option) => option.value !== undefined && option.label)
+  ), [translateLabel]);
+
+  const findCategoryById = useCallback((categoryId) => {
+    if (!categoryId) return null;
+
+    const targetId = String(categoryId);
+    return categories.find((category) => {
+      const value = category.id ?? category.value ?? category._id ?? category.title;
+      return String(value) === targetId;
+    }) || null;
+  }, [categories]);
+
+  const getCulturalSubGroupsForCategory = useCallback((categoryId) => {
+    const category = findCategoryById(categoryId);
+    const subcategories = Array.isArray(category?.subcategories) ? category.subcategories : [];
+
+    return mapSubcategoriesToOptions(subcategories);
+  }, [findCategoryById, mapSubcategoriesToOptions]);
+
   const toggleUserManagement = () => {
     setUserManagementOpen(!userManagementOpen);
   };
@@ -3009,18 +3108,14 @@ const Amain = () => {
       if (groupId) {
         setIsLoadingCulturalSubGroups(true);
         try {
-          const subGroupData = await fetchSubGroups({
-            language,
-            groups: [groupId],
-            withImages: false
-          });
+          let subGroupList = getCulturalSubGroupsForCategory(groupId);
 
-          const normalized = normalizeSubGroupMetadata(subGroupData?.subGroups, language);
-          const translatedSubGroups = (normalized[groupId] || []).map((subGroup) => ({
-            ...subGroup,
-            label: translateLabel(subGroup.label)
-          }));
-          setCulturalSubGroupOptions(dedupeByValue(translatedSubGroups));
+          if (subGroupList.length === 0) {
+            const fetchedSubcategories = await fetchCategorySubcategories(groupId);
+            subGroupList = mapSubcategoriesToOptions(fetchedSubcategories || []);
+          }
+
+          setCulturalSubGroupOptions(subGroupList);
         } catch (error) {
           console.error('Failed to load sub groups for edit', error);
         } finally {
@@ -4385,38 +4480,45 @@ const Amain = () => {
 
 
   useEffect(() => {
-    if (!isEditingCultural || !culturalPlaceCategory) {
-      setCulturalSubGroupOptions([]);
-      setCulturalPlaceSubcategory('');
-      return;
-    }
-
     let isMounted = true;
     setIsLoadingCulturalSubGroups(true);
-    setCulturalSubGroupOptions([]);
 
-    fetchSubGroups({ language, groups: [culturalPlaceCategory], withImages: false })
-      .then((subGroupData) => {
-        if (!isMounted) return;
-        const normalized = normalizeSubGroupMetadata(subGroupData?.subGroups, language);
-        const translatedSubGroups = (normalized[culturalPlaceCategory] || []).map((subGroup) => ({
-          ...subGroup,
-          label: translateLabel(subGroup.label)
-        }));
-        setCulturalSubGroupOptions(dedupeByValue(translatedSubGroups));
-      })
-      .catch((error) => {
-        console.error('Failed to load sub groups for cultural edit', error);
-      })
-      .finally(() => {
-        if (!isMounted) return;
-        setIsLoadingCulturalSubGroups(false);
-      });
+    if (!culturalPlaceCategory) {
+      setCulturalSubGroupOptions([]);
+      setCulturalPlaceSubcategory('');
+      setIsLoadingCulturalSubGroups(false);
+      return undefined;
+    }
+
+    const applyOptions = (options) => {
+      if (!isMounted) return;
+      setCulturalSubGroupOptions(options);
+
+      if (culturalPlaceSubcategory && !options.some((sub) => String(sub.value) === String(culturalPlaceSubcategory))) {
+        setCulturalPlaceSubcategory('');
+      }
+      setIsLoadingCulturalSubGroups(false);
+    };
+
+    const localOptions = getCulturalSubGroupsForCategory(culturalPlaceCategory);
+
+    if (localOptions.length > 0) {
+      applyOptions(localOptions);
+    } else {
+      fetchCategorySubcategories(culturalPlaceCategory)
+        .then((subcategories) => {
+          applyOptions(mapSubcategoriesToOptions(subcategories || []));
+        })
+        .catch((error) => {
+          console.error('Failed to load sub groups for cultural edit', error);
+          setIsLoadingCulturalSubGroups(false);
+        });
+    }
 
     return () => {
       isMounted = false;
     };
-  }, [language, culturalPlaceCategory, translateLabel, isEditingCultural]);
+  }, [culturalPlaceCategory, culturalPlaceSubcategory, fetchCategorySubcategories, getCulturalSubGroupsForCategory, mapSubcategoriesToOptions]);
 
   const handleSaveCulturalData = async () => {
     if (!selectedPlaceType) {
@@ -8047,59 +8149,6 @@ const Amain = () => {
     return mod === 1 || mod === 5 || mod === 9 || mod === 13 || mod === 17 || mod === 22 || mod === 26 || mod === 30;
   };
 
-  const fetchCategories = useCallback(async () => {
-    const params = new URLSearchParams({
-      page: String(categoryCurrentPage),
-      pageSize: String(categoryItemsPerPage),
-      search: categorySearchTerm,
-      includeSubcategories: '1'
-    });
-
-    try {
-      const response = await adminFetch(`${API_BASE}/categories?${params.toString()}`);
-      const data = await response.json();
-      if (!response.ok) {
-        const errorMessage = getApiErrorMessage({ response: { data } }, 'خطا در دریافت دسته‌بندی‌ها');
-        throw new Error(errorMessage);
-      }
-      setCategories(Array.isArray(data.items) ? data.items : []);
-      setCategoryTotalItems(Number(data.total) || 0);
-      setCategoryError('');
-    } catch (error) {
-      console.error('Failed to fetch categories', error);
-      const errorMessage = getApiErrorMessage(error, 'خطا در دریافت دسته‌بندی‌ها');
-      setCategoryError(errorMessage);
-      toast.error(errorMessage);
-    }
-  }, [API_BASE, adminFetch, categoryCurrentPage, categoryItemsPerPage, categorySearchTerm]);
-
-  const fetchCategorySubcategories = useCallback(async (categoryId) => {
-    try {
-      const response = await adminFetch(`${API_BASE}/categories/${categoryId}/subcategories`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch subcategories');
-      }
-      const data = await response.json();
-      const subcategories = Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : [];
-
-      setCategories((prev) => prev.map((category) => {
-        if (category.id !== categoryId) return category;
-        return {
-          ...category,
-          subcategories,
-          numSubcategories: subcategories.length
-        };
-      }));
-    } catch (error) {
-      console.error('Failed to fetch subcategories', error);
-      alert('خطا در دریافت زیرگروه‌ها');
-    }
-  }, [API_BASE, adminFetch]);
-
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
-
   const resetCategoryForm = () => {
     setNewCategory({
       title: '',
@@ -9863,7 +9912,7 @@ const Amain = () => {
                           disabled={isLoadingCulturalGroups}
                         >
                           <option value="" disabled>گروه اصلی فرهنگی</option>
-                          {groupOptions.map((group) => (
+                          {culturalGroupOptions.map((group) => (
                             <option key={`cultural-edit-group-${group.value}`} value={group.value}>
                               {group.label}
                             </option>
@@ -13165,7 +13214,7 @@ const Amain = () => {
                             disabled={isLoadingCulturalGroups}
                           >
                             <option value="" disabled>گروه اصلی فرهنگی</option>
-                            {groupOptions.map((group) => (
+                            {culturalGroupOptions.map((group) => (
                               <option key={`cultural-group-${group.value}`} value={group.value}>
                                 {group.label}
                               </option>
