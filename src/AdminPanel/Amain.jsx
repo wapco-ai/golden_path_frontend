@@ -2908,6 +2908,105 @@ const Amain = () => {
     };
   }, [language, placeCategory, translateLabel]);
 
+  const fetchCategories = useCallback(async () => {
+    const params = new URLSearchParams({
+      page: String(categoryCurrentPage),
+      pageSize: String(categoryItemsPerPage),
+      search: categorySearchTerm,
+      includeSubcategories: '1'
+    });
+
+    try {
+      const response = await adminFetch(`${API_BASE}/categories?${params.toString()}`);
+      const data = await response.json();
+      if (!response.ok) {
+        const errorMessage = getApiErrorMessage({ response: { data } }, 'خطا در دریافت دسته‌بندی‌ها');
+        throw new Error(errorMessage);
+      }
+      setCategories(Array.isArray(data.items) ? data.items : []);
+      setCategoryTotalItems(Number(data.total) || 0);
+      setCategoryError('');
+    } catch (error) {
+      console.error('Failed to fetch categories', error);
+      const errorMessage = getApiErrorMessage(error, 'خطا در دریافت دسته‌بندی‌ها');
+      setCategoryError(errorMessage);
+      toast.error(errorMessage);
+    }
+  }, [API_BASE, adminFetch, categoryCurrentPage, categoryItemsPerPage, categorySearchTerm]);
+
+  const fetchCategorySubcategories = useCallback(async (categoryId) => {
+    try {
+      const response = await adminFetch(`${API_BASE}/categories/${categoryId}/subcategories`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch subcategories');
+      }
+      const data = await response.json();
+      const subcategories = Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : [];
+
+      setCategories((prev) => prev.map((category) => {
+        if (category.id !== categoryId) return category;
+        return {
+          ...category,
+          subcategories,
+          numSubcategories: subcategories.length
+        };
+      }));
+
+      return subcategories;
+    } catch (error) {
+      console.error('Failed to fetch subcategories', error);
+      alert('خطا در دریافت زیرگروه‌ها');
+      return [];
+    }
+  }, [API_BASE, adminFetch]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  const culturalGroupOptions = useMemo(() => (
+    categories.map((category) => {
+      const value = category.id ?? category.value ?? category._id ?? category.title;
+      const rawLabel = category.title || category.label || category.name || value;
+      const label = typeof rawLabel === 'object' ? translateLabel(rawLabel) : rawLabel;
+
+      return {
+        value,
+        label
+      };
+    }).filter((option) => option.value !== undefined && option.label)
+  ), [categories, translateLabel]);
+
+  const mapSubcategoriesToOptions = useCallback((subcategories = []) => dedupeByValue(
+    subcategories.map((subcategory) => {
+      const value = subcategory.id ?? subcategory.value ?? subcategory._id ?? subcategory.title;
+      const rawLabel = subcategory.title || subcategory.label || subcategory.name || value;
+      const label = typeof rawLabel === 'object' ? translateLabel(rawLabel) : rawLabel;
+
+      return {
+        value,
+        label
+      };
+    }).filter((option) => option.value !== undefined && option.label)
+  ), [translateLabel]);
+
+  const findCategoryById = useCallback((categoryId) => {
+    if (!categoryId) return null;
+
+    const targetId = String(categoryId);
+    return categories.find((category) => {
+      const value = category.id ?? category.value ?? category._id ?? category.title;
+      return String(value) === targetId;
+    }) || null;
+  }, [categories]);
+
+  const getCulturalSubGroupsForCategory = useCallback((categoryId) => {
+    const category = findCategoryById(categoryId);
+    const subcategories = Array.isArray(category?.subcategories) ? category.subcategories : [];
+
+    return mapSubcategoriesToOptions(subcategories);
+  }, [findCategoryById, mapSubcategoriesToOptions]);
+
   const toggleUserManagement = () => {
     setUserManagementOpen(!userManagementOpen);
   };
@@ -8049,105 +8148,6 @@ const Amain = () => {
     const mod = year % 33;
     return mod === 1 || mod === 5 || mod === 9 || mod === 13 || mod === 17 || mod === 22 || mod === 26 || mod === 30;
   };
-
-  const fetchCategories = useCallback(async () => {
-    const params = new URLSearchParams({
-      page: String(categoryCurrentPage),
-      pageSize: String(categoryItemsPerPage),
-      search: categorySearchTerm,
-      includeSubcategories: '1'
-    });
-
-    try {
-      const response = await adminFetch(`${API_BASE}/categories?${params.toString()}`);
-      const data = await response.json();
-      if (!response.ok) {
-        const errorMessage = getApiErrorMessage({ response: { data } }, 'خطا در دریافت دسته‌بندی‌ها');
-        throw new Error(errorMessage);
-      }
-      setCategories(Array.isArray(data.items) ? data.items : []);
-      setCategoryTotalItems(Number(data.total) || 0);
-      setCategoryError('');
-    } catch (error) {
-      console.error('Failed to fetch categories', error);
-      const errorMessage = getApiErrorMessage(error, 'خطا در دریافت دسته‌بندی‌ها');
-      setCategoryError(errorMessage);
-      toast.error(errorMessage);
-    }
-  }, [API_BASE, adminFetch, categoryCurrentPage, categoryItemsPerPage, categorySearchTerm]);
-
-  const fetchCategorySubcategories = useCallback(async (categoryId) => {
-    try {
-      const response = await adminFetch(`${API_BASE}/categories/${categoryId}/subcategories`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch subcategories');
-      }
-      const data = await response.json();
-      const subcategories = Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : [];
-
-      setCategories((prev) => prev.map((category) => {
-        if (category.id !== categoryId) return category;
-        return {
-          ...category,
-          subcategories,
-          numSubcategories: subcategories.length
-        };
-      }));
-
-      return subcategories;
-    } catch (error) {
-      console.error('Failed to fetch subcategories', error);
-      alert('خطا در دریافت زیرگروه‌ها');
-      return [];
-    }
-  }, [API_BASE, adminFetch]);
-
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
-
-  const culturalGroupOptions = useMemo(() => (
-    categories.map((category) => {
-      const value = category.id ?? category.value ?? category._id ?? category.title;
-      const rawLabel = category.title || category.label || category.name || value;
-      const label = typeof rawLabel === 'object' ? translateLabel(rawLabel) : rawLabel;
-
-      return {
-        value,
-        label
-      };
-    }).filter((option) => option.value !== undefined && option.label)
-  ), [categories, translateLabel]);
-
-  const mapSubcategoriesToOptions = useCallback((subcategories = []) => dedupeByValue(
-    subcategories.map((subcategory) => {
-      const value = subcategory.id ?? subcategory.value ?? subcategory._id ?? subcategory.title;
-      const rawLabel = subcategory.title || subcategory.label || subcategory.name || value;
-      const label = typeof rawLabel === 'object' ? translateLabel(rawLabel) : rawLabel;
-
-      return {
-        value,
-        label
-      };
-    }).filter((option) => option.value !== undefined && option.label)
-  ), [translateLabel]);
-
-  const findCategoryById = useCallback((categoryId) => {
-    if (!categoryId) return null;
-
-    const targetId = String(categoryId);
-    return categories.find((category) => {
-      const value = category.id ?? category.value ?? category._id ?? category.title;
-      return String(value) === targetId;
-    }) || null;
-  }, [categories]);
-
-  const getCulturalSubGroupsForCategory = useCallback((categoryId) => {
-    const category = findCategoryById(categoryId);
-    const subcategories = Array.isArray(category?.subcategories) ? category.subcategories : [];
-
-    return mapSubcategoriesToOptions(subcategories);
-  }, [findCategoryById, mapSubcategoriesToOptions]);
 
   const resetCategoryForm = () => {
     setNewCategory({
