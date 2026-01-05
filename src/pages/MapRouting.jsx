@@ -484,13 +484,13 @@ const MapRoutingPage = () => {
   // Get subgroup label based on currently loaded geoData or subgroup metadata
   const getLocalizedSubgroupLabel = (geoData, value, fallback) => {
     const subgroup = getSubgroupByValue(value);
-    if (subgroup?.label) return subgroup.label;
     if (geoData) {
       const feature = geoData.features.find(
         f => f.properties?.subGroupValue === value
       );
       if (feature?.properties?.subGroup) return feature.properties.subGroup;
     }
+    if (subgroup?.label) return getLocalizedValue(subgroup.label);
     return getLocalizedValue(fallback);
   };
 
@@ -600,12 +600,17 @@ const MapRoutingPage = () => {
       }
     }
 
+    const localizedSubgroupLocation = getLocalizedSubgroupLabel(
+      geoData,
+      subgroup.value,
+      subgroup.location || subgroup.label
+    );
     const destination = {
       id: subgroup.value,
       name: subgroup.label,
       location: modalSelectedCategory ?
         intl.formatMessage({ id: modalSelectedCategory.label }) :
-        (subgroup.location || subgroup.label),
+        localizedSubgroupLocation,
       coordinates: coordinates
     };
 
@@ -859,12 +864,17 @@ const MapRoutingPage = () => {
     }
   
 
+    const localizedSubgroupLocation = getLocalizedSubgroupLabel(
+      geoData,
+      subgroup.value,
+      subgroup.location || subgroup.label
+    );
     const destination = {
       id: subgroup.value,
       name: subgroup.label,
       location: mapSelectedCategory ?
         intl.formatMessage({ id: mapSelectedCategory.label }) :
-        (subgroup.location || subgroup.label),
+        localizedSubgroupLocation,
       coordinates: coordinates
     };
   
