@@ -4483,9 +4483,11 @@ const Amain = () => {
       setIsLoadingCulturalSubGroups(false);
     };
 
+    const selectedCategory = findCategoryById(culturalPlaceCategory);
+    const hasFetchedSubcategories = Array.isArray(selectedCategory?.subcategories);
     const localOptions = getCulturalSubGroupsForCategory(culturalPlaceCategory);
 
-    if (localOptions.length > 0) {
+    if (hasFetchedSubcategories) {
       applyOptions(localOptions);
     } else {
       fetchCategorySubcategories(culturalPlaceCategory)
@@ -4501,7 +4503,7 @@ const Amain = () => {
     return () => {
       isMounted = false;
     };
-  }, [culturalPlaceCategory, culturalPlaceSubcategory, fetchCategorySubcategories, getCulturalSubGroupsForCategory, mapSubcategoriesToOptions]);
+  }, [culturalPlaceCategory, culturalPlaceSubcategory, fetchCategorySubcategories, findCategoryById, getCulturalSubGroupsForCategory, mapSubcategoriesToOptions]);
 
   const handleSaveCulturalData = async () => {
     if (!selectedPlaceType) {
