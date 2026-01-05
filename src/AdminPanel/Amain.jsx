@@ -1113,6 +1113,10 @@ const Amain = () => {
       layerIdsToRefresh.add('van-edges');
     }
 
+    if (targetLayerId === DOOR_ACCESS_LAYER_ID) {
+      layerIdsToRefresh.add('doors');
+    }
+
     layerIdsToRefresh.forEach((layerId) => refreshLayerTiles(layerId));
   }, [activeEditableLayerId, refreshLayerTiles]);
   useEffect(() => {
