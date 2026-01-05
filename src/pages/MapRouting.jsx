@@ -465,13 +465,30 @@ const MapRoutingPage = () => {
     setSearchQuery('');
   };
 
+  // Get subgroup label based on currently loaded geoData
+  const getLocalizedSubgroupLabel = (geoData, value, fallback) => {
+    if (geoData) {
+      const feature = geoData.features.find(
+        f => f.properties?.subGroupValue === value
+      );
+      if (feature?.properties?.subGroup) return feature.properties.subGroup;
+    }
+    return fallback;
+  };
+
   const filteredDestinations = searchQuery.trim().length >= 2
     ? landmarkSearchResults.map((place) => {
       const coords = extractLandmarkCoordinates(place);
+      const fallbackLocation = place.subGroup || place.address || '';
+      const localizedLocation = getLocalizedSubgroupLabel(
+        geoData,
+        place.subGroupValue,
+        fallbackLocation
+      );
       return {
         id: place.id || place.value || place.subGroupValue,
         name: place.title || place.name || place.subGroup || '',
-        location: place.subGroup || place.address || '',
+        location: localizedLocation,
         coordinates: coords ? [coords.lat, coords.lng] : null,
         address: place.address,
         description: place.description || place?.content?.body || ''
@@ -785,18 +802,6 @@ const MapRoutingPage = () => {
       controller.abort();
     };
   }, [searchQuery, language, userLocation]);
-
-  // Get subgroup label based on currently loaded geoData
-  const getLocalizedSubgroupLabel = (geoData, value, fallback) => {
-    if (geoData) {
-      const feature = geoData.features.find(
-        f => f.properties?.subGroupValue === value
-      );
-      if (feature?.properties?.subGroup) return feature.properties.subGroup;
-    }
-    return fallback;
-  };
-
 
   const handleRouteFromSubgroup = (subgroup) => {
     console.log('Routing from main page subgroup:', subgroup);
