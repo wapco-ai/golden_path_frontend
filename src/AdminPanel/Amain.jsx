@@ -9174,7 +9174,7 @@ const Amain = () => {
                   <span>مدیریت دسته بندی‌ها</span>
                 </div>
                 <div
-                  className={`submenu-item ${currentReportView === 'مدیریت صفحات' ? 'active' : ''}`} 
+                  className={`submenu-item ${currentReportView === 'مدیریت صفحات' ? 'active' : ''}`}
                   onClick={() => handleSubmenuClick('مدیریت صفحات')}
                 >
                   <div className="submenu-branch"></div>
@@ -10866,86 +10866,88 @@ const Amain = () => {
                         <div className="active-editable-layer-info">
                           <span className="active-layer-label">لایه فعال برای ویرایش:</span>
                         </div>
-                        {adminVectorTileConfig.map(layer => {
-                          const layerOption = editableLayerOptions.find((option) => option.id === layer.id);
-                          const isLayerActive = activeEditableLayer?.id === layer.id;
-                          const hasCorrespondingLayer = isMapLayerAvailable(layer.id);
-                          const canEditLayer = canUserEditLayer(layerOption);
-                          const isLayerSelectable = canEditLayer && hasCorrespondingLayer;
-                          const editButtonTitle = !layerOption?.isEditable
-                            ? 'ویرایش برای این لایه غیرفعال است'
-                            : !hasCorrespondingLayer
-                              ? 'لایه متناظر روی نقشه موجود نیست'
-                              : !canEditLayer
-                                ? 'دسترسی لازم برای ویرایش این لایه را ندارید'
-                                : isLayerActive
-                                  ? 'غیرفعال کردن ویرایش این لایه'
-                                  : 'فعال‌سازی ویرایش این لایه';
+                        <div className="layer-options">
+                          {adminVectorTileConfig.map(layer => {
+                            const layerOption = editableLayerOptions.find((option) => option.id === layer.id);
+                            const isLayerActive = activeEditableLayer?.id === layer.id;
+                            const hasCorrespondingLayer = isMapLayerAvailable(layer.id);
+                            const canEditLayer = canUserEditLayer(layerOption);
+                            const isLayerSelectable = canEditLayer && hasCorrespondingLayer;
+                            const editButtonTitle = !layerOption?.isEditable
+                              ? 'ویرایش برای این لایه غیرفعال است'
+                              : !hasCorrespondingLayer
+                                ? 'لایه متناظر روی نقشه موجود نیست'
+                                : !canEditLayer
+                                  ? 'دسترسی لازم برای ویرایش این لایه را ندارید'
+                                  : isLayerActive
+                                    ? 'غیرفعال کردن ویرایش این لایه'
+                                    : 'فعال‌سازی ویرایش این لایه';
 
-                          return (
-                            <label
-                              key={layer.id}
-                              className="map-type-option layer-toggle"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <div className="layer-info">
-                                <span className="layer-title">{layer.titleFa || layer.id}</span>
-                                <span className="layer-subtitle">{layer.id}</span>
+                            return (
+                              <label
+                                key={layer.id}
+                                className="map-type-option layer-toggle"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="layer-info">
+                                  <span className="layer-title">{layer.titleFa || layer.id}</span>
+                                  <span className="layer-subtitle">{layer.id}</span>
+                                </div>
+                                <div className="layer-actions">
+                                  <button
+                                    type="button"
+                                    className={`edit-layer-btn ${isLayerActive ? 'active' : ''} ${!isLayerSelectable ? 'disabled' : ''}`}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleEditableLayerSelect(layer.id);
+                                    }}
+                                    disabled={!isLayerSelectable}
+                                    title={editButtonTitle}
+                                  >
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                      <path d="M1.3335 11.6667V14.6667H4.3335L12.1568 6.84335L9.15683 3.84335L1.3335 11.6667Z" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
+                                      <path d="M8.3335 4.66667L11.3335 7.66667" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
+                                      <path d="M10.3335 2L13.3335 5L11.5002 6.83333L8.50016 3.83333L10.3335 2Z" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
+                                    </svg>
+                                  </button>
+                                  <input
+                                    type="checkbox"
+                                    checked={!!layerVisibility[layer.id]}
+                                    onChange={() => handleLayerToggle(layer.id)}
+                                  />
+                                </div>
+                              </label>
+                            );
+                          })}
+                          {selectedEditableFeature && (
+                            <div className="selected-feature-hint">
+                              <div className="selected-feature-row">
+                                <span className="selected-feature-label">لایه انتخابی:</span>
+                                <span className="selected-feature-value">{activeEditableLayer?.label || 'هیچ‌کدام'}</span>
                               </div>
-                              <div className="layer-actions">
-                                <button
-                                  type="button"
-                                  className={`edit-layer-btn ${isLayerActive ? 'active' : ''} ${!isLayerSelectable ? 'disabled' : ''}`}
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleEditableLayerSelect(layer.id);
-                                  }}
-                                  disabled={!isLayerSelectable}
-                                  title={editButtonTitle}
-                                >
-                                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M1.3335 11.6667V14.6667H4.3335L12.1568 6.84335L9.15683 3.84335L1.3335 11.6667Z" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
-                                    <path d="M8.3335 4.66667L11.3335 7.66667" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
-                                    <path d="M10.3335 2L13.3335 5L11.5002 6.83333L8.50016 3.83333L10.3335 2Z" stroke="#1E2023" strokeWidth="1.25" strokeLinejoin="round" />
-                                  </svg>
-                                </button>
-                                <input
-                                  type="checkbox"
-                                  checked={!!layerVisibility[layer.id]}
-                                  onChange={() => handleLayerToggle(layer.id)}
-                                />
-                              </div>
-                            </label>
-                          );
-                        })}
-                        {selectedEditableFeature && (
-                          <div className="selected-feature-hint">
-                            <div className="selected-feature-row">
-                              <span className="selected-feature-label">لایه انتخابی:</span>
-                              <span className="selected-feature-value">{activeEditableLayer?.label || 'هیچ‌کدام'}</span>
+                              {selectedFeatureProperties && (
+                                <div className="selected-feature-row">
+                                  <span className="selected-feature-label">مشخصات:</span>
+                                  <span className="selected-feature-value">{JSON.stringify(selectedFeatureProperties)}</span>
+                                </div>
+                              )}
+                              {selectedFeatureCoordinates && Array.isArray(selectedFeatureCoordinates) && (
+                                <div className="selected-feature-row">
+                                  <span className="selected-feature-label">مختصات:</span>
+                                  <span className="selected-feature-value">
+                                    {selectedFeatureCoordinates.map((coord, index) => (
+                                      <React.Fragment key={`coord-${index}`}>
+                                        {Number(coord).toFixed(5)}
+                                        {index < selectedFeatureCoordinates.length - 1 && ', '}
+                                      </React.Fragment>
+                                    ))}
+                                  </span>
+                                </div>
+                              )}
                             </div>
-                            {selectedFeatureProperties && (
-                              <div className="selected-feature-row">
-                                <span className="selected-feature-label">مشخصات:</span>
-                                <span className="selected-feature-value">{JSON.stringify(selectedFeatureProperties)}</span>
-                              </div>
-                            )}
-                            {selectedFeatureCoordinates && Array.isArray(selectedFeatureCoordinates) && (
-                              <div className="selected-feature-row">
-                                <span className="selected-feature-label">مختصات:</span>
-                                <span className="selected-feature-value">
-                                  {selectedFeatureCoordinates.map((coord, index) => (
-                                    <React.Fragment key={`coord-${index}`}>
-                                      {Number(coord).toFixed(5)}
-                                      {index < selectedFeatureCoordinates.length - 1 && ', '}
-                                    </React.Fragment>
-                                  ))}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -11139,18 +11141,18 @@ const Amain = () => {
 
                       {isBarChartFilterOpen && (
                         <div className="time-filter-dropdown show">
-                        <div className="time-filter-option" onClick={() => {
-                          setBarChartTimeFilter('هفته اخیر');
-                        }}>هفته اخیر</div>
-                        <div className="time-filter-option" onClick={() => {
-                          setBarChartTimeFilter('ماه اخیر');
-                        }}>ماه اخیر</div>
-                        <div className="time-filter-option" onClick={() => {
-                          setBarChartTimeFilter('سه ماه اخیر');
-                        }}>سه ماه اخیر</div>
-                        <div className="time-filter-option" onClick={() => {
-                          setBarChartTimeFilter('سال اخیر');
-                        }}>سال اخیر</div>
+                          <div className="time-filter-option" onClick={() => {
+                            setBarChartTimeFilter('هفته اخیر');
+                          }}>هفته اخیر</div>
+                          <div className="time-filter-option" onClick={() => {
+                            setBarChartTimeFilter('ماه اخیر');
+                          }}>ماه اخیر</div>
+                          <div className="time-filter-option" onClick={() => {
+                            setBarChartTimeFilter('سه ماه اخیر');
+                          }}>سه ماه اخیر</div>
+                          <div className="time-filter-option" onClick={() => {
+                            setBarChartTimeFilter('سال اخیر');
+                          }}>سال اخیر</div>
                         </div>
                       )}
                     </div>
@@ -11839,13 +11841,13 @@ const Amain = () => {
                           )}
 
                           <div className="dropdown-field">
-                              <select
-                                className="form-input"
-                                value={placeFunction}
-                                onChange={(e) => setPlaceFunction(e.target.value)}
-                                disabled={!placeSubcategory && !isDoorAccessLayerActive}
-                              >
-                                <option value="" disabled>کارکرد گروه</option>
+                            <select
+                              className="form-input"
+                              value={placeFunction}
+                              onChange={(e) => setPlaceFunction(e.target.value)}
+                              disabled={!placeSubcategory && !isDoorAccessLayerActive}
+                            >
+                              <option value="" disabled>کارکرد گروه</option>
                               <option value="door">درب</option>
                               <option value="connection">نقطه اتصال</option>
                               <option value="elevator">آسانسور</option>

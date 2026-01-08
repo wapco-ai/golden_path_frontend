@@ -2185,6 +2185,12 @@ body {
   color: #1e2023;
 }
 
+.layer-options{
+  max-height: calc(65vh - 100px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
 .layer-toggle {
   display: flex;
   align-items: center;

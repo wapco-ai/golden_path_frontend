@@ -91,7 +91,7 @@
   "mapCurrentOriginLabel": "Current origin",
   "mapCurrentLocation": "Current location ({loc})",
   "mapCurrentLocationName": "Your current location",
-  "mapSelectedLocation": "Selected location",
+  "mapSelectedLocation": "Selected destination ",
   "mapSelectedLocationFromMap": "Location selected from map",
   "mapRecentSearches": "Recent searches",
   "groupCourtyardPlural": "Courtyards",
