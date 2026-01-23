@@ -467,7 +467,13 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     maxzoom: 22,
     visibleByDefault: true,
     paint: {
-      'circle-color': '#00f449',
+      // 'circle-color': '#00f449',
+      'circle-color': [
+        'case',
+        ['==', ['get', 'is_open'], false],
+        '#ef4444',
+        '#00f449'
+      ],
       'circle-radius': 5,
       'circle-stroke-color': '#054b03',
       'circle-stroke-width': 1.5
