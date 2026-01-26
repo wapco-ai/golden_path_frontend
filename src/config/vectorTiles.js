@@ -241,7 +241,7 @@ const buildHaramVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     type: 'symbol',
     minzoom: 15,
     maxzoom: 22,
-    visibleByDefault: true,
+    visibleByDefault: false,
     layout: {
       // اسم فیلدی که از MVT میاد را اینجا بگذار
       'text-field': ['coalesce', ['get', 'label'], ['get', 'name'], ''],

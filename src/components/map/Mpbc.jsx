@@ -819,7 +819,7 @@ const styleKey = `style-${isRtl ? "rtl" : "en"}`;
             key={`areas-label-${language}`}              // با تغییر زبان ری‌مانت میشه
             id="areas-label"
             type="symbol"
-            source-layer={AREAS_VECTOR_LAYER_NAME}
+            sourceLayer={AREAS_VECTOR_LAYER_NAME}
             minzoom={15}
             layout={{
               "text-field": ["coalesce", ["get", `label`], ["get", "lable"], ""],
