@@ -18,9 +18,15 @@ const buildRequestBody = ({ origin, destination, mode, gender, lang, maxAlternat
   if (!originPayload || !destinationPayload) {
     throw new Error('Missing origin or destination coordinates');
   }
+  const normalizedMode =
+    mode === 'wheelchair'
+      ? 'wheelchair'
+      : mode === 'electric-car' || mode === 'van'
+        ? 'van'
+        : 'walk';
 
   return {
-    mode: mode === 'wheelchair' ? 'wheelchair' : 'walk',
+    mode: normalizedMode,
     gender: gender || 'both',
     lang: lang || 'fa',
     maxAlternatives: typeof maxAlternatives === 'number' ? maxAlternatives : 2,

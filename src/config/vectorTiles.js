@@ -400,7 +400,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
   {
     id: 'routing_edges_static-ground',
     titleFa: 'گراف مسیریابی',
-    table: MESH_TRIANGLES_SOURCE_LAYER,
+    table: ROUTING_EDGES_STATIC_SOURCE_LAYER,
     sourceId: 'routing_edges_static',
     sourceLayer: ROUTING_EDGES_STATIC_SOURCE_LAYER,
     tileUrl: ROUTING_EDGES_STATIC_BASE,
@@ -467,9 +467,15 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     maxzoom: 22,
     visibleByDefault: true,
     paint: {
-      'circle-color': '#ff0000',
+      // 'circle-color': '#00f449',
+      'circle-color': [
+        'case',
+        ['==', ['get', 'is_open'], false],
+        '#ef4444',
+        '#00f449'
+      ],
       'circle-radius': 5,
-      'circle-stroke-color': '#ffffff',
+      'circle-stroke-color': '#054b03',
       'circle-stroke-width': 1.5
     }
   }
