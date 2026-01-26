@@ -906,11 +906,13 @@ const FinalSearch = () => {
                 )}
               </React.Fragment>
             ))}
+
           {routeGeo && (
             <Source id="main-route" type="geojson" data={routeGeo}>
               <Layer id="main-line" type="line" paint={{ 'line-color': '#0f71ef', 'line-width': 10 }} />
             </Source>
           )}
+
           {popupCoord && popupMinutes !== null && (
             <Popup
               className="main-popup-container"
