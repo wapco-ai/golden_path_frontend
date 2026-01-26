@@ -802,13 +802,6 @@ const styleKey = `style-${isRtl ? "rtl" : "en"}`;
         </Source>
       )}
 
-      {/* Building polygons */}
-      {polygonFeatures.length > 0 && (
-        <Source id="polygons" type="geojson" data={{ type: 'FeatureCollection', features: polygonFeatures }}>
-          <Layer id="polygon-lines" type="line" paint={{ 'line-color': '#333', 'line-width': 2 }} />
-        </Source>
-      )}
-
       {language && (
         <Source
           id="areas-mvt"
@@ -819,7 +812,7 @@ const styleKey = `style-${isRtl ? "rtl" : "en"}`;
             key={`areas-label-${language}`}              // با تغییر زبان ری‌مانت میشه
             id="areas-label"
             type="symbol"
-            sourceLayer={AREAS_VECTOR_LAYER_NAME}
+            source-layer={AREAS_VECTOR_LAYER_NAME}
             minzoom={15}
             layout={{
               "text-field": ["coalesce", ["get", `label`], ["get", "lable"], ""],
@@ -837,6 +830,13 @@ const styleKey = `style-${isRtl ? "rtl" : "en"}`;
           />
         </Source>
       )}
+
+      {/* Building polygons */}
+      {/* {polygonFeatures.length > 0 && (
+        <Source id="polygons" type="geojson" data={{ type: 'FeatureCollection', features: polygonFeatures }}>
+          <Layer id="polygon-lines" type="line" paint={{ 'line-color': '#333', 'line-width': 2 }} />
+        </Source>
+      )} */}
 
       {/* Door lines */}
       {doorLineFeatures.length > 0 && (

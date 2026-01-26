@@ -245,6 +245,19 @@ const RouteMap = forwardRef(({
     }
   }, [routeGeo]);
 
+  // Ensure the main route layers stay above alternative routes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (map.getLayer('route-line')) {
+      map.moveLayer('route-line');
+    }
+    if (map.getLayer('route-border')) {
+      map.moveLayer('route-border');
+    }
+  }, [routeGeo, alternativeRoutes, showAlternativeRoutes]);
+  
   // Expose a method to parent components for fitting bounds
   const fitRouteBounds = () => {
     if (mapRef.current && routeGeo) {
