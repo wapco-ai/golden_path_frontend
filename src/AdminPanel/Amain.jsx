@@ -8,6 +8,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { toJalaali, toGregorian } from 'jalaali-js';
 import ReactDatePicker from 'react-datepicker';
 import maplibregl from 'maplibre-gl';
+import { offlineFallbackStyle } from '../services/osmMapStyle';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import PagesManage from './PagesManage';
 import Reviews from './Reviews';
@@ -4092,7 +4093,17 @@ const Amain = () => {
 
     const mapInstance = new maplibregl.Map({
       container: 'edit-cultural-map-container',
-      style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+      style: {
+        ...offlineFallbackStyle,
+        sources: {},
+        layers: [
+          {
+            id: 'admin-map-background',
+            type: 'background',
+            paint: { 'background-color': '#0b192f' }
+          }
+        ]
+      },
       center: selectedLocation ?
         [selectedLocation.lng, selectedLocation.lat] :
         [59.6161, 36.2908],
@@ -4451,7 +4462,17 @@ const Amain = () => {
 
     const mapInstance = new maplibregl.Map({
       container: 'cultural-map-container',
-      style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+      style: {
+        ...offlineFallbackStyle,
+        sources: {},
+        layers: [
+          {
+            id: 'admin-map-background',
+            type: 'background',
+            paint: { 'background-color': '#0b192f' }
+          }
+        ]
+      },
       center: [59.6161, 36.2908],
       zoom: 16,
     });
