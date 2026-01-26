@@ -11155,3 +11155,112 @@ body {
     opacity: 0.5;
   }
 }
+
+/* Userlogs specific styles */
+.userlogs-section {
+  width: 100%;
+  margin-top: 20px;
+  border: 1px solid #F0F0F0;
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.userlogs-table-container {
+  background: #fff;
+  overflow: hidden;
+  margin-top: 20px;
+}
+
+.userlogs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.userlogs-table thead {
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.userlogs-table th {
+  padding: 16px 20px;
+  text-align: right;
+  color: #4a5568;
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.userlogs-table td {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f3f4;
+  color: #2d3748;
+  vertical-align: middle;
+}
+
+.userlogs-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.userlogs-table .user-profile-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.userlogs-table .profile-image-small3 {
+  width: 40px;
+  height: 40px;
+  border-radius: 25px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.success-count-userlogs {
+  display: inline-block;
+  padding: 4px 12px;
+  background: #e6fffa;
+  color: #065f46;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.total-routes-count {
+  display: inline-block;
+  padding: 4px 12px;
+  background: #e0f2fe;
+  color: #075985;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.last-route-info {
+  display: inline-block;
+  padding: 6px 12px;
+  background: #f3e8ff;
+  color: #5b21b6;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  direction: ltr;
+  text-align: center;
+}
+
+.loading-cell,
+.no-data-cell {
+  text-align: center;
+  padding: 40px !important;
+  color: #718096;
+  font-size: 14px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

@@ -14,6 +14,7 @@ import Reviews from './Reviews';
 import Feedbacks from './Feedbacks';
 import Admins from './Admins';
 import Usersigned from './Usersigned';
+import Userlogs from './Userlogs';
 
 import { booleanValid as turfBooleanValid, centroid as turfCentroid, distance as turfDistance } from '@turf/turf';
 import {
@@ -3605,6 +3606,13 @@ const Amain = () => {
     if (currentReportView === 'کاربران ثبت نام کرده') {
       return {
         title: 'گزارش کاربران ثبت نام کرده در نرم افزار مسیربایی حرم تا امروز',
+        description: ''
+      };
+    }
+
+    if (currentReportView === 'لاگ های مسیریابی کاربران') {
+      return {
+        title: 'گزارش لاگ های  کاربران در نرم افزار مسیربایی حرم',
         description: ''
       };
     }
@@ -9075,10 +9083,13 @@ const Amain = () => {
                     <div className="submenu-branch"></div>
                     <span>دیدگاه ها</span>
                   </div>
-                  {/* <div className="submenu-item">
+                  <div
+                    className={`submenu-item ${currentReportView === 'لاگ های مسیریابی کاربران' ? 'active' : ''}`}
+                    onClick={() => handleSubmenuClick('لاگ های مسیریابی کاربران')}
+                  >
                     <div className="submenu-branch"></div>
                     <span>لاگ های مسیریابی کاربران</span>
-                  </div> */}
+                  </div>
                   <div
                     className={`submenu-item ${currentReportView === 'بازخورد ها' ? 'active' : ''}`}
                     onClick={() => handleSubmenuClick('بازخورد ها')}
@@ -10145,6 +10156,8 @@ const Amain = () => {
             </div>
           ) : currentReportView === 'کاربران ثبت نام کرده' ? (
             <Usersigned />
+          ) : currentReportView === 'لاگ های مسیریابی کاربران' ? (
+            <Userlogs />
           ) : currentReportView === 'دیدگاه ها' ? (
             <Reviews />
           ) : currentReportView === 'بازخورد ها' ? (
@@ -10864,7 +10877,7 @@ const Amain = () => {
                     {isLayerListOpen && (
                       <div className="map-type-dropdown layers-dropdown">
                         <div className="active-editable-layer-info">
-                          <span className="active-layer-label">لایه فعال برای ویرایش:</span>
+                          <span className="active-layer-label">  لایه فعال برای ویرایش : </span>
                         </div>
                         <div className="layer-options">
                           {adminVectorTileConfig.map(layer => {
@@ -11280,6 +11293,7 @@ const Amain = () => {
             currentReportView !== 'بازخورد ها' &&
             currentReportView !== 'مدیریت ادمین‌ها' &&
             currentReportView !== 'کاربران ثبت نام کرده' &&
+            currentReportView !== 'لاگ های مسیریابی کاربران' &&
             activeMenu !== 'mapmanage' && (
               <div className="users-section">
                 <div className="section-header">
