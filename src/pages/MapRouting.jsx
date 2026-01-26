@@ -645,31 +645,32 @@ const MapRoutingPage = () => {
 
 
   const handleDestinationSelect = (destination, options = {}) => {
-    const { forceDestination = false } = options;
-
+    const { forceDestination = false, fromMapSelection = false } = options;
+  
     setAreaDoorsData(null);
     setAreaDoorsStatus(null);
     setAreaDoorsMessage('');
     setMapEntryDoors([]);
-
+  
     const isDestinationInput = activeInput === 'destination' || forceDestination;
-
+  
     if (isDestinationInput) {
-      // Store the destination temporarily and show entry modal ONLY for destination
       setTempDestination(destination);
       setShowDestinationModal(false);
       setShowEntryModal(true);
-
+  
       const [lat, lon] = destination?.coordinates || [];
       if (typeof lat === 'number' && typeof lon === 'number') {
         requestAreaDoors(lat, lon);
       }
+      if (!destination.fromMapSelection && !fromMapSelection) {
+        addSearch(destination);
+      }
     } else {
-      // When setting origin manually, disable GPS tracking and set directly (NO entry modal)
       setIsTracking(false);
       setUserLocation({ name: destination.name, coordinates: destination.coordinates });
       setShowOriginModal(false);
-
+  
       if (location.state?.showOriginModal) {
         sessionStorage.setItem('updatedOrigin', JSON.stringify({
           name: destination.name,
@@ -736,24 +737,24 @@ const MapRoutingPage = () => {
         ...(selectedDoor ? { door: selectedDoor } : {}),
         ...(doorCoordinates ? { coordinates: doorCoordinates } : {})
       };
-  
+    
       setSelectedDestination(finalDestination);
-      addSearch(finalDestination);
-  
-   
+      
+      // Only add to recent searches if NOT from map selection
+      if (!tempDestination.fromMapSelection) {
+        addSearch(finalDestination);
+      }
+    
       sessionStorage.setItem('currentDestination', JSON.stringify(finalDestination));
-  
-
+    
       setShowEntryModal(false);
       setTempDestination(null);
       setSelectedEntry(null);
-  
-     
+    
       setShowDestinationModal(false);
       setShowOriginModal(false);
       setIsSelectingFromMap(false);
-  
-
+    
       handleClearCategorySelection();
     }
   };
@@ -828,15 +829,14 @@ const MapRoutingPage = () => {
 
   const handleRouteFromSubgroup = (subgroup) => {
     console.log('Routing from main page subgroup:', subgroup);
-  
+    
     let coordinates = null;
   
-
     if (geoData) {
       const feature = geoData.features.find(
         f => f.properties?.subGroupValue === subgroup.value
       );
-  
+    
       if (feature) {
         const center = getFeatureCenter(feature);
         if (center) {
@@ -845,12 +845,10 @@ const MapRoutingPage = () => {
       }
     }
   
-
     if (!coordinates && subgroup.coordinates) {
       coordinates = subgroup.coordinates;
     }
   
-
     if (!coordinates && geoData) {
       const anyFeature = geoData.features.find(
         f => f.properties?.subGroupValue === subgroup.value
@@ -863,7 +861,6 @@ const MapRoutingPage = () => {
       }
     }
   
-
     const localizedSubgroupLocation = getLocalizedSubgroupLabel(
       geoData,
       subgroup.value,
@@ -875,22 +872,23 @@ const MapRoutingPage = () => {
       location: mapSelectedCategory ?
         intl.formatMessage({ id: mapSelectedCategory.label }) :
         localizedSubgroupLocation,
-      coordinates: coordinates
+      coordinates: coordinates,
+      fromMapSelection: false 
     };
-  
+    
     console.log('Setting destination from main page:', destination);
   
-
     setTempDestination(destination);
     setShowEntryModal(true);
-    addSearch(destination);
+    
 
+    addSearch(destination);
+  
     if (coordinates && coordinates.length >= 2) {
       const [lat, lon] = coordinates;
       requestAreaDoors(lat, lon);
     }
-  
- 
+    
     handleClearCategorySelection();
   };
 
@@ -1190,44 +1188,43 @@ const MapRoutingPage = () => {
 
   const handleMapClick = (latlng, feature) => {
     if (isSelectingFromMap) {
-
       setIsChoosingFromMap(false);
-
-      const locName = feature?.properties?.name || intl.formatMessage({ id: 'mapSelectedLocation' });
-      const location = {
-        name: locName,
-        coordinates: [latlng.lat, latlng.lng],
-        type: activeInput
-      };
-
-      setMapSelectedLocation(location);
-
+  
       if (activeInput === 'destination') {
+        // For destination
+        const locName = feature?.properties?.name || intl.formatMessage({ id: 'mapSelectedLocation' });
         const destination = {
           name: locName,
-          location: intl.formatMessage({ id: 'mapSelectedLocationFromMap' }),
-          coordinates: [latlng.lat, latlng.lng]
+          location: intl.formatMessage({ id: 'mapSelectedLocation' }),
+          coordinates: [latlng.lat, latlng.lng],
+          fromMapSelection: true
         };
-
+  
         setSelectedDestination(destination);
-        addSearch(destination);
         sessionStorage.setItem('currentDestination', JSON.stringify(destination));
         setShowEntryModal(false);
         setTempDestination(null);
       } else {
+        // For origin
+        const locName = feature?.properties?.name || intl.formatMessage({ id: 'mapSelectedLocationFromMap' });
+        const origin = {
+          name: locName,
+          location: intl.formatMessage({ id: 'mapSelectedLocationFromMap' }),
+          coordinates: [latlng.lat, latlng.lng],
+          fromMapSelection: true
+        };
+        
         setAreaDoorsData(null);
         setAreaDoorsStatus(null);
         setAreaDoorsMessage('');
         setMapEntryDoors([]);
-        setUserLocation({
-          name: locName,
-          coordinates: [latlng.lat, latlng.lng]
-        });
+        setUserLocation(origin);
+        sessionStorage.setItem('currentOrigin', JSON.stringify(origin));
       }
       setIsSelectingFromMap(false);
     }
   };
-
+  
   const handleClearSearch = () => {
     setSearchQuery('');
   };
