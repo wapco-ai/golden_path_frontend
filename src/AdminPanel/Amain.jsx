@@ -8,8 +8,9 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { toJalaali, toGregorian } from 'jalaali-js';
 import ReactDatePicker from 'react-datepicker';
 import maplibregl from 'maplibre-gl';
-import { offlineFallbackStyle } from '../services/osmMapStyle';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { offlineFallbackStyle } from '../services/osmMapStyle';
+import useOfflineMapStyle from '../hooks/useOfflineMapStyle';
 import PagesManage from './PagesManage';
 import Reviews from './Reviews';
 import Feedbacks from './Feedbacks';
@@ -1262,10 +1263,11 @@ const Amain = () => {
   const intl = useIntl();
   const language = intl?.locale || 'fa';
   const isRtlLanguage = ['fa', 'ar', 'ur'].includes(language);
-  const mapStyle = useMemo(
+  const baseMapStyle = useMemo(
     () => (isRtlLanguage ? './rtl/style.json' : './rtl/style-en.json'),
     [isRtlLanguage]
   );
+  const { mapStyle, handleMapError } = useOfflineMapStyle(baseMapStyle);
   const translateLabel = useCallback(
     (labelKey) => {
       if (!labelKey || typeof labelKey !== 'string') return labelKey;
@@ -4798,6 +4800,7 @@ const Amain = () => {
         });
 
         mapInstance.addControl(new maplibregl.NavigationControl());
+        mapInstance.on('error', handleMapError);
         mapInstance.on('load', (event) => {
           initHaramVectorLayers(event, adminVectorTileConfig);
           console.log('Haram vector layers loaded successfully in Amain map');
@@ -4832,7 +4835,13 @@ const Amain = () => {
       setTempAreaVertices([]);
       resetMapCursor();
     }
-  }, [activeMenu, map, mapStyle, resetMapCursor]);
+  }, [activeMenu, handleMapError, map, mapStyle, resetMapCursor]);
+
+  useEffect(() => {
+    if (!map || activeMenu !== 'mapmanage') return;
+
+    map.setStyle(mapStyle);
+  }, [activeMenu, map, mapStyle]);
 
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return;
