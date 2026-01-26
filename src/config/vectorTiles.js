@@ -109,7 +109,7 @@ const buildFloorOnlyTileUrlFactory = (tileBaseUrl) => ({ floor } = {}) => {
   return `${tileBaseUrl}?${params.toString()}`;
 };
 
-// const buildAreasTileUrlFactory = () => buildFloorOnlyTileUrlFactory(AREAS_FUNCTION_TILE_BASE);
+const buildAreasTileUrlFactoryNoLbl = () => buildFloorOnlyTileUrlFactory(AREAS_FUNCTION_TILE_BASE);
 const buildDoorsTileUrlFactory = () => buildFloorOnlyTileUrlFactory(DOORS_FUNCTION_TILE_BASE);
 
 const buildAreasTileUrlFactory = (lang) => ({ floor } = {}) => {
@@ -193,7 +193,7 @@ const buildHaramVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     table: 'public.fn_areas_mvt',
     sourceId: 'fn_areas_mvt',
     sourceLayer: AREAS_VECTOR_LAYER_NAME,
-    tileUrlFactory: buildAreasTileUrlFactory(tileLang),
+    tileUrlFactory: buildAreasTileUrlFactoryNoLbl(),
     type: 'line',
     minzoom: 14,
     maxzoom: 22,
@@ -213,7 +213,7 @@ const buildHaramVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     table: 'public.fn_areas_mvt',
     sourceId: 'fn_areas_mvt',
     sourceLayer: 'areas',
-    tileUrlFactory: buildAreasTileUrlFactory(tileLang),
+    tileUrlFactory: buildAreasTileUrlFactoryNoLbl(),
     type: 'fill',
     minzoom: 14,
     maxzoom: 22,
@@ -314,7 +314,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
       table: 'public.fn_areas_mvt',
       sourceId: 'fn_areas_mvt',
       sourceLayer: AREAS_VECTOR_LAYER_NAME,
-      tileUrlFactory: buildAreasTileUrlFactory(tileLang),
+      tileUrlFactory: buildAreasTileUrlFactoryNoLbl(),
       type: 'line',
       minzoom: 14,
       maxzoom: 22,
@@ -338,7 +338,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     type: 'symbol',
     minzoom: 15,
     maxzoom: 22,
-    visibleByDefault: true,
+    visibleByDefault: false,
     layout: {
       // اسم فیلدی که از MVT میاد را اینجا بگذار
       'text-field': ['coalesce', ['get', 'label'], ['get', 'name'], ''],
