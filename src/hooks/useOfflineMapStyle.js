@@ -22,13 +22,8 @@ const extractSourceId = (event) => {
 const extractResourceUrl = (event) =>
   event?.error?.resource?.url || event?.error?.url || event?.url || null;
 
-const BASEMAP_RESOURCE_HINTS = [
-  'tile.openstreetmap.org',
-  'basemaps.cartocdn.com',
-  'cartocdn.com',
-  'sditile2.mashhad.ir'
-];
-const BASEMAP_SOURCE_IDS = [BASE_RASTER_SOURCE_ID, 'basemap', 'basemap_tiles', 'voyager', 'fava-tms'];
+const BASEMAP_RESOURCE_HINTS = ['tile.openstreetmap.org', 'basemaps.cartocdn.com', 'cartocdn.com'];
+const BASEMAP_SOURCE_IDS = [BASE_RASTER_SOURCE_ID, 'basemap', 'basemap_tiles', 'voyager'];
 
 const shouldTriggerFallback = (event) => {
   const resourceUrl = extractResourceUrl(event);
