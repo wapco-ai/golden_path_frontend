@@ -4,6 +4,7 @@ import { useIntl } from 'react-intl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
+import { MBTILES_SATELLITE_STYLE } from '../../services/mbtilesMapStyle';
 import { useLangStore } from '../../store/langStore';
 import { getLocationTitleById } from '../../utils/getLocationTitle';
 import { loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
@@ -104,8 +105,10 @@ const Mprc = ({
   const language = useLangStore((state) => state.language);
   const isRtl = ["fa", "ar", "ur"].includes(language);
   const baseMapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
-  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
-  const mapRenderKey = `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
+  const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
+  const isSatellite = selectedMapType === 'satellite';
+  const mapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : offlineMapStyle;
+  const mapRenderKey = isSatellite ? 'mbtiles-satellite' : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
   const areaLineColor = areaDoorsStatus === 'area_too_small' ? '#9e9e9e' : '#ff9800';
 
   const calculateViewForBounds = useCallback((bounds, options = {}) => {
@@ -692,7 +695,7 @@ const Mprc = ({
       onMove={onMove}
       onLoad={handleMapLoad}
       onClick={handleClick}
-      onError={handleMapError}
+      onError={isSatellite ? undefined : handleMapError}
       interactive={true}
     >
       {/* User location marker */}

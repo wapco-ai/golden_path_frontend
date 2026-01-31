@@ -4,6 +4,7 @@ import { useIntl } from 'react-intl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
+import { MBTILES_SATELLITE_STYLE } from '../../services/mbtilesMapStyle';
 import { useLangStore } from '../../store/langStore';
 import { loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
 import { getLocationTitleById } from '../../utils/getLocationTitle';
@@ -134,7 +135,12 @@ const Mpbc = ({
   const [routeCoords, setRouteCoords] = useState(null);
   const language = useLangStore((state) => state.language);
   const [selectedFeatureForBubble, setSelectedFeatureForBubble] = useState(null);
-  const { handleMapError } = useOfflineMapStyle();
+  const isRtl = ["fa", "ar", "ur"].includes(language);
+  const baseMapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
+  const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
+  const isSatellite = selectedMapType === 'satellite';
+  const mapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : offlineMapStyle;
+  const mapRenderKey = isSatellite ? 'mbtiles-satellite' : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
 
   const areasTiles = useMemo(() => {
     return [buildAreasTileUrlFactory(language)({ floor: viewState?.floor })];
@@ -142,10 +148,6 @@ const Mpbc = ({
 
   // import styleRtl from "../rtl/style.json";
   // import styleEn from "../rtl/style-en.json";
-  const isRtl = ["fa", "ar", "ur"].includes(language);
-  const mapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
-  const styleKey = `style-${isRtl ? "rtl" : "en"}`;
-
   const onMove = useCallback((evt) => {
     setViewState(evt.viewState);
     if (onUserMove && evt.originalEvent) {
@@ -764,7 +766,7 @@ const Mpbc = ({
 
   return (
     <Map
-      key={styleKey}
+      key={mapRenderKey}
       mapLib={maplibregl}
       // key={styleKey}
       mapStyle={mapStyle}
@@ -775,7 +777,7 @@ const Mpbc = ({
       onMove={onMove}
       onLoad={handleMapLoad}
       onClick={handleClick}
-      onError={handleMapError}
+      onError={isSatellite ? undefined : handleMapError}
       interactive={true}
     >
       {/* User location marker */}
