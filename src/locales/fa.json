@@ -378,5 +378,8 @@
   "saveChanges": "ذخیره تغییرات",
   "confirmDeleteLocation": "آیا مطمئن هستید که می‌خواهید این مکان را حذف کنید؟",
   "locationDeleted": "مکان با موفقیت حذف شد",
-  "locationUpdated": "مکان با موفقیت به‌روزرسانی شد"
+  "locationUpdated": "مکان با موفقیت به‌روزرسانی شد",
+  "mapType": "نوع نقشه",
+  "baseMap": "تصویر پایه",
+  "satelliteMap": "تصویر ماهواره ای"
 }

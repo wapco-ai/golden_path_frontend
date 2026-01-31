@@ -1171,16 +1171,16 @@ body.modal-open {
 
 .image-marker-container {
   position: relative;
-  width: 55px;
-  height: 63px;
+  width: 50px;
+  height: 67px;
 }
 
 .image-marker-content {
   position: absolute;
   top: 5px;
   left: 5px;
-  width: 45px;
-  height: 45px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background-size: cover;
   background-position: center;
@@ -1519,4 +1519,352 @@ body.modal-open {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   background-color: #fff;
   flex-shrink: 0;
+}
+
+@keyframes pulseBorder {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+    box-shadow: 0 0 0 0 rgba(15, 113, 239, 0.7);
+  }
+  70% {
+    transform: scale(1.05);
+    opacity: 1;
+    box-shadow: 0 0 0 10px rgba(15, 113, 239, 0);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+    box-shadow: 0 0 0 0 rgba(15, 113, 239, 0);
+  }
+}
+
+.selected-landmark-container {
+  position: relative;
+}
+
+.selected-landmark-effect {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 80%;
+  border-radius: 50%;
+  animation: pulseBorder 2s infinite;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Sidebar Overlay */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  animation: fadeIn 0.3s ease;
+  backdrop-filter: blur(4px);
+}
+
+.sidebar-container {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 280px;
+  max-width: 70%;
+  background: white;
+  box-shadow: 2px 0 20px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  
+  right: 0;
+  left: auto;
+  transform: translateX(100%);
+  animation: slideInRTL 0.3s ease forwards;
+  direction: rtl;
+  text-align: right;
+}
+
+/* English language specific styles */
+:root:lang(en) .sidebar-container,
+:lang(en) .sidebar-container {
+  left: 0;
+  right: auto;
+  transform: translateX(-100%);
+  animation: slideInLTR 0.3s ease forwards;
+  direction: ltr;
+  text-align: left;
+}
+
+/* Sidebar Header */
+.sidebar-header {
+  padding: 20px 16px;
+  border-bottom: 1px solid #e8e8e8;
+  display: flex;
+  justify-content:space-between;
+  align-items: center;
+  background: #f8f9fa;
+  gap: 15px;
+}
+
+.sidebar-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1E2023;
+  flex: 1;
+}
+
+/* Close Button Positioning */
+.sidebar-close-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.sidebar-close-btn:hover {
+  color: #1E2023;
+}
+
+/* RTL: Close button on left (default) */
+.sidebar-container .sidebar-close-btn {
+  order: -1;
+}
+
+
+/* Sidebar Content */
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 0;
+  padding-top: 0px;
+  scrollbar-width: thin;
+  scrollbar-color: #ccc transparent;
+}
+
+.sidebar-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+  background-color: #ccc;
+  border-radius: 3px;
+}
+
+/* Menu Items */
+.sidebar-menu-item {
+  margin-bottom: 0px;
+  border-bottom: 1px solid #F2F2F2;
+}
+
+.sidebar-menu-item.expanded{
+  margin-bottom: 0px;
+  border-bottom: none;
+  background-color: #e8e8e8;
+}
+
+
+.sidebar-menu-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  user-select: none;
+  gap: 12px;
+}
+
+.menu-item-text {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #1E2023;
+  flex: 1;
+}
+
+.menu-item-text svg {
+  flex-shrink: 0;
+  min-width: 20px;
+}
+
+/* Arrow Icon - Default RTL (points left) */
+.menu-arrow {
+  transition: transform 0.3s ease;
+  color: #666;
+  flex-shrink: 0;
+  min-width: 16px;
+}
+
+/* RTL: Arrow points left when closed, right when open */
+
+.sidebar-container .menu-arrow.open {
+  transform: rotate(180deg);
+}
+
+/* Submenu */
+.sidebar-submenu {
+  background: white;
+  border-top: 1px solid #e8e8e8;
+  animation: slideDown 0.3s ease;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+/* RTL: Submenu items with right padding (default) */
+.submenu-item {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  user-select: none;
+  padding: 12px 16px;
+}
+
+.sidebar-container .submenu-item {
+  padding-right: 48px;
+  padding-left: 16px;
+}
+
+.submenu-item:hover {
+  background-color: #f0f0f0;
+}
+
+.submenu-item.active {
+  background-color: #e8f0fe;
+}
+
+/* English: Submenu items with left padding */
+:root:lang(en) .sidebar-container .submenu-item,
+:lang(en) .sidebar-container .submenu-item {
+  padding-left: 48px;
+  padding-right: 16px;
+}
+
+.submenu-radio {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #ccc;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: 12px;
+  margin-right: 12px;
+}
+
+/* RTL: Radio on the right side (default) */
+.sidebar-container .submenu-radio {
+  margin-left: 12px;
+  margin-right: 0;
+}
+
+/* English: Radio on the left side */
+:root:lang(en) .sidebar-container .submenu-radio,
+:lang(en) .sidebar-container .submenu-radio {
+  margin-right: 12px;
+  margin-left: 0;
+}
+
+.submenu-item.active .submenu-radio {
+  border-color: #0F71EF;
+}
+
+.radio-inner {
+  width: 10px;
+  height: 10px;
+  background: #0F71EF;
+  border-radius: 50%;
+}
+
+.submenu-text {
+  font-size: 14px;
+  color: #444;
+  font-weight: 400;
+  flex: 1;
+}
+
+.submenu-item.active .submenu-text {
+  color: #0F71EF;
+  font-weight: 500;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* RTL Slide-in from right (default) */
+@keyframes slideInRTL {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+/* LTR Slide-in from left (for English) */
+@keyframes slideInLTR {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slideDown {
+  from { 
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mobile Responsive */
+@media (max-width: 480px) {
+  .sidebar-container {
+    width: 70%;
+  }
+  
+  .sidebar-header {
+    padding: 16px 12px;
+  }
+  
+  .sidebar-menu-main {
+    padding: 12px;
+  }
+  
+  .sidebar-container .submenu-item {
+    padding-right: 40px;
+    padding-left: 12px;
+  }
+  
+  :root:lang(en) .sidebar-container .submenu-item,
+  :lang(en) .sidebar-container .submenu-item {
+    padding-left: 40px;
+    padding-right: 12px;
+  }
+}
+
+/* Prevent body scroll when sidebar is open */
+body.sidebar-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
 }

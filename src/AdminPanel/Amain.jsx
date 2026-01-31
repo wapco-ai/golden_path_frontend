@@ -9049,7 +9049,6 @@ const Amain = () => {
                 className={`menu-item-m ${activeMenu === 'reports' ? 'active' : ''}`}
                 onClick={() => {
                   toggleReportsManagement();
-                  handleMenuClick('reports', 'گزارشات');
                 }}
               >
                 <span className="menu-icon">

@@ -378,5 +378,8 @@
   "saveChanges": "تبدیلیاں محفوظ کریں",
   "confirmDeleteLocation": "کیا آپ واقعی اس مقام کو حذف کرنا چاہتے ہیں؟",
   "locationDeleted": "مقام کامیابی سے حذف ہو گیا",
-  "locationUpdated": "مقام کامیابی سے اپ ڈیٹ ہو گیا"
+  "locationUpdated": "مقام کامیابی سے اپ ڈیٹ ہو گیا",
+  "mapType": "نقشے کی قسم",
+  "baseMap": "بنیادی نقشہ",
+  "satelliteMap": "سیٹلائیٹ نقشہ"
 }

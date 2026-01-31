@@ -137,10 +137,10 @@ const Mpbc = ({
   }, [language, viewState?.floor]);
 
   // import styleRtl from "../rtl/style.json";
-// import styleEn from "../rtl/style-en.json";
-const isRtl = ["fa","ar","ur"].includes(language);
-const mapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
-const styleKey = `style-${isRtl ? "rtl" : "en"}`;
+  // import styleEn from "../rtl/style-en.json";
+  const isRtl = ["fa", "ar", "ur"].includes(language);
+  const mapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
+  const styleKey = `style-${isRtl ? "rtl" : "en"}`;
 
   const onMove = useCallback((evt) => {
     setViewState(evt.viewState);
@@ -685,46 +685,77 @@ const styleKey = `style-${isRtl ? "rtl" : "en"}`;
       return firstImage ? [firstImage] : [];
     };
 
-    return markers.map(({ key, coords, imageUrl, title, place }) => (
-      <Marker key={key} longitude={coords.lng} latitude={coords.lat} anchor="center">
-        <div
-          className="image-marker-container"
-          onClick={(event) => {
-            event?.stopPropagation?.();
+    return markers.map(({ key, coords, imageUrl, title, place }) => {
+      const landmarkId = place.id || place.value || place.subGroupValue ||
+        `landmark-${coords.lat}-${coords.lng}`;
+      const isSelected = selectedFeatureForBubble?.properties?.isLandmark &&
+        ((selectedFeatureForBubble.properties.id === landmarkId) ||
+          (selectedFeatureForBubble.properties.value === landmarkId) ||
+          (selectedFeatureForBubble.properties.subGroupValue === landmarkId));
 
-            const feature = {
-              geometry: { type: 'Point', coordinates: [coords.lng, coords.lat] },
-              properties: {
-                ...place,
-                name: place.title || place.name || place.subGroup,
-                label: place.title || place.name || place.subGroup,
-                subGroupValue: place.subGroupValue || place.value || place.id,
-                img: normalizeImages(place),
-                isLandmark: true,
-                distance: place.distance,
-                time: place.time,
-                description: place.description,
-                address: place.address
-              }
-            };
-
-            // Ensure bubble shows landmark name on selection
-            setSelectedFeatureForBubble(feature);
-
-            onMapClick?.({ lat: coords.lat, lng: coords.lng }, feature);
-          }}
-        >
-          <svg width="55" height="63" viewBox="0 0 55 63" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M54.6562 27.3281C54.6562 39.6299 46.5275 50.0319 35.3486 53.459C35.1079 53.8493 34.8535 54.2605 34.585 54.6924L33.1699 56.9687C30.7353 60.8845 29.5175 62.8418 27.7412 62.8418C25.9651 62.8417 24.7479 60.8842 22.3135 56.9687L20.8975 54.6924C20.6938 54.3648 20.4993 54.0485 20.3115 53.7451C8.61859 50.6476 8.59898e-05 39.9953 -1.19455e-06 27.3281C-5.34814e-07 12.2351 12.2351 -1.85429e-06 27.3281 -1.19455e-06C42.4211 0.000106671 54.6562 12.2352 54.6562 27.3281Z" fill="white" />
-          </svg>
+      return (
+        <Marker key={key} longitude={coords.lng} latitude={coords.lat} anchor="center">
           <div
-            className="image-marker-content"
-            style={{ backgroundImage: `url(${imageUrl})` }}
-            aria-label={title || 'landmark'}
-          />
-        </div>
-      </Marker>
-    ));
+            className={`image-marker-container ${isSelected ? 'selected-landmark-container' : ''}`}
+            onClick={(event) => {
+              event?.stopPropagation?.();
+
+              const feature = {
+                geometry: { type: 'Point', coordinates: [coords.lng, coords.lat] },
+                properties: {
+                  ...place,
+                  id: landmarkId,
+                  name: place.title || place.name || place.subGroup,
+                  label: place.title || place.name || place.subGroup,
+                  subGroupValue: place.subGroupValue || place.value || place.id,
+                  img: normalizeImages(place),
+                  isLandmark: true,
+                  distance: place.distance,
+                  time: place.time,
+                  description: place.description,
+                  address: place.address
+                }
+              };
+
+
+              setSelectedFeatureForBubble(feature);
+
+              onMapClick?.({ lat: coords.lat, lng: coords.lng }, feature);
+            }}
+          >
+
+            {isSelected && (
+              <>
+                <div className="selected-landmark-effect"></div>
+              </>
+            )}
+
+            {/* Existing SVG icon */}
+            <svg
+              width="50"
+              height="57"
+              viewBox="0 0 55 63"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M54.6562 27.3281C54.6562 39.6299 46.5275 50.0319 35.3486 53.459C35.1079 53.8493 34.8535 54.2605 34.585 54.6924L33.1699 56.9687C30.7353 60.8845 29.5175 62.8418 27.7412 62.8418C25.9651 62.8417 24.7479 60.8842 22.3135 56.9687L20.8975 54.6924C20.6938 54.3648 20.4993 54.0485 20.3115 53.7451C8.61859 50.6476 8.59898e-05 39.9953 -1.19455e-06 27.3281C-5.34814e-07 12.2351 12.2351 -1.85429e-06 27.3281 -1.19455e-06C42.4211 0.000106671 54.6562 12.2352 54.6562 27.3281Z"
+                fill="white"
+                stroke={isSelected ? "#0F71EF" : "none"}
+                strokeWidth={isSelected ? "3" : "2"} 
+              />
+            </svg>
+
+            {/* Existing image content */}
+            <div
+              className="image-marker-content"
+              style={{ backgroundImage: `url(${imageUrl})` }}
+              aria-label={title || 'landmark'}
+            />
+          </div>
+        </Marker>
+      );
+    });
   };
 
   return (
@@ -760,7 +791,7 @@ const styleKey = `style-${isRtl ? "rtl" : "en"}`;
           offset={[0, 75]}
         >
           <div className="location-bubble">
-            <svg width="140" height="40" viewBox="0 0 140 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg width="140" height="50" viewBox="0 0 140 50" fill="none" xmlns="http://www.w3.org/2000/svg">
               <rect x="0.5" y="0.5" width="139" height="39" rx="19.5" fill="white" />
               <rect x="0.5" y="0.5" width="139" height="39" rx="19.5" stroke="#0F71EF" />
               <text
@@ -860,7 +891,7 @@ const styleKey = `style-${isRtl ? "rtl" : "en"}`;
         </Source>
       )}
 
-      
+
       {/* Image markers for subgroups with images */}
       {renderImageMarkers()}
 

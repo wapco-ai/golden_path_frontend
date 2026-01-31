@@ -42,6 +42,9 @@ const MapBeginPage = () => {
   const [routingData, setRoutingData] = useState(null);
   const [shrineEvents, setShrineEvents] = useState([]);
   const [activeTab, setActiveTab] = useState('mostVisited');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMapTypeOpen, setIsMapTypeOpen] = useState(false);
+  const [selectedMapType, setSelectedMapType] = useState(null);
   const [showImageMarkers] = useState(true);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [showLocationDetails, setShowLocationDetails] = useState(false);
@@ -55,6 +58,7 @@ const MapBeginPage = () => {
   const [velocity, setVelocity] = useState(0);
   const [lastTouchY, setLastTouchY] = useState(0);
   const [lastTouchTime, setLastTouchTime] = useState(0);
+  const [selectedLandmarkId, setSelectedLandmarkId] = useState(null);
   const [currentHeight, setCurrentHeight] = useState(140);
   const [isAutoExpanding, setIsAutoExpanding] = useState(false);
   const [modalDragStartY, setModalDragStartY] = useState(0);
@@ -134,7 +138,6 @@ const MapBeginPage = () => {
   const handleSearchToggle = () => {
     if (isModalDragging || isDragging) return;
 
-    // Special case: if this is a QR code entry and we're showing cultural info
     if (isQrCodeEntry && showLocationDetails && showRouting) {
       if (expandedSearch) {
         setExpandedSearch(false);
@@ -153,13 +156,11 @@ const MapBeginPage = () => {
         setExpandedSearch(false);
         setCurrentHeight(window.innerHeight * 0.41);
       } else {
-        // Always allow closing completely regardless of cultural info
         setCurrentHeight(140);
         setShowRouting(false);
         setExpandedSearch(false);
       }
     } else {
-      // Open to show location details if available
       setShowRouting(true);
       if (showLocationDetails) {
         setCurrentHeight(window.innerHeight * 0.41);
@@ -182,7 +183,30 @@ const MapBeginPage = () => {
     return idMappings[normalizedId] || rawId;
   };
 
+  useEffect(() => {
+    if (isSidebarOpen) {
+      document.body.classList.add('sidebar-open');
+    } else {
+      document.body.classList.remove('sidebar-open');
+    }
+
+    const handleEscapeKey = (e) => {
+      if (e.key === 'Escape' && isSidebarOpen) {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscapeKey);
+
+    return () => {
+      document.body.classList.remove('sidebar-open');
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [isSidebarOpen]);
+
   const handleCulturalInfo = () => {
+    setSelectedLandmarkId(null);
+
     const locationId = resolveLocationId(selectedLocation);
     const params = new URLSearchParams();
 
@@ -246,39 +270,39 @@ const MapBeginPage = () => {
 
   const handleModalTouchMove = (e) => {
     if (!isModalDragging) return;
-  
+
     const touchY = e.touches[0].clientY;
-  
+
     // Prevent default to stop page reload/pull-to-refresh
     e.preventDefault();
-  
+
     // If we're in fully expanded mode and trying to scroll down, allow scrolling
     if (expandedSearch && !preventScroll) {
       return;
     }
-  
+
     const currentTime = Date.now();
     const deltaTime = currentTime - modalLastTouchTime;
-  
+
     if (deltaTime > 0) {
       const deltaY = modalLastTouchY - touchY;
       const newVelocity = deltaY / deltaTime;
       setModalVelocity(newVelocity);
     }
-  
+
     const deltaY = modalDragStartY - touchY;
     const newHeight = modalDragStartHeight + deltaY;
-  
+
     let resistance = 1;
     if (newHeight < 140) {
       resistance = 0.3 + (0.7 * (newHeight / 140));
     } else if (newHeight > window.innerHeight) {
       resistance = 0.3 + (0.7 * (window.innerHeight / newHeight));
     }
-  
+
     const clampedHeight = Math.max(80, Math.min(newHeight * resistance, window.innerHeight * 1.1));
     setCurrentHeight(clampedHeight);
-  
+
     setModalLastTouchY(touchY);
     setModalLastTouchTime(currentTime);
   };
@@ -337,12 +361,24 @@ const MapBeginPage = () => {
     setModalVelocity(0);
   };
 
+  useEffect(() => {
+    if (!showLocationDetails && selectedLandmarkId) {
+      setSelectedLandmarkId(null);
+    }
+  }, [showLocationDetails, selectedLandmarkId]);
+
 
   const handleMapClick = (latlng, feature) => {
     const isLandmarkSelection = feature?.properties?.isLandmark;
 
     if (isLandmarkSelection) {
       const landmark = feature.properties || {};
+
+      setSelectedLandmarkId(null);
+
+      const landmarkId = landmark.id || landmark.value || landmark.subGroupValue ||
+        `landmark-${latlng.lat}-${latlng.lng}`;
+      setSelectedLandmarkId(landmarkId);
 
       const images = Array.isArray(landmark.img)
         ? landmark.img
@@ -367,6 +403,10 @@ const MapBeginPage = () => {
       return;
     }
 
+    if (selectedLandmarkId) {
+      setSelectedLandmarkId(null);
+    }
+
     const locName = feature?.properties?.name || intl.formatMessage({ id: 'mapSelectedLocation' });
     const origin = {
       name: locName,
@@ -375,17 +415,14 @@ const MapBeginPage = () => {
 
     setSelectedOrigin(origin);
 
-    // Update session storage with the selected origin
     sessionStorage.setItem('mapSelectedLat', latlng.lat.toString());
     sessionStorage.setItem('mapSelectedLng', latlng.lng.toString());
     if (feature?.properties?.uniqueId) {
       sessionStorage.setItem('mapSelectedId', feature.properties.uniqueId);
     }
 
-    // CRITICAL FIX: Set flag to prevent map centering
     setPreventMapCentering(true);
 
-    // CRITICAL FIX: Only update the origin store for navigation; keep the user location unchanged
     const isQrEntry = sessionStorage.getItem('qrLat') && sessionStorage.getItem('qrLng');
 
     if (!isQrEntry) {
@@ -394,14 +431,12 @@ const MapBeginPage = () => {
         coordinates: origin.coordinates
       });
     } else if (userLocation) {
-      // For QR code entries, set the selected origin but keep the QR-based user location
       setOriginStore({
         name: userLocation.name,
         coordinates: userLocation.coordinates
       });
     }
 
-    // Check if this feature has an image and show location details
     if (feature?.properties?.subGroupValue) {
       const subgroup = Object.values(subGroups)
         .flat()
@@ -461,11 +496,11 @@ const MapBeginPage = () => {
     setLastTouchTime(Date.now());
     setVelocity(0);
   };
-  
+
 
   const handleTouchMove = (e) => {
     if (!isDragging) return;
-    
+
     e.preventDefault();
 
     const touchY = e.touches[0].clientY;
@@ -916,7 +951,7 @@ const MapBeginPage = () => {
       navigate('/profile');
       return;
     }
-    
+
     localStorage.setItem('profile_origin_page', location.pathname);
     navigate('/login');
   };
@@ -925,7 +960,10 @@ const MapBeginPage = () => {
     <div className="map-routing-page">
       {/* Header */}
       <header className="map-routing-header">
-        {/* <button className="map-menu-button">
+        <button
+          className="map-menu-button"
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="24"
@@ -943,7 +981,7 @@ const MapBeginPage = () => {
             <path d="M4 12l16 0" />
             <path d="M4 18l16 0" />
           </svg>
-        </button> */}
+        </button>
         <h1 className="map-header-title">
           {intl.formatMessage({ id: 'mapRoutingTitle' })}
         </h1>
@@ -1540,6 +1578,91 @@ const MapBeginPage = () => {
           )}
         </div>
       </div>
+      {isSidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)}>
+          <div className="sidebar-container" onClick={(e) => e.stopPropagation()}>
+            <div className="sidebar-header">
+              <h3 className="sidebar-title">{intl.formatMessage({ id: 'menu' })}</h3>
+              <button
+                className="sidebar-close-btn"
+                onClick={() => setIsSidebarOpen(false)}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                  <path d="M18 6l-12 12" />
+                  <path d="M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="sidebar-content">
+              <div className={`sidebar-menu-item ${isMapTypeOpen ? 'expanded' : ''}`}>
+                <div
+                  className="sidebar-menu-main"
+                  onClick={() => setIsMapTypeOpen(!isMapTypeOpen)}
+                >
+                  <span className="menu-item-text">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                      <path d="M3 7l6 -3l6 3l6 -3v13l-6 3l-6 -3l-6 3v-13" />
+                      <path d="M9 4v13" />
+                      <path d="M15 7v13" />
+                    </svg>
+                    {intl.formatMessage({ id: 'mapType' })}
+                  </span>
+                  <svg
+                    className={`menu-arrow ${isMapTypeOpen ? 'open' : ''}`}
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                    <path d="M6 9l6 6l6 -6" />
+                  </svg>
+                </div>
+
+                {isMapTypeOpen && (
+                  <div className="sidebar-submenu">
+                    <div
+                      className={`submenu-item ${selectedMapType === 'base' ? 'active' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedMapType('base');
+                        console.log('Base map selected');
+                      }}
+                    >
+                      <div className="submenu-radio">
+                        {selectedMapType === 'base' && <div className="radio-inner"></div>}
+                      </div>
+                      <span className="submenu-text">{intl.formatMessage({ id: 'baseMap' })}</span>
+                    </div>
+
+                    <div
+                      className={`submenu-item ${selectedMapType === 'satellite' ? 'active' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedMapType('satellite');
+                        console.log('Satellite map selected');
+                      }}
+                    >
+                      <div className="submenu-radio">
+                        {selectedMapType === 'satellite' && <div className="radio-inner"></div>}
+                      </div>
+                      <span className="submenu-text">{intl.formatMessage({ id: 'satelliteMap' })}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

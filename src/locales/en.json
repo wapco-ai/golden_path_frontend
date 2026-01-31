@@ -378,5 +378,8 @@
   "saveChanges": "Save Changes",
   "confirmDeleteLocation": "Are you sure you want to delete this location?",
   "locationDeleted": "Location deleted successfully",
-  "locationUpdated": "Location updated successfully"
+  "locationUpdated": "Location updated successfully",
+  "mapType": "Map Type",
+  "baseMap": "Base Map",
+  "satelliteMap": "Satellite Map"
 }

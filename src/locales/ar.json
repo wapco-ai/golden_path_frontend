@@ -378,5 +378,8 @@
     "saveChanges": "حفظ التغييرات",
     "confirmDeleteLocation": "هل أنت متأكد أنك تريد حذف هذا الموقع؟",
     "locationDeleted": "تم حذف الموقع بنجاح",
-    "locationUpdated": "تم تحديث الموقع بنجاح"
+    "locationUpdated": "تم تحديث الموقع بنجاح",
+    "mapType": "نوع الخريطة",
+    "baseMap": "خريطة الأساس",
+    "satelliteMap": "خريطة الأقمار الصناعية"
 }
