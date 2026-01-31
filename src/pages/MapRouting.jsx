@@ -54,6 +54,8 @@ const MapRoutingPage = () => {
   const [mapEntryDoors, setMapEntryDoors] = useState([]);
   const [landmarkPlaces, setLandmarkPlaces] = useState([]);
   const [showImageMarkers] = useState(true);
+  const [showMapStyleMenu, setShowMapStyleMenu] = useState(false);
+  const [selectedMapType, setSelectedMapType] = useState(null);
   const [lastAreaDoorsCoords, setLastAreaDoorsCoords] = useState(null);
   const [isChoosingFromMap, setIsChoosingFromMap] = useState(false);
 
@@ -200,7 +202,7 @@ const MapRoutingPage = () => {
     loadLandmarkPlaces();
   }, [language, userLocation, intl]);
 
-  
+
 
   const setOriginStore = useRouteStore(state => state.setOrigin);
   const setDestinationStore = useRouteStore(state => state.setDestination);
@@ -646,19 +648,19 @@ const MapRoutingPage = () => {
 
   const handleDestinationSelect = (destination, options = {}) => {
     const { forceDestination = false, fromMapSelection = false } = options;
-  
+
     setAreaDoorsData(null);
     setAreaDoorsStatus(null);
     setAreaDoorsMessage('');
     setMapEntryDoors([]);
-  
+
     const isDestinationInput = activeInput === 'destination' || forceDestination;
-  
+
     if (isDestinationInput) {
       setTempDestination(destination);
       setShowDestinationModal(false);
       setShowEntryModal(true);
-  
+
       const [lat, lon] = destination?.coordinates || [];
       if (typeof lat === 'number' && typeof lon === 'number') {
         requestAreaDoors(lat, lon);
@@ -670,7 +672,7 @@ const MapRoutingPage = () => {
       setIsTracking(false);
       setUserLocation({ name: destination.name, coordinates: destination.coordinates });
       setShowOriginModal(false);
-  
+
       if (location.state?.showOriginModal) {
         sessionStorage.setItem('updatedOrigin', JSON.stringify({
           name: destination.name,
@@ -737,24 +739,24 @@ const MapRoutingPage = () => {
         ...(selectedDoor ? { door: selectedDoor } : {}),
         ...(doorCoordinates ? { coordinates: doorCoordinates } : {})
       };
-    
+
       setSelectedDestination(finalDestination);
-      
+
       // Only add to recent searches if NOT from map selection
       if (!tempDestination.fromMapSelection) {
         addSearch(finalDestination);
       }
-    
+
       sessionStorage.setItem('currentDestination', JSON.stringify(finalDestination));
-    
+
       setShowEntryModal(false);
       setTempDestination(null);
       setSelectedEntry(null);
-    
+
       setShowDestinationModal(false);
       setShowOriginModal(false);
       setIsSelectingFromMap(false);
-    
+
       handleClearCategorySelection();
     }
   };
@@ -829,14 +831,14 @@ const MapRoutingPage = () => {
 
   const handleRouteFromSubgroup = (subgroup) => {
     console.log('Routing from main page subgroup:', subgroup);
-    
+
     let coordinates = null;
-  
+
     if (geoData) {
       const feature = geoData.features.find(
         f => f.properties?.subGroupValue === subgroup.value
       );
-    
+
       if (feature) {
         const center = getFeatureCenter(feature);
         if (center) {
@@ -844,11 +846,11 @@ const MapRoutingPage = () => {
         }
       }
     }
-  
+
     if (!coordinates && subgroup.coordinates) {
       coordinates = subgroup.coordinates;
     }
-  
+
     if (!coordinates && geoData) {
       const anyFeature = geoData.features.find(
         f => f.properties?.subGroupValue === subgroup.value
@@ -860,7 +862,7 @@ const MapRoutingPage = () => {
         }
       }
     }
-  
+
     const localizedSubgroupLocation = getLocalizedSubgroupLabel(
       geoData,
       subgroup.value,
@@ -873,22 +875,22 @@ const MapRoutingPage = () => {
         intl.formatMessage({ id: mapSelectedCategory.label }) :
         localizedSubgroupLocation,
       coordinates: coordinates,
-      fromMapSelection: false 
+      fromMapSelection: false
     };
-    
+
     console.log('Setting destination from main page:', destination);
-  
+
     setTempDestination(destination);
     setShowEntryModal(true);
-    
+
 
     addSearch(destination);
-  
+
     if (coordinates && coordinates.length >= 2) {
       const [lat, lon] = coordinates;
       requestAreaDoors(lat, lon);
     }
-    
+
     handleClearCategorySelection();
   };
 
@@ -1189,7 +1191,7 @@ const MapRoutingPage = () => {
   const handleMapClick = (latlng, feature) => {
     if (isSelectingFromMap) {
       setIsChoosingFromMap(false);
-  
+
       if (activeInput === 'destination') {
         // For destination
         const locName = feature?.properties?.name || intl.formatMessage({ id: 'mapSelectedLocation' });
@@ -1199,7 +1201,7 @@ const MapRoutingPage = () => {
           coordinates: [latlng.lat, latlng.lng],
           fromMapSelection: true
         };
-  
+
         setSelectedDestination(destination);
         sessionStorage.setItem('currentDestination', JSON.stringify(destination));
         setShowEntryModal(false);
@@ -1213,7 +1215,7 @@ const MapRoutingPage = () => {
           coordinates: [latlng.lat, latlng.lng],
           fromMapSelection: true
         };
-        
+
         setAreaDoorsData(null);
         setAreaDoorsStatus(null);
         setAreaDoorsMessage('');
@@ -1224,7 +1226,7 @@ const MapRoutingPage = () => {
       setIsSelectingFromMap(false);
     }
   };
-  
+
   const handleClearSearch = () => {
     setSearchQuery('');
   };
@@ -1341,6 +1343,7 @@ const MapRoutingPage = () => {
           landmarkPlaces={landmarkPlaces}
           showImageMarkers={showImageMarkers}
           isChoosingFromMap={isChoosingFromMap}
+          selectedMapType={selectedMapType}
         />
         {!isSelectingFromMap && (
           <button
@@ -1357,6 +1360,51 @@ const MapRoutingPage = () => {
               <path d="M2 12l2 0" />
             </svg>
           </button>
+        )}
+        {!isSelectingFromMap && (
+          <button
+            className={`map-style-button-mpr ${showMapStyleMenu ? 'active' : ''}`}
+            onClick={() => setShowMapStyleMenu(!showMapStyleMenu)}
+            type="button"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+              <path d="M3 7l6 -3l6 3l6 -3v13l-6 3l-6 -3l-6 3v-13" />
+              <path d="M9 4v13" />
+              <path d="M15 7v13" />
+            </svg>
+          </button>
+        )}
+
+        {/* Map style menu popup */}
+        {showMapStyleMenu && (
+          <div className="map-style-menu-mpr">
+            <div
+              className={`map-style-option ${selectedMapType === 'base' ? 'active' : ''}`}
+              onClick={() => {
+                setSelectedMapType('base');
+                setShowMapStyleMenu(false);
+              }}
+            >
+              <div className="map-style-radio">
+                {selectedMapType === 'base' && <div className="map-radio-inner"></div>}
+              </div>
+              <span>{intl.formatMessage({ id: 'baseMap' })}</span>
+            </div>
+
+            <div
+              className={`map-style-option ${selectedMapType === 'satellite' ? 'active' : ''}`}
+              onClick={() => {
+                setSelectedMapType('satellite');
+                setShowMapStyleMenu(false);
+              }}
+            >
+              <div className="map-style-radio">
+                {selectedMapType === 'satellite' && <div className="map-radio-inner"></div>}
+              </div>
+              <span>{intl.formatMessage({ id: 'satelliteMap' })}</span>
+            </div>
+          </div>
         )}
       </div>
 

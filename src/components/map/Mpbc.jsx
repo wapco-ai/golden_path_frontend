@@ -116,7 +116,11 @@ const Mpbc = ({
   isQrCodeEntry = false,
   groups = [],
   subGroups = {},
-  landmarkPlaces = []
+  landmarkPlaces = [],
+  showMapStyleMenu = false,
+  setShowMapStyleMenu = () => {},
+  selectedMapType = null,
+  setSelectedMapType = () => {}
 }) => {
   const intl = useIntl();
   const [viewState, setViewState] = useState({

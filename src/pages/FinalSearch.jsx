@@ -1096,25 +1096,26 @@ const FinalSearch = () => {
 
       <div className="action-gap"></div>
 
-      {/* Action Buttons */}
-      <div className="action-buttons2">
-        <button className="navigate-btn" onClick={handleNavigate}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#fff">
-            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-            <path d="M11.092 2.581a1 1 0 0 1 1.754 -.116l.062 .116l8.005 17.365c.198 .566 .05 1.196 -.378 1.615a1.53 1.53 0 0 1 -1.459 .393l-7.077 -2.398l-6.899 2.338a1.535 1.535 0 0 1 -1.52 -.231l-.112 -.1c-.398 -.386 -.556 -.954 -.393 -1.556l.047 -.15l7.97 -17.276z" />
-          </svg>
-          <FormattedMessage id="navigate" />
-        </button>
-        <button className="overview-btn" onClick={handleRouteOverview}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2196F3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-            <path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
-            <path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4z" />
-            <path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5" />
-          </svg>
-          <FormattedMessage id="routeOverview" />
-        </button>
-      </div>
+      {routeGeo && (
+        <div className="action-buttons2">
+          <button className="navigate-btn" onClick={handleNavigate}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#fff">
+              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+              <path d="M11.092 2.581a1 1 0 0 1 1.754 -.116l.062 .116l8.005 17.365c.198 .566 .05 1.196 -.378 1.615a1.53 1.53 0 0 1 -1.459 .393l-7.077 -2.398l-6.899 2.338a1.535 1.535 0 0 1 -1.52 -.231l-.112 -.1c-.398 -.386 -.556 -.954 -.393 -1.556l.047 -.15l7.97 -17.276z" />
+            </svg>
+            <FormattedMessage id="navigate" />
+          </button>
+          <button className="overview-btn" onClick={handleRouteOverview}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2196F3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+              <path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+              <path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4z" />
+              <path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5" />
+            </svg>
+            <FormattedMessage id="routeOverview" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

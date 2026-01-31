@@ -66,6 +66,7 @@ const MapBeginPage = () => {
   const [isModalDragging, setIsModalDragging] = useState(false);
   const [modalVelocity, setModalVelocity] = useState(0);
   const [modalLastTouchY, setModalLastTouchY] = useState(0);
+  const [showMapStyleMenu, setShowMapStyleMenu] = useState(false);
   const [modalLastTouchTime, setModalLastTouchTime] = useState(0);
   const [preventScroll, setPreventScroll] = useState(false);
   const [scrollStartY, setScrollStartY] = useState(0);
@@ -1029,6 +1030,10 @@ const MapBeginPage = () => {
           groups={groups}
           subGroups={subGroups}
           landmarkPlaces={landmarkPlaces}
+          showMapStyleMenu={showMapStyleMenu}
+          setShowMapStyleMenu={setShowMapStyleMenu}
+          selectedMapType={selectedMapType}
+          setSelectedMapType={setSelectedMapType}
         />
         <button
           className={`map-gps-button ${isTracking ? 'active' : 'inactive'}`}
@@ -1044,6 +1049,52 @@ const MapBeginPage = () => {
             <path d="M2 12l2 0" />
           </svg>
         </button>
+        <button
+          className={`map-style-button-mpr ${showMapStyleMenu ? 'active' : ''}`}
+          onClick={() => setShowMapStyleMenu(!showMapStyleMenu)}
+          onBlur={() => {
+            setTimeout(() => setShowMapStyleMenu(false), 200);
+          }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+            <path d="M3 7l6 -3l6 3l6 -3v13l-6 3l-6 -3l-6 3v-13" />
+            <path d="M9 4v13" />
+            <path d="M15 7v13" />
+          </svg>
+        </button>
+
+        {showMapStyleMenu && (
+          <div className="map-style-menu-mpr">
+            <div
+              className={`map-style-option ${selectedMapType === 'base' ? 'active' : ''}`}
+              onClick={() => {
+                setSelectedMapType('base');
+                setShowMapStyleMenu(false);
+                console.log('Base map selected from map button');
+              }}
+            >
+              <div className="map-style-radio">
+                {selectedMapType === 'base' && <div className="map-radio-inner"></div>}
+              </div>
+              <span>{intl.formatMessage({ id: 'baseMap' })}</span>
+            </div>
+
+            <div
+              className={`map-style-option ${selectedMapType === 'satellite' ? 'active' : ''}`}
+              onClick={() => {
+                setSelectedMapType('satellite');
+                setShowMapStyleMenu(false);
+                console.log('Satellite map selected from map button');
+              }}
+            >
+              <div className="map-style-radio">
+                {selectedMapType === 'satellite' && <div className="map-radio-inner"></div>}
+              </div>
+              <span>{intl.formatMessage({ id: 'satelliteMap' })}</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Search Bar with Integrated Routing */}
