@@ -18,7 +18,7 @@ export const MBTILES_SATELLITE_STYLE = {
       id: 'mbtiles-satellite',
       type: 'raster',
       source: MBTILES_SATELLITE_SOURCE_ID,
-      minzoom: 15,
+      minzoom: 6,
       maxzoom: 21
     }
   ],
