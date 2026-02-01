@@ -276,7 +276,7 @@
 .about-content {
   margin-right: 5px;
   font-family: 'Vazir', Tahoma, sans-serif;
-  max-height: 100px;
+  max-height: 250px;
   overflow: hidden;
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   margin-top: 15px;
