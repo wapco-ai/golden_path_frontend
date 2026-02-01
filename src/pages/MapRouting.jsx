@@ -1376,7 +1376,7 @@ const MapRoutingPage = () => {
           </button>
         )}
 
-        {/* Map style menu popup */}
+        Map style menu popup
         {showMapStyleMenu && (
           <div className="map-style-menu-mpr">
             <div
@@ -1386,10 +1386,6 @@ const MapRoutingPage = () => {
                 setShowMapStyleMenu(false);
               }}
             >
-              <div className="map-style-radio">
-                {selectedMapType === 'base' && <div className="map-radio-inner"></div>}
-              </div>
-              <span>{intl.formatMessage({ id: 'baseMap' })}</span>
             </div>
 
             <div
@@ -1399,10 +1395,6 @@ const MapRoutingPage = () => {
                 setShowMapStyleMenu(false);
               }}
             >
-              <div className="map-style-radio">
-                {selectedMapType === 'satellite' && <div className="map-radio-inner"></div>}
-              </div>
-              <span>{intl.formatMessage({ id: 'satelliteMap' })}</span>
             </div>
           </div>
         )}

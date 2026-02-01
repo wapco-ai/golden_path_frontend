@@ -1049,21 +1049,6 @@ const MapBeginPage = () => {
             <path d="M2 12l2 0" />
           </svg>
         </button>
-        <button
-          className={`map-style-button-mpr ${showMapStyleMenu ? 'active' : ''}`}
-          onClick={() => setShowMapStyleMenu(!showMapStyleMenu)}
-          onBlur={() => {
-            setTimeout(() => setShowMapStyleMenu(false), 200);
-          }}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-            <path d="M3 7l6 -3l6 3l6 -3v13l-6 3l-6 -3l-6 3v-13" />
-            <path d="M9 4v13" />
-            <path d="M15 7v13" />
-          </svg>
-        </button>
-
         {showMapStyleMenu && (
           <div className="map-style-menu-mpr">
             <div
@@ -1074,10 +1059,6 @@ const MapBeginPage = () => {
                 console.log('Base map selected from map button');
               }}
             >
-              <div className="map-style-radio">
-                {selectedMapType === 'base' && <div className="map-radio-inner"></div>}
-              </div>
-              <span>{intl.formatMessage({ id: 'baseMap' })}</span>
             </div>
 
             <div
@@ -1088,10 +1069,56 @@ const MapBeginPage = () => {
                 console.log('Satellite map selected from map button');
               }}
             >
-              <div className="map-style-radio">
-                {selectedMapType === 'satellite' && <div className="map-radio-inner"></div>}
+            </div>
+          </div>
+        )}
+
+        <button
+          className={`map-style-button-mpr ${showMapStyleMenu ? 'active' : ''}`}
+          onClick={() => setShowMapStyleMenu(!showMapStyleMenu)}
+          onBlur={() => {
+            setTimeout(() => setShowMapStyleMenu(false), 200);
+          }}
+        >
+          <div className="map-button-preview">
+            <div className="map-preview-thumbnail">
+              {selectedMapType === 'satellite' ? (
+                <div className="map-preview-satellite"></div>
+              ) : (
+                <div className="map-preview-default"></div>
+              )}
+            </div>
+          </div>
+        </button>
+
+        {showMapStyleMenu && (
+          <div className="map-style-menu-mpr">
+            <div
+              className={`map-style-option ${selectedMapType === 'base' ? 'active' : ''}`}
+              onClick={() => {
+                setSelectedMapType('base');
+                setShowMapStyleMenu(false);
+              }}
+              title={intl.formatMessage({ id: 'baseMap' })}
+            >
+              <div className="map-preview-container">
+                <div className="map-preview-default"></div>
               </div>
-              <span>{intl.formatMessage({ id: 'satelliteMap' })}</span>
+              <span className="map-style-label">{intl.formatMessage({ id: 'baseMap' })}</span>
+            </div>
+
+            <div
+              className={`map-style-option ${selectedMapType === 'satellite' ? 'active' : ''}`}
+              onClick={() => {
+                setSelectedMapType('satellite');
+                setShowMapStyleMenu(false);
+              }}
+              title={intl.formatMessage({ id: 'satelliteMap' })}
+            >
+              <div className="map-preview-container">
+                <div className="map-preview-satellite"></div>
+              </div>
+              <span className="map-style-label">{intl.formatMessage({ id: 'satelliteMap' })}</span>
             </div>
           </div>
         )}

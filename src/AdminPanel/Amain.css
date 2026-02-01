@@ -11212,7 +11212,7 @@ body {
 .userlogs-table .profile-image-small3 {
   width: 40px;
   height: 40px;
-  border-radius: 25px;
+  border-radius: 8px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   align-items: center;
