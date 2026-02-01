@@ -42,6 +42,7 @@ const defaultAdminCommentsBaseUrl = `${defaultApiBaseUrl}/api/v1/admin/comments`
 const defaultAdminUsersBaseUrl = `${defaultApiBaseUrl}/api/v1/admin/users`;
 const defaultTempBlockAreasBaseUrl = `${defaultApiBaseUrl}/api/v1/admin/temp-block-areas`;
 const defaultDestinationsUrl = `${defaultApiBaseUrl}/api/v1/destinations`;
+const defaultMbtilesSatelliteTilesUrl = 'http://localhost:8088/services/gsm/tiles/{z}/{x}/{y}.jpg';
 
 const appConfig = {
   apiBaseUrl: (import.meta?.env?.VITE_API_BASE_URL?.trim() || defaultApiBaseUrl).replace(/\/$/, ''),
@@ -59,6 +60,7 @@ const appConfig = {
   adminUsersBaseUrl: (import.meta?.env?.VITE_ADMIN_USERS_BASE_URL?.trim() || defaultAdminUsersBaseUrl).replace(/\/$/, ''),
   adminTempBlockAreasBaseUrl: (import.meta?.env?.VITE_ADMIN_TEMP_BLOCK_AREAS_BASE_URL?.trim() || defaultTempBlockAreasBaseUrl).replace(/\/$/, ''),
   destinationsUrl: (import.meta?.env?.VITE_DESTINATIONS_URL?.trim() || defaultDestinationsUrl).replace(/\/$/, ''),
+  mbtilesSatelliteTilesUrl: (import.meta?.env?.VITE_MBTILES_SATELLITE_TILES_URL?.trim() || defaultMbtilesSatelliteTilesUrl).replace(/\/$/, ''),
   adminCommentsRequestTimeoutMs: Number(import.meta?.env?.VITE_ADMIN_COMMENTS_REQUEST_TIMEOUT_MS ?? '') || 15000,
   userFeedbackAuthToken: import.meta?.env?.VITE_USER_FEEDBACK_AUTH_TOKEN?.trim() || '',
   terrainProbeUrl: import.meta?.env?.VITE_TERRAIN_PROBE_URL?.trim() || 'https://demotiles.maplibre.org/terrain-tiles/tiles/0/0/0.png',
