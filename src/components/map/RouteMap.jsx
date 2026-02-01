@@ -9,11 +9,19 @@ import ArrowMarker from './ArrowMarker';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
 import appConfig from '../../config/appConfig';
 import { useLangStore } from '../../store/langStore';
+import { MBTILES_SATELLITE_STYLE } from '../../services/mbtilesMapStyle';
 import { createHaramVectorTileConfig } from '../../config/vectorTiles';
 
 import { forwardRef, useImperativeHandle } from 'react';
 
 const TERRAIN_PROBE_URL = appConfig.terrainProbeUrl;
+const HIDDEN_VECTOR_LAYER_IDS = new Set([
+  'areas-outline',
+  'areas-fill',
+  'areas-label',
+  'doorsAccessPoint',
+  'doors'
+]);
 
 const RouteMap = forwardRef(({ 
   userLocation,
@@ -38,8 +46,16 @@ const RouteMap = forwardRef(({
 
   const isRtl = ["fa", "ar", "ur"].includes(language);
   const baseMapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
-  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
-  const mapRenderKey = `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
+  const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
+  const [selectedMapType] = useState(() => {
+    if (typeof window === 'undefined') {
+      return 'satellite';
+    }
+    return sessionStorage.getItem('selectedMapType') || 'satellite';
+  });
+  const isSatellite = selectedMapType === 'satellite';
+  const mapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : offlineMapStyle;
+  const mapRenderKey = isSatellite ? 'mbtiles-satellite' : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
 
   const center = isValidUserLocation
     ? userLocation
@@ -56,9 +72,15 @@ const RouteMap = forwardRef(({
   const [heading, setHeading] = useState(userHeading ?? 0);
   const [terrainAvailable, setTerrainAvailable] = useState(false);
 
-  const handleMapLoad = useCallback((event) => {
-    initHaramVectorLayers(event?.target || event, createHaramVectorTileConfig(language));
+  const vectorTileConfig = React.useMemo(() => {
+    return createHaramVectorTileConfig(language).filter(
+      (layerCfg) => !HIDDEN_VECTOR_LAYER_IDS.has(layerCfg.id)
+    );
   }, [language]);
+
+  const handleMapLoad = useCallback((event) => {
+    initHaramVectorLayers(event?.target || event, vectorTileConfig);
+  }, [vectorTileConfig]);
 
   useEffect(() => {
     let cancelled = false;
