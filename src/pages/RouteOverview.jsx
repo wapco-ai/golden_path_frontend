@@ -11,6 +11,7 @@ import { useRouteStore } from '../store/routeStore';
 import useLocaleDigits from '../utils/useLocaleDigits';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import { useLangStore } from '../store/langStore';
+import { MBTILES_SATELLITE_STYLE } from '../services/mbtilesMapStyle';
 import { createHaramVectorTileConfig } from '../config/vectorTiles';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { fetchLandmarkPlaces } from '../services/landmarkService';
@@ -18,6 +19,14 @@ import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/grou
 import { requestRouting } from '../services/routingService';
 import { loadGeoJsonData } from '../utils/loadGeoJsonData';
 import { analyzeRoute } from '../utils/routeAnalysis';
+
+const HIDDEN_VECTOR_LAYER_IDS = new Set([
+  'areas-outline',
+  'areas-fill',
+  'areas-label',
+  'doorsAccessPoint',
+  'doors'
+]);
 
 const RouteOverview = () => {
   const navigate = useNavigate();
@@ -28,8 +37,16 @@ const RouteOverview = () => {
   const formatDigits = useLocaleDigits();
   const isRtl = ["fa", "ar", "ur"].includes(language);
   const baseMapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
-  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
-  const mapRenderKey = `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
+  const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
+  const [selectedMapType] = useState(() => {
+    if (typeof window === 'undefined') {
+      return 'satellite';
+    }
+    return sessionStorage.getItem('selectedMapType') || 'satellite';
+  });
+  const isSatellite = selectedMapType === 'satellite';
+  const mapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : offlineMapStyle;
+  const mapRenderKey = isSatellite ? 'mbtiles-satellite' : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
 
   const mapRef = useRef(null);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -45,10 +62,16 @@ const RouteOverview = () => {
   const [nearbyLandmarks, setNearbyLandmarks] = useState([]);
   const [selectedLandmark, setSelectedLandmark] = useState(null);
 
-  const handleMapLoad = useCallback((event) => {
-    initHaramVectorLayers(event?.target || event, createHaramVectorTileConfig(language));
-    setMapLoaded(true);
+  const vectorTileConfig = useMemo(() => {
+    return createHaramVectorTileConfig(language).filter(
+      (layerCfg) => !HIDDEN_VECTOR_LAYER_IDS.has(layerCfg.id)
+    );
   }, [language]);
+
+  const handleMapLoad = useCallback((event) => {
+    initHaramVectorLayers(event?.target || event, vectorTileConfig);
+    setMapLoaded(true);
+  }, [vectorTileConfig]);
 
   const toRad = deg => (deg * Math.PI) / 180;
   const toDeg = rad => (rad * 180) / Math.PI;
