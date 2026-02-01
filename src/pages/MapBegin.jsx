@@ -14,6 +14,8 @@ import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
 import { useNavigate, useLocation } from 'react-router-dom';
+import mode1 from '../assets/images/mode1.png';
+import mode2 from '../assets/images/mode2.png';
 
 const MapBeginPage = () => {
   const navigate = useNavigate();
@@ -1093,13 +1095,11 @@ const MapBeginPage = () => {
           }}
         >
           <div className="map-button-preview">
-            <div className="map-preview-thumbnail">
-              {selectedMapType === 'satellite' ? (
-                <div className="map-preview-satellite"></div>
-              ) : (
-                <div className="map-preview-default"></div>
-              )}
-            </div>
+            <img
+              src={selectedMapType === 'satellite' ? mode2 : mode1}
+              alt={selectedMapType === 'satellite' ? 'Satellite view' : 'Default view'}
+              className="map-preview-thumbnail"
+            />
           </div>
         </button>
 
@@ -1114,9 +1114,12 @@ const MapBeginPage = () => {
               title={intl.formatMessage({ id: 'baseMap' })}
             >
               <div className="map-preview-container">
-                <div className="map-preview-default"></div>
+                <img
+                  src={mode1}
+                  alt="Default map view"
+                  className="map-preview-image"
+                />
               </div>
-              <span className="map-style-label">{intl.formatMessage({ id: 'baseMap' })}</span>
             </div>
 
             <div
@@ -1128,9 +1131,12 @@ const MapBeginPage = () => {
               title={intl.formatMessage({ id: 'satelliteMap' })}
             >
               <div className="map-preview-container">
-                <div className="map-preview-satellite"></div>
+                <img
+                  src={mode2}
+                  alt="Satellite map view"
+                  className="map-preview-image"
+                />
               </div>
-              <span className="map-style-label">{intl.formatMessage({ id: 'satelliteMap' })}</span>
             </div>
           </div>
         )}

@@ -16,6 +16,8 @@ import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { fetchAreaDoors } from '../services/areaDoorsService';
 import { getSessionFloor } from '../utils/sessionFloor';
 import { fetchLandmarkPlaces } from '../services/landmarkService';
+import mode1 from '../assets/images/mode1.png';
+import mode2 from '../assets/images/mode2.png';
 
 const MapRoutingPage = () => {
   const navigate = useNavigate();
@@ -1374,41 +1376,61 @@ const MapRoutingPage = () => {
           </button>
         )}
         {!isSelectingFromMap && (
-          <button
-            className={`map-style-button-mpr ${showMapStyleMenu ? 'active' : ''}`}
-            onClick={() => setShowMapStyleMenu(!showMapStyleMenu)}
-            type="button"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-              <path d="M3 7l6 -3l6 3l6 -3v13l-6 3l-6 -3l-6 3v-13" />
-              <path d="M9 4v13" />
-              <path d="M15 7v13" />
-            </svg>
-          </button>
-        )}
-
-        Map style menu popup
-        {showMapStyleMenu && (
-          <div className="map-style-menu-mpr">
-            <div
-              className={`map-style-option ${selectedMapType === 'base' ? 'active' : ''}`}
-              onClick={() => {
-                setSelectedMapType('base');
-                setShowMapStyleMenu(false);
+          <>
+            <button
+              className={`map-style-button-mpr ${showMapStyleMenu ? 'active' : ''}`}
+              onClick={() => setShowMapStyleMenu(!showMapStyleMenu)}
+              onBlur={() => {
+                setTimeout(() => setShowMapStyleMenu(false), 200);
               }}
             >
-            </div>
+              <div className="map-button-preview">
+                <img
+                  src={selectedMapType === 'satellite' ? mode2 : mode1}
+                  alt={selectedMapType === 'satellite' ? 'Satellite view' : 'Default view'}
+                  className="map-preview-thumbnail"
+                />
+              </div>
+            </button>
 
-            <div
-              className={`map-style-option ${selectedMapType === 'satellite' ? 'active' : ''}`}
-              onClick={() => {
-                setSelectedMapType('satellite');
-                setShowMapStyleMenu(false);
-              }}
-            >
-            </div>
-          </div>
+            {showMapStyleMenu && (
+              <div className="map-style-menu-mpr">
+                <div
+                  className={`map-style-option ${selectedMapType === 'base' ? 'active' : ''}`}
+                  onClick={() => {
+                    setSelectedMapType('base');
+                    setShowMapStyleMenu(false);
+                  }}
+                  title={intl.formatMessage({ id: 'baseMap' })}
+                >
+                  <div className="map-preview-container">
+                    <img
+                      src={mode1}
+                      alt="Default map view"
+                      className="map-preview-image"
+                    />
+                  </div>
+                </div>
+
+                <div
+                  className={`map-style-option ${selectedMapType === 'satellite' ? 'active' : ''}`}
+                  onClick={() => {
+                    setSelectedMapType('satellite');
+                    setShowMapStyleMenu(false);
+                  }}
+                  title={intl.formatMessage({ id: 'satelliteMap' })}
+                >
+                  <div className="map-preview-container">
+                    <img
+                      src={mode2}
+                      alt="Satellite map view"
+                      className="map-preview-image"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
