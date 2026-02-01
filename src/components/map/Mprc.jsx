@@ -83,8 +83,6 @@ const Mprc = ({
   onUserMove,
   groups = [],
   areaDoorsData,
-  areaDoorsStatus,
-  onDoorSelect,
   showImageMarkers = false,
   landmarkPlaces = [],
   isChoosingFromMap = false,
@@ -109,7 +107,6 @@ const Mprc = ({
   const isSatellite = selectedMapType === 'satellite';
   const mapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : offlineMapStyle;
   const mapRenderKey = isSatellite ? 'mbtiles-satellite' : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
-  const areaLineColor = areaDoorsStatus === 'area_too_small' ? '#9e9e9e' : '#ff9800';
 
   const calculateViewForBounds = useCallback((bounds, options = {}) => {
     const { minLon, maxLon, minLat, maxLat } = bounds;
@@ -147,13 +144,6 @@ const Mprc = ({
       onUserMove();
     }
   }, [onUserMove]);
-
-  const handleDoorClick = useCallback((door, event) => {
-    event?.stopPropagation?.();
-    if (onDoorSelect) {
-      onDoorSelect(door);
-    }
-  }, [onDoorSelect]);
 
   const handleMapLoad = useCallback((event) => {
     initHaramVectorLayers(event?.target || event, createHaramVectorTileConfig(language));
@@ -733,44 +723,13 @@ const Mprc = ({
         </Source>
       )}
 
-      {/* Area outline from area-doors service */}
-      {areaDoorsData?.area?.geometry && (
-        <Source id="selected-area-outline" type="geojson" data={{ type: 'Feature', geometry: areaDoorsData.area.geometry }}>
-          <Layer
-            id="selected-area-outline-line"
-            type="line"
-            paint={{
-              'line-color': areaLineColor,
-              'line-width': 3,
-              'line-dasharray': [2, 1.5]
-            }}
-          />
-        </Source>
-      )}
-
-      {/* Door markers */}
-      {Array.isArray(areaDoorsData?.doors) && areaDoorsData.doors.map((door) => {
-        const [lon, lat] = door?.coord4326 || [];
-        if (typeof lon !== 'number' || typeof lat !== 'number') return null;
-
-        return (
-          <Marker key={`door-${door?.doorId || door?.doorNo}`} longitude={lon} latitude={lat} anchor="center">
-            <div
-              className="map-door-marker"
-              onClick={(event) => handleDoorClick(door, event)}
-            >
-              <span className="map-door-marker-number">{door?.doorNo}</span>
-            </div>
-          </Marker>
-        );
-      })}
-
       {renderLandmarkMarkers()}
 
       {/* Point features (doors, services, etc.) */}
       // Point features (doors, services, etc.) - Only show when a category is selected
       {selectedCategory && pointFeatures
         .filter((feature) => matchesSelectedCategory(feature?.properties || {}))
+        .filter((feature) => !['door', 'connection'].includes(feature?.properties?.nodeFunction))
         .map((feature, idx) => {
           const [lng, lat] = feature.geometry.coordinates;
           const { group, nodeFunction } = feature.properties || {};

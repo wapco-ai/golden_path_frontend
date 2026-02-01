@@ -469,8 +469,6 @@ const Mpbc = ({
     }, [])
     : [];
 
-  const DOOR_SEGMENT_HALF_LENGTH = 0.000015;
-
   const truncateBubbleText = (text) => {
     if (!text) return '';
 
@@ -485,41 +483,6 @@ const Mpbc = ({
 
     return result;
   };
-
-  const doorLineFeatures = geoData
-    ? geoData.features.reduce((acc, feature) => {
-      const isDoor = feature.properties?.nodeFunction === 'door';
-      if (!isDoor || !feature.geometry) return acc;
-
-      const { type, coordinates } = feature.geometry;
-
-      if (type === 'LineString' || type === 'MultiLineString') {
-        acc.push(feature);
-        return acc;
-      }
-
-      if (type === 'Point' && Array.isArray(coordinates) && coordinates.length >= 2) {
-        const [lng, lat] = coordinates;
-
-        if (typeof lng === 'number' && typeof lat === 'number') {
-          const lineCoordinates = [
-            [lng - DOOR_SEGMENT_HALF_LENGTH, lat],
-            [lng + DOOR_SEGMENT_HALF_LENGTH, lat]
-          ];
-
-          acc.push({
-            ...feature,
-            geometry: {
-              type: 'LineString',
-              coordinates: lineCoordinates
-            }
-          });
-        }
-      }
-
-      return acc;
-    }, [])
-    : [];
 
   const polygonFeatures = geoData
     ? geoData.features.filter(
@@ -875,34 +838,13 @@ const Mpbc = ({
         </Source>
       )} */}
 
-      {/* Door lines */}
-      {doorLineFeatures.length > 0 && (
-        <Source
-          id="door-lines"
-          type="geojson"
-          data={{ type: 'FeatureCollection', features: doorLineFeatures }}
-        >
-          <Layer
-            id="door-lines-layer"
-            type="line"
-            paint={{
-              'line-color': nodeFunctionColors.door,
-              'line-width': 3
-            }}
-            layout={{
-              'line-cap': 'round',
-              'line-join': 'round'
-            }}
-          />
-        </Source>
-      )}
-
-
       {/* Image markers for subgroups with images */}
       {renderImageMarkers()}
 
       {/* Point features (doors, services, etc.) - Only show when a category is selected */}
-      {pointFeatures.map((feature, idx) => {
+      {pointFeatures
+        .filter((feature) => !['door', 'connection'].includes(feature?.properties?.nodeFunction))
+        .map((feature, idx) => {
         const [lng, lat] = feature.geometry.coordinates;
         const { group, nodeFunction } = feature.properties || {};
 
