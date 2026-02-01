@@ -1,3 +1,5 @@
+import appConfig from '../config/appConfig';
+
 export const MBTILES_SATELLITE_SOURCE_ID = 'mbtiles-satellite';
 
 export const MBTILES_SATELLITE_STYLE = {
@@ -6,7 +8,7 @@ export const MBTILES_SATELLITE_STYLE = {
   sources: {
     [MBTILES_SATELLITE_SOURCE_ID]: {
       type: 'raster',
-      tiles: ['http://localhost:8088/services/gsm/tiles/{z}/{x}/{y}.jpg'],
+      tiles: [appConfig.mbtilesSatelliteTilesUrl],
       tileSize: 256,
       minzoom: 15,
       maxzoom: 21,
