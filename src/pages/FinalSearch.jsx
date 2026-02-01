@@ -10,6 +10,7 @@ import '../styles/FinalSearch.css';
 import ModeSelector from '../components/common/ModeSelector';
 import { useRouteStore } from '../store/routeStore';
 import { useLangStore } from '../store/langStore';
+import { MBTILES_SATELLITE_STYLE } from '../services/mbtilesMapStyle';
 import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
 import { analyzeRoute } from '../utils/routeAnalysis';
 import useLocaleDigits from '../utils/useLocaleDigits';
@@ -20,6 +21,14 @@ import { requestRouting } from '../services/routingService';
 import appConfig from '../config/appConfig';
 import { USER_ACCESS_TOKEN_KEY, useUserAuthStore } from '../auth/user/userAuthStore';
 import { createDestination } from '../services/destinationService';
+
+const HIDDEN_VECTOR_LAYER_IDS = new Set([
+  'areas-outline',
+  'areas-fill',
+  'areas-label',
+  'doorsAccessPoint',
+  'doors'
+]);
 
 const FinalSearch = () => {
   const isValidLngLat = (coords) => {
@@ -44,8 +53,16 @@ const FinalSearch = () => {
   const language = useLangStore((state) => state.language);
   const isRtl = ["fa", "ar", "ur"].includes(language);
   const baseMapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
-  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
-  const mapRenderKey = `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
+  const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
+  const [selectedMapType] = useState(() => {
+    if (typeof window === 'undefined') {
+      return 'satellite';
+    }
+    return sessionStorage.getItem('selectedMapType') || 'satellite';
+  });
+  const isSatellite = selectedMapType === 'satellite';
+  const mapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : offlineMapStyle;
+  const mapRenderKey = isSatellite ? 'mbtiles-satellite' : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
   const {
     origin: storedOrigin,
     destination: storedDestination,
@@ -105,10 +122,15 @@ const FinalSearch = () => {
   const [popupMinutes, setPopupMinutes] = useState(null);
   const [altPopupCoords, setAltPopupCoords] = useState([]);
   const [altPopupMinutes, setAltPopupMinutes] = useState([]);
+  const vectorTileConfig = React.useMemo(() => {
+    return createHaramVectorTileConfig(language).filter(
+      (layerCfg) => !HIDDEN_VECTOR_LAYER_IDS.has(layerCfg.id)
+    );
+  }, [language]);
 
   const handleVectorTileLoad = useCallback((event) => {
-    initHaramVectorLayers(event?.target || event, createHaramVectorTileConfig(language));
-  }, [language]);
+    initHaramVectorLayers(event?.target || event, vectorTileConfig);
+  }, [vectorTileConfig]);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [geoData, setGeoData] = useState(null);

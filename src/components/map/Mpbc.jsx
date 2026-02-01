@@ -91,9 +91,9 @@ const Mpbc = ({
 }) => {
   const intl = useIntl();
   const [viewState, setViewState] = useState({
-    latitude: 36.2880,
+    latitude: 36.2870,
     longitude: 59.6157,
-    zoom: 18
+    zoom: 15
   });
   const [userCoords, setUserCoords] = useState(null);
   const [destCoords, setDestCoords] = useState(null);

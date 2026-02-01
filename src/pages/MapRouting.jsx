@@ -55,7 +55,12 @@ const MapRoutingPage = () => {
   const [landmarkPlaces, setLandmarkPlaces] = useState([]);
   const [showImageMarkers] = useState(true);
   const [showMapStyleMenu, setShowMapStyleMenu] = useState(false);
-  const [selectedMapType, setSelectedMapType] = useState(null);
+  const [selectedMapType, setSelectedMapType] = useState(() => {
+    if (typeof window === 'undefined') {
+      return 'satellite';
+    }
+    return sessionStorage.getItem('selectedMapType') || 'satellite';
+  });
   const [lastAreaDoorsCoords, setLastAreaDoorsCoords] = useState(null);
   const [isChoosingFromMap, setIsChoosingFromMap] = useState(false);
 
@@ -115,6 +120,13 @@ const MapRoutingPage = () => {
     }
 
   }, [storedLat, storedLng, storedId, storedQrName, intl]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    sessionStorage.setItem('selectedMapType', selectedMapType);
+  }, [selectedMapType]);
 
   useEffect(() => {
     let isMounted = true;

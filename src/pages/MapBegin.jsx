@@ -44,7 +44,12 @@ const MapBeginPage = () => {
   const [activeTab, setActiveTab] = useState('mostVisited');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMapTypeOpen, setIsMapTypeOpen] = useState(false);
-  const [selectedMapType, setSelectedMapType] = useState(null);
+  const [selectedMapType, setSelectedMapType] = useState(() => {
+    if (typeof window === 'undefined') {
+      return 'satellite';
+    }
+    return sessionStorage.getItem('selectedMapType') || 'satellite';
+  });
   const [showImageMarkers] = useState(true);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [showLocationDetails, setShowLocationDetails] = useState(false);
@@ -108,6 +113,13 @@ const MapBeginPage = () => {
       });
     }
   }, [storedLat, storedLng, storedId, language]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    sessionStorage.setItem('selectedMapType', selectedMapType);
+  }, [selectedMapType]);
 
   useEffect(() => {
     let isMounted = true;
