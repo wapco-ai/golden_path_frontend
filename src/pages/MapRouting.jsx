@@ -55,7 +55,7 @@ const MapRoutingPage = () => {
   const [landmarkPlaces, setLandmarkPlaces] = useState([]);
   const [showImageMarkers] = useState(true);
   const [showMapStyleMenu, setShowMapStyleMenu] = useState(false);
-  const [selectedMapType, setSelectedMapType] = useState(null);
+  const [selectedMapType, setSelectedMapType] = useState('satellite');
   const [lastAreaDoorsCoords, setLastAreaDoorsCoords] = useState(null);
   const [isChoosingFromMap, setIsChoosingFromMap] = useState(false);
 

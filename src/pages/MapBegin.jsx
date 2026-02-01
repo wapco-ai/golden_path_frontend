@@ -44,7 +44,7 @@ const MapBeginPage = () => {
   const [activeTab, setActiveTab] = useState('mostVisited');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMapTypeOpen, setIsMapTypeOpen] = useState(false);
-  const [selectedMapType, setSelectedMapType] = useState(null);
+  const [selectedMapType, setSelectedMapType] = useState('satellite');
   const [showImageMarkers] = useState(true);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [showLocationDetails, setShowLocationDetails] = useState(false);
