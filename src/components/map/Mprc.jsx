@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
 import { useIntl } from 'react-intl';
 import maplibregl from 'maplibre-gl';
@@ -36,6 +36,14 @@ const groupColors = {
 const nodeFunctionColors = {
   door: '#e53935'
 };
+
+const HIDDEN_VECTOR_LAYER_IDS = new Set([
+  'areas-outline',
+  'areas-fill',
+  'areas-label',
+  'doorsAccessPoint',
+  'doors'
+]);
 
 const getCompositeIcon = (groups = [], group, nodeFunction, size = 35, opacity = 1) => {
   const color = nodeFunctionColors[nodeFunction] || groupColors[group] || '#999';
@@ -107,6 +115,11 @@ const Mprc = ({
   const isSatellite = selectedMapType === 'satellite';
   const mapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : offlineMapStyle;
   const mapRenderKey = isSatellite ? 'mbtiles-satellite' : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
+  const vectorTileConfig = useMemo(() => {
+    return createHaramVectorTileConfig(language).filter(
+      (layerCfg) => !HIDDEN_VECTOR_LAYER_IDS.has(layerCfg.id)
+    );
+  }, [language]);
 
   const calculateViewForBounds = useCallback((bounds, options = {}) => {
     const { minLon, maxLon, minLat, maxLat } = bounds;
@@ -146,8 +159,8 @@ const Mprc = ({
   }, [onUserMove]);
 
   const handleMapLoad = useCallback((event) => {
-    initHaramVectorLayers(event?.target || event, createHaramVectorTileConfig(language));
-  }, [language]);
+    initHaramVectorLayers(event?.target || event, vectorTileConfig);
+  }, [vectorTileConfig]);
 
   const extractPlaceCoordinates = useCallback((place = {}) => {
     const lat =

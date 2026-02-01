@@ -10,47 +10,13 @@ import { loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
 import { getLocationTitleById } from '../../utils/getLocationTitle';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
 import { createHaramVectorTileConfig } from '../../config/vectorTiles';
-
-import appConfig from '../../config/appConfig';
-const DEFAULT_VECTOR_TILE_FLOOR = 0;
-export const TILE_BASE_URL = appConfig.tileBaseUrl;
-export const DEFAULT_TILE_LANG = import.meta?.env?.VITE_TILE_LANG?.trim() || 'fa';
-export const DEFAULT_TILE_FLOOR = import.meta?.env?.VITE_TILE_FLOOR?.trim();
-export const DEFAULT_TILE_GENDER = import.meta?.env?.VITE_TILE_GENDER?.trim();
-const AREAS_FUNCTION_SOURCE_LAYER = 'public.fn_areas_mvt';
-const AREAS_VECTOR_LAYER_NAME = 'areas';
-const AREAS_FUNCTION_TILE_BASE = `${TILE_BASE_URL}/${AREAS_FUNCTION_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
-const buildAreasTileUrlFactory = (lang) => ({ floor } = {}) => {
-  const params = new URLSearchParams();
-  if (lang) params.set('p_lang', lang);
-
-  const fallbackFloor = typeof floor !== 'undefined' ? floor : DEFAULT_TILE_FLOOR;
-  params.set('p_floor', normalizeFloorValue(fallbackFloor));
-
-  if (DEFAULT_TILE_GENDER) {
-    params.set('p_gender', DEFAULT_TILE_GENDER);
-  }
-  console.log("buildAreasTileUrlFactory lang:", lang, "floor:", fallbackFloor);
-
-  return `${AREAS_FUNCTION_TILE_BASE}?${params.toString()}`;
-};
-
-
-const normalizeFloorValue = (floor) => {
-  if (typeof floor === 'number' && !Number.isNaN(floor)) {
-    return floor;
-  }
-
-  if (typeof floor === 'string' && floor.trim() !== '') {
-    const parsed = Number(floor);
-    if (!Number.isNaN(parsed)) {
-      return parsed;
-    }
-  }
-
-  return DEFAULT_VECTOR_TILE_FLOOR;
-};
-
+const HIDDEN_VECTOR_LAYER_IDS = new Set([
+  'areas-outline',
+  'areas-fill',
+  'areas-label',
+  'doorsAccessPoint',
+  'doors'
+]);
 
 const groupColors = {
   sahn: '#4caf50',
@@ -141,10 +107,11 @@ const Mpbc = ({
   const isSatellite = selectedMapType === 'satellite';
   const mapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : offlineMapStyle;
   const mapRenderKey = isSatellite ? 'mbtiles-satellite' : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
-
-  const areasTiles = useMemo(() => {
-    return [buildAreasTileUrlFactory(language)({ floor: viewState?.floor })];
-  }, [language, viewState?.floor]);
+  const vectorTileConfig = useMemo(() => {
+    return createHaramVectorTileConfig(language).filter(
+      (layerCfg) => !HIDDEN_VECTOR_LAYER_IDS.has(layerCfg.id)
+    );
+  }, [language]);
 
   // import styleRtl from "../rtl/style.json";
   // import styleEn from "../rtl/style-en.json";
@@ -156,8 +123,8 @@ const Mpbc = ({
   }, [onUserMove]);
 
   const handleMapLoad = useCallback((event) => {
-    initHaramVectorLayers(event?.target || event, createHaramVectorTileConfig(language));
-  }, [language]);
+    initHaramVectorLayers(event?.target || event, vectorTileConfig);
+  }, [vectorTileConfig]);
 
   const extractPlaceCoordinates = useCallback((place = {}) => {
     const lat =
@@ -799,35 +766,6 @@ const Mpbc = ({
       {routeCoords && (
         <Source id="route" type="geojson" data={{ type: 'Feature', geometry: { type: 'LineString', coordinates: routeCoords } }}>
           <Layer id="route-line" type="line" paint={{ 'line-color': '#4285F4', 'line-width': 4, 'line-opacity': 0.7 }} />
-        </Source>
-      )}
-
-      {language && (
-        <Source
-          id="areas-mvt"
-          type="vector"
-          tiles={areasTiles}
-        >
-          <Layer
-            key={`areas-label-${language}`}              // با تغییر زبان ری‌مانت میشه
-            id="areas-label"
-            type="symbol"
-            source-layer={AREAS_VECTOR_LAYER_NAME}
-            minzoom={15}
-            layout={{
-              "text-field": ["coalesce", ["get", `label`], ["get", "lable"], ""],
-              "text-font": (language === "fa" || language === "ar" || language === "ur")
-                ? ["Vazirmatn Regular"]
-                : ["Open Sans Regular"],
-              "text-size": 12,
-              "text-anchor": "center",
-              "text-justify": (language === "fa" || language === "ar" || language === "ur") ? "right" : "left",
-            }}
-            paint={{
-              "text-halo-color": "#fff",
-              "text-halo-width": 2,
-            }}
-          />
         </Source>
       )}
 
