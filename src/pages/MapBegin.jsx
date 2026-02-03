@@ -382,6 +382,44 @@ const MapBeginPage = () => {
     }
   }, [showLocationDetails, selectedLandmarkId]);
 
+  const handlePlaceCulturalInfo = (place) => {
+    const locationData = {
+      label: place.title || place.name || place.label || intl.formatMessage({ id: 'mapSelectedLocation' }),
+      img: place.image ? [place.image] :
+        place.images ? (Array.isArray(place.images) ? place.images : [place.images]) :
+          place.img || [],
+      address: place.address,
+      distance: place.distance,
+      time: place.time,
+      description: place.description || place.content?.body || '',
+      value: place.value || place.id || place.subGroupValue,
+      coordinates: place.coordinates || [place.lat, place.lng]
+    };
+
+    setSelectedLocation(locationData);
+
+    const locationId = place.value || place.id || place.subGroupValue;
+    const params = new URLSearchParams();
+
+    if (locationData.coordinates && locationData.coordinates.length >= 2) {
+      const [lat, lng] = locationData.coordinates;
+      params.set('lat', lat);
+      params.set('lng', lng);
+      sessionStorage.setItem('mapSelectedLat', lat.toString());
+      sessionStorage.setItem('mapSelectedLng', lng.toString());
+    }
+
+    if (locationId) {
+      params.set('id', locationId);
+      sessionStorage.setItem('mapSelectedId', locationId);
+    }
+
+    const queryString = params.toString();
+    const target = queryString ? `/location?${queryString}` : '/location';
+
+    navigate(target, { state: { location: locationData } });
+  };
+
 
   const handleMapClick = (latlng, feature) => {
     const isLandmarkSelection = feature?.properties?.isLandmark;
@@ -646,7 +684,13 @@ const MapBeginPage = () => {
     setIsSearchFocused(false);
   };
 
-  // Fetch routingData.json from public folder
+  const isScannedPlace = (place) => {
+    if (!storedId || !place) return false;
+
+    const placeId = place.id || place.value || place.subGroupValue;
+    return placeId && storedId.includes(placeId);
+  };
+
   useEffect(() => {
     fetch(`./data/routing-data.json`)
       .then(res => res.json())
@@ -958,7 +1002,18 @@ const MapBeginPage = () => {
   };
 
   const handlePlaceNavigation = (place) => {
-    navigate('/fs', { state: { place } });
+    const destinationData = {
+      name: place.title || place.name || place.label || intl.formatMessage({ id: 'mapSelectedLocation' }),
+      location: place.address || place.subGroup || '',
+      coordinates: place.coordinates || [place.lat, place.lng],
+      value: place.value || place.id || place.subGroupValue,
+      fromLandmarkCard: true
+    };
+
+    sessionStorage.setItem('fromLandmarkCard', 'true');
+    sessionStorage.setItem('landmarkCardDestination', JSON.stringify(destinationData));
+
+    navigate('/mpr');
   };
 
   const handleProfileClick = () => {
@@ -1223,6 +1278,7 @@ const MapBeginPage = () => {
                   </h2>
                   {(isScannedQrLocation || selectedLocation.distance || selectedLocation.time) && (
                     <div className="location-meta7">
+                      <span className="place-meta-separator">|</span>
                       {isScannedQrLocation ? (
                         <span className="place-distance">{intl.formatMessage({ id: 'youAreHere' })}</span>
                       ) : (
@@ -1240,30 +1296,29 @@ const MapBeginPage = () => {
                       )}
                     </div>
                   )}
-
-                  <div className="location-description">
-                    <p>
-                      {selectedLocation.description && selectedLocation.description.split(' ').length > 3
-                        ? `${selectedLocation.description.split(' ').slice(0, 3).join(' ')} ...`
-                        : selectedLocation.description
-                      }
-                    </p>
-                    <button
-                      className="cultural-info-btn"
-                      onClick={handleCulturalInfo}
-                      onTouchStart={(e) => {
-                        e.stopPropagation();
-                      }}
-                      onTouchEnd={(e) => {
-                        e.stopPropagation();
-                      }}
-                    >
-                      {intl.formatMessage({ id: 'moreCulturalInfo' })}
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path fillRule="evenodd" clipRule="evenodd" d="M7.0203 3.64645C7.21556 3.84171 7.21556 4.15829 7.0203 4.35355L3.87385 7.5H13.3334C13.6096 7.5 13.8334 7.72386 13.8334 8C13.8334 8.27614 13.6096 8.5 13.3334 8.5H3.87385L7.0203 11.6464C7.21556 11.8417 7.21556 12.1583 7.0203 12.3536C6.82504 12.5488 6.50846 12.5488 6.31319 12.3536L2.31319 8.35355C2.11793 8.15829 2.11793 7.84171 2.31319 7.64645L6.31319 3.64645C6.50846 3.45118 6.82504 3.45118 7.0203 3.64645Z" fill="#0F71EF" />
-                      </svg>
-                    </button>
-                  </div>
+                </div>
+                <div className="location-description">
+                  <p>
+                    {selectedLocation.description && selectedLocation.description.split(' ').length > 3
+                      ? `${selectedLocation.description.split(' ').slice(0, 3).join(' ')} ...`
+                      : selectedLocation.description
+                    }
+                  </p>
+                  <button
+                    className="cultural-info-btn"
+                    onClick={handleCulturalInfo}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onTouchEnd={(e) => {
+                      e.stopPropagation();
+                    }}
+                  >
+                    {intl.formatMessage({ id: 'moreCulturalInfo' })}
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path fillRule="evenodd" clipRule="evenodd" d="M7.0203 3.64645C7.21556 3.84171 7.21556 4.15829 7.0203 4.35355L3.87385 7.5H13.3334C13.6096 7.5 13.8334 7.72386 13.8334 8C13.8334 8.27614 13.6096 8.5 13.3334 8.5H3.87385L7.0203 11.6464C7.21556 11.8417 7.21556 12.1583 7.0203 12.3536C6.82504 12.5488 6.50846 12.5488 6.31319 12.3536L2.31319 8.35355C2.11793 8.15829 2.11793 7.84171 2.31319 7.64645L6.31319 3.64645C6.50846 3.45118 6.82504 3.45118 7.0203 3.64645Z" fill="#0F71EF" />
+                    </svg>
+                  </button>
                 </div>
               </div>
             </div>
@@ -1340,8 +1395,8 @@ const MapBeginPage = () => {
           )}
 
           {isEventsModalOpen && (
-            <div className="events-modal-overlay" onClick={closeEventsModal}>
-              <div className="events-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="events-modal-overlay2" onClick={closeEventsModal}>
+              <div className="events-modal2" onClick={(e) => e.stopPropagation()}>
                 <div className="events-modal-header">
                   <h3>{intl.formatMessage({ id: 'shrineEventsTitle' })}</h3>
                   <button className="close-modal-btn" onClick={closeEventsModal}>
@@ -1387,8 +1442,8 @@ const MapBeginPage = () => {
           )}
 
           {activePlacesModal && (
-            <div className="events-modal-overlay" onClick={closePlacesModal}>
-              <div className="events-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="events-modal-overlay2" onClick={closePlacesModal}>
+              <div className="events-modal2" onClick={(e) => e.stopPropagation()}>
                 <div className="events-modal-header">
                   <h3>{getPlacesModalTitle()}</h3>
                   <button className="close-modal-btn-mpb" onClick={closePlacesModal}>
@@ -1407,18 +1462,24 @@ const MapBeginPage = () => {
                         {place.description && <p>{place.description}</p>}
                         {(place.distance != null || place.time != null) && (
                           <div className="events-modal-meta">
-                            {place.distance != null && (
-                              <span>
-                                {place.distance} {intl.formatMessage({ id: 'meter' })}
-                              </span>
-                            )}
-                            {place.distance != null && place.time != null && (
-                              <span className="modal-meta-divider">•</span>
-                            )}
-                            {place.time != null && (
-                              <span>
-                                {place.time} {intl.formatMessage({ id: 'walking' })}
-                              </span>
+                            {isScannedPlace(place) ? (
+                              <span>{intl.formatMessage({ id: 'youAreHere' })}</span>
+                            ) : (
+                              <>
+                                {place.distance != null && (
+                                  <span>
+                                    {place.distance} {intl.formatMessage({ id: 'meter' })}
+                                  </span>
+                                )}
+                                {place.distance != null && place.time != null && (
+                                  <span className="modal-meta-divider">•</span>
+                                )}
+                                {place.time != null && (
+                                  <span>
+                                    {place.time} {intl.formatMessage({ id: 'walking' })}
+                                  </span>
+                                )}
+                              </>
                             )}
                           </div>
                         )}
@@ -1427,17 +1488,13 @@ const MapBeginPage = () => {
                             className="place-action-btn events-modal-nav-btn"
                             onClick={() => handlePlaceNavigation(place)}
                           >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="16"
-                              height="16"
-                              viewBox="0 0 24 24"
-                              fill="currentColor"
-                            >
-                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                              <path d="M11.092 2.581a1 1 0 0 1 1.754 -.116l.062 .116l8.005 17.365c.198 .566 .05 1.196 -.378 1.615a1.53 1.53 0 0 1 -1.459 .393l-7.077 -2.398l-6.899 2.338a1.535 1.535 0 0 1 -1.52 -.231l-.112 -.1c-.398 -.386 -.556 -.954 -.393 -1.556l.047 -.15l7.97 -17.276z" />
-                            </svg>
                             {intl.formatMessage({ id: 'navigate' })}
+                          </button>
+                          <button
+                            className="place-action-btn2 events-modal-culture-btn"
+                            onClick={() => handlePlaceCulturalInfo(place)}
+                          >
+                            {intl.formatMessage({ id: 'culturalInfo' })}
                           </button>
                         </div>
                       </div>
@@ -1481,14 +1538,20 @@ const MapBeginPage = () => {
                       <h4 className="place-name">{place.title}</h4>
                       {(place.distance != null || place.time != null) && (
                         <div className="place-meta">
-                          {place.distance != null && (
-                            <span className="place-distance">{place.distance} {intl.formatMessage({ id: 'meter' })}</span>
-                          )}
-                          {place.distance != null && place.time != null && (
-                            <span className="place-meta-separator">|</span>
-                          )}
-                          {place.time != null && (
-                            <span className="place-time">{place.time} {intl.formatMessage({ id: 'walking' })}</span>
+                          {isScannedPlace(place) ? (
+                            <span className="place-distance">{intl.formatMessage({ id: 'youAreHere' })}</span>
+                          ) : (
+                            <>
+                              {place.distance != null && (
+                                <span className="place-distance">{place.distance} {intl.formatMessage({ id: 'meter' })}</span>
+                              )}
+                              {place.distance != null && place.time != null && (
+                                <span className="place-meta-separator">|</span>
+                              )}
+                              {place.time != null && (
+                                <span className="place-time">{place.time} {intl.formatMessage({ id: 'walking' })}</span>
+                              )}
+                            </>
                           )}
                         </div>
                       )}
@@ -1510,6 +1573,20 @@ const MapBeginPage = () => {
                           ))}
                         </div>
                         <span className="place-views">( {place.views} {intl.formatMessage({ id: 'commentsLabel' })})</span>
+                      </div>
+                      <div className="place-actions">
+                        <button
+                          className="place-action-btn events-modal-nav-btn"
+                          onClick={() => handlePlaceNavigation(place)}
+                        >
+                          {intl.formatMessage({ id: 'navigate' })}
+                        </button>
+                        <button
+                          className="place-action-btn2 events-modal-culture-btn"
+                          onClick={() => handlePlaceCulturalInfo(place)}
+                        >
+                          {intl.formatMessage({ id: 'culturalInfo' })}
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1561,9 +1638,21 @@ const MapBeginPage = () => {
                     <div className="place-details">
                       <h4 className="place-name">{place.title}</h4>
                       <div className="place-meta">
-                        <span className="place-distance">{place.distance} {intl.formatMessage({ id: 'meter' })}</span>
-                        <span className="place-meta-separator">|</span>
-                        <span className="place-time">{place.time} {intl.formatMessage({ id: 'walking' })}</span>
+                        {isScannedPlace(place) ? (
+                          <span className="place-distance">{intl.formatMessage({ id: 'youAreHere' })}</span>
+                        ) : (
+                          <>
+                            {place.distance != null && (
+                              <span className="place-distance">{place.distance} {intl.formatMessage({ id: 'meter' })}</span>
+                            )}
+                            {place.distance != null && place.time != null && (
+                              <span className="place-meta-separator">|</span>
+                            )}
+                            {place.time != null && (
+                              <span className="place-time">{place.time} {intl.formatMessage({ id: 'walking' })}</span>
+                            )}
+                          </>
+                        )}
                       </div>
                       <div className="place-rating-section">
                         <div className="place-rating-stars">
@@ -1584,6 +1673,20 @@ const MapBeginPage = () => {
                         </div>
                         <span className="place-views">( {place.views} {intl.formatMessage({ id: 'commentsLabel' })})</span>
                       </div>
+                    </div>
+                    <div className="place-actions">
+                      <button
+                        className="place-action-btn events-modal-nav-btn"
+                        onClick={() => handlePlaceNavigation(place)}
+                      >
+                        {intl.formatMessage({ id: 'navigate' })}
+                      </button>
+                      <button
+                        className="place-action-btn2 events-modal-culture-btn"
+                        onClick={() => handlePlaceCulturalInfo(place)}
+                      >
+                        {intl.formatMessage({ id: 'culturalInfo' })}
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -1616,49 +1719,72 @@ const MapBeginPage = () => {
                 </button>
               </div>
               <div className="places-horizontal-list">
-                {routingData.places.nearest.slice(0, 6).map((place, index) => (
-                  <div key={index} className="place-card">
-                    <div className="image-container">
-                      <div
-                        className="place-image"
-                        style={{ backgroundImage: `url(${place.image})` }}
-                      ></div>
-                      <button className="transparent-save-btn">
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M7.5 4.37508C7.15482 4.37508 6.875 4.6549 6.875 5.00008C6.875 5.34526 7.15482 5.62508 7.5 5.62508H12.5C12.8452 5.62508 13.125 5.34526 13.125 5.00008C13.125 4.6549 12.8452 4.37508 12.5 4.37508H7.5Z" fill="black" />
-                          <path fillRule="evenodd" clipRule="evenodd" d="M9.95209 1.04175C8.22495 1.04174 6.8643 1.04173 5.80107 1.18622C4.70935 1.33459 3.83841 1.64565 3.15403 2.33745C2.47058 3.02831 2.1641 3.90593 2.01775 5.00626C1.87498 6.07967 1.87499 7.45393 1.875 9.20097V13.4493C1.87499 14.7056 1.87498 15.7002 1.95501 16.4491C2.03409 17.1891 2.20373 17.8568 2.6882 18.3033C3.07688 18.6615 3.56842 18.8873 4.09304 18.9473C4.74927 19.0224 5.36199 18.7091 5.96557 18.2815C6.57636 17.8489 7.3173 17.1935 8.25212 16.3667L8.28254 16.3398C8.71593 15.9564 9.00935 15.6978 9.25416 15.5187C9.49076 15.3457 9.63522 15.2832 9.75698 15.2587C9.91743 15.2263 10.0826 15.2263 10.243 15.2587C10.3648 15.2832 10.5092 15.3457 10.7458 15.5187C10.9906 15.6978 11.2841 15.9564 11.7175 16.3398L11.7479 16.3667C12.6827 17.1935 13.4237 17.8489 14.0344 18.2815C14.638 18.7091 15.2507 19.0224 15.907 18.9473C16.4316 18.8873 16.9231 18.6615 17.3118 18.3033C17.7963 17.8568 17.9659 17.1891 18.045 16.4491C18.125 15.7002 18.125 14.7056 18.125 13.4493V9.20095C18.125 7.45393 18.125 6.07966 17.9823 5.00626C17.8359 3.90593 17.5294 3.02831 16.846 2.33745C16.1616 1.64565 15.2907 1.33459 14.1989 1.18622C13.1357 1.04173 11.7751 1.04174 10.0479 1.04175H9.95209ZM4.04267 3.21655C4.45664 2.7981 5.01876 2.55403 5.9694 2.42484C6.93871 2.2931 8.21438 2.29175 10 2.29175C11.7856 2.29175 13.0613 2.2931 14.0306 2.42484C14.9812 2.55403 15.5434 2.7981 15.9573 3.21655C16.3722 3.63594 16.6149 4.20691 16.7432 5.17106C16.8737 6.15251 16.875 7.44361 16.875 9.24801V13.4092C16.875 14.7144 16.8741 15.6419 16.8021 16.3163C16.7282 17.0074 16.592 17.2668 16.4647 17.3841C16.2699 17.5636 16.0248 17.6757 15.7649 17.7054C15.5985 17.7245 15.3196 17.66 14.757 17.2615C14.2081 16.8727 13.5176 16.2632 12.5456 15.4035L12.5238 15.3842C12.1177 15.025 11.781 14.7271 11.4837 14.5097C11.1728 14.2824 10.8594 14.1077 10.4899 14.0333C10.1665 13.9681 9.83352 13.9681 9.51015 14.0333C9.14064 14.1077 8.82715 14.2824 8.51633 14.5097C8.21902 14.7271 7.88226 15.025 7.47621 15.3842L7.45439 15.4035C6.48239 16.2632 5.79189 16.8727 5.24304 17.2615C4.68038 17.66 4.40151 17.7245 4.23515 17.7054C3.97516 17.6757 3.73014 17.5636 3.53531 17.3841C3.40803 17.2668 3.27179 17.0074 3.19793 16.3163C3.12587 15.6419 3.125 14.7144 3.125 13.4092V9.24801C3.125 7.44361 3.1263 6.15251 3.25684 5.17106C3.38508 4.20691 3.62777 3.63594 4.04267 3.21655Z" fill="black" />
-                        </svg>
-                      </button>
-                    </div>
-                    <div className="place-details">
-                      <h4 className="place-name">{place.title}</h4>
-                      <div className="place-meta">
-                        <span className="place-distance">{place.distance} {intl.formatMessage({ id: 'meter' })}</span>
-                        <span className="place-meta-separator">|</span>
-                        <span className="place-time">{place.time} {intl.formatMessage({ id: 'walking' })}</span>
+                {routingData.places.nearest
+                  .filter(place => !isScannedPlace(place))
+                  .slice(0, 6)
+                  .map((place, index) => (
+                    <div key={index} className="place-card">
+                      <div className="image-container">
+                        <div
+                          className="place-image"
+                          style={{ backgroundImage: `url(${place.image})` }}
+                        ></div>
+                        <button className="transparent-save-btn">
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M7.5 4.37508C7.15482 4.37508 6.875 4.6549 6.875 5.00008C6.875 5.34526 7.15482 5.62508 7.5 5.62508H12.5C12.8452 5.62508 13.125 5.34526 13.125 5.00008C13.125 4.6549 12.8452 4.37508 12.5 4.37508H7.5Z" fill="black" />
+                            <path fillRule="evenodd" clipRule="evenodd" d="M9.95209 1.04175C8.22495 1.04174 6.8643 1.04173 5.80107 1.18622C4.70935 1.33459 3.83841 1.64565 3.15403 2.33745C2.47058 3.02831 2.1641 3.90593 2.01775 5.00626C1.87498 6.07967 1.87499 7.45393 1.875 9.20097V13.4493C1.87499 14.7056 1.87498 15.7002 1.95501 16.4491C2.03409 17.1891 2.20373 17.8568 2.6882 18.3033C3.07688 18.6615 3.56842 18.8873 4.09304 18.9473C4.74927 19.0224 5.36199 18.7091 5.96557 18.2815C6.57636 17.8489 7.3173 17.1935 8.25212 16.3667L8.28254 16.3398C8.71593 15.9564 9.00935 15.6978 9.25416 15.5187C9.49076 15.3457 9.63522 15.2832 9.75698 15.2587C9.91743 15.2263 10.0826 15.2263 10.243 15.2587C10.3648 15.2832 10.5092 15.3457 10.7458 15.5187C10.9906 15.6978 11.2841 15.9564 11.7175 16.3398L11.7479 16.3667C12.6827 17.1935 13.4237 17.8489 14.0344 18.2815C14.638 18.7091 15.2507 19.0224 15.907 18.9473C16.4316 18.8873 16.9231 18.6615 17.3118 18.3033C17.7963 17.8568 17.9659 17.1891 18.045 16.4491C18.125 15.7002 18.125 14.7056 18.125 13.4493V9.20095C18.125 7.45393 18.125 6.07966 17.9823 5.00626C17.8359 3.90593 17.5294 3.02831 16.846 2.33745C16.1616 1.64565 15.2907 1.33459 14.1989 1.18622C13.1357 1.04173 11.7751 1.04174 10.0479 1.04175H9.95209ZM4.04267 3.21655C4.45664 2.7981 5.01876 2.55403 5.9694 2.42484C6.93871 2.2931 8.21438 2.29175 10 2.29175C11.7856 2.29175 13.0613 2.2931 14.0306 2.42484C14.9812 2.55403 15.5434 2.7981 15.9573 3.21655C16.3722 3.63594 16.6149 4.20691 16.7432 5.17106C16.8737 6.15251 16.875 7.44361 16.875 9.24801V13.4092C16.875 14.7144 16.8741 15.6419 16.8021 16.3163C16.7282 17.0074 16.592 17.2668 16.4647 17.3841C16.2699 17.5636 16.0248 17.6757 15.7649 17.7054C15.5985 17.7245 15.3196 17.66 14.757 17.2615C14.2081 16.8727 13.5176 16.2632 12.5456 15.4035L12.5238 15.3842C12.1177 15.025 11.781 14.7271 11.4837 14.5097C11.1728 14.2824 10.8594 14.1077 10.4899 14.0333C10.1665 13.9681 9.83352 13.9681 9.51015 14.0333C9.14064 14.1077 8.82715 14.2824 8.51633 14.5097C8.21902 14.7271 7.88226 15.025 7.47621 15.3842L7.45439 15.4035C6.48239 16.2632 5.79189 16.8727 5.24304 17.2615C4.68038 17.66 4.40151 17.7245 4.23515 17.7054C3.97516 17.6757 3.73014 17.5636 3.53531 17.3841C3.40803 17.2668 3.27179 17.0074 3.19793 16.3163C3.12587 15.6419 3.125 14.7144 3.125 13.4092V9.24801C3.125 7.44361 3.1263 6.15251 3.25684 5.17106C3.38508 4.20691 3.62777 3.63594 4.04267 3.21655Z" fill="black" />
+                          </svg>
+                        </button>
                       </div>
-                      <div className="place-rating-section">
-                        <div className="place-rating-stars">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <svg
-                              key={star}
-                              className={star <= Math.round(place.rating) ? 'filled' : ''}
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="16"
-                              height="16"
-                              viewBox="0 0 24 24"
-                              fill="currentColor"
-                            >
-                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                              <path d="M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873z" />
-                            </svg>
-                          ))}
+                      <div className="place-details">
+                        <h4 className="place-name">{place.title}</h4>
+                        <div className="place-meta">
+                          {place.distance != null && (
+                            <span className="place-distance">{place.distance} {intl.formatMessage({ id: 'meter' })}</span>
+                          )}
+                          {place.distance != null && place.time != null && (
+                            <span className="place-meta-separator">|</span>
+                          )}
+                          {place.time != null && (
+                            <span className="place-time">{place.time} {intl.formatMessage({ id: 'walking' })}</span>
+                          )}
                         </div>
-                        <span className="place-views">( {place.views} {intl.formatMessage({ id: 'commentsLabel' })})</span>
+                        <div className="place-rating-section">
+                          <div className="place-rating-stars">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <svg
+                                key={star}
+                                className={star <= Math.round(place.rating) ? 'filled' : ''}
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="currentColor"
+                              >
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873z" />
+                              </svg>
+                            ))}
+                          </div>
+                          <span className="place-views">( {place.views} {intl.formatMessage({ id: 'commentsLabel' })})</span>
+                        </div>
+                      </div>
+                      <div className="place-actions">
+                        <button
+                          className="place-action-btn events-modal-nav-btn"
+                          onClick={() => handlePlaceNavigation(place)}
+                        >
+                          {intl.formatMessage({ id: 'navigate' })}
+                        </button>
+                        <button
+                          className="place-action-btn2 events-modal-culture-btn"
+                          onClick={() => handlePlaceCulturalInfo(place)}
+                        >
+                          {intl.formatMessage({ id: 'culturalInfo' })}
+                        </button>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
                 {routingData.places.nearest.length > 6 && (
                   <div className="view-more-places-container" onClick={() => openPlacesModal('nearest')}>
                     <div className="view-more-places">

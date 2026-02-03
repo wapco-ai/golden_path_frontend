@@ -508,6 +508,7 @@ body.modal-open {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   background-color: #fff;
   flex-shrink: 0;
+  padding: 8px;
 }
 
 .place-image-placeholder {
@@ -632,8 +633,26 @@ body.modal-open {
   border-radius: 20px;
   width: 20vw;
   padding: 6px 0px;
-  font-size: 1.0rem;
+  font-size: 0.9rem;
   color: #f8f5f5;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  justify-content: center;
+  transition: all 0.3s ease;
+  font-family: 'Vazir', Tahoma, sans-serif;
+}
+
+.place-action-btn2 {
+  background-color: white;
+  border: 1px solid #0F71EF;
+  ;
+  border-radius: 20px;
+  width: 20vw;
+  padding: 6px 0px;
+  font-size: 0.9rem;
+  color: #0F71EF;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -770,6 +789,26 @@ body.modal-open {
   font-family: 'Vazir', Tahoma, sans-serif;
 }
 
+.events-modal2 {
+  position: absolute;
+  inset: 0;
+  z-index: 999;
+  background: #fff;
+  border-radius: 0;
+  width: 100%;
+  height: 100vh;
+  max-height: none;
+  display: flex;
+  flex-direction: column;
+  animation: MslideUp 0.6s ease-out;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  font-family: 'Vazir', Tahoma, sans-serif;
+}
+
+
+
+
 @keyframes MslideUp {
   from {
     opacity: 1;
@@ -883,10 +922,12 @@ body.modal-open {
   margin-top: 10px;
   display: flex;
   justify-content: center;
+  gap: 12px;
 }
 
-.events-modal-nav-btn {
-  padding: 8px 16px;
+.events-modal-nav-btn,
+.events-modal-culture-btn {
+  padding: 8px;
 }
 
 .modal-meta-divider {
@@ -1208,7 +1249,7 @@ body.modal-open {
   font-size: 18px;
   color: #1E2023;
   font-weight: 600;
-  margin: 0;
+  margin: 5px;
   font-family: 'Vazir', Tahoma, sans-serif;
 }
 
@@ -1244,18 +1285,20 @@ body.modal-open {
 
 .location-details7 {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
   gap: 3px;
+
 }
 
 .location-meta7 {
   display: flex;
   gap: 12px;
-  display: flex;
   align-items: center;
-  font-size: 14px;
+  font-size: 16px;
   color: #858585;
+  margin-bottom: 0px;
 }
 
 @media (max-width: 400px) {
@@ -1267,9 +1310,9 @@ body.modal-open {
 .location-description {
   display: flex;
   flex-direction: row;
+  justify-content: flex-start;
   align-items: center;
   flex-wrap: wrap;
-  margin-bottom: 30px;
   gap: 5px;
 }
 
@@ -1279,6 +1322,7 @@ body.modal-open {
   font-size: 0.9rem;
   color: #858585;
   line-height: 1.5;
+  margin-bottom: 20px;
 }
 
 .cultural-info-btn {
@@ -2065,6 +2109,7 @@ body.sidebar-open {
     opacity: 0;
     transform: translateX(10px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);

@@ -458,8 +458,7 @@ const MapRoutingPage = () => {
         }
         setShowDestinationModal(true);
         setActiveInput('destination');
-        // Disable GPS tracking when editing only the destination
-        // to avoid overwriting the origin with the current location
+  
         setIsTracking(false);
       }
 
@@ -1089,6 +1088,33 @@ const MapRoutingPage = () => {
       }
     }
   };
+
+  useEffect(() => {
+    const fromLandmarkCard = sessionStorage.getItem('fromLandmarkCard');
+    const destinationData = sessionStorage.getItem('landmarkCardDestination');
+
+    if (fromLandmarkCard === 'true' && destinationData) {
+      try {
+        const parsedDestination = JSON.parse(destinationData);
+
+        setSelectedDestination(parsedDestination);
+
+
+        sessionStorage.setItem('currentDestination', destinationData);
+
+        sessionStorage.removeItem('fromLandmarkCard');
+        sessionStorage.removeItem('landmarkCardDestination');
+
+
+        console.log('Destination set from landmark card:', parsedDestination.name);
+
+      } catch (error) {
+        console.error('Failed to parse landmark card destination', error);
+        sessionStorage.removeItem('fromLandmarkCard');
+        sessionStorage.removeItem('landmarkCardDestination');
+      }
+    }
+  }, []);
 
   const handleCurrentLocationSelect = () => {
     setIsTracking(true);
