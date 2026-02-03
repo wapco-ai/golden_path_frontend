@@ -56,6 +56,7 @@ const MapRoutingPage = () => {
   const [mapEntryDoors, setMapEntryDoors] = useState([]);
   const [landmarkPlaces, setLandmarkPlaces] = useState([]);
   const [showImageMarkers] = useState(true);
+  const [selectedLandmarkId, setSelectedLandmarkId] = useState(null);
   const [showMapStyleMenu, setShowMapStyleMenu] = useState(false);
   const [selectedMapType, setSelectedMapType] = useState(() => {
     if (typeof window === 'undefined') {
@@ -366,6 +367,53 @@ const MapRoutingPage = () => {
     });
   };
 
+  const handleLandmarkSelect = useCallback((landmarkData) => {
+    console.log('=== LANDMARK SELECT DEBUG ===');
+    console.log('Full landmark data:', landmarkData);
+
+    // Extract coordinates from the landmark data
+    const getCoordinatesId = (data) => {
+      if (!data) return null;
+
+      // Try to get coordinates from various possible fields
+      const coords = data.coordinates ||
+        (data.geo ? [data.geo.lat, data.geo.lng] : null) ||
+        (data.lat && data.lng ? [data.lat, data.lng] : null) ||
+        (data.latitude && data.longitude ? [data.latitude, data.longitude] : null);
+
+      if (Array.isArray(coords) && coords.length >= 2) {
+        // Create a unique string from coordinates (rounded to 6 decimal places)
+        const lat = Number(coords[0]).toFixed(6);
+        const lng = Number(coords[1]).toFixed(6);
+        return `${lat},${lng}`;
+      }
+
+      return null;
+    };
+
+    const coordinatesId = getCoordinatesId(landmarkData);
+    console.log('Coordinates ID:', coordinatesId);
+
+    if (!coordinatesId) {
+      console.log('No coordinates found, falling back to label');
+      const fallbackId = landmarkData?.label || landmarkData?.title || landmarkData?.name;
+      if (selectedLandmarkId && selectedLandmarkId.startsWith('label:')) {
+        setSelectedLandmarkId(null);
+      } else if (fallbackId) {
+        setSelectedLandmarkId(`label:${fallbackId}`);
+      }
+      return;
+    }
+
+    if (selectedLandmarkId === coordinatesId) {
+      console.log('Deselecting landmark');
+      setSelectedLandmarkId(null);
+    } else {
+      console.log('Selecting new landmark with coordinates:', coordinatesId);
+      setSelectedLandmarkId(coordinatesId);
+    }
+  }, [selectedLandmarkId]);
+
   const getFeatureCenter = (feature) => {
     if (!feature) return null;
     const { geometry } = feature;
@@ -458,7 +506,7 @@ const MapRoutingPage = () => {
         }
         setShowDestinationModal(true);
         setActiveInput('destination');
-  
+
         setIsTracking(false);
       }
 
@@ -1265,6 +1313,9 @@ const MapRoutingPage = () => {
       }
       setIsSelectingFromMap(false);
     }
+    if (feature?.properties?.isLandmark) {
+      handleLandmarkSelect(feature.properties);
+    }
   };
 
   const handleClearSearch = () => {
@@ -1384,6 +1435,8 @@ const MapRoutingPage = () => {
           showImageMarkers={showImageMarkers}
           isChoosingFromMap={isChoosingFromMap}
           selectedMapType={selectedMapType}
+          selectedLandmarkId={selectedLandmarkId}
+          onLandmarkSelect={handleLandmarkSelect}
         />
         {!isSelectingFromMap && (
           <button
@@ -1464,96 +1517,189 @@ const MapRoutingPage = () => {
       {mapSelectedCategory && mapSelectedSubGroups.length > 0 && (
         <div className="map-subgroups-container">
           <div className="map-subgroups-scroll">
-            {mapSelectedSubGroups.map((subGroup, index) => {
-              // Debug: check what we're rendering
-              console.log(`Rendering subgroup ${index}:`, subGroup.label, 'Image:', subGroup.img);
+            {/* Sort subgroups: selected first, then others */}
+            {(() => {
+              // Create a sorted copy of the array
+              const sortedSubGroups = [...mapSelectedSubGroups].sort((a, b) => {
+                // Function to get coordinates ID from a subgroup
+                const getCoordinatesIdFromSubGroup = (item) => {
+                  if (!item) return null;
 
-              // Get image URL
-              const imageUrl = Array.isArray(subGroup.img) ? subGroup.img[0] : subGroup.img;
+                  // Try coordinates field first
+                  if (Array.isArray(item.coordinates) && item.coordinates.length >= 2) {
+                    const lat = Number(item.coordinates[0]).toFixed(6);
+                    const lng = Number(item.coordinates[1]).toFixed(6);
+                    return `${lat},${lng}`;
+                  }
 
-              // Safety check - should not happen since we filtered, but just in case
-              if (!imageUrl) {
-                console.log(`Skipping ${subGroup.label} - no image URL`);
-                return null;
-              }
+                  // Try geo field
+                  if (item.geo && typeof item.geo.lat === 'number' && typeof item.geo.lng === 'number') {
+                    const lat = Number(item.geo.lat).toFixed(6);
+                    const lng = Number(item.geo.lng).toFixed(6);
+                    return `${lat},${lng}`;
+                  }
 
-              return (
-                <div key={`${subGroup.value}-${index}`} className="map-subgroup-card">
-                  <div className="map-subgroup-main">
-                    <div className="map-subgroup-content">
-                      <div className="map-subgroup-top">
-                        <div className="subgroup-search-icon">
-                          <img src={mapSelectedCategory.png} alt={mapSelectedCategory.label || 'category icon'} width="22" height="22" />
+                  // Fallback to label
+                  return item.label ? `label:${item.label}` : null;
+                };
+
+                const aId = getCoordinatesIdFromSubGroup(a);
+                const bId = getCoordinatesIdFromSubGroup(b);
+
+                // If 'a' is selected, it should come first (-1)
+                if (aId === selectedLandmarkId) return -1;
+                // If 'b' is selected, it should come first
+                if (bId === selectedLandmarkId) return 1;
+                // Otherwise maintain original order
+                return 0;
+              });
+
+              return sortedSubGroups.map((subGroup, index) => {
+                // Get unique ID based on coordinates
+                const getSubGroupId = (item) => {
+                  if (!item) return null;
+
+                  // Try coordinates field first
+                  if (Array.isArray(item.coordinates) && item.coordinates.length >= 2) {
+                    const lat = Number(item.coordinates[0]).toFixed(6);
+                    const lng = Number(item.coordinates[1]).toFixed(6);
+                    return `${lat},${lng}`;
+                  }
+
+                  // Try geo field
+                  if (item.geo && typeof item.geo.lat === 'number' && typeof item.geo.lng === 'number') {
+                    const lat = Number(item.geo.lat).toFixed(6);
+                    const lng = Number(item.geo.lng).toFixed(6);
+                    return `${lat},${lng}`;
+                  }
+
+                  // Fallback to label
+                  return item.label ? `label:${item.label}` : null;
+                };
+
+                const subGroupId = getSubGroupId(subGroup);
+                const isSelected = subGroupId === selectedLandmarkId;
+
+                // Debug log
+                if (isSelected) {
+                  console.log('Found selected card:', {
+                    label: subGroup.label,
+                    subGroupId,
+                    coordinates: subGroup.coordinates,
+                    geo: subGroup.geo
+                  });
+                }
+
+                // Get image URL
+                const imageUrl = Array.isArray(subGroup.img) ? subGroup.img[0] : subGroup.img;
+
+                if (!imageUrl) {
+                  console.log(`Skipping ${subGroup.label} - no image URL`);
+                  return null;
+                }
+
+                return (
+                  <div
+                    key={`${subGroupId}-${index}`}
+                    className={`map-subgroup-card ${isSelected ? 'selected' : ''}`}
+                    onClick={() => {
+                      console.log('Card clicked - coordinates:', {
+                        label: subGroup.label,
+                        coordinates: subGroup.coordinates,
+                        geo: subGroup.geo,
+                        subGroupId
+                      });
+                      handleLandmarkSelect(subGroup);
+                    }}
+                  >
+                    <div className="map-subgroup-main">
+                      <div className="map-subgroup-content">
+                        <div className="map-subgroup-top">
+                          <div className="subgroup-search-icon">
+                            <img src={mapSelectedCategory.png} alt={mapSelectedCategory.label || 'category icon'} width="22" height="22" />
+                          </div>
+                          <h3 className="map-subgroup-title">{subGroup.label}</h3>
+                          {isSelected && (
+                            <div className="selected-indicator-badge">
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="#0F71EF">
+                                <path d="M8 0C3.58 0 0 3.58 0 8s3.58 8 8 8 8-3.58 8-8S12.42 0 8 0zm3.707 6.293a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 1 1 1.414-1.414L7 9.586l3.293-3.293a1 1 0 0 1 1.414 0z" />
+                              </svg>
+                            </div>
+                          )}
                         </div>
-                        <h3 className="map-subgroup-title">{subGroup.label}</h3>
+                        <p className="map-subgroup-address">{subGroup.address}</p>
+                        <div className="subgroup-rating-section">
+                          <div className="subgroup-rating-stars">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <svg
+                                key={star}
+                                className={star <= Math.round(subGroup.rating) ? 'filled' : ''}
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="currentColor"
+                              >
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873z" />
+                              </svg>
+                            ))}
+                          </div>
+                          <span className="subgroup-views">( {subGroup.views} {intl.formatMessage({ id: 'commentsLabel' })})</span>
+                        </div>
                       </div>
-                      <p className="map-subgroup-address">{subGroup.address}</p>
-                      <div className="subgroup-rating-section">
-                        <div className="subgroup-rating-stars">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <svg
-                              key={star}
-                              className={star <= Math.round(subGroup.rating) ? 'filled' : ''}
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="16"
-                              height="16"
-                              viewBox="0 0 24 24"
-                              fill="currentColor"
-                            >
-                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                              <path d="M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873z" />
-                            </svg>
-                          ))}
-                        </div>
-                        <span className="subgroup-views">( {subGroup.views} {intl.formatMessage({ id: 'commentsLabel' })})</span>
+                      <div className="map-subgroup-image">
+                        <img
+                          src={imageUrl}
+                          alt={subGroup.label}
+                          onError={(e) => {
+                            console.error(`Failed to load image for ${subGroup.label}:`, imageUrl);
+                            e.target.style.display = 'none';
+                          }}
+                        />
                       </div>
                     </div>
-                    <div className="map-subgroup-image">
-                      <img
-                        src={imageUrl}
-                        alt={subGroup.label}
-                        onError={(e) => {
-                          console.error(`Failed to load image for ${subGroup.label}:`, imageUrl);
-                          e.target.style.display = 'none';
+                    <div className="map-subgroup-actions">
+                      <button
+                        className="map-subgroup-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRouteFromSubgroup(subGroup);
                         }}
-                      />
+                      >
+                        <svg width="19" height="16" viewBox="0 0 19 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path fillRule="evenodd" clipRule="evenodd" d="M16.2851 14.6752C16.7753 14.2188 16.9902 13.4967 16.6398 12.7983L11.1179 1.7918C10.4769 0.514157 8.52263 0.514157 7.88165 1.7918L2.35977 12.7983C2.00936 13.4967 2.2243 14.2188 2.71445 14.6752C3.20874 15.1354 4.01591 15.348 4.78988 14.9806L4.52496 14.5396L4.78988 14.9806L9.21767 12.8793L8.95274 12.4382L9.21767 12.8793C9.39648 12.7944 9.60309 12.7944 9.7819 12.8793L14.2097 14.9806L14.4746 14.5396L14.2097 14.9806C14.9837 15.348 15.7908 15.1354 16.2851 14.6752ZM14.7395 14.0985L14.4766 14.5364L14.7395 14.0985L10.3118 11.9971C9.80183 11.7551 9.19774 11.7551 8.68781 11.9971L4.26003 14.0985C3.99319 14.2251 3.72448 14.1675 3.52817 13.9847C3.32773 13.798 3.23735 13.5043 3.38724 13.2056L8.90911 2.19909C9.15361 1.71173 9.84595 1.71173 10.0905 2.19909L15.6123 13.2056C15.7622 13.5043 15.6718 13.7981 15.4714 13.9847C15.2751 14.1675 15.0064 14.2251 14.7395 14.0985Z" fill="#0F71EF" />
+                        </svg>
+                        <FormattedMessage id="navigate" />
+                      </button>
+                      <button className="map-subgroup-btn" onClick={(e) => e.stopPropagation()}>
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M6 3.50016C5.72386 3.50016 5.5 3.72402 5.5 4.00016C5.5 4.27631 5.72386 4.50016 6 4.50016H10C10.2761 4.50016 10.5 4.27631 10.5 4.00016C10.5 3.72402 10.2761 3.50016 10 3.50016H6Z" fill="#0F71EF" />
+                          <path fillRule="evenodd" clipRule="evenodd" d="M7.96167 0.833496H9.20341C10.1151 0.833483 11.85 0.833472 11.428 0.911179C12.0281 0.991856 12.5333 1.16445 12.9346 1.56573C13.1336 1.76471 13.2763 1.98925 13.3795 2.23825C14.0009 2.31608 14.5226 2.48705 14.9346 2.8991C15.3359 3.30038 15.5085 3.80563 15.5891 4.4057C15.6669 4.98368 15.6668 5.71856 15.6668 6.63028V9.37011C15.6668 10.2818 15.6669 11.0167 15.5891 11.5947C15.5085 12.1948 15.3359 12.7 14.9346 13.1013C14.5225 13.5133 14.0009 13.6843 13.3795 13.7622C13.2763 14.0111 13.1336 14.2356 12.9346 14.4346C12.5333 14.8359 12.0281 15.0085 11.428 15.0891C10.85 15.1669 10.1151 15.1668 9.20341 15.1668H7.79692C6.88519 15.1668 6.15031 15.1669 5.57233 15.0891C4.97226 15.0085 4.46701 14.8359 4.06573 14.4346C3.86677 14.2356 3.72403 14.0111 3.62083 13.7622C2.99946 13.6843 2.47778 13.5133 2.06573 13.1013C1.66445 12.7 1.49186 12.1948 1.41118 11.5947C1.33347 11.0167 1.33348 10.2818 1.3335 9.37011V6.63028C1.33348 5.71856 1.33347 4.98368 1.41118 4.4057C1.49186 3.80563 1.66445 3.30038 2.06573 2.8991C2.47777 2.48705 2.99944 2.31608 3.6208 2.23824C3.724 1.98925 3.86675 1.76471 4.06573 1.56573C4.46701 1.16445 4.97226 0.991856 5.57233 0.911179C6.15031 0.833472 6.88519 0.833483 7.79691 0.833496ZM3.23413 2.57334C3.56531 2.23857 4.01501 2.04332 4.77552 1.93997C5.55097 1.83458 6.5715 1.8335 8 1.8335C9.4285 1.8335 10.449 1.83458 11.2245 1.93997C11.985 2.04332 12.4347 2.23857 12.7659 2.57334C13.0978 2.90885 13.2919 3.36562 13.3945 4.13695C13.499 4.92211 13.5 5.95498 13.5 7.39851V10.7274C13.5 11.7716 13.4993 12.5136 13.4417 13.0531C13.3826 13.606 13.2736 13.8135 13.1718 13.9074C13.0159 14.051 12.8199 14.1406 12.6119 14.1644C12.4788 14.1797 12.2557 14.1281 11.8056 13.8093C11.3665 13.4983 10.8141 13.0106 10.0365 12.3229L10.019 12.3074C9.6942 12.0201 9.42479 12.7818 9.18693 11.6079C8.93828 11.426 8.68749 11.2863 8.39188 11.2267C8.13318 11.1746 7.86682 11.1746 7.60812 11.2267C7.31251 11.2863 7.06172 11.426 6.81307 11.6079C6.57522 11.7818 6.30581 12.0201 5.98097 12.3074L5.96351 12.3229C5.18592 13.0106 4.63351 13.4983 4.19443 13.8093C3.7443 14.1281 3.52121 14.1797 3.38812 14.1644C3.18012 14.1406 2.98412 14.051 2.82825 13.9074C2.72642 13.8135 2.61743 13.606 2.55835 13.0531C2.50069 12.5136 2.5 11.7716 2.5 10.7274V7.39851C2.5 5.95498 2.50104 4.92211 2.60547 4.13695C2.70806 3.36562 2.90222 2.90885 3.23413 2.57334Z" fill="#0F71EF" />
+                        </svg>
+                        <FormattedMessage id="savePlace" />
+                      </button>
+                      <button
+                        className="map-subgroup-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDetailsInfo(subGroup);
+                        }}
+                      >
+                        <svg width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path fillRule="evenodd" clipRule="evenodd" d="M7.79691 0.833496H9.20341C10.1151 0.833483 11.85 0.833472 11.428 0.911179C12.0281 0.991856 12.5333 1.16445 12.9346 1.56573C13.1336 1.76471 13.2763 1.98925 13.3795 2.23825C14.0009 2.31608 14.5226 2.48705 14.9346 2.8991C15.3359 3.30038 15.5085 3.80563 15.5891 4.4057C15.6669 4.98368 15.6668 5.71856 15.6668 6.63028V9.37011C15.6668 10.2818 15.6669 11.0167 15.5891 11.5947C15.5085 12.1948 15.3359 12.7 14.9346 13.1013C14.5225 13.5133 14.0009 13.6843 13.3795 13.7622C13.2763 14.0111 13.1336 14.2356 12.9346 14.4346C12.5333 14.8359 12.0281 15.0085 11.428 15.0891C10.85 15.1669 10.1151 15.1668 9.20341 15.1668H7.79692C6.88519 15.1668 6.15031 15.1669 5.57233 15.0891C4.97226 15.0085 4.46701 14.8359 4.06573 14.4346C3.86677 14.2356 3.72403 14.0111 3.62083 13.7622C2.99946 13.6843 2.47778 13.5133 2.06573 13.1013C1.66445 12.7 1.49186 12.1948 1.41118 11.5947C1.33347 11.0167 1.33348 10.2818 1.3335 9.37011V6.63028C1.33348 5.71856 1.33347 4.98368 1.41118 4.4057C1.49186 3.80563 1.66445 3.30038 2.06573 2.8991C2.47777 2.48705 2.99944 2.31608 3.6208 2.23824C3.724 1.98925 3.86675 1.76471 4.06573 1.56573C4.46701 1.16445 4.97226 0.991856 5.57233 0.911179C6.15031 0.833472 6.88519 0.833483 7.79691 0.833496ZM3.23413 2.57334C3.56531 2.23857 4.01501 2.04332 4.77552 1.93997C5.55097 1.83458 6.5715 1.8335 8 1.8335C9.4285 1.8335 10.449 1.83458 11.2245 1.93997C11.985 2.04332 12.4347 2.23857 12.7659 2.57334C13.0978 2.90885 13.2919 3.36562 13.3945 4.13695C13.499 4.92211 13.5 5.95498 13.5 7.39851V10.7274C13.5 11.7716 13.4993 12.5136 13.4417 13.0531C13.3826 13.606 13.2736 13.8135 13.1718 13.9074C13.0159 14.051 12.8199 14.1406 12.6119 14.1644C12.4788 14.1797 12.2557 14.1281 11.8056 13.8093C11.3665 13.4983 10.8141 13.0106 10.0365 12.3229L10.019 12.3074C9.6942 12.0201 9.42479 12.7818 9.18693 11.6079C8.93828 11.426 8.68749 11.2863 8.39188 11.2267C8.13318 11.1746 7.86682 11.1746 7.60812 11.2267C7.31251 11.2863 7.06172 11.426 6.81307 11.6079C6.57522 11.7818 6.30581 12.0201 5.98097 12.3074L5.96351 12.3229C5.18592 13.0106 4.63351 13.4983 4.19443 13.8093C3.7443 14.1281 3.52121 14.1797 3.38812 14.1644C3.18012 14.1406 2.98412 14.051 2.82825 13.9074C2.72642 13.8135 2.61743 13.606 2.55835 13.0531C2.50069 12.5136 2.5 11.7716 2.5 10.7274V7.39851C2.5 5.95498 2.50104 4.92211 2.60547 4.13695C2.70806 3.36562 2.90222 2.90885 3.23413 2.57334Z" fill="#0F71EF" />
+                          <path d="M6.00016 6.00016C6.00016 5.72402 6.22402 5.50016 6.50016 5.50016H10.5002C10.7763 5.50016 11.0002 5.72402 11.0002 6.00016C11.0002 6.27631 10.7763 6.50016 10.5002 6.50016H6.50016C6.22402 6.50016 6.00016 6.27631 6.00016 6.00016ZM6.00016 8.66683C6.00016 8.39069 6.22402 8.16683 6.50016 8.16683H10.5002C10.7763 8.16683 11.0002 8.39069 11.0002 8.66683C11.0002 8.94297 10.7763 9.16683 10.5002 9.16683H6.50016C6.22402 9.16683 6.00016 8.94297 6.00016 8.66683ZM6.00016 11.3335C6.00016 11.0574 6.22402 10.8335 6.50016 10.8335H8.50016C8.77631 10.8335 9.00016 11.0574 9.00016 11.3335C9.00016 11.6096 8.77631 11.8335 8.50016 11.8335H6.50016C6.22402 11.8335 6.00016 11.6096 6.00016 11.3335Z" fill="#0F71EF" />
+                        </svg>
+                        <FormattedMessage id="detailsButton" />
+                      </button>
                     </div>
                   </div>
-                  <div className="map-subgroup-actions">
-                    <button
-                      className="map-subgroup-btn"
-                      onClick={() => handleRouteFromSubgroup(subGroup)}
-                    >
-                      <svg width="19" height="16" viewBox="0 0 19 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path fillRule="evenodd" clipRule="evenodd" d="M16.2851 14.6752C16.7753 14.2188 16.9902 13.4967 16.6398 12.7983L11.1179 1.7918C10.4769 0.514157 8.52263 0.514157 7.88165 1.7918L2.35977 12.7983C2.00936 13.4967 2.2243 14.2188 2.71445 14.6752C3.20874 15.1354 4.01591 15.348 4.78988 14.9806L4.52496 14.5396L4.78988 14.9806L9.21767 12.8793L8.95274 12.4382L9.21767 12.8793C9.39648 12.7944 9.60309 12.7944 9.7819 12.8793L14.2097 14.9806L14.4746 14.5396L14.2097 14.9806C14.9837 15.348 15.7908 15.1354 16.2851 14.6752ZM14.7395 14.0985L14.4766 14.5364L14.7395 14.0985L10.3118 11.9971C9.80183 11.7551 9.19774 11.7551 8.68781 11.9971L4.26003 14.0985C3.99319 14.2251 3.72448 14.1675 3.52817 13.9847C3.32773 13.798 3.23735 13.5043 3.38724 13.2056L8.90911 2.19909C9.15361 1.71173 9.84595 1.71173 10.0905 2.19909L15.6123 13.2056C15.7622 13.5043 15.6718 13.7981 15.4714 13.9847C15.2751 14.1675 15.0064 14.2251 14.7395 14.0985Z" fill="#0F71EF" />
-                      </svg>
-                      <FormattedMessage id="navigate" />
-                    </button>
-                    <button className="map-subgroup-btn">
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M6 3.50016C5.72386 3.50016 5.5 3.72402 5.5 4.00016C5.5 4.27631 5.72386 4.50016 6 4.50016H10C10.2761 4.50016 10.5 4.27631 10.5 4.00016C10.5 3.72402 10.2761 3.50016 10 3.50016H6Z" fill="#0F71EF" />
-                        <path fillRule="evenodd" clipRule="evenodd" d="M7.96167 0.833496C6.57996 0.833486 5.49144 0.833479 4.64085 0.949076C3.76748 1.06777 3.07073 1.31662 2.52323 1.87005C1.97646 2.42274 1.73128 3.12484 1.6142 4.0051C1.49998 4.86384 1.49999 5.96324 1.5 7.36088V10.7595C1.49999 11.7645 1.49999 12.5603 1.56401 13.1594C1.62727 13.7514 1.76298 14.2855 2.15056 14.6427C2.4615 14.9293 2.85474 15.1099 3.27443 15.1579C3.79941 15.218 4.28959 14.9673 4.77246 14.6253C5.26108 14.2792 5.85384 13.7549 6.60169 13.0934L6.62603 13.0719C6.97274 12.7652 7.20748 12.5583 7.40333 12.4151C7.59261 12.2767 7.70818 12.2267 7.80559 12.207C7.93395 12.1812 8.06605 12.1812 8.19441 12.207C8.29182 12.2267 8.40739 12.2767 8.59667 12.4151C8.79252 12.5583 9.02726 12.7652 9.37397 13.0719L9.39835 13.0935C10.1462 13.7549 10.7389 14.2792 11.2275 14.6253C11.7104 14.9673 12.2006 15.218 12.7256 15.1579C13.1453 15.1099 13.5385 14.9293 13.8494 14.6427C14.237 14.2855 14.3727 13.7514 14.436 13.1594C14.5 12.5603 14.5 11.7645 14.5 10.7595V7.36086C14.5 5.96324 14.5 4.86383 14.3858 4.0051C14.2687 3.12484 14.0235 2.42274 13.4768 1.87005C12.9293 1.31662 12.2325 1.06777 11.3591 0.949076C10.5086 0.833479 9.42004 0.833486 8.03833 0.833496H7.96167ZM3.23413 2.57334C3.56531 2.23857 4.01501 2.04332 4.77552 1.93997C5.55097 1.83458 6.5715 1.8335 8 1.8335C9.4285 1.8335 10.449 1.83458 11.2245 1.93997C11.985 2.04332 12.4347 2.23857 12.7659 2.57334C13.0978 2.90885 13.2919 3.36562 13.3945 4.13695C13.499 4.92211 13.5 5.95498 13.5 7.39851V10.7274C13.5 11.7716 13.4993 12.5136 13.4417 13.0531C13.3826 13.606 13.2736 13.8135 13.1718 13.9074C13.0159 14.051 12.8199 14.1406 12.6119 14.1644C12.4788 14.1797 12.2557 14.1281 11.8056 13.8093C11.3665 13.4983 10.8141 13.0106 10.0365 12.3229L10.019 12.3074C9.6942 12.0201 9.42479 11.7818 9.18693 11.6079C8.93828 11.426 8.68749 11.2863 8.39188 11.2267C8.13318 11.1746 7.86682 11.1746 7.60812 11.2267C7.31251 11.2863 7.06172 11.426 6.81307 11.6079C6.57522 11.7818 6.30581 12.0201 5.98097 12.3074L5.96351 12.3229C5.18592 13.0106 4.63351 13.4983 4.19443 13.8093C3.7443 14.1281 3.52121 14.1797 3.38812 14.1644C3.18012 14.1406 2.98412 14.051 2.82825 13.9074C2.72642 13.8135 2.61743 13.606 2.55835 13.0531C2.50069 12.5136 2.5 11.7716 2.5 10.7274V7.39851C2.5 5.95498 2.50104 4.92211 2.60547 4.13695C2.70806 3.36562 2.90222 2.90885 3.23413 2.57334Z" fill="#0F71EF" />
-                      </svg>
-                      <FormattedMessage id="savePlace" />
-                    </button>
-                    <button
-                      className="map-subgroup-btn"
-                      onClick={() => handleDetailsInfo(subGroup)}
-                    >
-                      <svg width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path fillRule="evenodd" clipRule="evenodd" d="M7.79691 0.833496H9.20341C10.1151 0.833483 11.85 0.833472 11.428 0.911179C12.0281 0.991856 12.5333 1.16445 12.9346 1.56573C13.1336 1.76471 13.2763 1.98925 13.3795 2.23825C14.0009 2.31608 14.5226 2.48705 14.9346 2.8991C15.3359 3.30038 15.5085 3.80563 15.5891 4.4057C15.6669 4.98368 15.6668 5.71856 15.6668 6.63028V9.37011C15.6668 10.2818 15.6669 11.0167 15.5891 11.5947C15.5085 12.1948 15.3359 12.7 14.9346 13.1013C14.5225 13.5133 14.0009 13.6843 13.3795 13.7622C13.2763 14.0111 13.1336 14.2356 12.9346 14.4346C12.5333 14.8359 12.0281 15.0085 11.428 15.0891C10.85 15.1669 10.1151 15.1668 9.20341 15.1668H7.79692C6.88519 15.1668 6.15031 15.1669 5.57233 15.0891C4.97226 15.0085 4.46701 14.8359 4.06573 14.4346C3.86677 14.2356 3.72403 14.0111 3.62083 13.7622C2.99946 13.6843 2.47778 13.5133 2.06573 13.1013C1.66445 12.7 1.49186 12.1948 1.41118 11.5947C1.33347 11.0167 1.33348 10.2818 1.3335 9.37011V6.63028C1.33348 5.71856 1.33347 4.98368 1.41118 4.4057C1.49186 3.80563 1.66445 3.30038 2.06573 2.8991C2.47777 2.48705 2.99944 2.31608 3.6208 2.23824C3.724 1.98925 3.86675 1.76471 4.06573 1.56573C4.46701 1.16445 4.97226 0.991856 5.57233 0.911179C6.15031 0.833472 6.88519 0.833483 7.79691 0.833496ZM3.23413 2.57334C3.56531 2.23857 4.01501 2.04332 4.77552 1.93997C5.55097 1.83458 6.5715 1.8335 8 1.8335C9.4285 1.8335 10.449 1.83458 11.2245 1.93997C11.985 2.04332 12.4347 2.23857 12.7659 2.57334C13.0978 2.90885 13.2919 3.36562 13.3945 4.13695C13.499 4.92211 13.5 5.95498 13.5 7.39851V10.7274C13.5 11.7716 13.4993 12.5136 13.4417 13.0531C13.3826 13.606 13.2736 13.8135 13.1718 13.9074C13.0159 14.051 12.8199 14.1406 12.6119 14.1644C12.4788 14.1797 12.2557 14.1281 11.8056 13.8093C11.3665 13.4983 10.8141 13.0106 10.0365 12.3229L10.019 12.3074C9.6942 12.0201 9.42479 12.7818 9.18693 11.6079C8.93828 11.426 8.68749 11.2863 8.39188 11.2267C8.13318 11.1746 7.86682 11.1746 7.60812 11.2267C7.31251 11.2863 7.06172 11.426 6.81307 11.6079C6.57522 11.7818 6.30581 12.0201 5.98097 12.3074L5.96351 12.3229C5.18592 13.0106 4.63351 13.4983 4.19443 13.8093C3.7443 14.1281 3.52121 14.1797 3.38812 14.1644C3.18012 14.1406 2.98412 14.051 2.82825 13.9074C2.72642 13.8135 2.61743 13.606 2.55835 13.0531C2.50069 12.5136 2.5 11.7716 2.5 10.7274V7.39851C2.5 5.95498 2.50104 4.92211 2.60547 4.13695C2.70806 3.36562 2.90222 2.90885 3.23413 2.57334Z" fill="#0F71EF" />
-                        <path d="M6.00016 6.00016C6.00016 5.72402 6.22402 5.50016 6.50016 5.50016H10.5002C10.7763 5.50016 11.0002 5.72402 11.0002 6.00016C11.0002 6.27631 10.7763 6.50016 10.5002 6.50016H6.50016C6.22402 6.50016 6.00016 6.27631 6.00016 6.00016ZM6.00016 8.66683C6.00016 8.39069 6.22402 8.16683 6.50016 8.16683H10.5002C10.7763 8.16683 11.0002 8.39069 11.0002 8.66683C11.0002 8.94297 10.7763 9.16683 10.5002 9.16683H6.50016C6.22402 9.16683 6.00016 8.94297 6.00016 8.66683ZM6.00016 11.3335C6.00016 11.0574 6.22402 10.8335 6.50016 10.8335H8.50016C8.77631 10.8335 9.00016 11.0574 9.00016 11.3335C9.00016 11.6096 8.77631 11.8335 8.50016 11.8335H6.50016C6.22402 11.8335 6.00016 11.6096 6.00016 11.3335Z" fill="#0F71EF" />
-                      </svg>
-                      <FormattedMessage id="detailsButton" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
           </div>
         </div>
       )}
-
       {/* Destination Input - Only shown when modal is NOT open and not selecting from map and no subgroups are selected */}
       {!showDestinationModal && !showOriginModal && !isSelectingFromMap && mapSelectedSubGroups.length === 0 && (
         <>

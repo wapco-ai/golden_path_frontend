@@ -1710,18 +1710,11 @@ const MapBeginPage = () => {
                 <h2 className="section-title6">
                   {intl.formatMessage({ id: 'nearMe' })}
                 </h2>
-                <button className="view-all-btn5" onClick={() => openPlacesModal('nearest')}>
-                  {intl.formatMessage({ id: 'viewAll' })}
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                    <path d="M15 6l-6 6l6 6" />
-                  </svg>
-                </button>
               </div>
               <div className="places-horizontal-list">
                 {routingData.places.nearest
                   .filter(place => !isScannedPlace(place))
-                  .slice(0, 6)
+                  .slice(0, 5)  // CHANGED FROM 6 TO 5
                   .map((place, index) => (
                     <div key={index} className="place-card">
                       <div className="image-container">
@@ -1739,15 +1732,9 @@ const MapBeginPage = () => {
                       <div className="place-details">
                         <h4 className="place-name">{place.title}</h4>
                         <div className="place-meta">
-                          {place.distance != null && (
-                            <span className="place-distance">{place.distance} {intl.formatMessage({ id: 'meter' })}</span>
-                          )}
-                          {place.distance != null && place.time != null && (
-                            <span className="place-meta-separator">|</span>
-                          )}
-                          {place.time != null && (
-                            <span className="place-time">{place.time} {intl.formatMessage({ id: 'walking' })}</span>
-                          )}
+                          <span className="place-distance">{place.distance} {intl.formatMessage({ id: 'meter' })}</span>
+                          <span className="place-meta-separator">|</span>
+                          <span className="place-time">{place.time} {intl.formatMessage({ id: 'walking' })}</span>
                         </div>
                         <div className="place-rating-section">
                           <div className="place-rating-stars">
@@ -1785,16 +1772,6 @@ const MapBeginPage = () => {
                       </div>
                     </div>
                   ))}
-                {routingData.places.nearest.length > 6 && (
-                  <div className="view-more-places-container" onClick={() => openPlacesModal('nearest')}>
-                    <div className="view-more-places">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                        <path d="M9 6l6 6l-6 6" />
-                      </svg>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )}

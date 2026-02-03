@@ -1560,3 +1560,13 @@
   left: 8px;
 }
 
+/* Selected card styles */
+.map-subgroup-card.selected {
+  border: 2px solid #0F71EF;
+}
+
+/* Optional: Add a selected indicator */
+.map-subgroup-card.selected .map-subgroup-title {
+  color: #0F71EF;
+  font-weight: 600;
+}

@@ -94,7 +94,9 @@ const Mprc = ({
   showImageMarkers = false,
   landmarkPlaces = [],
   isChoosingFromMap = false,
-  selectedMapType = null
+  selectedMapType = null,
+  selectedLandmarkId = null,  // NEW: Added prop
+  onLandmarkSelect = () => {} // NEW: Added prop
 }) => {
   const intl = useIntl();
   const [viewState, setViewState] = useState({
@@ -204,6 +206,48 @@ const Mprc = ({
     return null;
   }, []);
 
+  const handleLandmarkClick = (event, place, coords) => {
+    event?.stopPropagation?.();
+  
+    const normalizeImages = (place) => {
+      if (Array.isArray(place.image)) return place.image;
+      if (Array.isArray(place.images)) return place.images;
+  
+      const firstImage = getFirstImage(place);
+      return firstImage ? [firstImage] : [];
+    };
+  
+    const feature = {
+      geometry: { type: 'Point', coordinates: [coords.lng, coords.lat] },
+      properties: {
+        ...place,
+        name: place.title || place.name || place.subGroup,
+        label: place.title || place.name || place.subGroup,
+        subGroupValue: place.subGroupValue || place.value || place.id,
+        img: normalizeImages(place),
+        isLandmark: true,
+        distance: place.distance,
+        time: place.time,
+        description: place.description,
+        address: place.address,
+        coordinates: [coords.lat, coords.lng],
+        lat: coords.lat,
+        lng: coords.lng,
+        geo: { lat: coords.lat, lng: coords.lng }
+      }
+    };
+  
+    onLandmarkSelect({
+      ...place,
+      coordinates: [coords.lat, coords.lng],
+      lat: coords.lat,
+      lng: coords.lng,
+      geo: { lat: coords.lat, lng: coords.lng }
+    });
+    
+    onMapClick?.({ lat: coords.lat, lng: coords.lng }, feature);
+  };
+
   // Initialize map focus and user location based on QR entry or GPS tracking
   useEffect(() => {
     const storedLat = sessionStorage.getItem('qrLat');
@@ -282,7 +326,6 @@ const Mprc = ({
   }, [setUserLocation, intl, isTracking]);
 
   // Update user location and optionally center map when it changes
-  // In MapComponent.js, update the useEffect that handles userLocation changes:
   useEffect(() => {
     if (userLocation?.coordinates) {
       const [lat, lng] = userLocation.coordinates;
@@ -563,53 +606,36 @@ const Mprc = ({
       })
       .filter(Boolean);
 
-    const normalizeImages = (place) => {
-      if (Array.isArray(place.image)) return place.image;
-      if (Array.isArray(place.images)) return place.images;
-
-      const firstImage = getFirstImage(place);
-      return firstImage ? [firstImage] : [];
-    };
-
-    return markers.map(({ key, coords, imageUrl, title, place }) => (
-      <Marker key={key} longitude={coords.lng} latitude={coords.lat} anchor="center">
-        <div
-          className="image-marker-container"
-          onClick={(event) => {
-            event?.stopPropagation?.();
-
-            const feature = {
-              geometry: { type: 'Point', coordinates: [coords.lng, coords.lat] },
-              properties: {
-                ...place,
-                name: place.title || place.name || place.subGroup,
-                label: place.title || place.name || place.subGroup,
-                subGroupValue: place.subGroupValue || place.value || place.id,
-                img: normalizeImages(place),
-                isLandmark: true,
-                distance: place.distance,
-                time: place.time,
-                description: place.description,
-                address: place.address
-              }
-            };
-
-            onMapClick?.({ lat: coords.lat, lng: coords.lng }, feature);
-          }}
-        >
-          <svg width="50" height="57" viewBox="0 0 55 63" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M54.6562 27.3281C54.6562 39.6299 46.5275 50.0319 35.3486 53.459C35.1079 53.8493 34.8535 54.2605 34.585 54.6924L33.1699 56.9687C30.7353 60.8845 29.5175 62.8418 27.7412 62.8418C25.9651 62.8417 24.7479 60.8842 22.3135 56.9687L20.8975 54.6924C20.6938 54.3648 20.4993 54.0485 20.3115 53.7451C8.61859 50.6476 8.59898e-05 39.9953 -1.19455e-06 27.3281C-5.34814e-07 12.2351 12.2351 -1.85429e-06 27.3281 -1.19455e-06C42.4211 0.000106671 54.6562 12.2352 54.6562 27.3281Z" fill="white" />
-          </svg>
+    return markers.map(({ key, coords, imageUrl, title, place }) => {
+      const landmarkId = place.id || place.value;
+      const isSelected = landmarkId === selectedLandmarkId;
+      
+      return (
+        <Marker key={key} longitude={coords.lng} latitude={coords.lat} anchor="center">
           <div
-            className="image-marker-content"
-            style={{ backgroundImage: `url(${imageUrl})` }}
-            aria-label={title || 'landmark'}
-          />
-        </div>
-      </Marker>
-    ));
-  }, [showImageMarkers, landmarkPlaces, extractPlaceCoordinates, getFirstImage, onMapClick, matchesSelectedCategory, isChoosingFromMap, selectedCategory]);
-
+            className="image-marker-container"
+            onClick={(event) => handleLandmarkClick(event, place, coords)}
+          >
+            <svg width="50" height="57" viewBox="0 0 55 63" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path 
+                d="M54.6562 27.3281C54.6562 39.6299 46.5275 50.0319 35.3486 53.459C35.1079 53.8493 34.8535 54.2605 34.585 54.6924L33.1699 56.9687C30.7353 60.8845 29.5175 62.8418 27.7412 62.8418C25.9651 62.8417 24.7479 60.8842 22.3135 56.9687L20.8975 54.6924C20.6938 54.3648 20.4993 54.0485 20.3115 53.7451C8.61859 50.6476 8.59898e-05 39.9953 -1.19455e-06 27.3281C-5.34814e-07 12.2351 12.2351 -1.85429e-06 27.3281 -1.19455e-06C42.4211 0.000106671 54.6562 12.2352 54.6562 27.3281Z" 
+                fill={isSelected ? "white" : "white"}  
+                stroke={isSelected ? "blue" : "#DDD"} 
+                strokeWidth={isSelected ? "1" : "1"}
+              />
+            </svg>
+            <div
+              className={`image-marker-content ${isSelected ? 'selected' : ''}`}
+              style={{ 
+                backgroundImage: `url(${imageUrl})`,
+              }}
+              aria-label={title || 'landmark'}
+            />
+          </div>
+        </Marker>
+      );
+    });
+  }, [showImageMarkers, landmarkPlaces, extractPlaceCoordinates, getFirstImage, onMapClick, matchesSelectedCategory, isChoosingFromMap, selectedCategory, selectedLandmarkId, onLandmarkSelect]);
 
   useEffect(() => {
     if (!shouldLoadGeoJson) {
@@ -739,7 +765,6 @@ const Mprc = ({
       {renderLandmarkMarkers()}
 
       {/* Point features (doors, services, etc.) */}
-      // Point features (doors, services, etc.) - Only show when a category is selected
       {selectedCategory && pointFeatures
         .filter((feature) => matchesSelectedCategory(feature?.properties || {}))
         .filter((feature) => !['door', 'connection'].includes(feature?.properties?.nodeFunction))
