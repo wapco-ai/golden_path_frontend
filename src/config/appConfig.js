@@ -42,7 +42,8 @@ const defaultAdminCommentsBaseUrl = `${defaultApiBaseUrl}/api/v1/admin/comments`
 const defaultAdminUsersBaseUrl = `${defaultApiBaseUrl}/api/v1/admin/users`;
 const defaultTempBlockAreasBaseUrl = `${defaultApiBaseUrl}/api/v1/admin/temp-block-areas`;
 const defaultDestinationsUrl = `${defaultApiBaseUrl}/api/v1/destinations`;
-const defaultMbtilesSatelliteTilesUrl = 'http://localhost:8088/services/gsm/tiles/{z}/{x}/{y}.jpg';
+// const defaultMbtilesSatelliteTilesUrl = 'http://localhost:8088/services/gsm/tiles/{z}/{x}/{y}.jpg';
+const defaultMbtilesSatelliteTilesUrl = `${defaultApiBaseUrl}/tms/services/gsm/tiles/{z}/{x}/{y}.jpg`;
 
 const appConfig = {
   apiBaseUrl: (import.meta?.env?.VITE_API_BASE_URL?.trim() || defaultApiBaseUrl).replace(/\/$/, ''),
