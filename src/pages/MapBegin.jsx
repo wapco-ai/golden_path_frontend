@@ -105,6 +105,28 @@ const MapBeginPage = () => {
     sessionStorage.removeItem('mapSelectedId');
   };
 
+  const getLandmarkImage = (place) => {
+    if (!place) return null;
+
+    if (Array.isArray(place.image) && place.image.length > 0) {
+      return place.image[0];
+    }
+
+    if (Array.isArray(place.images) && place.images.length > 0) {
+      return place.images[0];
+    }
+
+    if (typeof place.image === 'string' && place.image.trim()) {
+      return place.image;
+    }
+
+    if (typeof place.images === 'string' && place.images.trim()) {
+      return place.images;
+    }
+
+    return null;
+  };
+
   useEffect(() => {
     if (storedLat && storedLng && storedId) {
       getLocationTitleById(storedId).then((title) => {
@@ -202,6 +224,49 @@ const MapBeginPage = () => {
       setSearchResults([]);
     }
   };
+
+  useEffect(() => {
+    const trimmedQuery = searchQuery.trim();
+
+    if (trimmedQuery.length <= 3) {
+      setSearchResults([]);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(async () => {
+      try {
+        const data = await fetchLandmarkPlaces({
+          language,
+          search: trimmedQuery,
+          signal: controller.signal
+        });
+
+        const apiLandmarks = Array.isArray(data?.places?.landmarkPlaces)
+          ? data.places.landmarkPlaces
+          : [];
+
+        const landmarksWithImages = apiLandmarks
+          .map(place => {
+            const image = getLandmarkImage(place);
+            if (!image) return null;
+            return { ...place, image };
+          })
+          .filter(Boolean);
+
+        setSearchResults(landmarksWithImages);
+      } catch (error) {
+        if (error?.name === 'AbortError') return;
+        console.error('Failed to search landmark places', error);
+        setSearchResults([]);
+      }
+    }, 350);
+
+    return () => {
+      controller.abort();
+      clearTimeout(timeoutId);
+    };
+  }, [searchQuery, language]);
 
 
   const handleSearchModalClose = () => {
@@ -750,28 +815,6 @@ const MapBeginPage = () => {
         return Number.isFinite(numericValue) ? numericValue : fallback;
       };
 
-      const getFirstImage = (place) => {
-        if (!place) return null;
-
-        if (Array.isArray(place.image) && place.image.length > 0) {
-          return place.image[0];
-        }
-
-        if (Array.isArray(place.images) && place.images.length > 0) {
-          return place.images[0];
-        }
-
-        if (typeof place.image === 'string' && place.image.trim()) {
-          return place.image;
-        }
-
-        if (typeof place.images === 'string' && place.images.trim()) {
-          return place.images;
-        }
-
-        return null;
-      };
-
       try {
         const data = await fetchLandmarkPlaces({
           language,
@@ -784,7 +827,7 @@ const MapBeginPage = () => {
 
         const landmarksWithImages = apiLandmarks
           .map(place => {
-            const image = getFirstImage(place);
+            const image = getLandmarkImage(place);
             if (!image) return null;
             return { ...place, image };
           })
@@ -1307,7 +1350,7 @@ const MapBeginPage = () => {
                       </div>
                     </div>
                   ))
-                ) : searchQuery.trim().length > 0 ? (
+                ) : searchQuery.trim().length > 3 ? (
                   <div className="search-no-results3">
                     <p>{intl.formatMessage({ id: "noSearchResults" }, { query: searchQuery })}</p>
                   </div>
