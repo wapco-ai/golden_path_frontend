@@ -1364,7 +1364,7 @@ const MapBeginPage = () => {
                       </div>
                     </div>
                   ))
-                ) : searchQuery.trim().length > 1 ? (
+                ) : searchQuery.trim().length > 0 ? (
                   <div className="search-no-results3">
                     <p>{intl.formatMessage({ id: "noSearchResults" }, { query: searchQuery })}</p>
                   </div>
