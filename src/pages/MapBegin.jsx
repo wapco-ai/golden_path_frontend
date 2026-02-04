@@ -68,6 +68,9 @@ const MapBeginPage = () => {
   const [selectedLandmarkId, setSelectedLandmarkId] = useState(null);
   const [currentHeight, setCurrentHeight] = useState(140);
   const [isAutoExpanding, setIsAutoExpanding] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
   const [modalDragStartY, setModalDragStartY] = useState(0);
   const [modalDragStartHeight, setModalDragStartHeight] = useState(0);
   const [isModalDragging, setIsModalDragging] = useState(false);
@@ -184,6 +187,28 @@ const MapBeginPage = () => {
         setCurrentHeight(window.innerHeight);
         setExpandedSearch(true);
       }
+    }
+  };
+
+  const handleSearchInputChange = (e) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    
+    if (value.trim().length > 0) {
+      setShowSearchModal(true);
+      setSearchResults([]);
+    } else {
+      setShowSearchModal(false);
+      setSearchResults([]);
+    }
+  };
+
+
+  const handleSearchModalClose = () => {
+    setShowSearchModal(false);
+    setSearchQuery('');
+    if (searchInputRef.current) {
+      searchInputRef.current.blur();
     }
   };
 
@@ -1105,6 +1130,15 @@ const MapBeginPage = () => {
           setSelectedMapType={setSelectedMapType}
         />
         <button
+          className="map-navigate-button"
+          onClick={() => navigate('/mpr')}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+            <path d="M11.092 2.581a1 1 0 0 1 1.754 -.116l.062 .116l8.005 17.365c.198 .566 .05 1.196 -.378 1.615a1.53 1.53 0 0 1 -1.459 .393l-7.077 -2.398l-6.899 2.338a1.535 1.535 0 0 1 -1.52 -.231l-.112 -.1c-.398 -.386 -.556 -.954 -.393 -1.556l.047 -.15l7.97 -17.276z" />
+          </svg>
+        </button>
+        <button
           className={`map-gps-button ${isTracking ? 'active' : 'inactive'}`}
           onClick={() => setIsTracking((t) => !t)}
         >
@@ -1230,21 +1264,57 @@ const MapBeginPage = () => {
           <form className={`search-bar ${showRouting ? 'expanded' : ''}`}>
             <input
               type="text"
-              placeholder={intl.formatMessage({ id: 'searchPlaceholder' })}
+              placeholder={intl.formatMessage({ id: 'pmapSearchPlaceholder' })}
+              value={searchQuery}
+              onChange={handleSearchInputChange}
               onClick={(e) => {
                 e.stopPropagation();
-                navigate('/mpr');
               }}
               onTouchStart={(e) => e.stopPropagation()}
-              onBlur={handleSearchBlur}
               ref={searchInputRef}
             />
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path fillRule="evenodd" clipRule="evenodd" d="M9.58342 2.29163C5.55634 2.29163 2.29175 5.55622 2.29175 9.58329C2.29175 13.6104 5.55634 16.875 9.58342 16.875C13.6105 16.875 16.8751 13.6104 16.8751 9.58329C16.8751 5.55622 13.6105 2.29163 9.58342 2.29163ZM1.04175 9.58329C1.04175 4.86586 4.86598 1.04163 9.58342 1.04163C14.3008 1.04163 18.1251 4.86586 18.1251 9.58329C18.1251 11.7171 17.3427 13.6681 16.0491 15.1651L18.7754 17.8914C19.0194 18.1354 19.0194 18.5312 18.7754 18.7752C18.5313 19.0193 18.1356 19.0193 17.8915 18.7752L15.1653 16.049C13.6682 17.3426 11.7172 18.125 9.58342 18.125C4.86598 18.125 1.04175 14.3007 1.04175 9.58329Z" fill="#1E2023" />
             </svg>
-
-
           </form>
+
+          {/* Search Modal */}
+          {showSearchModal && (
+            <div className="search-modal3" onClick={(e) => e.stopPropagation()}>
+              <div className="search-modal-header3">
+                <h3>{intl.formatMessage({ id: "searchResults" })}</h3>
+              </div>
+              <div className="search-modal-content3">
+                {searchResults.length > 0 ? (
+                  searchResults.map((result, index) => (
+                    <div key={index} className="search-result-card3">
+                      <div
+                        className="search-result-image3"
+                        style={{ backgroundImage: result.image ? `url(${result.image})` : 'none' }}
+                      >
+                        {!result.image && (
+                          <div className="search-result-image-placeholder">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <rect x="3" y="3" width="18" height="18" rx="2" />
+                              <circle cx="8.5" cy="8.5" r="1.5" />
+                              <polyline points="21 15 16 10 5 21" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                      <div className="search-result-info3">
+                        <h4 className="search-result-title3">{result.title || result.name}</h4>
+                      </div>
+                    </div>
+                  ))
+                ) : searchQuery.trim().length > 0 ? (
+                  <div className="search-no-results3">
+                    <p>{intl.formatMessage({ id: "noSearchResults" }, { query: searchQuery })}</p>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          )}
 
 
           {showRouting && showLocationDetails && selectedLocation && (
@@ -1400,7 +1470,7 @@ const MapBeginPage = () => {
                 <div className="events-modal-header">
                   <h3>{intl.formatMessage({ id: 'shrineEventsTitle' })}</h3>
                   <button className="close-modal-btn" onClick={closeEventsModal}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-x"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-x"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>
                   </button>
                 </div>
                 <div className="events-modal-content">

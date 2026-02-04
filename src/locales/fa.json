@@ -381,5 +381,7 @@
   "locationUpdated": "مکان با موفقیت به‌روزرسانی شد",
   "mapType": "نوع نقشه",
   "baseMap": "تصویر پایه",
-  "satelliteMap": "تصویر ماهواره ای"
+  "satelliteMap": "تصویر ماهواره ای",
+  "searchResults": "نتایج جستجو",
+  "noSearchResults": "نتیجه‌ای برای \"{query}\" یافت نشد"
 }

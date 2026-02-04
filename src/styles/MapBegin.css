@@ -137,6 +137,23 @@
   height: 100% !important;
 }
 
+.map-navigate-button {
+  position: absolute;
+  bottom: 370px;
+  right: 18px;
+  width: 54px;
+  height: 54px;
+  background-color: #2196f3;
+  border-radius: 50%;
+  border: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+
 .map-gps-button {
   position: absolute;
   bottom: 300px;
@@ -2114,4 +2131,90 @@ body.sidebar-open {
     opacity: 1;
     transform: translateX(0);
   }
+}
+
+/* Search Modal Styles - Add to the end of your CSS file */
+
+
+.search-modal3 {
+  position: fixed;
+  background: #fff;
+  border-radius: 0;
+  width: 100%;
+  height: 100vh;
+  max-height: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  z-index: 999;
+}
+
+.search-modal-header3 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+}
+
+.search-modal-header3 h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #1e2023;
+}
+
+.search-modal-content3 {
+  padding: 16px 20px 24px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.search-result-card3 {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #D9D9D9;
+  padding: 8px;
+  border-radius: 8px;
+  height: 180px;
+}
+
+.search-result-image3 {
+  width: 100%;
+  height: 120px;
+  background-size: cover;
+  background-position: center;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  flex-shrink: 0;
+  margin-bottom: 8px;
+}
+
+.search-result-info3 {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.search-result-title3 {
+  margin: 0 0 4px 0;
+  font-size: 0.9rem;
+  color: #1e2023;
+  line-height: 1.3;
+}
+
+
+.search-no-results3 {
+  grid-column: span 2;
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+  font-family: 'Vazir', Tahoma, sans-serif;
+}
+
+.search-no-results3 p {
+  margin: 0;
+  font-size: 14px;
 }

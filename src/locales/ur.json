@@ -381,5 +381,7 @@
   "locationUpdated": "مقام کامیابی سے اپ ڈیٹ ہو گیا",
   "mapType": "نقشے کی قسم",
   "baseMap": "بنیادی نقشہ",
-  "satelliteMap": "سیٹلائیٹ نقشہ"
+  "satelliteMap": "سیٹلائیٹ نقشہ",
+  "searchResults": "تلاش کے نتائج",
+  "noSearchResults": "\"{query}\" کے لیے کوئی نتیجہ نہیں ملا"
 }
