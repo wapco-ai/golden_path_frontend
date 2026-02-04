@@ -215,6 +215,10 @@ const MapBeginPage = () => {
   const handleSearchInputChange = (e) => {
     const value = e.target.value;
     setSearchQuery(value);
+
+    if (!showRouting) {
+      handleSearchToggle();
+    }
     
     if (value.trim().length > 1) {
       setShowSearchModal(true);
@@ -1310,6 +1314,11 @@ const MapBeginPage = () => {
               placeholder={intl.formatMessage({ id: 'pmapSearchPlaceholder' })}
               value={searchQuery}
               onChange={handleSearchInputChange}
+              onFocus={() => {
+                if (!showRouting) {
+                  handleSearchToggle();
+                }
+              }}
               onClick={(e) => {
                 e.stopPropagation();
               }}
