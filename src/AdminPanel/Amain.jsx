@@ -1434,6 +1434,7 @@ const Amain = () => {
   const [currentMarker, setCurrentMarker] = useState(null);
   const editMapTimeoutRef = useRef(null);
   const editMapRetryRef = useRef(0);
+  const editMapResizeObserverRef = useRef(null);
   const [titleForModal, setTitleForModal] = useState('');
   const [adminAvatar, setAdminAvatar] = useState(null);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -3347,6 +3348,11 @@ const Amain = () => {
       setCurrentMarker(null);
     }
 
+    if (editMapResizeObserverRef.current) {
+      editMapResizeObserverRef.current.disconnect();
+      editMapResizeObserverRef.current = null;
+    }
+
     if (culturalMap) {
       try {
         culturalMap.remove();
@@ -4178,7 +4184,7 @@ const Amain = () => {
 
     const container = document.getElementById('edit-cultural-map-container');
     if (!container) {
-      if (editMapRetryRef.current < 5) {
+      if (editMapRetryRef.current < 10) {
         editMapRetryRef.current += 1;
         editMapTimeoutRef.current = setTimeout(() => {
           const mapInstance = initializeEditMap();
@@ -4200,13 +4206,11 @@ const Amain = () => {
     }
 
     if (!culturalMap || !isEditMapInstance) {
-      editMapTimeoutRef.current = setTimeout(() => {
-        const mapInstance = initializeEditMap();
-        if (mapInstance) {
-          requestAnimationFrame(() => mapInstance.resize());
-          mapInstance.once('load', () => mapInstance.resize());
-        }
-      }, 100);
+      const mapInstance = initializeEditMap();
+      if (mapInstance) {
+        requestAnimationFrame(() => mapInstance.resize());
+        mapInstance.once('load', () => mapInstance.resize());
+      }
     } else {
       requestAnimationFrame(() => culturalMap.resize());
     }
@@ -4217,7 +4221,36 @@ const Amain = () => {
         editMapTimeoutRef.current = null;
       }
     };
-  }, [isEditingCultural, editingCulturalData, culturalMap, initializeEditMap]);
+  }, [isEditingCultural, editingCulturalData, culturalMap, initializeEditMap, cleanupCulturalMap]);
+
+  useEffect(() => {
+    if (!isEditingCultural) return undefined;
+
+    const container = document.getElementById('edit-cultural-map-container');
+    const isEditMapInstance = culturalMap?.getContainer?.()?.id === 'edit-cultural-map-container';
+
+    if (!container || !culturalMap || !isEditMapInstance || typeof ResizeObserver === 'undefined') {
+      return undefined;
+    }
+
+    if (editMapResizeObserverRef.current) {
+      editMapResizeObserverRef.current.disconnect();
+    }
+
+    const observer = new ResizeObserver(() => {
+      culturalMap.resize();
+    });
+
+    observer.observe(container);
+    editMapResizeObserverRef.current = observer;
+
+    return () => {
+      observer.disconnect();
+      if (editMapResizeObserverRef.current === observer) {
+        editMapResizeObserverRef.current = null;
+      }
+    };
+  }, [isEditingCultural, culturalMap]);
 
   const handleCulturalPrayerNextMonth = () => {
     setCulturalPrayerCalendarDate(prev => {
