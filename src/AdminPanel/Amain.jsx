@@ -4077,10 +4077,17 @@ const Amain = () => {
 
 
   const initializeEditMap = useCallback(() => {
+    const existingContainerId = culturalMap?.getContainer?.()?.id;
+    const isEditMapInstance = existingContainerId === 'edit-cultural-map-container';
+
     // Prevent re-initializing the edit map if it already exists
-    if (culturalMap) {
+    if (culturalMap && isEditMapInstance) {
       console.warn('پیش از این نقشه ایجاد شده است.');
-      return;
+      return culturalMap;
+    }
+
+    if (culturalMap && !isEditMapInstance) {
+      cleanupCulturalMap();
     }
 
     if (!document.getElementById('edit-cultural-map-container')) {
@@ -4162,7 +4169,7 @@ const Amain = () => {
 
     setCulturalMap(mapInstance);
     return mapInstance;
-  }, [culturalMap, selectedLocation]);
+  }, [cleanupCulturalMap, culturalMap, selectedLocation]);
 
 
   useEffect(() => {
@@ -4170,7 +4177,13 @@ const Amain = () => {
 
     if (!document.getElementById('edit-cultural-map-container')) return undefined;
 
-    if (!culturalMap) {
+    const isEditMapInstance = culturalMap?.getContainer?.()?.id === 'edit-cultural-map-container';
+
+    if (culturalMap && !isEditMapInstance) {
+      cleanupCulturalMap();
+    }
+
+    if (!culturalMap || !isEditMapInstance) {
       editMapTimeoutRef.current = setTimeout(() => {
         const mapInstance = initializeEditMap();
         if (mapInstance) {
@@ -9504,9 +9517,10 @@ const Amain = () => {
                           className="select-location-btn-edit"
                           onClick={() => {
                             // Reinitialize the map if it doesn't exist
-                            if (isEditingCultural && editingCulturalData && !culturalMap) {
+                            const isEditMapInstance = culturalMap?.getContainer?.()?.id === 'edit-cultural-map-container';
+                            if (isEditingCultural && editingCulturalData && (!culturalMap || !isEditMapInstance)) {
                               initializeEditMap();
-                            } else {
+                            } else if (selectedLocation) {
                               // Focus on current location
                               culturalMap.flyTo({
                                 center: [selectedLocation.lng, selectedLocation.lat],
