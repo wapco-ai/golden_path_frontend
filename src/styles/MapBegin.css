@@ -2205,6 +2205,17 @@ body.sidebar-open {
   line-height: 1.3;
 }
 
+.search-result-actions {
+  padding-top: 8px;
+}
+
+.search-result-actions .place-action-btn,
+.search-result-actions .place-action-btn2 {
+  width: auto;
+  font-size: 0.8rem;
+  padding: 4px 8px;
+}
+
 
 .search-no-results3 {
   grid-column: span 2;
