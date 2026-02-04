@@ -4076,7 +4076,7 @@ const Amain = () => {
   };
 
 
-  const initializeEditMap = () => {
+  const initializeEditMap = useCallback(() => {
     // Prevent re-initializing the edit map if it already exists
     if (culturalMap) {
       console.warn('پیش از این نقشه ایجاد شده است.');
@@ -4162,20 +4162,24 @@ const Amain = () => {
 
     setCulturalMap(mapInstance);
     return mapInstance;
-  }
+  }, [culturalMap, selectedLocation]);
 
 
   useEffect(() => {
-    if (!isEditingCultural || !editingCulturalData) return;
+    if (!isEditingCultural || !editingCulturalData) return undefined;
 
-    // Ensure not to reinitialize if already set up
-    if (culturalMap) return;
+    if (!document.getElementById('edit-cultural-map-container')) return undefined;
 
-    if (isEditingCultural && editingCulturalData && !culturalMap) {
-      // Initialize edit map after a short delay to ensure DOM is ready
+    if (!culturalMap) {
       editMapTimeoutRef.current = setTimeout(() => {
-        initializeEditMap();
+        const mapInstance = initializeEditMap();
+        if (mapInstance) {
+          requestAnimationFrame(() => mapInstance.resize());
+          mapInstance.once('load', () => mapInstance.resize());
+        }
       }, 100);
+    } else {
+      requestAnimationFrame(() => culturalMap.resize());
     }
 
     return () => {
@@ -4184,7 +4188,7 @@ const Amain = () => {
         editMapTimeoutRef.current = null;
       }
     };
-  });
+  }, [isEditingCultural, editingCulturalData, culturalMap, initializeEditMap]);
 
   const handleCulturalPrayerNextMonth = () => {
     setCulturalPrayerCalendarDate(prev => {
@@ -4446,7 +4450,7 @@ const Amain = () => {
 
 
   // Map initialization function for cultural modal - FIXED VERSION
-  const initializeCulturalMap = () => {
+  const initializeCulturalMap = useCallback(() => {
     if (!document.getElementById('cultural-map-container')) return null;
 
     const mapInstance = new maplibregl.Map({
@@ -4484,7 +4488,23 @@ const Amain = () => {
 
     setCulturalMap(mapInstance);
     return mapInstance;
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!isAddCulturalModalOpen || culturalStep !== 2) return;
+
+    if (!document.getElementById('cultural-map-container')) return;
+
+    if (!culturalMap) {
+      const mapInstance = initializeCulturalMap();
+      if (mapInstance) {
+        requestAnimationFrame(() => mapInstance.resize());
+        mapInstance.once('load', () => mapInstance.resize());
+      }
+    } else {
+      requestAnimationFrame(() => culturalMap.resize());
+    }
+  }, [isAddCulturalModalOpen, culturalStep, culturalMap, initializeCulturalMap]);
 
 
   useEffect(() => {
