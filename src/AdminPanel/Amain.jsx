@@ -1433,6 +1433,7 @@ const Amain = () => {
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [currentMarker, setCurrentMarker] = useState(null);
   const editMapTimeoutRef = useRef(null);
+  const editMapRetryRef = useRef(0);
   const [titleForModal, setTitleForModal] = useState('');
   const [adminAvatar, setAdminAvatar] = useState(null);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -4175,7 +4176,22 @@ const Amain = () => {
   useEffect(() => {
     if (!isEditingCultural || !editingCulturalData) return undefined;
 
-    if (!document.getElementById('edit-cultural-map-container')) return undefined;
+    const container = document.getElementById('edit-cultural-map-container');
+    if (!container) {
+      if (editMapRetryRef.current < 5) {
+        editMapRetryRef.current += 1;
+        editMapTimeoutRef.current = setTimeout(() => {
+          const mapInstance = initializeEditMap();
+          if (mapInstance) {
+            requestAnimationFrame(() => mapInstance.resize());
+            mapInstance.once('load', () => mapInstance.resize());
+          }
+        }, 150);
+      }
+      return undefined;
+    }
+
+    editMapRetryRef.current = 0;
 
     const isEditMapInstance = culturalMap?.getContainer?.()?.id === 'edit-cultural-map-container';
 
