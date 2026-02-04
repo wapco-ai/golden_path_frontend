@@ -216,7 +216,7 @@ const MapBeginPage = () => {
     const value = e.target.value;
     setSearchQuery(value);
     
-    if (value.trim().length > 0) {
+    if (value.trim().length > 1) {
       setShowSearchModal(true);
       setSearchResults([]);
     } else {
@@ -228,7 +228,7 @@ const MapBeginPage = () => {
   useEffect(() => {
     const trimmedQuery = searchQuery.trim();
 
-    if (trimmedQuery.length <= 3) {
+    if (trimmedQuery.length <= 1) {
       setSearchResults([]);
       return undefined;
     }
@@ -1347,6 +1347,20 @@ const MapBeginPage = () => {
                       </div>
                       <div className="search-result-info3">
                         <h4 className="search-result-title3">{result.title || result.name}</h4>
+                        <div className="place-actions search-result-actions">
+                          <button
+                            className="place-action-btn events-modal-nav-btn"
+                            onClick={() => handlePlaceNavigation(result)}
+                          >
+                            {intl.formatMessage({ id: 'navigate' })}
+                          </button>
+                          <button
+                            className="place-action-btn2 events-modal-culture-btn"
+                            onClick={() => handlePlaceCulturalInfo(result)}
+                          >
+                            {intl.formatMessage({ id: 'culturalInfo' })}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))
