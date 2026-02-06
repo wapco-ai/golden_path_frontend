@@ -2835,7 +2835,8 @@ const Amain = () => {
       return null;
     }
 
-    return `location?lat=${latitude}&lng=${longitude}&id=${id}`;
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/#/location?lat=${latitude}&lng=${longitude}&id=${id}`;
   };
 
   const closeCulturalQrModal = () => {
