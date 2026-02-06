@@ -2177,7 +2177,7 @@ body.sidebar-open {
   border: 1px solid #D9D9D9;
   padding: 8px;
   border-radius: 8px;
-  height: 180px;
+  min-height: 180px;
 }
 
 .search-result-image3 {
@@ -2206,11 +2206,16 @@ body.sidebar-open {
 }
 
 .search-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   padding-top: 8px;
 }
 
 .search-result-actions .place-action-btn,
 .search-result-actions .place-action-btn2 {
+  flex: 1 1 calc(50% - 6px);
+  min-width: 0;
   width: auto;
   font-size: 0.8rem;
   padding: 4px 8px;
