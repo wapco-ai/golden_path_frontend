@@ -6,6 +6,7 @@ export const fetchLandmarkPlaces = async ({
   poiId,
   search,
   limit,
+  featured,
   signal
 } = {}) => {
   const url = appConfig.landmarkPlacesUrl;
@@ -23,6 +24,10 @@ export const fetchLandmarkPlaces = async ({
 
   if (search) {
     params.set('search', search);
+  }
+
+  if (featured != null) {
+    params.set('featured', featured);
   }
 
   if (geo?.lat != null && geo?.lng != null) {

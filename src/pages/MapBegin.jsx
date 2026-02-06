@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { useIntl } from 'react-intl';
 import axios from 'axios';
@@ -78,6 +78,12 @@ const MapBeginPage = () => {
   const [modalLastTouchY, setModalLastTouchY] = useState(0);
   const [showMapStyleMenu, setShowMapStyleMenu] = useState(false);
   const [modalLastTouchTime, setModalLastTouchTime] = useState(0);
+  const [mapZoomLevel, setMapZoomLevel] = useState(15);
+  const isFeaturedZoom = mapZoomLevel === 15 || mapZoomLevel === 16;
+  const handleMapZoomChange = useCallback((zoom) => {
+    const roundedZoom = Math.round(zoom);
+    setMapZoomLevel((prev) => (prev === roundedZoom ? prev : roundedZoom));
+  }, []);
   const [preventScroll, setPreventScroll] = useState(false);
   const [scrollStartY, setScrollStartY] = useState(0);
   const [scrollStartScrollTop, setScrollStartScrollTop] = useState(0);
@@ -243,6 +249,7 @@ const MapBeginPage = () => {
         const data = await fetchLandmarkPlaces({
           language,
           search: trimmedQuery,
+          featured: isFeaturedZoom ? 1 : undefined,
           signal: controller.signal
         });
 
@@ -270,7 +277,7 @@ const MapBeginPage = () => {
       controller.abort();
       clearTimeout(timeoutId);
     };
-  }, [searchQuery, language]);
+  }, [searchQuery, language, isFeaturedZoom]);
 
 
   const handleSearchModalClose = () => {
@@ -822,7 +829,8 @@ const MapBeginPage = () => {
       try {
         const data = await fetchLandmarkPlaces({
           language,
-          geo
+          geo,
+          featured: isFeaturedZoom ? 1 : undefined
         });
 
         const apiLandmarks = Array.isArray(data?.places?.landmarkPlaces)
@@ -883,7 +891,7 @@ const MapBeginPage = () => {
     };
 
     loadLandmarkPlaces();
-  }, [language, userLocation, intl]);
+  }, [language, userLocation, intl, isFeaturedZoom]);
 
   useEffect(() => {
     const fetchShrineEvents = async () => {
@@ -1175,6 +1183,7 @@ const MapBeginPage = () => {
           setShowMapStyleMenu={setShowMapStyleMenu}
           selectedMapType={selectedMapType}
           setSelectedMapType={setSelectedMapType}
+          onZoomChange={handleMapZoomChange}
         />
         <button
           className="map-navigate-button"

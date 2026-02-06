@@ -87,7 +87,8 @@ const Mpbc = ({
   showMapStyleMenu = false,
   setShowMapStyleMenu = () => {},
   selectedMapType = null,
-  setSelectedMapType = () => {}
+  setSelectedMapType = () => {},
+  onZoomChange = () => {}
 }) => {
   const intl = useIntl();
   const [viewState, setViewState] = useState({
@@ -117,10 +118,11 @@ const Mpbc = ({
   // import styleEn from "../rtl/style-en.json";
   const onMove = useCallback((evt) => {
     setViewState(evt.viewState);
+    onZoomChange?.(evt.viewState.zoom);
     if (onUserMove && evt.originalEvent) {
       onUserMove();
     }
-  }, [onUserMove]);
+  }, [onZoomChange, onUserMove]);
 
   const handleMapLoad = useCallback((event) => {
     initHaramVectorLayers(event?.target || event, vectorTileConfig);
