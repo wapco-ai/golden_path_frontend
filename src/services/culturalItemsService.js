@@ -24,6 +24,47 @@ const normalizeLocation = (location) => {
   };
 };
 
+const resolveMediaUrl = (media, defaultMime = 'image/jpeg') => {
+  if (!media) return null;
+
+  if (typeof media === 'string') {
+    const trimmed = media.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith('data:')) return trimmed;
+
+    const isRawBase64 = /^[A-Za-z0-9+/]+={0,2}$/g.test(trimmed.replace(/\s+/g, ''));
+    if (isRawBase64) {
+      return `data:${defaultMime};base64,${trimmed}`;
+    }
+
+    return trimmed;
+  }
+
+  if (typeof media === 'object') {
+    if (media.url) return media.url;
+    if (media.data) {
+      return `data:${media.mime || defaultMime};base64,${media.data}`;
+    }
+  }
+
+  return null;
+};
+
+const resolvePrimaryImage = (item) => {
+  if (!item) return null;
+
+  const candidateMedia = Array.isArray(item.content?.media) ? item.content.media : [];
+  const imageMedia = candidateMedia.find((media) => {
+    const mime = media?.mime || media?.type;
+    if (typeof mime === 'string') {
+      return mime.startsWith('image');
+    }
+    return media?.type === 'image' || media?.fileType === 'image';
+  }) || candidateMedia[0];
+
+  return resolveMediaUrl(item.primaryImage ?? item.image ?? imageMedia);
+};
+
 const normalizeCulturalItem = (item) => {
   const normalizedId = item.id ?? item.poiId ?? item.poi_id ?? null;
 
@@ -33,7 +74,8 @@ const normalizeCulturalItem = (item) => {
     poiId: item.poiId ?? item.poi_id ?? normalizedId,
     title: item.title ?? item.titles?.fa ?? null,
     description: item.description ?? item.descriptions?.fa ?? null,
-    location: normalizeLocation(item.location)
+    location: normalizeLocation(item.location),
+    primaryImage: resolvePrimaryImage(item) ?? item.primaryImage ?? null
   };
 };
 
