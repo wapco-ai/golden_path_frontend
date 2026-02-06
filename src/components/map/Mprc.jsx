@@ -739,7 +739,7 @@ const Mprc = ({
 
       {/* Destination marker */}
       {destCoords && (
-        <Marker longitude={destCoords.lng} latitude={destCoords.lat} anchor="center">
+        <Marker longitude={destCoords.lng} latitude={destCoords.lat} anchor="bottom">
           <div className="map-marker-destination">
             <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="#F44336">
               <path d="M18.364 4.636a9 9 0 0 1 .203 12.519l-.203 .21l-4.243 4.242a3 3 0 0 1 -4.097 .135l-.144 -.135l-4.244 -4.243a9 9 0 0 1 12.728 -12.728zm-6.364 3.364a3 3 0 1 0 0 6a3 3 0 1 0 0 -6z" />
@@ -750,7 +750,7 @@ const Mprc = ({
 
       {/* Temporary selection marker when choosing location */}
       {selectedCoords && isSelectingLocation && (
-        <Marker longitude={selectedCoords.lng} latitude={selectedCoords.lat} anchor="center">
+        <Marker longitude={selectedCoords.lng} latitude={selectedCoords.lat} anchor="bottom">
           <div className="map-marker-selecting">
             <div className="map-marker-selecting-inner" />
           </div>
