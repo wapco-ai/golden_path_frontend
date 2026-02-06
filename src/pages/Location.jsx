@@ -190,18 +190,49 @@ const Location = () => {
     return null;
   };
 
+  const buildMediaUrl = (media, defaultMime = 'image/jpeg') => {
+    if (!media) return null;
+
+    if (typeof media === 'string') {
+      const trimmed = media.trim();
+      return trimmed ? trimmed : null;
+    }
+
+    if (typeof media === 'object') {
+      if (media.url) return media.url;
+      if (media.data) {
+        return `data:${media.mime || defaultMime};base64,${media.data}`;
+      }
+    }
+
+    return null;
+  };
+
   const normalizeImages = (place) => {
     if (!place) return [];
 
-    if (Array.isArray(place.images)) return place.images;
-    if (Array.isArray(place.image)) return place.image;
-    if (Array.isArray(place.img)) return place.img;
+    const normalized = [];
 
-    if (typeof place.images === 'string' && place.images.trim()) return [place.images];
-    if (typeof place.image === 'string' && place.image.trim()) return [place.image];
-    if (typeof place.img === 'string' && place.img.trim()) return [place.img];
+    if (Array.isArray(place.images)) normalized.push(...place.images);
+    if (Array.isArray(place.image)) normalized.push(...place.image);
+    if (Array.isArray(place.img)) normalized.push(...place.img);
 
-    return [];
+    if (typeof place.images === 'string' && place.images.trim()) normalized.push(place.images);
+    if (typeof place.image === 'string' && place.image.trim()) normalized.push(place.image);
+    if (typeof place.img === 'string' && place.img.trim()) normalized.push(place.img);
+
+    const contentMedia = Array.isArray(place?.content?.media)
+      ? place.content.media
+      : Array.isArray(place?.media)
+        ? place.media
+        : [];
+
+    contentMedia.forEach((mediaItem) => {
+      const url = buildMediaUrl(mediaItem);
+      if (url) normalized.push(url);
+    });
+
+    return normalized.filter(Boolean);
   };
 
   const normalizeAbout = (place) => {
