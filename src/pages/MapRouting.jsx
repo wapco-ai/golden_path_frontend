@@ -58,6 +58,12 @@ const MapRoutingPage = () => {
   const [showImageMarkers] = useState(true);
   const [selectedLandmarkId, setSelectedLandmarkId] = useState(null);
   const [showMapStyleMenu, setShowMapStyleMenu] = useState(false);
+  const [mapZoomLevel, setMapZoomLevel] = useState(15);
+  const isFeaturedZoom = mapZoomLevel === 15 || mapZoomLevel === 16;
+  const handleMapZoomChange = useCallback((zoom) => {
+    const roundedZoom = Math.round(zoom);
+    setMapZoomLevel((prev) => (prev === roundedZoom ? prev : roundedZoom));
+  }, []);
   const [selectedMapType, setSelectedMapType] = useState(() => {
     if (typeof window === 'undefined') {
       return 'satellite';
@@ -191,7 +197,8 @@ const MapRoutingPage = () => {
       try {
         const data = await fetchLandmarkPlaces({
           language,
-          geo
+          geo,
+          featured: isFeaturedZoom ? 1 : undefined
         });
 
         const apiLandmarks = Array.isArray(data?.places?.landmarkPlaces)
@@ -215,7 +222,7 @@ const MapRoutingPage = () => {
     };
 
     loadLandmarkPlaces();
-  }, [language, userLocation, intl]);
+  }, [language, userLocation, intl, isFeaturedZoom]);
 
 
 
@@ -867,6 +874,7 @@ const MapRoutingPage = () => {
         geo,
         search: trimmedQuery,
         limit: 30,
+        featured: isFeaturedZoom ? 1 : undefined,
         signal: controller.signal
       })
         .then((data) => {
@@ -888,7 +896,7 @@ const MapRoutingPage = () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [searchQuery, language, userLocation]);
+  }, [searchQuery, language, userLocation, isFeaturedZoom]);
 
   const handleRouteFromSubgroup = (subgroup) => {
     console.log('Routing from main page subgroup:', subgroup);
@@ -1435,6 +1443,7 @@ const MapRoutingPage = () => {
           showImageMarkers={showImageMarkers}
           isChoosingFromMap={isChoosingFromMap}
           selectedMapType={selectedMapType}
+          onZoomChange={handleMapZoomChange}
           selectedLandmarkId={selectedLandmarkId}
           onLandmarkSelect={handleLandmarkSelect}
         />

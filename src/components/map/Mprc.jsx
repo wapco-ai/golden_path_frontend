@@ -96,7 +96,8 @@ const Mprc = ({
   isChoosingFromMap = false,
   selectedMapType = null,
   selectedLandmarkId = null,  // NEW: Added prop
-  onLandmarkSelect = () => {} // NEW: Added prop
+  onLandmarkSelect = () => {}, // NEW: Added prop
+  onZoomChange = () => {}
 }) => {
   const intl = useIntl();
   const [viewState, setViewState] = useState({
@@ -155,10 +156,11 @@ const Mprc = ({
 
   const onMove = useCallback((evt) => {
     setViewState(evt.viewState);
+    onZoomChange?.(evt.viewState.zoom);
     if (onUserMove && evt.originalEvent) {
       onUserMove();
     }
-  }, [onUserMove]);
+  }, [onZoomChange, onUserMove]);
 
   const handleMapLoad = useCallback((event) => {
     initHaramVectorLayers(event?.target || event, vectorTileConfig);
