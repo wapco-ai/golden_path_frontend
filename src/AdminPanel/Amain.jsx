@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useIntl } from 'react-intl';
 import { toast } from 'react-toastify';
+import QRCode from 'qrcode';
 import '../AdminPanel/Amain.css';
 import logo from '../assets/images/logo2.png';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -1418,6 +1419,11 @@ const Amain = () => {
   const [culturalTotalItems, setCulturalTotalItems] = useState(0);
   const [isLoadingCultural, setIsLoadingCultural] = useState(false);
   const [culturalPoiId, setCulturalPoiId] = useState('');
+  const [isCulturalQrModalOpen, setIsCulturalQrModalOpen] = useState(false);
+  const [culturalQrDataUrl, setCulturalQrDataUrl] = useState('');
+  const [culturalQrPath, setCulturalQrPath] = useState('');
+  const [selectedCulturalQrItem, setSelectedCulturalQrItem] = useState(null);
+  const [isCulturalQrLoading, setIsCulturalQrLoading] = useState(false);
   const [locationRoofType, setLocationRoofType] = useState('');
   const [locationStatus, setLocationStatus] = useState('');
   const [isAddCulturalModalOpen, setIsAddCulturalModalOpen] = useState(false);
@@ -2817,6 +2823,93 @@ const Amain = () => {
   const handleCulturalItemsPerPageChange = (value) => {
     setCulturalItemsPerPage(parseInt(value));
     setCulturalCurrentPage(1);
+  };
+
+  const buildCulturalQrPath = (item) => {
+    const location = item?.location;
+    const latitude = location?.lat;
+    const longitude = location?.lng;
+    const id = item?.poiId ?? item?.id;
+
+    if (latitude == null || longitude == null || id == null) {
+      return null;
+    }
+
+    return `location?lat=${latitude}&lng=${longitude}&id=${id}`;
+  };
+
+  const closeCulturalQrModal = () => {
+    setIsCulturalQrModalOpen(false);
+    setCulturalQrDataUrl('');
+    setCulturalQrPath('');
+    setSelectedCulturalQrItem(null);
+  };
+
+  const handleOpenCulturalQrModal = async (item) => {
+    if (!item?.primaryImage) {
+      toast.error('برای ایجاد QR ابتدا تصویر شاخص را ثبت کنید');
+      return;
+    }
+
+    const qrPath = buildCulturalQrPath(item);
+    if (!qrPath) {
+      toast.error('برای ایجاد QR باید موقعیت و شناسه مکان مشخص باشد');
+      return;
+    }
+
+    setIsCulturalQrLoading(true);
+    try {
+      const qrDataUrl = await QRCode.toDataURL(qrPath, {
+        width: 240,
+        margin: 1,
+        errorCorrectionLevel: 'H'
+      });
+      setCulturalQrDataUrl(qrDataUrl);
+      setCulturalQrPath(qrPath);
+      setSelectedCulturalQrItem(item);
+      setIsCulturalQrModalOpen(true);
+    } catch (error) {
+      console.error('خطا در ایجاد QR', error);
+      toast.error('ایجاد QR با خطا مواجه شد');
+    } finally {
+      setIsCulturalQrLoading(false);
+    }
+  };
+
+  const handlePrintCulturalQr = () => {
+    if (!culturalQrDataUrl) return;
+
+    const printWindow = window.open('', '_blank', 'width=600,height=600');
+    if (!printWindow) {
+      toast.error('امکان باز کردن پنجره چاپ وجود ندارد');
+      return;
+    }
+
+    const title = selectedCulturalQrItem?.title || 'QR Code';
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${title}</title>
+          <style>
+            body { font-family: sans-serif; text-align: center; padding: 24px; }
+            img { width: 240px; height: 240px; }
+            .qr-title { margin: 16px 0 8px; font-size: 18px; }
+            .qr-path { font-size: 12px; color: #555; word-break: break-all; }
+          </style>
+        </head>
+        <body>
+          <div class="qr-title">${title}</div>
+          <img src="${culturalQrDataUrl}" alt="QR Code" />
+          <div class="qr-path">${culturalQrPath}</div>
+          <script>
+            window.onload = function() {
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const getCulturalPageNumbers = () => {
@@ -10093,7 +10186,13 @@ const Amain = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredCulturalData.map(item => (
+                    {filteredCulturalData.map((item) => {
+                      const isQrDisabled = !item.primaryImage
+                        || item.location?.lat == null
+                        || item.location?.lng == null
+                        || (item.poiId == null && item.id == null);
+
+                      return (
                       <tr key={item.id}>
                         <td>
                           <div className="cultural-title-cell">
@@ -10142,6 +10241,25 @@ const Amain = () => {
                         <td>
                           <div className="cultural-actions">
                             <button
+                              className="qr-cultural-btn"
+                              title={isQrDisabled ? 'برای ساخت QR تصویر و موقعیت لازم است' : 'دریافت QR'}
+                              onClick={() => handleOpenCulturalQrModal(item)}
+                              disabled={isQrDisabled}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 3h8v8H3V3Z" stroke="#1E2023" strokeWidth="1.5" />
+                                <path d="M5.5 5.5h3v3h-3v-3Z" fill="#1E2023" />
+                                <path d="M13 3h8v8h-8V3Z" stroke="#1E2023" strokeWidth="1.5" />
+                                <path d="M15.5 5.5h3v3h-3v-3Z" fill="#1E2023" />
+                                <path d="M3 13h8v8H3v-8Z" stroke="#1E2023" strokeWidth="1.5" />
+                                <path d="M5.5 15.5h3v3h-3v-3Z" fill="#1E2023" />
+                                <path d="M13 13h3v3h-3v-3Z" fill="#1E2023" />
+                                <path d="M17 13h4v4h-4v-4Z" fill="#1E2023" />
+                                <path d="M13 17h4v4h-4v-4Z" fill="#1E2023" />
+                                <path d="M19 19h2v2h-2v-2Z" fill="#1E2023" />
+                              </svg>
+                            </button>
+                            <button
                               className="edit-cultural-btn"
                               title="ویرایش"
                               onClick={() => handleEditCultural(item.id)}
@@ -10170,7 +10288,8 @@ const Amain = () => {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -13116,6 +13235,57 @@ const Amain = () => {
               >
                 بله، حذف شود
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {isCulturalQrModalOpen && (
+        <div className="modal-overlay">
+          <div className="qr-modal">
+            <div className="qr-modal-header">
+              <h3>QR اطلاعات فرهنگی</h3>
+              <button className="modal-close-btn" onClick={closeCulturalQrModal} type="button">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6 6L18 18M6 18L18 6" stroke="#333" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+            <div className="qr-modal-body">
+              <div className="qr-modal-preview">
+                {isCulturalQrLoading ? (
+                  <span>در حال ساخت QR...</span>
+                ) : (
+                  culturalQrDataUrl && <img src={culturalQrDataUrl} alt="QR Code" />
+                )}
+              </div>
+              <div className="qr-modal-details">
+                <div className="qr-item-title">{selectedCulturalQrItem?.title || '---'}</div>
+                <div className="qr-item-path">{culturalQrPath}</div>
+              </div>
+            </div>
+            <div className="modal-footer qr-modal-footer">
+              <button className="cancel-btn" onClick={closeCulturalQrModal}>
+                بستن
+              </button>
+              <button
+                className="confirm-btn"
+                onClick={handlePrintCulturalQr}
+                disabled={!culturalQrDataUrl}
+              >
+                چاپ
+              </button>
+              <a
+                className={`confirm-btn qr-download-btn ${culturalQrDataUrl ? '' : 'disabled'}`}
+                href={culturalQrDataUrl || '#'}
+                download={`qr-location-${selectedCulturalQrItem?.id || selectedCulturalQrItem?.poiId || 'item'}.png`}
+                onClick={(event) => {
+                  if (!culturalQrDataUrl) {
+                    event.preventDefault();
+                  }
+                }}
+              >
+                دانلود
+              </a>
             </div>
           </div>
         </div>

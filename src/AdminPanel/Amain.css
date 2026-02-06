@@ -5694,7 +5694,8 @@ body {
 
 .edit-cultural-btn,
 .delete-cultural-btn,
-.details-cultural-btn {
+.details-cultural-btn,
+.qr-cultural-btn {
   background: none;
   border: none;
   cursor: pointer;
@@ -5718,9 +5719,90 @@ body {
   background: rgba(0, 0, 0, 0.05);
 }
 
+.qr-cultural-btn:hover {
+  background: rgba(15, 113, 239, 0.08);
+}
+
+.qr-cultural-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .details-cultural-btn svg {
   width: 100px;
   height: 32px;
+}
+
+.qr-modal {
+  width: min(520px, 90vw);
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.qr-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.qr-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  text-align: center;
+}
+
+.qr-modal-preview {
+  width: 260px;
+  height: 260px;
+  border: 1px dashed #d4d4d4;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fafafa;
+}
+
+.qr-modal-preview img {
+  width: 240px;
+  height: 240px;
+}
+
+.qr-modal-details {
+  width: 100%;
+}
+
+.qr-item-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.qr-item-path {
+  font-size: 12px;
+  color: #6f6f6f;
+  word-break: break-all;
+}
+
+.qr-modal-footer {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.qr-download-btn {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-download-btn.disabled {
+  pointer-events: none;
+  opacity: 0.6;
 }
 
 /* Cultural Pagination */
