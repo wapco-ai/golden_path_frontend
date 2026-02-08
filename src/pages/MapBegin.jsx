@@ -225,7 +225,7 @@ const MapBeginPage = () => {
     if (!showRouting) {
       handleSearchToggle();
     }
-    
+
     if (value.trim().length > 1) {
       setShowSearchModal(true);
       setSearchResults([]);
@@ -1189,7 +1189,7 @@ const MapBeginPage = () => {
           className="map-navigate-button"
           onClick={() => navigate('/mpr')}
         >
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M6.14214 6.14214C8.90356 3.38071 10.2843 2 12 2C13.7157 2 15.0964 3.38071 17.8579 6.14214C20.6193 8.90356 22 10.2843 22 12C22 13.7157 20.6193 15.0964 17.8579 17.8579C15.0964 20.6193 13.7157 22 12 22C10.2843 22 8.90356 20.6193 6.14214 17.8579C3.38071 15.0964 2 13.7157 2 12C2 10.2843 3.38071 8.90356 6.14214 6.14214Z" stroke="#1C274C" strokeWidth="1.5"></path> <path d="M16 11.5L13.3333 9M16 11.5L13.3333 14M16 11.5L10.6667 11.5C9.77778 11.5 8 12 8 14" stroke="#1C274C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path> </g></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-arrow-guide"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M3 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M7 19h3a2 2 0 0 0 2 -2v-8a2 2 0 0 1 2 -2h7" /><path d="M18 4l3 3l-3 3" /></svg>
         </button>
         <button
           className={`map-gps-button ${isTracking ? 'active' : 'inactive'}`}
@@ -1289,31 +1289,27 @@ const MapBeginPage = () => {
         className={`search-bar-container ${showRouting ? 'expanded' : ''} ${expandedSearch ? 'fully-expanded' : ''} ${isDragging ? 'dragging' : ''} ${isQrCodeEntry ? 'qr-code-entry' : ''}`}
         style={isDragging || isAutoExpanding ? { height: `${currentHeight}px`, transform: 'translateY(0)' } : {}}
       >
-        <div
-          className="search-bar-toggle"
-          onClick={handleSearchToggle}
-          onTouchStart={(e) => {
-            // Prevent modal content drag when dragging the handle
-            e.stopPropagation();
-            handleTouchStart(e);
-          }}
-          onTouchMove={(e) => {
-            e.stopPropagation();
-            handleTouchMove(e);
-          }}
-          onTouchEnd={(e) => {
-            e.stopPropagation();
-            handleTouchEnd(e);
-          }}
-        >
-          <div className="toggle-handle"></div>
-        </div>
-        <div
-          className="modal-content-wrapper"
-          onTouchStart={handleModalTouchStart}
-          onTouchMove={handleModalTouchMove}
-          onTouchEnd={handleModalTouchEnd}
-        >
+        <div className="search-bar-pinned-wrapper">
+          <div
+            className="search-bar-toggle"
+            onClick={handleSearchToggle}
+            onTouchStart={(e) => {
+              // Prevent modal content drag when dragging the handle
+              e.stopPropagation();
+              handleTouchStart(e);
+            }}
+            onTouchMove={(e) => {
+              e.stopPropagation();
+              handleTouchMove(e);
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+              handleTouchEnd(e);
+            }}
+          >
+            <div className="toggle-handle"></div>
+          </div>
+
           <form className={`search-bar ${showRouting ? 'expanded' : ''}`}>
             <input
               type="text"
@@ -1335,13 +1331,17 @@ const MapBeginPage = () => {
               <path fillRule="evenodd" clipRule="evenodd" d="M9.58342 2.29163C5.55634 2.29163 2.29175 5.55622 2.29175 9.58329C2.29175 13.6104 5.55634 16.875 9.58342 16.875C13.6105 16.875 16.8751 13.6104 16.8751 9.58329C16.8751 5.55622 13.6105 2.29163 9.58342 2.29163ZM1.04175 9.58329C1.04175 4.86586 4.86598 1.04163 9.58342 1.04163C14.3008 1.04163 18.1251 4.86586 18.1251 9.58329C18.1251 11.7171 17.3427 13.6681 16.0491 15.1651L18.7754 17.8914C19.0194 18.1354 19.0194 18.5312 18.7754 18.7752C18.5313 19.0193 18.1356 19.0193 17.8915 18.7752L15.1653 16.049C13.6682 17.3426 11.7172 18.125 9.58342 18.125C4.86598 18.125 1.04175 14.3007 1.04175 9.58329Z" fill="#1E2023" />
             </svg>
           </form>
+        </div>
+        <div
+          className="modal-content-wrapper"
+          onTouchStart={handleModalTouchStart}
+          onTouchMove={handleModalTouchMove}
+          onTouchEnd={handleModalTouchEnd}
+        >
 
           {/* Search Modal */}
           {showSearchModal && (
             <div className="search-modal3" onClick={(e) => e.stopPropagation()}>
-              <div className="search-modal-header3">
-                <h3>{intl.formatMessage({ id: "searchResults" })}</h3>
-              </div>
               <div className="search-modal-content3">
                 {searchResults.length > 0 ? (
                   searchResults.map((result, index) => (
@@ -1362,15 +1362,15 @@ const MapBeginPage = () => {
                       </div>
                       <div className="search-result-info3">
                         <h4 className="search-result-title3">{result.title || result.name}</h4>
-                        <div className="place-actions search-result-actions">
+                        <div className="place-actions search-result-actions-modal">
                           <button
-                            className="place-action-btn events-modal-nav-btn"
+                            className="place-action-btn-search"
                             onClick={() => handlePlaceNavigation(result)}
                           >
                             {intl.formatMessage({ id: 'navigate' })}
                           </button>
                           <button
-                            className="place-action-btn2 events-modal-culture-btn"
+                            className="place-action-btn-search2"
                             onClick={() => handlePlaceCulturalInfo(result)}
                           >
                             {intl.formatMessage({ id: 'culturalInfo' })}
@@ -1971,7 +1971,7 @@ const MapBeginPage = () => {
                 {isMapTypeOpen && (
                   <div className="sidebar-submenu">
                     <div
-                      className={`submenu-item ${selectedMapType === 'base' ? 'active' : ''}`}
+                      className={`submenu-item-mpr ${selectedMapType === 'base' ? 'active' : ''}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedMapType('base');
@@ -1985,7 +1985,7 @@ const MapBeginPage = () => {
                     </div>
 
                     <div
-                      className={`submenu-item ${selectedMapType === 'satellite' ? 'active' : ''}`}
+                      className={`submenu-item-mpr ${selectedMapType === 'satellite' ? 'active' : ''}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedMapType('satellite');
