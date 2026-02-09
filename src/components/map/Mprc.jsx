@@ -96,8 +96,8 @@ const Mprc = ({
   isChoosingFromMap = false,
   selectedMapType = null,
   selectedLandmarkId = null,  // NEW: Added prop
-  onLandmarkSelect = () => {}, // NEW: Added prop
-  onZoomChange = () => {}
+  onLandmarkSelect = () => { }, // NEW: Added prop
+  onZoomChange = () => { }
 }) => {
   const intl = useIntl();
   const [viewState, setViewState] = useState({
@@ -210,15 +210,15 @@ const Mprc = ({
 
   const handleLandmarkClick = (event, place, coords) => {
     event?.stopPropagation?.();
-  
+
     const normalizeImages = (place) => {
       if (Array.isArray(place.image)) return place.image;
       if (Array.isArray(place.images)) return place.images;
-  
+
       const firstImage = getFirstImage(place);
       return firstImage ? [firstImage] : [];
     };
-  
+
     const feature = {
       geometry: { type: 'Point', coordinates: [coords.lng, coords.lat] },
       properties: {
@@ -238,7 +238,7 @@ const Mprc = ({
         geo: { lat: coords.lat, lng: coords.lng }
       }
     };
-  
+
     onLandmarkSelect({
       ...place,
       coordinates: [coords.lat, coords.lng],
@@ -246,7 +246,7 @@ const Mprc = ({
       lng: coords.lng,
       geo: { lat: coords.lat, lng: coords.lng }
     });
-    
+
     onMapClick?.({ lat: coords.lat, lng: coords.lng }, feature);
   };
 
@@ -465,6 +465,33 @@ const Mprc = ({
         }
       }
 
+
+      if (onMapClick) onMapClick(c, closestFeature);
+    } else {
+
+      const { lng, lat } = e.lngLat;
+      const c = { lat, lng };
+
+      let closestFeature = null;
+      if (pointFeatures.length) {
+        let minDist = Infinity;
+        pointFeatures.forEach((f) => {
+          const [flng, flat] = f.geometry.coordinates || [];
+          if (typeof flng !== 'number' || typeof flat !== 'number') {
+            return;
+          }
+          const d = Math.hypot(flng - lng, flat - lat);
+          if (d < minDist) {
+            minDist = d;
+            closestFeature = f;
+          }
+        });
+        if (minDist > 0.0005) {
+          closestFeature = null;
+        }
+      }
+
+
       if (onMapClick) onMapClick(c, closestFeature);
     }
   };
@@ -609,30 +636,49 @@ const Mprc = ({
       .filter(Boolean);
 
     return markers.map(({ key, coords, imageUrl, title, place }) => {
-      const landmarkId = place.id || place.value;
-      const isSelected = landmarkId === selectedLandmarkId;
-      
+      // SIMPLE: Check if coordinates match selectedLandmarkId
+      const coordsId = `${coords.lat.toFixed(6)},${coords.lng.toFixed(6)}`;
+      const isSelected = selectedLandmarkId === coordsId;
+
+      console.log('Landmark render check:', {
+        title,
+        coordsId,
+        selectedLandmarkId,
+        isSelected
+      });
+
       return (
         <Marker key={key} longitude={coords.lng} latitude={coords.lat} anchor="center">
           <div
-            className="image-marker-container"
+            className={`image-marker-container ${isSelected ? 'selected' : ''}`}
             onClick={(event) => handleLandmarkClick(event, place, coords)}
           >
+            {/* Landmark pin SVG */}
             <svg width="50" height="57" viewBox="0 0 55 63" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path 
-                d="M54.6562 27.3281C54.6562 39.6299 46.5275 50.0319 35.3486 53.459C35.1079 53.8493 34.8535 54.2605 34.585 54.6924L33.1699 56.9687C30.7353 60.8845 29.5175 62.8418 27.7412 62.8418C25.9651 62.8417 24.7479 60.8842 22.3135 56.9687L20.8975 54.6924C20.6938 54.3648 20.4993 54.0485 20.3115 53.7451C8.61859 50.6476 8.59898e-05 39.9953 -1.19455e-06 27.3281C-5.34814e-07 12.2351 12.2351 -1.85429e-06 27.3281 -1.19455e-06C42.4211 0.000106671 54.6562 12.2352 54.6562 27.3281Z" 
-                fill={isSelected ? "white" : "white"}  
-                stroke={isSelected ? "blue" : "#DDD"} 
-                strokeWidth={isSelected ? "1" : "1"}
+              <path
+                d="M54.6562 27.3281C54.6562 39.6299 46.5275 50.0319 35.3486 53.459C35.1079 53.8493 34.8535 54.2605 34.585 54.6924L33.1699 56.9687C30.7353 60.8845 29.5175 62.8418 27.7412 62.8418C25.9651 62.8417 24.7479 60.8842 22.3135 56.9687L20.8975 54.6924C20.6938 54.3648 20.4993 54.0485 20.3115 53.7451C8.61859 50.6476 8.59898e-05 39.9953 -1.19455e-06 27.3281C-5.34814e-07 12.2351 12.2351 -1.85429e-06 27.3281 -1.19455e-06C42.4211 0.000106671 54.6562 12.2352 54.6562 27.3281Z"
+                fill="white"
+                stroke={isSelected ? "#1E90FF" : "#DDD"}
+                strokeWidth={isSelected ? "2" : "1"}
               />
             </svg>
+
+            {/* Image inside pin */}
             <div
-              className={`image-marker-content ${isSelected ? 'selected' : ''}`}
-              style={{ 
+              className="image-marker-content"
+              style={{
                 backgroundImage: `url(${imageUrl})`,
               }}
               aria-label={title || 'landmark'}
             />
+
+            {/* Pulsing rings - only shown when selected */}
+            {isSelected && (
+              <>
+                <div className="landmark-pulse-ring"></div>
+                <div className="landmark-pulse-ring2"></div>
+              </>
+            )}
           </div>
         </Marker>
       );

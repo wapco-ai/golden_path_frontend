@@ -32,6 +32,8 @@ const MapRoutingPage = () => {
   const [showEntryModal, setShowEntryModal] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [tempDestination, setTempDestination] = useState(null);
+  const [mapTapCount, setMapTapCount] = useState(0);
+  const [lastTapInput, setLastTapInput] = useState(null);
 
   const storedLat = sessionStorage.getItem('qrLat');
   const storedLng = sessionStorage.getItem('qrLng');
@@ -317,8 +319,7 @@ const MapRoutingPage = () => {
     console.log('subGroup.label:', subGroup.label);
     console.log('subGroup.id:', subGroup.id);
 
-    // We CANNOT use subGroup.value as POI ID - it causes 422 error
-    // Instead, we'll pass the title and coordinates, and Location page will search by title
+
 
     const params = new URLSearchParams();
 
@@ -332,13 +333,13 @@ const MapRoutingPage = () => {
       }
     }
 
-    // Pass the title for searching
+
     if (subGroup.label) {
       params.set('title', encodeURIComponent(subGroup.label));
     }
 
-    // DO NOT pass an ID - it will cause 422 error
-    sessionStorage.removeItem('mapSelectedId'); // Clear any previous ID
+
+    sessionStorage.removeItem('mapSelectedId');
 
     const queryString = params.toString();
     const target = queryString ? `/location?${queryString}` : '/location';
@@ -346,7 +347,7 @@ const MapRoutingPage = () => {
     navigate(target, {
       state: {
         location: {
-          // No id field - we'll search by title
+
           title: subGroup.label,
           name: subGroup.label,
           label: subGroup.label,
@@ -378,46 +379,42 @@ const MapRoutingPage = () => {
     console.log('=== LANDMARK SELECT DEBUG ===');
     console.log('Full landmark data:', landmarkData);
 
-    // Extract coordinates from the landmark data
-    const getCoordinatesId = (data) => {
+    // Get coordinates for comparison
+    const getCoordinates = (data) => {
       if (!data) return null;
 
-      // Try to get coordinates from various possible fields
       const coords = data.coordinates ||
         (data.geo ? [data.geo.lat, data.geo.lng] : null) ||
         (data.lat && data.lng ? [data.lat, data.lng] : null) ||
         (data.latitude && data.longitude ? [data.latitude, data.longitude] : null);
 
       if (Array.isArray(coords) && coords.length >= 2) {
-        // Create a unique string from coordinates (rounded to 6 decimal places)
-        const lat = Number(coords[0]).toFixed(6);
-        const lng = Number(coords[1]).toFixed(6);
-        return `${lat},${lng}`;
+        return {
+          lat: Number(coords[0]).toFixed(6),
+          lng: Number(coords[1]).toFixed(6)
+        };
       }
-
       return null;
     };
 
-    const coordinatesId = getCoordinatesId(landmarkData);
-    console.log('Coordinates ID:', coordinatesId);
+    const currentCoords = getCoordinates(landmarkData);
 
-    if (!coordinatesId) {
-      console.log('No coordinates found, falling back to label');
-      const fallbackId = landmarkData?.label || landmarkData?.title || landmarkData?.name;
-      if (selectedLandmarkId && selectedLandmarkId.startsWith('label:')) {
+    // Check if this is the same landmark that's already selected
+    if (selectedLandmarkId && currentCoords) {
+      const [selectedLat, selectedLng] = selectedLandmarkId.split(',');
+      if (selectedLat === currentCoords.lat && selectedLng === currentCoords.lng) {
+        // Same landmark clicked again - deselect it
+        console.log('Deselecting landmark');
         setSelectedLandmarkId(null);
-      } else if (fallbackId) {
-        setSelectedLandmarkId(`label:${fallbackId}`);
+        return;
       }
-      return;
     }
 
-    if (selectedLandmarkId === coordinatesId) {
-      console.log('Deselecting landmark');
-      setSelectedLandmarkId(null);
-    } else {
-      console.log('Selecting new landmark with coordinates:', coordinatesId);
-      setSelectedLandmarkId(coordinatesId);
+    // Select the new landmark using coordinates as ID
+    if (currentCoords) {
+      const newId = `${currentCoords.lat},${currentCoords.lng}`;
+      console.log('Selecting new landmark with ID:', newId);
+      setSelectedLandmarkId(newId);
     }
   }, [selectedLandmarkId]);
 
@@ -976,7 +973,11 @@ const MapRoutingPage = () => {
   };
 
   const handleSwapLocations = () => {
-    // Case 1: Only origin exists (initial state)
+
+    setMapTapCount(0);
+    setLastTapInput(null);
+
+
     if (!selectedDestination && userLocation) {
       const destData = {
         name: userLocation.name,
@@ -1320,9 +1321,79 @@ const MapRoutingPage = () => {
         sessionStorage.setItem('currentOrigin', JSON.stringify(origin));
       }
       setIsSelectingFromMap(false);
+      return; // Return early for modal-based map selection
     }
-    if (feature?.properties?.isLandmark) {
+
+    // Handle landmark clicks
+    if (!isSelectingFromMap && feature?.properties?.isLandmark) {
       handleLandmarkSelect(feature.properties);
+      return;
+    }
+
+    // NEW: Direct map tap functionality
+    if (!isSelectingFromMap) {
+      // Determine which input to fill
+      let inputToFill = null;
+
+      if (mapTapCount === 0) {
+        // First tap - determine which is empty
+        if (!userLocation && !selectedDestination) {
+          // Both empty - fill origin first
+          inputToFill = 'origin';
+        } else if (!userLocation && selectedDestination) {
+          // Only origin empty
+          inputToFill = 'origin';
+        } else if (userLocation && !selectedDestination) {
+          // Only destination empty
+          inputToFill = 'destination';
+        } else {
+          // Both already filled - do nothing
+          return;
+        }
+      } else if (mapTapCount === 1) {
+        // Second tap - fill the other input
+        if (lastTapInput === 'origin' && !selectedDestination) {
+          inputToFill = 'destination';
+        } else if (lastTapInput === 'destination' && !userLocation) {
+          inputToFill = 'origin';
+        } else {
+          // Both already filled or invalid state
+          return;
+        }
+      } else {
+        // Already tapped twice - no more taps
+        return;
+      }
+
+      // Get proper location name based on which input we're filling
+      const locName = inputToFill === 'origin'
+        ? intl.formatMessage({ id: 'mapSelectedLocationFromMap' })
+        : intl.formatMessage({ id: 'mapSelectedLocation' });
+
+      // Create location object
+      const locationData = {
+        name: locName,
+        location: locName, // Use same name for location field
+        coordinates: [latlng.lat, latlng.lng],
+        fromMapSelection: true
+      };
+
+      // Fill the appropriate input
+      if (inputToFill === 'origin') {
+        setUserLocation(locationData);
+        sessionStorage.setItem('currentOrigin', JSON.stringify(locationData));
+        setLastTapInput('origin');
+        setMapTapCount(prev => prev + 1);
+      } else if (inputToFill === 'destination') {
+        // For destination, also trigger area doors check
+        setTempDestination(locationData);
+        requestAreaDoors(latlng.lat, latlng.lng);
+
+        setSelectedDestination(locationData);
+        sessionStorage.setItem('currentDestination', JSON.stringify(locationData));
+        setLastTapInput('destination');
+        setMapTapCount(prev => prev + 1);
+      }
     }
   };
 
@@ -1339,6 +1410,12 @@ const MapRoutingPage = () => {
       setShowOriginModal(true);
     }
   };
+
+  useEffect(() => {
+
+    setMapTapCount(0);
+    setLastTapInput(null);
+  }, [userLocation, selectedDestination]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
