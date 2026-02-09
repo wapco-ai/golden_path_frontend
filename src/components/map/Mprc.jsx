@@ -554,6 +554,12 @@ const Mprc = ({
     return Array.from(set);
   };
 
+  useEffect(() => {
+    if (!isSelectingLocation) {
+      setSelectedCoords(null);
+    }
+  }, [isSelectingLocation]);
+
   const matchesSelectedCategory = useCallback((place) => {
     if (!selectedCategory) return true;
 
