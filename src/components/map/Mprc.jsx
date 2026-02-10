@@ -4,7 +4,7 @@ import { useIntl } from 'react-intl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
-import { MBTILES_SATELLITE_STYLE } from '../../services/mbtilesMapStyle';
+import { MBTILES_OFFLINE_OSMH_STYLE, MBTILES_SATELLITE_STYLE } from '../../services/mbtilesMapStyle';
 import { useLangStore } from '../../store/langStore';
 import { getLocationTitleById } from '../../utils/getLocationTitle';
 import { loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
@@ -116,8 +116,13 @@ const Mprc = ({
   const baseMapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
   const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
   const isSatellite = selectedMapType === 'satellite';
-  const mapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : offlineMapStyle;
-  const mapRenderKey = isSatellite ? 'mbtiles-satellite' : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
+  const isOfflineOsmh = selectedMapType === 'simple';
+  const mapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : isOfflineOsmh ? MBTILES_OFFLINE_OSMH_STYLE : offlineMapStyle;
+  const mapRenderKey = isSatellite
+    ? 'mbtiles-satellite'
+    : isOfflineOsmh
+      ? 'mbtiles-offline-osmh'
+      : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
   const vectorTileConfig = useMemo(() => {
     return createHaramVectorTileConfig(language).filter(
       (layerCfg) => !HIDDEN_VECTOR_LAYER_IDS.has(layerCfg.id)
