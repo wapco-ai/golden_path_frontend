@@ -5,6 +5,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
 import { MBTILES_SATELLITE_STYLE } from '../../services/mbtilesMapStyle';
+import { offlineFallbackStyle } from '../../services/osmMapStyle';
 import { useLangStore } from '../../store/langStore';
 import { loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
 import { getLocationTitleById } from '../../utils/getLocationTitle';
@@ -106,7 +107,8 @@ const Mpbc = ({
   const baseMapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
   const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
   const isSatellite = selectedMapType === 'satellite';
-  const mapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : offlineMapStyle;
+  const isOfflineOsmh = selectedMapType === 'osmh' || selectedMapType === 'simple';
+  const mapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : (isOfflineOsmh ? offlineFallbackStyle : offlineMapStyle);
   const mapRenderKey = isSatellite ? 'mbtiles-satellite' : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
   const vectorTileConfig = useMemo(() => {
     return createHaramVectorTileConfig(language).filter(

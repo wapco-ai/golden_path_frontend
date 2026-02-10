@@ -1243,8 +1243,8 @@ const MapBeginPage = () => {
         >
           <div className="map-button-preview">
             <img
-              src={selectedMapType === 'satellite' ? mode2 : mode1}
-              alt={selectedMapType === 'satellite' ? 'Satellite view' : 'Default view'}
+              src={selectedMapType === 'satellite' ? mode2 : selectedMapType === 'osmh' || selectedMapType === 'simple' ? mode3 : mode1}
+              alt={selectedMapType === 'satellite' ? 'Satellite view' : selectedMapType === 'osmh' || selectedMapType === 'simple' ? 'Offline OSMH view' : 'Default view'}
               className="map-preview-thumbnail"
             />
           </div>
@@ -1286,9 +1286,9 @@ const MapBeginPage = () => {
               </div>
             </div>
             <div
-              className={`map-style-option ${selectedMapType === 'simple' ? 'active' : ''}`}
+              className={`map-style-option ${selectedMapType === 'osmh' || selectedMapType === 'simple' ? 'active' : ''}`}
               onClick={() => {
-                setSelectedMapType('simple');
+                setSelectedMapType('osmh');
                 setShowMapStyleMenu(false);
               }}
               title={intl.formatMessage({ id: 'simpleMap' })}
@@ -2017,6 +2017,20 @@ const MapBeginPage = () => {
                         {selectedMapType === 'satellite' && <div className="radio-inner"></div>}
                       </div>
                       <span className="submenu-text">{intl.formatMessage({ id: 'satelliteMap' })}</span>
+                    </div>
+
+                    <div
+                      className={`submenu-item-mpr ${selectedMapType === 'osmh' || selectedMapType === 'simple' ? 'active' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedMapType('osmh');
+                        console.log('Offline OSMH map selected');
+                      }}
+                    >
+                      <div className="submenu-radio">
+                        {(selectedMapType === 'osmh' || selectedMapType === 'simple') && <div className="radio-inner"></div>}
+                      </div>
+                      <span className="submenu-text">{intl.formatMessage({ id: 'simpleMap' })}</span>
                     </div>
                   </div>
                 )}

@@ -1552,8 +1552,8 @@ const MapRoutingPage = () => {
             >
               <div className="map-button-preview">
                 <img
-                  src={selectedMapType === 'satellite' ? mode2 : mode1}
-                  alt={selectedMapType === 'satellite' ? 'Satellite view' : 'Default view'}
+                  src={selectedMapType === 'satellite' ? mode2 : selectedMapType === 'osmh' || selectedMapType === 'simple' ? mode3 : mode1}
+                  alt={selectedMapType === 'satellite' ? 'Satellite view' : selectedMapType === 'osmh' || selectedMapType === 'simple' ? 'Offline OSMH view' : 'Default view'}
                   className="map-preview-thumbnail"
                 />
               </div>
@@ -1595,9 +1595,9 @@ const MapRoutingPage = () => {
                   </div>
                 </div>
                 <div
-                  className={`map-style-option ${selectedMapType === 'simple' ? 'active' : ''}`}
+                  className={`map-style-option ${selectedMapType === 'osmh' || selectedMapType === 'simple' ? 'active' : ''}`}
                   onClick={() => {
-                    setSelectedMapType('simple');
+                    setSelectedMapType('osmh');
                     setShowMapStyleMenu(false);
                   }}
                   title={intl.formatMessage({ id: 'simpleMap' })}
