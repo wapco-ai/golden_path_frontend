@@ -16,6 +16,7 @@ import { useUserAuthStore } from '../auth/user/userAuthStore';
 import { useNavigate, useLocation } from 'react-router-dom';
 import mode1 from '../assets/images/mode1.png';
 import mode2 from '../assets/images/mode2.png';
+import mode3 from '../assets/images/mode3.png';
 
 const MapBeginPage = () => {
   const navigate = useNavigate();
@@ -1280,6 +1281,22 @@ const MapBeginPage = () => {
                 <img
                   src={mode2}
                   alt="Satellite map view"
+                  className="map-preview-image"
+                />
+              </div>
+            </div>
+            <div
+              className={`map-style-option ${selectedMapType === 'simple' ? 'active' : ''}`}
+              onClick={() => {
+                setSelectedMapType('simple');
+                setShowMapStyleMenu(false);
+              }}
+              title={intl.formatMessage({ id: 'simpleMap' })}
+            >
+              <div className="map-preview-container">
+                <img
+                  src={mode3}
+                  alt="Simple map view"
                   className="map-preview-image"
                 />
               </div>

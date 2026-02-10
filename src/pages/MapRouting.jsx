@@ -18,6 +18,7 @@ import { getSessionFloor } from '../utils/sessionFloor';
 import { fetchLandmarkPlaces } from '../services/landmarkService';
 import mode1 from '../assets/images/mode1.png';
 import mode2 from '../assets/images/mode2.png';
+import mode3 from '../assets/images/mode3.png';
 
 const MapRoutingPage = () => {
   const navigate = useNavigate();
@@ -1589,6 +1590,22 @@ const MapRoutingPage = () => {
                     <img
                       src={mode2}
                       alt="Satellite map view"
+                      className="map-preview-image"
+                    />
+                  </div>
+                </div>
+                <div
+                  className={`map-style-option ${selectedMapType === 'simple' ? 'active' : ''}`}
+                  onClick={() => {
+                    setSelectedMapType('simple');
+                    setShowMapStyleMenu(false);
+                  }}
+                  title={intl.formatMessage({ id: 'simpleMap' })}
+                >
+                  <div className="map-preview-container">
+                    <img
+                      src={mode3}
+                      alt="Simple map view"
                       className="map-preview-image"
                     />
                   </div>
