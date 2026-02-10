@@ -10117,38 +10117,42 @@ const Amain = () => {
                     <h3 className="edit-form-title">تعیین گروه این مکان فرهنگی</h3>
                     <div className="dropdown-group-cultural-edit">
                       <div className="dropdown-field-cultural-edit">
-                        <select
-                          className="form-input-cultural-edit"
-                          value={culturalPlaceCategory}
-                          onChange={(e) => {
-                            setCulturalPlaceCategory(e.target.value);
-                            setCulturalPlaceSubcategory('');
-                          }}
-                          disabled={isLoadingCulturalGroups}
-                        >
-                          <option value="" disabled>گروه اصلی فرهنگی</option>
-                          {culturalGroupOptions.map((group) => (
-                            <option key={`cultural-edit-group-${group.value}`} value={group.value}>
-                              {group.label}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="select-wrapper">
+                          <select
+                            className="form-input-cultural-edit"
+                            value={culturalPlaceCategory}
+                            onChange={(e) => {
+                              setCulturalPlaceCategory(e.target.value);
+                              setCulturalPlaceSubcategory('');
+                            }}
+                            disabled={isLoadingCulturalGroups}
+                          >
+                            <option value="" disabled>گروه اصلی فرهنگی</option>
+                            {culturalGroupOptions.map((group) => (
+                              <option key={`cultural-edit-group-${group.value}`} value={group.value}>
+                                {group.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
 
                       <div className="dropdown-field-cultural-edit">
-                        <select
-                          className="form-input-cultural-edit"
-                          value={culturalPlaceSubcategory}
-                          onChange={(e) => setCulturalPlaceSubcategory(e.target.value)}
-                          disabled={!culturalPlaceCategory || isLoadingCulturalSubGroups}
-                        >
-                          <option value="" disabled>زیرگروه فرهنگی</option>
-                          {culturalSubGroupOptions.map((subGroup, index) => (
-                            <option key={`cultural-edit-subgroup-${subGroup.value}-${index}`} value={subGroup.value}>
-                              {subGroup.label}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="select-wrapper">
+                          <select
+                            className="form-input-cultural-edit"
+                            value={culturalPlaceSubcategory}
+                            onChange={(e) => setCulturalPlaceSubcategory(e.target.value)}
+                            disabled={!culturalPlaceCategory || isLoadingCulturalSubGroups}
+                          >
+                            <option value="" disabled>زیرگروه فرهنگی</option>
+                            {culturalSubGroupOptions.map((subGroup, index) => (
+                              <option key={`cultural-edit-subgroup-${subGroup.value}-${index}`} value={subGroup.value}>
+                                {subGroup.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     </div>
                   </div>
