@@ -5707,6 +5707,18 @@ body {
   transition: background 0.3s;
 }
 
+.qr-cultural-btn {
+  background-color: #F2F2F2;
+  height: 40px;
+  width: 40px;
+  border: 8px;
+}
+
+.qr-cultural-btn:hover {
+  background: rgba(15, 113, 239, 0.1);
+}
+
+
 .edit-cultural-btn:hover {
   background: rgba(15, 113, 239, 0.1);
 }
@@ -8350,6 +8362,7 @@ body {
   background-color: white;
   transition: border-color 0.3s;
   font-family: inherit;
+  cursor: pointer;
 }
 
 .form-input-cultural-edit:focus {
