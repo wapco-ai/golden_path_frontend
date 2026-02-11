@@ -5,7 +5,8 @@
   "sources": {
     "carto": {
       "type": "vector",
-      "url": "/rtl/tiles.json"
+      "url": "/rtl/tiles.json",
+      "maxzoom": 17
     }
   },
   "sprite": "http://localhost:5173/rtl/sprite",
