@@ -13,7 +13,7 @@
   "description": "Tile config based on OpenMapTiles schema",
   "format": "pbf",
   "map": "http://localhost:8088/services/mashhad/map",
-  "maxzoom": 21,
+  "maxzoom": 17,
   "minzoom": 0,
   "name": "Tilemaker to OpenMapTiles schema",
   "scheme": "xyz",
