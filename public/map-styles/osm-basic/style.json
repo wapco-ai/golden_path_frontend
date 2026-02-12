@@ -10359,7 +10359,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Regular",
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-max-width": 5,
@@ -10412,7 +10412,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Regular",
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-max-width": 5,
@@ -10453,7 +10453,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Regular",
+                    "Vazirmatn Regular",
                     "Open Sans Light"
                 ],
                 "text-max-width": 5,
@@ -10491,6 +10491,7 @@
                 "text-allow-overlap": false,
                 "text-field": "{housenumber}",
                 "text-font": [
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-ignore-placement": false,
@@ -10801,7 +10802,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Bold Italic",
+                    "Vazirmatn Bold",
                     "Noto Sans Regular"
                 ],
                 "text-max-width": 14,
@@ -10872,7 +10873,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Vazirmatn Regular Italic",
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-max-width": 9,
@@ -11010,7 +11011,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Vazirmatn Regular Italic",
+                    "Vazirmatn Regular",
                     "Noto Sans Bold"
                 ],
                 "text-max-width": 9,
@@ -11084,7 +11085,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Regular",
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-max-width": 9,
@@ -11589,7 +11590,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Regular",
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-max-width": 9,
@@ -11958,7 +11959,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Regular",
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-max-width": 14,
@@ -12036,7 +12037,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Bold"
                 ],
                 "text-max-width": 14,
@@ -12102,7 +12103,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Vazirmatn Regular Italic",
+                    "Vazirmatn Regular",
                     "Noto Sans Italic"
                 ],
                 "text-max-width": 6,
@@ -12169,7 +12170,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Vazirmatn Regular Italic",
+                    "Vazirmatn Regular",
                     "Noto Sans Italic"
                 ],
                 "text-max-width": 9,
@@ -12255,7 +12256,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Bold"
                 ],
                 "text-max-width": 14,
@@ -12502,7 +12503,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Regular",
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-offset": [
@@ -12574,7 +12575,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Regular",
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-offset": [
@@ -12646,6 +12647,7 @@
                 "symbol-spacing": 560,
                 "text-field": "name:latin",
                 "text-font": [
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-rotation-alignment": "viewport",
@@ -12724,6 +12726,7 @@
                 "symbol-spacing": 560,
                 "text-field": "name:latin",
                 "text-font": [
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-rotation-alignment": "viewport",
@@ -12802,6 +12805,7 @@
                 "symbol-spacing": 560,
                 "text-field": "name:latin",
                 "text-font": [
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-rotation-alignment": "viewport",
@@ -12880,6 +12884,7 @@
                 "symbol-spacing": 560,
                 "text-field": "{ref}",
                 "text-font": [
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-rotation-alignment": "viewport",
@@ -12958,6 +12963,7 @@
                 "symbol-spacing": 760,
                 "text-field": "{ref}",
                 "text-font": [
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-keep-upright": true,
@@ -13037,7 +13043,7 @@
                     ]
                 },
                 "text-font": [
-                    "Open Sans Italic",
+                    "Vazirmatn Regular",
                     "Noto Sans Italic"
                 ],
                 "text-max-width": 9,
@@ -13102,7 +13108,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Italic",
+                    "Vazirmatn Regular",
                     "Noto Sans Italic"
                 ],
                 "text-size": {
@@ -13306,7 +13312,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Vazirmatn Regular Italic",
+                    "Vazirmatn Regular",
                     "Noto Sans Italic"
                 ],
                 "text-max-width": {
@@ -13384,7 +13390,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Vazirmatn Regular Italic",
+                    "Vazirmatn Regular",
                     "Noto Sans Italic"
                 ],
                 "text-size": 12,
@@ -13456,7 +13462,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Bold"
                 ],
                 "text-max-width": 6,
@@ -13533,7 +13539,7 @@
                     ]
                 },
                 "text-font": [
-                    "Open Sans Regular",
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-line-height": 1.1,
@@ -13591,7 +13597,7 @@
                     ]
                 },
                 "text-font": [
-                    "Open Sans Regular",
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-line-height": 1.1,
@@ -13774,7 +13780,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Regular",
+                    "Vazirmatn Regular",
                     "Noto Sans Bold"
                 ],
                 "text-letter-spacing": 0,
