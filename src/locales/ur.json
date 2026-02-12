@@ -382,6 +382,7 @@
   "mapType": "نقشے کی قسم",
   "baseMap": "بنیادی نقشہ",
   "satelliteMap": "سیٹلائیٹ نقشہ",
+  "simpleMap": "سادہ نقشہ",
   "searchResults": "تلاش کے نتائج",
   "noSearchResults": "\"{query}\" کے لیے کوئی نتیجہ نہیں ملا"
 }

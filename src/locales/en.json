@@ -381,6 +381,7 @@
   "locationUpdated": "Location updated successfully",
   "mapType": "Map Type",
   "baseMap": "Base Map",
+  "simpleMap": "Simple Map",
   "satelliteMap": "Satellite Map",
   "searchResults": "Search Results",
   "noSearchResults": "No results found for \"{query}\""

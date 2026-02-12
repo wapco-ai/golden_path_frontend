@@ -1580,8 +1580,8 @@
 /* Pulsing rings */
 .landmark-pulse-ring {
   position: absolute;
-  top: 40%;
-  left: 50%;
+  top: 30%;
+  left: 60%;
   transform: translate(-50%, -50%);
   width: 60px;
   height: 60px;
@@ -1594,8 +1594,8 @@
 
 .landmark-pulse-ring2 {
   position: absolute;
-  top: 40%;
-  left: 50%;
+  top: 30%;
+  left: 60%;
   transform: translate(-50%, -50%);
   width: 80px;
   height: 80px;

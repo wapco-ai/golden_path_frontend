@@ -150,6 +150,64 @@ const RouteOverview = () => {
     setSelectedImageIndex(0);
   };
 
+  const handleCulturalInfo = (landmark) => {
+    console.log('DEBUG - landmark clicked:', landmark);
+
+    const params = new URLSearchParams();
+
+    // Extract coordinates
+    const extractCoords = (place) => {
+      const lat = place.lat ?? place.latitude ?? place?.location?.lat ?? place?.geo?.lat ?? place?.coordinates?.[0];
+      const lng = place.lng ?? place.longitude ?? place?.location?.lng ?? place?.geo?.lng ?? place?.coordinates?.[1];
+      if (lat != null && lng != null) return { lat: Number(lat), lng: Number(lng) };
+      return null;
+    };
+
+    const coords = extractCoords(landmark);
+    if (coords) {
+      params.set('lat', coords.lat.toString());
+      params.set('lng', coords.lng.toString());
+      sessionStorage.setItem('mapSelectedLat', coords.lat.toString());
+      sessionStorage.setItem('mapSelectedLng', coords.lng.toString());
+    }
+
+    if (landmark.title || landmark.name) {
+      params.set('title', encodeURIComponent(landmark.title || landmark.name));
+    }
+
+    sessionStorage.removeItem('mapSelectedId');
+
+    const queryString = params.toString();
+    const target = queryString ? `/location?${queryString}` : '/location';
+
+    navigate(target, {
+      state: {
+        location: {
+          title: landmark.title || landmark.name,
+          name: landmark.title || landmark.name,
+          label: landmark.title || landmark.name,
+          location: landmark.address || '',
+          address: landmark.address || '',
+          description: landmark.description || landmark.content?.body || '',
+          about: {
+            short: landmark.description || landmark.title || landmark.name,
+            full: landmark.description || landmark.content?.body || landmark.title || landmark.name
+          },
+          images: Array.isArray(landmark.image) ? landmark.image : (landmark.image ? [landmark.image] : []),
+          views: landmark.views || 0,
+          rating: landmark.rating || 0,
+          averageRating: landmark.rating || 0,
+          openingHours: '',
+          coordinates: coords ? [coords.lat, coords.lng] : null,
+          geo: coords ? { lat: coords.lat, lng: coords.lng } : null,
+          fromMPR: true,
+          contents: [],
+          comments: []
+        }
+      }
+    });
+  };
+
   useEffect(() => {
     let isMounted = true;
 
@@ -1043,6 +1101,15 @@ const RouteOverview = () => {
             </div>
 
             <div className="btn-box3">
+              <button
+                className="Cultural-info-routeoverview-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCulturalInfo(selectedLandmark);
+                }}
+              >
+                {intl.formatMessage({ id: 'culturalInfo' })}
+              </button>
               <button className="continue-route-btn" onClick={handleCloseLandmarkModal}>
                 {intl.formatMessage({ id: 'closeAndContinue' })}
               </button>

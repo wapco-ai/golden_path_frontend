@@ -383,5 +383,6 @@
   "baseMap": "تصویر پایه",
   "satelliteMap": "تصویر ماهواره ای",
   "searchResults": "نتایج جستجو",
+  "simpleMap": "نقشه ساده",
   "noSearchResults": "نتیجه‌ای برای \"{query}\" یافت نشد"
 }

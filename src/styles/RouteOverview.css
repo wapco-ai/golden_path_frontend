@@ -557,10 +557,12 @@
   display: flex;
   padding-bottom: 20px;
   border: none;
+  flex-direction: column;
+  gap: 8px;
 }
 
 
-.continue-route-btn {
+.Cultural-info-routeoverview-btn {
   width: 80vw;
   padding: 8px;
   background-color: #0F71EF;
@@ -571,6 +573,19 @@
   font-weight: 500;
   font-family: 'Vazir', Tahoma, sans-serif;
 }
+
+.continue-route-btn{
+  width: 80vw;
+  padding: 8px;
+  background-color: white;
+  color: #0F71EF;
+  border: 1px solid  #c2c2c2;
+  border-radius: 40px;
+  font-size: 16px;
+  font-weight: 500;
+  font-family: 'Vazir', Tahoma, sans-serif;
+}
+
 
 /* Responsive adjustments */
 @media (max-width: 480px) {
