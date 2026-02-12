@@ -30,13 +30,13 @@
         "name:latin": "String"
       },
       "id": "place",
-      "maxzoom": 14,
+      "maxzoom": 17,
       "minzoom": 0
     },
     {
       "fields": {},
       "id": "boundary",
-      "maxzoom": 14,
+      "maxzoom": 17,
       "minzoom": 0
     },
     {
@@ -47,7 +47,7 @@
         "subclass": "String"
       },
       "id": "poi",
-      "maxzoom": 14,
+      "maxzoom": 17,
       "minzoom": 12
     },
     {
@@ -55,7 +55,7 @@
         "housenumber": "String"
       },
       "id": "housenumber",
-      "maxzoom": 14,
+      "maxzoom": 17,
       "minzoom": 14
     },
     {
@@ -65,7 +65,7 @@
         "name:latin": "String"
       },
       "id": "waterway",
-      "maxzoom": 14,
+      "maxzoom": 17,
       "minzoom": 8
     },
     {
@@ -82,7 +82,7 @@
         "toll": "Boolean"
       },
       "id": "transportation",
-      "maxzoom": 14,
+      "maxzoom": 17,
       "minzoom": 4
     },
     {
@@ -94,7 +94,7 @@
         "subclass": "String"
       },
       "id": "transportation_name",
-      "maxzoom": 14,
+      "maxzoom": 17,
       "minzoom": 8
     },
     {
@@ -104,7 +104,7 @@
         "render_min_height": "Number"
       },
       "id": "building",
-      "maxzoom": 14,
+      "maxzoom": 17,
       "minzoom": 13
     },
     {
@@ -113,7 +113,7 @@
         "intermittent": "String"
       },
       "id": "water",
-      "maxzoom": 14,
+      "maxzoom": 17,
       "minzoom": 6
     },
     {
@@ -122,7 +122,7 @@
         "name:latin": "String"
       },
       "id": "water_name",
-      "maxzoom": 14,
+      "maxzoom": 17,
       "minzoom": 14
     },
     {
@@ -131,7 +131,7 @@
         "ref": "String"
       },
       "id": "aeroway",
-      "maxzoom": 14,
+      "maxzoom": 17,
       "minzoom": 11
     },
     {
@@ -142,7 +142,7 @@
         "name:latin": "String"
       },
       "id": "aerodrome_label",
-      "maxzoom": 14,
+      "maxzoom": 17,
       "minzoom": 10
     },
     {
@@ -151,7 +151,7 @@
         "name:latin": "String"
       },
       "id": "park",
-      "maxzoom": 14,
+      "maxzoom": 17,
       "minzoom": 11
     },
     {
@@ -159,7 +159,7 @@
         "class": "String"
       },
       "id": "landuse",
-      "maxzoom": 14,
+      "maxzoom": 17,
       "minzoom": 4
     },
     {
@@ -168,7 +168,7 @@
         "subclass": "String"
       },
       "id": "landcover",
-      "maxzoom": 14,
+      "maxzoom": 17,
       "minzoom": 0
     },
     {
@@ -179,7 +179,7 @@
         "name:latin": "String"
       },
       "id": "mountain_peak",
-      "maxzoom": 14,
+      "maxzoom": 17,
       "minzoom": 11
     }
   ],

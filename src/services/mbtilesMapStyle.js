@@ -2,6 +2,7 @@ import appConfig from '../config/appConfig';
 
 export const MBTILES_SATELLITE_SOURCE_ID = 'mbtiles-satellite';
 export const MBTILES_OFFLINE_OSMH_SOURCE_ID = 'mbtiles-offline-osmh';
+export const OSM_BASIC_STYLE_URL = '/map-styles/osm-basic/style.json';
 
 export const MBTILES_SATELLITE_STYLE = {
   version: 8,
@@ -12,7 +13,7 @@ export const MBTILES_SATELLITE_STYLE = {
       tiles: [appConfig.mbtilesSatelliteTilesUrl],
       tileSize: 256,
       minzoom: 15,
-      maxzoom: 21,
+      maxzoom: 17,
       attribution: 'offline map maker tiles by allmapsoft.com'
     }
   },
@@ -22,7 +23,7 @@ export const MBTILES_SATELLITE_STYLE = {
       type: 'raster',
       source: MBTILES_SATELLITE_SOURCE_ID,
       minzoom: 6,
-      maxzoom: 21
+      maxzoom: 23
     }
   ],
   metadata: {
@@ -51,7 +52,7 @@ export const MBTILES_OFFLINE_OSMH_STYLE = {
       type: 'raster',
       source: MBTILES_OFFLINE_OSMH_SOURCE_ID,
       minzoom: 9,
-      maxzoom: 19
+      maxzoom: 23
     }
   ],
   metadata: {
