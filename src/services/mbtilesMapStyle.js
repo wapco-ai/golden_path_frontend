@@ -2,6 +2,7 @@ import appConfig from '../config/appConfig';
 
 export const MBTILES_SATELLITE_SOURCE_ID = 'mbtiles-satellite';
 export const MBTILES_OFFLINE_OSMH_SOURCE_ID = 'mbtiles-offline-osmh';
+export const OSM_BASIC_STYLE_URL = '/map-styles/osm-basic/style.json';
 
 export const MBTILES_SATELLITE_STYLE = {
   version: 8,
