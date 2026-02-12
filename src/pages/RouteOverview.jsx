@@ -36,8 +36,7 @@ const RouteOverview = () => {
   const language = useLangStore(state => state.language);
   const formatDigits = useLocaleDigits();
   const isRtl = ["fa", "ar", "ur"].includes(language);
-  const baseMapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
-  const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
+  const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle();
   const [selectedMapType] = useState(() => {
     if (typeof window === 'undefined') {
       return 'satellite';
