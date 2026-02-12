@@ -279,6 +279,17 @@ const FinalSearch = () => {
     sessionStorage.setItem('gender', selectedGender);
   };
 
+  const clearPersistedRouteData = React.useCallback(() => {
+    storeSetRouteGeo(null);
+    storeSetRouteSteps([]);
+    storeSetAlternativeRoutes([]);
+    sessionStorage.removeItem('routeGeo');
+    sessionStorage.removeItem('routeSteps');
+    sessionStorage.removeItem('alternativeRoutes');
+    sessionStorage.removeItem('routeSahns');
+    sessionStorage.removeItem('routeSummaryData');
+  }, [storeSetAlternativeRoutes, storeSetRouteGeo, storeSetRouteSteps]);
+
   useEffect(() => {
     setHasUserSelectedRoute(false);
     sessionStorage.removeItem('manualRouteSelected');
@@ -354,6 +365,7 @@ const FinalSearch = () => {
         return;
       }
 
+      clearPersistedRouteData();
       setIsRequestingRoute(true);
       try {
         const result = await requestRouting({
@@ -399,13 +411,7 @@ const FinalSearch = () => {
       const result = analyzeRoute(origin, destination, geoData, transportMode, selectedGender);
       if (!result) {
         toast.error(intl.formatMessage({ id: 'noRouteFound' }));
-        storeSetRouteGeo(null);
-        storeSetRouteSteps([]);
-        storeSetAlternativeRoutes([]);
-        sessionStorage.removeItem('routeGeo');
-        sessionStorage.removeItem('routeSteps');
-        sessionStorage.removeItem('alternativeRoutes');
-        sessionStorage.removeItem('routeSahns');
+        clearPersistedRouteData();
         setLastFailedKey(attemptKey);
         return;
       }
@@ -429,6 +435,7 @@ const FinalSearch = () => {
     storeSetRouteGeo,
     storeSetRouteSteps,
     storeSetAlternativeRoutes,
+    clearPersistedRouteData,
     intl,
     routeInfo.time,
     routeInfo.distance,
