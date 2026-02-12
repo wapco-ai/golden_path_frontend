@@ -280,15 +280,28 @@ const FinalSearch = () => {
   };
 
   const clearPersistedRouteData = React.useCallback(() => {
-    storeSetRouteGeo(null);
-    storeSetRouteSteps([]);
-    storeSetAlternativeRoutes([]);
+    if (storedRouteGeo) {
+      storeSetRouteGeo(null);
+    }
+    if (storedRouteSteps?.length) {
+      storeSetRouteSteps([]);
+    }
+    if (storedAlternativeRoutes?.length) {
+      storeSetAlternativeRoutes([]);
+    }
     sessionStorage.removeItem('routeGeo');
     sessionStorage.removeItem('routeSteps');
     sessionStorage.removeItem('alternativeRoutes');
     sessionStorage.removeItem('routeSahns');
     sessionStorage.removeItem('routeSummaryData');
-  }, [storeSetAlternativeRoutes, storeSetRouteGeo, storeSetRouteSteps]);
+  }, [
+    storeSetAlternativeRoutes,
+    storeSetRouteGeo,
+    storeSetRouteSteps,
+    storedAlternativeRoutes,
+    storedRouteGeo,
+    storedRouteSteps
+  ]);
 
   useEffect(() => {
     setHasUserSelectedRoute(false);
@@ -391,13 +404,15 @@ const FinalSearch = () => {
           ? Math.round(result.distanceMeters)
           : null;
 
-        const summary = {
-          time: `${minutes ?? routeInfo.time}`,
-          distance: `${distance ?? routeInfo.distance}`,
-          mode: result.mode || transportMode
-        };
-        setRouteInfo(summary);
-        sessionStorage.setItem('routeSummaryData', JSON.stringify(summary));
+        setRouteInfo((prev) => {
+          const summary = {
+            time: `${minutes ?? prev.time}`,
+            distance: `${distance ?? prev.distance}`,
+            mode: result.mode || transportMode
+          };
+          sessionStorage.setItem('routeSummaryData', JSON.stringify(summary));
+          return summary;
+        });
         setLastFailedKey(null);
         return;
       } catch (err) {
@@ -437,8 +452,6 @@ const FinalSearch = () => {
     storeSetAlternativeRoutes,
     clearPersistedRouteData,
     intl,
-    routeInfo.time,
-    routeInfo.distance,
     hasUserSelectedRoute,
     storedRouteGeo,
     storedRouteSteps,
