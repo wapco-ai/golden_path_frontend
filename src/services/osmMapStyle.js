@@ -1,8 +1,8 @@
 // import { MAPLIBRE_GLYPHS_URL } from '../utils/mapLibreConfig';
 
-export const BASE_RASTER_SOURCE_ID = 'carto-voyager-base';
+export const BASE_RASTER_SOURCE_ID = 'osm-streets-3d-base';
 
-export const CARTO_VOYAGER_STYLE_URL = '/map-styles/osm-streets-3d/style.json';
+export const OSM_STREETS_3D_STYLE_URL = '/map-styles/osm-streets-3d/style.json';
 
 export const offlineFallbackStyle = {
   version: 8,
@@ -34,10 +34,10 @@ export const offlineFallbackStyle = {
   ],
   metadata: {
     description:
-      'Fallback style used when Carto basemap tiles cannot be loaded; serves OSM raster tiles instead.'
+      'Fallback style used when the 3D OSM basemap cannot be loaded; serves OSM raster tiles instead.'
   }
 };
 
-const voyagerBaseMapStyle = CARTO_VOYAGER_STYLE_URL;
+const defaultBaseMapStyle = OSM_STREETS_3D_STYLE_URL;
 
-export default voyagerBaseMapStyle;
+export default defaultBaseMapStyle;

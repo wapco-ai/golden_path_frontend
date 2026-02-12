@@ -1261,11 +1261,7 @@ const Amain = () => {
   const isDoorAccessLayerActive = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID;
   const intl = useIntl();
   const language = intl?.locale || 'fa';
-  const isRtlLanguage = ['fa', 'ar', 'ur'].includes(language);
-  const mapStyle = useMemo(
-    () => (isRtlLanguage ? './rtl/style.json' : './rtl/style-en.json'),
-    [isRtlLanguage]
-  );
+  const mapStyle = useMemo(() => '/map-styles/osm-streets-3d/style.json', []);
   const translateLabel = useCallback(
     (labelKey) => {
       if (!labelKey || typeof labelKey !== 'string') return labelKey;
@@ -4200,7 +4196,7 @@ const Amain = () => {
 
     const mapInstance = new maplibregl.Map({
       container: 'edit-cultural-map-container',
-      style: './rtl/style-en.json',
+      style: '/map-styles/osm-streets-3d/style.json',
       center: selectedLocation ?
         [selectedLocation.lng, selectedLocation.lat] :
         [59.6161, 36.2908],
@@ -4611,7 +4607,7 @@ const Amain = () => {
 
     const mapInstance = new maplibregl.Map({
       container: 'cultural-map-container',
-      style: './rtl/style-en.json',
+      style: '/map-styles/osm-streets-3d/style.json',
       center: [59.6161, 36.2908],
       zoom: 16,
     });

@@ -13,8 +13,7 @@ const Routing = ({ userLocation, routeSteps, currentStep }) => {
   const formatDigits = useLocaleDigits();
   const language = useLangStore((state) => state.language);
   const isRtl = ["fa", "ar", "ur"].includes(language);
-  const baseMapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
-  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
+  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
   const mapRenderKey = `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
   const initialPoint = routeSteps && routeSteps.length > 0
     ? (Array.isArray(routeSteps[0]?.coordinates?.[0])
