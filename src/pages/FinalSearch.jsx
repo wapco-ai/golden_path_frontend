@@ -10,7 +10,6 @@ import '../styles/FinalSearch.css';
 import ModeSelector from '../components/common/ModeSelector';
 import { useRouteStore } from '../store/routeStore';
 import { useLangStore } from '../store/langStore';
-import { MBTILES_SATELLITE_STYLE } from '../services/mbtilesMapStyle';
 import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
 import { analyzeRoute } from '../utils/routeAnalysis';
 import useLocaleDigits from '../utils/useLocaleDigits';
@@ -21,6 +20,7 @@ import { requestRouting } from '../services/routingService';
 import appConfig from '../config/appConfig';
 import { USER_ACCESS_TOKEN_KEY, useUserAuthStore } from '../auth/user/userAuthStore';
 import { createDestination } from '../services/destinationService';
+import voyagerBaseMapStyle from '../services/osmMapStyle';
 
 const HIDDEN_VECTOR_LAYER_IDS = new Set([
   'areas-outline',
@@ -52,17 +52,10 @@ const FinalSearch = () => {
   const formatDigits = useLocaleDigits();
   const language = useLangStore((state) => state.language);
   const isRtl = ["fa", "ar", "ur"].includes(language);
-  const baseMapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
+  const baseMapStyle = voyagerBaseMapStyle;
   const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
-  const [selectedMapType] = useState(() => {
-    if (typeof window === 'undefined') {
-      return 'satellite';
-    }
-    return sessionStorage.getItem('selectedMapType') || 'satellite';
-  });
-  const isSatellite = selectedMapType === 'satellite';
-  const mapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : offlineMapStyle;
-  const mapRenderKey = isSatellite ? 'mbtiles-satellite' : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
+  const mapStyle = offlineMapStyle;
+  const mapRenderKey = `${styleKey}-${isRtl ? 'rtl' : 'en'}-voyager-only`;
   const {
     origin: storedOrigin,
     destination: storedDestination,
