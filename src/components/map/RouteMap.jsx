@@ -45,7 +45,8 @@ const RouteMap = forwardRef(({
     && Number.isFinite(userLocation[1]);
 
   const isRtl = ["fa", "ar", "ur"].includes(language);
-  const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle();
+  const baseMapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
+  const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
   const [selectedMapType] = useState(() => {
     if (typeof window === 'undefined') {
       return 'satellite';
