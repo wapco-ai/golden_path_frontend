@@ -4,7 +4,7 @@ import { useIntl } from 'react-intl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
-import { MBTILES_OFFLINE_OSMH_STYLE, MBTILES_SATELLITE_STYLE } from '../../services/mbtilesMapStyle';
+import { MBTILES_SATELLITE_STYLE, OSM_BASIC_STYLE_URL } from '../../services/mbtilesMapStyle';
 import { useLangStore } from '../../store/langStore';
 import { getLocationTitleById } from '../../utils/getLocationTitle';
 import { loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
@@ -117,7 +117,7 @@ const Mprc = ({
   const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
   const isSatellite = selectedMapType === 'satellite';
   const isOfflineOsmh = selectedMapType === 'simple';
-  const mapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : isOfflineOsmh ? MBTILES_OFFLINE_OSMH_STYLE : offlineMapStyle;
+  const mapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : isOfflineOsmh ? OSM_BASIC_STYLE_URL : offlineMapStyle;
   const mapRenderKey = isSatellite
     ? 'mbtiles-satellite'
     : isOfflineOsmh
