@@ -10351,7 +10351,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -10404,7 +10404,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -10445,7 +10445,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -10556,7 +10556,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -10564,7 +10564,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Bold"
                 ],
                 "text-max-width": 9,
@@ -10713,7 +10713,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -10721,7 +10721,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Bold"
                 ],
                 "text-max-width": 9,
@@ -10793,7 +10793,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -10864,7 +10864,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -10872,7 +10872,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold Italic",
+                    "Vazirmatn Regular Italic",
                     "Noto Sans Regular"
                 ],
                 "text-max-width": 9,
@@ -10929,7 +10929,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -10937,7 +10937,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Bold"
                 ],
                 "text-max-width": 9,
@@ -11002,7 +11002,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -11010,7 +11010,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold Italic",
+                    "Vazirmatn Regular Italic",
                     "Noto Sans Bold"
                 ],
                 "text-max-width": 9,
@@ -11076,7 +11076,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -11153,7 +11153,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -11161,7 +11161,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Bold"
                 ],
                 "text-max-width": 9,
@@ -11230,7 +11230,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -11238,7 +11238,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Bold"
                 ],
                 "text-max-width": 9,
@@ -11315,7 +11315,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -11323,7 +11323,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Bold"
                 ],
                 "text-max-width": 9,
@@ -11400,7 +11400,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -11408,7 +11408,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Bold"
                 ],
                 "text-max-width": 9,
@@ -11467,7 +11467,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -11475,7 +11475,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Bold"
                 ],
                 "text-max-width": 9,
@@ -11581,7 +11581,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -11730,7 +11730,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -11738,7 +11738,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Bold"
                 ],
                 "text-max-width": 9,
@@ -11802,7 +11802,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -11810,7 +11810,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Bold"
                 ],
                 "text-max-width": 9,
@@ -11877,7 +11877,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -11885,7 +11885,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Bold"
                 ],
                 "text-max-width": 9,
@@ -11950,7 +11950,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -12028,7 +12028,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -12094,7 +12094,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -12102,7 +12102,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold Italic",
+                    "Vazirmatn Regular Italic",
                     "Noto Sans Italic"
                 ],
                 "text-max-width": 6,
@@ -12161,7 +12161,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -12169,7 +12169,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold Italic",
+                    "Vazirmatn Regular Italic",
                     "Noto Sans Italic"
                 ],
                 "text-max-width": 9,
@@ -12247,7 +12247,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -12494,7 +12494,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -12566,7 +12566,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -12644,7 +12644,7 @@
                     ]
                 },
                 "symbol-spacing": 560,
-                "text-field": "{ref}",
+                "text-field": "name:latin",
                 "text-font": [
                     "Noto Sans Regular"
                 ],
@@ -12722,7 +12722,7 @@
                     ]
                 },
                 "symbol-spacing": 560,
-                "text-field": "{ref}",
+                "text-field": "name:latin",
                 "text-font": [
                     "Noto Sans Regular"
                 ],
@@ -12800,7 +12800,7 @@
                     ]
                 },
                 "symbol-spacing": 560,
-                "text-field": "{ref}",
+                "text-field": "name:latin",
                 "text-font": [
                     "Noto Sans Regular"
                 ],
@@ -13094,7 +13094,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -13143,7 +13143,7 @@
             "layout": {
                 "text-field": "{ref}",
                 "text-font": [
-                    "Open Sans Semi Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-size": {
@@ -13193,7 +13193,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -13201,7 +13201,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-max-width": 10,
@@ -13298,7 +13298,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -13306,7 +13306,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold Italic",
+                    "Vazirmatn Regular Italic",
                     "Noto Sans Italic"
                 ],
                 "text-max-width": {
@@ -13376,7 +13376,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -13384,7 +13384,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold Italic",
+                    "Vazirmatn Regular Italic",
                     "Noto Sans Italic"
                 ],
                 "text-size": 12,
@@ -13448,7 +13448,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -13640,7 +13640,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -13648,7 +13648,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-max-width": 8,
@@ -13701,7 +13701,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -13709,7 +13709,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-max-width": 8,
@@ -13766,7 +13766,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -13852,7 +13852,7 @@
                     "coalesce",
                     [
                         "get",
-                        "name:en"
+                        "name:latin"
                     ],
                     [
                         "get",
@@ -13860,7 +13860,7 @@
                     ]
                 ],
                 "text-font": [
-                    "Open Sans Semi Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-max-width": 8,
@@ -13950,9 +13950,9 @@
                     ]
                 ],
                 "text-anchor": "bottom",
-                "text-field": "{name:en}",
+                "text-field": "{name:latin}",
                 "text-font": [
-                    "Open Sans Semi Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Regular"
                 ],
                 "text-max-width": 8,
@@ -14022,9 +14022,9 @@
                         "rank"
                     ]
                 ],
-                "text-field": "{name:en}",
+                "text-field": "{name:latin}",
                 "text-font": [
-                    "Open Sans Semi Bold",
+                    "Vazirmatn Regular",
                     "Noto Sans Bold"
                 ],
                 "text-max-width": 6.25,
