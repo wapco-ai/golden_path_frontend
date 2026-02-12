@@ -1263,7 +1263,7 @@ const Amain = () => {
   const language = intl?.locale || 'fa';
   const isRtlLanguage = ['fa', 'ar', 'ur'].includes(language);
   const mapStyle = useMemo(
-    () => (isRtlLanguage ? './rtl/style.json' : './rtl/style-en.json'),
+    () => (isRtlLanguage ? './map-styles/osm-voyager/style.json' : './map-styles/osm-voyager/style-en.json'),
     [isRtlLanguage]
   );
   const translateLabel = useCallback(

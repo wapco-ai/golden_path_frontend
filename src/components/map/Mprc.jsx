@@ -113,7 +113,7 @@ const Mprc = ({
   const [routeCoords, setRouteCoords] = useState(null);
   const language = useLangStore((state) => state.language);
   const isRtl = ["fa", "ar", "ur"].includes(language);
-  const baseMapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
+  const baseMapStyle = isRtl ? "./map-styles/osm-voyager/style.json" : "./map-styles/osm-voyager/style-en.json";
   const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
   const isSatellite = selectedMapType === 'satellite';
   const isOfflineOsmh = selectedMapType === 'simple';
