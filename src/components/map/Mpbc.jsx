@@ -675,8 +675,8 @@ const Mpbc = ({
 
             {/* Existing SVG icon */}
             <svg
-              width="50"
-              height="57"
+              width="40"
+              height="47"
               viewBox="0 0 55 63"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
@@ -731,7 +731,7 @@ const Mpbc = ({
           longitude={selectedFeatureForBubble.geometry.coordinates[0]}
           latitude={selectedFeatureForBubble.geometry.coordinates[1]}
           anchor="bottom"
-          offset={[0, 75]}
+          offset={[0, 65]}
         >
           <div className="location-bubble">
             <svg width="140" height="50" viewBox="0 0 140 50" fill="none" xmlns="http://www.w3.org/2000/svg">

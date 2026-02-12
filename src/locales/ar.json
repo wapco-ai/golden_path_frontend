@@ -382,6 +382,7 @@
   "mapType": "نوع الخريطة",
   "baseMap": "خريطة الأساس",
   "satelliteMap": "خريطة الأقمار الصناعية",
+  "simpleMap": "خريطة بسيطة",
   "searchResults": "نتائج البحث",
   "noSearchResults": "لم يتم العثور على نتائج لـ \"{query}\""
 }
