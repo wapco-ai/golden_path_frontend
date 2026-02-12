@@ -9,7 +9,7 @@
                 "intermittent": "Number"
             },
             "minzoom": 0,
-            "maxzoom": 14,
+            "maxzoom": 17,
             "mvt_buffer": 64
         },
         {
@@ -21,7 +21,7 @@
                 "name": "String"
             },
             "minzoom": 3,
-            "maxzoom": 14,
+            "maxzoom": 17,
             "mvt_buffer": 64
         },
         {
@@ -31,7 +31,7 @@
                 "subclass": "String"
             },
             "minzoom": 0,
-            "maxzoom": 14,
+            "maxzoom": 17,
             "mvt_buffer": 64
         },
         {
@@ -40,7 +40,7 @@
                 "class": "String"
             },
             "minzoom": 4,
-            "maxzoom": 14,
+            "maxzoom": 17,
             "mvt_buffer": 64
         },
         {
@@ -54,7 +54,7 @@
                 "rank": "Number"
             },
             "minzoom": 7,
-            "maxzoom": 14,
+            "maxzoom": 17,
             "mvt_buffer": 1024
         },
         {
@@ -65,7 +65,7 @@
                 "rank": "Number"
             },
             "minzoom": 4,
-            "maxzoom": 14,
+            "maxzoom": 17,
             "mvt_buffer": 64
         },
         {
@@ -82,7 +82,7 @@
                 "name": "String"
             },
             "minzoom": 0,
-            "maxzoom": 14,
+            "maxzoom": 17,
             "mvt_buffer": 64
         },
         {
@@ -92,7 +92,7 @@
                 "ref": "String"
             },
             "minzoom": 10,
-            "maxzoom": 14,
+            "maxzoom": 17,
             "mvt_buffer": 64
         },
         {
@@ -119,7 +119,7 @@
                 "toll": "Number"
             },
             "minzoom": 4,
-            "maxzoom": 14,
+            "maxzoom": 17,
             "mvt_buffer": 64
         },
         {
@@ -131,7 +131,7 @@
                 "render_min_height": "Number"
             },
             "minzoom": 13,
-            "maxzoom": 14,
+            "maxzoom": 17,
             "mvt_buffer": 64
         },
         {
@@ -142,7 +142,7 @@
                 "name": "String"
             },
             "minzoom": 0,
-            "maxzoom": 14,
+            "maxzoom": 17,
             "mvt_buffer": 4096
         },
         {
@@ -183,7 +183,7 @@
                 "subclass": "String"
             },
             "minzoom": 6,
-            "maxzoom": 14,
+            "maxzoom": 17,
             "mvt_buffer": 128
         },
         {
@@ -196,7 +196,7 @@
                 "rank": "Number"
             },
             "minzoom": 0,
-            "maxzoom": 14,
+            "maxzoom": 17,
             "mvt_buffer": 4096
         },
         {
@@ -205,7 +205,7 @@
                 "housenumber": "String"
             },
             "minzoom": 14,
-            "maxzoom": 14,
+            "maxzoom": 17,
             "mvt_buffer": 128
         },
         {
@@ -221,7 +221,7 @@
                 "subclass": "String"
             },
             "minzoom": 11,
-            "maxzoom": 14,
+            "maxzoom": 17,
             "mvt_buffer": 1024
         },
         {
@@ -235,7 +235,7 @@
                 "name": "String"
             },
             "minzoom": 8,
-            "maxzoom": 14,
+            "maxzoom": 17,
             "mvt_buffer": 1024
         }
     ],
@@ -1540,7 +1540,7 @@
     "version": "3.16.0",
     "format": "pbf",
     "minzoom": 0,
-    "maxzoom": 14,
+    "maxzoom": 17,
     "generator": "MapTiler Data",
     "id": "v3-openmaptiles",
     "planettime": "1770595200000",
@@ -1569,6 +1569,6 @@
         20037471.205137093
     ],
     "tiles": [
-        "https://api.maptiler.com/tiles/v3-openmaptiles/{z}/{x}/{y}.pbf?key=O7VbOY3zrXxBupgrQtdE"
+        "http://localhost:8088/services/mashhad/tiles/{z}/{x}/{y}.pbf"
     ]
 }
