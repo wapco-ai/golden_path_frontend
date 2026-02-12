@@ -9,8 +9,8 @@ import ArrowMarker from './ArrowMarker';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
 import appConfig from '../../config/appConfig';
 import { useLangStore } from '../../store/langStore';
-import { MBTILES_SATELLITE_STYLE } from '../../services/mbtilesMapStyle';
 import { createHaramVectorTileConfig } from '../../config/vectorTiles';
+import voyagerBaseMapStyle from '../../services/osmMapStyle';
 
 import { forwardRef, useImperativeHandle } from 'react';
 
@@ -45,17 +45,10 @@ const RouteMap = forwardRef(({
     && Number.isFinite(userLocation[1]);
 
   const isRtl = ["fa", "ar", "ur"].includes(language);
-  const baseMapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
+  const baseMapStyle = voyagerBaseMapStyle;
   const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
-  const [selectedMapType] = useState(() => {
-    if (typeof window === 'undefined') {
-      return 'satellite';
-    }
-    return sessionStorage.getItem('selectedMapType') || 'satellite';
-  });
-  const isSatellite = selectedMapType === 'satellite';
-  const mapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : offlineMapStyle;
-  const mapRenderKey = isSatellite ? 'mbtiles-satellite' : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
+  const mapStyle = offlineMapStyle;
+  const mapRenderKey = `${styleKey}-${isRtl ? 'rtl' : 'en'}-voyager-only`;
 
   const center = isValidUserLocation
     ? userLocation
