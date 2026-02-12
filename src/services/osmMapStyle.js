@@ -2,7 +2,7 @@
 
 export const BASE_RASTER_SOURCE_ID = 'carto-voyager-base';
 
-export const CARTO_VOYAGER_STYLE_URL = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
+export const CARTO_VOYAGER_STYLE_URL = '/map-styles/osm-streets-3d/style.json';
 
 export const offlineFallbackStyle = {
   version: 8,
