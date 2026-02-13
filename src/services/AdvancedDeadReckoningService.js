@@ -9,7 +9,6 @@ class AdvancedDeadReckoningService {
     this._lastMagnitude = 0;
     this.motionHandler = this._handleMotion.bind(this);
     this.orientationHandler = this._handleOrientation.bind(this);
-    this._headingSmoothing = 0.35;
   }
 
   addListener(fn) {
@@ -30,25 +29,17 @@ class AdvancedDeadReckoningService {
   }
 
   async start(initialPosition) {
-    if (!initialPosition || !Number.isFinite(initialPosition.lat) || !Number.isFinite(initialPosition.lng)) {
-      this._emit('invalidInitialPosition');
-      return;
-    }
-
     this.geoPosition = { ...initialPosition };
     this.geoPath = [this.geoPosition];
     this.stepCount = 0;
-    this._lastMagnitude = 0;
-
-    const sensorsStarted = await this._startSensors();
-    this.isActive = sensorsStarted;
+    this.isActive = true;
+    await this._startSensors();
     this._emit('serviceStateChanged');
   }
 
   stop() {
     this._stopSensors();
     this.isActive = false;
-    this._lastMagnitude = 0;
     this._emit('serviceStateChanged');
   }
 
@@ -58,43 +49,38 @@ class AdvancedDeadReckoningService {
       this.geoPosition = { ...position };
       this.geoPath = [this.geoPosition];
     } else {
-      this.geoPosition = null;
       this.geoPath = [];
     }
     this._emit('serviceStateChanged');
   }
 
   async _startSensors() {
-    if (typeof window === 'undefined') return false;
+    if (typeof window === 'undefined') return;
     if (typeof DeviceMotionEvent === 'undefined' || typeof DeviceOrientationEvent === 'undefined') {
       this._emit('sensorsUnsupported');
-      return false;
+      return;
     }
     try {
       if (typeof DeviceMotionEvent.requestPermission === 'function') {
         const res = await DeviceMotionEvent.requestPermission();
         if (res !== 'granted') {
           this._emit('permissionNeeded');
-          return false;
+          return;
         }
       }
       if (typeof DeviceOrientationEvent.requestPermission === 'function') {
         const res = await DeviceOrientationEvent.requestPermission();
         if (res !== 'granted') {
           this._emit('permissionNeeded');
-          return false;
+          return;
         }
       }
     } catch (e) {
       console.warn('Sensor permission error', e);
-      this._emit('permissionNeeded');
-      return false;
     }
-
     window.addEventListener('devicemotion', this.motionHandler);
     window.addEventListener('deviceorientationabsolute', this.orientationHandler);
     window.addEventListener('deviceorientation', this.orientationHandler);
-    return true;
   }
 
   _stopSensors() {
@@ -117,56 +103,16 @@ class AdvancedDeadReckoningService {
     this._lastMagnitude = magnitude;
   }
 
-  _normalizeHeading(value) {
-    return ((value % 360) + 360) % 360;
-  }
-
-  _getScreenOrientationAngle() {
-    if (typeof window === 'undefined') return 0;
-
-    if (window.screen?.orientation && Number.isFinite(window.screen.orientation.angle)) {
-      return window.screen.orientation.angle;
-    }
-
-    if (Number.isFinite(window.orientation)) {
-      return window.orientation;
-    }
-
-    return 0;
-  }
-
-  _smoothHeading(nextHeading) {
-    if (!Number.isFinite(this.heading)) {
-      return this._normalizeHeading(nextHeading);
-    }
-
-    let diff = nextHeading - this.heading;
-    if (diff > 180) diff -= 360;
-    if (diff < -180) diff += 360;
-
-    return this._normalizeHeading(this.heading + diff * this._headingSmoothing);
-  }
-
   _handleOrientation(e) {
     if (!this.isActive) return;
-
-    let headingFromNorth;
-
-    if (Number.isFinite(e.webkitCompassHeading)) {
-      // iOS Safari provides true heading directly (clockwise from north).
-      headingFromNorth = e.webkitCompassHeading;
-    } else if (Number.isFinite(e.alpha)) {
-      // Most modern browsers expose alpha as heading clockwise from north when absolute is available.
-      // In practice this is more reliable than inverting with (360 - alpha).
-      headingFromNorth = e.alpha;
-    } else {
-      return;
+    const alpha = e.alpha;
+    if (alpha !== null && alpha !== undefined) {
+      // alpha increases clockwise but maplibre expects bearing clockwise from north.
+      // Subtract from 360 so rotating the device clockwise turns the map in the
+      // same direction.
+      this.heading = (360 - alpha) % 360;
+      this._emit('orientationChanged');
     }
-
-    const screenAngle = this._getScreenOrientationAngle();
-    const correctedHeading = this._normalizeHeading(headingFromNorth + screenAngle);
-    this.heading = this._smoothHeading(correctedHeading);
-    this._emit('orientationChanged');
   }
 
   _processStep() {
