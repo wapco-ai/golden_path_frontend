@@ -70,7 +70,7 @@ const appConfig = {
   googleMapsDirectionsBaseUrl: import.meta?.env?.VITE_GOOGLE_MAPS_DIRECTIONS_BASE_URL?.trim() || 'https://www.google.com/maps/dir/',
   ttsAuthUrl: import.meta?.env?.VITE_TTS_AUTH_URL?.trim() || 'https://api.aipaa.ir/auth/token/',
   ttsRequestUrl: import.meta?.env?.VITE_TTS_REQUEST_URL?.trim() || 'https://api.aipaa.ir/api/v1/voice/tts-file-response/?expire-file=yes',
-  shrineEventsBaseUrl: import.meta?.env?.VITE_SHRINE_EVENTS_BASE_URL?.trim() || 'http://localhost:8080/api/v1/kouthar/',
+  shrineEventsBaseUrl: import.meta?.env?.VITE_SHRINE_EVENTS_BASE_URL?.trim() || `${defaultApiBaseUrl}/api/v1/kouthar/`,
   doorBoundaryToleranceMeters: Number(import.meta?.env?.VITE_DOOR_BOUNDARY_TOLERANCE ?? '') || 4
 };
 
