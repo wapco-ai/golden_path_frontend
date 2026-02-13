@@ -65,7 +65,7 @@ const RouteMap = forwardRef(({
     if (Array.isArray(step.coordinates[0])) {
       const point = step.coordinates[Math.max(step.coordinates.length - 1, 0)];
       if (Array.isArray(point) && point.length >= 2) {
-        return [point[1], point[0]];
+        return point;
       }
       return null;
     }
