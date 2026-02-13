@@ -77,6 +77,39 @@ const RouteMap = forwardRef(({
     return null;
   };
 
+  const getStepLandmark = (step) => {
+    const landmarkCandidate =
+      step?.landmark
+      || step?.landmarkName
+      || step?.landmark_name
+      || step?.poi
+      || step?.poiName
+      || step?.poi_name
+      || step?.referenceLandmark
+      || step?.reference_landmark
+      || null;
+
+    if (!landmarkCandidate) return null;
+    if (typeof landmarkCandidate === 'string') {
+      const trimmed = landmarkCandidate.trim();
+      return trimmed || null;
+    }
+
+    if (typeof landmarkCandidate === 'object') {
+      const name =
+        landmarkCandidate.name
+        || landmarkCandidate.title
+        || landmarkCandidate.label
+        || null;
+      if (typeof name === 'string') {
+        const trimmed = name.trim();
+        return trimmed || null;
+      }
+    }
+
+    return null;
+  };
+
   const [drPosition, setDrPosition] = useState(null);
   const [drGeoPath, setDrGeoPath] = useState([]);
   const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
@@ -429,20 +462,21 @@ const RouteMap = forwardRef(({
       )}
 
       {is3DView && routeSteps && routeSteps.map((step) => {
-        if (!step?.landmark) return null;
+        const landmarkLabel = getStepLandmark(step);
+        if (!landmarkLabel) return null;
         const coord = getStepCoordinate(step);
         if (!coord) return null;
 
         return (
           <Marker
-            key={`landmark-bubble-${step.id}-${step.landmark}`}
+            key={`landmark-bubble-${step.id}-${landmarkLabel}`}
             longitude={coord[0]}
             latitude={coord[1]}
             anchor="bottom"
           >
-            <div className="rng-landmark-bubble-3d" title={step.landmark}>
+            <div className="rng-landmark-bubble-3d" title={landmarkLabel}>
               <div className="rng-landmark-bubble-core" />
-              <div className="rng-landmark-bubble-label">{step.landmark}</div>
+              <div className="rng-landmark-bubble-label">{landmarkLabel}</div>
             </div>
           </Marker>
         );
