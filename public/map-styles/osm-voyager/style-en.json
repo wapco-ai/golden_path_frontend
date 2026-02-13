@@ -9,7 +9,7 @@
       "maxzoom": 17
     }
   },
-  "sprite": "/map-styles/osm-voyager/sprite",
+  "sprite": "http://localhost:5173/map-styles/osm-voyager/sprite",
   "glyphs": "http://localhost:8080/fonts/{fontstack}/{range}.pbf",
   "layers": [
     {
