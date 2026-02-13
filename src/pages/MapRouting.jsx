@@ -872,7 +872,6 @@ const MapRoutingPage = () => {
         geo,
         search: trimmedQuery,
         limit: 30,
-        featured: isFeaturedZoom ? 1 : undefined,
         signal: controller.signal
       })
         .then((data) => {
@@ -894,7 +893,7 @@ const MapRoutingPage = () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [searchQuery, language, userLocation, isFeaturedZoom]);
+  }, [searchQuery, language, userLocation]);
 
   const handleRouteFromSubgroup = (subgroup) => {
     console.log('Routing from main page subgroup:', subgroup);
