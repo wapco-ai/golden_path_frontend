@@ -25,6 +25,7 @@ import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { ToastContainer, toast } from 'react-toastify';
 import adminRoutes from './routes/adminRoutes';
+import { recordPathInHistory } from './utils/navigationHistory';
 
 const useAppStyles = () => {
   const location = useLocation();
@@ -59,6 +60,10 @@ const AppContent = () => {
   useEffect(() => {
     document.title = intl.formatMessage({ id: 'appTitle' });
   }, [intl.locale]);
+
+  useEffect(() => {
+    recordPathInHistory(location.pathname);
+  }, [location.pathname]);
 
   useEffect(() => {
     if (isRunningAsInstalledApp() || localStorage.getItem('pwaInstalled') === 'true') {
