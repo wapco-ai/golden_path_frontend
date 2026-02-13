@@ -655,6 +655,7 @@ const RoutingPage = () => {
         distance: `${Math.round(distance)} ${intl.formatMessage({ id: 'meters' })}`,
         time: `${Math.max(1, Math.round(distance / 60))} ${intl.formatMessage({ id: 'minutesUnit' })}`,
         coordinates: stepCoords,
+        landmark: s.landmark || null,
         services: s.services || {},
         direction
       };

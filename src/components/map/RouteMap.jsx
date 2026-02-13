@@ -59,6 +59,24 @@ const RouteMap = forwardRef(({
     && Number.isFinite(step.coordinates[0])
     && Number.isFinite(step.coordinates[1]);
 
+  const getStepCoordinate = (step) => {
+    if (!step?.coordinates) return null;
+
+    if (Array.isArray(step.coordinates[0])) {
+      const point = step.coordinates[Math.max(step.coordinates.length - 1, 0)];
+      if (Array.isArray(point) && point.length >= 2) {
+        return point;
+      }
+      return null;
+    }
+
+    if (Array.isArray(step.coordinates) && step.coordinates.length >= 2) {
+      return [step.coordinates[1], step.coordinates[0]];
+    }
+
+    return null;
+  };
+
   const [drPosition, setDrPosition] = useState(null);
   const [drGeoPath, setDrGeoPath] = useState([]);
   const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
@@ -409,6 +427,26 @@ const RouteMap = forwardRef(({
           <DestinationPin />
         </Marker>
       )}
+
+      {is3DView && routeSteps && routeSteps.map((step) => {
+        if (!step?.landmark) return null;
+        const coord = getStepCoordinate(step);
+        if (!coord) return null;
+
+        return (
+          <Marker
+            key={`landmark-bubble-${step.id}-${step.landmark}`}
+            longitude={coord[0]}
+            latitude={coord[1]}
+            anchor="bottom"
+          >
+            <div className="rng-landmark-bubble-3d" title={step.landmark}>
+              <div className="rng-landmark-bubble-core" />
+              <div className="rng-landmark-bubble-label">{step.landmark}</div>
+            </div>
+          </Marker>
+        );
+      })}
 
       {!isDrActive && showAlternativeRoutes &&
         alternativeRoutes.map((alt, idx) => (
