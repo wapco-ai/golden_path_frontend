@@ -4200,7 +4200,7 @@ const Amain = () => {
 
     const mapInstance = new maplibregl.Map({
       container: 'edit-cultural-map-container',
-      style: './rtl/style-en.json',
+      style: './map-styles/osm-voyager/style-en.json',
       center: selectedLocation ?
         [selectedLocation.lng, selectedLocation.lat] :
         [59.6161, 36.2908],
@@ -4611,7 +4611,7 @@ const Amain = () => {
 
     const mapInstance = new maplibregl.Map({
       container: 'cultural-map-container',
-      style: './rtl/style-en.json',
+      style: './map-styles/osm-voyager/style-en.json',
       center: [59.6161, 36.2908],
       zoom: 16,
     });
