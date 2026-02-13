@@ -18,6 +18,13 @@ apiAdmin.interceptors.request.use((config) => {
 });
 
 let refreshPromise = null;
+let hasRedirectedToAdminLogin = false;
+
+const redirectToAdminLogin = () => {
+  if (typeof window === 'undefined' || hasRedirectedToAdminLogin) return;
+  hasRedirectedToAdminLogin = true;
+  window.location.assign('/admin/login');
+};
 
 apiAdmin.interceptors.response.use(
   (response) => response,
@@ -32,6 +39,7 @@ apiAdmin.interceptors.response.use(
     const store = useAdminAuthStore.getState();
     if (!store.refreshToken) {
       store.clearAuth();
+      redirectToAdminLogin();
       return Promise.reject(error);
     }
 
@@ -40,6 +48,7 @@ apiAdmin.interceptors.response.use(
         .refreshSession()
         .catch((refreshError) => {
           store.clearAuth();
+          redirectToAdminLogin();
           throw refreshError;
         })
         .finally(() => {

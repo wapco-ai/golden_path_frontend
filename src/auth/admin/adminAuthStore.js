@@ -6,6 +6,11 @@ import appConfig from '../../config/appConfig';
 export const ADMIN_ACCESS_TOKEN_KEY = 'gp_admin_access_token';
 export const ADMIN_REFRESH_TOKEN_KEY = 'gp_admin_refresh_token';
 
+const getSessionAccessToken = () => {
+  if (typeof window === 'undefined') return null;
+  return sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY);
+};
+
 const authClient = axios.create({
   baseURL: `${appConfig.apiBaseUrl}/api/v1/admin/auth`,
   headers: {
@@ -43,7 +48,7 @@ const clearTokenStorage = () => {
 export const useAdminAuthStore = create(
   persist(
     (set, get) => ({
-      accessToken: null,
+      accessToken: getSessionAccessToken(),
       refreshToken: null,
       admin: null,
       roles: [],
@@ -140,13 +145,25 @@ export const useAdminAuthStore = create(
       name: 'gp_admin_auth_store',
       storage: createJSONStorage(safeStorage),
       partialize: (state) => ({
-        accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         admin: state.admin,
         roles: state.roles,
         permissions: state.permissions,
         expiresIn: state.expiresIn
-      })
+      }),
+      onRehydrateStorage: () => (state) => {
+        const activeAccessToken = getSessionAccessToken();
+        if (!state) return;
+
+        state.accessToken = activeAccessToken;
+
+        if (!activeAccessToken) {
+          state.admin = null;
+          state.roles = [];
+          state.permissions = [];
+          state.expiresIn = null;
+        }
+      }
     }
   )
 );
