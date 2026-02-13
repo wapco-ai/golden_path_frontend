@@ -60,7 +60,34 @@ const RouteMap = forwardRef(({
     && Number.isFinite(step.coordinates[0])
     && Number.isFinite(step.coordinates[1]);
 
+  const normalizeCoordinatePair = (pair) => {
+    if (!Array.isArray(pair) || pair.length < 2) return null;
 
+    const first = Number(pair[0]);
+    const second = Number(pair[1]);
+    if (!Number.isFinite(first) || !Number.isFinite(second)) return null;
+
+    // Support both [lat, lng] and [lng, lat] payloads.
+    const looksLikeLngLat = Math.abs(first) > 40 && Math.abs(second) < 40;
+    const looksLikeLatLng = Math.abs(first) < 40 && Math.abs(second) > 40;
+
+    if (looksLikeLngLat && !looksLikeLatLng) {
+      return [first, second];
+    }
+
+    return [second, first];
+  };
+
+  const getStepCoordinate = (step) => {
+    if (!step?.coordinates) return null;
+
+    if (Array.isArray(step.coordinates[0])) {
+      const point = step.coordinates[Math.max(step.coordinates.length - 1, 0)];
+      return normalizeCoordinatePair(point);
+    }
+
+    return normalizeCoordinatePair(step.coordinates);
+  };
 
   const getStepLandmark = (step) => {
     const landmarkCandidate =
@@ -513,21 +540,28 @@ const RouteMap = forwardRef(({
         </Marker>
       )}
 
-      {is3DView && routedImageLandmarks.map((landmark) => (
-        <Marker
-          key={`landmark-bubble-${landmark.id}`}
-          longitude={landmark.coords.lng}
-          latitude={landmark.coords.lat}
-          anchor="bottom"
-        >
-          <div className="rng-landmark-bubble-3d" title={landmark.title}>
-            <div className="rng-landmark-bubble-shadow" />
-            <div className="rng-landmark-bubble-core" />
-            <div className="rng-landmark-bubble-glow" />
-            <div className="rng-landmark-bubble-label">{landmark.title}</div>
-          </div>
-        </Marker>
-      ))}
+      {is3DView && routeSteps && routeSteps.map((step) => {
+        const landmarkLabel = getStepLandmark(step);
+        if (!landmarkLabel) return null;
+        const coord = getStepCoordinate(step);
+        if (!coord) return null;
+
+        return (
+          <Marker
+            key={`landmark-bubble-${step.id}-${landmarkLabel}`}
+            longitude={coord[0]}
+            latitude={coord[1]}
+            anchor="bottom"
+          >
+            <div className="rng-landmark-bubble-3d" title={landmarkLabel}>
+              <div className="rng-landmark-bubble-shadow" />
+              <div className="rng-landmark-bubble-core" />
+              <div className="rng-landmark-bubble-glow" />
+              <div className="rng-landmark-bubble-label">{landmarkLabel}</div>
+            </div>
+          </Marker>
+        );
+      })}
 
       {!isDrActive && showAlternativeRoutes &&
         alternativeRoutes.map((alt, idx) => (

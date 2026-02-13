@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { navigateToPreviousPage } from '../utils/navigationHistory';
 import { FormattedMessage, useIntl } from 'react-intl';
 import '../styles/Notifications.css';
 
@@ -105,7 +106,7 @@ function Notifications() {
 
   // Handle back
   const handleBack = () => {
-    navigate(-1);
+    navigateToPreviousPage(navigate);
   };
 
   // Get type label
