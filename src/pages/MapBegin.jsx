@@ -80,7 +80,7 @@ const MapBeginPage = () => {
   const [showMapStyleMenu, setShowMapStyleMenu] = useState(false);
   const [modalLastTouchTime, setModalLastTouchTime] = useState(0);
   const [mapZoomLevel, setMapZoomLevel] = useState(15);
-  const isFeaturedZoom = mapZoomLevel === 15 || mapZoomLevel === 16;
+  const isFeaturedZoom = mapZoomLevel <= 15;
   const handleMapZoomChange = useCallback((zoom) => {
     const roundedZoom = Math.round(zoom);
     setMapZoomLevel((prev) => (prev === roundedZoom ? prev : roundedZoom));
