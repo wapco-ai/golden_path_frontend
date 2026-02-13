@@ -11,6 +11,39 @@ class AdvancedDeadReckoningService {
     this.orientationHandler = this._handleOrientation.bind(this);
   }
 
+  _normalizeHeading(value) {
+    return ((value % 360) + 360) % 360;
+  }
+
+  _getScreenOrientationAngle() {
+    if (typeof window === 'undefined') return 0;
+    if (window.screen?.orientation?.angle !== undefined) {
+      return window.screen.orientation.angle;
+    }
+    if (typeof window.orientation === 'number') {
+      return window.orientation;
+    }
+    return 0;
+  }
+
+  _extractHeading(e) {
+    // iOS Safari reports compass heading directly (clockwise from magnetic north).
+    if (typeof e.webkitCompassHeading === 'number' && Number.isFinite(e.webkitCompassHeading)) {
+      return this._normalizeHeading(e.webkitCompassHeading);
+    }
+
+    // On most Android devices, only absolute events are reliable for true compass heading.
+    const isAbsoluteEvent = e.type === 'deviceorientationabsolute' || e.absolute === true;
+    if (!isAbsoluteEvent || typeof e.alpha !== 'number' || !Number.isFinite(e.alpha)) {
+      return null;
+    }
+
+    // Alpha is clockwise around device Z-axis; convert to bearing clockwise from north.
+    // Also account for screen rotation so heading follows the phone's "top" direction.
+    const orientationOffset = this._getScreenOrientationAngle();
+    return this._normalizeHeading(360 - e.alpha + orientationOffset);
+  }
+
   addListener(fn) {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
@@ -105,12 +138,9 @@ class AdvancedDeadReckoningService {
 
   _handleOrientation(e) {
     if (!this.isActive) return;
-    const alpha = e.alpha;
-    if (alpha !== null && alpha !== undefined) {
-      // alpha increases clockwise but maplibre expects bearing clockwise from north.
-      // Subtract from 360 so rotating the device clockwise turns the map in the
-      // same direction.
-      this.heading = (360 - alpha) % 360;
+    const nextHeading = this._extractHeading(e);
+    if (nextHeading !== null) {
+      this.heading = nextHeading;
       this._emit('orientationChanged');
     }
   }
