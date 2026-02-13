@@ -573,6 +573,30 @@ const RoutingPage = () => {
     return diff > 0 ? 'bend-left' : 'bend-right';
   };
 
+  const resolveLandmarkName = useCallback((step) => {
+    const candidate =
+      step?.landmark
+      || step?.landmarkName
+      || step?.landmark_name
+      || step?.poi
+      || step?.poiName
+      || step?.poi_name
+      || step?.referenceLandmark
+      || step?.reference_landmark
+      || step?.title
+      || step?.name
+      || null;
+
+    if (!candidate) return null;
+    if (typeof candidate === 'string') return candidate.trim() || null;
+    if (typeof candidate === 'object') {
+      const value = candidate.name || candidate.title || candidate.label || null;
+      return typeof value === 'string' ? (value.trim() || null) : null;
+    }
+
+    return null;
+  }, []);
+
   useEffect(() => {
     const coords = routeGeo?.geometry?.coordinates;
     if (!Array.isArray(coords) || coords.length === 0) {
@@ -640,8 +664,9 @@ const RoutingPage = () => {
           { name: stepName, title: s.title, num: idx + 1 }
         )
         : s.instruction || '';
-      const instruction = s.landmark
-        ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: s.landmark, distance: Math.round(distance) })}`
+      const landmarkName = resolveLandmarkName(s);
+      const instruction = landmarkName
+        ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: landmarkName, distance: Math.round(distance) })}`
         : base;
       let direction = 'arrived';
       if (idx < coords.length - 2) {
@@ -655,6 +680,7 @@ const RoutingPage = () => {
         distance: `${Math.round(distance)} ${intl.formatMessage({ id: 'meters' })}`,
         time: `${Math.max(1, Math.round(distance / 60))} ${intl.formatMessage({ id: 'minutesUnit' })}`,
         coordinates: stepCoords,
+        landmark: landmarkName,
         services: s.services || {},
         direction
       };
@@ -704,8 +730,9 @@ const RoutingPage = () => {
             { name: st.name || st.title, title: st.title, num: i + 1 }
           )
           : st.instruction || '';
-        const instruction = st.landmark
-          ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: st.landmark, distance: Math.round(dist) })}`
+        const landmarkName = resolveLandmarkName(st);
+        const instruction = landmarkName
+          ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: landmarkName, distance: Math.round(dist) })}`
           : base;
         let direction = 'arrived';
         if (i < altCoords.length - 2) {
@@ -719,6 +746,7 @@ const RoutingPage = () => {
           distance: `${Math.round(dist)} ${intl.formatMessage({ id: 'meters' })}`,
           time: `${Math.max(1, Math.round(dist / 60))} ${intl.formatMessage({ id: 'minutesUnit' })}`,
           coordinates: stepCoords,
+          landmark: landmarkName,
           direction
         };
       });
@@ -758,7 +786,7 @@ const RoutingPage = () => {
     } catch (err) {
       console.warn('failed to persist route summary', err);
     }
-  }, [routeSteps, routeGeo, alternativeRoutes, transportMode]);
+  }, [routeSteps, routeGeo, alternativeRoutes, transportMode, resolveLandmarkName]);
 
 
   // Update arrival time every minute
