@@ -6,6 +6,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
 import advancedDeadReckoningService from '../../services/AdvancedDeadReckoningService';
 import ArrowMarker from './ArrowMarker';
+import UserMarker from '../Map/UserMarker';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
 import appConfig from '../../config/appConfig';
 import { useLangStore } from '../../store/langStore';
@@ -26,6 +27,7 @@ const HIDDEN_VECTOR_LAYER_IDS = new Set([
 const RouteMap = forwardRef(({ 
   userLocation,
   userHeading,
+  fusedPosition = null,
   routeSteps,
   currentStep,
   isInfoModalOpen,
@@ -371,13 +373,17 @@ const RouteMap = forwardRef(({
       onError={handleMapError}
     >
       {/* User location marker - now using ArrowMarker with walking man icon */}
-      {!isDrActive && isValidUserLocation && (
+      {fusedPosition?.snapped ? (
+        <Marker longitude={fusedPosition.snapped.lng} latitude={fusedPosition.snapped.lat} anchor="center">
+          <UserMarker fusedPosition={fusedPosition} />
+        </Marker>
+      ) : (!isDrActive && isValidUserLocation && (
         <Marker longitude={userLocation[1]} latitude={userLocation[0]} anchor="center">
           <ArrowMarker />
         </Marker>
-      )}
+      ))}
 
-      {isDrActive && drPosition && Number.isFinite(drPosition.lng) && Number.isFinite(drPosition.lat) && (
+      {!fusedPosition?.snapped && isDrActive && drPosition && Number.isFinite(drPosition.lng) && Number.isFinite(drPosition.lat) && (
         <Marker longitude={drPosition.lng} latitude={drPosition.lat} anchor="center">
           <ArrowMarker />
         </Marker>
