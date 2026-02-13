@@ -28,6 +28,8 @@ const HIDDEN_VECTOR_LAYER_IDS = new Set([
   'doors'
 ]);
 
+const EMPTY_ROUTE_COORDINATES = [];
+
 const RouteOverview = () => {
   const navigate = useNavigate();
   const intl = useIntl();
@@ -142,7 +144,7 @@ const RouteOverview = () => {
     setRouteSteps,
     setAlternativeRoutes
   } = useRouteStore();
-  const routeCoordinates = routeGeo?.geometry?.coordinates || [];
+  const routeCoordinates = routeGeo?.geometry?.coordinates ?? EMPTY_ROUTE_COORDINATES;
   const initialRouteFlyDone = useRef(false);
   const hasHydratedRouteRef = useRef(false);
 
@@ -304,7 +306,7 @@ const RouteOverview = () => {
 
     const fetchNearbyLandmarks = async () => {
       if (!Array.isArray(routeCoordinates) || routeCoordinates.length === 0) {
-        setNearbyLandmarks([]);
+        setNearbyLandmarks((prev) => (prev.length === 0 ? prev : []));
         return;
       }
 
