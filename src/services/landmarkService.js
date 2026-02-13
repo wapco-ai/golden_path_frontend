@@ -6,6 +6,24 @@ const CACHE_TTL_MS = 1500;
 
 const RAW_BASE64_REGEX = /^[A-Za-z0-9+/]+={0,2}$/;
 
+
+const normalizeUploadPath = (value) => {
+  if (!value) return value;
+
+  const stripped = value.replace(/^\.\//, '');
+  const withLeadingSlash = stripped.startsWith('/') ? stripped : `/${stripped}`;
+
+  if (withLeadingSlash.startsWith('/storage/')) {
+    return withLeadingSlash;
+  }
+
+  if (withLeadingSlash.startsWith('/uploads/')) {
+    return `/storage${withLeadingSlash}`;
+  }
+
+  return withLeadingSlash;
+};
+
 const resolveMediaValue = (media, defaultMime = 'image/jpeg') => {
   if (!media) return null;
 
@@ -28,7 +46,11 @@ const resolveMediaValue = (media, defaultMime = 'image/jpeg') => {
   }
 
   if (trimmed.startsWith('/')) {
-    return `${appConfig.apiBaseUrl}${trimmed}`;
+    return `${appConfig.apiBaseUrl}${normalizeUploadPath(trimmed)}`;
+  }
+
+  if (!trimmed.includes('://') && !trimmed.startsWith('//')) {
+    return `${appConfig.apiBaseUrl}${normalizeUploadPath(trimmed)}`;
   }
 
   if (!trimmed.includes('://') && !trimmed.startsWith('//')) {
@@ -41,7 +63,7 @@ const resolveMediaValue = (media, defaultMime = 'image/jpeg') => {
 
     if (isLocalHost) {
       const apiBase = new URL(appConfig.apiBaseUrl);
-      return `${apiBase.origin}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+      return `${apiBase.origin}${normalizeUploadPath(parsedUrl.pathname)}${parsedUrl.search}${parsedUrl.hash}`;
     }
   } catch {
     return trimmed;
