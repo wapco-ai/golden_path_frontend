@@ -3337,14 +3337,20 @@ const Amain = () => {
       setPrimaryImage(primary || images[0] || null);
 
       if (itemToEdit.location) {
+        const resolvedFloor = Number.isFinite(itemToEdit.location.floor)
+          ? itemToEdit.location.floor
+          : Number.isFinite(itemToEdit.floor)
+            ? itemToEdit.floor
+            : 0;
+
         setSelectedLocation({
           lat: itemToEdit.location.lat,
           lng: itemToEdit.location.lng
         });
-        setCulturalFloor(Number.isFinite(itemToEdit.location.floor) ? itemToEdit.location.floor : 0);
+        setCulturalFloor(resolvedFloor);
       } else {
         setSelectedLocation(null);
-        setCulturalFloor(0);
+        setCulturalFloor(Number.isFinite(itemToEdit.floor) ? itemToEdit.floor : 0);
       }
 
       setIsEditingCultural(true);
@@ -3427,8 +3433,7 @@ const Amain = () => {
         location: selectedLocation
           ? {
             lng: selectedLocation.lng,
-            lat: selectedLocation.lat,
-            floor: culturalFloor
+            lat: selectedLocation.lat
           }
           : null
       };
@@ -4756,8 +4761,7 @@ const Amain = () => {
         category_leaf_id: resolveCategoryLeafId(),
         location: {
           lng: selectedLocation.lng,
-          lat: selectedLocation.lat,
-          floor: culturalFloor
+          lat: selectedLocation.lat
         },
         addressInShrine: placeAddress,
         grouping: {
