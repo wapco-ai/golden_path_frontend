@@ -138,6 +138,39 @@ const RouteMap = forwardRef(({
     return null;
   };
 
+  const getStepLandmark = (step) => {
+    const landmarkCandidate =
+      step?.landmark
+      || step?.landmarkName
+      || step?.landmark_name
+      || step?.poi
+      || step?.poiName
+      || step?.poi_name
+      || step?.referenceLandmark
+      || step?.reference_landmark
+      || null;
+
+    if (!landmarkCandidate) return null;
+    if (typeof landmarkCandidate === 'string') {
+      const trimmed = landmarkCandidate.trim();
+      return trimmed || null;
+    }
+
+    if (typeof landmarkCandidate === 'object') {
+      const name =
+        landmarkCandidate.name
+        || landmarkCandidate.title
+        || landmarkCandidate.label
+        || null;
+      if (typeof name === 'string') {
+        const trimmed = name.trim();
+        return trimmed || null;
+      }
+    }
+
+    return null;
+  };
+
   const [drPosition, setDrPosition] = useState(null);
   const [drGeoPath, setDrGeoPath] = useState([]);
   const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
@@ -489,10 +522,10 @@ const RouteMap = forwardRef(({
         </Marker>
       )}
 
-      {is3DView && routeSteps && routeSteps.map((step, index) => {
+      {is3DView && routeSteps && routeSteps.map((step) => {
         const landmarkLabel = getStepLandmark(step);
         if (!landmarkLabel) return null;
-        const coord = getStepCoordinate(step, index);
+        const coord = getStepCoordinate(step);
         if (!coord) return null;
 
         return (
