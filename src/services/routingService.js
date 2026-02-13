@@ -64,12 +64,26 @@ const mapSteps = (steps = [], sahns = []) => {
         sahnIndex += 1;
       }
 
+      const landmarkCandidate =
+        step.landmark
+        || step.landmarkName
+        || step.landmark_name
+        || step.referenceLandmark
+        || step.reference_landmark
+        || step.poi
+        || step.poiName
+        || step.poi_name
+        || step.nearbyLandmark
+        || step.nearby_landmark
+        || null;
+
       return {
         id: idx + 1,
         type,
         title,
         name,
         coordinates: [start, end],
+        landmark: landmarkCandidate,
         services: step.services || {},
         instruction: title || ''
       };
