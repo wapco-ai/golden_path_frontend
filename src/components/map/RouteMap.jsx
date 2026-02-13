@@ -59,22 +59,33 @@ const RouteMap = forwardRef(({
     && Number.isFinite(step.coordinates[0])
     && Number.isFinite(step.coordinates[1]);
 
+  const normalizeCoordinatePair = (pair) => {
+    if (!Array.isArray(pair) || pair.length < 2) return null;
+
+    const first = Number(pair[0]);
+    const second = Number(pair[1]);
+    if (!Number.isFinite(first) || !Number.isFinite(second)) return null;
+
+    // Support both [lat, lng] and [lng, lat] payloads.
+    const looksLikeLngLat = Math.abs(first) > 40 && Math.abs(second) < 40;
+    const looksLikeLatLng = Math.abs(first) < 40 && Math.abs(second) > 40;
+
+    if (looksLikeLngLat && !looksLikeLatLng) {
+      return [first, second];
+    }
+
+    return [second, first];
+  };
+
   const getStepCoordinate = (step) => {
     if (!step?.coordinates) return null;
 
     if (Array.isArray(step.coordinates[0])) {
       const point = step.coordinates[Math.max(step.coordinates.length - 1, 0)];
-      if (Array.isArray(point) && point.length >= 2) {
-        return point;
-      }
-      return null;
+      return normalizeCoordinatePair(point);
     }
 
-    if (Array.isArray(step.coordinates) && step.coordinates.length >= 2) {
-      return [step.coordinates[1], step.coordinates[0]];
-    }
-
-    return null;
+    return normalizeCoordinatePair(step.coordinates);
   };
 
   const getStepLandmark = (step) => {
@@ -475,7 +486,9 @@ const RouteMap = forwardRef(({
             anchor="bottom"
           >
             <div className="rng-landmark-bubble-3d" title={landmarkLabel}>
+              <div className="rng-landmark-bubble-shadow" />
               <div className="rng-landmark-bubble-core" />
+              <div className="rng-landmark-bubble-glow" />
               <div className="rng-landmark-bubble-label">{landmarkLabel}</div>
             </div>
           </Marker>
