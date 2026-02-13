@@ -34,7 +34,8 @@ const RouteMap = forwardRef(({
   routeGeo,
   alternativeRoutes = [],
   onSelectAlternativeRoute,
-  showAlternativeRoutes = false
+  showAlternativeRoutes = false,
+  landmarkPlaces = []
 }, ref) => {
   const mapRef = useRef(null);
   const lastHeading = useRef(null);
@@ -59,23 +60,7 @@ const RouteMap = forwardRef(({
     && Number.isFinite(step.coordinates[0])
     && Number.isFinite(step.coordinates[1]);
 
-  const getStepCoordinate = (step) => {
-    if (!step?.coordinates) return null;
 
-    if (Array.isArray(step.coordinates[0])) {
-      const point = step.coordinates[Math.max(step.coordinates.length - 1, 0)];
-      if (Array.isArray(point) && point.length >= 2) {
-        return point;
-      }
-      return null;
-    }
-
-    if (Array.isArray(step.coordinates) && step.coordinates.length >= 2) {
-      return [step.coordinates[1], step.coordinates[0]];
-    }
-
-    return null;
-  };
 
   const getStepLandmark = (step) => {
     const landmarkCandidate =
@@ -109,6 +94,73 @@ const RouteMap = forwardRef(({
 
     return null;
   };
+
+
+  const normalizeLabel = (value) => String(value || '').trim().toLocaleLowerCase();
+
+  const extractPlaceCoordinates = (place = {}) => {
+    const lat =
+      place.lat ??
+      place.latitude ??
+      place?.location?.lat ??
+      place?.geo?.lat ??
+      place?.coordinates?.[0] ??
+      place?.geometry?.coordinates?.[1];
+
+    const lng =
+      place.lng ??
+      place.longitude ??
+      place?.location?.lng ??
+      place?.geo?.lng ??
+      place?.coordinates?.[1] ??
+      place?.geometry?.coordinates?.[0];
+
+    if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) return null;
+    return { lat: Number(lat), lng: Number(lng) };
+  };
+
+  const getPlaceTitle = (place = {}) => {
+    const title = place.title || place.name || place.label || place.subGroup || place.subgroup;
+    return typeof title === 'string' ? title.trim() : '';
+  };
+
+  const routeLandmarkNameSet = React.useMemo(() => {
+    const set = new Set();
+    (routeSteps || []).forEach((step) => {
+      const name = getStepLandmark(step);
+      if (name) set.add(normalizeLabel(name));
+    });
+    return set;
+  }, [routeSteps]);
+
+  const routedImageLandmarks = React.useMemo(() => {
+    if (!Array.isArray(landmarkPlaces) || landmarkPlaces.length === 0 || routeLandmarkNameSet.size === 0) {
+      return [];
+    }
+
+    const seenCoords = new Set();
+
+    return landmarkPlaces
+      .map((place, idx) => {
+        const title = getPlaceTitle(place);
+        if (!title || !routeLandmarkNameSet.has(normalizeLabel(title))) return null;
+
+        const coords = extractPlaceCoordinates(place);
+        if (!coords) return null;
+
+        const coordKey = `${coords.lat.toFixed(6)}-${coords.lng.toFixed(6)}`;
+        if (seenCoords.has(coordKey)) return null;
+        seenCoords.add(coordKey);
+
+        return {
+          id: place.id ?? `landmark-${idx}`,
+          title,
+          coords
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 8);
+  }, [landmarkPlaces, routeLandmarkNameSet]);
 
   const [drPosition, setDrPosition] = useState(null);
   const [drGeoPath, setDrGeoPath] = useState([]);
@@ -461,26 +513,21 @@ const RouteMap = forwardRef(({
         </Marker>
       )}
 
-      {is3DView && routeSteps && routeSteps.map((step) => {
-        const landmarkLabel = getStepLandmark(step);
-        if (!landmarkLabel) return null;
-        const coord = getStepCoordinate(step);
-        if (!coord) return null;
-
-        return (
-          <Marker
-            key={`landmark-bubble-${step.id}-${landmarkLabel}`}
-            longitude={coord[0]}
-            latitude={coord[1]}
-            anchor="bottom"
-          >
-            <div className="rng-landmark-bubble-3d" title={landmarkLabel}>
-              <div className="rng-landmark-bubble-core" />
-              <div className="rng-landmark-bubble-label">{landmarkLabel}</div>
-            </div>
-          </Marker>
-        );
-      })}
+      {is3DView && routedImageLandmarks.map((landmark) => (
+        <Marker
+          key={`landmark-bubble-${landmark.id}`}
+          longitude={landmark.coords.lng}
+          latitude={landmark.coords.lat}
+          anchor="bottom"
+        >
+          <div className="rng-landmark-bubble-3d" title={landmark.title}>
+            <div className="rng-landmark-bubble-shadow" />
+            <div className="rng-landmark-bubble-core" />
+            <div className="rng-landmark-bubble-glow" />
+            <div className="rng-landmark-bubble-label">{landmark.title}</div>
+          </div>
+        </Marker>
+      ))}
 
       {!isDrActive && showAlternativeRoutes &&
         alternativeRoutes.map((alt, idx) => (

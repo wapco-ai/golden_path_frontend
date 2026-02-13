@@ -1150,6 +1150,7 @@
 .rng-landmark-bubble-3d {
   position: relative;
   transform-style: preserve-3d;
+  perspective: 700px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1157,7 +1158,20 @@
   filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.35));
 }
 
+.rng-landmark-bubble-shadow {
+  position: absolute;
+  top: 16px;
+  width: 26px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.28);
+  filter: blur(1.5px);
+  transform: translateZ(-12px) rotateX(70deg);
+}
+
 .rng-landmark-bubble-core {
+  position: relative;
+  z-index: 2;
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -1171,7 +1185,19 @@
   animation: rngLandmarkFloat 2.8s ease-in-out infinite;
 }
 
+.rng-landmark-bubble-glow {
+  position: absolute;
+  z-index: 1;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(87, 179, 255, 0.55) 0%, rgba(87, 179, 255, 0) 72%);
+  transform: translateY(-2px) translateZ(-2px);
+}
+
 .rng-landmark-bubble-label {
+  position: relative;
+  z-index: 3;
   max-width: 150px;
   padding: 4px 10px;
   border-radius: 999px;
