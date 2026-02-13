@@ -1146,3 +1146,54 @@
   background-position: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
+
+.rng-landmark-bubble-3d {
+  position: relative;
+  transform-style: preserve-3d;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.35));
+}
+
+.rng-landmark-bubble-core {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #ffffff 0%, #85cbff 30%, #2b8cff 70%, #1455b8 100%);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow:
+    inset -2px -3px 6px rgba(7, 37, 98, 0.45),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.6),
+    0 6px 12px rgba(15, 113, 239, 0.45);
+  transform: rotateX(24deg) translateZ(4px);
+  animation: rngLandmarkFloat 2.8s ease-in-out infinite;
+}
+
+.rng-landmark-bubble-label {
+  max-width: 150px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: linear-gradient(145deg, rgba(13, 76, 191, 0.95), rgba(15, 113, 239, 0.95));
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 10px 22px rgba(11, 69, 173, 0.35);
+  transform: translateZ(10px);
+}
+
+@keyframes rngLandmarkFloat {
+  0%,
+  100% {
+    transform: rotateX(24deg) translateZ(4px) translateY(0);
+  }
+
+  50% {
+    transform: rotateX(24deg) translateZ(6px) translateY(-4px);
+  }
+}
