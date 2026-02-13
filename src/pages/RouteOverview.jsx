@@ -98,6 +98,23 @@ const RouteOverview = () => {
     return diff > 0 ? 'bend-left' : 'bend-right';
   };
 
+  const formatSegmentTime = useCallback((distanceInMeters) => {
+    const totalMinutes = distanceInMeters / 60;
+
+    if (totalMinutes < 1) {
+      return `${formatDigits(Math.max(1, Math.round(totalMinutes * 60)))} ${intl.formatMessage({ id: 'secondsUnit' })}`;
+    }
+
+    const minutes = Math.floor(totalMinutes);
+    const seconds = Math.round((totalMinutes - minutes) * 60);
+
+    if (seconds > 0) {
+      return `${formatDigits(minutes)} ${intl.formatMessage({ id: 'minutesUnit' })} ${formatDigits(seconds)} ${intl.formatMessage({ id: 'secondsUnit' })}`;
+    }
+
+    return `${formatDigits(minutes)} ${intl.formatMessage({ id: 'minutesUnit' })}`;
+  }, [formatDigits, intl]);
+
   const toMeters = useCallback((coord1, coord2) => {
     if (!Array.isArray(coord1) || !Array.isArray(coord2)) return Infinity;
     const [lng1, lat1] = coord1;
@@ -771,9 +788,7 @@ const RouteOverview = () => {
       setDistance(
         `${formatDigits(Math.round(d))} ${intl.formatMessage({ id: 'meters' })}`
       );
-      setTime(
-        `${formatDigits(Math.max(1, Math.round(d / 60)))} ${intl.formatMessage({ id: 'minutesUnit' })}`
-      );
+      setTime(formatSegmentTime(d));
 
       if (currentSlide === routeData.length - 1) {
         setDirectionArrow('arrived');
@@ -819,7 +834,7 @@ const RouteOverview = () => {
         }
       }
     }
-  }, [currentSlide, routeData]);
+  }, [currentSlide, formatDigits, formatSegmentTime, intl, routeData]);
 
   useEffect(() => {
     if (initialRouteFlyDone.current) return;
