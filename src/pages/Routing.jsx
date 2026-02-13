@@ -15,7 +15,6 @@ import useLocaleDigits from '../utils/useLocaleDigits';
 import { toast } from 'react-toastify';
 import ttsService from '../services/ttsService';
 import { requestRouting } from '../services/routingService';
-import { fetchLandmarkPlaces } from '../services/landmarkService';
 
 const RoutingPage = () => {
   const intl = useIntl();
@@ -61,7 +60,6 @@ const RoutingPage = () => {
   const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
   const [hasPreciseGps, setHasPreciseGps] = useState(false);
   const [userHeading, setUserHeading] = useState(null);
-  const [landmarkPlaces, setLandmarkPlaces] = useState([]);
   const navigate = useNavigate();
   const {
     origin,
@@ -120,46 +118,6 @@ const RoutingPage = () => {
       }
     };
   }, []);
-
-
-  useEffect(() => {
-    const loadLandmarkPlaces = async () => {
-      const getFirstImage = (place) => {
-        if (!place) return null;
-        if (Array.isArray(place.image) && place.image.length > 0) return place.image[0];
-        if (Array.isArray(place.images) && place.images.length > 0) return place.images[0];
-        if (typeof place.image === 'string' && place.image.trim()) return place.image;
-        if (typeof place.images === 'string' && place.images.trim()) return place.images;
-        return null;
-      };
-
-      const geo = Array.isArray(userLocation) && userLocation.length === 2
-        ? { lat: userLocation[0], lng: userLocation[1] }
-        : null;
-
-      try {
-        const data = await fetchLandmarkPlaces({ language, geo });
-        const apiLandmarks = Array.isArray(data?.places?.landmarkPlaces)
-          ? data.places.landmarkPlaces
-          : [];
-
-        const landmarksWithImages = apiLandmarks
-          .map((place) => {
-            const image = getFirstImage(place);
-            if (!image) return null;
-            return { ...place, image };
-          })
-          .filter(Boolean);
-
-        setLandmarkPlaces(landmarksWithImages);
-      } catch (error) {
-        console.error('Failed to load landmark places for routing', error);
-        setLandmarkPlaces([]);
-      }
-    };
-
-    loadLandmarkPlaces();
-  }, [language, userLocation]);
 
   useEffect(() => {
     const remove = advancedDeadReckoningService.addListener(data => {
@@ -1402,7 +1360,6 @@ const RoutingPage = () => {
             alternativeRoutes={routeData.alternativeRoutes}
             onSelectAlternativeRoute={handleSelectAlternativeRoute}
             showAlternativeRoutes={showAlternativeRoutesOnMap}
-            landmarkPlaces={landmarkPlaces}
           />
           {/* <DeadReckoningControls
             currentLocation={{ coords: { lat: userLocation[0], lng: userLocation[1] } }}
