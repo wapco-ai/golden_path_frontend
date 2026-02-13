@@ -826,12 +826,33 @@ const RouteOverview = () => {
       }
 
       const isShort = d < 50;
-      setViewState({
-        latitude: (lat1 + lat2) / 2,
-        longitude: (lng1 + lng2) / 2,
-        zoom: isShort ? 21 : 20.5
+      const nextLatitude = (lat1 + lat2) / 2;
+      const nextLongitude = (lng1 + lng2) / 2;
+      const nextZoom = isShort ? 21 : 20.5;
+
+      setViewState((prev) => {
+        if (
+          prev.latitude === nextLatitude &&
+          prev.longitude === nextLongitude &&
+          prev.zoom === nextZoom
+        ) {
+          return prev;
+        }
+
+        return {
+          latitude: nextLatitude,
+          longitude: nextLongitude,
+          zoom: nextZoom
+        };
       });
-      setPopupCoord([(lng1 + lng2) / 2, (lat1 + lat2) / 2]);
+
+      setPopupCoord((prev) => {
+        if (Array.isArray(prev) && prev[0] === nextLongitude && prev[1] === nextLatitude) {
+          return prev;
+        }
+
+        return [nextLongitude, nextLatitude];
+      });
       if (mapRef.current) {
         const bounds = coords.reduce((acc, point) => {
           if (!Array.isArray(point) || point.length < 2) return acc;
