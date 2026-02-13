@@ -1426,6 +1426,7 @@ const Amain = () => {
   const [isCulturalQrLoading, setIsCulturalQrLoading] = useState(false);
   const [locationRoofType, setLocationRoofType] = useState('');
   const [locationStatus, setLocationStatus] = useState('');
+  const [culturalFloor, setCulturalFloor] = useState(0);
   const [isAddCulturalModalOpen, setIsAddCulturalModalOpen] = useState(false);
   const [culturalStep, setCulturalStep] = useState(1);
   const [culturalTitle, setCulturalTitle] = useState('');
@@ -3340,8 +3341,10 @@ const Amain = () => {
           lat: itemToEdit.location.lat,
           lng: itemToEdit.location.lng
         });
+        setCulturalFloor(Number.isFinite(itemToEdit.location.floor) ? itemToEdit.location.floor : 0);
       } else {
         setSelectedLocation(null);
+        setCulturalFloor(0);
       }
 
       setIsEditingCultural(true);
@@ -3420,8 +3423,13 @@ const Amain = () => {
         time_restrictions: timeRestrictionsPayload,
         prayer_restrictions: prayerRestrictionsPayload,
         primaryImage: resolvedPrimary?.path || resolvedPrimary?.url || null,
+        floor: culturalFloor,
         location: selectedLocation
-          ? { lng: selectedLocation.lng, lat: selectedLocation.lat }
+          ? {
+            lng: selectedLocation.lng,
+            lat: selectedLocation.lat,
+            floor: culturalFloor
+          }
           : null
       };
 
@@ -3654,6 +3662,7 @@ const Amain = () => {
     setPlaceAddress('');
     setCulturalPoiId('');
     setSelectedLocation(null);
+    setCulturalFloor(0);
 
     setCulturalPlaceCategory('');
     setCulturalPlaceSubcategory('');
@@ -3811,6 +3820,7 @@ const Amain = () => {
     setSelectedCulturalTypes([]);
     setPlaceAddress('');
     setSelectedLocation(null);
+    setCulturalFloor(0);
 
     setIsEditingCultural(false);
 
@@ -4742,11 +4752,12 @@ const Amain = () => {
       const translationsPayload = buildCulturalTranslationsPayload(attachments);
       const settingsPayload = buildSettingsPayload();
       const poiPayload = {
-        floor: floorLabelToValue(mapFloor),
+        floor: culturalFloor,
         category_leaf_id: resolveCategoryLeafId(),
         location: {
           lng: selectedLocation.lng,
-          lat: selectedLocation.lat
+          lat: selectedLocation.lat,
+          floor: culturalFloor
         },
         addressInShrine: placeAddress,
         grouping: {
@@ -9643,6 +9654,18 @@ const Amain = () => {
                       </div>
                     </div>
 
+                    <div className="edit-form-group">
+                      <label className="edit-form-label">طبقه</label>
+                      <select
+                        className="edit-form-input"
+                        value={culturalFloor}
+                        onChange={(e) => setCulturalFloor(Number(e.target.value))}
+                      >
+                        <option value={0}>همکف</option>
+                        <option value={-1}>منفی ۱</option>
+                      </select>
+                    </div>
+
                     {/* map section is */}
                     <div className="edit-form-group">
                       <label className="edit-form-label">موقعیت جغرافیایی</label>
@@ -13578,6 +13601,18 @@ const Amain = () => {
                             <path d="M12.5 2.5C13.7583 6.83667 13.7583 13.1633 12.5 17.5" stroke="#0F71EF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         </button>
+                      </div>
+
+                      <div className="form-group" style={{ marginTop: '14px' }}>
+                        <label className="form-label">طبقه</label>
+                        <select
+                          className="form-input-cultural"
+                          value={culturalFloor}
+                          onChange={(e) => setCulturalFloor(Number(e.target.value))}
+                        >
+                          <option value={0}>همکف</option>
+                          <option value={-1}>منفی ۱</option>
+                        </select>
                       </div>
 
                       <div className="map-instruction">
