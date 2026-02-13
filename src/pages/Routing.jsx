@@ -3,8 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
 import { FormattedMessage, useIntl } from 'react-intl';
 import RouteMap from '../components/map/RouteMap';
-import DeadReckoningControls from '../components/map/DeadReckoningControls';
-import advancedDeadReckoningService from '../services/AdvancedDeadReckoningService';
 import '../styles/Routing.css';
 import { useRouteStore } from '../store/routeStore';
 import { useLangStore } from '../store/langStore';
@@ -14,6 +12,7 @@ import useLocaleDigits from '../utils/useLocaleDigits';
 import { toast } from 'react-toastify';
 import ttsService from '../services/ttsService';
 import { requestRouting } from '../services/routingService';
+import useHybridNavigation from '../navigation/hooks/useHybridNavigation';
 
 const RoutingPage = () => {
   const intl = useIntl();
@@ -53,10 +52,7 @@ const RoutingPage = () => {
   const [was3DViewBeforeRouteView, setWas3DViewBeforeRouteView] = useState(false);
   const [showGpsOffline, setShowGpsOffline] = useState(false);
   const [is3DView, setIs3DView] = useState(false);
-  const [drPosition, setDrPosition] = useState(null);
-  const [drGeoPath, setDrGeoPath] = useState([]);
   const [showAlternativeRoutesOnMap, setShowAlternativeRoutesOnMap] = useState(false);
-  const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
   const [hasPreciseGps, setHasPreciseGps] = useState(false);
   const [userHeading, setUserHeading] = useState(null);
   const navigate = useNavigate();
@@ -76,6 +72,17 @@ const RoutingPage = () => {
   } = useRouteStore();
   const language = useLangStore(state => state.language);
   const routingRequestRef = useRef({ key: null, promise: null });
+  const { fusedPosition, mode } = useHybridNavigation({
+    initialFloor: Number(sessionStorage.getItem('qrFloor') || 0),
+    routeState: { isNavigating: isRoutingActive, routeGeo },
+    onReroute: ({ lat, lng }) => {
+      setOrigin({
+        name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
+        coordinates: [lat, lng]
+      });
+    }
+  });
+  const isDrActive = mode === 'DR_MODE';
 
   const [originalViewState, setOriginalViewState] = useState({
     zoom: is3DView ? 17 : 18,
@@ -86,6 +93,13 @@ const RoutingPage = () => {
 
   const initialRouteCoordRef = useRef(null);
   const PRECISE_GPS_ACCURACY_THRESHOLD = 25;
+
+  useEffect(() => {
+    if (fusedPosition?.snapped) {
+      setUserLocation([fusedPosition.snapped.lat, fusedPosition.snapped.lng]);
+      setHasPreciseGps(fusedPosition.source === 'GNSS' && (fusedPosition.accuracy_m || 99) <= PRECISE_GPS_ACCURACY_THRESHOLD);
+    }
+  }, [PRECISE_GPS_ACCURACY_THRESHOLD, fusedPosition]);
 
   const updateUserLocationToRouteStart = useCallback(() => {
     const startCoord = routeGeo?.geometry?.coordinates?.[0];
@@ -118,14 +132,6 @@ const RoutingPage = () => {
     };
   }, []);
 
-  useEffect(() => {
-    const remove = advancedDeadReckoningService.addListener(data => {
-      setIsDrActive(data.isActive);
-      if (data.geoPosition) setDrPosition(data.geoPosition);
-      if (data.geoPath) setDrGeoPath(data.geoPath);
-    });
-    return remove;
-  }, []);
 
   useEffect(() => {
     const audioEl = audioRef.current;
@@ -807,10 +813,6 @@ const RoutingPage = () => {
             }
           }
 
-          advancedDeadReckoningService.processGpsData(
-            { lat: position.coords.latitude, lng: position.coords.longitude },
-            accuracy
-          );
         };
 
         const error = (err) => {
@@ -910,12 +912,6 @@ const RoutingPage = () => {
       setCurrentStep(0);
     }
 
-    if (newRoutingState) {
-      const [lat, lng] = userLocation;
-      advancedDeadReckoningService.start({ lat, lng });
-    } else {
-      advancedDeadReckoningService.stop();
-    }
 
     // Only change 3D view if not in all routes or alternative routes view
     if (!showAllRoutesView && !showAlternativeRoutes) {
@@ -1321,6 +1317,7 @@ const RoutingPage = () => {
             ref={routeMapRef}
             userLocation={userLocation}
             userHeading={userHeading}
+            fusedPosition={fusedPosition}
             routeSteps={routeData.steps}
             currentStep={currentStep}
             isInfoModalOpen={isInfoModalOpen}
