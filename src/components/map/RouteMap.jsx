@@ -59,19 +59,80 @@ const RouteMap = forwardRef(({
     && Number.isFinite(step.coordinates[0])
     && Number.isFinite(step.coordinates[1]);
 
-  const getStepCoordinate = (step) => {
-    if (!step?.coordinates) return null;
+  const normalizeCoordinate = (candidate) => {
+    if (!candidate) return null;
 
-    if (Array.isArray(step.coordinates[0])) {
-      const point = step.coordinates[Math.max(step.coordinates.length - 1, 0)];
-      if (Array.isArray(point) && point.length >= 2) {
-        return point;
+    if (Array.isArray(candidate) && candidate.length >= 2) {
+      const first = Number(candidate[0]);
+      const second = Number(candidate[1]);
+      if (!Number.isFinite(first) || !Number.isFinite(second)) return null;
+
+      // Prefer [lng, lat] if it is valid.
+      if (Math.abs(first) <= 180 && Math.abs(second) <= 90) {
+        return [first, second];
       }
+
+      // Fallback: payloads may be [lat, lng].
+      if (Math.abs(first) <= 90 && Math.abs(second) <= 180) {
+        return [second, first];
+      }
+
       return null;
     }
 
-    if (Array.isArray(step.coordinates) && step.coordinates.length >= 2) {
-      return [step.coordinates[1], step.coordinates[0]];
+    if (typeof candidate === 'object') {
+      const lng = Number(candidate.lng ?? candidate.lon ?? candidate.longitude);
+      const lat = Number(candidate.lat ?? candidate.latitude);
+      if (Number.isFinite(lng) && Number.isFinite(lat)) {
+        return [lng, lat];
+      }
+    }
+
+    return null;
+  };
+
+  const getStepCoordinate = (step, stepIndex = 0) => {
+    if (Array.isArray(step?.coordinates?.[0])) {
+      const point = step.coordinates[Math.max(step.coordinates.length - 1, 0)];
+      const normalized = normalizeCoordinate(point);
+      if (normalized) return normalized;
+    }
+
+    const direct = normalizeCoordinate(step?.coordinates);
+    if (direct) return direct;
+
+    const routeCoord = routeGeo?.geometry?.coordinates?.[stepIndex];
+    return normalizeCoordinate(routeCoord);
+  };
+
+  const getStepLandmark = (step) => {
+    const landmarkCandidate =
+      step?.landmark
+      || step?.landmarkName
+      || step?.landmark_name
+      || step?.poi
+      || step?.poiName
+      || step?.poi_name
+      || step?.referenceLandmark
+      || step?.reference_landmark
+      || null;
+
+    if (!landmarkCandidate) return null;
+    if (typeof landmarkCandidate === 'string') {
+      const trimmed = landmarkCandidate.trim();
+      return trimmed || null;
+    }
+
+    if (typeof landmarkCandidate === 'object') {
+      const name =
+        landmarkCandidate.name
+        || landmarkCandidate.title
+        || landmarkCandidate.label
+        || null;
+      if (typeof name === 'string') {
+        const trimmed = name.trim();
+        return trimmed || null;
+      }
     }
 
     return null;
@@ -428,21 +489,22 @@ const RouteMap = forwardRef(({
         </Marker>
       )}
 
-      {is3DView && routeSteps && routeSteps.map((step) => {
-        if (!step?.landmark) return null;
-        const coord = getStepCoordinate(step);
+      {is3DView && routeSteps && routeSteps.map((step, index) => {
+        const landmarkLabel = getStepLandmark(step);
+        if (!landmarkLabel) return null;
+        const coord = getStepCoordinate(step, index);
         if (!coord) return null;
 
         return (
           <Marker
-            key={`landmark-bubble-${step.id}-${step.landmark}`}
+            key={`landmark-bubble-${step.id}-${landmarkLabel}`}
             longitude={coord[0]}
             latitude={coord[1]}
             anchor="bottom"
           >
-            <div className="rng-landmark-bubble-3d" title={step.landmark}>
+            <div className="rng-landmark-bubble-3d" title={landmarkLabel}>
               <div className="rng-landmark-bubble-core" />
-              <div className="rng-landmark-bubble-label">{step.landmark}</div>
+              <div className="rng-landmark-bubble-label">{landmarkLabel}</div>
             </div>
           </Marker>
         );
