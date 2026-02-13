@@ -53,19 +53,38 @@ const AppContent = () => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstall, setShowInstall] = useState(false);
 
+  const isRunningAsInstalledApp = () =>
+    window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
   useEffect(() => {
     document.title = intl.formatMessage({ id: 'appTitle' });
   }, [intl.locale]);
 
   useEffect(() => {
+    if (isRunningAsInstalledApp() || localStorage.getItem('pwaInstalled') === 'true') {
+      setShowInstall(false);
+      return;
+    }
+
     const handler = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
       setShowInstall(true);
     };
-    window.addEventListener('beforeinstallprompt', handler);
 
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    const onAppInstalled = () => {
+      localStorage.setItem('pwaInstalled', 'true');
+      setDeferredPrompt(null);
+      setShowInstall(false);
+    };
+
+    window.addEventListener('beforeinstallprompt', handler);
+    window.addEventListener('appinstalled', onAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('appinstalled', onAppInstalled);
+    };
   }, []);
 
   const handleInstallClick = () => {
