@@ -250,7 +250,6 @@ const MapBeginPage = () => {
         const data = await fetchLandmarkPlaces({
           language,
           search: trimmedQuery,
-          featured: isFeaturedZoom ? 1 : undefined,
           signal: controller.signal
         });
 
@@ -278,7 +277,7 @@ const MapBeginPage = () => {
       controller.abort();
       clearTimeout(timeoutId);
     };
-  }, [searchQuery, language, isFeaturedZoom]);
+  }, [searchQuery, language]);
 
 
   const handleSearchModalClose = () => {
