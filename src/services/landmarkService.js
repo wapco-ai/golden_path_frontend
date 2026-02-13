@@ -31,6 +31,10 @@ const resolveMediaValue = (media, defaultMime = 'image/jpeg') => {
     return `${appConfig.apiBaseUrl}${trimmed}`;
   }
 
+  if (!trimmed.includes('://') && !trimmed.startsWith('//')) {
+    return `${appConfig.apiBaseUrl}/${trimmed.replace(/^\.\//, '')}`;
+  }
+
   try {
     const parsedUrl = new URL(trimmed);
     const isLocalHost = parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1';
