@@ -144,6 +144,7 @@ const RouteOverview = () => {
   } = useRouteStore();
   const routeCoordinates = routeGeo?.geometry?.coordinates || [];
   const initialRouteFlyDone = useRef(false);
+  const hasHydratedRouteRef = useRef(false);
 
   useEffect(() => {
     setMapLoaded(false);
@@ -386,11 +387,16 @@ const RouteOverview = () => {
   }, [language, routeCoordinates, extractPlaceCoordinates, findClosestRoutePoint]);
 
   useEffect(() => {
+    if (hasHydratedRouteRef.current) {
+      return undefined;
+    }
+
     const hasRouteData =
       (routeGeo?.geometry?.coordinates?.length || 0) > 0 ||
       (routeSteps?.length || 0) > 0;
 
     if (hasRouteData) {
+      hasHydratedRouteRef.current = true;
       return undefined;
     }
 
@@ -411,17 +417,31 @@ const RouteOverview = () => {
       const sessAlts = sessionStorage.getItem('alternativeRoutes');
 
       if (sessGeo && sessSteps) {
-        persistRouteData(
-          JSON.parse(sessGeo),
-          JSON.parse(sessSteps),
-          sessAlts ? JSON.parse(sessAlts) : []
-        );
-        return true;
+        try {
+          const parsedGeo = JSON.parse(sessGeo);
+          const parsedSteps = JSON.parse(sessSteps);
+          const parsedAlts = sessAlts ? JSON.parse(sessAlts) : [];
+
+          const hasStoredRouteData =
+            (parsedGeo?.geometry?.coordinates?.length || 0) > 0 ||
+            (parsedSteps?.length || 0) > 0;
+
+          if (!hasStoredRouteData) {
+            return false;
+          }
+
+          persistRouteData(parsedGeo, parsedSteps, parsedAlts);
+          return true;
+        } catch (err) {
+          console.error('failed to hydrate route overview from session storage', err);
+          return false;
+        }
       }
       return false;
     };
 
     if (hydrateFromSession()) {
+      hasHydratedRouteRef.current = true;
       return undefined;
     }
 
@@ -443,6 +463,7 @@ const RouteOverview = () => {
 
         if (result?.geo && result?.steps) {
           persistRouteData(result.geo, result.steps, result.alternatives || []);
+          hasHydratedRouteRef.current = true;
           return;
         }
       } catch (err) {
@@ -457,6 +478,7 @@ const RouteOverview = () => {
 
         if (analysis?.geo && analysis?.steps) {
           persistRouteData(analysis.geo, analysis.steps, analysis.alternatives || []);
+          hasHydratedRouteRef.current = true;
         }
       } catch (err) {
         if (err?.name !== 'AbortError') {
