@@ -34,8 +34,7 @@ const RouteMap = forwardRef(({
   routeGeo,
   alternativeRoutes = [],
   onSelectAlternativeRoute,
-  showAlternativeRoutes = false,
-  landmarkPlaces = []
+  showAlternativeRoutes = false
 }, ref) => {
   const mapRef = useRef(null);
   const lastHeading = useRef(null);
@@ -121,73 +120,6 @@ const RouteMap = forwardRef(({
 
     return null;
   };
-
-
-  const normalizeLabel = (value) => String(value || '').trim().toLocaleLowerCase();
-
-  const extractPlaceCoordinates = (place = {}) => {
-    const lat =
-      place.lat ??
-      place.latitude ??
-      place?.location?.lat ??
-      place?.geo?.lat ??
-      place?.coordinates?.[0] ??
-      place?.geometry?.coordinates?.[1];
-
-    const lng =
-      place.lng ??
-      place.longitude ??
-      place?.location?.lng ??
-      place?.geo?.lng ??
-      place?.coordinates?.[1] ??
-      place?.geometry?.coordinates?.[0];
-
-    if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) return null;
-    return { lat: Number(lat), lng: Number(lng) };
-  };
-
-  const getPlaceTitle = (place = {}) => {
-    const title = place.title || place.name || place.label || place.subGroup || place.subgroup;
-    return typeof title === 'string' ? title.trim() : '';
-  };
-
-  const routeLandmarkNameSet = React.useMemo(() => {
-    const set = new Set();
-    (routeSteps || []).forEach((step) => {
-      const name = getStepLandmark(step);
-      if (name) set.add(normalizeLabel(name));
-    });
-    return set;
-  }, [routeSteps]);
-
-  const routedImageLandmarks = React.useMemo(() => {
-    if (!Array.isArray(landmarkPlaces) || landmarkPlaces.length === 0 || routeLandmarkNameSet.size === 0) {
-      return [];
-    }
-
-    const seenCoords = new Set();
-
-    return landmarkPlaces
-      .map((place, idx) => {
-        const title = getPlaceTitle(place);
-        if (!title || !routeLandmarkNameSet.has(normalizeLabel(title))) return null;
-
-        const coords = extractPlaceCoordinates(place);
-        if (!coords) return null;
-
-        const coordKey = `${coords.lat.toFixed(6)}-${coords.lng.toFixed(6)}`;
-        if (seenCoords.has(coordKey)) return null;
-        seenCoords.add(coordKey);
-
-        return {
-          id: place.id ?? `landmark-${idx}`,
-          title,
-          coords
-        };
-      })
-      .filter(Boolean)
-      .slice(0, 8);
-  }, [landmarkPlaces, routeLandmarkNameSet]);
 
   const [drPosition, setDrPosition] = useState(null);
   const [drGeoPath, setDrGeoPath] = useState([]);
