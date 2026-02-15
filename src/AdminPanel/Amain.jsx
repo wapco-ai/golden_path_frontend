@@ -1033,6 +1033,8 @@ const Amain = () => {
   const [tempAreaIsActive, setTempAreaIsActive] = useState(true);
   const [isLoadingTempAreaDetails, setIsLoadingTempAreaDetails] = useState(false);
   const [isSavingTempAreaDetails, setIsSavingTempAreaDetails] = useState(false);
+  const [isRefreshingCategories, setIsRefreshingCategories] = useState(false);
+  const [isRefreshingCultural, setIsRefreshingCultural] = useState(false);
   const vertexMarkersRef = useRef([]);
   const areaOriginalGeometryRef = useRef(null);
   const tempAreaVertexMarkersRef = useRef([]);
@@ -2791,6 +2793,44 @@ const Amain = () => {
       setIsLoadingCultural(false);
     }
   }, [culturalCurrentPage, culturalItemsPerPage, culturalSearchTerm]);
+
+  const handleRefreshCategories = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    setIsRefreshingCategories(true);
+
+    try {
+      await fetchCategories();
+      toast.success('جدول دسته‌بندی‌ها به روز رسانی شد');
+    } catch (error) {
+      console.error('به‌روزرسانی جدول دسته‌بندی‌ها ناموفق بود', error);
+      toast.error('به‌روزرسانی جدول دسته‌بندی‌ها ناموفق بود');
+    } finally {
+      setIsRefreshingCategories(false);
+    }
+  };
+
+  const handleRefreshCultural = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    setIsRefreshingCultural(true);
+
+    try {
+      await loadCulturalItems();
+      toast.success('جدول اطلاعات فرهنگی به روز رسانی شد');
+    } catch (error) {
+      console.error('به‌روزرسانی جدول اطلاعات فرهنگی ناموفق بود', error);
+      toast.error('به‌روزرسانی جدول اطلاعات فرهنگی ناموفق بود');
+    } finally {
+      setIsRefreshingCultural(false);
+    }
+  };
 
   useEffect(() => {
     loadCulturalItems();
@@ -10213,10 +10253,26 @@ const Amain = () => {
               <div className="cultural-table-header9">
                 <div className="cultural-table-title">
                   <h3> اطلاعات فرهنگی ایجاد شده در اپلیکیشن </h3>
-                  <button className="refresh-btn">
-                    <svg width="18" height="18" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M11.047 5.99994C11.047 8.73518 8.8271 10.9551 6.09186 10.9551C3.35662 10.9551 1.68674 8.20002 1.68674 8.20002M1.68674 8.20002H3.92646M1.68674 8.20002V10.6776M1.13672 5.99994C1.13672 3.2647 3.3368 1.0448 6.09186 1.0448C9.39694 1.0448 11.047 3.79986 11.047 3.79986M11.047 3.79986V1.32229M11.047 3.79986H8.84692" stroke="#1E2023" strokeWidth="1.08112" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                  <button
+                    className="refresh-btn"
+                    onClick={handleRefreshCultural}
+                    disabled={isRefreshingCultural}
+                    style={{ cursor: isRefreshingCultural ? 'wait' : 'pointer' }}
+                  >
+                    {isRefreshingCultural ? (
+                      <div style={{
+                        width: '18px',
+                        height: '18px',
+                        border: '2px solid #f3f3f3',
+                        borderTop: '2px solid #1E2023',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                      }}></div>
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M11.047 5.99994C11.047 8.73518 8.8271 10.9551 6.09186 10.9551C3.35662 10.9551 1.68674 8.20002 1.68674 8.20002M1.68674 8.20002H3.92646M1.68674 8.20002V10.6776M1.13672 5.99994C1.13672 3.2647 3.3368 1.0448 6.09186 1.0448C9.39694 1.0448 11.047 3.79986 11.047 3.79986M11.047 3.79986V1.32229M11.047 3.79986H8.84692" stroke="#1E2023" strokeWidth="1.08112" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
                   </button>
                 </div>
                 <div className="cultural-header-right">
@@ -10445,10 +10501,26 @@ const Amain = () => {
               <div className="category-table-header">
                 <div className="category-table-title">
                   <h3>دسته بندی های ایجاد شده در اپلیکیشن</h3>
-                  <button className="refresh-btn">
-                    <svg width="18" height="18" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M11.047 5.99994C11.047 8.73518 8.8271 10.9551 6.09186 10.9551C3.35662 10.9551 1.68674 8.20002 1.68674 8.20002M1.68674 8.20002H3.92646M1.68674 8.20002V10.6776M1.13672 5.99994C1.13672 3.2647 3.3368 1.0448 6.09186 1.0448C9.39694 1.0448 11.047 3.79986 11.047 3.79986M11.047 3.79986V1.32229M11.047 3.79986H8.84692" stroke="#1E2023" strokeWidth="1.08112" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                  <button
+                    className="refresh-btn"
+                    onClick={handleRefreshCategories}
+                    disabled={isRefreshingCategories}
+                    style={{ cursor: isRefreshingCategories ? 'wait' : 'pointer' }}
+                  >
+                    {isRefreshingCategories ? (
+                      <div style={{
+                        width: '18px',
+                        height: '18px',
+                        border: '2px solid #f3f3f3',
+                        borderTop: '2px solid #1E2023',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                      }}></div>
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M11.047 5.99994C11.047 8.73518 8.8271 10.9551 6.09186 10.9551C3.35662 10.9551 1.68674 8.20002 1.68674 8.20002M1.68674 8.20002H3.92646M1.68674 8.20002V10.6776M1.13672 5.99994C1.13672 3.2647 3.3368 1.0448 6.09186 1.0448C9.39694 1.0448 11.047 3.79986 11.047 3.79986M11.047 3.79986V1.32229M11.047 3.79986H8.84692" stroke="#1E2023" strokeWidth="1.08112" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
                   </button>
                 </div>
                 <div className="category-header-right">
@@ -10633,64 +10705,64 @@ const Amain = () => {
                       ))}
                   </tbody>
                 </table>
-                {/* Pagination Controls for Categories */}
-                <div className="pagination-container">
-                  <div className="pagination-controls">
-                    <div className="btc">
-                      <button
-                        className={`pagination-btn ${categoryCurrentPage === 1 ? 'disabled' : ''}`}
-                        onClick={() => handleCategoryPageChange(1)}
-                        disabled={categoryCurrentPage === 1}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(180deg)' }}>
-                          <path fillRule="evenodd" clipRule="evenodd" d="M11.6584 2.95363C11.4487 2.77392 11.1331 2.7982 10.9534 3.00787L6.95337 7.67453C6.79287 7.86178 6.79287 8.13808 6.95337 8.32532L10.9534 12.992C11.1331 13.2017 11.4487 13.2259 11.6584 13.0462C11.8681 12.8665 11.8923 12.5509 11.7126 12.3412L7.99154 7.99993L11.7126 3.65866C11.8923 3.44899 11.8681 3.13334 11.6584 2.95363ZM8.9916 2.9537C8.78193 2.77399 8.46628 2.79827 8.28657 3.00793L4.28657 7.6746C4.12608 7.86185 4.12608 8.13815 4.28657 8.32539L8.28657 12.9921C8.46628 13.2017 8.78193 13.226 8.9916 13.0463C9.20126 12.8666 9.22554 12.5509 9.04583 12.3413L5.32474 8L9.04583 3.65873C9.22554 3.44906 9.20126 3.13341 8.9916 2.9537Z" fill={categoryCurrentPage === 1 ? "#C5C5C5" : "#0F71EF"} />
-                        </svg>
-                      </button>
+              </div>
+              {/* Pagination Controls for Categories */}
+              <div className="pagination-container">
+                <div className="pagination-controls">
+                  <div className="btc">
+                    <button
+                      className={`pagination-btn ${categoryCurrentPage === 1 ? 'disabled' : ''}`}
+                      onClick={() => handleCategoryPageChange(1)}
+                      disabled={categoryCurrentPage === 1}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(180deg)' }}>
+                        <path fillRule="evenodd" clipRule="evenodd" d="M11.6584 2.95363C11.4487 2.77392 11.1331 2.7982 10.9534 3.00787L6.95337 7.67453C6.79287 7.86178 6.79287 8.13808 6.95337 8.32532L10.9534 12.992C11.1331 13.2017 11.4487 13.2259 11.6584 13.0462C11.8681 12.8665 11.8923 12.5509 11.7126 12.3412L7.99154 7.99993L11.7126 3.65866C11.8923 3.44899 11.8681 3.13334 11.6584 2.95363ZM8.9916 2.9537C8.78193 2.77399 8.46628 2.79827 8.28657 3.00793L4.28657 7.6746C4.12608 7.86185 4.12608 8.13815 4.28657 8.32539L8.28657 12.9921C8.46628 13.2017 8.78193 13.226 8.9916 13.0463C9.20126 12.8666 9.22554 12.5509 9.04583 12.3413L5.32474 8L9.04583 3.65873C9.22554 3.44906 9.20126 3.13341 8.9916 2.9537Z" fill={categoryCurrentPage === 1 ? "#C5C5C5" : "#0F71EF"} />
+                      </svg>
+                    </button>
 
-                      <button
-                        className={`pagination-btn ${categoryCurrentPage === 1 ? 'disabled' : ''}`}
-                        onClick={() => handleCategoryPageChange(categoryCurrentPage - 1)}
-                        disabled={categoryCurrentPage === 1}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(180deg)' }}>
-                          <path fillRule="evenodd" clipRule="evenodd" d="M10.3254 2.95375C10.1157 2.77404 9.80007 2.79832 9.62036 3.00799L5.62036 7.67465C5.45987 7.8619 5.45987 8.1382 5.62036 8.32544L9.62036 12.9921C9.80007 13.2018 10.1157 13.2261 10.3254 13.0463C10.535 12.8666 10.5593 12.551 10.3796 12.3413L6.65853 8.00005L10.3796 3.65878C10.5593 3.44912 10.535 3.13347 10.3254 2.95375Z" fill={categoryCurrentPage === 1 ? "#C5C5C5" : "#0F71EF"} />
-                        </svg>
-                      </button>
-                    </div>
+                    <button
+                      className={`pagination-btn ${categoryCurrentPage === 1 ? 'disabled' : ''}`}
+                      onClick={() => handleCategoryPageChange(categoryCurrentPage - 1)}
+                      disabled={categoryCurrentPage === 1}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(180deg)' }}>
+                        <path fillRule="evenodd" clipRule="evenodd" d="M10.3254 2.95375C10.1157 2.77404 9.80007 2.79832 9.62036 3.00799L5.62036 7.67465C5.45987 7.8619 5.45987 8.1382 5.62036 8.32544L9.62036 12.9921C9.80007 13.2018 10.1157 13.2261 10.3254 13.0463C10.535 12.8666 10.5593 12.551 10.3796 12.3413L6.65853 8.00005L10.3796 3.65878C10.5593 3.44912 10.535 3.13347 10.3254 2.95375Z" fill={categoryCurrentPage === 1 ? "#C5C5C5" : "#0F71EF"} />
+                      </svg>
+                    </button>
+                  </div>
 
-                    <div className="page-numbers">
-                      {getCategoryPageNumbers().map(page => (
-                        <button
-                          key={page}
-                          className={`page-number ${categoryCurrentPage === page ? 'active' : ''}`}
-                          onClick={() => handleCategoryPageChange(page)}
-                        >
-                          {page}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="btc">
+                  <div className="page-numbers">
+                    {getCategoryPageNumbers().map(page => (
                       <button
-                        className={`pagination-btn ${categoryCurrentPage === Math.ceil(categoryTotalItems / categoryItemsPerPage) ? 'disabled' : ''}`}
-                        onClick={() => handleCategoryPageChange(categoryCurrentPage + 1)}
-                        disabled={categoryCurrentPage === Math.ceil(categoryTotalItems / categoryItemsPerPage)}
+                        key={page}
+                        className={`page-number ${categoryCurrentPage === page ? 'active' : ''}`}
+                        onClick={() => handleCategoryPageChange(page)}
                       >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path fillRule="evenodd" clipRule="evenodd" d="M10.3254 2.95375C10.1157 2.77404 9.80007 2.79832 9.62036 3.00799L5.62036 7.67465C5.45987 7.8619 5.45987 8.1382 5.62036 8.32544L9.62036 12.9921C9.80007 13.2018 10.1157 13.2261 10.3254 13.0463C10.535 12.8666 10.5593 12.551 10.3796 12.3413L6.65853 8.00005L10.3796 3.65878C10.5593 3.44912 10.535 3.13347 10.3254 2.95375Z" fill={categoryCurrentPage === Math.ceil(categoryTotalItems / categoryItemsPerPage) ? "#C5C5C5" : "#0F71EF"} />
-                        </svg>
+                        {page}
                       </button>
+                    ))}
+                  </div>
 
-                      <button
-                        className={`pagination-btn ${categoryCurrentPage === Math.ceil(categoryTotalItems / categoryItemsPerPage) ? 'disabled' : ''}`}
-                        onClick={() => handleCategoryPageChange(Math.ceil(categoryTotalItems / categoryItemsPerPage))}
-                        disabled={categoryCurrentPage === Math.ceil(categoryTotalItems / categoryItemsPerPage)}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path fillRule="evenodd" clipRule="evenodd" d="M11.6584 2.95363C11.4487 2.77392 11.1331 2.7982 10.9534 3.00787L6.95337 7.67453C6.79287 7.86178 6.79287 8.13808 6.95337 8.32532L10.9534 12.992C11.1331 13.2017 11.4487 13.2259 11.6584 13.0462C11.8681 12.8665 11.8923 12.5509 11.7126 12.3412L7.99154 7.99993L11.7126 3.65866C11.8923 3.44899 11.8681 3.13334 11.6584 2.95363ZM8.9916 2.9537C8.78193 2.77399 8.46628 2.79827 8.28657 3.00793L4.28657 7.6746C4.12608 7.86185 4.12608 8.13815 4.28657 8.32539L8.28657 12.9921C8.46628 13.2017 8.78193 13.226 8.9916 13.0463C9.20126 12.8666 9.22554 12.5509 9.04583 12.3413L5.32474 8L9.04583 3.65873C9.22554 3.44906 9.20126 3.13341 8.9916 2.9537Z" fill={categoryCurrentPage === Math.ceil(categoryTotalItems / categoryItemsPerPage) ? "#C5C5C5" : "#0F71EF"} />
-                        </svg>
-                      </button>
-                    </div>
+                  <div className="btc">
+                    <button
+                      className={`pagination-btn ${categoryCurrentPage === Math.ceil(categoryTotalItems / categoryItemsPerPage) ? 'disabled' : ''}`}
+                      onClick={() => handleCategoryPageChange(categoryCurrentPage + 1)}
+                      disabled={categoryCurrentPage === Math.ceil(categoryTotalItems / categoryItemsPerPage)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path fillRule="evenodd" clipRule="evenodd" d="M10.3254 2.95375C10.1157 2.77404 9.80007 2.79832 9.62036 3.00799L5.62036 7.67465C5.45987 7.8619 5.45987 8.1382 5.62036 8.32544L9.62036 12.9921C9.80007 13.2018 10.1157 13.2261 10.3254 13.0463C10.535 12.8666 10.5593 12.551 10.3796 12.3413L6.65853 8.00005L10.3796 3.65878C10.5593 3.44912 10.535 3.13347 10.3254 2.95375Z" fill={categoryCurrentPage === Math.ceil(categoryTotalItems / categoryItemsPerPage) ? "#C5C5C5" : "#0F71EF"} />
+                      </svg>
+                    </button>
+
+                    <button
+                      className={`pagination-btn ${categoryCurrentPage === Math.ceil(categoryTotalItems / categoryItemsPerPage) ? 'disabled' : ''}`}
+                      onClick={() => handleCategoryPageChange(Math.ceil(categoryTotalItems / categoryItemsPerPage))}
+                      disabled={categoryCurrentPage === Math.ceil(categoryTotalItems / categoryItemsPerPage)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path fillRule="evenodd" clipRule="evenodd" d="M11.6584 2.95363C11.4487 2.77392 11.1331 2.7982 10.9534 3.00787L6.95337 7.67453C6.79287 7.86178 6.79287 8.13808 6.95337 8.32532L10.9534 12.992C11.1331 13.2017 11.4487 13.2259 11.6584 13.0462C11.8681 12.8665 11.8923 12.5509 11.7126 12.3412L7.99154 7.99993L11.7126 3.65866C11.8923 3.44899 11.8681 3.13334 11.6584 2.95363ZM8.9916 2.9537C8.78193 2.77399 8.46628 2.79827 8.28657 3.00793L4.28657 7.6746C4.12608 7.86185 4.12608 8.13815 4.28657 8.32539L8.28657 12.9921C8.46628 13.2017 8.78193 13.226 8.9916 13.0463C9.20126 12.8666 9.22554 12.5509 9.04583 12.3413L5.32474 8L9.04583 3.65873C9.22554 3.44906 9.20126 3.13341 8.9916 2.9537Z" fill={categoryCurrentPage === Math.ceil(categoryTotalItems / categoryItemsPerPage) ? "#C5C5C5" : "#0F71EF"} />
+                      </svg>
+                    </button>
                   </div>
                 </div>
               </div>

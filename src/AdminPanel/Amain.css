@@ -960,6 +960,11 @@ body {
   gap: 10px;
 }
 
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 .refresh-btn {
   background: transparent;
   border: none;
@@ -4627,6 +4632,7 @@ body {
 .categories-table td {
   padding: 16px;
   font-size: 14px;
+  max-width:120px;
   color: #1E2023;
   border-bottom: 1px solid #F2F2F2;
 }
@@ -4751,7 +4757,7 @@ body {
 
 /* Subcategory Row */
 .subcategory-row {
-  background: rgba(255, 255, 255, 0.419)FA;
+  background-color: #F2F2F2;
 }
 
 .subcategory-row td {
@@ -5661,6 +5667,7 @@ body {
   font-size: 14px;
   color: #1E2023;
   border-bottom: 1px solid #F0F0F0;
+  max-width: 120px;
 }
 
 .cultural-table tbody tr:hover {

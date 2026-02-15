@@ -124,7 +124,7 @@
   visibility: visible;
 }
 
-.menu-item {
+.menu-item-fs {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -137,16 +137,15 @@
   border: none;
   transition: background-color 0.2s;
   font-family: 'Vazir', Tahoma, sans-serif;
-  border: 1px solid rgba(128, 128, 128, 0.088);
 }
 
-.menu-item:disabled {
+.menu-item-fs:disabled {
   color: #9ba1ab;
   background-color: #f4f6f8;
   cursor: not-allowed;
 }
 
-.menu-item:hover {
+.menu-item-fs:hover {
   background-color: #f5f5f5;
 }
 

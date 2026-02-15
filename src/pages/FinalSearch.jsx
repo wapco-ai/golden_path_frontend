@@ -811,7 +811,7 @@ const FinalSearch = () => {
 
             <div className={`menu-dropdown ${menuOpen ? 'open' : ''}`}>
               <button
-                className="menu-item"
+                className="menu-item-fs"
                 onClick={handleSaveDestination}
                 disabled={!isUserLoggedIn || isSavingDestination}
                 title={!isUserLoggedIn ? intl.formatMessage({ id: 'loginToEnableActions' }) : undefined}
@@ -833,7 +833,7 @@ const FinalSearch = () => {
                 <FormattedMessage id="saveDestination" />
               </button>
               <button
-                className="menu-item"
+                className="menu-item-fs"
                 onClick={handleShareRoute}
                 disabled={!isUserLoggedIn}
                 title={!isUserLoggedIn ? intl.formatMessage({ id: 'loginToEnableActions' }) : undefined}
