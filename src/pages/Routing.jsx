@@ -515,15 +515,6 @@ const RoutingPage = () => {
     }
   }, [isInfoModalOpen]);
 
-  useEffect(() => {
-    // When info modal state changes, update GPS offline notification visibility
-    if (navigator.geolocation) {
-      navigator.permissions?.query({ name: 'geolocation' }).then(permissionStatus => {
-        setShowGpsOffline(permissionStatus.state === 'denied' && !isInfoModalOpen);
-      });
-    }
-  }, [isInfoModalOpen]);
-
   // Format total time as "X <minutes> Y <seconds>"
   const formatTotalTime = (totalMinutes) => {
     if (totalMinutes < 1) {
@@ -1128,7 +1119,6 @@ const RoutingPage = () => {
         <div
           className="info-modal-overlay"
           onClick={(e) => {
-            // Only close if clicking on the overlay itself, not children
             if (e.target === e.currentTarget) {
               toggleInfoModal();
             }
@@ -1302,76 +1292,62 @@ const RoutingPage = () => {
         </div>
       )}
 
-      {/* Main Guide Text Layer */}
-      <div className="guide-text-layer">
-        <div className="guide-steps-container">
-          {routeData.steps.map((step, index) => (
-            <div
-              key={step.id}
-              className={`guide-step ${index === currentStep ? 'active' : ''}`}
-              style={{
-                display: index < currentStep ? 'none' : 'block',
-                order: index === currentStep ? -1 : index
-              }}
-            >
-              <div className="step-header">
-                <div className="step-distance-container">
-                  <span className="direction-icon">
-                    {renderDirectionArrow(step.direction)}
-                  </span>
-                  <span className="step-distance">{step.distance}</span>
-                </div>
-                <span className="step-time">{step.time}</span>
-              </div>
-              <p className="step-instruction">{step.instruction}</p>
-              {index < routeData.steps.length - 1 && <hr className="step-divider" />}
+      {/* Header with Route Information */}
+      {/* <div className="routing-header">
+        <div className="header-info-rng">
+          <div className="header-info-item">
+            <div className="header-icon">
+              {getTransportIcon(routeData.mode || transportMode)}
             </div>
-          ))}
+            <span className="header-value">{formatDigits(routeData.totalTime)}</span>
+          </div>
+          <div className="header-info-item">
+            <span className="place-meta-separator">|</span>
+            <span className="header-label"><FormattedMessage id="arrivalTime" /></span>
+            <span className="header-value arrival-time">{formatDigits(routeData.arrivalTime)}</span>
+            <span className="place-meta-separator">|</span>
+          </div>
+          <div className="header-info-item">
+            <div className="header-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-route"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4z" /><path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5" /></svg>
+            </div>
+            <span className="header-value">{formatDigits(routeData.totalDistance)}</span>
+          </div>
+        </div>
+      </div> */}
+
+      {/* Live Image Container */}
+      <div className="live-image-container">
+        <div className="fixed-header-icons">
+          <button className="back-btn6" onClick={() => navigateToPreviousPage(navigate)}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path fillRule="evenodd" clipRule="evenodd" d="M11.2244 4.55806C11.4685 4.31398 11.8642 4.31398 12.1083 4.55806L17.1083 9.55806C17.3524 9.80214 17.3524 10.1979 17.1083 10.4419L12.1083 15.4419C11.8642 15.686 11.4685 15.686 11.2244 15.4419C10.9803 15.1979 10.9803 14.8021 11.2244 14.5581L15.1575 10.625H3.33301C2.98783 10.625 2.70801 10.3452 2.70801 10C2.70801 9.65482 2.98783 9.375 3.33301 9.375H15.1575L11.2244 5.44194C10.9803 5.19786 10.9803 4.80214 11.2244 4.55806Z" fill="#1E2023" />
+            </svg>
+          </button>
+          <button className="emergency-button" onClick={toggleEmergencyModal}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="icon icon-tabler icons-tabler-filled icon-tabler-alert-triangle"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M12 1.67c.955 0 1.845 .467 2.39 1.247l.105 .16l8.114 13.548a2.914 2.914 0 0 1 -2.307 4.363l-.195 .008h-16.225a2.914 2.914 0 0 1 -2.582 -4.2l.099 -.185l8.11 -13.538a2.914 2.914 0 0 1 2.491 -1.403zm.01 13.33l-.127 .007a1 1 0 0 0 0 1.986l.117 .007l.127 -.007a1 1 0 0 0 0 -1.986l-.117 -.007zm-.01 -7a1 1 0 0 0 -.993 .883l-.007 .117v4l.007 .117a1 1 0 0 0 1.986 0l.007 -.117v-4l-.007 -.117a1 1 0 0 0 -.993 -.883z" /></svg>
+            <span><FormattedMessage id="emergencyButtonLabel" /></span>
+          </button>
+          <button className="profile-icon" onClick={() => {
+            if (accessToken && user) {
+              navigate('/profile');
+            } else {
+              localStorage.setItem('profile_origin_page', location.pathname);
+              navigate('/login');
+            }
+          }}>
+            <svg width="22" height="22" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="9.99984" cy="5" r="3.33333" fill="#1E2023" />
+              <ellipse cx="9.99984" cy="14.1667" rx="5.83333" ry="3.33333" fill="#1E2023" />
+            </svg>
+          </button>
+        </div>
+        <div className="image-placeholder">
         </div>
       </div>
-      {/* Map Modal with faded line when closed */}
-      <div className={`map-modal ${isMapModalOpen ? 'open' : 'closed'}`}>
-        <div className="modal-toggle map-toggle" onClick={toggleMapModal}>
-          <div className="toggle-handle"></div>
-        </div>
 
-        <div
-          className={`map-container ${isMapModalOpen ? 'open' : 'closed'} ${!showAllRoutesView && !showAlternativeRoutes && isInfoModalOpen
-            ? 'dark-overlay'
-            : 'No-dark-overlay'
-            }`}
-          onClick={() => {
-            if (isMapModalOpen && isInfoModalOpen) {
-              toggleInfoModal();
-            }
-          }}
-        >
-          <RouteMap
-            ref={routeMapRef}
-            userLocation={userLocation}
-            userHeading={userHeading}
-            routeSteps={routeData.steps}
-            currentStep={currentStep}
-            isInfoModalOpen={isInfoModalOpen}
-            isMapModalOpen={isMapModalOpen}
-            destination={destination}
-            is3DView={is3DView}
-            routeGeo={routeGeo}
-            alternativeRoutes={routeData.alternativeRoutes}
-            onSelectAlternativeRoute={handleSelectAlternativeRoute}
-            showAlternativeRoutes={showAlternativeRoutesOnMap}
-          />
-          {/* <DeadReckoningControls
-            currentLocation={{ coords: { lat: userLocation[0], lng: userLocation[1] } }}
-          /> */}
-        </div>
-
-        {/* Emergency Button */}
-        <button className="emergency-button" onClick={toggleEmergencyModal}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="icon icon-tabler icons-tabler-filled icon-tabler-alert-triangle"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M12 1.67c.955 0 1.845 .467 2.39 1.247l.105 .16l8.114 13.548a2.914 2.914 0 0 1 -2.307 4.363l-.195 .008h-16.225a2.914 2.914 0 0 1 -2.582 -4.2l.099 -.185l8.11 -13.538a2.914 2.914 0 0 1 2.491 -1.403zm.01 13.33l-.127 .007a1 1 0 0 0 0 1.986l.117 .007l.127 -.007a1 1 0 0 0 0 -1.986l-.117 -.007zm-.01 -7a1 1 0 0 0 -.993 .883l-.007 .117v4l.007 .117a1 1 0 0 0 1.986 0l.007 -.117v-4l-.007 -.117a1 1 0 0 0 -.993 -.883z" /></svg>
-          <span><FormattedMessage id="emergencyButtonLabel" /></span>
-        </button>
-
+      {/* Map Section */}
+      <div className="map-section">
         {showGpsOffline && (
           <div className={`gps-offline-notification ${isInfoModalOpen ? 'hidden' : ''}`}>
             <div className="gps-offline-content">
@@ -1387,8 +1363,25 @@ const RoutingPage = () => {
             </div>
           </div>
         )}
+        <div className={`map-container-rng ${!showAllRoutesView && !showAlternativeRoutes && isInfoModalOpen ? 'dark-overlay' : 'No-dark-overlay'}`}>
+          <RouteMap
+            ref={routeMapRef}
+            userLocation={userLocation}
+            userHeading={userHeading}
+            routeSteps={routeData.steps}
+            currentStep={currentStep}
+            isInfoModalOpen={isInfoModalOpen}
+            isMapModalOpen={isMapModalOpen}
+            destination={destination}
+            is3DView={is3DView}
+            routeGeo={routeGeo}
+            alternativeRoutes={routeData.alternativeRoutes}
+            onSelectAlternativeRoute={handleSelectAlternativeRoute}
+            showAlternativeRoutes={showAlternativeRoutesOnMap}
+          />
+        </div>
 
-        {/* Info Modal - Only visible when map modal is open */}
+        {/* Info Modal Wrapper */}
         <div className={`info-modal-wrapper ${isMapModalOpen ? 'visible' : 'hidden'}`}>
           {showAllRoutesView ? (
             <div className="all-routes-view">
@@ -1418,7 +1411,7 @@ const RoutingPage = () => {
                   </div>
                 </div>
                 <button className="return-to-route-button2" onClick={handleReturnToRoute}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                     <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                     <path d="M11.092 2.581a1 1 0 0 1 1.754 -.116l.062 .116l8.005 17.365c.198 .566 .05 1.196 -.378 1.615a1.53 1.53 0 0 1 -1.459 .393l-7.077 -2.398l-6.899 2.338a1.535 1.535 0 0 1 -1.52 -.231l-.112 -.1c-.398 -.386 -.556 -.954 -.393 -1.556l.047 -.15l7.97 -17.276z" />
                   </svg>
@@ -1431,7 +1424,7 @@ const RoutingPage = () => {
           ) : showAlternativeRoutes ? (
             <div className="alternative-routes-view">
               <button className="return-to-route-button5" onClick={handleReturnFromAlternativeRoutes}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                   <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                   <path d="M11.092 2.581a1 1 0 0 1 1.754 -.116l.062 .116l8.005 17.365c.198 .566 .05 1.196 -.378 1.615a1.53 1.53 0 0 1 -1.459 .393l-7.077 -2.398l-6.899 2.338a1.535 1.535 0 0 1 -1.52 -.231l-.112 -.1c-.398 -.386 -.556 -.954 -.393 -1.556l.047 -.15l7.97 -17.276z" />
                 </svg>
@@ -1496,104 +1489,64 @@ const RoutingPage = () => {
                 <div className="modal-toggle3 info-toggle" onClick={toggleInfoModal}>
                   <div className="toggle-handle3"></div>
                 </div>
-                <div className="info-header">
-                  <button className="close-button" onClick={() => navigateToPreviousPage(navigate)}>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path fillRule="evenodd" clipRule="evenodd" d="M11.2244 4.55806C11.4685 4.31398 11.8642 4.31398 12.1083 4.55806L17.1083 9.55806C17.3524 9.80214 17.3524 10.1979 17.1083 10.4419L12.1083 15.4419C11.8642 15.686 11.4685 15.686 11.2244 15.4419C10.9803 15.1979 10.9803 14.8021 11.2244 14.5581L15.1575 10.625H3.33301C2.98783 10.625 2.70801 10.3452 2.70801 10C2.70801 9.65482 2.98783 9.375 3.33301 9.375H15.1575L11.2244 5.44194C10.9803 5.19786 10.9803 4.80214 11.2244 4.55806Z" fill="#1E2023" />
-                    </svg>
 
-
-                  </button>
-                  <div className="info-title">
-                    <div className="info-stat">
-                      <span><FormattedMessage id="arrivalTime" /></span>
-                      <span className="arrival-time">{formatDigits(routeData.arrivalTime)}</span>
+                {/* Current Guide Display */}
+                <div className="current-guide">
+                  {routeData.steps[currentStep] && (
+                    <div className="guide-step active">
+                      <p className="step-instruction">
+                        <span className="direction-icon-rng">
+                          {renderDirectionArrow(routeData.steps[currentStep].direction)}
+                        </span>
+                        <span className="instruction-text">
+                          {routeData.steps[currentStep].instruction}
+                        </span>
+                        <span className="step-time">
+                          ({routeData.steps[currentStep].time})
+                        </span>
+                      </p>
                     </div>
-                    <div className="info-details">
-                      <div className="info-item">
-                        <div className="info-icon">
-                          {getTransportIcon(routeData.mode || transportMode)}
-                        </div>
-                        <div className="info-text">
-                          <span className="info-value">{formatDigits(routeData.totalTime)}</span>
-                        </div>
-                      </div>
-
-                      <div className="info-item">
-                        <div className="info-icon">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-route"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4z" /><path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5" /></svg>
-                        </div>
-                        <div className="info-text">
-                          <span className="info-value">{formatDigits(routeData.totalDistance)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    className="sound-button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      toggleSoundModal();
-                    }}
-                    style={{
-                      position: 'relative',
-                      zIndex: 1000 // Ensure it's above other elements
-                    }}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-volume">
-                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                      <path d="M15 8a5 5 0 0 1 0 8" />
-                      <path d="M17.7 5a9 9 0 0 1 0 14" />
-                      <path d="M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5" />
-                    </svg>
-                  </button>
+                  )}
                 </div>
               </div>
 
               {isInfoModalOpen && (
-                <>
-                  <div className="route-buttons">
-                    <button className="route-button" onClick={() => navigate('/rop')}>
-                      <div className="button-icon">
-                        <svg width="22" height="22" viewBox="0 0 21 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path fillRule="evenodd" clipRule="evenodd" d="M15.916 11.6666C14.3052 11.6666 12.9993 12.8819 12.9993 14.3811C12.9993 15.8684 13.9302 17.6041 15.3827 18.2248C15.7212 18.3695 16.1108 18.3695 16.4494 18.2248C17.9018 17.6041 18.8327 15.8684 18.8327 14.3811C18.8327 12.8819 17.5268 11.6666 15.916 11.6666ZM15.916 15.4166C16.3763 15.4166 16.7493 15.0435 16.7493 14.5833C16.7493 14.1231 16.3763 13.75 15.916 13.75C15.4558 13.75 15.0827 14.1231 15.0827 14.5833C15.0827 15.0435 15.4558 15.4166 15.916 15.4166Z" fill="#1E2023" />
-                          <path fillRule="evenodd" clipRule="evenodd" d="M5.08268 1.66663C3.47185 1.66663 2.16602 2.88192 2.16602 4.38106C2.16602 5.86845 3.09692 7.6041 4.54932 8.22478C4.8879 8.36947 5.27746 8.36947 5.61604 8.22478C7.06845 7.6041 7.99935 5.86845 7.99935 4.38106C7.99935 2.88192 6.69351 1.66663 5.08268 1.66663ZM5.08268 5.41663C5.54292 5.41663 5.91602 5.04353 5.91602 4.58329C5.91602 4.12306 5.54292 3.74996 5.08268 3.74996C4.62245 3.74996 4.24935 4.12306 4.24935 4.58329C4.24935 5.04353 4.62245 5.41663 5.08268 5.41663Z" fill="#1E2023" />
-                          <path fillRule="evenodd" clipRule="evenodd" d="M9.87573 4.16663C9.87573 3.82145 10.1556 3.54163 10.5007 3.54163H13.944C16.2367 3.54163 17.1086 6.53579 15.1743 7.76668L6.49826 13.2878C5.61904 13.8473 6.01537 15.2083 7.0575 15.2083H8.99185L8.80879 15.0252C8.56471 14.7812 8.56471 14.3854 8.80879 14.1414C9.05287 13.8973 9.4486 13.8973 9.69267 14.1414L10.9427 15.3914C11.1868 15.6354 11.1868 16.0312 10.9427 16.2752L9.69267 17.5252C9.4486 17.7693 9.05287 17.7693 8.80879 17.5252C8.56471 17.2812 8.56471 16.8854 8.80879 16.6414L8.99185 16.4583H7.0575C4.7648 16.4583 3.89291 13.4641 5.82716 12.2332L14.5032 6.71211C15.3824 6.15261 14.9861 4.79163 13.944 4.79163H10.5007C10.1556 4.79163 9.87573 4.5118 9.87573 4.16663Z" fill="#1E2023" />
-                        </svg>
-
-                      </div>
-                      <span><FormattedMessage id="routeOverview" /></span>
-                    </button>
-                    <span className="sdivider"></span>
-                    <button className="route-button" onClick={handleAllRoutesClick}>
-                      <div className="button-icon">
-                        <svg width="22" height="22" viewBox="0 0 21 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M2.52957 4.28868C2.16602 4.70251 2.16602 5.41203 2.16602 6.83108V14.6588C2.16602 15.6638 2.16602 16.1663 2.42818 16.5446C2.69034 16.9229 3.14869 17.0818 4.06538 17.3996L5.14387 17.7735C5.72799 17.976 6.17744 18.1318 6.55462 18.2322C6.80069 18.2976 7.02713 18.1045 7.02713 17.8499V5.22472C7.02713 5.01728 6.87405 4.84223 6.67299 4.79122C6.34863 4.70895 5.95874 4.57378 5.42436 4.38852C4.12999 3.93978 3.4828 3.71541 2.99036 3.94326C2.81553 4.02415 2.65865 4.14175 2.52957 4.28868Z" fill="#1E2023" />
-                          <path d="M11.0163 2.90043L9.73636 3.78793C9.2733 4.109 8.93395 4.3443 8.64414 4.51206C8.5068 4.59156 8.41602 4.73539 8.41602 4.89408V17.4332C8.41602 17.742 8.736 17.9348 8.99615 17.7684C9.27537 17.5898 9.5951 17.3681 9.98236 17.0996L11.2623 16.2121C11.7254 15.891 12.0648 15.6557 12.3546 15.488C12.4919 15.4085 12.5827 15.2646 12.5827 15.1059V2.56683C12.5827 2.258 12.2627 2.06518 12.0025 2.2316C11.7233 2.41022 11.4036 2.63191 11.0163 2.90043Z" fill="#1E2023" />
-                          <path d="M16.9333 2.60041L15.8548 2.22651C15.2707 2.02399 14.8213 1.8682 14.4441 1.76786C14.198 1.70241 13.9716 1.89555 13.9716 2.15017V14.7753C13.9716 14.9827 14.1246 15.1578 14.3257 15.2088C14.6501 15.2911 15.04 15.4263 15.5743 15.6115C16.8687 16.0602 17.5159 16.2846 18.0083 16.0568C18.1832 15.9759 18.3401 15.8583 18.4691 15.7113C18.8327 15.2975 18.8327 14.588 18.8327 13.1689V5.3412C18.8327 4.33622 18.8327 3.83372 18.5705 3.45542C18.3084 3.07712 17.85 2.91822 16.9333 2.60041Z" fill="#1E2023" />
-                        </svg>
-
-                      </div>
-                      <span><FormattedMessage id="allRoutes" /></span>
-                    </button>
-                    {routeData.alternativeRoutes.length > 0 && (
-                      <>
-                        <span className="sdivider"></span>
-                        <button className="route-button" onClick={handleShowAlternativeRoutes}>
-                          <div className="button-icon">
-                            <svg width="25" height="24" viewBox="0 0 25 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path fillRule="evenodd" clipRule="evenodd" d="M3.96447 3.46447C2.5 4.92893 2.5 7.28595 2.5 12C2.5 16.714 2.5 19.0711 3.96447 20.5355C5.42893 22 7.78595 22 12.5 22C17.214 22 19.5711 22 21.0355 20.5355C22.5 19.0711 22.5 16.714 22.5 12C22.5 7.28595 22.5 4.92893 21.0355 3.46447C19.5711 2 17.214 2 12.5 2C7.78595 2 5.42893 2 3.96447 3.46447ZM8.53033 5.96967C8.82322 6.26256 8.82322 6.73744 8.53033 7.03033L8.31066 7.25H8.5C10.1795 7.25 11.6554 8.12162 12.5 9.43718C13.3446 8.12162 14.8205 7.25 16.5 7.25H16.6893L16.4697 7.03033C16.1768 6.73744 16.1768 6.26256 16.4697 5.96967C16.7626 5.67678 17.2374 5.67678 17.5303 5.96967L19.0303 7.46967C19.3232 7.76256 19.3232 8.23744 19.0303 8.53033L17.5303 10.0303C17.2374 10.3232 16.7626 10.3232 16.4697 10.0303C16.1768 9.73744 16.1768 9.26256 16.4697 8.96967L16.6893 8.75H16.5C14.7051 8.75 13.25 10.2051 13.25 12V18C13.25 18.4142 12.9142 18.75 12.5 18.75C12.0858 18.75 11.75 18.4142 11.75 18V12C11.75 10.2051 10.2949 8.75 8.5 8.75H8.31066L8.53033 8.96967C8.82322 9.26256 8.82322 9.73744 8.53033 10.0303C8.23744 10.3232 7.76256 10.3232 7.46967 10.0303L5.96967 8.53033C5.67678 8.23744 5.67678 7.76256 5.96967 7.46967L7.46967 5.96967C7.76256 5.67678 8.23744 5.67678 8.53033 5.96967Z" fill="#1E2023" />
-                            </svg>
-
-                          </div>
-                          <span><FormattedMessage id="otherRoutes" /></span>
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </>
+                <div className="route-buttons">
+                  <button className="route-button" onClick={() => navigate('/rop')}>
+                    <div className="button-icon">
+                      <svg width="22" height="22" viewBox="0 0 21 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path fillRule="evenodd" clipRule="evenodd" d="M15.916 11.6666C14.3052 11.6666 12.9993 12.8819 12.9993 14.3811C12.9993 15.8684 13.9302 17.6041 15.3827 18.2248C15.7212 18.3695 16.1108 18.3695 16.4494 18.2248C17.9018 17.6041 18.8327 15.8684 18.8327 14.3811C18.8327 12.8819 17.5268 11.6666 15.916 11.6666ZM15.916 15.4166C16.3763 15.4166 16.7493 15.0435 16.7493 14.5833C16.7493 14.1231 16.3763 13.75 15.916 13.75C15.4558 13.75 15.0827 14.1231 15.0827 14.5833C15.0827 15.0435 15.4558 15.4166 15.916 15.4166Z" fill="#1E2023" />
+                        <path fillRule="evenodd" clipRule="evenodd" d="M5.08268 1.66663C3.47185 1.66663 2.16602 2.88192 2.16602 4.38106C2.16602 5.86845 3.09692 7.6041 4.54932 8.22478C4.8879 8.36947 5.27746 8.36947 5.61604 8.22478C7.06845 7.6041 7.99935 5.86845 7.99935 4.38106C7.99935 2.88192 6.69351 1.66663 5.08268 1.66663ZM5.08268 5.41663C5.54292 5.41663 5.91602 5.04353 5.91602 4.58329C5.91602 4.12306 5.54292 3.74996 5.08268 3.74996C4.62245 3.74996 4.24935 4.12306 4.24935 4.58329C4.24935 5.04353 4.62245 5.41663 5.08268 5.41663Z" fill="#1E2023" />
+                        <path fillRule="evenodd" clipRule="evenodd" d="M9.87573 4.16663C9.87573 3.82145 10.1556 3.54163 10.5007 3.54163H13.944C16.2367 3.54163 17.1086 6.53579 15.1743 7.76668L6.49826 13.2878C5.61904 13.8473 6.01537 15.2083 7.0575 15.2083H8.99185L8.80879 15.0252C8.56471 14.7812 8.56471 14.3854 8.80879 14.1414C9.05287 13.8973 9.4486 13.8973 9.69267 14.1414L10.9427 15.3914C11.1868 15.6354 11.1868 16.0312 10.9427 16.2752L9.69267 17.5252C9.4486 17.7693 9.05287 17.7693 8.80879 17.5252C8.56471 17.2812 8.56471 16.8854 8.80879 16.6414L8.99185 16.4583H7.0575C4.7648 16.4583 3.89291 13.4641 5.82716 12.2332L14.5032 6.71211C15.3824 6.15261 14.9861 4.79163 13.944 4.79163H10.5007C10.1556 4.79163 9.87573 4.5118 9.87573 4.16663Z" fill="#1E2023" />
+                      </svg>
+                    </div>
+                    <span><FormattedMessage id="routeOverview" /></span>
+                  </button>
+                  <span className="sdivider"></span>
+                  <button className="route-button" onClick={handleAllRoutesClick}>
+                    <div className="button-icon">
+                      <svg width="22" height="22" viewBox="0 0 21 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2.52957 4.28868C2.16602 4.70251 2.16602 5.41203 2.16602 6.83108V14.6588C2.16602 15.6638 2.16602 16.1663 2.42818 16.5446C2.69034 16.9229 3.14869 17.0818 4.06538 17.3996L5.14387 17.7735C5.72799 17.976 6.17744 18.1318 6.55462 18.2322C6.80069 18.2976 7.02713 18.1045 7.02713 17.8499V5.22472C7.02713 5.01728 6.87405 4.84223 6.67299 4.79122C6.34863 4.70895 5.95874 4.57378 5.42436 4.38852C4.12999 3.93978 3.4828 3.71541 2.99036 3.94326C2.81553 4.02415 2.65865 4.14175 2.52957 4.28868Z" fill="#1E2023" />
+                        <path d="M11.0163 2.90043L9.73636 3.78793C9.2733 4.109 8.93395 4.3443 8.64414 4.51206C8.5068 4.59156 8.41602 4.73539 8.41602 4.89408V17.4332C8.41602 17.742 8.736 17.9348 8.99615 17.7684C9.27537 17.5898 9.5951 17.3681 9.98236 17.0996L11.2623 16.2121C11.7254 15.891 12.0648 15.6557 12.3546 15.488C12.4919 15.4085 12.5827 15.2646 12.5827 15.1059V2.56683C12.5827 2.258 12.2627 2.06518 12.0025 2.2316C11.7233 2.41022 11.4036 2.63191 11.0163 2.90043Z" fill="#1E2023" />
+                        <path d="M16.9333 2.60041L15.8548 2.22651C15.2707 2.02399 14.8213 1.8682 14.4441 1.76786C14.198 1.70241 13.9716 1.89555 13.9716 2.15017V14.7753C13.9716 14.9827 14.1246 15.1578 14.3257 15.2088C14.6501 15.2911 15.04 15.4263 15.5743 15.6115C16.8687 16.0602 17.5159 16.2846 18.0083 16.0568C18.1832 15.9759 18.3401 15.8583 18.4691 15.7113C18.8327 15.2975 18.8327 14.588 18.8327 13.1689V5.3412C18.8327 4.33622 18.8327 3.83372 18.5705 3.45542C18.3084 3.07712 17.85 2.91822 16.9333 2.60041Z" fill="#1E2023" />
+                      </svg>
+                    </div>
+                    <span><FormattedMessage id="allRoutes" /></span>
+                  </button>
+                  {routeData.alternativeRoutes.length > 0 && (
+                    <>
+                      <span className="sdivider"></span>
+                      <button className="route-button" onClick={handleShowAlternativeRoutes}>
+                        <div className="button-icon">
+                          <svg width="25" height="24" viewBox="0 0 25 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path fillRule="evenodd" clipRule="evenodd" d="M3.96447 3.46447C2.5 4.92893 2.5 7.28595 2.5 12C2.5 16.714 2.5 19.0711 3.96447 20.5355C5.42893 22 7.78595 22 12.5 22C17.214 22 19.5711 22 21.0355 20.5355C22.5 19.0711 22.5 16.714 22.5 12C22.5 7.28595 22.5 4.92893 21.0355 3.46447C19.5711 2 17.214 2 12.5 2C7.78595 2 5.42893 2 3.96447 3.46447ZM8.53033 5.96967C8.82322 6.26256 8.82322 6.73744 8.53033 7.03033L8.31066 7.25H8.5C10.1795 7.25 11.6554 8.12162 12.5 9.43718C13.3446 8.12162 14.8205 7.25 16.5 7.25H16.6893L16.4697 7.03033C16.1768 6.73744 16.1768 6.26256 16.4697 5.96967C16.7626 5.67678 17.2374 5.67678 17.5303 5.96967L19.0303 7.46967C19.3232 7.76256 19.3232 8.23744 19.0303 8.53033L17.5303 10.0303C17.2374 10.3232 16.7626 10.3232 16.4697 10.0303C16.1768 9.73744 16.1768 9.26256 16.4697 8.96967L16.6893 8.75H16.5C14.7051 8.75 13.25 10.2051 13.25 12V18C13.25 18.4142 12.9142 18.75 12.5 18.75C12.0858 18.75 11.75 18.4142 11.75 18V12C11.75 10.2051 10.2949 8.75 8.5 8.75H8.31066L8.53033 8.96967C8.82322 9.26256 8.82322 9.73744 8.53033 10.0303C8.23744 10.3232 7.76256 10.3232 7.46967 10.0303L5.96967 8.53033C5.67678 8.23744 5.67678 7.76256 5.96967 7.46967L7.46967 5.96967C7.76256 5.67678 8.23744 5.67678 8.53033 5.96967Z" fill="#1E2023" />
+                          </svg>
+                        </div>
+                        <span><FormattedMessage id="otherRoutes" /></span>
+                      </button>
+                    </>
+                  )}
+                </div>
               )}
 
               <div className="bottom-controls">
@@ -1618,19 +1571,20 @@ const RoutingPage = () => {
                     <svg width="22" height="22" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M15.8346 7.49988L10.0013 12.4999L4.16797 7.49988" stroke="#1E2023" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
-
                   </button>
-                  <button className="map-profile-button" onClick={() => {
-                    if (accessToken && user) {
-                      navigate('/profile');
-                    } else {
-                      localStorage.setItem('profile_origin_page', location.pathname);
-                      navigate('/login');
-                    }
-                  }}>
-                    <svg width="22" height="22" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <circle cx="9.99984" cy="5" r="3.33333" fill="#1E2023" />
-                      <ellipse cx="9.99984" cy="14.1667" rx="5.83333" ry="3.33333" fill="#1E2023" />
+                  <button
+                    className="sound-button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      toggleSoundModal();
+                    }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-volume">
+                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                      <path d="M15 8a5 5 0 0 1 0 8" />
+                      <path d="M17.7 5a9 9 0 0 1 0 14" />
+                      <path d="M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5" />
                     </svg>
                   </button>
                 </div>
@@ -1638,21 +1592,6 @@ const RoutingPage = () => {
             </div>
           )}
         </div>
-
-        {/* Return to Route Button */}
-        {
-          !isMapModalOpen && (
-            <button className="return-to-route-button" onClick={toggleMapModal}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                <path d="M11.092 2.581a1 1 0 0 1 1.754 -.116l.062 .116l8.005 17.365c.198 .566 .05 1.196 -.378 1.615a1.53 1.53 0 0 1 -1.459 .393l-7.077 -2.398l-6.899 2.338a1.535 1.535 0 0 1 -1.52 -.231l-.112 -.1c-.398 -.386 -.556 -.954 -.393 -1.556l.047 -.15l7.97 -17.276z" />
-              </svg>
-              <span className="return-to-route-text">
-                <FormattedMessage id="returnToRoute" />
-              </span>
-            </button>
-          )
-        }
       </div>
     </div>
   );

@@ -14,202 +14,134 @@
   opacity: 1;
 }
 
-/* Guide Text Layer */
-.guide-text-layer {
-  padding: 20px;
-  background-color: #fff;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-  max-height: 100vh;
-  overflow-y: hidden;
-  transition: all 0.3s ease;
-  display: flex;
-  flex-direction: column;
-  padding-bottom: 0px;
-  padding-top: 5px;
+/* Live Image Container */
+.live-image-container {
+  height: 60vh;
+  width: 100%;
+  background-color: #f5f5f5;
   position: relative;
+  overflow: hidden;
 }
 
-.guide-step {
-  margin-bottom: 15px;
-  background-color: white;
-  transition: all 0.3s ease;
-  max-height: 18vh;
-  min-height: 18vh;
-  scroll-snap-align: start; /* Snap to steps when scrolling */
-}
-
-
-.guide-step.active {
-  background-color: white;
-  border-radius: 8px;
-  padding: 10px;
-  order: -1;
-  max-height: 18vh;
-  min-height: 18vh;
-}
-
-.step-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-  border-bottom: 1px solid #ddd;
-  ;
-}
-
-.step-time {
-  color: #3498db;
-  font-size: 1.1rem;
-  font-family: 'Vazir', Tahoma, sans-serif;
-  margin-bottom: 10px;
-}
-
-
-.step-distance-container {
+.image-placeholder {
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-.step-distance {
-  font-weight: bold;
-  margin-bottom: 10px;
-}
-
-.direction-icon {
-  display: flex;
-  align-items: center;
-  width: 30px;
-  height: 30px;
-  margin-bottom: 15px;
-}
-
-.step-instruction {
+.image-placeholder-text {
+  color: white;
   font-size: 1.2rem;
-  line-height: 1.6;
-  color: #333;
-  font-family: 'Vazir', Tahoma, sans-serif;
-  margin-top: 20px;
+  opacity: 0.8;
 }
 
-.step-services {
-  display: flex;
-  gap: 6px;
-  margin-top: 6px;
+/* Map Section */
+.map-section {
+  height: 40vh;
+  width: 100%;
+  position: relative;
+  background-color: #fff;
 }
 
-.step-services svg {
-  width: 20px;
-  height: 20px;
-}
-
-.step-divider {
-  border: none;
-  margin: 5px 0;
-}
-
-/* Map Modal */
-.map-modal {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  border-top-left-radius: 20px;
-  border-top-right-radius: 20px;
-  z-index: 100;
-  transition: transform 0.4s cubic-bezier(0.28, 0.11, 0.32, 1);
-  transform: translateY(0);
-  height: 80vh;
-  background-color: white;
-}
-
-/* Map Container */
-.map-container {
+.map-container-rng {
   position: relative;
   height: 100%;
   width: 100%;
-  transition: none !important;
+  
 }
 
-/* Responsive Heights */
-@media (max-width: 400px) {
-  .map-modal.open {
-    height: 78vh;
-  }
+.map-container.dark-overlay {
+  filter: brightness(0.6);
 }
 
-@media (min-width: 700px) {
-  .map-modal.open {
-    height: 86vh;
-  }
-}
-
-@media (min-width: 900px) {
-  .map-modal.open {
-    height: 89vh;
-  }
-}
-
-
-.map-modal.closed {
-  transform: translateY(calc(100% - 20px));
-  height: 20px;
-}
-
-.modal-toggle {
-  display: flex;
-  justify-content: center;
-  padding: 15px 0;
-  background-color: #fff;
-  margin: 0;
-}
-
-.modal-toggle3 {
-  display: flex;
-  justify-content: center;
-  padding: 8px 0;
-}
-
-
-.map-toggle {
-  position: absolute;
-  top: -10px;
-  left: 0;
-  right: 0;
-  z-index: 120;
-}
-
-.toggle-handle {
-  width: 40px;
-  height: 5px;
-  background-color: #ddd;
-  border-radius: 3px;
-}
-
-.toggle-handle3 {
-  width: 90px;
-  height: 5px;
-  background-color: #ddd;
-  margin-top: 15px;
-  border-radius: 3px;
-}
-
-.map-container {
-  position: relative;
-  height: 100%;
+.map-container.No-dark-overlay {
+  filter: brightness(1);
 }
 
 .route-map {
   width: 100%;
   height: 100%;
-  border-radius: 12px;
   overflow: hidden;
-  transition: filter 0.3s ease;
 }
 
-.route-map.dark-overlay {
-  filter: brightness(0.7);
+/* Emergency Button */
+.emergency-button {
+  background-color: white;
+  color: #e74c3c;
+  border: none;
+  border-radius: 50px;
+  padding: 10px;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  font-size: 1.0rem;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* GPS Offline Notification */
+.gps-offline-notification {
+  position: absolute;
+  top: 10px;
+  right: 0;
+  left: 0;
+  opacity: 0.9;
+  border-radius: 8px;
+  background-color: tra;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: slideIn 0.3s ease-out;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+
+@media (max-width: 400px) {
+  .gps-offline-message {
+    font-size: 0.7rem;
+  }
+}
+
+@media (min-width: 400px) {
+  .gps-offline-message {
+    font-size: 0.95rem;
+  }
+}
+
+
+
+.gps-offline-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: white;
+  background-color: #EA4335;
+  border-radius: 8px;
+  padding: 12px 20px;
+}
+
+.gps-offline-message {
+  font-weight: 600;
+}
+
+.gps-offline-notification.hidden {
+  opacity: 0;
+  transform: translateY(-20px);
+  pointer-events: none;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 /* Info Modal Wrapper */
@@ -221,8 +153,7 @@
   display: none;
 }
 
-/* Info Modal */
-
+/* Info Modal - ORIGINAL STYLES PRESERVED */
 .info-modal.open {
   position: absolute;
   bottom: 0;
@@ -234,7 +165,6 @@
   z-index: 110;
   height: auto;
   padding: 0px 10px 0px;
-
 }
 
 .info-modal.closed {
@@ -256,18 +186,19 @@
   border-top-left-radius: 20px;
   border-top-right-radius: 20px;
   z-index: 120;
+  margin-bottom: 0px;
 }
 
 .info-content {
   display: flex;
   flex-direction: column;
-  gap: 15px;
   padding: 0px 15px;
   background-color: #fff;
   border-top-left-radius: 25px;
   border-top-right-radius: 25px;
   cursor: default;
   pointer-events: auto;
+  border: 1px solid white;
 }
 
 .info-header {
@@ -303,19 +234,6 @@
   font-size: 1.4rem;
 }
 
-
-.sound-button,
-.close-button {
-  background: none;
-  border: none;
-  padding: 12px;
-  color: #666;
-  margin-bottom: 50px;
-  background-color: #f0f2f2e3;
-  border-radius: 10px;
-  justify-content: center;
-  align-items: center;
-}
 
 .info-details {
   display: flex;
@@ -356,8 +274,111 @@
   }
 }
 
+.modal-toggle3 {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+}
 
-/* Route Buttons */
+.toggle-handle3 {
+  width: 90px;
+  height: 5px;
+  background-color: #ddd;
+  margin-top: 15px;
+  border-radius: 3px;
+}
+
+/* Current Guide inside info modal */
+.current-guide {
+  min-height: 100px;
+  padding: 5px 0;
+}
+
+.guide-step.active {
+  background-color: white;
+  border-radius: 8px;
+  padding: 10px;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.step-instruction {
+  font-size: 1.0rem;
+  line-height: 1.2;
+  color: #333;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  margin: 0;
+  display: inline;
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+.direction-icon-rng {
+  display: inline-table;
+  vertical-align: middle;
+  width: 24px;
+  height: 24px;
+  margin-left: 0px;
+  margin-right: 0px;
+}
+
+.direction-icon-rng svg {
+  width: 30px;
+  height: 30px;
+  display: block;
+}
+
+.instruction-text {
+  display: inline;
+  vertical-align: middle;
+}
+
+.step-time {
+  color: #3498db;
+  font-size: 1.1rem;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  display: inline;
+  vertical-align: middle;
+  white-space: nowrap;
+  margin-right: 5px;
+}
+
+:root:lang(fa) .direction-icon,
+:root:lang(ar) .direction-icon,
+:root:lang(ur) .direction-icon {
+  margin-left: 8px;
+  margin-right: 0;
+}
+
+:root:lang(fa) .step-time,
+:root:lang(ar) .step-time,
+:root:lang(ur) .step-time {
+  margin-right: 5px;
+  margin-left: 0;
+}
+
+:root:lang(en) .direction-icon {
+  margin-right: 8px;
+  margin-left: 0;
+}
+
+:root:lang(en) .step-time {
+  margin-left: 5px;
+  margin-right: 0;
+}
+
+
+/* Route Buttons - ORIGINAL */
 .route-buttons {
   display: flex;
   justify-content: space-between;
@@ -398,7 +419,7 @@
   border-radius: 50%;
 }
 
-/* Bottom Controls */
+/* Bottom Controls - ORIGINAL */
 .bottom-controls {
   display: flex;
   justify-content: space-between;
@@ -433,8 +454,6 @@
   }
 }
 
-
-
 .pc-container {
   flex: 0.1;
   display: flex;
@@ -444,8 +463,8 @@
   padding: 0 12px;
 }
 
-
-.profile-button {
+.expand-button,
+.sound-button  {
   width: 50px;
   height: 50px;
   border-radius: 50%;
@@ -454,83 +473,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-
-.expand-button {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background-color: #fff;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Emergency Button */
-.emergency-button {
-  position: absolute;
-  top: 35px;
-  right: 20px;
-  background-color: white;
-  color: #e74c3c;
-  border: none;
-  border-radius: 50px;
-  padding: 12px 15px;
-  font-family: 'Vazir', Tahoma, sans-serif;
-  font-size: 1.1rem;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  z-index: 1000;
-  font-family: 'Vazir', Tahoma, sans-serif;
-}
-
-/* Return to Route Button */
-.return-to-route-button {
-  position: fixed;
-  bottom: 50px;
-  left: 20px;
-  padding: 12px 20px;
-  background-color: #1E90FF;
-  color: white;
-  border: none;
-  border-radius: 30px;
-  z-index: 50;
-  justify-content: space-between;
-  align-items: center;
-  display: flex;
-}
-
-.return-to-route-text {
-  margin-right: 10px;
-  font-size: 0.95rem;
-  font-family: 'Vazir', Tahoma, sans-serif;
-  z-index: 1;
-}
-
-.loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  font-size: 1.2rem;
-}
-
-/* Leaflet overrides */
-.leaflet-control-attribution {
-  display: none;
-}
-
-.leaflet-popup-content {
-  font-family: 'Vazir', Tahoma, sans-serif;
-  direction: rtl;
-  text-align: right;
 }
 
 /* Modal Overlay */
-.modal-overlay {
+.modal-overlay,
+.info-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -541,6 +488,9 @@
   transition: opacity 0.3s ease;
 }
 
+.info-modal-overlay {
+  z-index: 1;
+}
 
 /* Emergency Modal */
 .emergency-modal {
@@ -560,10 +510,23 @@
   transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
-
 .emergency-modal.closing {
   transform: translateY(100%);
   opacity: 0;
+}
+
+.modal-toggle2 {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0;
+  cursor: pointer;
+}
+
+.toggle-handle2 {
+  width: 90px;
+  height: 5px;
+  background-color: #ddd;
+  border-radius: 3px;
 }
 
 .emergency-modal-title {
@@ -622,7 +585,6 @@
   border: none;
   border-radius: 10px;
   background-color: #f0f2f2e3;
-  ;
   font-size: 1.0rem;
   resize: none;
   font-family: 'Vazir', Tahoma, sans-serif;
@@ -666,7 +628,6 @@
   opacity: 0;
 }
 
-
 .sound-modal-title {
   font-size: 1.3rem;
   font-weight: bold;
@@ -698,37 +659,6 @@
   color: white;
 }
 
-.info-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 1;
-  transition: opacity 0.3s ease;
-}
-
-.leaflet-control-zoom {
-  display: none !important;
-}
-
-
-.modal-toggle2 {
-  display: flex;
-  justify-content: center;
-  padding: 10px 0;
-  background-color: #fff;
-}
-
-.toggle-handle2 {
-  width: 90px;
-  height: 5px;
-  background-color: #ddd;
-  border-radius: 3px;
-  margin-bottom: 10px;
-}
-
 .option-box {
   display: flex;
   flex-direction: column;
@@ -740,13 +670,13 @@
   font-family: 'Vazir', Tahoma, sans-serif;
   margin-top: 10px;
   font-size: 1.1rem;
-  ;
 }
 
 .option-text.selected {
   color: #1d80e3;
 }
 
+/* All Routes View */
 .all-routes-view {
   position: absolute;
   bottom: 0;
@@ -828,8 +758,9 @@
   justify-content: space-between;
   align-items: center;
   display: flex;
+  gap: 8px;
+  font-family: 'Vazir', Tahoma, sans-serif;
 }
-
 
 /* Alternative Routes View */
 .alternative-routes-view {
@@ -849,12 +780,10 @@
   gap: 15px;
   scrollbar-width: none;
   margin-top: 65px;
-  /* For Firefox */
 }
 
 .alternative-routes-container::-webkit-scrollbar {
   display: none;
-  /* For Chrome, Safari, and Opera */
 }
 
 .alternative-route-card {
@@ -915,12 +844,9 @@
   }
 }
 
-
 .rbt {
   margin-right: 15px;
 }
-
-/* Adjust the return button position in alternative routes view */
 
 .return-to-route-button5 {
   position: fixed;
@@ -933,21 +859,14 @@
   justify-content: space-between;
   align-items: center;
   display: flex;
+  gap: 8px;
+  font-family: 'Vazir', Tahoma, sans-serif;
 }
-
 
 @media (max-width: 400px) {
   .return-to-route-button2 {
     padding: 12px 10px;
   }
-}
-
-.map-container.dark-overlay {
-  filter: brightness(0.6);
-}
-
-.map-container.No-dark-overlay {
-  filter: brightness(1);
 }
 
 .custom-marker {
@@ -975,51 +894,29 @@
   pointer-events: auto;
 }
 
-
 .info-modal.closed .info-toggle {
   pointer-events: auto;
 }
 
-:root:lang(ur) .start-route-button7 {
-  width: 65%;
-
+/* English Language Specific Styles */
+:root:lang(en) .routing-page {
+  direction: ltr;
 }
 
-:root:lang(ar) .start-route-button7 {
-  width: 50%;
-
-}
-
-:root:lang(en) .return-to-route-button {
-  gap: 10px;
-
-}
-
-:root:lang(en) .return-to-route-button2 {
-  gap: 10px;
-
-}
-
-
-:root:lang(en) .return-to-route-button5 {
-  gap: 10px;
-
-}
-
-
-:root:lang(en) .start-route-button7 {
-  width: 60%;
-  gap: 0px;
-
-}
-
-/* Emergency button positioning for English */
 :root:lang(en) .emergency-button {
   right: auto;
   left: 20px;
 }
 
-/* Return to route button in all routes view for English */
+:root:lang(en) .gps-offline-notification {
+  left: auto;
+  right: 20px;
+}
+
+:root:lang(en) .step-instruction {
+  margin-top: 20px;
+}
+
 :root:lang(en) .return-to-route-button2 {
   left: auto;
   right: 10px;
@@ -1028,105 +925,51 @@
   max-height: 60px;
 }
 
-/* Return to route button in alternative routes view for English */
 :root:lang(en) .return-to-route-button5 {
   left: auto;
   right: 20px;
   flex-direction: row-reverse;
 }
 
-/* Adjust the icon position in the alternative routes return button for English */
 :root:lang(en) .return-to-route-button5 svg {
   margin-right: 0;
   margin-left: 10px;
 }
 
-:root:lang(en) .close-button svg {
-  transform: rotate(180deg);
-}
 
-/* Ensure the emergency button text and icon are properly aligned in English */
 :root:lang(en) .emergency-button {
   flex-direction: row-reverse;
 }
 
-/* Adjust spacing for English emergency button */
 :root:lang(en) .emergency-button svg {
   margin-left: 5px;
   margin-right: 0;
 }
 
-.guide-steps-container {
-  overflow-y: auto; /* Enable vertical scrolling */
-  height: 100%; /* Take full height of parent */
-  scroll-behavior: smooth; /* Smooth scrolling */
-  padding-right: 5px; /* Space for scrollbar */
+:root:lang(ur) .start-route-button7 {
+  width: 65%;
 }
 
-
-.map-container > * {
-  pointer-events: auto;
+:root:lang(ar) .start-route-button7 {
+  width: 50%;
 }
 
-.map-container {
-  pointer-events: auto;
+:root:lang(en) .return-to-route-button {
+  gap: 10px;
 }
 
-/* GPS Offline Notification */
-.gps-offline-notification {
-  position: relative;
-  bottom: 190px;
-  background-color: #EA4335;
-  opacity: 0.9;
-  padding: 15px;
-  padding-bottom: 700px;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: slideIn 0.3s ease-out;
-  width: 100%;
-  transition: opacity 0.3s ease, transform 0.3s ease;
+:root:lang(en) .return-to-route-button2 {
+  gap: 10px;
 }
 
-.gps-offline-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  width: 100%;
-  font-family: 'Vazir', Tahoma, sans-serif;
+:root:lang(en) .return-to-route-button5 {
+  gap: 10px;
 }
 
-.gps-offline-content svg {
-  width: 24px;
-  height: 24px;
-  color: white;
+:root:lang(en) .start-route-button7 {
+  width: 60%;
+  gap: 0px;
 }
-
-.gps-offline-message {
-  font-size: 1.0rem;
-  color:white;
-  line-height: 1.4;
-  font-weight: 600;
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateY(-20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.gps-offline-notification.hidden {
-  opacity: 0;
-  transform: translateY(-20px);
-  pointer-events: none;
-} 
 
 /* Image markers styles */
 .image-marker-container {
@@ -1196,4 +1039,13 @@
   50% {
     transform: rotateX(24deg) translateZ(6px) translateY(-4px);
   }
+}
+
+/* Loading State */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.2rem;
 }
