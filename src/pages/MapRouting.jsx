@@ -1561,22 +1561,6 @@ const MapRoutingPage = () => {
 
             {showMapStyleMenu && (
               <div className="map-style-menu-mpr">
-                <div
-                  className={`map-style-option ${selectedMapType === 'base' ? 'active' : ''}`}
-                  onClick={() => {
-                    setSelectedMapType('base');
-                    setShowMapStyleMenu(false);
-                  }}
-                  title={intl.formatMessage({ id: 'baseMap' })}
-                >
-                  <div className="map-preview-container">
-                    <img
-                      src={mode1}
-                      alt="Default map view"
-                      className="map-preview-image"
-                    />
-                  </div>
-                </div>
 
                 <div
                   className={`map-style-option ${selectedMapType === 'satellite' ? 'active' : ''}`}
@@ -1590,6 +1574,22 @@ const MapRoutingPage = () => {
                     <img
                       src={mode2}
                       alt="Satellite map view"
+                      className="map-preview-image"
+                    />
+                  </div>
+                </div>
+                <div
+                  className={`map-style-option ${selectedMapType === 'base' ? 'active' : ''}`}
+                  onClick={() => {
+                    setSelectedMapType('base');
+                    setShowMapStyleMenu(false);
+                  }}
+                  title={intl.formatMessage({ id: 'baseMap' })}
+                >
+                  <div className="map-preview-container">
+                    <img
+                      src={mode1}
+                      alt="Default map view"
                       className="map-preview-image"
                     />
                   </div>
