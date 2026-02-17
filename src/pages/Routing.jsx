@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { navigateToPreviousPage } from '../utils/navigationHistory';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
@@ -554,6 +554,7 @@ const RoutingPage = () => {
 
   const toRad = useCallback((deg) => (deg * Math.PI) / 180, []);
   const toDeg = useCallback((rad) => (rad * 180) / Math.PI, []);
+  const normalizeHeading = useCallback((value) => ((value % 360) + 360) % 360, []);
   const bearing = useCallback((from, to) => {
     const [lng1, lat1] = from;
     const [lng2, lat2] = to;
@@ -596,6 +597,42 @@ const RoutingPage = () => {
 
     return null;
   }, []);
+
+  const resolveStepHeading = useCallback((step, stepIndex) => {
+    if (Number.isFinite(step?.heading)) {
+      return normalizeHeading(step.heading);
+    }
+
+    if (Number.isFinite(step?.maneuver?.bearing_after)) {
+      return normalizeHeading(step.maneuver.bearing_after);
+    }
+
+    if (Array.isArray(step?.coordinates) && step.coordinates.length > 1 && Array.isArray(step.coordinates[0])) {
+      return bearing(step.coordinates[0], step.coordinates[step.coordinates.length - 1]);
+    }
+
+    const routeCoords = routeGeo?.geometry?.coordinates;
+    if (Array.isArray(routeCoords) && Number.isInteger(stepIndex) && stepIndex >= 0 && stepIndex < routeCoords.length - 1) {
+      return bearing(routeCoords[stepIndex], routeCoords[stepIndex + 1]);
+    }
+
+    return null;
+  }, [bearing, normalizeHeading, routeGeo]);
+
+  const stepBasedHeading = useMemo(() => {
+    if (!isRoutingActive || !Array.isArray(routeData?.steps)) {
+      return null;
+    }
+
+    const activeStep = routeData.steps[currentStep];
+    if (!activeStep) {
+      return null;
+    }
+
+    return resolveStepHeading(activeStep, currentStep);
+  }, [currentStep, isRoutingActive, resolveStepHeading, routeData?.steps]);
+
+  const effectiveHeading = Number.isFinite(stepBasedHeading) ? stepBasedHeading : userHeading;
 
   useEffect(() => {
     const coords = routeGeo?.geometry?.coordinates;
@@ -886,7 +923,7 @@ const RoutingPage = () => {
       ? Number.isFinite(drPosition?.lat) && Number.isFinite(drPosition?.lng)
       : Number.isFinite(userLocation?.[0]) && Number.isFinite(userLocation?.[1]);
 
-    if (!hasLocation || !Number.isFinite(userHeading)) {
+    if (!hasLocation || !Number.isFinite(effectiveHeading)) {
       return;
     }
 
@@ -904,7 +941,7 @@ const RoutingPage = () => {
         const data = await fetchLandmarkViewImage({
           language,
           geo,
-          heading: userHeading,
+          heading: effectiveHeading,
           floor: getSessionFloor(),
           fov: 90,
           maxDistance: 800,
@@ -948,7 +985,7 @@ const RoutingPage = () => {
       controller.abort();
       clearInterval(intervalId);
     };
-  }, [drPosition, isDrActive, isRoutingActive, language, userHeading, userLocation]);
+  }, [drPosition, effectiveHeading, isDrActive, isRoutingActive, language, userLocation]);
 
   const toggleMapModal = () => {
     setIsMapModalOpen(!isMapModalOpen);
@@ -1483,7 +1520,7 @@ const RoutingPage = () => {
           <RouteMap
             ref={routeMapRef}
             userLocation={userLocation}
-            userHeading={userHeading}
+            userHeading={effectiveHeading}
             routeSteps={routeData.steps}
             currentStep={currentStep}
             isInfoModalOpen={isInfoModalOpen}
