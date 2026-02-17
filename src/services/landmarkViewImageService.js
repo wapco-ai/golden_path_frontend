@@ -18,7 +18,7 @@ export const fetchLandmarkViewImage = async ({
   heading,
   floor = 0,
   fov = 90,
-  maxDistance = 80,
+  maxDistance = 800,
   signal
 } = {}) => {
   if (!geo || !Number.isFinite(geo.lat) || !Number.isFinite(geo.lng)) {
