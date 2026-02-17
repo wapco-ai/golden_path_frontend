@@ -632,6 +632,38 @@ const RoutingPage = () => {
     return resolveStepHeading(activeStep, currentStep);
   }, [currentStep, isRoutingActive, resolveStepHeading, routeData?.steps]);
 
+  const resolveStepGeo = useCallback((step, stepIndex) => {
+    if (Array.isArray(step?.coordinates) && Array.isArray(step.coordinates[0])) {
+      const [lng, lat] = step.coordinates[0];
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        return { lat, lng };
+      }
+    }
+
+    const routeCoords = routeGeo?.geometry?.coordinates;
+    if (Array.isArray(routeCoords) && Number.isInteger(stepIndex) && stepIndex >= 0 && stepIndex < routeCoords.length) {
+      const [lng, lat] = routeCoords[stepIndex] || [];
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        return { lat, lng };
+      }
+    }
+
+    return null;
+  }, [routeGeo]);
+
+  const stepBasedGeo = useMemo(() => {
+    if (!isRoutingActive || !Array.isArray(routeData?.steps)) {
+      return null;
+    }
+
+    const activeStep = routeData.steps[currentStep];
+    if (!activeStep) {
+      return null;
+    }
+
+    return resolveStepGeo(activeStep, currentStep);
+  }, [currentStep, isRoutingActive, resolveStepGeo, routeData?.steps]);
+
   const effectiveHeading = Number.isFinite(stepBasedHeading) ? stepBasedHeading : userHeading;
 
   useEffect(() => {
@@ -919,9 +951,16 @@ const RoutingPage = () => {
       return;
     }
 
-    const hasLocation = isDrActive
+    const fallbackGeo = isDrActive
       ? Number.isFinite(drPosition?.lat) && Number.isFinite(drPosition?.lng)
-      : Number.isFinite(userLocation?.[0]) && Number.isFinite(userLocation?.[1]);
+      ? { lat: drPosition.lat, lng: drPosition.lng }
+      : null
+      : Number.isFinite(userLocation?.[0]) && Number.isFinite(userLocation?.[1])
+        ? { lat: userLocation[0], lng: userLocation[1] }
+        : null;
+
+    const requestGeo = stepBasedGeo || fallbackGeo;
+    const hasLocation = Number.isFinite(requestGeo?.lat) && Number.isFinite(requestGeo?.lng);
 
     if (!hasLocation || !Number.isFinite(effectiveHeading)) {
       return;
@@ -934,13 +973,9 @@ const RoutingPage = () => {
       try {
         setIsLiveImageLoading(true);
 
-        const geo = isDrActive
-          ? { lat: drPosition.lat, lng: drPosition.lng }
-          : { lat: userLocation[0], lng: userLocation[1] };
-
         const data = await fetchLandmarkViewImage({
           language,
-          geo,
+          geo: requestGeo,
           heading: effectiveHeading,
           floor: getSessionFloor(),
           fov: 90,
@@ -985,7 +1020,7 @@ const RoutingPage = () => {
       controller.abort();
       clearInterval(intervalId);
     };
-  }, [drPosition, effectiveHeading, isDrActive, isRoutingActive, language, userLocation]);
+  }, [drPosition, effectiveHeading, isDrActive, isRoutingActive, language, stepBasedGeo, userLocation]);
 
   const toggleMapModal = () => {
     setIsMapModalOpen(!isMapModalOpen);
