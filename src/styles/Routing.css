@@ -167,9 +167,20 @@
   padding: 0px 10px 0px;
 }
 
+@media (max-width: 470px) {
+  .info-modal.closed {
+    bottom: -15px;
+  }
+}
+
+@media (max-width: 400px) {
+  .info-modal.closed {
+    bottom: 0;
+  }
+}
+
 .info-modal.closed {
   position: absolute;
-  bottom: 0;
   left: 0;
   right: 0;
   border: none;
