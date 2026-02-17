@@ -407,6 +407,7 @@
   height: 24px;
   margin-left: 0px;
   margin-right: 0px;
+  cursor: pointer;
 }
 
 .direction-icon-rng svg {

@@ -1073,6 +1073,15 @@ const RoutingPage = () => {
     setSelectedSoundOption(option);
   };
 
+  const handleDirectionIconClick = () => {
+    const stepCount = routeData?.steps?.length || 0;
+    if (stepCount <= 1) {
+      return;
+    }
+
+    setCurrentStep(prevStep => (prevStep + 1) % stepCount);
+  };
+
   const handleAllRoutesClick = () => {
     if (routeMapRef.current) {
       const map = routeMapRef.current.getMap();
@@ -1648,7 +1657,10 @@ const RoutingPage = () => {
                   {routeData.steps[currentStep] && (
                     <div className="guide-step active">
                       <p className="step-instruction">
-                        <span className="direction-icon-rng">
+                        <span
+                          className="direction-icon-rng"
+                          onClick={handleDirectionIconClick}
+                        >
                           {renderDirectionArrow(routeData.steps[currentStep].direction)}
                         </span>
                         <span className="instruction-text">
