@@ -12,6 +12,37 @@ const normalizeMediaUrl = (value) => {
   return `${appConfig.apiBaseUrl}${normalizedPath}`;
 };
 
+const resolveImageSource = (image) => {
+  if (!image) return null;
+
+  if (typeof image === 'string') {
+    return normalizeMediaUrl(image);
+  }
+
+  if (typeof image !== 'object') {
+    return null;
+  }
+
+  if (image.url) {
+    return normalizeMediaUrl(image.url) || image.url;
+  }
+
+  if (image.path) {
+    return normalizeMediaUrl(image.path);
+  }
+
+  if (typeof image.data === 'string' && image.data.trim()) {
+    const mime = image.mime || 'image/jpeg';
+    const normalizedBase64 = image.data
+      .trim()
+      .replace(/^data:[^;]+;base64,/, '');
+
+    return `data:${mime};base64,${normalizedBase64}`;
+  }
+
+  return null;
+};
+
 export const fetchLandmarkViewImage = async ({
   language = 'fa',
   geo,
@@ -51,12 +82,12 @@ export const fetchLandmarkViewImage = async ({
 
   const data = await response.json();
 
-  if (data?.image?.url) {
-    data.image.url = normalizeMediaUrl(data.image.url) || data.image.url;
-  }
-
-  if (data?.image?.path && !data?.image?.url) {
-    data.image.url = normalizeMediaUrl(data.image.path);
+  const imageUrl = resolveImageSource(data?.image);
+  if (imageUrl) {
+    data.image = {
+      ...(typeof data.image === 'object' ? data.image : {}),
+      url: imageUrl
+    };
   }
 
   return data;
