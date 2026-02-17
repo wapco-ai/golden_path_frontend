@@ -818,7 +818,7 @@ const MapBeginPage = () => {
     const loadLandmarkPlaces = async () => {
       const geoCoordinates = userLocation?.coordinates;
       const geo = Array.isArray(geoCoordinates) && geoCoordinates.length >= 2
-        ? { lat: geoCoordinates[1], lng: geoCoordinates[0] }
+        ? { lat: geoCoordinates[0], lng: geoCoordinates[1] }
         : null;
 
       const parseNumber = (value, fallback = 0) => {
