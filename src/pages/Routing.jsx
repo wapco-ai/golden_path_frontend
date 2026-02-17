@@ -633,10 +633,30 @@ const RoutingPage = () => {
   }, [currentStep, isRoutingActive, resolveStepHeading, routeData?.steps]);
 
   const resolveStepGeo = useCallback((step, stepIndex) => {
+    const pickNearestStepCoordinate = (first, second, referenceCoordinate) => {
+      if (!Array.isArray(referenceCoordinate)) {
+        return first;
+      }
+
+      const [refLng, refLat] = referenceCoordinate;
+      if (!Number.isFinite(refLat) || !Number.isFinite(refLng)) {
+        return first;
+      }
+
+      const firstDistance = Math.hypot(first.lat - refLat, first.lng - refLng);
+      const secondDistance = Math.hypot(second.lat - refLat, second.lng - refLng);
+
+      return secondDistance < firstDistance ? second : first;
+    };
+
     if (Array.isArray(step?.coordinates) && Array.isArray(step.coordinates[0])) {
-      const [lng, lat] = step.coordinates[0];
-      if (Number.isFinite(lat) && Number.isFinite(lng)) {
-        return { lat, lng };
+      const [first, second] = step.coordinates[0];
+      if (Number.isFinite(first) && Number.isFinite(second)) {
+        const coordinateAsLngLat = { lat: second, lng: first };
+        const coordinateAsLatLng = { lat: first, lng: second };
+        const referenceCoordinate = routeGeo?.geometry?.coordinates?.[stepIndex];
+
+        return pickNearestStepCoordinate(coordinateAsLngLat, coordinateAsLatLng, referenceCoordinate);
       }
     }
 
