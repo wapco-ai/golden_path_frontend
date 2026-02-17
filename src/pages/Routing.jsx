@@ -684,7 +684,68 @@ const RoutingPage = () => {
     return resolveStepGeo(activeStep, currentStep);
   }, [currentStep, isRoutingActive, resolveStepGeo, routeData?.steps]);
 
-  const effectiveHeading = Number.isFinite(stepBasedHeading) ? stepBasedHeading : userHeading;
+  const resolveNearestRouteSegmentHeading = useCallback((referenceGeo) => {
+    if (!Number.isFinite(referenceGeo?.lat) || !Number.isFinite(referenceGeo?.lng)) {
+      return null;
+    }
+
+    const routeCoords = routeGeo?.geometry?.coordinates;
+    if (!Array.isArray(routeCoords) || routeCoords.length < 2) {
+      return null;
+    }
+
+    const px = referenceGeo.lng;
+    const py = referenceGeo.lat;
+
+    let bestSegment = null;
+    let bestDistanceSq = Infinity;
+
+    for (let i = 0; i < routeCoords.length - 1; i++) {
+      const [x1, y1] = routeCoords[i] || [];
+      const [x2, y2] = routeCoords[i + 1] || [];
+
+      if (![x1, y1, x2, y2].every(Number.isFinite)) {
+        continue;
+      }
+
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const lenSq = dx * dx + dy * dy;
+
+      let t = 0;
+      if (lenSq > 0) {
+        t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+        t = Math.max(0, Math.min(1, t));
+      }
+
+      const projX = x1 + t * dx;
+      const projY = y1 + t * dy;
+      const distSq = (px - projX) ** 2 + (py - projY) ** 2;
+
+      if (distSq < bestDistanceSq) {
+        bestDistanceSq = distSq;
+        bestSegment = [routeCoords[i], routeCoords[i + 1]];
+      }
+    }
+
+    if (!bestSegment) {
+      return null;
+    }
+
+    return bearing(bestSegment[0], bestSegment[1]);
+  }, [bearing, routeGeo]);
+
+  const routeSegmentHeading = useMemo(() => {
+    if (!isRoutingActive) {
+      return null;
+    }
+
+    return resolveNearestRouteSegmentHeading(stepBasedGeo);
+  }, [isRoutingActive, resolveNearestRouteSegmentHeading, stepBasedGeo]);
+
+  const effectiveHeading = Number.isFinite(routeSegmentHeading)
+    ? routeSegmentHeading
+    : (Number.isFinite(stepBasedHeading) ? stepBasedHeading : userHeading);
 
   useEffect(() => {
     const coords = routeGeo?.geometry?.coordinates;
