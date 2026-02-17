@@ -48,7 +48,7 @@ export const fetchLandmarkViewImage = async ({
   geo,
   heading,
   floor = 0,
-  fov = 90,
+  fov = 60,
   maxDistance = 800,
   signal
 } = {}) => {
