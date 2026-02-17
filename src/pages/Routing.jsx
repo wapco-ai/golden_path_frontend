@@ -915,7 +915,7 @@ const RoutingPage = () => {
 
         setLiveLandmarkImage(data);
         setRecentLandmarkImages((prev) => {
-          if (!data?.imageMatched || !data?.image?.url || data?.poi_id == null) {
+          if (!data?.image?.url || data?.poi_id == null) {
             return prev;
           }
 
@@ -1428,7 +1428,7 @@ const RoutingPage = () => {
           </button>
         </div>
         <div className="image-placeholder">
-          {liveLandmarkImage?.imageMatched && liveLandmarkImage?.image?.url ? (
+          {liveLandmarkImage?.image?.url ? (
             <>
               <img
                 src={liveLandmarkImage.image.url}
