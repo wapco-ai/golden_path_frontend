@@ -632,38 +632,24 @@ const RoutingPage = () => {
     return resolveStepHeading(activeStep, currentStep);
   }, [currentStep, isRoutingActive, resolveStepHeading, routeData?.steps]);
 
-  const normalizeGeoPair = useCallback((pair) => {
-    if (!Array.isArray(pair) || pair.length < 2) {
-      return null;
-    }
-
-    const [lng, lat] = pair;
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      return null;
-    }
-
-    // Route and step coordinates are GeoJSON-like [lng, lat].
-    return { lat, lng };
-  }, []);
-
   const resolveStepGeo = useCallback((step, stepIndex) => {
     if (Array.isArray(step?.coordinates) && Array.isArray(step.coordinates[0])) {
-      const stepGeo = normalizeGeoPair(step.coordinates[0]);
-      if (stepGeo) {
-        return stepGeo;
+      const [lng, lat] = step.coordinates[0];
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        return { lat, lng };
       }
     }
 
     const routeCoords = routeGeo?.geometry?.coordinates;
     if (Array.isArray(routeCoords) && Number.isInteger(stepIndex) && stepIndex >= 0 && stepIndex < routeCoords.length) {
-      const routeGeoAtStep = normalizeGeoPair(routeCoords[stepIndex]);
-      if (routeGeoAtStep) {
-        return routeGeoAtStep;
+      const [lng, lat] = routeCoords[stepIndex] || [];
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        return { lat, lng };
       }
     }
 
     return null;
-  }, [normalizeGeoPair, routeGeo]);
+  }, [routeGeo]);
 
   const stepBasedGeo = useMemo(() => {
     if (!isRoutingActive || !Array.isArray(routeData?.steps)) {
@@ -992,7 +978,7 @@ const RoutingPage = () => {
           geo: requestGeo,
           heading: effectiveHeading,
           floor: getSessionFloor(),
-          fov: 90,
+          fov: 45,
           maxDistance: 800,
           signal: controller.signal
         });
