@@ -82,7 +82,6 @@ const RoutingPage = () => {
   } = useRouteStore();
   const language = useLangStore(state => state.language);
   const routingRequestRef = useRef({ key: null, promise: null });
-  const activeStepHeadingRef = useRef(null);
 
   const [originalViewState, setOriginalViewState] = useState({
     zoom: is3DView ? 17 : 18,
@@ -574,35 +573,6 @@ const RoutingPage = () => {
     return diff > 0 ? 'bend-left' : 'bend-right';
   };
 
-  const normalizeAngleDiff = useCallback((from, to) => {
-    if (!Number.isFinite(from) || !Number.isFinite(to)) {
-      return null;
-    }
-    return Math.abs((((to - from) % 360) + 540) % 360 - 180);
-  }, []);
-
-  const normalizeSignedAngleDiff = useCallback((from, to) => {
-    if (!Number.isFinite(from) || !Number.isFinite(to)) {
-      return null;
-    }
-    return (((to - from) % 360) + 540) % 360 - 180;
-  }, []);
-
-  const getStepTravelBearing = useCallback((step) => {
-    const coords = step?.coordinates;
-    if (!Array.isArray(coords) || coords.length < 2) {
-      return null;
-    }
-
-    const first = coords[0];
-    const last = coords[coords.length - 1];
-    if (!Array.isArray(first) || !Array.isArray(last)) {
-      return null;
-    }
-
-    return bearing(first, last);
-  }, [bearing]);
-
   const resolveLandmarkName = useCallback((step) => {
     const candidate =
       step?.landmark
@@ -908,18 +878,6 @@ const RoutingPage = () => {
 
   useEffect(() => {
     if (!isRoutingActive) {
-      activeStepHeadingRef.current = null;
-      return;
-    }
-
-    const currentStepData = routeData?.steps?.[currentStep] || null;
-    const nextStepData = routeData?.steps?.[currentStep + 1] || null;
-    activeStepHeadingRef.current =
-      getStepTravelBearing(currentStepData) ?? getStepTravelBearing(nextStepData) ?? null;
-  }, [currentStep, getStepTravelBearing, isRoutingActive, routeData]);
-
-  useEffect(() => {
-    if (!isRoutingActive) {
       setIsLiveImageLoading(false);
       return;
     }
@@ -928,8 +886,7 @@ const RoutingPage = () => {
       ? Number.isFinite(drPosition?.lat) && Number.isFinite(drPosition?.lng)
       : Number.isFinite(userLocation?.[0]) && Number.isFinite(userLocation?.[1]);
 
-    const stepHeading = activeStepHeadingRef.current;
-    if (!hasLocation || (!Number.isFinite(stepHeading) && !Number.isFinite(userHeading))) {
+    if (!hasLocation || !Number.isFinite(userHeading)) {
       return;
     }
 
@@ -944,25 +901,12 @@ const RoutingPage = () => {
           ? { lat: drPosition.lat, lng: drPosition.lng }
           : { lat: userLocation[0], lng: userLocation[1] };
 
-        // Required behavior: initial heading comes from first route step and is
-        // refreshed after each step finishes (via currentStep updates).
-        const baseStepHeading = activeStepHeadingRef.current;
-        const sensorCorrection = normalizeSignedAngleDiff(baseStepHeading, userHeading);
-        const effectiveHeading = Number.isFinite(baseStepHeading)
-          ? (baseStepHeading + (Number.isFinite(sensorCorrection) ? sensorCorrection * 0.35 : 0) + 360) % 360
-          : userHeading;
-
-        const headingDelta = normalizeAngleDiff(effectiveHeading, baseStepHeading);
-        const dynamicFov = headingDelta == null
-          ? 90
-          : Math.max(60, Math.min(110, 68 + headingDelta * 0.55));
-
         const data = await fetchLandmarkViewImage({
           language,
           geo,
-          heading: Math.round(effectiveHeading),
+          heading: userHeading,
           floor: getSessionFloor(),
-          fov: Math.round(dynamicFov),
+          fov: 90,
           maxDistance: 800,
           signal: controller.signal
         });
@@ -1004,18 +948,7 @@ const RoutingPage = () => {
       controller.abort();
       clearInterval(intervalId);
     };
-  }, [
-    currentStep,
-    drPosition,
-    isDrActive,
-    isRoutingActive,
-    language,
-    normalizeAngleDiff,
-    normalizeSignedAngleDiff,
-    routeData,
-    userHeading,
-    userLocation
-  ]);
+  }, [drPosition, isDrActive, isRoutingActive, language, userHeading, userLocation]);
 
   const toggleMapModal = () => {
     setIsMapModalOpen(!isMapModalOpen);
