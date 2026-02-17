@@ -173,7 +173,7 @@ const MapRoutingPage = () => {
     const loadLandmarkPlaces = async () => {
       const geoCoordinates = userLocation?.coordinates;
       const geo = Array.isArray(geoCoordinates) && geoCoordinates.length >= 2
-        ? { lat: geoCoordinates[0], lng: geoCoordinates[1] }
+        ? { lat: geoCoordinates[1], lng: geoCoordinates[0] }
         : null;
 
       const getFirstImage = (place) => {
@@ -864,7 +864,7 @@ const MapRoutingPage = () => {
     const controller = new AbortController();
     const geoCoordinates = userLocation?.coordinates;
     const geo = Array.isArray(geoCoordinates) && geoCoordinates.length >= 2
-      ? { lat: geoCoordinates[0], lng: geoCoordinates[1] }
+      ? { lat: geoCoordinates[1], lng: geoCoordinates[0] }
       : null;
 
     const timer = setTimeout(() => {
