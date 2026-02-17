@@ -15,6 +15,8 @@ import useLocaleDigits from '../utils/useLocaleDigits';
 import { toast } from 'react-toastify';
 import ttsService from '../services/ttsService';
 import { requestRouting } from '../services/routingService';
+import { fetchLandmarkViewImage } from '../services/landmarkViewImageService';
+import { getSessionFloor } from '../utils/sessionFloor';
 
 const RoutingPage = () => {
   const intl = useIntl();
@@ -60,6 +62,9 @@ const RoutingPage = () => {
   const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
   const [hasPreciseGps, setHasPreciseGps] = useState(false);
   const [userHeading, setUserHeading] = useState(null);
+  const [liveLandmarkImage, setLiveLandmarkImage] = useState(null);
+  const [isLiveImageLoading, setIsLiveImageLoading] = useState(false);
+  const [recentLandmarkImages, setRecentLandmarkImages] = useState([]);
   const navigate = useNavigate();
   const {
     origin,
@@ -124,6 +129,9 @@ const RoutingPage = () => {
       setIsDrActive(data.isActive);
       if (data.geoPosition) setDrPosition(data.geoPosition);
       if (data.geoPath) setDrGeoPath(data.geoPath);
+      if (Number.isFinite(data.heading)) {
+        setUserHeading(data.heading);
+      }
     });
     return remove;
   }, []);
@@ -819,6 +827,9 @@ const RoutingPage = () => {
           if (hasValidAccuracy) {
             setHasPreciseGps(true);
             setUserLocation([position.coords.latitude, position.coords.longitude]);
+            if (Number.isFinite(position.coords.heading)) {
+              setUserHeading(position.coords.heading);
+            }
           } else {
             setHasPreciseGps(false);
             const snappedToRoute = updateUserLocationToRouteStart();
@@ -864,6 +875,80 @@ const RoutingPage = () => {
 
     return () => clearInterval(timer);
   }, [currentStep, routeData, isRoutingActive]);
+
+  useEffect(() => {
+    if (!isRoutingActive) {
+      setIsLiveImageLoading(false);
+      return;
+    }
+
+    const hasLocation = isDrActive
+      ? Number.isFinite(drPosition?.lat) && Number.isFinite(drPosition?.lng)
+      : Number.isFinite(userLocation?.[0]) && Number.isFinite(userLocation?.[1]);
+
+    if (!hasLocation || !Number.isFinite(userHeading)) {
+      return;
+    }
+
+    let cancelled = false;
+    const controller = new AbortController();
+
+    const requestLandmarkImage = async () => {
+      try {
+        setIsLiveImageLoading(true);
+
+        const geo = isDrActive
+          ? { lat: drPosition.lat, lng: drPosition.lng }
+          : { lat: userLocation[0], lng: userLocation[1] };
+
+        const data = await fetchLandmarkViewImage({
+          language,
+          geo,
+          heading: userHeading,
+          floor: getSessionFloor(),
+          fov: 90,
+          maxDistance: 80,
+          signal: controller.signal
+        });
+
+        if (cancelled) return;
+
+        setLiveLandmarkImage(data);
+        setRecentLandmarkImages((prev) => {
+          if (!data?.imageMatched || !data?.image?.url || data?.poi_id == null) {
+            return prev;
+          }
+
+          const next = [{
+            poiId: data.poi_id,
+            title: data?.content?.title || '',
+            imageUrl: data.image.url,
+            distanceM: data.distance_m,
+            orientation: data.image.orientation || data.selected_orientation || null
+          }, ...prev.filter((item) => item.poiId !== data.poi_id)];
+
+          return next.slice(0, 5);
+        });
+      } catch (error) {
+        if (error?.name !== 'AbortError') {
+          console.warn('Failed to fetch live landmark image', error);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLiveImageLoading(false);
+        }
+      }
+    };
+
+    requestLandmarkImage();
+    const intervalId = setInterval(requestLandmarkImage, 4000);
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      clearInterval(intervalId);
+    };
+  }, [drPosition, isDrActive, isRoutingActive, language, userHeading, userLocation]);
 
   const toggleMapModal = () => {
     setIsMapModalOpen(!isMapModalOpen);
@@ -1343,7 +1428,38 @@ const RoutingPage = () => {
           </button>
         </div>
         <div className="image-placeholder">
+          {liveLandmarkImage?.imageMatched && liveLandmarkImage?.image?.url ? (
+            <>
+              <img
+                src={liveLandmarkImage.image.url}
+                alt={liveLandmarkImage?.content?.title || 'landmark'}
+                className="live-landmark-image"
+              />
+              <div className="live-landmark-overlay">
+                <div className="live-landmark-title">{liveLandmarkImage?.content?.title || '-'}</div>
+                {Number.isFinite(liveLandmarkImage?.distance_m) && (
+                  <div className="live-landmark-meta">
+                    {formatDigits(liveLandmarkImage.distance_m)} <FormattedMessage id="meters" />
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="image-placeholder-text">
+              {isLiveImageLoading ? <FormattedMessage id="liveLandmarkLoading" /> : <FormattedMessage id="liveLandmarkWaiting" />}
+            </div>
+          )}
         </div>
+        {recentLandmarkImages.length > 0 && (
+          <div className="recent-landmarks-strip">
+            {recentLandmarkImages.map((item) => (
+              <div className="recent-landmark-card" key={item.poiId}>
+                <img src={item.imageUrl} alt={item.title || `poi-${item.poiId}`} />
+                <span>{item.title || `#${item.poiId}`}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Map Section */}

@@ -384,5 +384,7 @@
   "satelliteMap": "سیٹلائیٹ نقشہ",
   "simpleMap": "سادہ نقشہ",
   "searchResults": "تلاش کے نتائج",
-  "noSearchResults": "\"{query}\" کے لیے کوئی نتیجہ نہیں ملا"
+  "noSearchResults": "\"{query}\" کے لیے کوئی نتیجہ نہیں ملا",
+  "liveLandmarkLoading": "لینڈمارک تصویر لوڈ ہو رہی ہے...",
+  "liveLandmarkWaiting": "اگلی لینڈمارک تصویر کا انتظار ہے..."
 }

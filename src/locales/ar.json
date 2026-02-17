@@ -384,5 +384,7 @@
   "satelliteMap": "خريطة الأقمار الصناعية",
   "simpleMap": "خريطة بسيطة",
   "searchResults": "نتائج البحث",
-  "noSearchResults": "لم يتم العثور على نتائج لـ \"{query}\""
+  "noSearchResults": "لم يتم العثور على نتائج لـ \"{query}\"",
+  "liveLandmarkLoading": "جارٍ تحميل صورة المعلم...",
+  "liveLandmarkWaiting": "بانتظار صورة المعلم التالية..."
 }

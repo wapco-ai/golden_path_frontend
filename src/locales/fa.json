@@ -384,5 +384,7 @@
   "satelliteMap": "تصویر ماهواره ای",
   "searchResults": "نتایج جستجو",
   "simpleMap": "نقشه ساده",
-  "noSearchResults": "نتیجه‌ای برای \"{query}\" یافت نشد"
+  "noSearchResults": "نتیجه‌ای برای \"{query}\" یافت نشد",
+  "liveLandmarkLoading": "در حال دریافت تصویر لندمارک...",
+  "liveLandmarkWaiting": "منتظر تصویر لندمارک بعدی..."
 }
