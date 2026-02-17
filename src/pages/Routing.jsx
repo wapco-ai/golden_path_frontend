@@ -943,7 +943,7 @@ const RoutingPage = () => {
           geo,
           heading: effectiveHeading,
           floor: getSessionFloor(),
-          fov: 90,
+          fov: 45,
           maxDistance: 800,
           signal: controller.signal
         });
