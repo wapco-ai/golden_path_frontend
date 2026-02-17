@@ -1089,7 +1089,7 @@ const RouteOverview = () => {
 
         <div className="route-instruction-container">
           <div className="route-instruction">
-            <p className="instruction-text">
+            <p className="instruction-text2">
               {routeData[currentSlide]?.instruction}
             </p>
             {/* {renderServiceIcons(routeData[currentSlide]?.services)} */}

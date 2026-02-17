@@ -154,7 +154,7 @@
   margin-top: 0px;
 }
 
-.instruction-text {
+.instruction-text2 {
   font-size: 18px;
   color: black;
   line-height: 1.6;
@@ -433,7 +433,7 @@
 
 /* Responsive Adjustments */
 @media (max-width: 400px) {
-  .instruction-text {
+  .instruction-text2 {
     font-size: 16px;
   }
 }

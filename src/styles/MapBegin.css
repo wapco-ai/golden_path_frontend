@@ -843,6 +843,7 @@ body.modal-open {
 .events-modal2 {
   position: absolute;
   inset: 0;
+  top: 120px;
   z-index: 999;
   background: #fff;
   border-radius: 0;
