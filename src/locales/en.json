@@ -384,5 +384,7 @@
   "simpleMap": "Simple Map",
   "satelliteMap": "Satellite Map",
   "searchResults": "Search Results",
-  "noSearchResults": "No results found for \"{query}\""
+  "noSearchResults": "No results found for \"{query}\"",
+  "liveLandmarkLoading": "Fetching landmark image...",
+  "liveLandmarkWaiting": "Waiting for the next landmark image..."
 }

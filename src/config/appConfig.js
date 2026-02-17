@@ -32,6 +32,7 @@ const defaultTileBaseUrl = inferHostedTileBaseUrl();
 const defaultRoutingRouteUrl = `${defaultApiBaseUrl}/api/v1/routing/route`;
 const defaultLanguagesUrl = `${defaultApiBaseUrl}/api/v1/languages`;
 const defaultLandmarkPlacesUrl = `${defaultApiBaseUrl}/api/v1/landmark-places`;
+const defaultLandmarkViewImageUrl = `${defaultApiBaseUrl}/api/v1/landmark-view-image`;
 const defaultGroupMetadataUrl = `${defaultApiBaseUrl}/api/v1/groups/metadata`;
 const defaultGroupSubGroupsUrl = `${defaultApiBaseUrl}/api/v1/groups/subgroups`;
 const defaultUserFeedbackUrl = `${defaultApiBaseUrl}/api/v1/feedbacks`;
@@ -52,6 +53,7 @@ const appConfig = {
   routingRouteUrl: (import.meta?.env?.VITE_ROUTING_ROUTE_URL?.trim() || defaultRoutingRouteUrl).replace(/\/$/, ''),
   languagesUrl: (import.meta?.env?.VITE_LANGUAGES_URL?.trim() || defaultLanguagesUrl).replace(/\/$/, ''),
   landmarkPlacesUrl: (import.meta?.env?.VITE_LANDMARK_PLACES_URL?.trim() || defaultLandmarkPlacesUrl).replace(/\/$/, ''),
+  landmarkViewImageUrl: (import.meta?.env?.VITE_LANDMARK_VIEW_IMAGE_URL?.trim() || defaultLandmarkViewImageUrl).replace(/\/$/, ''),
   groupMetadataUrl: (import.meta?.env?.VITE_GROUP_METADATA_URL?.trim() || defaultGroupMetadataUrl).replace(/\/$/, ''),
   groupSubGroupsUrl: (import.meta?.env?.VITE_GROUP_SUBGROUPS_URL?.trim() || defaultGroupSubGroupsUrl).replace(/\/$/, ''),
   userFeedbackUrl: (import.meta?.env?.VITE_USER_FEEDBACK_URL?.trim() || defaultUserFeedbackUrl).replace(/\/$/, ''),
