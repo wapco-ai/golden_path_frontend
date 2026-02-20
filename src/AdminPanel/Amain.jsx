@@ -1610,35 +1610,6 @@ const Amain = () => {
 
   const isImageUrl = (url = '') => /\.(avif|bmp|gif|ico|jpe?g|png|svg|webp)(\?|#|$)/i.test(url);
 
-  const isMediaBucketFile = (file = {}) => {
-    const bucket = String(file.bucket || '').toLowerCase();
-    const type = String(file.type || '').toLowerCase();
-    const fileType = String(file.fileType || '').toLowerCase();
-    return bucket === 'files' || type === 'file' || fileType === 'file';
-  };
-
-  const isVisualMedia = (file = {}) => {
-    if (isMediaBucketFile(file)) return false;
-
-    const type = String(file.type || '').toLowerCase();
-    const mime = String(file.mime || '').toLowerCase();
-    const fileType = String(file.fileType || '').toLowerCase();
-
-    return type.startsWith('image')
-      || type.startsWith('video')
-      || mime.startsWith('image/')
-      || mime.startsWith('video/')
-      || fileType === 'image'
-      || fileType === 'video'
-      || (
-        !type
-        && !mime
-        && !fileType
-        && typeof file.url === 'string'
-        && isImageUrl(file.url)
-      );
-  };
-
   const normalizeMediaAttachment = (file, defaultMime = 'application/octet-stream') => {
     if (!file) return null;
 
@@ -1650,14 +1621,17 @@ const Amain = () => {
       || defaultMime;
 
     const resolvedUrl = buildMediaUrl(file, mimeType) || file.url || '';
+    const shouldCoerceToImage = typeof resolvedUrl === 'string' && isImageUrl(resolvedUrl)
+      && !String(mimeType).startsWith('image/');
+    const normalizedMime = shouldCoerceToImage ? 'image/jpeg' : mimeType;
 
     return {
       id: file.id || `attachment-${Math.random().toString(36).slice(2)}`,
       name: file.name || 'فایل پیوست',
       orientation: file.orientation ?? null,
       ...file,
-      type: file.type || mimeType,
-      mime: file.mime || mimeType,
+      type: normalizedMime,
+      mime: normalizedMime,
       url: resolvedUrl
     };
   };
@@ -3392,7 +3366,9 @@ const Amain = () => {
         file?.url
         && typeof file.url === 'string'
         && file.url.trim()
-        && isVisualMedia(file)
+        && (
+          (file.type && file.type.startsWith('image')) || (file.mime && file.mime.startsWith('image'))
+        )
       );
       const audioAttachments = dedupedAttachments.filter((file) =>
         (file.type && file.type.startsWith('audio')) || (file.mime && file.mime.startsWith('audio'))
@@ -3409,7 +3385,11 @@ const Amain = () => {
       const normalizedPrimary = normalizedPrimaryCandidate
         && typeof normalizedPrimaryCandidate.url === 'string'
         && normalizedPrimaryCandidate.url.trim()
-        && isVisualMedia(normalizedPrimaryCandidate)
+        && (
+          (normalizedPrimaryCandidate.type && normalizedPrimaryCandidate.type.startsWith('image/'))
+          || (normalizedPrimaryCandidate.mime && normalizedPrimaryCandidate.mime.startsWith('image/'))
+          || isImageUrl(normalizedPrimaryCandidate.url)
+        )
         ? normalizedPrimaryCandidate
         : imageAttachments[0] || null;
 
