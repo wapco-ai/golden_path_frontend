@@ -1636,6 +1636,19 @@ const Amain = () => {
     };
   };
 
+
+  const getMediaIdentityKey = (file) => {
+    if (!file) return '';
+
+    const url = typeof file.url === 'string' ? file.url.trim() : '';
+    const path = typeof file.path === 'string' ? file.path.trim() : '';
+
+    if (url) return url;
+    if (path) return path;
+
+    return String(file.id || '').trim();
+  };
+
   const normalizePrimaryMedia = (primaryMedia, existingImages = []) => {
     if (!primaryMedia) {
       return { primary: null, images: existingImages };
@@ -1651,7 +1664,11 @@ const Amain = () => {
         orientation: primaryMedia.orientation ?? null
       };
 
-      const images = existingImages.some(img => img.id === normalizedPrimary.id)
+      const primaryKey = getMediaIdentityKey(normalizedPrimary);
+      const images = existingImages.some((img) => {
+        const imageKey = getMediaIdentityKey(img);
+        return imageKey && primaryKey && imageKey === primaryKey;
+      })
         ? existingImages
         : [normalizedPrimary, ...existingImages];
 
@@ -1672,7 +1689,11 @@ const Amain = () => {
       isPrimary: true
     };
 
-    const images = existingImages.some(img => img.id === normalizedPrimary.id)
+    const primaryKey = getMediaIdentityKey(normalizedPrimary);
+    const images = existingImages.some((img) => {
+      const imageKey = getMediaIdentityKey(img);
+      return imageKey && primaryKey && imageKey === primaryKey;
+    })
       ? existingImages
       : [normalizedPrimary, ...existingImages];
 
