@@ -37,7 +37,7 @@ import {
 } from '../config/vectorTiles';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
 import { createDoor, deleteDoor, getDoorInfo, moveDoor, updateDoorInfo } from '../services/adminDoorsService';
-import { deleteArea, getAreaInfo, moveArea, updateAreaInfo } from '../services/adminAreasService';
+import { deleteArea, getAreaInfo, listAreas, moveArea, updateAreaInfo } from '../services/adminAreasService';
 import { convertLngLatToUtm32640 } from '../utils/utm';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import appConfig from '../config/appConfig';
@@ -72,6 +72,9 @@ const SELECTED_EDITABLE_FEATURE_SOURCE_ID = 'selected-editable-feature-source';
 const SELECTED_EDITABLE_FEATURE_LAYER_ID = 'selected-editable-feature-layer';
 const SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID = 'selected-editable-feature-line';
 const SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID = 'selected-editable-feature-fill';
+const DOOR_ROUTING_PREVIEW_SOURCE_ID = 'door-routing-preview-source';
+const DOOR_ROUTING_PREVIEW_LINE_LAYER_ID = 'door-routing-preview-line-layer';
+const DOOR_ROUTING_PREVIEW_ARROW_LAYER_ID = 'door-routing-preview-arrow-layer';
 const VAN_DRAW_SOURCE_ID = 'van-draw-source';
 const VAN_DRAW_LINE_LAYER_ID = 'van-draw-line-layer';
 const VAN_DRAW_POINT_LAYER_ID = 'van-draw-point-layer';
@@ -1321,6 +1324,11 @@ const Amain = () => {
   const [isLoadingSubGroups, setIsLoadingSubGroups] = useState(false);
   const [selectedTransport, setSelectedTransport] = useState([]);
   const [selectedGenderAccess, setSelectedGenderAccess] = useState([]);
+  const [routingBidirectional, setRoutingBidirectional] = useState(true);
+  const [routingFromArea, setRoutingFromArea] = useState('');
+  const [routingToArea, setRoutingToArea] = useState('');
+  const [routingAreaOptions, setRoutingAreaOptions] = useState([]);
+  const [isLoadingRoutingAreas, setIsLoadingRoutingAreas] = useState(false);
   const [timeRestrictions, setTimeRestrictions] = useState([]);
   const [prayerTimeRestrictions, setPrayerTimeRestrictions] = useState([]);
   const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
@@ -4971,6 +4979,10 @@ const Amain = () => {
     setSubGroupOptions([]);
     setSelectedTransport([]);
     setSelectedGenderAccess([]);
+    setRoutingBidirectional(true);
+    setRoutingFromArea('');
+    setRoutingToArea('');
+    setRoutingAreaOptions([]);
     setTimeRestrictions([]);
     setPrayerTimeRestrictions([]);
 
@@ -5607,6 +5619,183 @@ const Amain = () => {
       map.off('style.load', handleReady);
     };
   }, [map, activeMenu, selectedEditableFeature]);
+
+
+  useEffect(() => {
+    if (!map || activeMenu !== 'mapmanage') return undefined;
+
+    const ensureRoutingPreviewLayers = () => {
+      if (!map.getSource(DOOR_ROUTING_PREVIEW_SOURCE_ID)) {
+        map.addSource(DOOR_ROUTING_PREVIEW_SOURCE_ID, {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+      }
+
+      if (!map.getLayer(DOOR_ROUTING_PREVIEW_LINE_LAYER_ID)) {
+        map.addLayer({
+          id: DOOR_ROUTING_PREVIEW_LINE_LAYER_ID,
+          type: 'line',
+          source: DOOR_ROUTING_PREVIEW_SOURCE_ID,
+          filter: ['==', ['geometry-type'], 'LineString'],
+          layout: {
+            'line-cap': 'round',
+            'line-join': 'round'
+          },
+          paint: {
+            'line-color': '#ef4444',
+            'line-width': 3.5,
+            'line-opacity': 0.9
+          }
+        });
+      }
+
+      if (!map.getLayer(DOOR_ROUTING_PREVIEW_ARROW_LAYER_ID)) {
+        map.addLayer({
+          id: DOOR_ROUTING_PREVIEW_ARROW_LAYER_ID,
+          type: 'symbol',
+          source: DOOR_ROUTING_PREVIEW_SOURCE_ID,
+          filter: ['==', ['geometry-type'], 'Point'],
+          layout: {
+            'text-field': '➤',
+            'text-size': 18,
+            'text-rotate': ['get', 'bearing'],
+            'text-keep-upright': false,
+            'text-allow-overlap': true,
+            'text-ignore-placement': true
+          },
+          paint: {
+            'text-color': '#ef4444',
+            'text-halo-color': '#ffffff',
+            'text-halo-width': 1
+          }
+        });
+      }
+
+      map.moveLayer(DOOR_ROUTING_PREVIEW_LINE_LAYER_ID);
+      map.moveLayer(DOOR_ROUTING_PREVIEW_ARROW_LAYER_ID);
+    };
+
+    if (map.isStyleLoaded()) {
+      ensureRoutingPreviewLayers();
+      return undefined;
+    }
+
+    map.once('style.load', ensureRoutingPreviewLayers);
+    return () => map.off('style.load', ensureRoutingPreviewLayers);
+  }, [map, activeMenu]);
+
+  useEffect(() => {
+    if (!map || activeMenu !== 'mapmanage') return;
+
+    const source = map.getSource(DOOR_ROUTING_PREVIEW_SOURCE_ID);
+    if (!source || typeof source.setData !== 'function') return;
+
+    const shouldPreview = isAddPlaceModalOpen
+      && !isAreaLayerActive
+      && !routingBidirectional
+      && routingFromArea
+      && routingToArea
+      && routingFromArea !== routingToArea;
+
+    const emptyCollection = { type: 'FeatureCollection', features: [] };
+
+    if (!shouldPreview) {
+      source.setData(emptyCollection);
+      return;
+    }
+
+    const selectedFeature = selectedEditableFeature?.features?.[0];
+    const doorCoords = selectedFeature?.geometry?.type === 'Point'
+      ? selectedFeature.geometry.coordinates
+      : null;
+
+    if (!doorCoords || !Array.isArray(doorCoords) || doorCoords.length < 2) {
+      source.setData(emptyCollection);
+      return;
+    }
+
+    const getAreaCenter = (targetAreaId) => {
+      const numericTarget = Number(targetAreaId);
+      const renderedAreas = map.queryRenderedFeatures(undefined, { layers: ['areas-outline'] });
+      const match = renderedAreas.find((feature) => {
+        const props = feature?.properties || {};
+        const areaId = props.id ?? props.area_id ?? props.areaId;
+        return Number(areaId) === numericTarget;
+      });
+
+      if (!match?.geometry) return null;
+
+      if (match.geometry.type === 'Polygon' || match.geometry.type === 'MultiPolygon') {
+        const center = turfCentroid(match).geometry?.coordinates;
+        return Array.isArray(center) ? center : null;
+      }
+
+      if (match.geometry.type === 'Point') {
+        return match.geometry.coordinates;
+      }
+
+      return null;
+    };
+
+    const fromCenter = getAreaCenter(routingFromArea);
+    const toCenter = getAreaCenter(routingToArea);
+    if (!fromCenter || !toCenter) {
+      source.setData(emptyCollection);
+      return;
+    }
+
+    const directionVector = [toCenter[0] - fromCenter[0], toCenter[1] - fromCenter[1]];
+    const vectorLength = Math.hypot(directionVector[0], directionVector[1]);
+    if (!vectorLength) {
+      source.setData(emptyCollection);
+      return;
+    }
+
+    const lineLength = 0.00008;
+    const unitVector = [directionVector[0] / vectorLength, directionVector[1] / vectorLength];
+    const start = [
+      doorCoords[0] - (unitVector[0] * lineLength) / 2,
+      doorCoords[1] - (unitVector[1] * lineLength) / 2
+    ];
+    const end = [
+      doorCoords[0] + (unitVector[0] * lineLength) / 2,
+      doorCoords[1] + (unitVector[1] * lineLength) / 2
+    ];
+
+    const bearing = (Math.atan2(unitVector[1], unitVector[0]) * 180) / Math.PI;
+
+    source.setData({
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: [start, end]
+          },
+          properties: {}
+        },
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: end
+          },
+          properties: { bearing }
+        }
+      ]
+    });
+  }, [
+    map,
+    activeMenu,
+    isAddPlaceModalOpen,
+    isAreaLayerActive,
+    routingBidirectional,
+    routingFromArea,
+    routingToArea,
+    selectedEditableFeature
+  ]);
 
   const buildTempAreaGeometry = useCallback((vertices = []) => {
     if (!Array.isArray(vertices) || !vertices.length) return null;
@@ -7827,6 +8016,11 @@ const Amain = () => {
 
   const buildDoorInfoPayload = () => {
     const selectedSubGroup = subGroupOptions.find((subGroup) => subGroup.value === placeSubcategory);
+    const normalizeRoutingAreaId = (value) => {
+      if (value === null || value === undefined || value === '') return null;
+      const numericValue = Number(value);
+      return Number.isFinite(numericValue) ? numericValue : null;
+    };
 
     return {
       basic_info: {
@@ -7850,6 +8044,13 @@ const Amain = () => {
         place_function: placeFunction || null,
         is_covered: typeof isPlaceCovered === 'boolean' ? isPlaceCovered : null
       },
+      ...(!isAreaLayerActive ? {
+        routing: {
+          bidirectional: routingBidirectional,
+          from_area: routingBidirectional ? null : normalizeRoutingAreaId(routingFromArea),
+          to_area: routingBidirectional ? null : normalizeRoutingAreaId(routingToArea)
+        }
+      } : {}),
       time_restrictions: buildTimeRestrictionsPayload(),
       prayer_restrictions: buildPrayerRestrictionsPayload(),
       notes: additionalNotes
@@ -7927,10 +8128,61 @@ const Amain = () => {
     }
   };
 
+
+  const normalizeRoutingAreaOption = useCallback((area) => {
+    if (area === null || area === undefined) return null;
+
+    if (typeof area === 'number' || typeof area === 'string') {
+      const value = String(area);
+      return { value, label: `محدوده ${value}` };
+    }
+
+    const areaId = area?.id ?? area?.area_id ?? area?.areaId ?? area?.value;
+    if (areaId === null || areaId === undefined || areaId === '') return null;
+
+    const titleObject = area?.title;
+    const localizedTitle = (titleObject && typeof titleObject === 'object')
+      ? (titleObject?.fa || titleObject?.en || titleObject?.ar || titleObject?.ur)
+      : titleObject;
+
+    const label = localizedTitle
+      || area?.name
+      || area?.label
+      || `محدوده ${areaId}`;
+
+    return {
+      value: String(areaId),
+      label: `${label} (ID: ${areaId})`
+    };
+  }, []);
+
+  const loadRoutingAreaOptions = useCallback(async () => {
+    if (isLoadingRoutingAreas) return;
+
+    try {
+      setIsLoadingRoutingAreas(true);
+      const response = await listAreas({ per_page: 500, page: 1, lang: language });
+      const areaRecords = Array.isArray(response?.data)
+        ? response.data
+        : Array.isArray(response)
+          ? response
+          : [];
+      const normalized = areaRecords
+        .map(normalizeRoutingAreaOption)
+        .filter(Boolean);
+      setRoutingAreaOptions(normalized);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'دریافت لیست محدوده‌ها ناموفق بود'));
+    } finally {
+      setIsLoadingRoutingAreas(false);
+    }
+  }, [isLoadingRoutingAreas, language, normalizeRoutingAreaOption]);
+
   function fillDoorInfoForm(doorInfo = {}) {
     const basicInfo = doorInfo?.basic_info || {};
     const operational = doorInfo?.operational || {};
     const grouping = doorInfo?.grouping || {};
+    const routing = doorInfo?.routing || {};
 
     setPlaceName(basicInfo?.title?.fa || '');
     setLanguageTitles({
@@ -7949,6 +8201,27 @@ const Amain = () => {
     setSelectedGenderAccess(Array.isArray(operational?.gender_access)
       ? operational.gender_access.map(normalizeGenderValue).filter(Boolean)
       : []);
+
+    const bidirectional = typeof routing?.bidirectional === 'boolean' ? routing.bidirectional : true;
+    setRoutingBidirectional(bidirectional);
+    setRoutingFromArea(routing?.from_area !== null && routing?.from_area !== undefined ? String(routing.from_area) : '');
+    setRoutingToArea(routing?.to_area !== null && routing?.to_area !== undefined ? String(routing.to_area) : '');
+
+    const routingOptions = [
+      ...(Array.isArray(routing?.areas) ? routing.areas : []),
+      ...(Array.isArray(routing?.available_areas) ? routing.available_areas : []),
+      ...(Array.isArray(doorInfo?.adjacent_areas) ? doorInfo.adjacent_areas : []),
+      routing?.from_area,
+      routing?.to_area
+    ]
+      .map(normalizeRoutingAreaOption)
+      .filter(Boolean)
+      .filter((option, index, array) => array.findIndex((item) => item.value === option.value) === index);
+
+    if (routingOptions.length) {
+      setRoutingAreaOptions(routingOptions);
+    }
+
     setTimeRestrictions(mapApiTimeRestrictionsToForm(doorInfo?.time_restrictions));
     setPrayerTimeRestrictionsList(mapApiPrayerRestrictionsToForm(doorInfo?.prayer_restrictions));
     setAdditionalNotes(doorInfo?.notes || '');
@@ -7959,6 +8232,7 @@ const Amain = () => {
     setLastCreatedAccessPointId(accessPointId || null);
     setLastCreatedAreaId(null);
     setIsEditingDoorInfo(isEditMode);
+    setRoutingAreaOptions([]);
     setIsAddPlaceModalOpen(true);
     setCurrentStep(1);
 
@@ -7968,6 +8242,9 @@ const Amain = () => {
       setIsLoadingDoorInfo(true);
       const info = await getDoorInfo(doorId);
       fillDoorInfoForm(info);
+      if (!Array.isArray(info?.routing?.areas) && !Array.isArray(info?.routing?.available_areas)) {
+        await loadRoutingAreaOptions();
+      }
     } catch (error) {
       toast.error(error?.message || 'دریافت اطلاعات درب ناموفق بود');
     } finally {
@@ -7980,6 +8257,7 @@ const Amain = () => {
     setLastCreatedDoorId(null);
     setLastCreatedAccessPointId(null);
     setIsEditingDoorInfo(isEditMode);
+    setRoutingAreaOptions([]);
     setIsAddPlaceModalOpen(true);
     setCurrentStep(1);
 
@@ -7989,6 +8267,9 @@ const Amain = () => {
       setIsLoadingAreaInfo(true);
       const info = await getAreaInfo(areaId, { language });
       fillDoorInfoForm(info);
+      setRoutingBidirectional(true);
+      setRoutingFromArea('');
+      setRoutingToArea('');
     } catch (error) {
       toast.error(error?.message || 'دریافت اطلاعات محدوده ناموفق بود');
     } finally {
@@ -12375,6 +12656,7 @@ const Amain = () => {
                     </div>
 
                     {/* Gender Access Section - Multi-select */}
+
                     <div className="form-group">
                       <label className="form-label">جنسیت تردد زائرین محترم از این مکان</label>
                       <div className="radio-options-grid3"> {/* Keep original class */}
@@ -12384,10 +12666,8 @@ const Amain = () => {
                             className={`radio-option3 ${selectedGenderAccess.includes(genderOption.value) ? 'selected' : ''}`}
                             onClick={() => {
                               if (selectedGenderAccess.includes(genderOption.value)) {
-                                // setSelectedGenderAccess(selectedGenderAccess.filter(g => g !== genderOption.value));
                                 setSelectedGenderAccess([]);
                               } else {
-                                // setSelectedGenderAccess([...selectedGenderAccess, genderOption.value]);
                                 setSelectedGenderAccess([genderOption.value]);
                               }
                             }}
@@ -12411,6 +12691,78 @@ const Amain = () => {
                         ))}
                       </div>
                     </div>
+
+                    {!isAreaLayerActive && (
+                      <div className="form-group routing-direction-section">
+                        <label className="form-label">جهت عبور</label>
+                        <div className="routing-direction-switches">
+                          <button
+                            type="button"
+                            className={`routing-direction-btn ${routingBidirectional ? 'active' : ''}`}
+                            onClick={() => setRoutingBidirectional(true)}
+                          >
+                            دوطرفه
+                          </button>
+                          <button
+                            type="button"
+                            className={`routing-direction-btn ${!routingBidirectional ? 'active' : ''}`}
+                            onClick={() => {
+                              setRoutingBidirectional(false);
+                              if (!routingAreaOptions.length) {
+                                loadRoutingAreaOptions();
+                              }
+                            }}
+                          >
+                            یکطرفه
+                          </button>
+                        </div>
+
+                        {!routingBidirectional && (
+                          <>
+                            <div className="routing-area-grid">
+                              <div className="routing-field">
+                                <label>محدوده مبدا (from_area)</label>
+                                <input
+                                  list="routing-areas-list"
+                                  className="form-input"
+                                  placeholder={isLoadingRoutingAreas ? 'در حال بارگذاری محدوده‌ها...' : 'انتخاب مبدا'}
+                                  value={routingFromArea}
+                                  onChange={(event) => setRoutingFromArea(event.target.value)}
+                                  disabled={isLoadingRoutingAreas}
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                className="routing-swap-btn"
+                                onClick={() => {
+                                  setRoutingFromArea(routingToArea);
+                                  setRoutingToArea(routingFromArea);
+                                }}
+                                title="جابجایی جهت"
+                              >
+                                ↔
+                              </button>
+                              <div className="routing-field">
+                                <label>محدوده مقصد (to_area)</label>
+                                <input
+                                  list="routing-areas-list"
+                                  className="form-input"
+                                  placeholder={isLoadingRoutingAreas ? 'در حال بارگذاری محدوده‌ها...' : 'انتخاب مقصد'}
+                                  value={routingToArea}
+                                  onChange={(event) => setRoutingToArea(event.target.value)}
+                                  disabled={isLoadingRoutingAreas}
+                                />
+                              </div>
+                            </div>
+                            <datalist id="routing-areas-list">
+                              {routingAreaOptions.map((option) => (
+                                <option key={option.value} value={option.value} label={option.label} />
+                              ))}
+                            </datalist>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
