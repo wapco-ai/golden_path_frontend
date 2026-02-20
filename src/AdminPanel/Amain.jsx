@@ -1599,6 +1599,7 @@ const Amain = () => {
 
     if (typeof media === 'object') {
       if (media.url) return media.url;
+      if (media.path) return media.path;
       if (media.data) {
         return `data:${media.mime || defaultMime};base64,${media.data}`;
       }
@@ -3355,7 +3356,12 @@ const Amain = () => {
       });
 
       const imageAttachments = dedupedAttachments.filter((file) =>
-        (file.type && file.type.startsWith('image')) || (file.mime && file.mime.startsWith('image'))
+        file?.url
+        && typeof file.url === 'string'
+        && file.url.trim()
+        && (
+          (file.type && file.type.startsWith('image')) || (file.mime && file.mime.startsWith('image'))
+        )
       );
       const audioAttachments = dedupedAttachments.filter((file) =>
         (file.type && file.type.startsWith('audio')) || (file.mime && file.mime.startsWith('audio'))
