@@ -11,6 +11,7 @@ import appConfig from '../../config/appConfig';
 import { useLangStore } from '../../store/langStore';
 import { createHaramVectorTileConfig } from '../../config/vectorTiles';
 import voyagerBaseMapStyle from '../../services/osmMapStyle';
+import { MBTILES_SATELLITE_STYLE } from '../../services/mbtilesMapStyle';
 
 import { forwardRef, useImperativeHandle } from 'react';
 
@@ -47,8 +48,8 @@ const RouteMap = forwardRef(({
   const isRtl = ["fa", "ar", "ur"].includes(language);
   const baseMapStyle = voyagerBaseMapStyle;
   const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
-  const mapStyle = offlineMapStyle;
-  const mapRenderKey = `${styleKey}-${isRtl ? 'rtl' : 'en'}-voyager-only`;
+  const mapStyle = MBTILES_SATELLITE_STYLE;
+  const mapRenderKey = `mbtiles-satellite-${styleKey}-${isRtl ? 'rtl' : 'en'}`;
 
   const center = isValidUserLocation
     ? userLocation
