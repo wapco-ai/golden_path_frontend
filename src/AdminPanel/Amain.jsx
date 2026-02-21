@@ -5748,9 +5748,6 @@ const Amain = () => {
     }
 
     const lineLength = 0.00018;
-    const arrowHeadLength = lineLength * 0.24;
-    const arrowHeadAngleRad = (28 * Math.PI) / 180;
-
     const unitVector = [directionVector[0] / vectorLength, directionVector[1] / vectorLength];
     const start = [doorCoords[0], doorCoords[1]];
     const end = [
@@ -5758,27 +5755,9 @@ const Amain = () => {
       doorCoords[1] + (unitVector[1] * lineLength)
     ];
 
-    const rotateVector = (vector, angleRad) => {
-      const cos = Math.cos(angleRad);
-      const sin = Math.sin(angleRad);
-      return [
-        (vector[0] * cos) - (vector[1] * sin),
-        (vector[0] * sin) + (vector[1] * cos)
-      ];
-    };
-
-    const backwardUnit = [-unitVector[0], -unitVector[1]];
-    const leftWingVector = rotateVector(backwardUnit, arrowHeadAngleRad);
-    const rightWingVector = rotateVector(backwardUnit, -arrowHeadAngleRad);
-
-    const leftWingEnd = [
-      end[0] + (leftWingVector[0] * arrowHeadLength),
-      end[1] + (leftWingVector[1] * arrowHeadLength)
-    ];
-
     const rightWingEnd = [
-      end[0] + (rightWingVector[0] * arrowHeadLength),
-      end[1] + (rightWingVector[1] * arrowHeadLength)
+      end[0] + (rightWingUnit[0] * arrowHeadLength),
+      end[1] + (rightWingUnit[1] * arrowHeadLength)
     ];
 
     source.setData({
