@@ -904,9 +904,12 @@ const RoutingPage = () => {
         : s.instruction || '';
       const landmarkName = resolveLandmarkName(s);
       const roundedDistance = Math.round(distance);
-      const instruction = landmarkName && roundedDistance > 0
-        ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: landmarkName, distance: roundedDistance })}`
-        : base;
+      const hasPrebuiltInstruction = Boolean(!s.type && typeof s.instruction === 'string' && s.instruction.trim());
+      const instruction = hasPrebuiltInstruction
+        ? s.instruction
+        : landmarkName && roundedDistance > 0
+          ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: landmarkName, distance: roundedDistance })}`
+          : base;
       let direction = 'arrived';
       if (idx < coords.length - 2) {
         const b1 = bearing(coords[idx], coords[idx + 1]);
@@ -916,6 +919,9 @@ const RoutingPage = () => {
       const durationSeconds = Math.max(1, Math.round(distance));
       return {
         id: idx + 1,
+        type: s.type,
+        title: s.title,
+        name: stepName,
         instruction,
         distance: `${Math.round(distance)} ${intl.formatMessage({ id: 'meters' })}`,
         time: formatDurationFromSeconds(durationSeconds),
@@ -965,17 +971,21 @@ const RoutingPage = () => {
           const [lng2, lat2] = altCoords[i];
           dist = Math.hypot(lng2 - lng1, lat2 - lat1) * 100000;
         }
+        const stepName = st.name || st.title;
         const base = st.type
           ? intl.formatMessage(
             { id: st.type },
-            { name: st.name || st.title, title: st.title, num: i + 1 }
+            { name: stepName, title: st.title, num: i + 1 }
           )
           : st.instruction || '';
         const landmarkName = resolveLandmarkName(st);
         const roundedDist = Math.round(dist);
-        const instruction = landmarkName && roundedDist > 0
-          ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: landmarkName, distance: roundedDist })}`
-          : base;
+        const hasPrebuiltInstruction = Boolean(!st.type && typeof st.instruction === 'string' && st.instruction.trim());
+        const instruction = hasPrebuiltInstruction
+          ? st.instruction
+          : landmarkName && roundedDist > 0
+            ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: landmarkName, distance: roundedDist })}`
+            : base;
         let direction = 'arrived';
         if (i < altCoords.length - 2) {
           const b1 = bearing(altCoords[i], altCoords[i + 1]);
@@ -985,6 +995,9 @@ const RoutingPage = () => {
         const durationSeconds = Math.max(1, Math.round(dist));
         return {
           id: i + 1,
+          type: st.type,
+          title: st.title,
+          name: stepName,
           instruction,
           distance: `${Math.round(dist)} ${intl.formatMessage({ id: 'meters' })}`,
           time: formatDurationFromSeconds(durationSeconds),
