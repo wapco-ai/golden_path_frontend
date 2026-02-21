@@ -489,6 +489,25 @@ const RoutingPage = () => {
     return `${minutes} ${intl.formatMessage({ id: 'minutesUnit' })} ${seconds} ${intl.formatMessage({ id: 'secondsUnit' })}`;
   }, [intl]);
 
+  const buildStepInstruction = useCallback((baseInstruction, landmarkName, roundedDistance, hasPrebuiltInstruction = false) => {
+    const normalizedBase = typeof baseInstruction === 'string' ? baseInstruction.trim() : '';
+
+    if (hasPrebuiltInstruction || !landmarkName || roundedDistance <= 0) {
+      return normalizedBase;
+    }
+
+    const landmarkSuffix = intl.formatMessage(
+      { id: 'landmarkSuffix' },
+      { name: landmarkName, distance: roundedDistance }
+    );
+
+    if (normalizedBase.includes(landmarkSuffix)) {
+      return normalizedBase;
+    }
+
+    return normalizedBase ? `${normalizedBase}، ${landmarkSuffix}` : landmarkSuffix;
+  }, [intl]);
+
   // Calculate total time in minutes from all steps
   const calculateTotalTime = useCallback((steps) => {
     if (!steps) return 0;
@@ -905,11 +924,7 @@ const RoutingPage = () => {
       const landmarkName = resolveLandmarkName(s);
       const roundedDistance = Math.round(distance);
       const hasPrebuiltInstruction = Boolean(!s.type && typeof s.instruction === 'string' && s.instruction.trim());
-      const instruction = hasPrebuiltInstruction
-        ? s.instruction
-        : landmarkName && roundedDistance > 0
-          ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: landmarkName, distance: roundedDistance })}`
-          : base;
+      const instruction = buildStepInstruction(base, landmarkName, roundedDistance, hasPrebuiltInstruction);
       let direction = 'arrived';
       if (idx < coords.length - 2) {
         const b1 = bearing(coords[idx], coords[idx + 1]);
@@ -981,11 +996,7 @@ const RoutingPage = () => {
         const landmarkName = resolveLandmarkName(st);
         const roundedDist = Math.round(dist);
         const hasPrebuiltInstruction = Boolean(!st.type && typeof st.instruction === 'string' && st.instruction.trim());
-        const instruction = hasPrebuiltInstruction
-          ? st.instruction
-          : landmarkName && roundedDist > 0
-            ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: landmarkName, distance: roundedDist })}`
-            : base;
+        const instruction = buildStepInstruction(base, landmarkName, roundedDist, hasPrebuiltInstruction);
         let direction = 'arrived';
         if (i < altCoords.length - 2) {
           const b1 = bearing(altCoords[i], altCoords[i + 1]);
@@ -1043,7 +1054,7 @@ const RoutingPage = () => {
     } catch (err) {
       console.warn('failed to persist route summary', err);
     }
-  }, [routeSteps, routeGeo, alternativeRoutes, transportMode, resolveLandmarkName, formatDurationFromSeconds, calculateTotalTime]);
+  }, [routeSteps, routeGeo, alternativeRoutes, transportMode, resolveLandmarkName, formatDurationFromSeconds, calculateTotalTime, buildStepInstruction]);
 
 
   // Update arrival time every minute
