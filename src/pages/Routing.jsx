@@ -114,6 +114,34 @@ const RoutingPage = () => {
       || localizedOrRaw(item.properties?.subGroupValue);
   }, [language]);
 
+  const formatNamedViaItems = useCallback((viaItems) => {
+    if (!Array.isArray(viaItems)) return '';
+
+    const isUnnamedArea = (value) => {
+      const cleaned = value.replace(/[\u200c\u200f]/g, '').trim();
+      if (!cleaned) return true;
+      if (/^area\s*\d*$/i.test(cleaned)) return true;
+      if (/^\d+$/.test(cleaned)) return true;
+      return false;
+    };
+
+    const uniqueNamedItems = [];
+    const seen = new Set();
+
+    viaItems
+      .map(formatViaItem)
+      .map(item => item?.trim())
+      .filter(Boolean)
+      .forEach((item) => {
+        if (isUnnamedArea(item)) return;
+        if (seen.has(item)) return;
+        seen.add(item);
+        uniqueNamedItems.push(item);
+      });
+
+    return uniqueNamedItems.join(' – ');
+  }, [formatViaItem]);
+
   const [originalViewState, setOriginalViewState] = useState({
     zoom: is3DView ? 17 : 18,
     center: userLocation || [36.2880, 59.6157],
@@ -1803,12 +1831,7 @@ const RoutingPage = () => {
                     </div>
 
                     <div className="route-via">
-                      {Array.isArray(route.via)
-                        ? route.via
-                          .map(formatViaItem)
-                          .filter(Boolean)
-                          .join(' – ')
-                        : ''}
+                      {formatNamedViaItems(route.via)}
                     </div>
 
                     <div className="route-stats">
