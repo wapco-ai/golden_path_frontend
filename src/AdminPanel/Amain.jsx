@@ -5881,6 +5881,14 @@ const Amain = () => {
       const source = map.getSource(ONE_WAY_DOOR_DIRECTION_SOURCE_ID);
       if (!source || typeof source.setData !== 'function') return;
 
+      const hasDoorLayer = Boolean(map.getLayer(DOOR_ACCESS_LAYER_ID));
+      const hasAreaLayer = Boolean(map.getLayer('areas-outline'));
+
+      if (!hasDoorLayer || !hasAreaLayer) {
+        source.setData(emptyCollection);
+        return;
+      }
+
       const doorFeatures = map.queryRenderedFeatures(undefined, { layers: [DOOR_ACCESS_LAYER_ID] }) || [];
       const areaFeatures = map.queryRenderedFeatures(undefined, { layers: ['areas-outline'] }) || [];
 
