@@ -1625,8 +1625,6 @@ const RoutingPage = () => {
         <div className="map-fade-rng"></div>
       </div>
 
-      <div className="image-map-separator" aria-hidden="true" />
-
       {/* Map Section */}
       <div className="map-section">
         {showGpsOffline && (
