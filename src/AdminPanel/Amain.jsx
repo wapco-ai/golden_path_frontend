@@ -5726,16 +5726,12 @@ const Amain = () => {
 
       if (!match?.geometry) return null;
 
-      if (match.geometry.type === 'Polygon' || match.geometry.type === 'MultiPolygon') {
-        const center = turfCentroid(match).geometry?.coordinates;
-        return Array.isArray(center) ? center : null;
-      }
-
       if (match.geometry.type === 'Point') {
         return match.geometry.coordinates;
       }
 
-      return null;
+      const center = turfCentroid(match).geometry?.coordinates;
+      return Array.isArray(center) ? center : null;
     };
 
     const fromCenter = getAreaCenter(routingFromArea);
