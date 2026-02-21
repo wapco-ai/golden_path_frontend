@@ -5748,32 +5748,11 @@ const Amain = () => {
     }
 
     const lineLength = 0.00018;
-    const arrowHeadLength = lineLength * 0.24;
-    const arrowHeadAngleRad = (28 * Math.PI) / 180;
-
     const unitVector = [directionVector[0] / vectorLength, directionVector[1] / vectorLength];
     const start = [doorCoords[0], doorCoords[1]];
     const end = [
       doorCoords[0] + (unitVector[0] * lineLength),
       doorCoords[1] + (unitVector[1] * lineLength)
-    ];
-
-    const rotateVector = (vector, angleRad) => {
-      const cos = Math.cos(angleRad);
-      const sin = Math.sin(angleRad);
-      return [
-        (vector[0] * cos) - (vector[1] * sin),
-        (vector[0] * sin) + (vector[1] * cos)
-      ];
-    };
-
-    const backwardUnit = [-unitVector[0], -unitVector[1]];
-    const leftWingUnit = rotateVector(backwardUnit, arrowHeadAngleRad);
-    const rightWingUnit = rotateVector(backwardUnit, -arrowHeadAngleRad);
-
-    const leftWingEnd = [
-      end[0] + (leftWingUnit[0] * arrowHeadLength),
-      end[1] + (leftWingUnit[1] * arrowHeadLength)
     ];
 
     const rightWingEnd = [
