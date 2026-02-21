@@ -601,8 +601,6 @@ const RoutingPage = () => {
       || step?.poi_name
       || step?.referenceLandmark
       || step?.reference_landmark
-      || step?.title
-      || step?.name
       || null;
 
     if (!candidate) return null;
@@ -613,6 +611,14 @@ const RoutingPage = () => {
     }
 
     return null;
+  }, []);
+
+  const shouldAppendLandmarkSuffix = useCallback((step, landmarkName, distance) => {
+    if (!landmarkName || !Number.isFinite(distance) || distance <= 0) return false;
+    if (step?.type === 'stepArriveDestination') return false;
+
+    const baseName = (step?.name || step?.title || '').trim();
+    return !baseName || baseName !== landmarkName;
   }, []);
 
   const resolveStepHeading = useCallback((step, stepIndex) => {
@@ -832,7 +838,7 @@ const RoutingPage = () => {
         )
         : s.instruction || '';
       const landmarkName = resolveLandmarkName(s);
-      const instruction = landmarkName
+      const instruction = shouldAppendLandmarkSuffix(s, landmarkName, Math.round(distance))
         ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: landmarkName, distance: Math.round(distance) })}`
         : base;
       let direction = 'arrived';
@@ -900,7 +906,7 @@ const RoutingPage = () => {
           )
           : st.instruction || '';
         const landmarkName = resolveLandmarkName(st);
-        const instruction = landmarkName
+        const instruction = shouldAppendLandmarkSuffix(st, landmarkName, Math.round(dist))
           ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: landmarkName, distance: Math.round(dist) })}`
           : base;
         let direction = 'arrived';
@@ -957,7 +963,7 @@ const RoutingPage = () => {
     } catch (err) {
       console.warn('failed to persist route summary', err);
     }
-  }, [routeSteps, routeGeo, alternativeRoutes, transportMode, resolveLandmarkName, formatDurationFromSeconds, calculateTotalTime]);
+  }, [routeSteps, routeGeo, alternativeRoutes, transportMode, resolveLandmarkName, shouldAppendLandmarkSuffix]);
 
 
   // Update arrival time every minute
