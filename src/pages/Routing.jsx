@@ -124,13 +124,27 @@ const RoutingPage = () => {
   const initialRouteCoordRef = useRef(null);
   const PRECISE_GPS_ACCURACY_THRESHOLD = 25;
 
-  const updateUserLocationToRouteStart = useCallback(() => {
-    const startCoord = routeGeo?.geometry?.coordinates?.[0];
+  const getRouteStartLocation = useCallback((geo = routeGeo) => {
+    const startCoord = geo?.geometry?.coordinates?.[0];
     if (!Array.isArray(startCoord) || startCoord.length < 2) {
-      return false;
+      return null;
     }
 
     const [startLng, startLat] = startCoord;
+    if (!Number.isFinite(startLat) || !Number.isFinite(startLng)) {
+      return null;
+    }
+
+    return [startLat, startLng];
+  }, [routeGeo]);
+
+  const updateUserLocationToRouteStart = useCallback(() => {
+    const startLocation = getRouteStartLocation();
+    if (!startLocation) {
+      return false;
+    }
+
+    const [startLat, startLng] = startLocation;
     const startKey = `${startLat},${startLng}`;
 
     if (initialRouteCoordRef.current !== startKey) {
@@ -139,7 +153,7 @@ const RoutingPage = () => {
     }
 
     return true;
-  }, [routeGeo]);
+  }, [getRouteStartLocation]);
 
   useEffect(() => {
     return () => {
@@ -1221,7 +1235,11 @@ const RoutingPage = () => {
     }
 
     if (newRoutingState) {
-      const [lat, lng] = userLocation;
+      const routeStart = getRouteStartLocation();
+      const [lat, lng] = routeStart || userLocation;
+      if (routeStart) {
+        setUserLocation(routeStart);
+      }
       advancedDeadReckoningService.start({ lat, lng });
     } else {
       advancedDeadReckoningService.stop();
@@ -1352,6 +1370,12 @@ const RoutingPage = () => {
     setRouteGeo(route.geo);
     setRouteSteps(route.steps);
     setAlternativeRoutes(newAlternatives);
+    const routeStart = getRouteStartLocation(route.geo);
+    if (routeStart) {
+      const [startLat, startLng] = routeStart;
+      initialRouteCoordRef.current = `${startLat},${startLng}`;
+      setUserLocation(routeStart);
+    }
     sessionStorage.setItem('routeGeo', JSON.stringify(route.geo));
     sessionStorage.setItem('routeSteps', JSON.stringify(route.steps));
     sessionStorage.setItem('alternativeRoutes', JSON.stringify(newAlternatives));
