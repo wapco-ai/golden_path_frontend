@@ -114,6 +114,34 @@ const RoutingPage = () => {
       || localizedOrRaw(item.properties?.subGroupValue);
   }, [language]);
 
+  const formatNamedViaItems = useCallback((viaItems) => {
+    if (!Array.isArray(viaItems)) return '';
+
+    const isUnnamedArea = (value) => {
+      const cleaned = value.replace(/[\u200c\u200f]/g, '').trim();
+      if (!cleaned) return true;
+      if (/^area\s*\d*$/i.test(cleaned)) return true;
+      if (/^\d+$/.test(cleaned)) return true;
+      return false;
+    };
+
+    const uniqueNamedItems = [];
+    const seen = new Set();
+
+    viaItems
+      .map(formatViaItem)
+      .map(item => item?.trim())
+      .filter(Boolean)
+      .forEach((item) => {
+        if (isUnnamedArea(item)) return;
+        if (seen.has(item)) return;
+        seen.add(item);
+        uniqueNamedItems.push(item);
+      });
+
+    return uniqueNamedItems.join(' – ');
+  }, [formatViaItem]);
+
   const [originalViewState, setOriginalViewState] = useState({
     zoom: is3DView ? 17 : 18,
     center: userLocation || [36.2880, 59.6157],
@@ -876,18 +904,12 @@ const RoutingPage = () => {
         : s.instruction || '';
       const landmarkName = resolveLandmarkName(s);
       const roundedDistance = Math.round(distance);
-      const suffix = landmarkName && roundedDistance > 0
-        ? intl.formatMessage({ id: 'landmarkSuffix' }, { name: landmarkName, distance: roundedDistance })
-        : '';
-      const hasPrebuiltInstruction = Boolean(typeof s.instruction === 'string' && s.instruction.trim());
-      const instructionAlreadyHasSuffix = Boolean(suffix && hasPrebuiltInstruction && s.instruction.includes(suffix));
-      const instruction = instructionAlreadyHasSuffix
+      const hasPrebuiltInstruction = Boolean(!s.type && typeof s.instruction === 'string' && s.instruction.trim());
+      const instruction = hasPrebuiltInstruction
         ? s.instruction
-        : !s.type && hasPrebuiltInstruction
-          ? s.instruction
-          : suffix
-            ? `${base}، ${suffix}`
-            : base;
+        : landmarkName && roundedDistance > 0
+          ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: landmarkName, distance: roundedDistance })}`
+          : base;
       let direction = 'arrived';
       if (idx < coords.length - 2) {
         const b1 = bearing(coords[idx], coords[idx + 1]);
@@ -958,18 +980,12 @@ const RoutingPage = () => {
           : st.instruction || '';
         const landmarkName = resolveLandmarkName(st);
         const roundedDist = Math.round(dist);
-        const suffix = landmarkName && roundedDist > 0
-          ? intl.formatMessage({ id: 'landmarkSuffix' }, { name: landmarkName, distance: roundedDist })
-          : '';
-        const hasPrebuiltInstruction = Boolean(typeof st.instruction === 'string' && st.instruction.trim());
-        const instructionAlreadyHasSuffix = Boolean(suffix && hasPrebuiltInstruction && st.instruction.includes(suffix));
-        const instruction = instructionAlreadyHasSuffix
+        const hasPrebuiltInstruction = Boolean(!st.type && typeof st.instruction === 'string' && st.instruction.trim());
+        const instruction = hasPrebuiltInstruction
           ? st.instruction
-          : !st.type && hasPrebuiltInstruction
-            ? st.instruction
-            : suffix
-              ? `${base}، ${suffix}`
-              : base;
+          : landmarkName && roundedDist > 0
+            ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: landmarkName, distance: roundedDist })}`
+            : base;
         let direction = 'arrived';
         if (i < altCoords.length - 2) {
           const b1 = bearing(altCoords[i], altCoords[i + 1]);
@@ -1826,12 +1842,7 @@ const RoutingPage = () => {
                     </div>
 
                     <div className="route-via">
-                      {Array.isArray(route.via)
-                        ? route.via
-                          .map(formatViaItem)
-                          .filter(Boolean)
-                          .join(' – ')
-                        : ''}
+                      {formatNamedViaItems(route.via)}
                     </div>
 
                     <div className="route-stats">
