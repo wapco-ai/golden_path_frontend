@@ -5717,8 +5717,27 @@ const Amain = () => {
 
     const getAreaCenter = (targetAreaId) => {
       const numericTarget = Number(targetAreaId);
-      const renderedAreas = map.queryRenderedFeatures(undefined, { layers: ['areas-outline'] });
-      const match = renderedAreas.find((feature) => {
+      const areaLayer = map.getLayer('areas-outline');
+
+      let candidateAreas = [];
+
+      if (areaLayer?.source) {
+        const sourceOptions = areaLayer['source-layer']
+          ? { sourceLayer: areaLayer['source-layer'] }
+          : undefined;
+
+        try {
+          candidateAreas = map.querySourceFeatures(areaLayer.source, sourceOptions) || [];
+        } catch (error) {
+          candidateAreas = [];
+        }
+      }
+
+      if (!candidateAreas.length) {
+        candidateAreas = map.queryRenderedFeatures(undefined, { layers: ['areas-outline'] }) || [];
+      }
+
+      const match = candidateAreas.find((feature) => {
         const props = feature?.properties || {};
         const areaId = props.id ?? props.area_id ?? props.areaId;
         return Number(areaId) === numericTarget;
@@ -5752,15 +5771,12 @@ const Amain = () => {
       return;
     }
 
-    const lineLength = 0.00008;
+    const lineLength = 0.00018;
     const unitVector = [directionVector[0] / vectorLength, directionVector[1] / vectorLength];
-    const start = [
-      doorCoords[0] - (unitVector[0] * lineLength) / 2,
-      doorCoords[1] - (unitVector[1] * lineLength) / 2
-    ];
+    const start = [doorCoords[0], doorCoords[1]];
     const end = [
-      doorCoords[0] + (unitVector[0] * lineLength) / 2,
-      doorCoords[1] + (unitVector[1] * lineLength) / 2
+      doorCoords[0] + (unitVector[0] * lineLength),
+      doorCoords[1] + (unitVector[1] * lineLength)
     ];
 
     const bearing = (Math.atan2(unitVector[1], unitVector[0]) * 180) / Math.PI;
