@@ -353,7 +353,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     visibleByDefault: false,
     layout: {
       // اسم فیلدی که از MVT میاد را اینجا بگذار
-      'text-field': ['coalesce', ['get', 'label'], ['get', 'name'],  ['get', 'id']],
+      'text-field': buildAreaLabelWithIdTextField(),
       'text-size': 12,
       'text-anchor': 'center',
       'text-allow-overlap': false,
