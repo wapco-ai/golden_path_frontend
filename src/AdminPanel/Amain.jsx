@@ -5908,82 +5908,6 @@ const Amain = () => {
         }
       });
 
-      const getNearestWallDirectionPx = (areaGeometry, doorPx) => {
-        if (!areaGeometry || !doorPx) return null;
-
-        const collectSegments = (ring = []) => {
-          if (!Array.isArray(ring) || ring.length < 2) return [];
-
-          const segments = [];
-          for (let i = 0; i < ring.length - 1; i += 1) {
-            const start = ring[i];
-            const end = ring[i + 1];
-
-            if (!Array.isArray(start) || !Array.isArray(end) || start.length < 2 || end.length < 2) continue;
-
-            segments.push([start, end]);
-          }
-
-          return segments;
-        };
-
-        const polygonRings = [];
-
-        if (areaGeometry.type === 'Polygon') {
-          polygonRings.push(...(areaGeometry.coordinates || []));
-        } else if (areaGeometry.type === 'MultiPolygon') {
-          (areaGeometry.coordinates || []).forEach((polygon) => {
-            polygonRings.push(...(polygon || []));
-          });
-        }
-
-        if (!polygonRings.length) return null;
-
-        let bestSegment = null;
-        let bestDistanceSq = Number.POSITIVE_INFINITY;
-
-        polygonRings.forEach((ring) => {
-          const segments = collectSegments(ring);
-          segments.forEach(([startLngLat, endLngLat]) => {
-            const startPx = map.project(startLngLat);
-            const endPx = map.project(endLngLat);
-            const segX = endPx.x - startPx.x;
-            const segY = endPx.y - startPx.y;
-            const segLenSq = (segX * segX) + (segY * segY);
-            if (!segLenSq) return;
-
-            const t = Math.max(
-              0,
-              Math.min(
-                1,
-                (((doorPx.x - startPx.x) * segX) + ((doorPx.y - startPx.y) * segY)) / segLenSq
-              )
-            );
-
-            const projX = startPx.x + (segX * t);
-            const projY = startPx.y + (segY * t);
-            const dx = doorPx.x - projX;
-            const dy = doorPx.y - projY;
-            const distanceSq = (dx * dx) + (dy * dy);
-
-            if (distanceSq < bestDistanceSq) {
-              bestDistanceSq = distanceSq;
-              bestSegment = { segX, segY };
-            }
-          });
-        });
-
-        if (!bestSegment) return null;
-
-        const segmentLength = Math.hypot(bestSegment.segX, bestSegment.segY);
-        if (!segmentLength) return null;
-
-        return {
-          x: -bestSegment.segY / segmentLength,
-          y: bestSegment.segX / segmentLength
-        };
-      };
-
       const directionLines = [];
       const shaftLengthPx = 18;
       const arrowHeadLengthPx = 8;
@@ -6005,11 +5929,6 @@ const Amain = () => {
 
         const fromCenter = areaCenters.get(fromAreaId);
         const toCenter = areaCenters.get(toAreaId);
-        const fromAreaFeature = areaFeatures.find((areaFeature) => {
-          const areaProps = areaFeature?.properties || {};
-          const areaId = Number(areaProps.area_id ?? areaProps.areaId ?? areaProps.id);
-          return !Number.isNaN(areaId) && areaId === fromAreaId;
-        });
         const doorCoordinates = doorFeature.geometry.coordinates;
         if (!fromCenter || !toCenter || !Array.isArray(doorCoordinates)) return;
 
@@ -6024,18 +5943,12 @@ const Amain = () => {
 
         const unitX = vectorX / vectorLength;
         const unitY = vectorY / vectorLength;
-
-        const wallNormal = getNearestWallDirectionPx(fromAreaFeature?.geometry, doorPx);
-        const hasWallNormal = wallNormal && Number.isFinite(wallNormal.x) && Number.isFinite(wallNormal.y);
-        const alignSign = hasWallNormal && ((wallNormal.x * unitX) + (wallNormal.y * unitY)) < 0 ? -1 : 1;
-        const directionUnitX = hasWallNormal ? wallNormal.x * alignSign : unitX;
-        const directionUnitY = hasWallNormal ? wallNormal.y * alignSign : unitY;
         const endPx = {
-          x: doorPx.x + (directionUnitX * shaftLengthPx),
-          y: doorPx.y + (directionUnitY * shaftLengthPx)
+          x: doorPx.x + (unitX * shaftLengthPx),
+          y: doorPx.y + (unitY * shaftLengthPx)
         };
 
-        const baseAngle = Math.atan2(directionUnitY, directionUnitX);
+        const baseAngle = Math.atan2(unitY, unitX);
         const leftWingAngle = baseAngle + Math.PI - wingAngle;
         const rightWingAngle = baseAngle + Math.PI + wingAngle;
         const leftWingPx = {
