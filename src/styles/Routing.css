@@ -134,19 +134,7 @@
 }
 
 
-/* Force border-radius to 0 on all map-related elements */
-/* .map-container-rng,
-.map-container-rng *,
-.route-map,
-.route-map *,
-.leaflet-container,
-.leaflet-container *,
-.maplibregl-map,
-.maplibregl-map *,
-.mapboxgl-map,
-.mapboxgl-map * {
-  border-radius: 0 !important;
-} */
+
 
 .map-container.dark-overlay {
   filter: brightness(0.6);
