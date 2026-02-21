@@ -83,6 +83,37 @@ const RoutingPage = () => {
   const language = useLangStore(state => state.language);
   const routingRequestRef = useRef({ key: null, promise: null });
 
+  const formatViaItem = useCallback((item) => {
+    if (typeof item === 'string' || typeof item === 'number') {
+      return String(item);
+    }
+
+    if (!item || typeof item !== 'object') {
+      return '';
+    }
+
+    const localizedOrRaw = (value) => {
+      if (!value) return '';
+      if (typeof value === 'string' || typeof value === 'number') {
+        return String(value);
+      }
+      if (typeof value === 'object' && !Array.isArray(value)) {
+        return value[language] || value.fa || value.en || Object.values(value)[0] || '';
+      }
+      return '';
+    };
+
+    return localizedOrRaw(item.title)
+      || localizedOrRaw(item.name)
+      || localizedOrRaw(item.label)
+      || localizedOrRaw(item.subGroup)
+      || localizedOrRaw(item.subGroupValue)
+      || localizedOrRaw(item.properties?.title)
+      || localizedOrRaw(item.properties?.name)
+      || localizedOrRaw(item.properties?.subGroup)
+      || localizedOrRaw(item.properties?.subGroupValue);
+  }, [language]);
+
   const [originalViewState, setOriginalViewState] = useState({
     zoom: is3DView ? 17 : 18,
     center: userLocation || [36.2880, 59.6157],
@@ -931,7 +962,7 @@ const RoutingPage = () => {
         totalDistance: `${distTot} ${intl.formatMessage({ id: 'meters' })}`,
         from: alt.from,
         to: alt.to,
-        via: alt.sahns || []
+        via: (Array.isArray(alt.via) && alt.via.length > 0 ? alt.via : alt.sahns) || []
 
       };
     });
@@ -1746,7 +1777,12 @@ const RoutingPage = () => {
                     </div>
 
                     <div className="route-via">
-                      {Array.isArray(route.via) ? route.via.join(' – ') : ''}
+                      {Array.isArray(route.via)
+                        ? route.via
+                          .map(formatViaItem)
+                          .filter(Boolean)
+                          .join(' – ')
+                        : ''}
                     </div>
 
                     <div className="route-stats">
