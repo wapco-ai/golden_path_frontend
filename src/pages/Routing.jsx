@@ -496,23 +496,12 @@ const RoutingPage = () => {
       return normalizedBase;
     }
 
-    const normalizeDigitsForCompare = (value) => (
-      String(value || '')
-        .replace(/[۰-۹]/g, ch => String(ch.charCodeAt(0) - 1776))
-        .replace(/[٠-٩]/g, ch => String(ch.charCodeAt(0) - 1632))
-        .replace(/\s+/g, ' ')
-        .trim()
-    );
-
     const landmarkSuffix = intl.formatMessage(
       { id: 'landmarkSuffix' },
       { name: landmarkName, distance: roundedDistance }
     );
 
-    const normalizedBaseForCompare = normalizeDigitsForCompare(normalizedBase);
-    const normalizedSuffixForCompare = normalizeDigitsForCompare(landmarkSuffix);
-
-    if (normalizedBaseForCompare.includes(normalizedSuffixForCompare)) {
+    if (normalizedBase.includes(landmarkSuffix)) {
       return normalizedBase;
     }
 
