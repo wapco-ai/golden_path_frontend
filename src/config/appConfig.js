@@ -44,7 +44,7 @@ const defaultAdminUsersBaseUrl = `${defaultApiBaseUrl}/api/v1/admin/users`;
 const defaultTempBlockAreasBaseUrl = `${defaultApiBaseUrl}/api/v1/admin/temp-block-areas`;
 const defaultDestinationsUrl = `${defaultApiBaseUrl}/api/v1/destinations`;
 // const defaultMbtilesSatelliteTilesUrl = 'http://localhost:8088/services/gsm/tiles/{z}/{x}/{y}.jpg';
-const defaultMbtilesSatelliteTilesUrl = `${defaultApiBaseUrl}/tms/services/gsm/tiles/{z}/{x}/{y}.jpg`;
+const defaultMbtilesSatelliteTilesUrl = `${defaultApiBaseUrl}/tms/services/gsm_light/tiles/{z}/{x}/{y}.jpg`;
 const defaultMbtilesOfflineOsmhTilesUrl = `${defaultApiBaseUrl}/tms/services/osmh/tiles/{z}/{x}/{y}.png`;
 
 const appConfig = {

@@ -12,8 +12,8 @@ export const MBTILES_SATELLITE_STYLE = {
       type: 'raster',
       tiles: [appConfig.mbtilesSatelliteTilesUrl],
       tileSize: 256,
-      minzoom: 15,
-      maxzoom: 17,
+      minzoom: 9,
+      maxzoom: 19,
       attribution: 'offline map maker tiles by allmapsoft.com'
     }
   },
