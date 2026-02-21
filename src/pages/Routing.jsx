@@ -601,8 +601,6 @@ const RoutingPage = () => {
       || step?.poi_name
       || step?.referenceLandmark
       || step?.reference_landmark
-      || step?.title
-      || step?.name
       || null;
 
     if (!candidate) return null;
@@ -613,6 +611,14 @@ const RoutingPage = () => {
     }
 
     return null;
+  }, []);
+
+  const normalizeArriveStepName = useCallback((step) => {
+    if (step?.type !== 'stepArriveDestination' || typeof step?.name !== 'string') {
+      return step?.name;
+    }
+
+    return step.name.replace(/^\s*رسیدن\s+به\s+/u, '').trim();
   }, []);
 
   const resolveStepHeading = useCallback((step, stepIndex) => {
@@ -824,7 +830,7 @@ const RoutingPage = () => {
         const [lng2, lat2] = coords[idx];
         distance = Math.hypot(lng2 - lng1, lat2 - lat1) * 100000;
       }
-      const stepName = s.name || s.title;
+      const stepName = normalizeArriveStepName(s) || s.title;
       const base = s.type
         ? intl.formatMessage(
           { id: s.type },
@@ -893,10 +899,11 @@ const RoutingPage = () => {
           const [lng2, lat2] = altCoords[i];
           dist = Math.hypot(lng2 - lng1, lat2 - lat1) * 100000;
         }
+        const stepName = normalizeArriveStepName(st) || st.title;
         const base = st.type
           ? intl.formatMessage(
             { id: st.type },
-            { name: st.name || st.title, title: st.title, num: i + 1 }
+            { name: stepName, title: st.title, num: i + 1 }
           )
           : st.instruction || '';
         const landmarkName = resolveLandmarkName(st);
