@@ -1497,66 +1497,6 @@
         "language": "PLPGSQL",
         "parameters": [
             {
-                "data_type": "USER-DEFINED",
-                "parameter_mode": "IN",
-                "parameter_name": "p_lang",
-                "ordinal_position": 1
-            },
-            {
-                "data_type": "double precision",
-                "parameter_mode": "IN",
-                "parameter_name": "p_lat",
-                "ordinal_position": 2
-            },
-            {
-                "data_type": "double precision",
-                "parameter_mode": "IN",
-                "parameter_name": "p_lon",
-                "ordinal_position": 3
-            },
-            {
-                "data_type": "double precision",
-                "parameter_mode": "IN",
-                "parameter_name": "p_heading_deg",
-                "ordinal_position": 4
-            },
-            {
-                "data_type": "smallint",
-                "parameter_mode": "IN",
-                "parameter_name": "p_floor",
-                "ordinal_position": 5
-            },
-            {
-                "data_type": "double precision",
-                "parameter_mode": "IN",
-                "parameter_name": "p_fov_deg",
-                "ordinal_position": 6
-            },
-            {
-                "data_type": "double precision",
-                "parameter_mode": "IN",
-                "parameter_name": "p_max_distance_m",
-                "ordinal_position": 7
-            },
-            {
-                "data_type": "double precision",
-                "parameter_mode": "IN",
-                "parameter_name": "p_north_offset_deg",
-                "ordinal_position": 8
-            }
-        ],
-        "return_type": "jsonb",
-        "function_body": "\r\nDECLARE\r\n    v_user_32640        geometry(Point,32640);\r\n    v_row               record;\r\n\r\n    v_side              text;\r\n    v_media_match       jsonb;\r\n    v_media_fallback    jsonb;\r\n\t\tv_bearing_adj double precision;\r\nBEGIN\r\n    IF p_lat IS NULL OR p_lon IS NULL OR p_heading_deg IS NULL THEN\r\n        RETURN jsonb_build_object(\r\n            'status','INVALID_INPUT',\r\n            'message','lat/lng/heading الزامی است'\r\n        );\r\n    END IF;\r\n\r\n    -- کاربر: WGS84 -> 32640\r\n    v_user_32640 := ST_Transform(ST_SetSRID(ST_MakePoint(p_lon, p_lat), 4326), 32640);\r\n\r\n    /*\r\n      انتخاب:\r\n      - POI هایی که در فاصله p_max_distance هستند\r\n      - POI هایی که در مخروط دید هستند (angle_diff <= fov/2)\r\n      - رنکینگ: angle_diff کمتر (جلوی دیدتر)، سپس distance کمتر\r\n      نکته مهم: SRID-safe => POI هم به 32640 تبدیل می‌شود (اگر SRID=0 => حذف می‌شود)\r\n    */\r\n    WITH candidates AS (\r\n        SELECT\r\n            p.id AS poi_id,\r\n            p.floor,\r\n\r\n            CASE\r\n              WHEN ST_SRID(p.geom) = 0 THEN NULL\r\n              ELSE ST_Transform(p.geom, 32640)\r\n            END AS poi_geom_32640,\r\n\r\n            c.title AS content_title,\r\n            c.body  AS content_body,\r\n            c.media AS content_media\r\n        FROM poi_points p\r\n        JOIN contents c\r\n          ON c.poi_id = p.id\r\n         AND c.lang   = p_lang\r\n        WHERE\r\n            (p_floor IS NULL OR p.floor = p_floor)\r\n    ),\r\n    candidates2 AS (\r\n        SELECT\r\n            *,\r\n\t\t\t\t\t\tST_Distance(v_user_32640, poi_geom_32640) AS distance_exact_m,\r\n            round(ST_Distance(v_user_32640, poi_geom_32640))::int AS distance_m,\r\n\r\n            -- bearing از کاربر به POI (deg, 0=north, clockwise) - با mod امن (numeric cast)\r\n            (mod(\r\n                (degrees(ST_Azimuth(v_user_32640, poi_geom_32640)) + 360.0)::numeric,\r\n                360::numeric\r\n            ))::double precision AS bearing_to_poi_deg,\r\n\r\n            -- bearing از POI به کاربر (برای تشخیص سمت کاربر نسبت به POI)\r\n            (mod(\r\n                (degrees(ST_Azimuth(poi_geom_32640, v_user_32640)) + 360.0)::numeric,\r\n                360::numeric\r\n            ))::double precision AS bearing_poi_to_user_deg\r\n        FROM candidates\r\n        WHERE poi_geom_32640 IS NOT NULL\r\n          AND ST_DWithin(v_user_32640, poi_geom_32640, p_max_distance_m)\r\n    ),\r\n    scored AS (\r\n        SELECT\r\n            *,\r\n            -- angle diff بین heading و bearing_to_poi - با mod امن (numeric cast)\r\n            abs(\r\n                (mod(\r\n                    (bearing_to_poi_deg - p_heading_deg + 540.0)::numeric,\r\n                    360::numeric\r\n                )::double precision) - 180.0\r\n            ) AS angle_diff_deg\r\n        FROM candidates2\r\n    ),\r\n    filtered AS (\r\n        SELECT *\r\n        FROM scored\r\n        WHERE angle_diff_deg <= (p_fov_deg / 2.0)\r\n        ORDER BY distance_exact_m ASC, angle_diff_deg ASC\r\n        LIMIT 1\r\n    )\r\n    SELECT * INTO v_row FROM filtered;\r\n\r\n    IF v_row.poi_id IS NULL THEN\r\n        RETURN jsonb_build_object(\r\n            'status','NO_LANDMARK_IN_VIEW',\r\n            'message','هیچ لندمارکی در مخروط دید کاربر یافت نشد',\r\n            'fov_deg', p_fov_deg,\r\n            'max_distance_m', p_max_distance_m\r\n        );\r\n    END IF;\r\n\r\n    -- تعیین orientation مناسب بر اساس اینکه کاربر از کدام سمت POI قرار دارد\r\n    -- (bearing از POI به کاربر)\r\n\t\tv_bearing_adj := (mod((v_row.bearing_poi_to_user_deg - p_north_offset_deg + 360.0)::numeric, 360::numeric))::double precision;\r\n    IF v_bearing_adj >= 45 AND v_bearing_adj < 135 THEN\r\n    v_side := 'east';\r\nELSIF v_bearing_adj >= 135 AND v_bearing_adj < 225 THEN\r\n    v_side := 'south';\r\nELSIF v_bearing_adj >= 225 AND v_bearing_adj < 315 THEN\r\n    v_side := 'west';\r\nELSE\r\n    v_side := 'north';\r\nEND IF;\r\n\r\n    -- انتخاب تصویر مطابق orientation (اولین تصویر matching)\r\n    SELECT elem\r\n      INTO v_media_match\r\n    FROM jsonb_array_elements(COALESCE(v_row.content_media, '[]'::jsonb)) AS elem\r\n    WHERE COALESCE(elem->>'type','image') = 'image'\r\n      AND lower(COALESCE(elem->>'orientation','')) = v_side\r\n    LIMIT 1;\r\n\r\n    -- fallback: اولین image موجود\r\n    SELECT elem\r\n      INTO v_media_fallback\r\n    FROM jsonb_array_elements(COALESCE(v_row.content_media, '[]'::jsonb)) AS elem\r\n    WHERE COALESCE(elem->>'type','image') = 'image'\r\n    LIMIT 1;\r\n\r\n    RETURN jsonb_build_object(\r\n        'status', 'OK',\r\n        'poi_id', v_row.poi_id,\r\n        'floor',  v_row.floor,\r\n\r\n        'distance_m', v_row.distance_m,\r\n        'bearing_to_poi_deg', v_row.bearing_to_poi_deg,\r\n        'angle_diff_deg', v_row.angle_diff_deg,\r\n\r\n        'selected_orientation', v_side,\r\n\r\n        'content', jsonb_build_object(\r\n            'title', v_row.content_title,\r\n            'body',  v_row.content_body\r\n        ),\r\n\r\n        'image', COALESCE(v_media_match, v_media_fallback),\r\n        'imageMatched', (v_media_match IS NOT NULL),\r\n\t\t\t\t'selected_orientation_bearing_deg', v_bearing_adj,\r\n'north_offset_deg', p_north_offset_deg\r\n    );\r\nEND;\r\n",
-        "function_name": "fn_landmark_view_imageeee",
-        "security_type": "INVOKER",
-        "full_definition": "CREATE OR REPLACE FUNCTION public.fn_landmark_view_imageeee(p_lang lang_enum, p_lat double precision, p_lon double precision, p_heading_deg double precision, p_floor smallint DEFAULT NULL::smallint, p_fov_deg double precision DEFAULT 45, p_max_distance_m double precision DEFAULT 800, p_north_offset_deg double precision DEFAULT 30)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE\nAS $function$\r\nDECLARE\r\n    v_user_32640        geometry(Point,32640);\r\n    v_row               record;\r\n\r\n    v_side              text;\r\n    v_media_match       jsonb;\r\n    v_media_fallback    jsonb;\r\n\t\tv_bearing_adj double precision;\r\nBEGIN\r\n    IF p_lat IS NULL OR p_lon IS NULL OR p_heading_deg IS NULL THEN\r\n        RETURN jsonb_build_object(\r\n            'status','INVALID_INPUT',\r\n            'message','lat/lng/heading الزامی است'\r\n        );\r\n    END IF;\r\n\r\n    -- کاربر: WGS84 -> 32640\r\n    v_user_32640 := ST_Transform(ST_SetSRID(ST_MakePoint(p_lon, p_lat), 4326), 32640);\r\n\r\n    /*\r\n      انتخاب:\r\n      - POI هایی که در فاصله p_max_distance هستند\r\n      - POI هایی که در مخروط دید هستند (angle_diff <= fov/2)\r\n      - رنکینگ: angle_diff کمتر (جلوی دیدتر)، سپس distance کمتر\r\n      نکته مهم: SRID-safe => POI هم به 32640 تبدیل می‌شود (اگر SRID=0 => حذف می‌شود)\r\n    */\r\n    WITH candidates AS (\r\n        SELECT\r\n            p.id AS poi_id,\r\n            p.floor,\r\n\r\n            CASE\r\n              WHEN ST_SRID(p.geom) = 0 THEN NULL\r\n              ELSE ST_Transform(p.geom, 32640)\r\n            END AS poi_geom_32640,\r\n\r\n            c.title AS content_title,\r\n            c.body  AS content_body,\r\n            c.media AS content_media\r\n        FROM poi_points p\r\n        JOIN contents c\r\n          ON c.poi_id = p.id\r\n         AND c.lang   = p_lang\r\n        WHERE\r\n            (p_floor IS NULL OR p.floor = p_floor)\r\n    ),\r\n    candidates2 AS (\r\n        SELECT\r\n            *,\r\n\t\t\t\t\t\tST_Distance(v_user_32640, poi_geom_32640) AS distance_exact_m,\r\n            round(ST_Distance(v_user_32640, poi_geom_32640))::int AS distance_m,\r\n\r\n            -- bearing از کاربر به POI (deg, 0=north, clockwise) - با mod امن (numeric cast)\r\n            (mod(\r\n                (degrees(ST_Azimuth(v_user_32640, poi_geom_32640)) + 360.0)::numeric,\r\n                360::numeric\r\n            ))::double precision AS bearing_to_poi_deg,\r\n\r\n            -- bearing از POI به کاربر (برای تشخیص سمت کاربر نسبت به POI)\r\n            (mod(\r\n                (degrees(ST_Azimuth(poi_geom_32640, v_user_32640)) + 360.0)::numeric,\r\n                360::numeric\r\n            ))::double precision AS bearing_poi_to_user_deg\r\n        FROM candidates\r\n        WHERE poi_geom_32640 IS NOT NULL\r\n          AND ST_DWithin(v_user_32640, poi_geom_32640, p_max_distance_m)\r\n    ),\r\n    scored AS (\r\n        SELECT\r\n            *,\r\n            -- angle diff بین heading و bearing_to_poi - با mod امن (numeric cast)\r\n            abs(\r\n                (mod(\r\n                    (bearing_to_poi_deg - p_heading_deg + 540.0)::numeric,\r\n                    360::numeric\r\n                )::double precision) - 180.0\r\n            ) AS angle_diff_deg\r\n        FROM candidates2\r\n    ),\r\n    filtered AS (\r\n        SELECT *\r\n        FROM scored\r\n        WHERE angle_diff_deg <= (p_fov_deg / 2.0)\r\n        ORDER BY distance_exact_m ASC, angle_diff_deg ASC\r\n        LIMIT 1\r\n    )\r\n    SELECT * INTO v_row FROM filtered;\r\n\r\n    IF v_row.poi_id IS NULL THEN\r\n        RETURN jsonb_build_object(\r\n            'status','NO_LANDMARK_IN_VIEW',\r\n            'message','هیچ لندمارکی در مخروط دید کاربر یافت نشد',\r\n            'fov_deg', p_fov_deg,\r\n            'max_distance_m', p_max_distance_m\r\n        );\r\n    END IF;\r\n\r\n    -- تعیین orientation مناسب بر اساس اینکه کاربر از کدام سمت POI قرار دارد\r\n    -- (bearing از POI به کاربر)\r\n\t\tv_bearing_adj := (mod((v_row.bearing_poi_to_user_deg - p_north_offset_deg + 360.0)::numeric, 360::numeric))::double precision;\r\n    IF v_bearing_adj >= 45 AND v_bearing_adj < 135 THEN\r\n    v_side := 'east';\r\nELSIF v_bearing_adj >= 135 AND v_bearing_adj < 225 THEN\r\n    v_side := 'south';\r\nELSIF v_bearing_adj >= 225 AND v_bearing_adj < 315 THEN\r\n    v_side := 'west';\r\nELSE\r\n    v_side := 'north';\r\nEND IF;\r\n\r\n    -- انتخاب تصویر مطابق orientation (اولین تصویر matching)\r\n    SELECT elem\r\n      INTO v_media_match\r\n    FROM jsonb_array_elements(COALESCE(v_row.content_media, '[]'::jsonb)) AS elem\r\n    WHERE COALESCE(elem->>'type','image') = 'image'\r\n      AND lower(COALESCE(elem->>'orientation','')) = v_side\r\n    LIMIT 1;\r\n\r\n    -- fallback: اولین image موجود\r\n    SELECT elem\r\n      INTO v_media_fallback\r\n    FROM jsonb_array_elements(COALESCE(v_row.content_media, '[]'::jsonb)) AS elem\r\n    WHERE COALESCE(elem->>'type','image') = 'image'\r\n    LIMIT 1;\r\n\r\n    RETURN jsonb_build_object(\r\n        'status', 'OK',\r\n        'poi_id', v_row.poi_id,\r\n        'floor',  v_row.floor,\r\n\r\n        'distance_m', v_row.distance_m,\r\n        'bearing_to_poi_deg', v_row.bearing_to_poi_deg,\r\n        'angle_diff_deg', v_row.angle_diff_deg,\r\n\r\n        'selected_orientation', v_side,\r\n\r\n        'content', jsonb_build_object(\r\n            'title', v_row.content_title,\r\n            'body',  v_row.content_body\r\n        ),\r\n\r\n        'image', COALESCE(v_media_match, v_media_fallback),\r\n        'imageMatched', (v_media_match IS NOT NULL),\r\n\t\t\t\t'selected_orientation_bearing_deg', v_bearing_adj,\r\n'north_offset_deg', p_north_offset_deg\r\n    );\r\nEND;\r\n$function$\n",
-        "is_deterministic": "NO"
-    },
-    {
-        "schema": "public",
-        "language": "PLPGSQL",
-        "parameters": [
-            {
                 "data_type": "text",
                 "parameter_mode": "IN",
                 "parameter_name": "p_algo",
@@ -3306,6 +3246,96 @@
                 "ordinal_position": 11
             },
             {
+                "data_type": "numeric",
+                "parameter_mode": "OUT",
+                "parameter_name": "reverse_cost",
+                "ordinal_position": 12
+            },
+            {
+                "data_type": "bigint",
+                "parameter_mode": "OUT",
+                "parameter_name": "door_id",
+                "ordinal_position": 13
+            }
+        ],
+        "return_type": "record",
+        "function_body": "\r\nWITH\r\nedges AS (\r\n  SELECT id, floor, src, dst, geom, base_cost, base_cost cost, door_id\r\n  FROM routing_edges_static\r\n  WHERE floor = p_floor\r\n),\r\ndoor_nodes AS (\r\n  SELECT id AS node_id, ref_id::bigint AS door_ref_id\r\n  FROM routing_nodes\r\n  WHERE ref_table='doors' AND ref_id IS NOT NULL\r\n),\r\nedge_doors AS (\r\n  SELECT\r\n    e.*,\r\n    sdn.door_ref_id AS src_door_ref_id,\r\n    ddn.door_ref_id AS dst_door_ref_id\r\n  FROM edges e\r\n  LEFT JOIN door_nodes sdn ON sdn.node_id = e.src\r\n  LEFT JOIN door_nodes ddn ON ddn.node_id = e.dst\r\n),\r\nneeded_doors AS (\r\n  SELECT DISTINCT x.door_id AS door_ref_id\r\n  FROM edge_doors e\r\n  CROSS JOIN LATERAL unnest(ARRAY[e.src_door_ref_id, e.dst_door_ref_id]) AS x(door_id)\r\n  WHERE x.door_id IS NOT NULL\r\n),\r\nrestricted_doors AS (\r\n  SELECT DISTINCT entity_id::bigint AS door_id\r\n  FROM access_time_restrictions\r\n  WHERE entity_table='doors'\r\n  UNION\r\n  SELECT DISTINCT entity_id::bigint AS door_id\r\n  FROM access_prayer_restrictions\r\n  WHERE entity_table='doors'\r\n),\r\ndoor_base AS (\r\n  SELECT d.id AS door_id, d.is_open_effective\r\n  FROM v_doors_live d\r\n  JOIN needed_doors nd ON nd.door_ref_id = d.id\r\n  WHERE (d.modes IS NULL OR p_mode = ANY(d.modes))\r\n),\r\ndoor_access AS (\r\n  SELECT\r\n    db.door_id,\r\n    db.is_open_effective,\r\n    true::boolean  AS allowed,\r\n    1.0::numeric   AS penalty_w\r\n  FROM door_base db\r\n)\r\nSELECT\r\n  e.id,\r\n  e.floor,\r\n  e.src,\r\n  e.dst,\r\n  e.geom,\r\n  e.base_cost,\r\n  e.cost,\r\n  CASE\r\n    WHEN e.door_id IS NULL THEN e.cost\r\n    WHEN COALESCE(d.bidirectional, true) = true THEN e.cost\r\n    ELSE (-1)::numeric\r\n  END AS reverse_cost,\r\n  e.door_id\r\nFROM edge_doors e\r\nLEFT JOIN v_doors_live d ON d.id = e.door_id\r\nLEFT JOIN door_access src_da ON src_da.door_id = e.src_door_ref_id\r\nLEFT JOIN door_access dst_da ON dst_da.door_id = e.dst_door_ref_id\r\nWHERE\r\n  (e.src_door_ref_id IS NULL OR (src_da.is_open_effective = true AND src_da.allowed = true))\r\n  AND\r\n  (e.dst_door_ref_id IS NULL OR (dst_da.is_open_effective = true AND dst_da.allowed = true));\r\n",
+        "function_name": "fn_routing_edges_live_param",
+        "security_type": "INVOKER",
+        "full_definition": "CREATE OR REPLACE FUNCTION public.fn_routing_edges_live_param(p_now timestamp with time zone, p_gender gender_enum, p_mode text, p_floor smallint)\n RETURNS TABLE(id bigint, floor smallint, src bigint, dst bigint, geom geometry, base_cost numeric, cost numeric, reverse_cost numeric, door_id bigint)\n LANGUAGE sql\n STABLE\nAS $function$\r\nWITH\r\nedges AS (\r\n  SELECT id, floor, src, dst, geom, base_cost, base_cost cost, door_id\r\n  FROM routing_edges_static\r\n  WHERE floor = p_floor\r\n),\r\ndoor_nodes AS (\r\n  SELECT id AS node_id, ref_id::bigint AS door_ref_id\r\n  FROM routing_nodes\r\n  WHERE ref_table='doors' AND ref_id IS NOT NULL\r\n),\r\nedge_doors AS (\r\n  SELECT\r\n    e.*,\r\n    sdn.door_ref_id AS src_door_ref_id,\r\n    ddn.door_ref_id AS dst_door_ref_id\r\n  FROM edges e\r\n  LEFT JOIN door_nodes sdn ON sdn.node_id = e.src\r\n  LEFT JOIN door_nodes ddn ON ddn.node_id = e.dst\r\n),\r\nneeded_doors AS (\r\n  SELECT DISTINCT x.door_id AS door_ref_id\r\n  FROM edge_doors e\r\n  CROSS JOIN LATERAL unnest(ARRAY[e.src_door_ref_id, e.dst_door_ref_id]) AS x(door_id)\r\n  WHERE x.door_id IS NOT NULL\r\n),\r\nrestricted_doors AS (\r\n  SELECT DISTINCT entity_id::bigint AS door_id\r\n  FROM access_time_restrictions\r\n  WHERE entity_table='doors'\r\n  UNION\r\n  SELECT DISTINCT entity_id::bigint AS door_id\r\n  FROM access_prayer_restrictions\r\n  WHERE entity_table='doors'\r\n),\r\ndoor_base AS (\r\n  SELECT d.id AS door_id, d.is_open_effective\r\n  FROM v_doors_live d\r\n  JOIN needed_doors nd ON nd.door_ref_id = d.id\r\n  WHERE (d.modes IS NULL OR p_mode = ANY(d.modes))\r\n),\r\ndoor_access AS (\r\n  SELECT\r\n    db.door_id,\r\n    db.is_open_effective,\r\n    true::boolean  AS allowed,\r\n    1.0::numeric   AS penalty_w\r\n  FROM door_base db\r\n)\r\nSELECT\r\n  e.id,\r\n  e.floor,\r\n  e.src,\r\n  e.dst,\r\n  e.geom,\r\n  e.base_cost,\r\n  e.cost,\r\n  CASE\r\n    WHEN e.door_id IS NULL THEN e.cost\r\n    WHEN COALESCE(d.bidirectional, true) = true THEN e.cost\r\n    ELSE (-1)::numeric\r\n  END AS reverse_cost,\r\n  e.door_id\r\nFROM edge_doors e\r\nLEFT JOIN v_doors_live d ON d.id = e.door_id\r\nLEFT JOIN door_access src_da ON src_da.door_id = e.src_door_ref_id\r\nLEFT JOIN door_access dst_da ON dst_da.door_id = e.dst_door_ref_id\r\nWHERE\r\n  (e.src_door_ref_id IS NULL OR (src_da.is_open_effective = true AND src_da.allowed = true))\r\n  AND\r\n  (e.dst_door_ref_id IS NULL OR (dst_da.is_open_effective = true AND dst_da.allowed = true));\r\n$function$\n",
+        "is_deterministic": "NO"
+    },
+    {
+        "schema": "public",
+        "language": "SQL",
+        "parameters": [
+            {
+                "data_type": "timestamp with time zone",
+                "parameter_mode": "IN",
+                "parameter_name": "p_now",
+                "ordinal_position": 1
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "parameter_mode": "IN",
+                "parameter_name": "p_gender",
+                "ordinal_position": 2
+            },
+            {
+                "data_type": "text",
+                "parameter_mode": "IN",
+                "parameter_name": "p_mode",
+                "ordinal_position": 3
+            },
+            {
+                "data_type": "smallint",
+                "parameter_mode": "IN",
+                "parameter_name": "p_floor",
+                "ordinal_position": 4
+            },
+            {
+                "data_type": "bigint",
+                "parameter_mode": "OUT",
+                "parameter_name": "id",
+                "ordinal_position": 5
+            },
+            {
+                "data_type": "smallint",
+                "parameter_mode": "OUT",
+                "parameter_name": "floor",
+                "ordinal_position": 6
+            },
+            {
+                "data_type": "bigint",
+                "parameter_mode": "OUT",
+                "parameter_name": "src",
+                "ordinal_position": 7
+            },
+            {
+                "data_type": "bigint",
+                "parameter_mode": "OUT",
+                "parameter_name": "dst",
+                "ordinal_position": 8
+            },
+            {
+                "data_type": "USER-DEFINED",
+                "parameter_mode": "OUT",
+                "parameter_name": "geom",
+                "ordinal_position": 9
+            },
+            {
+                "data_type": "numeric",
+                "parameter_mode": "OUT",
+                "parameter_name": "base_cost",
+                "ordinal_position": 10
+            },
+            {
+                "data_type": "numeric",
+                "parameter_mode": "OUT",
+                "parameter_name": "cost",
+                "ordinal_position": 11
+            },
+            {
                 "data_type": "bigint",
                 "parameter_mode": "OUT",
                 "parameter_name": "door_id",
@@ -3314,9 +3344,9 @@
         ],
         "return_type": "record",
         "function_body": "\r\nWITH\r\nedges AS (\r\n  SELECT e.id, e.floor, e.src, e.dst, e.geom, e.base_cost, e.base_cost AS cost, e.door_id\r\n  FROM routing_edges_static e\r\n  WHERE e.floor = p_floor\r\n    AND NOT EXISTS (\r\n      SELECT 1\r\n      FROM routing_edge_areas rea\r\n      JOIN areas a ON a.id = rea.area_id\r\n      WHERE rea.edge_id = e.id\r\n        AND a.floor = e.floor\r\n        AND a.allowed_gender <> 'both'\r\n        AND a.allowed_gender::text <> p_gender::text\r\n    )\r\n),\r\n\r\ndoor_nodes AS (\r\n  SELECT id AS node_id, ref_id::bigint AS door_ref_id\r\n  FROM routing_nodes\r\n  WHERE ref_table='doors' AND ref_id IS NOT NULL\r\n),\r\nedge_doors AS (\r\n  SELECT\r\n    e.*,\r\n    sdn.door_ref_id AS src_door_ref_id,\r\n    ddn.door_ref_id AS dst_door_ref_id\r\n  FROM edges e\r\n  LEFT JOIN door_nodes sdn ON sdn.node_id = e.src\r\n  LEFT JOIN door_nodes ddn ON ddn.node_id = e.dst\r\n),\r\n-- needed_doors AS (\r\n--   SELECT DISTINCT src_door_ref_id AS door_ref_id\r\n--   FROM edge_doors\r\n--   WHERE src_door_ref_id IS NOT NULL\r\n-- ),\r\n\r\nneeded_doors AS (\r\n  SELECT DISTINCT x.door_id AS door_ref_id\r\n  FROM edge_doors e\r\n  CROSS JOIN LATERAL unnest(ARRAY[e.src_door_ref_id, e.dst_door_ref_id]) AS x(door_id)\r\n  WHERE x.door_id IS NOT NULL\r\n),\r\n\r\n\r\n-- ✅ فقط درب‌هایی که واقعاً محدودیت دارند\r\nrestricted_doors AS (\r\n  SELECT DISTINCT entity_id::bigint AS door_id\r\n  FROM access_time_restrictions\r\n  WHERE entity_table='doors'\r\n  UNION\r\n  SELECT DISTINCT entity_id::bigint AS door_id\r\n  FROM access_prayer_restrictions\r\n  WHERE entity_table='doors'\r\n),\r\n\r\ndoor_base AS (\r\n  SELECT d.id AS door_id, d.is_open_effective\r\n  FROM v_doors_live d\r\n  JOIN needed_doors nd ON nd.door_ref_id = d.id\r\n\tWHERE\r\n\t (d.modes IS NULL OR p_mode = ANY(d.modes))\r\n),\r\n\r\ndoor_access AS (\r\n  SELECT\r\n    db.door_id,\r\n    db.is_open_effective,\r\n    -- پیش‌فرض سریع\r\n    true::boolean  AS allowed,\r\n    1::numeric     AS penalty_w\r\n  FROM door_base db\r\n  WHERE NOT EXISTS (\r\n    SELECT 1 FROM restricted_doors rd WHERE rd.door_id = db.door_id\r\n  )\r\n\r\n  UNION ALL\r\n\r\n  -- فقط برای درب‌های دارای محدودیت: fn_entity_access\r\n  SELECT\r\n    db.door_id,\r\n    db.is_open_effective,\r\n    COALESCE(a.allowed, true)   AS allowed,\r\n    COALESCE(a.penalty_w, 1)    AS penalty_w\r\n  FROM door_base db\r\n  JOIN restricted_doors rd ON rd.door_id = db.door_id\r\n  LEFT JOIN LATERAL (\r\n    SELECT allowed, penalty_w\r\n    FROM fn_entity_access(\r\n      'doors',\r\n      db.door_id,\r\n      p_now,\r\n      p_gender,\r\n      p_mode,\r\n      p_floor,\r\n      NULL\r\n    )\r\n    LIMIT 1\r\n  ) a ON true\r\n)\r\n\r\nSELECT\r\n  e.id,\r\n  e.floor,\r\n  e.src,\r\n  e.dst,\r\n  e.geom,\r\n  e.base_cost,\r\n  (e.cost\r\n    * COALESCE(src_da.penalty_w, 1)\r\n    * COALESCE(dst_da.penalty_w, 1)\r\n  )::numeric AS cost,\r\n  e.door_id\r\nFROM edge_doors e\r\nLEFT JOIN door_access src_da ON src_da.door_id = e.src_door_ref_id\r\nLEFT JOIN door_access dst_da ON dst_da.door_id = e.dst_door_ref_id\r\nWHERE\r\n  (e.src_door_ref_id IS NULL OR (src_da.is_open_effective = true AND src_da.allowed = true))\r\n  AND\r\n  (e.dst_door_ref_id IS NULL OR (dst_da.is_open_effective = true AND dst_da.allowed = true))\r\n\r\n",
-        "function_name": "fn_routing_edges_live_param",
+        "function_name": "fn_routing_edges_live_paramOLD",
         "security_type": "INVOKER",
-        "full_definition": "CREATE OR REPLACE FUNCTION public.fn_routing_edges_live_param(p_now timestamp with time zone, p_gender gender_enum, p_mode text, p_floor smallint)\n RETURNS TABLE(id bigint, floor smallint, src bigint, dst bigint, geom geometry, base_cost numeric, cost numeric, door_id bigint)\n LANGUAGE sql\n STABLE\nAS $function$\r\nWITH\r\nedges AS (\r\n  SELECT e.id, e.floor, e.src, e.dst, e.geom, e.base_cost, e.base_cost AS cost, e.door_id\r\n  FROM routing_edges_static e\r\n  WHERE e.floor = p_floor\r\n    AND NOT EXISTS (\r\n      SELECT 1\r\n      FROM routing_edge_areas rea\r\n      JOIN areas a ON a.id = rea.area_id\r\n      WHERE rea.edge_id = e.id\r\n        AND a.floor = e.floor\r\n        AND a.allowed_gender <> 'both'\r\n        AND a.allowed_gender::text <> p_gender::text\r\n    )\r\n),\r\n\r\ndoor_nodes AS (\r\n  SELECT id AS node_id, ref_id::bigint AS door_ref_id\r\n  FROM routing_nodes\r\n  WHERE ref_table='doors' AND ref_id IS NOT NULL\r\n),\r\nedge_doors AS (\r\n  SELECT\r\n    e.*,\r\n    sdn.door_ref_id AS src_door_ref_id,\r\n    ddn.door_ref_id AS dst_door_ref_id\r\n  FROM edges e\r\n  LEFT JOIN door_nodes sdn ON sdn.node_id = e.src\r\n  LEFT JOIN door_nodes ddn ON ddn.node_id = e.dst\r\n),\r\n-- needed_doors AS (\r\n--   SELECT DISTINCT src_door_ref_id AS door_ref_id\r\n--   FROM edge_doors\r\n--   WHERE src_door_ref_id IS NOT NULL\r\n-- ),\r\n\r\nneeded_doors AS (\r\n  SELECT DISTINCT x.door_id AS door_ref_id\r\n  FROM edge_doors e\r\n  CROSS JOIN LATERAL unnest(ARRAY[e.src_door_ref_id, e.dst_door_ref_id]) AS x(door_id)\r\n  WHERE x.door_id IS NOT NULL\r\n),\r\n\r\n\r\n-- ✅ فقط درب‌هایی که واقعاً محدودیت دارند\r\nrestricted_doors AS (\r\n  SELECT DISTINCT entity_id::bigint AS door_id\r\n  FROM access_time_restrictions\r\n  WHERE entity_table='doors'\r\n  UNION\r\n  SELECT DISTINCT entity_id::bigint AS door_id\r\n  FROM access_prayer_restrictions\r\n  WHERE entity_table='doors'\r\n),\r\n\r\ndoor_base AS (\r\n  SELECT d.id AS door_id, d.is_open_effective\r\n  FROM v_doors_live d\r\n  JOIN needed_doors nd ON nd.door_ref_id = d.id\r\n\tWHERE\r\n\t (d.modes IS NULL OR p_mode = ANY(d.modes))\r\n),\r\n\r\ndoor_access AS (\r\n  SELECT\r\n    db.door_id,\r\n    db.is_open_effective,\r\n    -- پیش‌فرض سریع\r\n    true::boolean  AS allowed,\r\n    1::numeric     AS penalty_w\r\n  FROM door_base db\r\n  WHERE NOT EXISTS (\r\n    SELECT 1 FROM restricted_doors rd WHERE rd.door_id = db.door_id\r\n  )\r\n\r\n  UNION ALL\r\n\r\n  -- فقط برای درب‌های دارای محدودیت: fn_entity_access\r\n  SELECT\r\n    db.door_id,\r\n    db.is_open_effective,\r\n    COALESCE(a.allowed, true)   AS allowed,\r\n    COALESCE(a.penalty_w, 1)    AS penalty_w\r\n  FROM door_base db\r\n  JOIN restricted_doors rd ON rd.door_id = db.door_id\r\n  LEFT JOIN LATERAL (\r\n    SELECT allowed, penalty_w\r\n    FROM fn_entity_access(\r\n      'doors',\r\n      db.door_id,\r\n      p_now,\r\n      p_gender,\r\n      p_mode,\r\n      p_floor,\r\n      NULL\r\n    )\r\n    LIMIT 1\r\n  ) a ON true\r\n)\r\n\r\nSELECT\r\n  e.id,\r\n  e.floor,\r\n  e.src,\r\n  e.dst,\r\n  e.geom,\r\n  e.base_cost,\r\n  (e.cost\r\n    * COALESCE(src_da.penalty_w, 1)\r\n    * COALESCE(dst_da.penalty_w, 1)\r\n  )::numeric AS cost,\r\n  e.door_id\r\nFROM edge_doors e\r\nLEFT JOIN door_access src_da ON src_da.door_id = e.src_door_ref_id\r\nLEFT JOIN door_access dst_da ON dst_da.door_id = e.dst_door_ref_id\r\nWHERE\r\n  (e.src_door_ref_id IS NULL OR (src_da.is_open_effective = true AND src_da.allowed = true))\r\n  AND\r\n  (e.dst_door_ref_id IS NULL OR (dst_da.is_open_effective = true AND dst_da.allowed = true))\r\n\r\n$function$\n",
+        "full_definition": "CREATE OR REPLACE FUNCTION public.\"fn_routing_edges_live_paramOLD\"(p_now timestamp with time zone, p_gender gender_enum, p_mode text, p_floor smallint)\n RETURNS TABLE(id bigint, floor smallint, src bigint, dst bigint, geom geometry, base_cost numeric, cost numeric, door_id bigint)\n LANGUAGE sql\n STABLE\nAS $function$\r\nWITH\r\nedges AS (\r\n  SELECT e.id, e.floor, e.src, e.dst, e.geom, e.base_cost, e.base_cost AS cost, e.door_id\r\n  FROM routing_edges_static e\r\n  WHERE e.floor = p_floor\r\n    AND NOT EXISTS (\r\n      SELECT 1\r\n      FROM routing_edge_areas rea\r\n      JOIN areas a ON a.id = rea.area_id\r\n      WHERE rea.edge_id = e.id\r\n        AND a.floor = e.floor\r\n        AND a.allowed_gender <> 'both'\r\n        AND a.allowed_gender::text <> p_gender::text\r\n    )\r\n),\r\n\r\ndoor_nodes AS (\r\n  SELECT id AS node_id, ref_id::bigint AS door_ref_id\r\n  FROM routing_nodes\r\n  WHERE ref_table='doors' AND ref_id IS NOT NULL\r\n),\r\nedge_doors AS (\r\n  SELECT\r\n    e.*,\r\n    sdn.door_ref_id AS src_door_ref_id,\r\n    ddn.door_ref_id AS dst_door_ref_id\r\n  FROM edges e\r\n  LEFT JOIN door_nodes sdn ON sdn.node_id = e.src\r\n  LEFT JOIN door_nodes ddn ON ddn.node_id = e.dst\r\n),\r\n-- needed_doors AS (\r\n--   SELECT DISTINCT src_door_ref_id AS door_ref_id\r\n--   FROM edge_doors\r\n--   WHERE src_door_ref_id IS NOT NULL\r\n-- ),\r\n\r\nneeded_doors AS (\r\n  SELECT DISTINCT x.door_id AS door_ref_id\r\n  FROM edge_doors e\r\n  CROSS JOIN LATERAL unnest(ARRAY[e.src_door_ref_id, e.dst_door_ref_id]) AS x(door_id)\r\n  WHERE x.door_id IS NOT NULL\r\n),\r\n\r\n\r\n-- ✅ فقط درب‌هایی که واقعاً محدودیت دارند\r\nrestricted_doors AS (\r\n  SELECT DISTINCT entity_id::bigint AS door_id\r\n  FROM access_time_restrictions\r\n  WHERE entity_table='doors'\r\n  UNION\r\n  SELECT DISTINCT entity_id::bigint AS door_id\r\n  FROM access_prayer_restrictions\r\n  WHERE entity_table='doors'\r\n),\r\n\r\ndoor_base AS (\r\n  SELECT d.id AS door_id, d.is_open_effective\r\n  FROM v_doors_live d\r\n  JOIN needed_doors nd ON nd.door_ref_id = d.id\r\n\tWHERE\r\n\t (d.modes IS NULL OR p_mode = ANY(d.modes))\r\n),\r\n\r\ndoor_access AS (\r\n  SELECT\r\n    db.door_id,\r\n    db.is_open_effective,\r\n    -- پیش‌فرض سریع\r\n    true::boolean  AS allowed,\r\n    1::numeric     AS penalty_w\r\n  FROM door_base db\r\n  WHERE NOT EXISTS (\r\n    SELECT 1 FROM restricted_doors rd WHERE rd.door_id = db.door_id\r\n  )\r\n\r\n  UNION ALL\r\n\r\n  -- فقط برای درب‌های دارای محدودیت: fn_entity_access\r\n  SELECT\r\n    db.door_id,\r\n    db.is_open_effective,\r\n    COALESCE(a.allowed, true)   AS allowed,\r\n    COALESCE(a.penalty_w, 1)    AS penalty_w\r\n  FROM door_base db\r\n  JOIN restricted_doors rd ON rd.door_id = db.door_id\r\n  LEFT JOIN LATERAL (\r\n    SELECT allowed, penalty_w\r\n    FROM fn_entity_access(\r\n      'doors',\r\n      db.door_id,\r\n      p_now,\r\n      p_gender,\r\n      p_mode,\r\n      p_floor,\r\n      NULL\r\n    )\r\n    LIMIT 1\r\n  ) a ON true\r\n)\r\n\r\nSELECT\r\n  e.id,\r\n  e.floor,\r\n  e.src,\r\n  e.dst,\r\n  e.geom,\r\n  e.base_cost,\r\n  (e.cost\r\n    * COALESCE(src_da.penalty_w, 1)\r\n    * COALESCE(dst_da.penalty_w, 1)\r\n  )::numeric AS cost,\r\n  e.door_id\r\nFROM edge_doors e\r\nLEFT JOIN door_access src_da ON src_da.door_id = e.src_door_ref_id\r\nLEFT JOIN door_access dst_da ON dst_da.door_id = e.dst_door_ref_id\r\nWHERE\r\n  (e.src_door_ref_id IS NULL OR (src_da.is_open_effective = true AND src_da.allowed = true))\r\n  AND\r\n  (e.dst_door_ref_id IS NULL OR (dst_da.is_open_effective = true AND dst_da.allowed = true))\r\n\r\n$function$\n",
         "is_deterministic": "NO"
     },
     {
