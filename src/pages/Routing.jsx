@@ -877,8 +877,9 @@ const RoutingPage = () => {
         )
         : s.instruction || '';
       const landmarkName = resolveLandmarkName(s);
-      const instruction = landmarkName
-        ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: landmarkName, distance: Math.round(distance) })}`
+      const roundedDistance = Math.round(distance);
+      const instruction = landmarkName && roundedDistance > 0
+        ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: landmarkName, distance: roundedDistance })}`
         : base;
       let direction = 'arrived';
       if (idx < coords.length - 2) {
@@ -945,8 +946,9 @@ const RoutingPage = () => {
           )
           : st.instruction || '';
         const landmarkName = resolveLandmarkName(st);
-        const instruction = landmarkName
-          ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: landmarkName, distance: Math.round(dist) })}`
+        const roundedDist = Math.round(dist);
+        const instruction = landmarkName && roundedDist > 0
+          ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: landmarkName, distance: roundedDist })}`
           : base;
         let direction = 'arrived';
         if (i < altCoords.length - 2) {
