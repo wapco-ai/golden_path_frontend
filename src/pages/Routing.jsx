@@ -401,22 +401,51 @@ const RoutingPage = () => {
     };
   }, [transportMode, gender, origin, destination, routeGeo, routeSteps.length, buildRouteWithFallback]);
 
+  const formatDurationFromSeconds = useCallback((durationSeconds) => {
+    const normalizedSeconds = Math.max(0, Math.round(durationSeconds || 0));
+    if (normalizedSeconds < 60) {
+      return `${normalizedSeconds} ${intl.formatMessage({ id: 'secondsUnit' })}`;
+    }
+
+    const minutes = Math.floor(normalizedSeconds / 60);
+    const seconds = normalizedSeconds % 60;
+    if (seconds === 0) {
+      return `${minutes} ${intl.formatMessage({ id: 'minutesUnit' })}`;
+    }
+
+    return `${minutes} ${intl.formatMessage({ id: 'minutesUnit' })} ${seconds} ${intl.formatMessage({ id: 'secondsUnit' })}`;
+  }, [intl]);
+
   // Calculate total time in minutes from all steps
-  const calculateTotalTime = (steps) => {
+  const calculateTotalTime = useCallback((steps) => {
     if (!steps) return 0;
 
-    let totalMinutes = 0;
-    steps.forEach(step => {
-      const timeStr = step.time;
-      if (timeStr.includes(intl.formatMessage({ id: 'minutesUnit' }))) {
-        totalMinutes += parseInt(timeStr.split(' ')[0]);
-      } else if (timeStr.includes(intl.formatMessage({ id: 'secondsUnit' }))) {
-        totalMinutes += Math.ceil(parseInt(timeStr.split(' ')[0]) / 60);
-      }
-    });
+    const minuteUnit = intl.formatMessage({ id: 'minutesUnit' });
+    const secondUnit = intl.formatMessage({ id: 'secondsUnit' });
 
-    return totalMinutes;
-  };
+    const totalSeconds = steps.reduce((acc, step) => {
+      if (Number.isFinite(step?.durationSeconds)) {
+        return acc + step.durationSeconds;
+      }
+
+      const timeStr = step?.time;
+      if (!timeStr || typeof timeStr !== 'string') return acc;
+
+      let stepSeconds = 0;
+      const minuteMatch = timeStr.match(new RegExp(`(\\d+)\\s*${minuteUnit}`));
+      const secondMatch = timeStr.match(new RegExp(`(\\d+)\\s*${secondUnit}`));
+      if (minuteMatch) {
+        stepSeconds += parseInt(minuteMatch[1], 10) * 60;
+      }
+      if (secondMatch) {
+        stepSeconds += parseInt(secondMatch[1], 10);
+      }
+
+      return acc + stepSeconds;
+    }, 0);
+
+    return totalSeconds / 60;
+  }, [intl]);
 
   // If no steps available but route geometry exists (e.g. when navigating
   // directly from the search page), compute summary info from stored summary
@@ -524,19 +553,7 @@ const RoutingPage = () => {
   }, [isInfoModalOpen]);
 
   // Format total time as "X <minutes> Y <seconds>"
-  const formatTotalTime = (totalMinutes) => {
-    if (totalMinutes < 1) {
-      const seconds = totalMinutes * 60;
-      return `${Math.round(seconds)} ${intl.formatMessage({ id: 'secondsUnit' })}`;
-    }
-    const minutes = Math.floor(totalMinutes);
-    const seconds = Math.round((totalMinutes - minutes) * 60);
-
-    if (seconds > 0) {
-      return `${minutes} ${intl.formatMessage({ id: 'minutesUnit' })} ${seconds} ${intl.formatMessage({ id: 'secondsUnit' })}`;
-    }
-    return `${minutes} ${intl.formatMessage({ id: 'minutesUnit' })}`;
-  };
+  const formatTotalTime = (totalMinutes) => formatDurationFromSeconds(totalMinutes * 60);
 
   // Calculate arrival time in HH:MM format with AM/PM indicator
   const calculateArrivalTime = (totalMinutes) => {
@@ -830,11 +847,13 @@ const RoutingPage = () => {
         const b2 = bearing(coords[idx + 1], coords[idx + 2]);
         direction = computeTurn(b1, b2);
       }
+      const durationSeconds = Math.max(1, Math.round(distance));
       return {
         id: idx + 1,
         instruction,
         distance: `${Math.round(distance)} ${intl.formatMessage({ id: 'meters' })}`,
-        time: `${Math.max(1, Math.round(distance / 60))} ${intl.formatMessage({ id: 'minutesUnit' })}`,
+        time: formatDurationFromSeconds(durationSeconds),
+        durationSeconds,
         coordinates: stepCoords,
         landmark: landmarkName,
         services: s.services || {},
@@ -896,11 +915,13 @@ const RoutingPage = () => {
           const b2 = bearing(altCoords[i + 1], altCoords[i + 2]);
           direction = computeTurn(b1, b2);
         }
+        const durationSeconds = Math.max(1, Math.round(dist));
         return {
           id: i + 1,
           instruction,
           distance: `${Math.round(dist)} ${intl.formatMessage({ id: 'meters' })}`,
-          time: `${Math.max(1, Math.round(dist / 60))} ${intl.formatMessage({ id: 'minutesUnit' })}`,
+          time: formatDurationFromSeconds(durationSeconds),
+          durationSeconds,
           coordinates: stepCoords,
           landmark: landmarkName,
           direction
