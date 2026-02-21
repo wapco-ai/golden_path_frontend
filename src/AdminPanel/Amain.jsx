@@ -5755,6 +5755,24 @@ const Amain = () => {
       doorCoords[1] + (unitVector[1] * lineLength)
     ];
 
+    const arrowHeadLength = lineLength * 0.45;
+    const arrowHeadAngle = Math.PI / 6;
+    const directionAngle = Math.atan2(unitVector[1], unitVector[0]);
+
+    const leftWingUnit = [
+      Math.cos(directionAngle + Math.PI - arrowHeadAngle),
+      Math.sin(directionAngle + Math.PI - arrowHeadAngle)
+    ];
+    const rightWingUnit = [
+      Math.cos(directionAngle + Math.PI + arrowHeadAngle),
+      Math.sin(directionAngle + Math.PI + arrowHeadAngle)
+    ];
+
+    const leftWingEnd = [
+      end[0] + (leftWingUnit[0] * arrowHeadLength),
+      end[1] + (leftWingUnit[1] * arrowHeadLength)
+    ];
+
     const rightWingEnd = [
       end[0] + (rightWingUnit[0] * arrowHeadLength),
       end[1] + (rightWingUnit[1] * arrowHeadLength)
