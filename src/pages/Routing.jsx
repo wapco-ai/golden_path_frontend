@@ -646,8 +646,6 @@ const RoutingPage = () => {
       || step?.poi_name
       || step?.referenceLandmark
       || step?.reference_landmark
-      || step?.title
-      || step?.name
       || null;
 
     if (!candidate) return null;
