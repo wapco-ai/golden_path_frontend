@@ -74,6 +74,8 @@ const SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID = 'selected-editable-feature-line'
 const SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID = 'selected-editable-feature-fill';
 const DOOR_ROUTING_PREVIEW_SOURCE_ID = 'door-routing-preview-source';
 const DOOR_ROUTING_PREVIEW_LINE_LAYER_ID = 'door-routing-preview-line-layer';
+const ONE_WAY_DOOR_DIRECTION_SOURCE_ID = 'one-way-door-direction-source';
+const ONE_WAY_DOOR_DIRECTION_LINE_LAYER_ID = 'one-way-door-direction-line-layer';
 const VAN_DRAW_SOURCE_ID = 'van-draw-source';
 const VAN_DRAW_LINE_LAYER_ID = 'van-draw-line-layer';
 const VAN_DRAW_POINT_LAYER_ID = 'van-draw-point-layer';
@@ -101,6 +103,28 @@ const DASHBOARD_RANGE_MAP = {
 };
 
 const mapTimeFilterToRange = (label) => DASHBOARD_RANGE_MAP[label] || 'week';
+
+const isTruthyDoorRoutingFlag = (value) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+  if (typeof value !== 'string') return false;
+
+  const normalized = value.trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes';
+};
+
+const getDoorAreaIdValue = (properties, keys) => {
+  for (const key of keys) {
+    const candidate = properties?.[key];
+    if (candidate === null || candidate === undefined || candidate === '') continue;
+    const normalized = Number(candidate);
+    if (!Number.isNaN(normalized)) {
+      return normalized;
+    }
+  }
+
+  return null;
+};
 
 const mapCommentFilterToRange = (label) => {
   if (label === 'امروز') {
@@ -5799,6 +5823,183 @@ const Amain = () => {
     routingToArea,
     selectedEditableFeature
   ]);
+
+  useEffect(() => {
+    if (!map || activeMenu !== 'mapmanage') return undefined;
+
+    const emptyCollection = { type: 'FeatureCollection', features: [] };
+
+    const ensureOneWayDirectionLayers = () => {
+      if (!map.getSource(ONE_WAY_DOOR_DIRECTION_SOURCE_ID)) {
+        map.addSource(ONE_WAY_DOOR_DIRECTION_SOURCE_ID, {
+          type: 'geojson',
+          data: emptyCollection
+        });
+      }
+
+      if (!map.getLayer(ONE_WAY_DOOR_DIRECTION_LINE_LAYER_ID)) {
+        map.addLayer({
+          id: ONE_WAY_DOOR_DIRECTION_LINE_LAYER_ID,
+          type: 'line',
+          source: ONE_WAY_DOOR_DIRECTION_SOURCE_ID,
+          layout: {
+            'line-cap': 'round',
+            'line-join': 'round'
+          },
+          paint: {
+            'line-color': '#ef4444',
+            'line-width': 2.6,
+            'line-opacity': 0.95
+          }
+        });
+      }
+
+      if (map.getLayer(ONE_WAY_DOOR_DIRECTION_LINE_LAYER_ID)) {
+        map.moveLayer(ONE_WAY_DOOR_DIRECTION_LINE_LAYER_ID);
+      }
+    };
+
+    const refreshOneWayDirectionSource = () => {
+      const source = map.getSource(ONE_WAY_DOOR_DIRECTION_SOURCE_ID);
+      if (!source || typeof source.setData !== 'function') return;
+
+      const doorFeatures = map.queryRenderedFeatures(undefined, { layers: [DOOR_ACCESS_LAYER_ID] }) || [];
+      const areaFeatures = map.queryRenderedFeatures(undefined, { layers: ['areas-outline'] }) || [];
+
+      if (!doorFeatures.length || !areaFeatures.length) {
+        source.setData(emptyCollection);
+        return;
+      }
+
+      const areaCenters = new Map();
+      areaFeatures.forEach((feature) => {
+        const props = feature?.properties || {};
+        const areaId = Number(props.area_id ?? props.areaId ?? props.id);
+        if (Number.isNaN(areaId) || areaCenters.has(areaId) || !feature?.geometry) return;
+
+        if (feature.geometry.type === 'Point') {
+          areaCenters.set(areaId, feature.geometry.coordinates);
+          return;
+        }
+
+        if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
+          const center = turfCentroid(feature).geometry?.coordinates;
+          if (Array.isArray(center) && center.length >= 2) {
+            areaCenters.set(areaId, center);
+          }
+        }
+      });
+
+      const directionLines = [];
+      const shaftLengthPx = 18;
+      const arrowHeadLengthPx = 8;
+      const wingAngle = Math.PI / 6;
+
+      doorFeatures.forEach((doorFeature) => {
+        const props = doorFeature?.properties || {};
+        const isOneWay = props.one_way !== undefined
+          ? isTruthyDoorRoutingFlag(props.one_way)
+          : props.bidirectional !== undefined
+            ? !isTruthyDoorRoutingFlag(props.bidirectional)
+            : false;
+
+        if (!isOneWay || doorFeature?.geometry?.type !== 'Point') return;
+
+        const fromAreaId = getDoorAreaIdValue(props, ['from_area', 'fromArea', 'routing_from_area', 'routingFromArea']);
+        const toAreaId = getDoorAreaIdValue(props, ['to_area', 'toArea', 'routing_to_area', 'routingToArea']);
+        if (fromAreaId === null || toAreaId === null || fromAreaId === toAreaId) return;
+
+        const fromCenter = areaCenters.get(fromAreaId);
+        const toCenter = areaCenters.get(toAreaId);
+        const doorCoordinates = doorFeature.geometry.coordinates;
+        if (!fromCenter || !toCenter || !Array.isArray(doorCoordinates)) return;
+
+        const doorPx = map.project(doorCoordinates);
+        const fromPx = map.project(fromCenter);
+        const toPx = map.project(toCenter);
+
+        const vectorX = toPx.x - fromPx.x;
+        const vectorY = toPx.y - fromPx.y;
+        const vectorLength = Math.hypot(vectorX, vectorY);
+        if (!vectorLength) return;
+
+        const unitX = vectorX / vectorLength;
+        const unitY = vectorY / vectorLength;
+        const endPx = {
+          x: doorPx.x + (unitX * shaftLengthPx),
+          y: doorPx.y + (unitY * shaftLengthPx)
+        };
+
+        const baseAngle = Math.atan2(unitY, unitX);
+        const leftWingAngle = baseAngle + Math.PI - wingAngle;
+        const rightWingAngle = baseAngle + Math.PI + wingAngle;
+        const leftWingPx = {
+          x: endPx.x + (Math.cos(leftWingAngle) * arrowHeadLengthPx),
+          y: endPx.y + (Math.sin(leftWingAngle) * arrowHeadLengthPx)
+        };
+        const rightWingPx = {
+          x: endPx.x + (Math.cos(rightWingAngle) * arrowHeadLengthPx),
+          y: endPx.y + (Math.sin(rightWingAngle) * arrowHeadLengthPx)
+        };
+
+        const start = map.unproject(doorPx);
+        const end = map.unproject(endPx);
+        const leftWingEnd = map.unproject(leftWingPx);
+        const rightWingEnd = map.unproject(rightWingPx);
+
+        directionLines.push(
+          {
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: [[start.lng, start.lat], [end.lng, end.lat]]
+            },
+            properties: { segment: 'shaft' }
+          },
+          {
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: [[end.lng, end.lat], [leftWingEnd.lng, leftWingEnd.lat]]
+            },
+            properties: { segment: 'head' }
+          },
+          {
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: [[end.lng, end.lat], [rightWingEnd.lng, rightWingEnd.lat]]
+            },
+            properties: { segment: 'head' }
+          }
+        );
+      });
+
+      source.setData({ type: 'FeatureCollection', features: directionLines });
+    };
+
+    const initializeAndRefresh = () => {
+      ensureOneWayDirectionLayers();
+      refreshOneWayDirectionSource();
+    };
+
+    if (map.isStyleLoaded()) {
+      initializeAndRefresh();
+    } else {
+      map.once('style.load', initializeAndRefresh);
+    }
+
+    map.on('moveend', refreshOneWayDirectionSource);
+    map.on('zoomend', refreshOneWayDirectionSource);
+    map.on('idle', refreshOneWayDirectionSource);
+
+    return () => {
+      map.off('style.load', initializeAndRefresh);
+      map.off('moveend', refreshOneWayDirectionSource);
+      map.off('zoomend', refreshOneWayDirectionSource);
+      map.off('idle', refreshOneWayDirectionSource);
+    };
+  }, [map, activeMenu, mapFloor, mapLanguage]);
 
   const buildTempAreaGeometry = useCallback((vertices = []) => {
     if (!Array.isArray(vertices) || !vertices.length) return null;
