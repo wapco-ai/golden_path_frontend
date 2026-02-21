@@ -74,7 +74,6 @@ const SELECTED_EDITABLE_FEATURE_LINE_LAYER_ID = 'selected-editable-feature-line'
 const SELECTED_EDITABLE_FEATURE_FILL_LAYER_ID = 'selected-editable-feature-fill';
 const DOOR_ROUTING_PREVIEW_SOURCE_ID = 'door-routing-preview-source';
 const DOOR_ROUTING_PREVIEW_LINE_LAYER_ID = 'door-routing-preview-line-layer';
-const DOOR_ROUTING_PREVIEW_ARROW_LAYER_ID = 'door-routing-preview-arrow-layer';
 const VAN_DRAW_SOURCE_ID = 'van-draw-source';
 const VAN_DRAW_LINE_LAYER_ID = 'van-draw-line-layer';
 const VAN_DRAW_POINT_LAYER_ID = 'van-draw-point-layer';
@@ -5650,30 +5649,7 @@ const Amain = () => {
         });
       }
 
-      if (!map.getLayer(DOOR_ROUTING_PREVIEW_ARROW_LAYER_ID)) {
-        map.addLayer({
-          id: DOOR_ROUTING_PREVIEW_ARROW_LAYER_ID,
-          type: 'symbol',
-          source: DOOR_ROUTING_PREVIEW_SOURCE_ID,
-          filter: ['==', ['geometry-type'], 'Point'],
-          layout: {
-            'text-field': '➤',
-            'text-size': 18,
-            'text-rotate': ['get', 'bearing'],
-            'text-keep-upright': false,
-            'text-allow-overlap': true,
-            'text-ignore-placement': true
-          },
-          paint: {
-            'text-color': '#ef4444',
-            'text-halo-color': '#ffffff',
-            'text-halo-width': 1
-          }
-        });
-      }
-
       map.moveLayer(DOOR_ROUTING_PREVIEW_LINE_LAYER_ID);
-      map.moveLayer(DOOR_ROUTING_PREVIEW_ARROW_LAYER_ID);
     };
 
     if (map.isStyleLoaded()) {
@@ -5779,7 +5755,10 @@ const Amain = () => {
       doorCoords[1] + (unitVector[1] * lineLength)
     ];
 
-    const bearing = (Math.atan2(unitVector[1], unitVector[0]) * 180) / Math.PI;
+    const rightWingEnd = [
+      end[0] + (rightWingUnit[0] * arrowHeadLength),
+      end[1] + (rightWingUnit[1] * arrowHeadLength)
+    ];
 
     source.setData({
       type: 'FeatureCollection',
@@ -5790,15 +5769,23 @@ const Amain = () => {
             type: 'LineString',
             coordinates: [start, end]
           },
-          properties: {}
+          properties: { segment: 'shaft' }
         },
         {
           type: 'Feature',
           geometry: {
-            type: 'Point',
-            coordinates: end
+            type: 'LineString',
+            coordinates: [end, leftWingEnd]
           },
-          properties: { bearing }
+          properties: { segment: 'head' }
+        },
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: [end, rightWingEnd]
+          },
+          properties: { segment: 'head' }
         }
       ]
     });
