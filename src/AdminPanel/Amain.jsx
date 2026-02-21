@@ -5748,11 +5748,26 @@ const Amain = () => {
     }
 
     const lineLength = 0.00018;
+    const arrowHeadLength = 0.00006;
     const unitVector = [directionVector[0] / vectorLength, directionVector[1] / vectorLength];
+    const perpendicularUnit = [-unitVector[1], unitVector[0]];
+    const leftWingUnit = [
+      (-unitVector[0] * 0.7) + (perpendicularUnit[0] * 0.7),
+      (-unitVector[1] * 0.7) + (perpendicularUnit[1] * 0.7)
+    ];
+    const rightWingUnit = [
+      (-unitVector[0] * 0.7) - (perpendicularUnit[0] * 0.7),
+      (-unitVector[1] * 0.7) - (perpendicularUnit[1] * 0.7)
+    ];
     const start = [doorCoords[0], doorCoords[1]];
     const end = [
       doorCoords[0] + (unitVector[0] * lineLength),
       doorCoords[1] + (unitVector[1] * lineLength)
+    ];
+
+    const leftWingEnd = [
+      end[0] + (leftWingUnit[0] * arrowHeadLength),
+      end[1] + (leftWingUnit[1] * arrowHeadLength)
     ];
 
     const rightWingEnd = [
