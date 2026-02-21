@@ -8,7 +8,19 @@
   direction: rtl;
   overflow: hidden;
   transition: opacity 0.5s ease;
+  background-color: #666;
 }
+
+.map-fade-rng {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(to top, white, transparent);
+  pointer-events: none;
+}
+
 
 .routing-page.page-loaded {
   opacity: 1;
@@ -50,10 +62,12 @@
   bottom: 10px;
   right: 10px;
   left: 10px;
+  width: 40%;
   background: rgba(0, 0, 0, 0.45);
   border-radius: 10px;
   color: #fff;
   padding: 8px 10px;
+  border: 1px solid red;
 }
 
 .live-landmark-title {
@@ -117,6 +131,21 @@
   height: 100%;
   width: 100%;
   
+}
+
+
+/* Force border-radius to 0 on all map-related elements */
+.map-container-rng,
+.map-container-rng *,
+.route-map,
+.route-map *,
+.leaflet-container,
+.leaflet-container *,
+.maplibregl-map,
+.maplibregl-map *,
+.mapboxgl-map,
+.mapboxgl-map * {
+  border-radius: 0 !important;
 }
 
 .map-container.dark-overlay {

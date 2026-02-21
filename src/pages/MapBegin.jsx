@@ -1268,7 +1268,7 @@ const MapBeginPage = () => {
                 />
               </div>
             </div>
-            
+
             <div
               className={`map-style-option ${selectedMapType === 'base' ? 'active' : ''}`}
               onClick={() => {
@@ -1506,22 +1506,24 @@ const MapBeginPage = () => {
               <div className="shrine-events-list">
                 {eventsToShow.slice(0, 6).map((event, index) => (
                   <div key={index} className="shrine-event-item">
-                    <div
-                      className="place-image-placeholder"
-                      style={{ backgroundImage: `url(${event.image})` }}
-                    ></div>
-                    <div className="place-info">
+                    <div className="shrine-image-holder">
+                      <div
+                        className="place-image-placeholder"
+                        style={{ backgroundImage: `url(${event.image})` }}
+                      ></div>
+                    </div>
+                    <div className="place-info-mpb">
                       <h3 className="place-title">{event.title}</h3>
-                      <p className="place-description">{event.description}</p>
-                      <div className="place-info2">
-                        <span className="place-address">
+                      <p className="place-description-mpb">{event.description}</p>
+                      <div className="place-info2-mpb">
+                        <span className="place-address-mpb">
                           <svg width="24" height="24" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path fillRule="evenodd" clipRule="evenodd" d="M10.2073 2.9087C9.5 3.53569 9.5 4.68259 9.5 6.9764V18.0236C9.5 20.3174 9.5 21.4643 10.2073 22.0913C10.9145 22.7183 11.9955 22.5297 14.1576 22.1526L16.4864 21.7465C18.8809 21.3288 20.0781 21.12 20.7891 20.2417C21.5 19.3635 21.5 18.0933 21.5 15.5529V9.44711C21.5 6.90671 21.5 5.63652 20.7891 4.75826C20.0781 3.87999 18.8809 3.67118 16.4864 3.25354L14.1576 2.84736C11.9955 2.47026 10.9145 2.28171 10.2073 2.9087ZM12.5 10.6686C12.9142 10.6686 13.25 11.02 13.25 11.4535V13.5465C13.25 13.98 12.9142 14.3314 12.5 14.3314C12.0858 14.3314 11.75 13.98 11.75 13.5465V11.4535C11.75 11.02 12.0858 10.6686 12.5 10.6686Z" fill="#1E2023" />
                             <path d="M8.04717 5C5.98889 5.003 4.91599 5.04826 4.23223 5.73202C3.5 6.46425 3.5 7.64276 3.5 9.99979V14.9998C3.5 17.3568 3.5 18.5353 4.23223 19.2676C4.91599 19.9513 5.98889 19.9966 8.04717 19.9996C7.99985 19.3763 7.99992 18.6557 8.00001 17.8768V7.1227C7.99992 6.34388 7.99985 5.6233 8.04717 5Z" fill="#1E2023" />
                           </svg>
                           {event.location}
                         </span>
-                        <div className="place-meta">
+                        <div className="place-meta-mpb">
                           <span className="shrine-event-time">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="black">
                               <path stroke="none" d="M0 0h24v24H0z" fill="none" />
@@ -1533,7 +1535,7 @@ const MapBeginPage = () => {
                       </div>
 
                       <div className="place-actions">
-                        <button className="place-action-btn" onClick={() => navigate('/fs')}>
+                        <button className="place-action-btn-shrine" onClick={() => navigate('/fs')}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M11.092 2.581a1 1 0 0 1 1.754 -.116l.062 .116l8.005 17.365c.198 .566 .05 1.196 -.378 1.615a1.53 1.53 0 0 1 -1.459 .393l-7.077 -2.398l-6.899 2.338a1.535 1.535 0 0 1 -1.52 -.231l-.112 -.1c-.398 -.386 -.556 -.954 -.393 -1.556l.047 -.15l7.97 -17.276z" />

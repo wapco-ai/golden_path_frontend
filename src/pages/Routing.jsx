@@ -1622,6 +1622,7 @@ const RoutingPage = () => {
             ))}
           </div>
         )}
+        <div className="map-fade-rng"></div>
       </div>
 
       {/* Map Section */}

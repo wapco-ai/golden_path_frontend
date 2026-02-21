@@ -528,11 +528,19 @@ body.modal-open {
   padding: 8px;
 }
 
+.shrine-image-holder{
+  display: flex;
+  width: 100%;
+  align-items: center;
+  flex:0.5;
+}
+
 .place-image-placeholder {
   width: 100%;
-  height: 200px;
+  height: 100%;
   background-color: #f5f5f5;
   background-size: cover;
+  justify-content: center;
   background-position: center
 }
 
@@ -583,12 +591,33 @@ body.modal-open {
   font-family: 'Vazir', Tahoma, sans-serif;
 }
 
+
+.place-info-mpb {
+  display: flex;
+  padding-top: 0px;
+  flex-direction: column;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  justify-content: flex-end;
+  gap: 0px;
+  flex: 0.7;
+}
+
+
 .place-info2 {
   padding: 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-family: 'Vazir', Tahoma, sans-serif;
+}
+
+.place-info2-mpb {
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  margin-top: 0px;
 }
 
 
@@ -611,9 +640,12 @@ body.modal-open {
 .place-title {
   font-size: 1rem;
   color: #333;
-  margin-bottom: 8px;
+  margin-bottom: 0px;
   font-weight: bold;
+  margin-top: 0px;
   font-family: 'Vazir', Tahoma, sans-serif;
+  flex:1;
+  margin-top: 15px;
 }
 
 .place-meta {
@@ -623,6 +655,15 @@ body.modal-open {
   font-size: 0.9rem;
   color: #666;
   margin-bottom: 8px;
+  font-family: 'Vazir', Tahoma, sans-serif;
+}
+
+.place-meta-mpb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #666;
   font-family: 'Vazir', Tahoma, sans-serif;
 }
 
@@ -637,12 +678,35 @@ body.modal-open {
   align-items: center;
 }
 
+.place-address-mpb{
+  display: flex;
+  align-items: center;
+  font-size: 0.8rem;
+}
+
 .place-actions {
   display: flex;
   gap: 8px;
   border-top: none;
   padding-top: 12px;
 }
+
+.place-action-btn-shrine {
+  background-color: #1E90FF;
+  border: 1px solid #1E90FF;
+  border-radius: 20px;
+  padding: 6px 0px;
+  font-size: 0.9rem;
+  color: #f8f5f5;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  justify-content: center;
+  transition: all 0.3s ease;
+  font-family: 'Vazir', Tahoma, sans-serif;
+}
+
 
 .place-action-btn {
   background-color: #1E90FF;
@@ -797,14 +861,15 @@ body.modal-open {
 
 
 .shrine-event-item {
+  display: flex;
+  flex-direction: column;
   font-family: 'Vazir', Tahoma, sans-serif;
-  min-width: 280px;
+  width: 320px;
+  height: 380px;
   border-radius: 8px;
-  overflow: hidden;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   background-color: #fff;
-  flex-shrink: 0;
-  font-family: 'Vazir', Tahoma, sans-serif;
+  padding: 12px;
 }
 
 
@@ -1034,6 +1099,16 @@ body.modal-open {
   color: #555;
   margin-bottom: 12px;
   line-height: 1.5;
+}
+
+.place-description-mpb{
+  font-family: 'Vazir', Tahoma, sans-serif;
+  font-size: 0.9rem;
+  color: #555;
+  line-height: 1.5;
+  flex:1;
+  margin-top: 0px;
+  margin-bottom: 0px;
 }
 
 .shrine-event-actions {
