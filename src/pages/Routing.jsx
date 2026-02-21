@@ -915,16 +915,18 @@ const RoutingPage = () => {
         distance = Math.hypot(lng2 - lng1, lat2 - lat1) * 100000;
       }
       const stepName = s.name || s.title;
-      const base = s.type
-        ? intl.formatMessage(
-          { id: s.type },
-          { name: stepName, title: s.title, num: idx + 1 }
-        )
-        : s.instruction || '';
+      const hasPrebuiltInstruction = typeof s.instruction === 'string' && s.instruction.trim();
+      const base = hasPrebuiltInstruction
+        ? s.instruction
+        : s.type
+          ? intl.formatMessage(
+            { id: s.type },
+            { name: stepName, title: s.title, num: idx + 1 }
+          )
+          : '';
       const landmarkName = resolveLandmarkName(s);
       const roundedDistance = Math.round(distance);
-      const hasPrebuiltInstruction = Boolean(!s.type && typeof s.instruction === 'string' && s.instruction.trim());
-      const instruction = buildStepInstruction(base, landmarkName, roundedDistance, hasPrebuiltInstruction);
+      const instruction = buildStepInstruction(base, landmarkName, roundedDistance, Boolean(hasPrebuiltInstruction));
       let direction = 'arrived';
       if (idx < coords.length - 2) {
         const b1 = bearing(coords[idx], coords[idx + 1]);
@@ -987,16 +989,18 @@ const RoutingPage = () => {
           dist = Math.hypot(lng2 - lng1, lat2 - lat1) * 100000;
         }
         const stepName = st.name || st.title;
-        const base = st.type
-          ? intl.formatMessage(
-            { id: st.type },
-            { name: stepName, title: st.title, num: i + 1 }
-          )
-          : st.instruction || '';
+        const hasPrebuiltInstruction = typeof st.instruction === 'string' && st.instruction.trim();
+        const base = hasPrebuiltInstruction
+          ? st.instruction
+          : st.type
+            ? intl.formatMessage(
+              { id: st.type },
+              { name: stepName, title: st.title, num: i + 1 }
+            )
+            : '';
         const landmarkName = resolveLandmarkName(st);
         const roundedDist = Math.round(dist);
-        const hasPrebuiltInstruction = Boolean(!st.type && typeof st.instruction === 'string' && st.instruction.trim());
-        const instruction = buildStepInstruction(base, landmarkName, roundedDist, hasPrebuiltInstruction);
+        const instruction = buildStepInstruction(base, landmarkName, roundedDist, Boolean(hasPrebuiltInstruction));
         let direction = 'arrived';
         if (i < altCoords.length - 2) {
           const b1 = bearing(altCoords[i], altCoords[i + 1]);
