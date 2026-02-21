@@ -21,7 +21,7 @@ import { requestRouting } from '../services/routingService';
 import appConfig from '../config/appConfig';
 import { USER_ACCESS_TOKEN_KEY, useUserAuthStore } from '../auth/user/userAuthStore';
 import { createDestination } from '../services/destinationService';
-import voyagerBaseMapStyle from '../services/osmMapStyle';
+import { MBTILES_SATELLITE_STYLE } from '../services/mbtilesMapStyle';
 
 const HIDDEN_VECTOR_LAYER_IDS = new Set([
   'areas-outline',
@@ -53,10 +53,10 @@ const FinalSearch = () => {
   const formatDigits = useLocaleDigits();
   const language = useLangStore((state) => state.language);
   const isRtl = ["fa", "ar", "ur"].includes(language);
-  const baseMapStyle = voyagerBaseMapStyle;
+  const baseMapStyle = MBTILES_SATELLITE_STYLE;
   const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
   const mapStyle = offlineMapStyle;
-  const mapRenderKey = `${styleKey}-${isRtl ? 'rtl' : 'en'}-voyager-only`;
+  const mapRenderKey = `${styleKey}-${isRtl ? 'rtl' : 'en'}-satellite`;
   const {
     origin: storedOrigin,
     destination: storedDestination,
