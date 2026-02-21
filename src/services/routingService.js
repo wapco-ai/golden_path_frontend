@@ -85,7 +85,10 @@ const mapSteps = (steps = [], sahns = []) => {
         coordinates: [start, end],
         landmark: landmarkCandidate,
         services: step.services || {},
-        instruction: title || ''
+        instruction:
+          typeof step.instruction === 'string' && step.instruction.trim().length > 0
+            ? step.instruction.trim()
+            : ''
       };
     });
 };
