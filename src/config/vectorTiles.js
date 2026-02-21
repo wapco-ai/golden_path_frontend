@@ -130,6 +130,18 @@ const buildAreasTileUrlFactory = (lang) => ({ floor } = {}) => {
   return `${AREAS_FUNCTION_TILE_BASE}?${params.toString()}`;
 };
 
+const buildAreaLabelWithIdTextField = () => {
+  const areaName = ['coalesce', ['get', 'label'], ['get', 'name'], ''];
+  const areaId = ['coalesce', ['get', 'area_id'], ['get', 'id'], ['id'], ''];
+
+  return [
+    'case',
+    ['!=', areaName, ''],
+    ['concat', areaName, ' (', ['to-string', areaId], ')'],
+    ['to-string', areaId]
+  ];
+};
+
 const buildTempAreasTileUrlFactory = (lang) => ({ floor } = {}) => {
   const params = new URLSearchParams();
   const normalizedLang = normalizeLang(lang);
@@ -244,7 +256,7 @@ const buildHaramVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     visibleByDefault: true,
     layout: {
       // اسم فیلدی که از MVT میاد را اینجا بگذار
-      'text-field': ['coalesce', ['get', 'label'], ['get', 'name'], ''],
+      'text-field': buildAreaLabelWithIdTextField(),
       'text-size': 12,
       'text-anchor': 'center',
       'text-allow-overlap': false,
@@ -341,7 +353,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     visibleByDefault: false,
     layout: {
       // اسم فیلدی که از MVT میاد را اینجا بگذار
-      'text-field': ['coalesce', ['get', 'label'], ['get', 'name'], ''],
+      'text-field': buildAreaLabelWithIdTextField(),
       'text-size': 12,
       'text-anchor': 'center',
       'text-allow-overlap': false,
