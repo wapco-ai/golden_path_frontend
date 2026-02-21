@@ -698,13 +698,13 @@ const RouteOverview = () => {
         const stepName = step?.name || step?.title;
         const stepTitle = step?.title || stepName || '';
         const hasServerInstruction = typeof step?.instruction === 'string' && step.instruction.trim().length > 0;
-        const base = step && step.type
-          ? intl.formatMessage(
-            { id: step.type },
-            { name: stepName, title: stepTitle, num: idx + 1 }
-          )
-          : hasServerInstruction
-            ? step.instruction
+        const base = hasServerInstruction
+          ? step.instruction
+          : step && step.type
+            ? intl.formatMessage(
+              { id: step.type },
+              { name: stepName, title: stepTitle, num: idx + 1 }
+            )
             : intl.formatMessage({ id: 'stepArriveDestination' }, { name: step?.name || intl.formatMessage({ id: 'destination' }) });
 
         const dist = computeDistance(coords);
@@ -729,13 +729,13 @@ const RouteOverview = () => {
       const stepName = step?.name || step?.title;
       const stepTitle = step?.title || stepName || '';
       const hasServerInstruction = typeof step?.instruction === 'string' && step.instruction.trim().length > 0;
-      const base = step && step.type
-        ? intl.formatMessage(
-          { id: step.type },
-          { name: stepName, title: stepTitle, num: idx + 1 }
-        )
-        : hasServerInstruction
-          ? step.instruction
+      const base = hasServerInstruction
+        ? step.instruction
+        : step && step.type
+          ? intl.formatMessage(
+            { id: step.type },
+            { name: stepName, title: stepTitle, num: idx + 1 }
+          )
           : intl.formatMessage({ id: 'stepArriveDestination' }, { name: step?.name || intl.formatMessage({ id: 'destination' }) });
 
       const dist = Math.hypot(
