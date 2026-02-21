@@ -707,7 +707,13 @@ const RouteOverview = () => {
             : intl.formatMessage({ id: 'stepArriveDestination' }, { name: step?.name || intl.formatMessage({ id: 'destination' }) });
 
         const dist = computeDistance(coords);
-        const instruction = step?.landmark
+        const hasLandmarkSuffix = Boolean(
+          step?.landmark
+          && step?.type !== 'stepArriveDestination'
+          && Math.round(dist) > 0
+          && step.landmark !== (stepName || '').trim()
+        );
+        const instruction = hasLandmarkSuffix
           ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: step.landmark, distance: Math.round(dist) })}`
           : base;
 
@@ -739,7 +745,13 @@ const RouteOverview = () => {
         c[0] - routeCoordinates[idx][0],
         c[1] - routeCoordinates[idx][1]
       ) * 100000;
-      const instruction = step?.landmark
+      const hasLandmarkSuffix = Boolean(
+        step?.landmark
+        && step?.type !== 'stepArriveDestination'
+        && Math.round(dist) > 0
+        && step.landmark !== (stepName || '').trim()
+      );
+      const instruction = hasLandmarkSuffix
         ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: step.landmark, distance: Math.round(dist) })}`
         : base;
       return {
