@@ -1,7 +1,8 @@
 // src/pages/Userlogs.jsx
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import '../AdminPanel/Amain.css';
+import { exportAdminUserLogs, fetchAdminUserLogs } from '../services/adminUserLogsService';
 
 function Userlogs() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -17,99 +18,41 @@ function Userlogs() {
     pages: 1
   });
 
-  // Sample data - in real app, this would come from API
-  const sampleLogs = useMemo(() => [
-    {
-      id: 1,
-      fullName: 'علی محمدی',
-      lastLogin: '۱۴۰۳/۰۱/۱۵ - ۱۰:۳۰',
-      successfulRoutes: 8,
-      totalRoutes: 12,
-      lastRoutingDate: '۱۴۰۳/۰۱/۱۴',
-      lastRouting: 'دروازه شماره ۲ → حرم مطهر'
-    },
-    {
-      id: 2,
-      fullName: 'فاطمه احمدی',
-      lastLogin: '۱۴۰۳/۰۱/۱۴ - ۱۴:۲۵',
-      successfulRoutes: 5,
-      totalRoutes: 7,
-      lastRoutingDate: '۱۴۰۳/۰۱/۱۳',
-      lastRouting: 'پارکینگ اصلی → رواق دارالسلام'
-    },
-    {
-      id: 3,
-      fullName: 'محمد حسینی',
-      lastLogin: '۱۴۰۳/۰۱/۱۳ - ۰۹:۱۵',
-      successfulRoutes: 12,
-      totalRoutes: 15,
-      lastRoutingDate: '۱۴۰۳/۰۱/۱۲',
-      lastRouting: 'دروازه کرمان → صحن انقلاب'
-    },
-    {
-      id: 4,
-      fullName: 'زهرا رضایی',
-      lastLogin: '۱۴۰۳/۰۱/۱۲ - ۱۶:۴۵',
-      successfulRoutes: 3,
-      totalRoutes: 5,
-      lastRoutingDate: '۱۴۰۳/۰۱/۱۱',
-      lastRouting: 'دروازه شیرازی → کتابخانه مرکزی'
-    },
-    {
-      id: 5,
-      fullName: 'حسین کریمی',
-      lastLogin: '۱۴۰۳/۰۱/۱۱ - ۱۱:۲۰',
-      successfulRoutes: 7,
-      totalRoutes: 10,
-      lastRoutingDate: '۱۴۰۳/۰۱/۱۰',
-      lastRouting: 'دروازه طبرسی → رواق امام خمینی'
-    },
-    {
-      id: 6,
-      fullName: 'مریم قاسمی',
-      lastLogin: '۱۴۰۳/۰۱/۱۰ - ۱۳:۵۵',
-      successfulRoutes: 9,
-      totalRoutes: 11,
-      lastRoutingDate: '۱۴۰۳/۰۱/۰۹',
-      lastRouting: 'پارکینگ شماره ۳ → صحن جامع رضوی'
-    },
-    {
-      id: 7,
-      fullName: 'رضا محمودی',
-      lastLogin: '۱۴۰۳/۰۱/۰۹ - ۰۸:۴۰',
-      successfulRoutes: 6,
-      totalRoutes: 8,
-      lastRoutingDate: '۱۴۰۳/۰۱/۰۸',
-      lastRouting: 'دروازه شماره ۱ → موزه آستان قدس'
-    },
-    {
-      id: 8,
-      fullName: 'سارا نوری',
-      lastLogin: '۱۴۰۳/۰۱/۰۸ - ۱۵:۱۰',
-      successfulRoutes: 4,
-      totalRoutes: 6,
-      lastRoutingDate: '۱۴۰۳/۰۱/۰۷',
-      lastRouting: 'دروازه اصفهان → صحن آزادی'
-    },
-    {
-      id: 9,
-      fullName: 'امیر عباسی',
-      lastLogin: '۱۴۰۳/۰۱/۰۷ - ۱۲:۳۵',
-      successfulRoutes: 10,
-      totalRoutes: 13,
-      lastRoutingDate: '۱۴۰۳/۰۱/۰۶',
-      lastRouting: 'دروازه تهران → دارالحفاظ'
-    },
-    {
-      id: 10,
-      fullName: 'نازنین جعفری',
-      lastLogin: '۱۴۰۳/۰۱/۰۶ - ۱۷:۵۰',
-      successfulRoutes: 2,
-      totalRoutes: 4,
-      lastRoutingDate: '۱۴۰۳/۰۱/۰۵',
-      lastRouting: 'دروازه قم → صحن قدس'
-    }
-  ], []);
+  const formatJalaliDate = (value) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+
+    return new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(date);
+  };
+
+  const formatJalaliDateTime = (value) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+
+    return new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  };
+
+  const mapApiRowToTableRow = (row) => ({
+    id: row?.id,
+    fullName: row?.fullName || '—',
+    lastLogin: formatJalaliDateTime(row?.lastLogin),
+    successfulRoutes: Number(row?.successfulRoutes || 0),
+    totalRoutes: Number(row?.totalRoutes || 0),
+    lastRoutingDate: formatJalaliDate(row?.lastRoutingDate),
+    lastRouting: row?.lastRouting || '—'
+  });
 
   // Load user logs
   const loadUserLogs = useCallback(async ({
@@ -119,40 +62,31 @@ function Userlogs() {
   } = {}) => {
     setIsLoading(true);
     try {
-      // In real app, this would be an API call
-      // const data = await fetchDashboardUserLogs({ page, pageSize, search });
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Filter based on search term
-      const filteredLogs = search 
-        ? sampleLogs.filter(log => 
-            log.fullName.toLowerCase().includes(search.toLowerCase()) ||
-            log.lastRouting.toLowerCase().includes(search.toLowerCase())
-          )
-        : sampleLogs;
-      
-      // Calculate pagination
-      const startIndex = (page - 1) * pageSize;
-      const endIndex = startIndex + pageSize;
-      const paginatedLogs = filteredLogs.slice(startIndex, endIndex);
-      
-      setUserLogs(paginatedLogs);
-      setPagination({
+      const data = await fetchAdminUserLogs({
         page,
         pageSize,
-        total: filteredLogs.length,
-        pages: Math.max(1, Math.ceil(filteredLogs.length / pageSize))
+        search,
+        sortBy: 'lastLogin',
+        sortOrder: 'desc'
+      });
+
+      const rows = (data?.items || []).map(mapApiRowToTableRow);
+
+      setUserLogs(rows);
+      setPagination({
+        page: data?.pagination?.page || page,
+        pageSize: data?.pagination?.pageSize || pageSize,
+        total: data?.pagination?.total || 0,
+        pages: Math.max(1, data?.pagination?.pages || 1)
       });
       
     } catch (error) {
       console.error('خطا در دریافت لاگ‌های کاربران', error);
-      toast.error('خطا در دریافت لاگ‌های کاربران');
+      toast.error(error?.response?.data?.message || 'خطا در دریافت لاگ‌های کاربران');
     } finally {
       setIsLoading(false);
     }
-  }, [itemsPerPage, sampleLogs]);
+  }, [itemsPerPage]);
 
   // Handle refresh
   const handleRefreshTable = async (e) => {
@@ -193,153 +127,31 @@ function Userlogs() {
   // Handle export to Excel
   const handleExportAllLogs = async () => {
     try {
-      // Dynamically load SheetJS from CDN
-      if (typeof window.XLSX === 'undefined') {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js';
-          script.onload = resolve;
-          script.onerror = reject;
-          document.head.appendChild(script);
-        });
-      }
-
-      const XLSX = window.XLSX;
-
-      const allLogs = sampleLogs;
-
-      const data = allLogs.map(log => [
-        log.fullName,
-        log.lastLogin,
-        `${log.successfulRoutes} بار`,
-        `${log.totalRoutes} بار`,
-        log.lastRoutingDate,
-        log.lastRouting
-      ]);
-
-      // Create worksheet
-      const ws = XLSX.utils.aoa_to_sheet([
-        ['نام و نام خانوادگی', 'تاریخ آخرین ورود', 'مسیریابی‌های موفق', 'مسیریابی‌های انجام شده', 'تاریخ آخرین مسیریابی', 'آخرین مسیریابی'],
-        ...data
-      ]);
-
-      // Column widths
-      ws['!cols'] = [
-        { wch: 25 },
-        { wch: 20 },
-        { wch: 18 },
-        { wch: 20 },
-        { wch: 18 },
-        { wch: 30 }
-      ];
-
-      // Row heights
-      const rowCount = data.length + 1;
-      ws['!rows'] = Array(rowCount).fill().map((_, i) =>
-        i === 0 ? { hpt: 25 } : { hpt: 22 }
-      );
-
-      // Header style
-      const headerStyle = {
-        font: {
-          name: 'Tahoma',
-          sz: 12,
-          bold: true,
-          color: { rgb: "FFFFFF" }
-        },
-        fill: {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { rgb: "1E40AF" }
-        },
-        alignment: {
-          horizontal: 'center',
-          vertical: 'center',
-          readingOrder: 2
-        },
-        border: {
-          top: { style: 'thin', color: { rgb: "FFFFFF" } },
-          bottom: { style: 'thin', color: { rgb: "FFFFFF" } },
-          left: { style: 'thin', color: { rgb: "FFFFFF" } },
-          right: { style: 'thin', color: { rgb: "FFFFFF" } }
-        }
-      };
-
-      // Data style
-      const dataStyle = {
-        font: {
-          name: 'Tahoma',
-          sz: 11,
-          color: { rgb: "000000" }
-        },
-        alignment: {
-          horizontal: 'right',
-          vertical: 'center',
-          readingOrder: 2
-        },
-        border: {
-          top: { style: 'thin', color: { rgb: "CCCCCC" } },
-          bottom: { style: 'thin', color: { rgb: "CCCCCC" } },
-          left: { style: 'thin', color: { rgb: "CCCCCC" } },
-          right: { style: 'thin', color: { rgb: "CCCCCC" } }
-        }
-      };
-
-      const altDataStyle = {
-        ...dataStyle,
-        fill: {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { rgb: "F3F4F6" }
-        }
-      };
-
-      // Apply styles
-      const range = XLSX.utils.decode_range(ws['!ref']);
-
-      for (let R = range.s.r; R <= range.e.r; ++R) {
-        for (let C = range.s.c; C <= range.e.c; ++C) {
-          const cell_ref = XLSX.utils.encode_cell({ c: C, r: R });
-
-          if (!ws[cell_ref]) continue;
-
-          if (R === 0) {
-            ws[cell_ref].s = headerStyle;
-          } else {
-            ws[cell_ref].s = R % 2 === 1 ? altDataStyle : dataStyle;
-          }
-        }
-      }
-
-      // Create workbook
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'لاگ‌های مسیریابی کاربران');
-
-      // Set RTL
-      wb.Workbook = wb.Workbook || {};
-      wb.Workbook.Views = wb.Workbook.Views || [];
-      wb.Workbook.Views.push({
-        RTL: true
+      const blob = await exportAdminUserLogs({
+        search: searchTerm || undefined,
+        sortBy: 'lastLogin',
+        sortOrder: 'desc'
       });
 
-      ws['!views'] = ws['!views'] || [];
-      ws['!views'].push({
-        rightToLeft: true
-      });
-
-      // Generate filename with current date
       const currentDate = new Date();
       const jalaliYear = currentDate.toLocaleDateString('fa-IR', { year: 'numeric' });
       const jalaliMonth = currentDate.toLocaleDateString('fa-IR', { month: '2-digit' });
       const jalaliDay = currentDate.toLocaleDateString('fa-IR', { day: '2-digit' });
       const filename = `گزارش_لاگ_مسیریابی_کاربران_${jalaliYear}${jalaliMonth}${jalaliDay}.xlsx`;
 
-      XLSX.writeFile(wb, filename);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
 
       toast.success('گزارش لاگ‌های مسیریابی با موفقیت دانلود شد');
     } catch (error) {
       console.error('خطا در ایجاد گزارش:', error);
-      toast.error('خطا در ایجاد گزارش');
+      toast.error(error?.response?.data?.message || 'خطا در ایجاد گزارش');
     }
   };
 

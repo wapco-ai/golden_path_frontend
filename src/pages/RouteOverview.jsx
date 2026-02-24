@@ -697,18 +697,20 @@ const RouteOverview = () => {
 
         const stepName = step?.name || step?.title;
         const stepTitle = step?.title || stepName || '';
-        const base = step && step.type
-          ? intl.formatMessage(
-            { id: step.type },
-            { name: stepName, title: stepTitle, num: idx + 1 }
-          )
-          : step?.instruction
-            ? step.instruction
+        const hasServerInstruction = typeof step?.instruction === 'string' && step.instruction.trim().length > 0;
+        const base = hasServerInstruction
+          ? step.instruction
+          : step && step.type
+            ? intl.formatMessage(
+              { id: step.type },
+              { name: stepName, title: stepTitle, num: idx + 1 }
+            )
             : intl.formatMessage({ id: 'stepArriveDestination' }, { name: step?.name || intl.formatMessage({ id: 'destination' }) });
 
         const dist = computeDistance(coords);
-        const instruction = step?.landmark
-          ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: step.landmark, distance: Math.round(dist) })}`
+        const roundedDist = Math.round(dist);
+        const instruction = !hasServerInstruction && step?.landmark && roundedDist > 0
+          ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: step.landmark, distance: roundedDist })}`
           : base;
 
         return {
@@ -726,21 +728,23 @@ const RouteOverview = () => {
       const step = routeSteps?.[idx];
       const stepName = step?.name || step?.title;
       const stepTitle = step?.title || stepName || '';
-      const base = step && step.type
-        ? intl.formatMessage(
-          { id: step.type },
-          { name: stepName, title: stepTitle, num: idx + 1 }
-        )
-        : step?.instruction
-          ? step.instruction
+      const hasServerInstruction = typeof step?.instruction === 'string' && step.instruction.trim().length > 0;
+      const base = hasServerInstruction
+        ? step.instruction
+        : step && step.type
+          ? intl.formatMessage(
+            { id: step.type },
+            { name: stepName, title: stepTitle, num: idx + 1 }
+          )
           : intl.formatMessage({ id: 'stepArriveDestination' }, { name: step?.name || intl.formatMessage({ id: 'destination' }) });
 
       const dist = Math.hypot(
         c[0] - routeCoordinates[idx][0],
         c[1] - routeCoordinates[idx][1]
       ) * 100000;
-      const instruction = step?.landmark
-        ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: step.landmark, distance: Math.round(dist) })}`
+      const roundedDist = Math.round(dist);
+      const instruction = !hasServerInstruction && step?.landmark && roundedDist > 0
+        ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: step.landmark, distance: roundedDist })}`
         : base;
       return {
         id: idx + 1,

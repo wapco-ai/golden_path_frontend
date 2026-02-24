@@ -83,6 +83,65 @@ const RoutingPage = () => {
   const language = useLangStore(state => state.language);
   const routingRequestRef = useRef({ key: null, promise: null });
 
+  const formatViaItem = useCallback((item) => {
+    if (typeof item === 'string' || typeof item === 'number') {
+      return String(item);
+    }
+
+    if (!item || typeof item !== 'object') {
+      return '';
+    }
+
+    const localizedOrRaw = (value) => {
+      if (!value) return '';
+      if (typeof value === 'string' || typeof value === 'number') {
+        return String(value);
+      }
+      if (typeof value === 'object' && !Array.isArray(value)) {
+        return value[language] || value.fa || value.en || Object.values(value)[0] || '';
+      }
+      return '';
+    };
+
+    return localizedOrRaw(item.title)
+      || localizedOrRaw(item.name)
+      || localizedOrRaw(item.label)
+      || localizedOrRaw(item.subGroup)
+      || localizedOrRaw(item.subGroupValue)
+      || localizedOrRaw(item.properties?.title)
+      || localizedOrRaw(item.properties?.name)
+      || localizedOrRaw(item.properties?.subGroup)
+      || localizedOrRaw(item.properties?.subGroupValue);
+  }, [language]);
+
+  const formatNamedViaItems = useCallback((viaItems) => {
+    if (!Array.isArray(viaItems)) return '';
+
+    const isUnnamedArea = (value) => {
+      const cleaned = value.replace(/[\u200c\u200f]/g, '').trim();
+      if (!cleaned) return true;
+      if (/^area\s*\d*$/i.test(cleaned)) return true;
+      if (/^\d+$/.test(cleaned)) return true;
+      return false;
+    };
+
+    const uniqueNamedItems = [];
+    const seen = new Set();
+
+    viaItems
+      .map(formatViaItem)
+      .map(item => item?.trim())
+      .filter(Boolean)
+      .forEach((item) => {
+        if (isUnnamedArea(item)) return;
+        if (seen.has(item)) return;
+        seen.add(item);
+        uniqueNamedItems.push(item);
+      });
+
+    return uniqueNamedItems.join(' – ');
+  }, [formatViaItem]);
+
   const [originalViewState, setOriginalViewState] = useState({
     zoom: is3DView ? 17 : 18,
     center: userLocation || [36.2880, 59.6157],
@@ -93,13 +152,27 @@ const RoutingPage = () => {
   const initialRouteCoordRef = useRef(null);
   const PRECISE_GPS_ACCURACY_THRESHOLD = 25;
 
-  const updateUserLocationToRouteStart = useCallback(() => {
-    const startCoord = routeGeo?.geometry?.coordinates?.[0];
+  const getRouteStartLocation = useCallback((geo = routeGeo) => {
+    const startCoord = geo?.geometry?.coordinates?.[0];
     if (!Array.isArray(startCoord) || startCoord.length < 2) {
-      return false;
+      return null;
     }
 
     const [startLng, startLat] = startCoord;
+    if (!Number.isFinite(startLat) || !Number.isFinite(startLng)) {
+      return null;
+    }
+
+    return [startLat, startLng];
+  }, [routeGeo]);
+
+  const updateUserLocationToRouteStart = useCallback(() => {
+    const startLocation = getRouteStartLocation();
+    if (!startLocation) {
+      return false;
+    }
+
+    const [startLat, startLng] = startLocation;
     const startKey = `${startLat},${startLng}`;
 
     if (initialRouteCoordRef.current !== startKey) {
@@ -108,7 +181,7 @@ const RoutingPage = () => {
     }
 
     return true;
-  }, [routeGeo]);
+  }, [getRouteStartLocation]);
 
   useEffect(() => {
     return () => {
@@ -401,22 +474,70 @@ const RoutingPage = () => {
     };
   }, [transportMode, gender, origin, destination, routeGeo, routeSteps.length, buildRouteWithFallback]);
 
+  const formatDurationFromSeconds = useCallback((durationSeconds) => {
+    const normalizedSeconds = Math.max(0, Math.round(durationSeconds || 0));
+    if (normalizedSeconds < 60) {
+      return `${normalizedSeconds} ${intl.formatMessage({ id: 'secondsUnit' })}`;
+    }
+
+    const minutes = Math.floor(normalizedSeconds / 60);
+    const seconds = normalizedSeconds % 60;
+    if (seconds === 0) {
+      return `${minutes} ${intl.formatMessage({ id: 'minutesUnit' })}`;
+    }
+
+    return `${minutes} ${intl.formatMessage({ id: 'minutesUnit' })} ${seconds} ${intl.formatMessage({ id: 'secondsUnit' })}`;
+  }, [intl]);
+
+  const buildStepInstruction = useCallback((baseInstruction, landmarkName, roundedDistance, hasPrebuiltInstruction = false) => {
+    const normalizedBase = typeof baseInstruction === 'string' ? baseInstruction.trim() : '';
+
+    if (hasPrebuiltInstruction || !landmarkName || roundedDistance <= 0) {
+      return normalizedBase;
+    }
+
+    const landmarkSuffix = intl.formatMessage(
+      { id: 'landmarkSuffix' },
+      { name: landmarkName, distance: roundedDistance }
+    );
+
+    if (normalizedBase.includes(landmarkSuffix)) {
+      return normalizedBase;
+    }
+
+    return normalizedBase ? `${normalizedBase}، ${landmarkSuffix}` : landmarkSuffix;
+  }, [intl]);
+
   // Calculate total time in minutes from all steps
-  const calculateTotalTime = (steps) => {
+  const calculateTotalTime = useCallback((steps) => {
     if (!steps) return 0;
 
-    let totalMinutes = 0;
-    steps.forEach(step => {
-      const timeStr = step.time;
-      if (timeStr.includes(intl.formatMessage({ id: 'minutesUnit' }))) {
-        totalMinutes += parseInt(timeStr.split(' ')[0]);
-      } else if (timeStr.includes(intl.formatMessage({ id: 'secondsUnit' }))) {
-        totalMinutes += Math.ceil(parseInt(timeStr.split(' ')[0]) / 60);
-      }
-    });
+    const minuteUnit = intl.formatMessage({ id: 'minutesUnit' });
+    const secondUnit = intl.formatMessage({ id: 'secondsUnit' });
 
-    return totalMinutes;
-  };
+    const totalSeconds = steps.reduce((acc, step) => {
+      if (Number.isFinite(step?.durationSeconds)) {
+        return acc + step.durationSeconds;
+      }
+
+      const timeStr = step?.time;
+      if (!timeStr || typeof timeStr !== 'string') return acc;
+
+      let stepSeconds = 0;
+      const minuteMatch = timeStr.match(new RegExp(`(\\d+)\\s*${minuteUnit}`));
+      const secondMatch = timeStr.match(new RegExp(`(\\d+)\\s*${secondUnit}`));
+      if (minuteMatch) {
+        stepSeconds += parseInt(minuteMatch[1], 10) * 60;
+      }
+      if (secondMatch) {
+        stepSeconds += parseInt(secondMatch[1], 10);
+      }
+
+      return acc + stepSeconds;
+    }, 0);
+
+    return totalSeconds / 60;
+  }, [intl]);
 
   // If no steps available but route geometry exists (e.g. when navigating
   // directly from the search page), compute summary info from stored summary
@@ -524,19 +645,7 @@ const RoutingPage = () => {
   }, [isInfoModalOpen]);
 
   // Format total time as "X <minutes> Y <seconds>"
-  const formatTotalTime = (totalMinutes) => {
-    if (totalMinutes < 1) {
-      const seconds = totalMinutes * 60;
-      return `${Math.round(seconds)} ${intl.formatMessage({ id: 'secondsUnit' })}`;
-    }
-    const minutes = Math.floor(totalMinutes);
-    const seconds = Math.round((totalMinutes - minutes) * 60);
-
-    if (seconds > 0) {
-      return `${minutes} ${intl.formatMessage({ id: 'minutesUnit' })} ${seconds} ${intl.formatMessage({ id: 'secondsUnit' })}`;
-    }
-    return `${minutes} ${intl.formatMessage({ id: 'minutesUnit' })}`;
-  };
+  const formatTotalTime = (totalMinutes) => formatDurationFromSeconds(totalMinutes * 60);
 
   // Calculate arrival time in HH:MM format with AM/PM indicator
   const calculateArrivalTime = (totalMinutes) => {
@@ -584,8 +693,6 @@ const RoutingPage = () => {
       || step?.poi_name
       || step?.referenceLandmark
       || step?.reference_landmark
-      || step?.title
-      || step?.name
       || null;
 
     if (!candidate) return null;
@@ -808,27 +915,34 @@ const RoutingPage = () => {
         distance = Math.hypot(lng2 - lng1, lat2 - lat1) * 100000;
       }
       const stepName = s.name || s.title;
-      const base = s.type
-        ? intl.formatMessage(
-          { id: s.type },
-          { name: stepName, title: s.title, num: idx + 1 }
-        )
-        : s.instruction || '';
+      const hasPrebuiltInstruction = typeof s.instruction === 'string' && s.instruction.trim();
+      const base = hasPrebuiltInstruction
+        ? s.instruction
+        : s.type
+          ? intl.formatMessage(
+            { id: s.type },
+            { name: stepName, title: s.title, num: idx + 1 }
+          )
+          : '';
       const landmarkName = resolveLandmarkName(s);
-      const instruction = landmarkName
-        ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: landmarkName, distance: Math.round(distance) })}`
-        : base;
+      const roundedDistance = Math.round(distance);
+      const instruction = buildStepInstruction(base, landmarkName, roundedDistance, Boolean(hasPrebuiltInstruction));
       let direction = 'arrived';
       if (idx < coords.length - 2) {
         const b1 = bearing(coords[idx], coords[idx + 1]);
         const b2 = bearing(coords[idx + 1], coords[idx + 2]);
         direction = computeTurn(b1, b2);
       }
+      const durationSeconds = Math.max(1, Math.round(distance));
       return {
         id: idx + 1,
+        type: s.type,
+        title: s.title,
+        name: stepName,
         instruction,
         distance: `${Math.round(distance)} ${intl.formatMessage({ id: 'meters' })}`,
-        time: `${Math.max(1, Math.round(distance / 60))} ${intl.formatMessage({ id: 'minutesUnit' })}`,
+        time: formatDurationFromSeconds(durationSeconds),
+        durationSeconds,
         coordinates: stepCoords,
         landmark: landmarkName,
         services: s.services || {},
@@ -874,27 +988,35 @@ const RoutingPage = () => {
           const [lng2, lat2] = altCoords[i];
           dist = Math.hypot(lng2 - lng1, lat2 - lat1) * 100000;
         }
-        const base = st.type
-          ? intl.formatMessage(
-            { id: st.type },
-            { name: st.name || st.title, title: st.title, num: i + 1 }
-          )
-          : st.instruction || '';
+        const stepName = st.name || st.title;
+        const hasPrebuiltInstruction = typeof st.instruction === 'string' && st.instruction.trim();
+        const base = hasPrebuiltInstruction
+          ? st.instruction
+          : st.type
+            ? intl.formatMessage(
+              { id: st.type },
+              { name: stepName, title: st.title, num: i + 1 }
+            )
+            : '';
         const landmarkName = resolveLandmarkName(st);
-        const instruction = landmarkName
-          ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: landmarkName, distance: Math.round(dist) })}`
-          : base;
+        const roundedDist = Math.round(dist);
+        const instruction = buildStepInstruction(base, landmarkName, roundedDist, Boolean(hasPrebuiltInstruction));
         let direction = 'arrived';
         if (i < altCoords.length - 2) {
           const b1 = bearing(altCoords[i], altCoords[i + 1]);
           const b2 = bearing(altCoords[i + 1], altCoords[i + 2]);
           direction = computeTurn(b1, b2);
         }
+        const durationSeconds = Math.max(1, Math.round(dist));
         return {
           id: i + 1,
+          type: st.type,
+          title: st.title,
+          name: stepName,
           instruction,
           distance: `${Math.round(dist)} ${intl.formatMessage({ id: 'meters' })}`,
-          time: `${Math.max(1, Math.round(dist / 60))} ${intl.formatMessage({ id: 'minutesUnit' })}`,
+          time: formatDurationFromSeconds(durationSeconds),
+          durationSeconds,
           coordinates: stepCoords,
           landmark: landmarkName,
           direction
@@ -910,7 +1032,7 @@ const RoutingPage = () => {
         totalDistance: `${distTot} ${intl.formatMessage({ id: 'meters' })}`,
         from: alt.from,
         to: alt.to,
-        via: alt.sahns || []
+        via: (Array.isArray(alt.via) && alt.via.length > 0 ? alt.via : alt.sahns) || []
 
       };
     });
@@ -936,7 +1058,7 @@ const RoutingPage = () => {
     } catch (err) {
       console.warn('failed to persist route summary', err);
     }
-  }, [routeSteps, routeGeo, alternativeRoutes, transportMode, resolveLandmarkName]);
+  }, [routeSteps, routeGeo, alternativeRoutes, transportMode, resolveLandmarkName, formatDurationFromSeconds, calculateTotalTime, buildStepInstruction]);
 
 
   // Update arrival time every minute
@@ -1169,7 +1291,11 @@ const RoutingPage = () => {
     }
 
     if (newRoutingState) {
-      const [lat, lng] = userLocation;
+      const routeStart = getRouteStartLocation();
+      const [lat, lng] = routeStart || userLocation;
+      if (routeStart) {
+        setUserLocation(routeStart);
+      }
       advancedDeadReckoningService.start({ lat, lng });
     } else {
       advancedDeadReckoningService.stop();
@@ -1300,6 +1426,12 @@ const RoutingPage = () => {
     setRouteGeo(route.geo);
     setRouteSteps(route.steps);
     setAlternativeRoutes(newAlternatives);
+    const routeStart = getRouteStartLocation(route.geo);
+    if (routeStart) {
+      const [startLat, startLng] = routeStart;
+      initialRouteCoordRef.current = `${startLat},${startLng}`;
+      setUserLocation(routeStart);
+    }
     sessionStorage.setItem('routeGeo', JSON.stringify(route.geo));
     sessionStorage.setItem('routeSteps', JSON.stringify(route.steps));
     sessionStorage.setItem('alternativeRoutes', JSON.stringify(newAlternatives));
@@ -1725,7 +1857,7 @@ const RoutingPage = () => {
                     </div>
 
                     <div className="route-via">
-                      {Array.isArray(route.via) ? route.via.join(' – ') : ''}
+                      {formatNamedViaItems(route.via)}
                     </div>
 
                     <div className="route-stats">
