@@ -1998,6 +1998,45 @@ body {
   border-radius: 12px;
 }
 
+.map-context-menu {
+  position: absolute;
+  z-index: 1500;
+  min-width: 220px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  gap: 4px;
+}
+
+.map-context-menu button {
+  border: none;
+  background: transparent;
+  text-align: right;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  color: #111827;
+}
+
+.map-context-menu button:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.map-context-menu button:disabled {
+  cursor: wait;
+  color: #9ca3af;
+}
+
+.map-context-menu button.danger {
+  color: #b91c1c;
+}
+
 .map-management-section .maplibregl-control-container {
   display: none;
 }
