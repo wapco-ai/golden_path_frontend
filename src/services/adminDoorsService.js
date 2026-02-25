@@ -46,4 +46,13 @@ export const deleteDoor = async (id, { signal } = {}) => {
   return response.data;
 };
 
+export const bulkOpenCloseDoors = async ({ door_ids = [], is_open }, { signal } = {}) => {
+  const response = await apiAdmin.patch(`${DOORS_BASE_URL}/bulk-open`, {
+    door_ids,
+    is_open
+  }, { signal });
+
+  return response.data;
+};
+
 export default createDoor;

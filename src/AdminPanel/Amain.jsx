@@ -41,7 +41,7 @@ import {
   layerEditSettings
 } from '../config/vectorTiles';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
-import { createDoor, deleteDoor, getDoorInfo, moveDoor, updateDoorInfo } from '../services/adminDoorsService';
+import { bulkOpenCloseDoors, createDoor, deleteDoor, getDoorInfo, moveDoor, updateDoorInfo } from '../services/adminDoorsService';
 import { deleteArea, getAreaInfo, listAreas, moveArea, updateAreaInfo } from '../services/adminAreasService';
 import { convertLngLatToUtm32640 } from '../utils/utm';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
@@ -8911,6 +8911,7 @@ const Amain = () => {
     }
 
     const statusLabel = nextStatus === 'active' ? 'فعال' : 'غیرفعال';
+    const nextIsOpen = nextStatus === 'active';
     const isConfirmed = window.confirm(`وضعیت ${selectedDoorIds.length} درب انتخاب‌شده به «${statusLabel}» تغییر کند؟`);
 
     if (!isConfirmed) return;
@@ -8918,17 +8919,21 @@ const Amain = () => {
     try {
       setIsBulkDoorStatusLoading(true);
 
-      const updateResults = await Promise.allSettled(
-        selectedDoorIds.map((doorId) => updateDoorInfo(doorId, {
-          operational: { status: nextStatus }
-        }))
-      );
+      const response = await bulkOpenCloseDoors({
+        door_ids: selectedDoorIds,
+        is_open: nextIsOpen
+      });
 
-      const successCount = updateResults.filter((result) => result.status === 'fulfilled').length;
-      const failedCount = selectedDoorIds.length - successCount;
+      const successCount = Number(response?.updated) || 0;
+      const notFoundIds = Array.isArray(response?.not_found) ? response.not_found : [];
+      const failedCount = Math.max(selectedDoorIds.length - successCount - notFoundIds.length, 0);
 
       if (successCount > 0) {
         toast.success(`${successCount} درب با موفقیت ${statusLabel} شد`);
+      }
+
+      if (notFoundIds.length > 0) {
+        toast.warning(`${notFoundIds.length} درب پیدا نشد`);
       }
 
       if (failedCount > 0) {
