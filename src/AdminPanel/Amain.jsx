@@ -76,6 +76,11 @@ const DOOR_ROUTING_PREVIEW_SOURCE_ID = 'door-routing-preview-source';
 const DOOR_ROUTING_PREVIEW_LINE_LAYER_ID = 'door-routing-preview-line-layer';
 const ONE_WAY_DOOR_DIRECTION_SOURCE_ID = 'one-way-door-direction-source';
 const ONE_WAY_DOOR_DIRECTION_LINE_LAYER_ID = 'one-way-door-direction-line-layer';
+const DOOR_BULK_PREVIEW_SOURCE_ID = 'door-bulk-preview-source';
+const DOOR_BULK_PREVIEW_FILL_LAYER_ID = 'door-bulk-preview-fill-layer';
+const DOOR_BULK_PREVIEW_LINE_LAYER_ID = 'door-bulk-preview-line-layer';
+const DOOR_BULK_SELECTED_SOURCE_ID = 'door-bulk-selected-source';
+const DOOR_BULK_SELECTED_LAYER_ID = 'door-bulk-selected-layer';
 const VAN_DRAW_SOURCE_ID = 'van-draw-source';
 const VAN_DRAW_LINE_LAYER_ID = 'van-draw-line-layer';
 const VAN_DRAW_POINT_LAYER_ID = 'van-draw-point-layer';
@@ -1261,7 +1266,7 @@ const Amain = () => {
     const isDoorLayerActive = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID;
 
     setOpenSubMenu((current) => {
-      if (isDoorLayerActive && showDoorTools) {
+      if (isDoorLayerActive) {
         return 4;
       }
 
@@ -1271,7 +1276,7 @@ const Amain = () => {
 
       return current;
     });
-  }, [activeEditableLayer?.id, showDoorTools]);
+  }, [activeEditableLayer?.id]);
   const isActiveLayerPointBased = useMemo(
     () => activeEditableLayer?.type === 'circle' || activeEditableLayer?.type === 'symbol',
     [activeEditableLayer]
@@ -1282,6 +1287,8 @@ const Amain = () => {
   const [isLoadingDoorInfo, setIsLoadingDoorInfo] = useState(false);
   const [isDoorBulkSelectMode, setIsDoorBulkSelectMode] = useState(false);
   const [selectedDoorIds, setSelectedDoorIds] = useState([]);
+  const [doorBulkSelectionBounds, setDoorBulkSelectionBounds] = useState(null);
+  const [selectedDoorPreviewFeatures, setSelectedDoorPreviewFeatures] = useState([]);
   const [isBulkDoorStatusLoading, setIsBulkDoorStatusLoading] = useState(false);
   const [lastCreatedAreaId, setLastCreatedAreaId] = useState(null);
   const [isSavingAreaInfo, setIsSavingAreaInfo] = useState(false);
@@ -1297,6 +1304,8 @@ const Amain = () => {
 
     setIsDoorBulkSelectMode(false);
     setSelectedDoorIds([]);
+    setDoorBulkSelectionBounds(null);
+    setSelectedDoorPreviewFeatures([]);
   }, [isDoorAccessLayerActive]);
 
   const intl = useIntl();
@@ -5671,6 +5680,120 @@ const Amain = () => {
   }, [map, activeMenu, selectedEditableFeature]);
 
 
+
+  useEffect(() => {
+    if (!map || activeMenu !== 'mapmanage') return undefined;
+
+    const ensureDoorBulkPreviewLayers = () => {
+      if (!map.getSource(DOOR_BULK_PREVIEW_SOURCE_ID)) {
+        map.addSource(DOOR_BULK_PREVIEW_SOURCE_ID, {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+      }
+
+      if (!map.getLayer(DOOR_BULK_PREVIEW_FILL_LAYER_ID)) {
+        map.addLayer({
+          id: DOOR_BULK_PREVIEW_FILL_LAYER_ID,
+          type: 'fill',
+          source: DOOR_BULK_PREVIEW_SOURCE_ID,
+          paint: {
+            'fill-color': '#0f71ef',
+            'fill-opacity': 0.12
+          }
+        });
+      }
+
+      if (!map.getLayer(DOOR_BULK_PREVIEW_LINE_LAYER_ID)) {
+        map.addLayer({
+          id: DOOR_BULK_PREVIEW_LINE_LAYER_ID,
+          type: 'line',
+          source: DOOR_BULK_PREVIEW_SOURCE_ID,
+          layout: {
+            'line-cap': 'round',
+            'line-join': 'round'
+          },
+          paint: {
+            'line-color': '#0f71ef',
+            'line-width': 2,
+            'line-dasharray': [2, 2]
+          }
+        });
+      }
+
+      if (!map.getSource(DOOR_BULK_SELECTED_SOURCE_ID)) {
+        map.addSource(DOOR_BULK_SELECTED_SOURCE_ID, {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+      }
+
+      if (!map.getLayer(DOOR_BULK_SELECTED_LAYER_ID)) {
+        map.addLayer({
+          id: DOOR_BULK_SELECTED_LAYER_ID,
+          type: 'circle',
+          source: DOOR_BULK_SELECTED_SOURCE_ID,
+          paint: {
+            'circle-radius': 7,
+            'circle-color': '#10b981',
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-width': 1.8
+          }
+        });
+      }
+
+      [
+        DOOR_BULK_PREVIEW_FILL_LAYER_ID,
+        DOOR_BULK_PREVIEW_LINE_LAYER_ID,
+        DOOR_BULK_SELECTED_LAYER_ID
+      ].forEach((layerId) => {
+        if (map.getLayer(layerId)) {
+          map.moveLayer(layerId);
+        }
+      });
+    };
+
+    if (map.isStyleLoaded()) {
+      ensureDoorBulkPreviewLayers();
+      return undefined;
+    }
+
+    map.once('style.load', ensureDoorBulkPreviewLayers);
+    return () => map.off('style.load', ensureDoorBulkPreviewLayers);
+  }, [map, activeMenu]);
+
+  useEffect(() => {
+    if (!map) return undefined;
+
+    const applyDoorBulkPreviewData = () => {
+      const previewSource = map.getSource(DOOR_BULK_PREVIEW_SOURCE_ID);
+      const selectedSource = map.getSource(DOOR_BULK_SELECTED_SOURCE_ID);
+
+      if (previewSource?.setData) {
+        previewSource.setData({
+          type: 'FeatureCollection',
+          features: doorBulkSelectionBounds ? [doorBulkSelectionBounds] : []
+        });
+      }
+
+      if (selectedSource?.setData) {
+        selectedSource.setData({
+          type: 'FeatureCollection',
+          features: selectedDoorPreviewFeatures
+        });
+      }
+    };
+
+    applyDoorBulkPreviewData();
+    map.on('load', applyDoorBulkPreviewData);
+    map.on('style.load', applyDoorBulkPreviewData);
+
+    return () => {
+      map.off('load', applyDoorBulkPreviewData);
+      map.off('style.load', applyDoorBulkPreviewData);
+    };
+  }, [map, doorBulkSelectionBounds, selectedDoorPreviewFeatures]);
+
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
 
@@ -6439,7 +6562,48 @@ const Amain = () => {
           .filter((doorId) => doorId !== null && doorId !== undefined)
       ));
 
+      const westSouth = map.unproject({ x: minX, y: maxY });
+      const eastNorth = map.unproject({ x: maxX, y: minY });
+      const selectionPolygon = {
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [westSouth.lng, westSouth.lat],
+            [eastNorth.lng, westSouth.lat],
+            [eastNorth.lng, eastNorth.lat],
+            [westSouth.lng, eastNorth.lat],
+            [westSouth.lng, westSouth.lat]
+          ]]
+        },
+        properties: {
+          selected_count: ids.length
+        }
+      };
+
+      const selectedDoorFeatures = [];
+      const seenDoorIds = new Set();
+      selectedFeatures.forEach((feature) => {
+        const doorId = getDoorIdFromFeature(feature);
+        if (doorId === null || doorId === undefined || seenDoorIds.has(doorId)) return;
+
+        const sanitizedFeature = sanitizeFeatureForSelection(feature);
+        if (!sanitizedFeature || sanitizedFeature.geometry?.type !== 'Point') return;
+
+        selectedDoorFeatures.push({
+          ...sanitizedFeature,
+          properties: {
+            ...(sanitizedFeature.properties || {}),
+            selected: true,
+            door_id: doorId
+          }
+        });
+        seenDoorIds.add(doorId);
+      });
+
       setSelectedDoorIds(ids);
+      setDoorBulkSelectionBounds(selectionPolygon);
+      setSelectedDoorPreviewFeatures(selectedDoorFeatures);
 
       if (!ids.length) {
         toast.info('در این محدوده دربی پیدا نشد');
@@ -6481,7 +6645,7 @@ const Amain = () => {
       removeSelectionBox();
       map.dragPan.enable();
     };
-  }, [map, isDoorAccessLayerActive, isDoorBulkSelectMode, getDoorIdFromFeature]);
+  }, [map, isDoorAccessLayerActive, isDoorBulkSelectMode, getDoorIdFromFeature, sanitizeFeatureForSelection]);
 
   const handleExportAllUsers = async () => {
     try {
@@ -8689,6 +8853,8 @@ const Amain = () => {
       const next = !current;
       if (!next) {
         setSelectedDoorIds([]);
+        setDoorBulkSelectionBounds(null);
+        setSelectedDoorPreviewFeatures([]);
       }
       return next;
     });
