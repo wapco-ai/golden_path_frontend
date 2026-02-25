@@ -17,7 +17,12 @@ import Admins from './Admins';
 import Usersigned from './Usersigned';
 import Userlogs from './Userlogs';
 
-import { booleanValid as turfBooleanValid, centroid as turfCentroid, distance as turfDistance } from '@turf/turf';
+import {
+  booleanPointInPolygon as turfBooleanPointInPolygon,
+  booleanValid as turfBooleanValid,
+  centroid as turfCentroid,
+  distance as turfDistance
+} from '@turf/turf';
 import {
   createCulturalItem,
   deleteCulturalItem,
@@ -6517,78 +6522,110 @@ const Amain = () => {
       return undefined;
     }
 
-    let selectionStartPoint = null;
-    let selectionBox = null;
+    let drawingVertices = [];
 
-    const removeSelectionBox = () => {
-      if (selectionBox?.parentNode) {
-        selectionBox.parentNode.removeChild(selectionBox);
+    const canvas = map.getCanvas?.();
+    const previousCursor = canvas?.style?.cursor ?? '';
+    if (canvas) {
+      canvas.style.cursor = 'crosshair';
+    }
+
+    const wasDragPanEnabled = map.dragPan?.isEnabled?.() ?? false;
+    const wasDoubleClickZoomEnabled = map.doubleClickZoom?.isEnabled?.() ?? false;
+
+    if (wasDragPanEnabled) {
+      map.dragPan.disable();
+    }
+
+    if (wasDoubleClickZoomEnabled) {
+      map.doubleClickZoom.disable();
+    }
+
+    const buildDraftFeature = (vertices) => {
+      if (!Array.isArray(vertices) || !vertices.length) {
+        return null;
       }
-      selectionBox = null;
+
+      if (vertices.length >= 3) {
+        return {
+          type: 'Feature',
+          geometry: {
+            type: 'Polygon',
+            coordinates: [[...vertices, vertices[0]]]
+          },
+          properties: {
+            is_draft: true,
+            node_count: vertices.length
+          }
+        };
+      }
+
+      return {
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: vertices
+        },
+        properties: {
+          is_draft: true,
+          node_count: vertices.length
+        }
+      };
     };
 
-    const onMouseMove = (event) => {
-      if (!selectionStartPoint || !selectionBox) return;
+    const finalizePolygonSelection = (vertices) => {
+      if (vertices.length < 3) {
+        toast.info('برای انتخاب محدوده حداقل ۳ نقطه نیاز است');
+        return;
+      }
 
-      const minX = Math.min(selectionStartPoint.x, event.point.x);
-      const maxX = Math.max(selectionStartPoint.x, event.point.x);
-      const minY = Math.min(selectionStartPoint.y, event.point.y);
-      const maxY = Math.max(selectionStartPoint.y, event.point.y);
-
-      selectionBox.style.transform = `translate(${minX}px, ${minY}px)`;
-      selectionBox.style.width = `${Math.max(maxX - minX, 1)}px`;
-      selectionBox.style.height = `${Math.max(maxY - minY, 1)}px`;
-    };
-
-    const onMouseUp = (event) => {
-      if (!selectionStartPoint) return;
-
-      const minX = Math.min(selectionStartPoint.x, event.point.x);
-      const maxX = Math.max(selectionStartPoint.x, event.point.x);
-      const minY = Math.min(selectionStartPoint.y, event.point.y);
-      const maxY = Math.max(selectionStartPoint.y, event.point.y);
-
-      removeSelectionBox();
-      map.dragPan.enable();
-
-      const selectedFeatures = map.queryRenderedFeatures(
-        [[minX, minY], [maxX, maxY]],
-        { layers: [DOOR_ACCESS_LAYER_ID] }
-      ) || [];
-
-      const ids = Array.from(new Set(
-        selectedFeatures
-          .map(getDoorIdFromFeature)
-          .filter((doorId) => doorId !== null && doorId !== undefined)
-      ));
-
-      const westSouth = map.unproject({ x: minX, y: maxY });
-      const eastNorth = map.unproject({ x: maxX, y: minY });
+      const closedRing = [...vertices, vertices[0]];
       const selectionPolygon = {
         type: 'Feature',
         geometry: {
           type: 'Polygon',
-          coordinates: [[
-            [westSouth.lng, westSouth.lat],
-            [eastNorth.lng, westSouth.lat],
-            [eastNorth.lng, eastNorth.lat],
-            [westSouth.lng, eastNorth.lat],
-            [westSouth.lng, westSouth.lat]
-          ]]
+          coordinates: [closedRing]
         },
         properties: {
-          selected_count: ids.length
+          node_count: vertices.length
         }
       };
 
+      const points = vertices.map(([lng, lat]) => map.project({ lng, lat }));
+      const minX = Math.min(...points.map((point) => point.x));
+      const maxX = Math.max(...points.map((point) => point.x));
+      const minY = Math.min(...points.map((point) => point.y));
+      const maxY = Math.max(...points.map((point) => point.y));
+
+      const candidateFeatures = map.queryRenderedFeatures(
+        [[minX, minY], [maxX, maxY]],
+        { layers: [DOOR_ACCESS_LAYER_ID] }
+      ) || [];
+
       const selectedDoorFeatures = [];
+      const selectedIds = [];
       const seenDoorIds = new Set();
-      selectedFeatures.forEach((feature) => {
+
+      candidateFeatures.forEach((feature) => {
         const doorId = getDoorIdFromFeature(feature);
         if (doorId === null || doorId === undefined || seenDoorIds.has(doorId)) return;
 
         const sanitizedFeature = sanitizeFeatureForSelection(feature);
         if (!sanitizedFeature || sanitizedFeature.geometry?.type !== 'Point') return;
+
+        const coordinates = sanitizedFeature.geometry.coordinates;
+        const isInsidePolygon = turfBooleanPointInPolygon(
+          {
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates
+            }
+          },
+          selectionPolygon
+        );
+
+        if (!isInsidePolygon) return;
 
         selectedDoorFeatures.push({
           ...sanitizedFeature,
@@ -6598,52 +6635,59 @@ const Amain = () => {
             door_id: doorId
           }
         });
+        selectedIds.push(doorId);
         seenDoorIds.add(doorId);
       });
 
-      setSelectedDoorIds(ids);
-      setDoorBulkSelectionBounds(selectionPolygon);
+      setSelectedDoorIds(selectedIds);
+      setDoorBulkSelectionBounds({
+        ...selectionPolygon,
+        properties: {
+          ...selectionPolygon.properties,
+          selected_count: selectedIds.length
+        }
+      });
       setSelectedDoorPreviewFeatures(selectedDoorFeatures);
 
-      if (!ids.length) {
+      if (!selectedIds.length) {
         toast.info('در این محدوده دربی پیدا نشد');
       } else {
-        toast.success(`${ids.length} درب انتخاب شد`);
+        toast.success(`${selectedIds.length} درب انتخاب شد`);
       }
-
-      selectionStartPoint = null;
-      map.off('mousemove', onMouseMove);
-      map.off('mouseup', onMouseUp);
     };
 
-    const onMouseDown = (event) => {
-      if (event.originalEvent.button !== 0) return;
-
-      const target = event.originalEvent.target;
+    const onMapClick = (event) => {
+      const target = event.originalEvent?.target;
       if (target?.closest?.('.map-control-top-left') || target?.closest?.('.map-control-top-right')) {
         return;
       }
 
-      selectionStartPoint = event.point;
-      map.dragPan.disable();
-
-      const container = map.getContainer();
-      selectionBox = document.createElement('div');
-      selectionBox.className = 'door-bulk-selection-box';
-      container.appendChild(selectionBox);
-
-      map.on('mousemove', onMouseMove);
-      map.on('mouseup', onMouseUp);
+      drawingVertices = [...drawingVertices, [event.lngLat.lng, event.lngLat.lat]];
+      setDoorBulkSelectionBounds(buildDraftFeature(drawingVertices));
+      setSelectedDoorIds([]);
+      setSelectedDoorPreviewFeatures([]);
     };
 
-    map.on('mousedown', onMouseDown);
+    const onMapDoubleClick = (event) => {
+      event.preventDefault();
+      finalizePolygonSelection(drawingVertices);
+    };
+
+    map.on('click', onMapClick);
+    map.on('dblclick', onMapDoubleClick);
 
     return () => {
-      map.off('mousedown', onMouseDown);
-      map.off('mousemove', onMouseMove);
-      map.off('mouseup', onMouseUp);
-      removeSelectionBox();
-      map.dragPan.enable();
+      map.off('click', onMapClick);
+      map.off('dblclick', onMapDoubleClick);
+      if (wasDragPanEnabled) {
+        map.dragPan.enable();
+      }
+      if (wasDoubleClickZoomEnabled) {
+        map.doubleClickZoom.enable();
+      }
+      if (canvas) {
+        canvas.style.cursor = previousCursor || 'grab';
+      }
     };
   }, [map, isDoorAccessLayerActive, isDoorBulkSelectMode, getDoorIdFromFeature, sanitizeFeatureForSelection]);
 
