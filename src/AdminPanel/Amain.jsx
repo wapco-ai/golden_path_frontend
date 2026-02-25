@@ -5133,6 +5133,21 @@ const Amain = () => {
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return;
 
+    const resizeMap = () => {
+      map.resize();
+    };
+
+    requestAnimationFrame(resizeMap);
+    const timeoutId = setTimeout(resizeMap, 250);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [activeMenu, isMapFullscreen, map]);
+
+  useEffect(() => {
+    if (!map || activeMenu !== 'mapmanage') return;
+
     // فقط وقتی floor/lang عوض شد تایل‌ها را رفرش کن (نه هنگام ورود به edit mode)
     const prev = prevFloorLangRef.current;
     if (prev.floor === mapFloor && prev.lang === mapLanguage) return;
