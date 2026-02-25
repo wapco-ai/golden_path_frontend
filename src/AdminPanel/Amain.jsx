@@ -65,6 +65,7 @@ import {
   fetchDashboardNotifications,
   fetchDashboardRecentUsers
 } from '../services/adminDashboardService';
+import { requestRouting } from '../services/routingService';
 
 function ensureRtlOnce() {
   if (window.__RTL_PLUGIN_SET__) return;
@@ -86,6 +87,9 @@ const DOOR_BULK_PREVIEW_FILL_LAYER_ID = 'door-bulk-preview-fill-layer';
 const DOOR_BULK_PREVIEW_LINE_LAYER_ID = 'door-bulk-preview-line-layer';
 const DOOR_BULK_SELECTED_SOURCE_ID = 'door-bulk-selected-source';
 const DOOR_BULK_SELECTED_LAYER_ID = 'door-bulk-selected-layer';
+const ADMIN_CONTEXT_ROUTING_SOURCE_ID = 'admin-context-routing-source';
+const ADMIN_CONTEXT_ROUTING_LINE_LAYER_ID = 'admin-context-routing-line-layer';
+const ADMIN_CONTEXT_ROUTING_POINT_LAYER_ID = 'admin-context-routing-point-layer';
 const VAN_DRAW_SOURCE_ID = 'van-draw-source';
 const VAN_DRAW_LINE_LAYER_ID = 'van-draw-line-layer';
 const VAN_DRAW_POINT_LAYER_ID = 'van-draw-point-layer';
@@ -708,7 +712,24 @@ const Amain = () => {
 
   const [map, setMap] = useState(null);
   const [mapLayerAvailabilityVersion, setMapLayerAvailabilityVersion] = useState(0);
+  const [mapContextMenu, setMapContextMenu] = useState({
+    isOpen: false,
+    x: 0,
+    y: 0,
+    lngLat: null
+  });
+  const [contextRouteSelection, setContextRouteSelection] = useState({
+    origin: null,
+    destination: null
+  });
+  const [lastContextRouteSelection, setLastContextRouteSelection] = useState({
+    origin: null,
+    destination: null
+  });
+  const [contextRouteGeoData, setContextRouteGeoData] = useState({ type: 'FeatureCollection', features: [] });
+  const [isContextRoutingLoading, setIsContextRoutingLoading] = useState(false);
   const mapRef = useRef(null);
+  const contextRouteRequestAbortRef = useRef(null);
   const layerTileRefreshGuardRef = useRef(new Map());
   const lastSelectedFeatureJsonRef = useRef('');
   useEffect(() => {
@@ -5084,11 +5105,161 @@ const Amain = () => {
     setCurrentStep(stepNumber);
   };
 
+  const buildContextPointFeature = useCallback((point, role) => ({
+    type: 'Feature',
+    geometry: { type: 'Point', coordinates: [point.lng, point.lat] },
+    properties: { role }
+  }), []);
+
+  const clearContextRouting = useCallback(() => {
+    if (contextRouteRequestAbortRef.current) {
+      contextRouteRequestAbortRef.current.abort();
+      contextRouteRequestAbortRef.current = null;
+    }
+
+    setContextRouteSelection({ origin: null, destination: null });
+    setContextRouteGeoData({ type: 'FeatureCollection', features: [] });
+    setIsContextRoutingLoading(false);
+  }, []);
+
+  const requestContextRouting = useCallback(async (originPoint, destinationPoint) => {
+    if (!originPoint || !destinationPoint) return;
+
+    if (contextRouteRequestAbortRef.current) {
+      contextRouteRequestAbortRef.current.abort();
+    }
+
+    const abortController = new AbortController();
+    contextRouteRequestAbortRef.current = abortController;
+    setIsContextRoutingLoading(true);
+
+    try {
+      const routingResult = await requestRouting({
+        origin: {
+          name: 'مبدا',
+          coordinates: [originPoint.lat, originPoint.lng]
+        },
+        destination: {
+          name: 'مقصد',
+          coordinates: [destinationPoint.lat, destinationPoint.lng]
+        },
+        mode: 'walk',
+        gender: 'both',
+        lang: mapLanguage || 'fa',
+        maxAlternatives: 0,
+        signal: abortController.signal
+      });
+
+      const lineCoordinates = routingResult?.geo?.geometry?.coordinates;
+      if (!Array.isArray(lineCoordinates) || lineCoordinates.length < 2) {
+        throw new Error('مسیر معتبری از سرویس مسیریابی دریافت نشد');
+      }
+
+      setContextRouteGeoData({
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            geometry: { type: 'LineString', coordinates: lineCoordinates },
+            properties: { role: 'route' }
+          },
+          buildContextPointFeature(originPoint, 'origin'),
+          buildContextPointFeature(destinationPoint, 'destination')
+        ]
+      });
+
+      toast.success('مسیر پیش‌فرض پیاده/خانوادگی با موفقیت محاسبه شد');
+    } catch (error) {
+      if (error?.name === 'AbortError') return;
+
+      setContextRouteGeoData({
+        type: 'FeatureCollection',
+        features: [
+          buildContextPointFeature(originPoint, 'origin'),
+          buildContextPointFeature(destinationPoint, 'destination')
+        ]
+      });
+      toast.error(error?.message || 'محاسبه مسیر ناموفق بود');
+    } finally {
+      if (contextRouteRequestAbortRef.current === abortController) {
+        contextRouteRequestAbortRef.current = null;
+      }
+      setIsContextRoutingLoading(false);
+    }
+  }, [buildContextPointFeature, mapLanguage]);
+
   const activeLayerTitle = activeEditableLayer?.titleFa
     || activeEditableLayer?.label
     || activeEditableLayer?.id
     || 'نام لایه';
 
+  const handleMapContextAction = useCallback((action) => {
+    const clickedPoint = mapContextMenu.lngLat;
+    if (!clickedPoint) {
+      setMapContextMenu((prev) => ({ ...prev, isOpen: false }));
+      return;
+    }
+
+    if (action === 'set-origin') {
+      setContextRouteSelection((prev) => ({ ...prev, origin: clickedPoint, destination: null }));
+      setContextRouteGeoData({
+        type: 'FeatureCollection',
+        features: [buildContextPointFeature(clickedPoint, 'origin')]
+      });
+      toast.info('مبدا انتخاب شد؛ حالا مقصد را از روی نقشه انتخاب کنید');
+    }
+
+    if (action === 'set-destination') {
+      setContextRouteSelection((prev) => {
+        const nextSelection = { ...prev, destination: clickedPoint };
+        if (nextSelection.origin && nextSelection.destination) {
+          setLastContextRouteSelection({
+            origin: { ...nextSelection.origin },
+            destination: { ...nextSelection.destination }
+          });
+        }
+        return nextSelection;
+      });
+      setContextRouteGeoData((prevData) => ({
+        type: 'FeatureCollection',
+        features: [
+          ...(prevData?.features || []).filter((feature) => feature?.properties?.role !== 'destination' && feature?.properties?.role !== 'route'),
+          buildContextPointFeature(clickedPoint, 'destination')
+        ]
+      }));
+    }
+
+    if (action === 'clear-route') {
+      clearContextRouting();
+      toast.info('مسیر پاک شد');
+    }
+
+    if (action === 'reroute-last') {
+      if (!lastContextRouteSelection.origin || !lastContextRouteSelection.destination) {
+        toast.info('برای مسیریابی مجدد، ابتدا یک مبدا و مقصد انتخاب کنید');
+      } else {
+        setContextRouteSelection({
+          origin: { ...lastContextRouteSelection.origin },
+          destination: { ...lastContextRouteSelection.destination }
+        });
+        setContextRouteGeoData({
+          type: 'FeatureCollection',
+          features: [
+            buildContextPointFeature(lastContextRouteSelection.origin, 'origin'),
+            buildContextPointFeature(lastContextRouteSelection.destination, 'destination')
+          ]
+        });
+      }
+    }
+
+    setMapContextMenu((prev) => ({ ...prev, isOpen: false }));
+  }, [
+    buildContextPointFeature,
+    clearContextRouting,
+    lastContextRouteSelection.destination,
+    lastContextRouteSelection.origin,
+    mapContextMenu.lngLat
+  ]);
 
   // Map initialization effect
   useEffect(() => {
@@ -5996,6 +6167,153 @@ const Amain = () => {
     routingToArea,
     selectedEditableFeature
   ]);
+
+  useEffect(() => {
+    if (!map || activeMenu !== 'mapmanage') return undefined;
+
+    const ensureContextRoutingLayers = () => {
+      if (!map.getSource(ADMIN_CONTEXT_ROUTING_SOURCE_ID)) {
+        map.addSource(ADMIN_CONTEXT_ROUTING_SOURCE_ID, {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+      }
+
+      if (!map.getLayer(ADMIN_CONTEXT_ROUTING_LINE_LAYER_ID)) {
+        map.addLayer({
+          id: ADMIN_CONTEXT_ROUTING_LINE_LAYER_ID,
+          type: 'line',
+          source: ADMIN_CONTEXT_ROUTING_SOURCE_ID,
+          filter: ['==', ['geometry-type'], 'LineString'],
+          layout: {
+            'line-cap': 'round',
+            'line-join': 'round'
+          },
+          paint: {
+            'line-color': '#0f71ef',
+            'line-width': 4,
+            'line-opacity': 0.95
+          }
+        });
+      }
+
+      if (!map.getLayer(ADMIN_CONTEXT_ROUTING_POINT_LAYER_ID)) {
+        map.addLayer({
+          id: ADMIN_CONTEXT_ROUTING_POINT_LAYER_ID,
+          type: 'circle',
+          source: ADMIN_CONTEXT_ROUTING_SOURCE_ID,
+          filter: ['==', ['geometry-type'], 'Point'],
+          paint: {
+            'circle-radius': 6,
+            'circle-color': [
+              'match',
+              ['get', 'role'],
+              'origin',
+              '#16a34a',
+              'destination',
+              '#dc2626',
+              '#0f71ef'
+            ],
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-width': 1.5
+          }
+        });
+      }
+
+      if (map.getLayer(ADMIN_CONTEXT_ROUTING_LINE_LAYER_ID)) {
+        map.moveLayer(ADMIN_CONTEXT_ROUTING_LINE_LAYER_ID);
+      }
+      if (map.getLayer(ADMIN_CONTEXT_ROUTING_POINT_LAYER_ID)) {
+        map.moveLayer(ADMIN_CONTEXT_ROUTING_POINT_LAYER_ID);
+      }
+    };
+
+    if (map.isStyleLoaded()) {
+      ensureContextRoutingLayers();
+      return undefined;
+    }
+
+    map.once('style.load', ensureContextRoutingLayers);
+    return () => map.off('style.load', ensureContextRoutingLayers);
+  }, [map, activeMenu]);
+
+  useEffect(() => {
+    if (!map || activeMenu !== 'mapmanage') return undefined;
+
+    const source = map.getSource(ADMIN_CONTEXT_ROUTING_SOURCE_ID);
+    if (source && typeof source.setData === 'function') {
+      source.setData(contextRouteGeoData);
+    }
+
+    const syncData = () => {
+      const currentSource = map.getSource(ADMIN_CONTEXT_ROUTING_SOURCE_ID);
+      if (currentSource && typeof currentSource.setData === 'function') {
+        currentSource.setData(contextRouteGeoData);
+      }
+    };
+
+    map.on('style.load', syncData);
+    map.on('load', syncData);
+
+    return () => {
+      map.off('style.load', syncData);
+      map.off('load', syncData);
+    };
+  }, [map, activeMenu, contextRouteGeoData]);
+
+  useEffect(() => {
+    if (!map || activeMenu !== 'mapmanage') return undefined;
+
+    const onMapContextMenu = (event) => {
+      event.preventDefault();
+      const target = event.originalEvent?.target;
+      if (target?.closest?.('.map-control-top-left') || target?.closest?.('.map-control-top-right')) {
+        setMapContextMenu((prev) => ({ ...prev, isOpen: false }));
+        return;
+      }
+
+      setMapContextMenu({
+        isOpen: true,
+        x: event.point.x,
+        y: event.point.y,
+        lngLat: { lng: event.lngLat.lng, lat: event.lngLat.lat }
+      });
+    };
+
+    const closeContextMenu = () => {
+      setMapContextMenu((prev) => (prev.isOpen ? { ...prev, isOpen: false } : prev));
+    };
+
+    map.on('contextmenu', onMapContextMenu);
+    map.on('mousedown', closeContextMenu);
+
+    return () => {
+      map.off('contextmenu', onMapContextMenu);
+      map.off('mousedown', closeContextMenu);
+    };
+  }, [map, activeMenu]);
+
+  useEffect(() => {
+    if (activeMenu === 'mapmanage') return undefined;
+
+    setMapContextMenu({ isOpen: false, x: 0, y: 0, lngLat: null });
+    clearContextRouting();
+
+    return undefined;
+  }, [activeMenu, clearContextRouting]);
+
+  useEffect(() => () => {
+    if (contextRouteRequestAbortRef.current) {
+      contextRouteRequestAbortRef.current.abort();
+      contextRouteRequestAbortRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!contextRouteSelection.origin || !contextRouteSelection.destination) return;
+
+    requestContextRouting(contextRouteSelection.origin, contextRouteSelection.destination);
+  }, [contextRouteSelection.destination, contextRouteSelection.origin, requestContextRouting]);
 
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
@@ -11730,6 +12048,46 @@ const Amain = () => {
             <div className="map-management-section">
               <div className="map-container">
                 <div id="map-container" className="map-instance"></div>
+
+                {mapContextMenu.isOpen && (
+                  <div
+                    className="map-context-menu"
+                    style={{ left: mapContextMenu.x, top: mapContextMenu.y }}
+                  >
+                    {!contextRouteSelection.origin ? (
+                      <button type="button" onClick={() => handleMapContextAction('set-origin')}>
+                        انتخاب مبدا
+                      </button>
+                    ) : (
+                      <>
+                        <button type="button" onClick={() => handleMapContextAction('set-origin')}>
+                          انتخاب مبدا جدید
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleMapContextAction('set-destination')}
+                          disabled={isContextRoutingLoading}
+                        >
+                          {isContextRoutingLoading ? 'در حال محاسبه مسیر...' : 'انتخاب مقصد و مسیریابی'}
+                        </button>
+                      </>
+                    )}
+                    {(lastContextRouteSelection.origin && lastContextRouteSelection.destination) && (
+                      <button
+                        type="button"
+                        onClick={() => handleMapContextAction('reroute-last')}
+                        disabled={isContextRoutingLoading}
+                      >
+                        مسیریابی مجدد مبدا/مقصد قبلی
+                      </button>
+                    )}
+                    {(contextRouteSelection.origin || contextRouteSelection.destination) && (
+                      <button type="button" className="danger" onClick={() => handleMapContextAction('clear-route')}>
+                        پاک کردن مسیر
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {/* Top Left - Map Type Selector */}
                 <div className="map-control-top-left">
