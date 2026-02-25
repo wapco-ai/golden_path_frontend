@@ -1280,9 +1280,6 @@ const Amain = () => {
   const [lastCreatedAccessPointId, setLastCreatedAccessPointId] = useState(null);
   const [isSavingDoorInfo, setIsSavingDoorInfo] = useState(false);
   const [isLoadingDoorInfo, setIsLoadingDoorInfo] = useState(false);
-  const [isDoorBulkSelectMode, setIsDoorBulkSelectMode] = useState(false);
-  const [selectedDoorIds, setSelectedDoorIds] = useState([]);
-  const [isBulkDoorStatusLoading, setIsBulkDoorStatusLoading] = useState(false);
   const [lastCreatedAreaId, setLastCreatedAreaId] = useState(null);
   const [isSavingAreaInfo, setIsSavingAreaInfo] = useState(false);
   const [isLoadingAreaInfo, setIsLoadingAreaInfo] = useState(false);
@@ -1290,15 +1287,6 @@ const Amain = () => {
   const [isDoorMoveMode, setIsDoorMoveMode] = useState(false);
   const isAreaLayerActive = activeEditableLayer?.id === 'areas-outline';
   const isDoorAccessLayerActive = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID;
-  const selectedDoorsCount = selectedDoorIds.length;
-
-  useEffect(() => {
-    if (isDoorAccessLayerActive) return;
-
-    setIsDoorBulkSelectMode(false);
-    setSelectedDoorIds([]);
-  }, [isDoorAccessLayerActive]);
-
   const intl = useIntl();
   const language = intl?.locale || 'fa';
   const isRtlLanguage = ['fa', 'ar', 'ur'].includes(language);
@@ -6152,10 +6140,6 @@ const Amain = () => {
     const handleMapClick = async (event) => {
       const { lngLat, point } = event;
 
-      if (isDoorBulkSelectMode && isDoorAccessLayerActive) {
-        return;
-      }
-
       if (isVanDrawingMode && isVanDrawingLayerActive) {
         const newCoordinate = [lngLat.lng, lngLat.lat];
 
@@ -6354,12 +6338,10 @@ const Amain = () => {
     map,
     activeMenu,
     activeEditableLayer,
-    isDoorAccessLayerActive,
     isVanDrawingMode,
     isVanDrawingLayerActive,
     mapFloor,
     isDoorMoveMode,
-    isDoorBulkSelectMode,
     selectedDoorId,
     selectedFeatureProperties,
     selectedDoorAccessPointId,
@@ -6377,101 +6359,6 @@ const Amain = () => {
     resetMapCursor,
     sanitizeFeatureForSelection
   ]);
-
-
-  useEffect(() => {
-    if (!map || !isDoorAccessLayerActive || !isDoorBulkSelectMode) {
-      return undefined;
-    }
-
-    let selectionStartPoint = null;
-    let selectionBox = null;
-
-    const removeSelectionBox = () => {
-      if (selectionBox?.parentNode) {
-        selectionBox.parentNode.removeChild(selectionBox);
-      }
-      selectionBox = null;
-    };
-
-    const onMouseMove = (event) => {
-      if (!selectionStartPoint || !selectionBox) return;
-
-      const minX = Math.min(selectionStartPoint.x, event.point.x);
-      const maxX = Math.max(selectionStartPoint.x, event.point.x);
-      const minY = Math.min(selectionStartPoint.y, event.point.y);
-      const maxY = Math.max(selectionStartPoint.y, event.point.y);
-
-      selectionBox.style.transform = `translate(${minX}px, ${minY}px)`;
-      selectionBox.style.width = `${Math.max(maxX - minX, 1)}px`;
-      selectionBox.style.height = `${Math.max(maxY - minY, 1)}px`;
-    };
-
-    const onMouseUp = (event) => {
-      if (!selectionStartPoint) return;
-
-      const minX = Math.min(selectionStartPoint.x, event.point.x);
-      const maxX = Math.max(selectionStartPoint.x, event.point.x);
-      const minY = Math.min(selectionStartPoint.y, event.point.y);
-      const maxY = Math.max(selectionStartPoint.y, event.point.y);
-
-      removeSelectionBox();
-      map.dragPan.enable();
-
-      const selectedFeatures = map.queryRenderedFeatures(
-        [[minX, minY], [maxX, maxY]],
-        { layers: [DOOR_ACCESS_LAYER_ID] }
-      ) || [];
-
-      const ids = Array.from(new Set(
-        selectedFeatures
-          .map(getDoorIdFromFeature)
-          .filter((doorId) => doorId !== null && doorId !== undefined)
-      ));
-
-      setSelectedDoorIds(ids);
-
-      if (!ids.length) {
-        toast.info('در این محدوده دربی پیدا نشد');
-      } else {
-        toast.success(`${ids.length} درب انتخاب شد`);
-      }
-
-      selectionStartPoint = null;
-      map.off('mousemove', onMouseMove);
-      map.off('mouseup', onMouseUp);
-    };
-
-    const onMouseDown = (event) => {
-      if (event.originalEvent.button !== 0) return;
-
-      const target = event.originalEvent.target;
-      if (target?.closest?.('.map-control-top-left') || target?.closest?.('.map-control-top-right')) {
-        return;
-      }
-
-      selectionStartPoint = event.point;
-      map.dragPan.disable();
-
-      const container = map.getContainer();
-      selectionBox = document.createElement('div');
-      selectionBox.className = 'door-bulk-selection-box';
-      container.appendChild(selectionBox);
-
-      map.on('mousemove', onMouseMove);
-      map.on('mouseup', onMouseUp);
-    };
-
-    map.on('mousedown', onMouseDown);
-
-    return () => {
-      map.off('mousedown', onMouseDown);
-      map.off('mousemove', onMouseMove);
-      map.off('mouseup', onMouseUp);
-      removeSelectionBox();
-      map.dragPan.enable();
-    };
-  }, [map, isDoorAccessLayerActive, isDoorBulkSelectMode, getDoorIdFromFeature]);
 
   const handleExportAllUsers = async () => {
     try {
@@ -8672,65 +8559,6 @@ const Amain = () => {
     }
 
     await openDoorInfoModal(selectedDoorId, selectedDoorAccessPointId || null, true);
-  };
-
-  const getDoorIdFromFeature = useCallback((feature) => {
-    const props = feature?.properties || {};
-    return props?.door_id
-      || props?.doorId
-      || props?.doorID
-      || props?.doorid
-      || props?.id
-      || null;
-  }, []);
-
-  const handleToggleDoorBulkSelectMode = () => {
-    setIsDoorBulkSelectMode((current) => {
-      const next = !current;
-      if (!next) {
-        setSelectedDoorIds([]);
-      }
-      return next;
-    });
-  };
-
-  const handleBulkDoorStatusUpdate = async (nextStatus) => {
-    if (!selectedDoorIds.length) {
-      toast.error('ابتدا با رسم محدوده، درب‌ها را انتخاب کنید');
-      return;
-    }
-
-    const statusLabel = nextStatus === 'active' ? 'فعال' : 'غیرفعال';
-    const isConfirmed = window.confirm(`وضعیت ${selectedDoorIds.length} درب انتخاب‌شده به «${statusLabel}» تغییر کند؟`);
-
-    if (!isConfirmed) return;
-
-    try {
-      setIsBulkDoorStatusLoading(true);
-
-      const updateResults = await Promise.allSettled(
-        selectedDoorIds.map((doorId) => updateDoorInfo(doorId, {
-          operational: { status: nextStatus }
-        }))
-      );
-
-      const successCount = updateResults.filter((result) => result.status === 'fulfilled').length;
-      const failedCount = selectedDoorIds.length - successCount;
-
-      if (successCount > 0) {
-        toast.success(`${successCount} درب با موفقیت ${statusLabel} شد`);
-      }
-
-      if (failedCount > 0) {
-        toast.warning(`به‌روزرسانی ${failedCount} درب ناموفق بود`);
-      }
-
-      refreshActiveEditableLayerTiles(DOOR_ACCESS_LAYER_ID);
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, 'تغییر وضعیت گروهی درب‌ها ناموفق بود'));
-    } finally {
-      setIsBulkDoorStatusLoading(false);
-    }
   };
 
   const activeLayerCount = Object.values(layerVisibility).filter(Boolean).length;
@@ -11859,53 +11687,24 @@ const Amain = () => {
                         <path fillRule="evenodd" clipRule="evenodd" d="M2.70898 8.4527C2.70898 4.37019 5.96316 1.04163 10.0007 1.04163C14.0381 1.04163 17.2923 4.37019 17.2923 8.4527C17.2923 10.4236 16.7306 12.5399 15.7377 14.3682C14.746 16.1942 13.297 17.781 11.4844 18.6282C10.5428 19.0683 9.45851 19.0683 8.51689 18.6282C6.70429 17.781 5.25533 16.1942 4.26361 14.3682C3.27067 12.5399 2.70898 10.4236 2.70898 8.4527ZM10.0007 2.29163C6.67435 2.29163 3.95898 5.03953 3.95898 8.4527C3.95898 10.2003 4.46118 12.1128 5.36207 13.7716C6.26418 15.4327 7.539 16.7913 9.04619 17.4958C9.65236 17.7791 10.3489 17.7791 10.9551 17.4958C12.4623 16.7913 13.7371 15.4327 14.6392 13.7716C15.5401 12.1128 16.0423 10.2003 16.0423 8.4527C16.0423 5.03953 13.327 2.29163 10.0007 2.29163ZM10.0007 5.62496C10.3458 5.62496 10.6257 5.90478 10.6257 6.24996V7.70829H12.084C12.4292 7.70829 12.709 7.98811 12.709 8.33329C12.709 8.67847 12.4292 8.95829 12.084 8.95829H10.6257V10.4166C10.6257 10.7618 10.3458 11.0416 10.0007 11.0416C9.65547 11.0416 9.37565 10.7618 9.37565 10.4166V8.95829H7.91732C7.57214 8.95829 7.29232 8.67847 7.29232 8.33329C7.29232 7.98811 7.57214 7.70829 7.91732 7.70829H9.37565V6.24996C9.37565 5.90478 9.65547 5.62496 10.0007 5.62496Z" fill={isLocationMarkerMode ? "white" : "#1E2023"} />
                       </svg>
                     </div>
-                    {openSubMenu === 4 && isDoorAccessLayerActive && (
+                    {openSubMenu === 4 && showDoorTools && (
                       <div className="sub-buttons4">
-                        {showDoorTools && (
-                          <>
-                            <button className="sub-btn move-door-point" onClick={handleDoorMoveStart}>
-                              <svg xmlns="http://www.w3.org/2000/svg" shapeRendering="geometricPrecision" textRendering="geometricPrecision" imageRendering="optimizeQuality" fillRule="evenodd" clipRule="evenodd" viewBox="0 0 512 512"><path fillRule="nonzero" d="M318.633 104.048h-49.644v94.774c22.158 5.014 39.533 22.56 44.319 44.772h94.644v-78.986L512 256l-104.048 91.392V268.989h-94.774c-4.968 21.952-22.237 39.221-44.189 44.189v94.774h78.403L256 512l-91.392-104.048H243.594v-94.644c-22.212-4.786-39.758-22.161-44.772-44.319h-94.774v78.403L0 256l104.048-91.392V243.594h94.644c4.83-22.419 22.483-40.072 44.902-44.902v-94.644h-78.986L256 0l91.392 104.048h-28.759z" /></svg>
-                            </button>
-                            <button className="sub-btn edit-door-point" onClick={handleDoorEdit}>
-                              <svg xmlns="http://www.w3.org/2000/svg" shapeRendering="geometricPrecision" textRendering="geometricPrecision" imageRendering="optimizeQuality" fillRule="evenodd" clipRule="evenodd" viewBox="0 0 512 438.76"><path d="M61.42 0h338.91c33.78 0 61.42 27.65 61.42 61.42V178.3c-2.65-.26-5.31-.34-7.96-.22-1.79.05-3.59.2-5.4.44-10.99 1.52-22.13 6.81-30.32 14.38H242.91v87.19h83.02l-27.87 26.32h-55.15v87.19h9.12l-6.73 34.81H61.42C27.65 428.41 0 400.77 0 366.98V61.42C0 27.64 27.64 0 61.42 0zm303.35 428.24-72.14 10.52 14.58-75.31 57.56 64.79zm-33.7-86.51L450.8 228.58c2.23-2.19 6.19-3.1 8.3-.83l51.52 55.84c2.31 2.56 1.54 6.26-.96 8.62L388.57 406.56l-57.5-64.83zM30.13 306.41h186.46v87.19H30.13v-87.19zm0-227.01h186.46v87.18H30.13V79.4zm0 113.5h186.46v87.19H30.13V192.9zM242.91 79.4h186.47v87.18H242.91V79.4z" /></svg>
-                            </button>
-                            <button className="sub-btn delete-door-point" onClick={handleDoorDelete}>
-                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
-                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                <path d="M4 7l16 0" />
-                                <path d="M10 11l0 6" />
-                                <path d="M14 11l0 6" />
-                                <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
-                                <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
-                              </svg>
-                            </button>
-                          </>
-                        )}
-
-                        <div className="bulk-door-actions">
-                          <button
-                            className={`sub-btn with-label ${isDoorBulkSelectMode ? 'active' : ''}`}
-                            onClick={handleToggleDoorBulkSelectMode}
-                            disabled={isBulkDoorStatusLoading}
-                          >
-                            <span className="sub-btn-label">{isDoorBulkSelectMode ? 'پایان انتخاب محدوده' : 'انتخاب محدوده'}</span>
-                          </button>
-                          <div className="bulk-door-count">تعداد انتخاب: {selectedDoorsCount}</div>
-                          <button
-                            className="sub-btn with-label"
-                            onClick={() => handleBulkDoorStatusUpdate('active')}
-                            disabled={isBulkDoorStatusLoading || selectedDoorsCount === 0}
-                          >
-                            <span className="sub-btn-label">فعال‌سازی منتخب‌ها</span>
-                          </button>
-                          <button
-                            className="sub-btn with-label"
-                            onClick={() => handleBulkDoorStatusUpdate('inactive')}
-                            disabled={isBulkDoorStatusLoading || selectedDoorsCount === 0}
-                          >
-                            <span className="sub-btn-label">غیرفعال‌سازی منتخب‌ها</span>
-                          </button>
-                        </div>
+                        <button className="sub-btn move-door-point" onClick={handleDoorMoveStart}>
+                          <svg xmlns="http://www.w3.org/2000/svg" shapeRendering="geometricPrecision" textRendering="geometricPrecision" imageRendering="optimizeQuality" fillRule="evenodd" clipRule="evenodd" viewBox="0 0 512 512"><path fillRule="nonzero" d="M318.633 104.048h-49.644v94.774c22.158 5.014 39.533 22.56 44.319 44.772h94.644v-78.986L512 256l-104.048 91.392V268.989h-94.774c-4.968 21.952-22.237 39.221-44.189 44.189v94.774h78.403L256 512l-91.392-104.048H243.594v-94.644c-22.212-4.786-39.758-22.161-44.772-44.319h-94.774v78.403L0 256l104.048-91.392V243.594h94.644c4.83-22.419 22.483-40.072 44.902-44.902v-94.644h-78.986L256 0l91.392 104.048h-28.759z" /></svg>
+                        </button>
+                        <button className="sub-btn edit-door-point" onClick={handleDoorEdit}>
+                          <svg xmlns="http://www.w3.org/2000/svg" shapeRendering="geometricPrecision" textRendering="geometricPrecision" imageRendering="optimizeQuality" fillRule="evenodd" clipRule="evenodd" viewBox="0 0 512 438.76"><path d="M61.42 0h338.91c33.78 0 61.42 27.65 61.42 61.42V178.3c-2.65-.26-5.31-.34-7.96-.22-1.79.05-3.59.2-5.4.44-10.99 1.52-22.13 6.81-30.32 14.38H242.91v87.19h83.02l-27.87 26.32h-55.15v87.19h9.12l-6.73 34.81H61.42C27.65 428.41 0 400.77 0 366.98V61.42C0 27.64 27.64 0 61.42 0zm303.35 428.24-72.14 10.52 14.58-75.31 57.56 64.79zm-33.7-86.51L450.8 228.58c2.23-2.19 6.19-3.1 8.3-.83l51.52 55.84c2.31 2.56 1.54 6.26-.96 8.62L388.57 406.56l-57.5-64.83zM30.13 306.41h186.46v87.19H30.13v-87.19zm0-227.01h186.46v87.18H30.13V79.4zm0 113.5h186.46v87.19H30.13V192.9zM242.91 79.4h186.47v87.18H242.91V79.4z" /></svg>
+                        </button>
+                        <button className="sub-btn delete-door-point" onClick={handleDoorDelete}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path d="M4 7l16 0" />
+                            <path d="M10 11l0 6" />
+                            <path d="M14 11l0 6" />
+                            <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
+                            <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
+                          </svg>
+                        </button>
                       </div>
                     )}
 
