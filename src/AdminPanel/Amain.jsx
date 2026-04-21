@@ -6265,6 +6265,12 @@ const Amain = () => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
 
     const onMapContextMenu = (event) => {
+
+       if (!event.originalEvent.ctrlKey) {
+        setMapContextMenu((prev) => ({ ...prev, isOpen: false }));
+        return;
+      }
+      
       event.preventDefault();
       const target = event.originalEvent?.target;
       if (target?.closest?.('.map-control-top-left') || target?.closest?.('.map-control-top-right')) {
