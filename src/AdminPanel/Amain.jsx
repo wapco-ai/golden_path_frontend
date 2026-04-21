@@ -6266,11 +6266,11 @@ const Amain = () => {
 
     const onMapContextMenu = (event) => {
 
-       if (!event.originalEvent.ctrlKey) {
+      if (!event.originalEvent.ctrlKey) {
         setMapContextMenu((prev) => ({ ...prev, isOpen: false }));
         return;
       }
-      
+
       event.preventDefault();
       const target = event.originalEvent?.target;
       if (target?.closest?.('.map-control-top-left') || target?.closest?.('.map-control-top-right')) {
@@ -8922,6 +8922,8 @@ const Amain = () => {
       return Number.isFinite(numericValue) ? numericValue : null;
     };
 
+    const isInactive = locationStatus === 'غیر فعال';
+
     return {
       basic_info: {
         title: {
@@ -8938,19 +8940,27 @@ const Amain = () => {
         sub_group_label: selectedSubGroup?.label
       },
       operational: {
-        status: locationStatus === 'غیر فعال' ? 'inactive' : 'active',
+        status: isInactive ? 'inactive' : 'active',
         transport_modes: selectedTransport.map(normalizeTransportValue).filter(Boolean),
         gender_access: selectedGenderAccess.map(normalizeGenderValue).filter(Boolean),
         place_function: placeFunction || null,
         is_covered: typeof isPlaceCovered === 'boolean' ? isPlaceCovered : null
       },
-      ...(!isAreaLayerActive ? {
-        routing: {
-          bidirectional: routingBidirectional,
-          from_area: routingBidirectional ? null : normalizeRoutingAreaId(routingFromArea),
-          to_area: routingBidirectional ? null : normalizeRoutingAreaId(routingToArea)
+
+      ...(isAreaLayerActive
+        ? {
+          meta: {
+            is_closed: isInactive
+          }
         }
-      } : {}),
+        : {
+          routing: {
+            bidirectional: routingBidirectional,
+            from_area: routingBidirectional ? null : normalizeRoutingAreaId(routingFromArea),
+            to_area: routingBidirectional ? null : normalizeRoutingAreaId(routingToArea)
+          }
+        }),
+
       time_restrictions: buildTimeRestrictionsPayload(),
       prayer_restrictions: buildPrayerRestrictionsPayload(),
       notes: additionalNotes
@@ -9095,7 +9105,18 @@ const Amain = () => {
     setPlaceSubcategory(grouping?.sub_group_id || doorInfo?.subcategory || '');
     setPlaceFunction(operational?.place_function || doorInfo?.function || '');
     setPlaceAddress(doorInfo?.address || '');
-    setLocationStatus(operational?.status === 'inactive' ? 'غیر فعال' : 'فعال');
+
+    const areaClosedFlag =
+      typeof doorInfo?.meta?.is_closed === 'boolean'
+        ? doorInfo.meta.is_closed
+        : null;
+
+    setLocationStatus(
+      areaClosedFlag !== null
+        ? (areaClosedFlag ? 'غیر فعال' : 'فعال')
+        : (operational?.status === 'inactive' ? 'غیر فعال' : 'فعال')
+    );
+
     setIsPlaceCovered(typeof operational?.is_covered === 'boolean' ? operational.is_covered : null);
     setSelectedTransport(normalizeTransportModes(operational?.transport_modes));
     setSelectedGenderAccess(Array.isArray(operational?.gender_access)
@@ -12113,7 +12134,7 @@ const Amain = () => {
                         <path fillRule="evenodd" clipRule="evenodd" d="M9.99935 1.04169C10.1818 1.04169 10.3551 1.12141 10.4739 1.25994L12.9739 4.17661C13.1985 4.43869 13.1682 4.83325 12.9061 5.05789C12.644 5.28253 12.2495 5.25218 12.0248 4.9901L10.6244 3.35622L10.6243 12.5C10.6243 12.8452 10.3445 13.125 9.99935 13.125C9.65417 13.125 9.37435 12.8452 9.37435 12.5L9.37435 3.35622L7.97389 4.9901C7.74925 5.25218 7.35468 5.28253 7.09261 5.05789C6.83053 4.83325 6.80018 4.43869 7.02481 4.17661L9.52481 1.25994C9.64355 1.12141 9.8169 1.04169 9.99935 1.04169ZM5.8292 6.87666C6.17438 6.87474 6.45575 7.153 6.45767 7.49817C6.4596 7.84334 6.18133 8.12472 5.83616 8.12664C4.92491 8.13171 4.27901 8.15538 3.78881 8.24542C3.31646 8.33218 3.04307 8.4715 2.84019 8.67437C2.60956 8.90501 2.45918 9.22882 2.37697 9.8403C2.29234 10.4698 2.29102 11.304 2.29102 12.5002V13.3335C2.29102 14.5297 2.29234 15.364 2.37697 15.9934C2.45918 16.6049 2.60956 16.9287 2.84019 17.1594C3.07083 17.39 3.39464 17.5404 4.00612 17.6226C4.63558 17.7072 5.46984 17.7085 6.66602 17.7085H13.3327C14.5289 17.7085 15.3631 17.7072 15.9926 17.6226C16.6041 17.5404 16.9279 17.39 17.1585 17.1594C17.3891 16.9287 17.5395 16.6049 17.6217 15.9934C17.7064 15.364 17.7077 14.5297 17.7077 13.3335V12.5002C17.7077 11.304 17.7064 10.4698 17.6217 9.8403C17.5395 9.22882 17.3891 8.90501 17.1585 8.67437C16.9556 8.4715 16.6822 8.33218 16.2099 8.24542C15.7197 8.15538 15.0738 8.13171 14.1625 8.12664C13.8174 8.12472 13.5391 7.84334 13.541 7.49817C13.5429 7.153 13.8243 6.87474 14.1695 6.87666C15.0708 6.88167 15.8219 6.90324 16.4357 7.01599C17.0674 7.13202 17.6049 7.35305 18.0424 7.79049C18.544 8.29209 18.7597 8.92365 18.8606 9.67374C18.9577 10.3962 18.9577 11.3148 18.9577 12.4545V13.3793C18.9577 14.5189 18.9577 15.4375 18.8606 16.16C18.7597 16.9101 18.544 17.5416 18.0424 18.0432C17.5408 18.5448 16.9092 18.7606 16.1591 18.8614C15.4367 18.9586 14.5181 18.9585 13.3784 18.9585H6.62029C5.48063 18.9585 4.56203 18.9586 3.83956 18.8614C3.08947 18.7606 2.4579 18.5448 1.95631 18.0432C1.45471 17.5416 1.23897 16.9101 1.13812 16.16C1.04099 15.4375 1.041 14.5189 1.04102 13.3793V12.4545C1.041 11.3148 1.04099 10.3962 1.13812 9.67374C1.23897 8.92365 1.45471 8.29209 1.95631 7.79049C2.39375 7.35305 2.93131 7.13202 3.56298 7.01599C4.17678 6.90324 4.92793 6.88167 5.8292 6.87666Z" fill={openSubMenu === 5 ? "white" : "#1E2023"} />
                       </svg>
                     </div>
-                    
+
                   </div>
                   <div className="action-buttons-group">
 
