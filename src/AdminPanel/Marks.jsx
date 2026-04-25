@@ -29,26 +29,23 @@ const createRedMarker = () => {
 };
 
 const Marks = () => {
-  // Mock data for demonstration (front-end only)
+  // Mock data (front-end only) - removed description from all marks
   const [marks, setMarks] = useState([
     {
       id: 1,
       title: 'حرم امام رضا (ع)',
-      description: 'حرم مطهر امام رضا علیه السلام، بزرگترین مسجد جهان از نظر وسعت و یکی از مهمترین اماکن مذهبی ایران در شهر مشهد',
       images: ['https://via.placeholder.com/40x40?text=Image1'],
       location: { lat: 36.2880, lng: 59.6157 }
     },
     {
       id: 2,
       title: 'گنبد طلا',
-      description: 'گنبد طلای حرم امام رضا (ع) با شکوه و زیبایی خاص',
       images: ['https://via.placeholder.com/40x40?text=Image2'],
       location: { lat: 36.2885, lng: 59.6160 }
     },
     {
       id: 3,
       title: 'صحن انقلاب',
-      description: 'صحن انقلاب اسلامی حرم مطهر رضوی',
       images: ['https://via.placeholder.com/40x40?text=Image3'],
       location: { lat: 36.2875, lng: 59.6150 }
     }
@@ -68,10 +65,9 @@ const Marks = () => {
   const [selectedMark, setSelectedMark] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Form states
+  // Form states - removed description
   const [formData, setFormData] = useState({
     title: '',
-    description: '',
     images: [],
     location: null
   });
@@ -82,10 +78,9 @@ const Marks = () => {
   const markerRef = useRef(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
 
-  // Filter marks based on search
+  // Filter marks based on search (only title now)
   const filteredMarks = marks.filter(mark =>
-    mark.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    mark.description.toLowerCase().includes(searchTerm.toLowerCase())
+    mark.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Pagination
@@ -225,7 +220,6 @@ const Marks = () => {
   const openAddModal = () => {
     setFormData({
       title: '',
-      description: '',
       images: [],
       location: null
     });
@@ -245,7 +239,6 @@ const Marks = () => {
     setSelectedMark(mark);
     setFormData({
       title: mark.title,
-      description: mark.description,
       images: [...mark.images],
       location: mark.location
     });
@@ -319,7 +312,6 @@ const Marks = () => {
       const newMark = {
         id: marks.length + 1,
         title: formData.title.trim(),
-        description: formData.description.trim() || 'بدون توضیحات',
         images: formData.images.length > 0 ? formData.images : ['https://via.placeholder.com/40x40?text=No+Image'],
         location: formData.location
       };
@@ -333,7 +325,6 @@ const Marks = () => {
       // Reset form
       setFormData({
         title: '',
-        description: '',
         images: [],
         location: null
       });
@@ -361,7 +352,6 @@ const Marks = () => {
           ? {
               ...mark,
               title: formData.title.trim(),
-              description: formData.description.trim() || 'بدون توضیحات',
               images: formData.images.length > 0 ? formData.images : ['https://via.placeholder.com/40x40?text=No+Image'],
               location: formData.location
             }
@@ -478,7 +468,7 @@ const Marks = () => {
               </svg>
               <input
                 type="text"
-                placeholder="جستجوی عنوان، توضیحات و..."
+                placeholder="جستجوی عنوان..."
                 value={searchTerm}
                 onChange={(e) => {
                   setCurrentPage(1);
@@ -497,34 +487,33 @@ const Marks = () => {
         </div>
       </div>
 
-      {/* Marks Table */}
+      {/* Marks Table - Removed description column */}
       <div className="users-table-container">
         <table className="users-table">
           <thead>
             <tr>
               <th>تصویر</th>
               <th>عنوان</th>
-              <th>توضیحات</th>
               <th>عملیات</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>
+                <td colSpan="3" style={{ textAlign: 'center', padding: '20px' }}>
                   در حال بارگذاری...
                 </td>
               </tr>
             ) : currentMarks.length === 0 ? (
               <tr>
-                <td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>
+                <td colSpan="3" style={{ textAlign: 'center', padding: '20px' }}>
                   نقطه‌ای یافت نشد
                 </td>
               </tr>
             ) : (
               currentMarks.map(mark => (
                 <tr key={mark.id}>
-                  <tr>
+                  <td>
                     <div className="user-profile-cell">
                       <div className="profile-image-small2">
                         <img
@@ -534,12 +523,9 @@ const Marks = () => {
                         />
                       </div>
                     </div>
-                  </tr>
-                  <td>
-                    <span className="username-cell-marks">{truncateText(mark.title, 8)}</span>
                   </td>
                   <td>
-                    <span className="username-cell-marks">{truncateText(mark.description, 10)}</span>
+                    <span className="username-cell-marks">{truncateText(mark.title, 8)}</span>
                   </td>
                   <td>
                     <div className="Marks-admin-actions">
@@ -639,7 +625,7 @@ const Marks = () => {
         )}
       </div>
 
-      {/* Add Mark Modal */}
+      {/* Add Mark Modal - Removed description field */}
       {isAddModalOpen && (
         <div className="modal-overlay">
           <div className="add-admin-modal" style={{ maxWidth: '800px' }}>
@@ -662,17 +648,6 @@ const Marks = () => {
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     placeholder="عنوان مکان را وارد کنید"
-                  />
-                </div>
-                <div className="info-field">
-                  <label>توضیحات</label>
-                  <textarea
-                    className="form-input-add-admin"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="توضیحات را وارد کنید"
-                    rows="3"
-                    style={{ resize: 'vertical' }}
                   />
                 </div>
                 <div className="info-field">
@@ -746,7 +721,7 @@ const Marks = () => {
         </div>
       )}
 
-      {/* Edit Mark Modal */}
+      {/* Edit Mark Modal - Removed description field */}
       {isEditModalOpen && selectedMark && (
         <div className="modal-overlay">
           <div className="add-admin-modal" style={{ maxWidth: '800px' }}>
@@ -769,17 +744,6 @@ const Marks = () => {
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     placeholder="عنوان مکان را وارد کنید"
-                  />
-                </div>
-                <div className="info-field">
-                  <label>توضیحات</label>
-                  <textarea
-                    className="form-input-add-admin"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="توضیحات را وارد کنید"
-                    rows="3"
-                    style={{ resize: 'vertical' }}
                   />
                 </div>
                 <div className="info-field">
@@ -858,24 +822,9 @@ const Marks = () => {
         <div className="modal-overlay">
           <div className="delete-admin-modal">
             <div className="modal-header-delete-admin">
-              <button
-                className="close-btn"
-                onClick={() => setIsDeleteModalOpen(false)}
-              >
-                ×
-              </button>
             </div>
             <div className="modal-body-delete-admin">
-              <div className="warning-icon">
-                ⚠️
-              </div>
               <h4>آیا از حذف این نقطه مطمئن هستید؟</h4>
-              <div className="admin-to-delete">
-                <strong>{selectedMark.title}</strong>
-              </div>
-              <div className="delete-warning">
-                این عمل قابل بازگشت نیست و تمام اطلاعات این نقطه حذف خواهد شد.
-              </div>
             </div>
             <div className="modal-footer-delete-admin">
               <button
