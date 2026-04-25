@@ -190,7 +190,7 @@
   "stepMoveToDoor": "اتجه نحو {name}",
   "stepPassConnection": "عبر نقطة الاتصال {title}",
   "stepEnterNextSahn": "ادخل الساحة التالية عبر {title}",
-  "stepPassSahn": "اعبر ساحة {title}",
+  "stepPassSahn": "اعبر {title}",
   "stepPassDoor": "من باب رقم {name} ادخل إلى صحن/إيوان {title}",
   "stepArriveDestination": "الوصول إلى {name}",
   "stepNumber": "الخطوة {num}",

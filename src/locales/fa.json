@@ -191,7 +191,7 @@
   "stepMoveToDoor": "حرکت به سمت {name}",
   "stepPassConnection": "عبور از نقطه اتصال {title}",
   "stepEnterNextSahn": "ورود به صحن بعدی از طریق نقطه اتصال {title}",
-  "stepPassSahn": "عبور از صحن {title}",
+  "stepPassSahn": "عبور از {title}",
   "stepPassDoor": "از درب شماره {name} عبور کنید و به صحن/ایوان {title} وارد شوید",
   "stepArriveDestination": "رسیدن به  {name}",
   "stepNumber": "گام {num}",
