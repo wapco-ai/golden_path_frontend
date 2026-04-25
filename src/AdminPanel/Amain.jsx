@@ -8931,6 +8931,8 @@ const Amain = () => {
       return Number.isFinite(numericValue) ? numericValue : null;
     };
 
+    const isInactive = locationStatus === 'غیر فعال';
+
     return {
       basic_info: {
         title: {
@@ -8947,19 +8949,27 @@ const Amain = () => {
         sub_group_label: selectedSubGroup?.label
       },
       operational: {
-        status: locationStatus === 'غیر فعال' ? 'inactive' : 'active',
+        status: isInactive ? 'inactive' : 'active',
         transport_modes: selectedTransport.map(normalizeTransportValue).filter(Boolean),
         gender_access: selectedGenderAccess.map(normalizeGenderValue).filter(Boolean),
         place_function: placeFunction || null,
         is_covered: typeof isPlaceCovered === 'boolean' ? isPlaceCovered : null
       },
-      ...(!isAreaLayerActive ? {
-        routing: {
-          bidirectional: routingBidirectional,
-          from_area: routingBidirectional ? null : normalizeRoutingAreaId(routingFromArea),
-          to_area: routingBidirectional ? null : normalizeRoutingAreaId(routingToArea)
+
+      ...(isAreaLayerActive
+        ? {
+          meta: {
+            is_closed: isInactive
+          }
         }
-      } : {}),
+        : {
+          routing: {
+            bidirectional: routingBidirectional,
+            from_area: routingBidirectional ? null : normalizeRoutingAreaId(routingFromArea),
+            to_area: routingBidirectional ? null : normalizeRoutingAreaId(routingToArea)
+          }
+        }),
+
       time_restrictions: buildTimeRestrictionsPayload(),
       prayer_restrictions: buildPrayerRestrictionsPayload(),
       notes: additionalNotes
@@ -9104,7 +9114,18 @@ const Amain = () => {
     setPlaceSubcategory(grouping?.sub_group_id || doorInfo?.subcategory || '');
     setPlaceFunction(operational?.place_function || doorInfo?.function || '');
     setPlaceAddress(doorInfo?.address || '');
-    setLocationStatus(operational?.status === 'inactive' ? 'غیر فعال' : 'فعال');
+
+    const areaClosedFlag =
+      typeof doorInfo?.meta?.is_closed === 'boolean'
+        ? doorInfo.meta.is_closed
+        : null;
+
+    setLocationStatus(
+      areaClosedFlag !== null
+        ? (areaClosedFlag ? 'غیر فعال' : 'فعال')
+        : (operational?.status === 'inactive' ? 'غیر فعال' : 'فعال')
+    );
+
     setIsPlaceCovered(typeof operational?.is_covered === 'boolean' ? operational.is_covered : null);
     setSelectedTransport(normalizeTransportModes(operational?.transport_modes));
     setSelectedGenderAccess(Array.isArray(operational?.gender_access)
