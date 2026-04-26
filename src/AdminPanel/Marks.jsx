@@ -722,7 +722,7 @@ const Marks = () => {
                     className="form-input-add-admin"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="عنوان مکان را وارد کنید (اختیاری)"
+                    placeholder="عنوان مکان را وارد کنید "
                   />
                 </div>
                 <div className="info-field">

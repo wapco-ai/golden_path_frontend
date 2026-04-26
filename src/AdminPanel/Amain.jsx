@@ -10758,7 +10758,7 @@ const Amain = () => {
             )}
 
           </div>
-  
+
           <div className="sidebar-footer">
 
             <span className="menu-title3"> حساب کاربری  </span>
@@ -17568,6 +17568,29 @@ const Amain = () => {
                 <div
                   key={index}
                   className={`notification-item ${item.unreadCount > 0 ? 'unread' : ''}`}
+                  onClick={() => {
+                    // Mark all notifications in this category/period as read
+                    const periodKey = item.period;
+                    const type = item.type;
+
+                    if (periodKey === 'older') {
+                      // Handle older notifications by date
+                      Object.entries(categorizedData.older || {}).forEach(([dateKey, dateData]) => {
+                        if (dateData.displayText === item.timeText) {
+                          const notificationsToMark = dateData[`${type}s`] || [];
+                          notificationsToMark.forEach(notif => {
+                            if (!notif.read) handleMarkAsRead(notif.id);
+                          });
+                        }
+                      });
+                    } else if (categorizedData[periodKey]) {
+                      const notificationsToMark = categorizedData[periodKey][`${type}s`] || [];
+                      notificationsToMark.forEach(notif => {
+                        if (!notif.read) handleMarkAsRead(notif.id);
+                      });
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
                 >
                   <div className="notification-icon" style={{ flexShrink: 0, marginTop: '2px' }}>
                     {item.type === 'comment' && (
