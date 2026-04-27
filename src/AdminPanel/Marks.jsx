@@ -28,25 +28,41 @@ const createRedMarker = () => {
   return el;
 };
 
+// Helper function to get direction label in Persian
+const getDirectionLabel = (orientation) => {
+  switch (orientation) {
+    case 'north':
+      return 'شمالی';
+    case 'south':
+      return 'جنوبی';
+    case 'east':
+      return 'شرقی';
+    case 'west':
+      return 'غربی';
+    default:
+      return '';
+  }
+};
+
 const Marks = () => {
-  // Mock data (front-end only) - removed description from all marks
+  // Mock data (front-end only)
   const [marks, setMarks] = useState([
     {
       id: 1,
       title: 'حرم امام رضا (ع)',
-      images: ['https://via.placeholder.com/40x40?text=Image1'],
+      images: [{ url: 'https://via.placeholder.com/40x40?text=Image1', orientation: null }],
       location: { lat: 36.2880, lng: 59.6157 }
     },
     {
       id: 2,
       title: 'گنبد طلا',
-      images: ['https://via.placeholder.com/40x40?text=Image2'],
+      images: [{ url: 'https://via.placeholder.com/40x40?text=Image2', orientation: null }],
       location: { lat: 36.2885, lng: 59.6160 }
     },
     {
       id: 3,
       title: 'صحن انقلاب',
-      images: ['https://via.placeholder.com/40x40?text=Image3'],
+      images: [{ url: 'https://via.placeholder.com/40x40?text=Image3', orientation: null }],
       location: { lat: 36.2875, lng: 59.6150 }
     }
   ]);
@@ -65,7 +81,13 @@ const Marks = () => {
   const [selectedMark, setSelectedMark] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Form states - removed description
+  // Orientation modal states
+  const [showOrientationModal, setShowOrientationModal] = useState(false);
+  const [pendingImageFile, setPendingImageFile] = useState(null);
+  const [selectedOrientation, setSelectedOrientation] = useState('');
+  const [pendingImageCallback, setPendingImageCallback] = useState(null);
+
+  // Form states
   const [formData, setFormData] = useState({
     title: '',
     images: [],
@@ -78,7 +100,7 @@ const Marks = () => {
   const markerRef = useRef(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
 
-  // Filter marks based on search (only title now)
+  // Filter marks based on search
   const filteredMarks = marks.filter(mark =>
     mark.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -216,6 +238,72 @@ const Marks = () => {
     }
   }, [isAddModalOpen, isEditModalOpen]);
 
+  // Close orientation modal
+  const closeOrientationModal = () => {
+    setShowOrientationModal(false);
+    setPendingImageFile(null);
+    setSelectedOrientation('');
+    setPendingImageCallback(null);
+  };
+
+  // Handle orientation select
+  const handleOrientationSelect = (orientation) => {
+    if (!pendingImageFile) return;
+
+    // Create the image object with orientation
+    const newImage = {
+      id: Date.now() + Math.random(),
+      url: pendingImageFile.url,
+      orientation: orientation,
+      name: pendingImageFile.name
+    };
+
+    // Add to form data using the callback
+    if (pendingImageCallback) {
+      pendingImageCallback(newImage);
+    }
+
+    // Reset orientation modal state
+    closeOrientationModal();
+  };
+
+  // Handle image upload with orientation modal
+  const handleImageUploadWithOrientation = (e, callback) => {
+    const files = Array.from(e.target.files);
+    const remainingSlots = 4 - formData.images.length;
+
+    if (files.length > remainingSlots) {
+      toast.error(`حداکثر می‌توانید ${remainingSlots} تصویر دیگر آپلود کنید`);
+      e.target.value = '';
+      return;
+    }
+
+    // Process each file
+    files.forEach(file => {
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('حجم تصویر باید کمتر از 2 مگابایت باشد');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        // Store pending image and callback
+        setPendingImageFile({
+          file,
+          url: reader.result,
+          name: file.name,
+          size: file.size
+        });
+        setPendingImageCallback(() => callback);
+        setShowOrientationModal(true);
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    // Reset file input
+    e.target.value = '';
+  };
+
   // Open add modal
   const openAddModal = () => {
     setFormData({
@@ -239,7 +327,7 @@ const Marks = () => {
     setSelectedMark(mark);
     setFormData({
       title: mark.title,
-      images: [...mark.images],
+      images: mark.images || [],
       location: mark.location
     });
     setSelectedLocation(mark.location);
@@ -258,31 +346,26 @@ const Marks = () => {
     setIsDeleteModalOpen(true);
   };
 
-  // Handle image upload
-  const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files);
-    const remainingSlots = 4 - formData.images.length;
+  // Handle image upload for add modal
+  const handleAddImageUpload = (e) => {
+    const addImageToForm = (newImage) => {
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, newImage]
+      }));
+    };
+    handleImageUploadWithOrientation(e, addImageToForm);
+  };
 
-    if (files.length > remainingSlots) {
-      toast.error(`حداکثر می‌توانید ${remainingSlots} تصویر دیگر آپلود کنید`);
-      return;
-    }
-
-    files.forEach(file => {
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error('حجم تصویر باید کمتر از 2 مگابایت باشد');
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({
-          ...prev,
-          images: [...prev.images, reader.result]
-        }));
-      };
-      reader.readAsDataURL(file);
-    });
+  // Handle image upload for edit modal
+  const handleEditImageUpload = (e) => {
+    const addImageToForm = (newImage) => {
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, newImage]
+      }));
+    };
+    handleImageUploadWithOrientation(e, addImageToForm);
   };
 
   // Remove image
@@ -293,13 +376,9 @@ const Marks = () => {
     }));
   };
 
-  // Handle add mark (front-end only)
+  // Handle add mark (title no longer mandatory)
   const handleAddMark = () => {
-    if (!formData.title.trim()) {
-      toast.error('لطفا عنوان را وارد کنید');
-      return;
-    }
-
+    // Only check location, title is optional
     if (!formData.location) {
       toast.error('لطفا موقعیت را روی نقشه انتخاب کنید');
       return;
@@ -307,12 +386,12 @@ const Marks = () => {
 
     setIsSaving(true);
 
-    // Simulate API call (front-end only)
+    // Simulate API call
     setTimeout(() => {
       const newMark = {
         id: marks.length + 1,
-        title: formData.title.trim(),
-        images: formData.images.length > 0 ? formData.images : ['https://via.placeholder.com/40x40?text=No+Image'],
+        title: formData.title.trim() || 'بدون عنوان', // Use default if empty
+        images: formData.images.length > 0 ? formData.images : [{ url: 'https://via.placeholder.com/40x40?text=No+Image', orientation: null }],
         location: formData.location
       };
 
@@ -331,13 +410,9 @@ const Marks = () => {
     }, 500);
   };
 
-  // Handle edit mark (front-end only)
+  // Handle edit mark (title no longer mandatory)
   const handleEditMark = () => {
-    if (!formData.title.trim()) {
-      toast.error('لطفا عنوان را وارد کنید');
-      return;
-    }
-
+    // Only check location, title is optional
     if (!formData.location) {
       toast.error('لطفا موقعیت را روی نقشه انتخاب کنید');
       return;
@@ -345,14 +420,14 @@ const Marks = () => {
 
     setIsSaving(true);
 
-    // Simulate API call (front-end only)
+    // Simulate API call
     setTimeout(() => {
       const updatedMarks = marks.map(mark =>
         mark.id === selectedMark.id
           ? {
               ...mark,
-              title: formData.title.trim(),
-              images: formData.images.length > 0 ? formData.images : ['https://via.placeholder.com/40x40?text=No+Image'],
+              title: formData.title.trim() || 'بدون عنوان', // Use default if empty
+              images: formData.images.length > 0 ? formData.images : [{ url: 'https://via.placeholder.com/40x40?text=No+Image', orientation: null }],
               location: formData.location
             }
           : mark
@@ -365,11 +440,11 @@ const Marks = () => {
     }, 500);
   };
 
-  // Handle delete mark (front-end only)
+  // Handle delete mark
   const handleDeleteMark = () => {
     setIsSaving(true);
 
-    // Simulate API call (front-end only)
+    // Simulate API call
     setTimeout(() => {
       const updatedMarks = marks.filter(mark => mark.id !== selectedMark.id);
       setMarks(updatedMarks);
@@ -384,7 +459,7 @@ const Marks = () => {
     }, 500);
   };
 
-  // Handle refresh (front-end only)
+  // Handle refresh
   const handleRefresh = () => {
     setIsRefreshing(true);
     setIsLoading(true);
@@ -480,14 +555,14 @@ const Marks = () => {
             <button className="add-admin-btn" onClick={openAddModal}>
               اضافه کردن نقطه ی جدید
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path fillRule="evenodd" clipRule="evenodd" d="M10.0003 18.3334C14.6027 18.3334 18.3337 14.6024 18.3337 10C18.3337 5.39765 14.6027 1.66669 10.0003 1.66669C5.39795 1.66669 1.66699 5.39765 1.66699 10C1.66699 14.6024 5.39795 18.3334 10.0003 18.3334ZM10.6253 7.50002C10.6253 7.15484 10.3455 6.87502 10.0003 6.87502C9.65515 6.87502 9.37533 7.15484 9.37533 7.50002L9.37532 9.37504H7.50033C7.15515 9.37504 6.87533 9.65486 6.87533 10C6.87533 10.3452 7.15515 10.625 7.50033 10.625H9.37532V12.5C9.37532 12.8452 9.65515 13.125 10.0003 13.125C10.3455 13.125 10.6253 12.8452 10.6253 12.5L10.6253 10.625H12.5003C12.8455 10.625 13.1253 10.3452 13.1253 10C13.1253 9.65486 12.8455 9.37504 12.5003 9.37504H10.6253V7.50002Z" fill="white" />
+                <path fillRule="evenodd" clipRule="evenodd" d="M10.0003 18.3334C14.6027 18.3334 18.3337 14.6024 18.3337 10C18.3337 5.39765 14.6027 1.66669 10.0003 1.66669C5.39795 1.66669 1.66699 5.39765 1.66699 10C1.66699 14.6024 5.39795 18.3334 10.0003 18.3334ZM10.6253 7.50002C10.6253 7.15484 10.3455 6.87502 10.0003 6.87502C9.65515 6.87502 9.37533 7.15484 9.37533 7.50002L9.37532 9.37504H7.50033C7.15515 9.37504 6.87533 9.65486 6.87533 10C6.87533 10.3452 7.15515 10.625 7.50033 10.625H9.37532V12.5C9.37532 12.8452 9.65515 13.125 10.0003 13.125C10.3455 13.125 10.6253 12.8451 10.6253 12.5L10.6253 10.625H12.5003C12.8455 10.625 13.1253 10.3452 13.1253 10C13.1253 9.65486 12.8455 9.37504 12.5003 9.37504H10.6253V7.50002Z" fill="white" />
               </svg>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Marks Table - Removed description column */}
+      {/* Marks Table */}
       <div className="users-table-container">
         <table className="users-table">
           <thead>
@@ -517,7 +592,7 @@ const Marks = () => {
                     <div className="user-profile-cell">
                       <div className="profile-image-small2">
                         <img
-                          src={mark.images[0]}
+                          src={mark.images[0]?.url || mark.images[0]}
                           alt={mark.title}
                           style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
                         />
@@ -625,7 +700,7 @@ const Marks = () => {
         )}
       </div>
 
-      {/* Add Mark Modal - Removed description field */}
+      {/* Add Mark Modal */}
       {isAddModalOpen && (
         <div className="modal-overlay">
           <div className="add-admin-modal" style={{ maxWidth: '800px' }}>
@@ -641,13 +716,13 @@ const Marks = () => {
             <div className="modal-body-add-admin">
               <div className="Marks-admin-basic-info">
                 <div className="info-field">
-                  <label>عنوان <span style={{ color: 'red' }}>*</span></label>
+                  <label>عنوان</label>
                   <input
                     type="text"
                     className="form-input-add-admin"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="عنوان مکان را وارد کنید"
+                    placeholder="عنوان مکان را وارد کنید "
                   />
                 </div>
                 <div className="info-field">
@@ -656,13 +731,29 @@ const Marks = () => {
                     type="file"
                     accept="image/*"
                     multiple
-                    onChange={handleImageUpload}
+                    onChange={handleAddImageUpload}
                     className="form-input-add-admin"
                   />
                   <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
                     {formData.images.map((img, idx) => (
                       <div key={idx} style={{ position: 'relative' }}>
-                        <img src={img} alt={`preview-${idx}`} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
+                        <img src={img.url} alt={`preview-${idx}`} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
+                        {img.orientation && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: '-5px',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: 'rgba(0,0,0,0.7)',
+                            color: 'white',
+                            fontSize: '10px',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {getDirectionLabel(img.orientation)}
+                          </div>
+                        )}
                         <button
                           onClick={() => removeImage(idx)}
                           style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', cursor: 'pointer' }}
@@ -712,7 +803,7 @@ const Marks = () => {
               <button
                 className="action-btn save-btn"
                 onClick={handleAddMark}
-                disabled={isSaving || !formData.title.trim() || !formData.location}
+                disabled={isSaving || !formData.location}
               >
                 {isSaving ? 'در حال ذخیره...' : 'افزودن نقطه'}
               </button>
@@ -721,7 +812,7 @@ const Marks = () => {
         </div>
       )}
 
-      {/* Edit Mark Modal - Removed description field */}
+      {/* Edit Mark Modal */}
       {isEditModalOpen && selectedMark && (
         <div className="modal-overlay">
           <div className="add-admin-modal" style={{ maxWidth: '800px' }}>
@@ -737,13 +828,13 @@ const Marks = () => {
             <div className="modal-body-add-admin">
               <div className="Marks-admin-basic-info">
                 <div className="info-field">
-                  <label>عنوان <span style={{ color: 'red' }}>*</span></label>
+                  <label>عنوان</label>
                   <input
                     type="text"
                     className="form-input-add-admin"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="عنوان مکان را وارد کنید"
+                    placeholder="عنوان مکان را وارد کنید (اختیاری)"
                   />
                 </div>
                 <div className="info-field">
@@ -752,13 +843,29 @@ const Marks = () => {
                     type="file"
                     accept="image/*"
                     multiple
-                    onChange={handleImageUpload}
+                    onChange={handleEditImageUpload}
                     className="form-input-add-admin"
                   />
                   <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
                     {formData.images.map((img, idx) => (
                       <div key={idx} style={{ position: 'relative' }}>
-                        <img src={img} alt={`preview-${idx}`} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
+                        <img src={img.url} alt={`preview-${idx}`} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
+                        {img.orientation && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: '-5px',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: 'rgba(0,0,0,0.7)',
+                            color: 'white',
+                            fontSize: '10px',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {getDirectionLabel(img.orientation)}
+                          </div>
+                        )}
                         <button
                           onClick={() => removeImage(idx)}
                           style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', cursor: 'pointer' }}
@@ -808,7 +915,7 @@ const Marks = () => {
               <button
                 className="action-btn save-btn"
                 onClick={handleEditMark}
-                disabled={isSaving || !formData.title.trim() || !formData.location}
+                disabled={isSaving || !formData.location}
               >
                 {isSaving ? 'در حال ذخیره...' : 'ویرایش نقطه'}
               </button>
@@ -840,6 +947,89 @@ const Marks = () => {
                 disabled={isSaving}
               >
                 {isSaving ? 'در حال حذف...' : 'حذف نقطه'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Orientation Selection Modal */}
+      {showOrientationModal && pendingImageFile && (
+        <div className="modal-overlay">
+          <div className="orientation-modal">
+            <div className="modal-header">
+              <h3>انتخاب زاویه عکس</h3>
+              <button
+                onClick={closeOrientationModal}
+                style={{
+                  position: 'absolute',
+                  left: '15px',
+                  top: '15px',
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  color: '#666'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="modal-content">
+              <div className="image-preview-container">
+                <img
+                  src={pendingImageFile.url}
+                  alt="Preview"
+                  className="image-preview"
+                />
+              </div>
+
+              <div className="orientation-options-grid">
+                <button
+                  className={`orientation-option ${selectedOrientation === 'north' ? 'selected' : ''}`}
+                  onClick={() => setSelectedOrientation('north')}
+                >
+                  <span>جهت شمالی</span>
+                </button>
+
+                <button
+                  className={`orientation-option ${selectedOrientation === 'south' ? 'selected' : ''}`}
+                  onClick={() => setSelectedOrientation('south')}
+                >
+                  <span>جهت جنوبی</span>
+                </button>
+
+                <button
+                  className={`orientation-option ${selectedOrientation === 'east' ? 'selected' : ''}`}
+                  onClick={() => setSelectedOrientation('east')}
+                >
+                  <span>جهت شرقی</span>
+                </button>
+
+                <button
+                  className={`orientation-option ${selectedOrientation === 'west' ? 'selected' : ''}`}
+                  onClick={() => setSelectedOrientation('west')}
+                >
+                  <span>جهت غربی</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="cancel-btn5"
+                onClick={closeOrientationModal}
+              >
+                انصراف
+              </button>
+              <button
+                className="confirm-btn"
+                onClick={() => selectedOrientation ? handleOrientationSelect(selectedOrientation) : null}
+                disabled={!selectedOrientation}
+                style={{ opacity: !selectedOrientation ? 0.5 : 1 }}
+              >
+                تایید و ادامه
               </button>
             </div>
           </div>

@@ -53,7 +53,7 @@ const RouteMap = forwardRef(({
 
   const center = isValidUserLocation
     ? userLocation
-    : [36.297, 59.606]; // Default to Imam Reza Shrine coordinates
+    : [36.297, 59.606];
 
   const isValidStepCoordinates = (step) => Array.isArray(step?.coordinates)
     && step.coordinates.length === 2
@@ -116,6 +116,8 @@ const RouteMap = forwardRef(({
   const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
   const [heading, setHeading] = useState(userHeading ?? 0);
   const [terrainAvailable, setTerrainAvailable] = useState(false);
+  const [traveledRouteGeo, setTraveledRouteGeo] = useState(null);
+  const [remainingRouteGeo, setRemainingRouteGeo] = useState(null);
 
   const vectorTileConfig = React.useMemo(() => {
     return createHaramVectorTileConfig(language).filter(
@@ -192,6 +194,55 @@ const RouteMap = forwardRef(({
       }
     }
   }, [isDrActive, userHeading]);
+
+  // Split route into traveled and remaining parts based on currentStep
+  useEffect(() => {
+    if (!routeGeo || !routeSteps || routeSteps.length === 0) {
+      setTraveledRouteGeo(null);
+      setRemainingRouteGeo(routeGeo);
+      return;
+    }
+
+    const coords = routeGeo.geometry?.coordinates || [];
+    if (coords.length === 0) {
+      setTraveledRouteGeo(null);
+      setRemainingRouteGeo(routeGeo);
+      return;
+    }
+
+    // Simple approach: each step corresponds to moving forward in the coordinates
+    let traveledIndex = currentStep + 1;
+    
+    // Make sure we don't go out of bounds
+    traveledIndex = Math.max(1, Math.min(traveledIndex, coords.length));
+    
+    const traveledCoords = coords.slice(0, traveledIndex);
+    const remainingCoords = coords.slice(traveledIndex - 1);
+
+    if (traveledCoords.length >= 2) {
+      setTraveledRouteGeo({
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: traveledCoords
+        }
+      });
+    } else {
+      setTraveledRouteGeo(null);
+    }
+
+    if (remainingCoords.length >= 2) {
+      setRemainingRouteGeo({
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: remainingCoords
+        }
+      });
+    } else {
+      setRemainingRouteGeo(null);
+    }
+  }, [routeGeo, routeSteps, currentStep]);
 
   // Handle map resize when modal opens/closes
   useEffect(() => {
@@ -317,11 +368,14 @@ const RouteMap = forwardRef(({
     const map = mapRef.current;
     if (!map) return;
 
-    if (map.getLayer('route-line')) {
-      map.moveLayer('route-line');
+    if (map.getLayer('traveled-route-line')) {
+      map.moveLayer('traveled-route-line');
     }
-    if (map.getLayer('route-border')) {
-      map.moveLayer('route-border');
+    if (map.getLayer('remaining-route-line')) {
+      map.moveLayer('remaining-route-line');
+    }
+    if (map.getLayer('remaining-route-border')) {
+      map.moveLayer('remaining-route-border');
     }
   }, [routeGeo, alternativeRoutes, showAlternativeRoutes]);
   
@@ -344,33 +398,6 @@ const RouteMap = forwardRef(({
     fitRouteBounds,
     getMap: () => mapRef.current
   }));
-
-  const WalkingManMarker = () => (
-    <div style={{
-      position: 'relative',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }}>
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="30"
-        height="30"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="white"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-        <path d="M13 4m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
-        <path d="M7 21l3 -4" />
-        <path d="M16 21l-2 -4l-3 -3l1 -6" />
-        <path d="M6 12l2 -3l4 -1l3 3l3 1" />
-      </svg>
-    </div>
-  );
 
   const DestinationPin = () => (
     <svg
@@ -422,7 +449,7 @@ const RouteMap = forwardRef(({
       terrain={is3DView && terrainAvailable ? { source: 'terrain', exaggeration: 1.5 } : undefined}
       onError={handleMapError}
     >
-      {/* User location marker - now using ArrowMarker with walking man icon */}
+      {/* User location marker */}
       {!isDrActive && isValidUserLocation && (
         <Marker longitude={userLocation[1]} latitude={userLocation[0]} anchor="center">
           <ArrowMarker />
@@ -451,7 +478,7 @@ const RouteMap = forwardRef(({
         </Source>
       )}
 
-      {/* Current step marker -  using red destination pin */}
+      {/* Destination marker */}
       {routeSteps && routeSteps.length > 0 && isValidStepCoordinates(routeSteps[routeSteps.length - 1]) && (
         <Marker
           longitude={routeSteps[routeSteps.length - 1].coordinates[1]}
@@ -508,10 +535,26 @@ const RouteMap = forwardRef(({
           </Source>
         ))}
 
-      {routeGeo && (
-        <Source id="route" type="geojson" data={routeGeo}>
+      {/* Traveled route portion - RED */}
+      {traveledRouteGeo && traveledRouteGeo.geometry.coordinates.length >= 2 && (
+        <Source id="traveled-route" type="geojson" data={traveledRouteGeo}>
           <Layer
-            id="route-line"
+            id="traveled-route-line"
+            type="line"
+            paint={{
+              'line-color': '#e74c3c',
+              'line-width': 8
+            }}
+            layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+          />
+        </Source>
+      )}
+
+      {/* Remaining route portion - Original style (white + blue dots) */}
+      {remainingRouteGeo && remainingRouteGeo.geometry.coordinates.length >= 2 && (
+        <Source id="remaining-route" type="geojson" data={remainingRouteGeo}>
+          <Layer
+            id="remaining-route-line"
             type="line"
             paint={{
               'line-color': 'white',
@@ -520,7 +563,7 @@ const RouteMap = forwardRef(({
             layout={{ 'line-cap': 'round', 'line-join': 'round' }}
           />
           <Layer
-            id="route-border"
+            id="remaining-route-border"
             type="line"
             paint={{
               'line-color': '#0F71EF',
