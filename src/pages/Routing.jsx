@@ -1729,14 +1729,14 @@ const RoutingPage = () => {
                 alt={liveLandmarkImage?.content?.title || 'landmark'}
                 className="live-landmark-image"
               />
-              <div className="live-landmark-overlay">
+              {/* <div className="live-landmark-overlay">
                 <div className="live-landmark-title">{liveLandmarkImage?.content?.title || '-'}</div>
                 {Number.isFinite(liveLandmarkImage?.distance_m) && (
                   <div className="live-landmark-meta">
                     {formatDigits(liveLandmarkImage.distance_m)} <FormattedMessage id="meters" />
                   </div>
                 )}
-              </div>
+              </div> */}
             </>
           ) : (
             <div className="image-placeholder-text">
@@ -1744,7 +1744,7 @@ const RoutingPage = () => {
             </div>
           )}
         </div>
-        {recentLandmarkImages.length > 0 && (
+        {/* {recentLandmarkImages.length > 0 && (
           <div className="recent-landmarks-strip">
             {recentLandmarkImages.map((item) => (
               <div className="recent-landmark-card" key={item.poiId}>
@@ -1753,7 +1753,7 @@ const RoutingPage = () => {
               </div>
             ))}
           </div>
-        )}
+        )} */}
         <div className="map-fade-rng"></div>
       </div>
 

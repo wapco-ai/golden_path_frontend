@@ -2729,11 +2729,40 @@ const Amain = () => {
     setSelectedBar(null);
     try {
       const data = await fetchDashboardUserVisits({ range: mapTimeFilterToRange(filter) });
-      const normalizedBars = (data?.labels || []).map((label, index) => ({
-        day: label,
-        label,
-        count: Number(data?.data?.[index]) || 0
-      }));
+
+      let normalizedBars = [];
+
+      if (filter === 'ماه اخیر' && data?.labels && data?.labels.length > 0) {
+        // Group daily data into weeks for month view
+        const weeklyData = [];
+        const daysPerWeek = 7;
+        const totalDays = data.labels.length;
+        const totalWeeks = Math.ceil(totalDays / daysPerWeek);
+        const weekNames = ['هفته اول', 'هفته دوم', 'هفته سوم', 'هفته چهارم', 'هفته پنجم'];
+
+        for (let week = 0; week < totalWeeks; week++) {
+          const weekStart = week * daysPerWeek;
+          const weekEnd = Math.min(weekStart + daysPerWeek, totalDays);
+          let weekTotal = 0;
+
+          for (let day = weekStart; day < weekEnd; day++) {
+            weekTotal += Number(data?.data?.[day]) || 0;
+          }
+
+          weeklyData.push({
+            day: weekNames[week],
+            label: weekNames[week],
+            count: weekTotal
+          });
+        }
+        normalizedBars = weeklyData;
+      } else {
+        normalizedBars = (data?.labels || []).map((label, index) => ({
+          day: label,
+          label,
+          count: Number(data?.data?.[index]) || 0
+        }));
+      }
 
       setBarData(normalizedBars.length ? normalizedBars : generateBarData(filter));
 
@@ -17569,12 +17598,10 @@ const Amain = () => {
                   key={index}
                   className={`notification-item ${item.unreadCount > 0 ? 'unread' : ''}`}
                   onClick={() => {
-                    // Mark all notifications in this category/period as read
                     const periodKey = item.period;
                     const type = item.type;
 
                     if (periodKey === 'older') {
-                      // Handle older notifications by date
                       Object.entries(categorizedData.older || {}).forEach(([dateKey, dateData]) => {
                         if (dateData.displayText === item.timeText) {
                           const notificationsToMark = dateData[`${type}s`] || [];

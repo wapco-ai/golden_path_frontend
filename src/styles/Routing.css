@@ -17,7 +17,7 @@
   left: 0;
   right: 0;
   height: 60px;
-  background: linear-gradient(to top, black, transparent);
+  background: linear-gradient(to top, rgb(195, 197, 190), transparent);
   pointer-events: none;
   z-index: 1;
 }
