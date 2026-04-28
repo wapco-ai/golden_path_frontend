@@ -188,6 +188,7 @@
   "noRouteFound": "منتخب موڈ کے لیے کوئی راستہ نہیں ملا",
   "pwaCloseButton": "بند کریں",
   "stepMoveToDoor": "{name} کی طرف جائیں",
+  "stepStart": "حرکت شروع کریں",
   "stepPassConnection": "کنکشن پوائنٹ {title} سے گزریں",
   "stepEnterNextSahn": "{title} کنکشن کے ذریعے اگلے صحن میں داخل ہوں",
   "stepPassSahn": "{title} سے گزریں",

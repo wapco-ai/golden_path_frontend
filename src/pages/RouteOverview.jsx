@@ -689,7 +689,14 @@ const RouteOverview = () => {
       return [start, end].filter(Boolean);
     };
 
-    const buildFromSteps = () => (routeSteps || [])
+    const visibleSteps = (routeSteps || []).filter((step, idx) => {
+      if (!step) return false;
+      if (step.type === 'stepStart') return false;
+      if (idx === 0 && step.title === 'شروع حرکت') return false;
+      return true;
+    });
+
+    const buildFromSteps = () => visibleSteps
       .map((step, idx) => {
         const coords = normalizeStepCoords(step, idx);
 
