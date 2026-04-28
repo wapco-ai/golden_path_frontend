@@ -188,6 +188,7 @@
   "mapNoRecentSearches": "No recent searches",
   "noRouteFound": "No route found for selected mode",
   "pwaCloseButton": "Close",
+  "stepStart": "Start moving",
   "stepMoveToDoor": "Head toward {name}",
   "stepPassConnection": "Pass connection {title}",
   "stepEnterNextSahn": "Enter next courtyard via {title}",

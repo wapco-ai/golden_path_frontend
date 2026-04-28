@@ -689,6 +689,35 @@ const RouteOverview = () => {
       return [start, end].filter(Boolean);
     };
 
+    const resolveStepInstructionBase = (step, idx) => {
+      const stepName = step?.name || step?.title;
+      const stepTitle = step?.title || stepName || '';
+      const hasServerInstruction = typeof step?.instruction === 'string' && step.instruction.trim().length > 0;
+
+      if (hasServerInstruction) return step.instruction;
+      if (!step || !step.type) {
+        return intl.formatMessage(
+          { id: 'stepArriveDestination' },
+          { name: step?.name || intl.formatMessage({ id: 'destination' }) }
+        );
+      }
+
+      const isLegacyStartStep =
+        idx === 0 &&
+        step.type === 'stepPassConnection' &&
+        typeof step.title === 'string' &&
+        step.title.trim() === 'شروع حرکت';
+
+      if (isLegacyStartStep) {
+        return step.title.trim();
+      }
+
+      return intl.formatMessage(
+        { id: step.type },
+        { name: stepName, title: stepTitle, num: idx + 1 }
+      );
+    };
+
     const buildFromSteps = () => (routeSteps || [])
       .map((step, idx) => {
         const coords = normalizeStepCoords(step, idx);
@@ -696,16 +725,8 @@ const RouteOverview = () => {
         if (!coords || coords.length < 2) return null;
 
         const stepName = step?.name || step?.title;
-        const stepTitle = step?.title || stepName || '';
         const hasServerInstruction = typeof step?.instruction === 'string' && step.instruction.trim().length > 0;
-        const base = hasServerInstruction
-          ? step.instruction
-          : step && step.type
-            ? intl.formatMessage(
-              { id: step.type },
-              { name: stepName, title: stepTitle, num: idx + 1 }
-            )
-            : intl.formatMessage({ id: 'stepArriveDestination' }, { name: step?.name || intl.formatMessage({ id: 'destination' }) });
+        const base = resolveStepInstructionBase(step, idx);
 
         const dist = computeDistance(coords);
         const roundedDist = Math.round(dist);
@@ -727,16 +748,8 @@ const RouteOverview = () => {
     const segments = routeSteps?.length ? buildFromSteps() : routeCoordinates.slice(1).map((c, idx) => {
       const step = routeSteps?.[idx];
       const stepName = step?.name || step?.title;
-      const stepTitle = step?.title || stepName || '';
       const hasServerInstruction = typeof step?.instruction === 'string' && step.instruction.trim().length > 0;
-      const base = hasServerInstruction
-        ? step.instruction
-        : step && step.type
-          ? intl.formatMessage(
-            { id: step.type },
-            { name: stepName, title: stepTitle, num: idx + 1 }
-          )
-          : intl.formatMessage({ id: 'stepArriveDestination' }, { name: step?.name || intl.formatMessage({ id: 'destination' }) });
+      const base = resolveStepInstructionBase(step, idx);
 
       const dist = Math.hypot(
         c[0] - routeCoordinates[idx][0],
