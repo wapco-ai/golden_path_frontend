@@ -79,7 +79,7 @@ function Userlogs() {
         total: data?.pagination?.total || 0,
         pages: Math.max(1, data?.pagination?.pages || 1)
       });
-      
+
     } catch (error) {
       console.error('خطا در دریافت لاگ‌های کاربران', error);
       toast.error(error?.response?.data?.message || 'خطا در دریافت لاگ‌های کاربران');
@@ -158,19 +158,43 @@ function Userlogs() {
   // Generate page numbers to display
   const getPageNumbers = () => {
     const pages = [];
-    const maxVisiblePages = 6;
+    const totalPages = pagination.pages;
 
-    if (pagination.pages <= maxVisiblePages) {
-      for (let i = 1; i <= pagination.pages; i++) {
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      const startPage = Math.max(1, currentPage - 2);
-      const endPage = Math.min(pagination.pages, startPage + maxVisiblePages - 1);
+
+      pages.push(1);
+
+
+      let startPage = Math.max(2, currentPage - 1);
+      let endPage = Math.min(totalPages - 1, currentPage + 1);
+
+
+      if (startPage === 2) {
+        endPage = Math.min(totalPages - 1, 4);
+      }
+      if (endPage === totalPages - 1) {
+        startPage = Math.max(2, totalPages - 3);
+      }
+
+
+      if (startPage > 2) {
+        pages.push('...');
+      }
 
       for (let i = startPage; i <= endPage; i++) {
         pages.push(i);
       }
+
+
+      if (endPage < totalPages - 1) {
+        pages.push('...');
+      }
+
+      pages.push(totalPages);
     }
 
     return pages;
@@ -332,11 +356,12 @@ function Userlogs() {
             </div>
 
             <div className="page-numbers">
-              {getPageNumbers().map(page => (
+              {getPageNumbers().map((page, index) => (
                 <button
-                  key={page}
-                  className={`page-number ${currentPage === page ? 'active' : ''}`}
-                  onClick={() => handlePageChange(page)}
+                  key={index}
+                  className={`page-number ${currentPage === page ? 'active' : ''} ${page === '...' ? 'ellipsis' : ''}`}
+                  onClick={() => page !== '...' && handlePageChange(page)}
+                  disabled={page === '...'}
                 >
                   {page}
                 </button>

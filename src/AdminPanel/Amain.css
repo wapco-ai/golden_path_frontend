@@ -168,12 +168,13 @@ body {
   cursor: pointer;
 }
 
-.profile-image {
-  width: 40px;
-  height: 40px;
+.profile-image-admin {
+  width: 42px;
+  height: 42px;
+  display: flex;
   border-radius: 50%;
   background: #e0e0e0;
-  border: 1px solid black;
+  border: 2px solid rgb(89, 87, 87);
   justify-content: center;
   align-items: center;
 }
@@ -447,7 +448,7 @@ body {
   background: #fff;
   border-radius: 10px;
   padding: 20px;
-  height: 509px;
+  height: 550px;
   margin-top: 17px;
   border: 1px solid #F2F2F2;
 }
@@ -713,7 +714,7 @@ body {
   padding: 20px;
   border: 1px solid #F2F2F2;
   width: 48vw;
-  height: 379px;
+  height: 420px;
 }
 
 .chart-header {
@@ -6622,11 +6623,12 @@ body {
 }
 
 .admin-avatar-img {
+  display: flex;
   width: 40px;
   height: 40px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid white;
+  border: none;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
@@ -11503,4 +11505,15 @@ body {
   color: #0f71ef;
   font-size: 20px;
   cursor: pointer;
+}
+
+.page-number.ellipsis {
+  cursor: default;
+  pointer-events: none;
+  background: transparent;
+  color: #858585;
+}
+
+.page-number.ellipsis:hover {
+  background: transparent;
 }

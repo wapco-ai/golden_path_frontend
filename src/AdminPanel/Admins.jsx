@@ -317,19 +317,41 @@ const Admins = () => {
 
   const getPageNumbers = () => {
     const pages = [];
-    const maxVisiblePages = 6;
+    const delta = 2;
 
-    if (totalPages <= maxVisiblePages) {
+    if (totalPages <= 7) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      const startPage = Math.max(1, currentPage - 2);
-      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+      pages.push(1);
 
-      for (let i = startPage; i <= endPage; i++) {
+      let startRange = currentPage - delta;
+      let endRange = currentPage + delta;
+
+      if (startRange <= 2) {
+        startRange = 2;
+        endRange = Math.min(totalPages - 1, startRange + (delta * 2));
+      }
+
+      if (endRange >= totalPages - 1) {
+        endRange = totalPages - 1;
+        startRange = Math.max(2, endRange - (delta * 2));
+      }
+
+      if (startRange > 2) {
+        pages.push('...');
+      }
+
+      for (let i = startRange; i <= endRange; i++) {
         pages.push(i);
       }
+
+      if (endRange < totalPages - 1) {
+        pages.push('...');
+      }
+
+      pages.push(totalPages);
     }
 
     return pages;
@@ -510,7 +532,7 @@ const Admins = () => {
         </table>
 
         {/* Pagination */}
-        {!isLoading  && (
+        {!isLoading && (
           <div className="pagination-container" id="admins-pagination">
             <div className="pagination-controls">
               <div className="btc">
@@ -534,13 +556,13 @@ const Admins = () => {
                   </svg>
                 </button>
               </div>
-
               <div className="page-numbers">
-                {getPageNumbers().map(page => (
+                {getPageNumbers().map((page, index) => (
                   <button
-                    key={page}
-                    className={`page-number ${currentPage === page ? 'active' : ''}`}
-                    onClick={() => handlePageChange(page)}
+                    key={index}
+                    className={`page-number ${currentPage === page ? 'active' : ''} ${page === '...' ? 'ellipsis' : ''}`}
+                    onClick={() => page !== '...' && handlePageChange(page)}
+                    disabled={page === '...'}
                   >
                     {page}
                   </button>
