@@ -39,13 +39,19 @@ const mapSteps = (steps = [], sahns = []) => {
   const sahnTitles = Array.isArray(sahns)
     ? sahns.map(sahn => sahn?.name).filter(Boolean)
     : [];
+  const normalizedSteps = steps.filter((step, idx) => {
+    if (!step) return false;
+    if (step.type === 'stepStart') return false;
+    if (idx === 0 && step.title === 'شروع حرکت') return false;
+    return true;
+  });
 
   let sahnIndex = 0;
 
-  return steps
+  return normalizedSteps
     .filter(step => step?.coord?.lat != null && step?.coord?.lon != null)
     .map((step, idx) => {
-      const nextStep = steps[idx + 1];
+      const nextStep = normalizedSteps[idx + 1];
       const start = [Number(step.coord.lat), Number(step.coord.lon)];
       const end =
         nextStep?.coord?.lat != null && nextStep?.coord?.lon != null

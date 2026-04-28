@@ -188,6 +188,7 @@
   "noRouteFound": "لم يتم العثور على مسار للحالة المحددة",
   "pwaCloseButton": "إغلاق",
   "stepMoveToDoor": "اتجه نحو {name}",
+  "stepStart": "ابدأ الحركة",
   "stepPassConnection": "عبر نقطة الاتصال {title}",
   "stepEnterNextSahn": "ادخل الساحة التالية عبر {title}",
   "stepPassSahn": "اعبر {title}",
