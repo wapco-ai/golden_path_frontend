@@ -817,12 +817,18 @@ const RouteOverview = () => {
       || startAlias.has(firstInstruction)
       || startAlias.has(firstTitle);
 
-    if (isStartPlaceholder && firstDistance <= 5 && mappedSegments.length > 1) {
+    const firstCoords = firstSegment.coordinates;
+    const hasDegenerateGeometry =
+      Array.isArray(firstCoords) &&
+      firstCoords.length >= 2 &&
+      toMeters(firstCoords[0], firstCoords[firstCoords.length - 1]) <= 1;
+
+    if (isStartPlaceholder && firstDistance <= 1 && hasDegenerateGeometry && mappedSegments.length > 1) {
       return mappedSegments.slice(1).map((seg, idx) => ({ ...seg, id: idx + 1 }));
     }
 
     return mappedSegments;
-  }, [routeCoordinates, routeSteps, intl]);
+  }, [routeCoordinates, routeSteps, intl, toMeters]);
 
   const [viewState, setViewState] = useState({
     latitude: routeCoordinates[0]?.[1] || 0,
