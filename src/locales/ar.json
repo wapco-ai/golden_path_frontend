@@ -187,6 +187,7 @@
   "mapNoRecentSearches": "لا توجد عمليات بحث حديثة",
   "noRouteFound": "لم يتم العثور على مسار للحالة المحددة",
   "pwaCloseButton": "إغلاق",
+  "stepStart": "بدء الحركة",
   "stepMoveToDoor": "اتجه نحو {name}",
   "stepPassConnection": "عبر نقطة الاتصال {title}",
   "stepEnterNextSahn": "ادخل الساحة التالية عبر {title}",

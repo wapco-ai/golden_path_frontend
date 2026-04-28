@@ -188,6 +188,7 @@
   "mapNoRecentSearches": "جستجویی  وجود ندارد",
   "noRouteFound": "مسیر با حالت انتخابی یافت نشد",
   "pwaCloseButton": "بستن",
+  "stepStart": "شروع حرکت",
   "stepMoveToDoor": "حرکت به سمت {name}",
   "stepPassConnection": "عبور از نقطه اتصال {title}",
   "stepEnterNextSahn": "ورود به صحن بعدی از طریق نقطه اتصال {title}",

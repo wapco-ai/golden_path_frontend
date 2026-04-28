@@ -56,6 +56,16 @@ const mapSteps = (steps = [], sahns = []) => {
       let title = step.title;
       let name = step.title || '';
 
+      const isLegacyStartStep =
+        idx === 0 &&
+        step.type === 'stepPassConnection' &&
+        typeof step.title === 'string' &&
+        step.title.trim() === 'شروع حرکت';
+
+      if (isLegacyStartStep) {
+        type = 'stepStart';
+      }
+
       if (step.type === 'stepPassDoor' && sahnTitles.length > 0) {
         const sahnName = sahnTitles[Math.min(sahnIndex, sahnTitles.length - 1)];
         type = 'stepPassSahn';
