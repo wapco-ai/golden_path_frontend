@@ -1814,20 +1814,45 @@ const Amain = () => {
 
   const getCategoryPageNumbers = () => {
     const totalPages = Math.ceil(categoryTotalItems / categoryItemsPerPage);
-    const maxVisiblePages = 6;
     const pages = [];
 
-    if (totalPages <= maxVisiblePages) {
+    if (totalPages <= 7) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      const startPage = Math.max(1, categoryCurrentPage - 2);
-      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+      pages.push(1);
+
+
+      let startPage = Math.max(2, categoryCurrentPage - 1);
+      let endPage = Math.min(totalPages - 1, categoryCurrentPage + 1);
+
+
+      if (startPage === 2) {
+        endPage = Math.min(totalPages - 1, 4);
+      }
+      if (endPage === totalPages - 1) {
+        startPage = Math.max(2, totalPages - 3);
+      }
+
+
+      if (startPage > 2) {
+        pages.push('...');
+      }
+
 
       for (let i = startPage; i <= endPage; i++) {
         pages.push(i);
       }
+
+
+      if (endPage < totalPages - 1) {
+        pages.push('...');
+      }
+
+
+      pages.push(totalPages);
     }
 
     return pages;
@@ -3094,20 +3119,45 @@ const Amain = () => {
   const getCulturalPageNumbers = () => {
     const totalItems = culturalTotalItems;
     const totalPages = Math.ceil(totalItems / culturalItemsPerPage);
-    const maxVisiblePages = 6;
     const pages = [];
 
-    if (totalPages <= maxVisiblePages) {
+    if (totalPages <= 7) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      const startPage = Math.max(1, culturalCurrentPage - 2);
-      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+      // Always add first page
+      pages.push(1);
 
+      // Calculate middle pages around current page
+      let startPage = Math.max(2, culturalCurrentPage - 1);
+      let endPage = Math.min(totalPages - 1, culturalCurrentPage + 1);
+
+      // Adjust to show 3 pages in middle when possible
+      if (startPage === 2) {
+        endPage = Math.min(totalPages - 1, 4);
+      }
+      if (endPage === totalPages - 1) {
+        startPage = Math.max(2, totalPages - 3);
+      }
+
+      // Add ellipsis before middle if needed
+      if (startPage > 2) {
+        pages.push('...');
+      }
+
+      // Add middle pages
       for (let i = startPage; i <= endPage; i++) {
         pages.push(i);
       }
+
+      // Add ellipsis after middle if needed
+      if (endPage < totalPages - 1) {
+        pages.push('...');
+      }
+
+      // Always add last page
+      pages.push(totalPages);
     }
 
     return pages;
@@ -10491,22 +10541,49 @@ const Amain = () => {
     logout();
   }, [logout]);
 
-  // Generate page numbers to display
+
   const getPageNumbers = () => {
     const pages = [];
-    const maxVisiblePages = 6;
+    const delta = 2;
 
-    if (totalPages <= maxVisiblePages) {
+    if (totalPages <= 7) {
+
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      const startPage = Math.max(1, currentPage - 2);
-      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
-      for (let i = startPage; i <= endPage; i++) {
+      pages.push(1);
+
+
+      let startRange = currentPage - delta;
+      let endRange = currentPage + delta;
+
+
+      if (startRange <= 2) {
+        startRange = 2;
+        endRange = Math.min(totalPages - 1, startRange + (delta * 2));
+      }
+
+      if (endRange >= totalPages - 1) {
+        endRange = totalPages - 1;
+        startRange = Math.max(2, endRange - (delta * 2));
+      }
+
+
+      if (startRange > 2) {
+        pages.push('...');
+      }
+
+      for (let i = startRange; i <= endRange; i++) {
         pages.push(i);
       }
+
+      if (endRange < totalPages - 1) {
+        pages.push('...');
+      }
+
+      pages.push(totalPages);
     }
 
     return pages;
@@ -10529,18 +10606,12 @@ const Amain = () => {
             onClick={handleAvatarClick}
             style={{ cursor: 'pointer' }}
           >
-            <div className="profile-image">
+            <div className="profile-image-admin">
               {adminAvatar ? (
                 <img
                   src={adminAvatar}
                   alt="Admin Avatar"
                   className="admin-avatar-img"
-                  style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '50%',
-                    objectFit: 'cover'
-                  }}
                 />
               ) : (
                 <div className="default-avatar">
@@ -12080,13 +12151,13 @@ const Amain = () => {
                       </svg>
                     </button>
                   </div>
-
                   <div className="page-numbers">
-                    {getCategoryPageNumbers().map(page => (
+                    {getCategoryPageNumbers().map((page, index) => (
                       <button
-                        key={page}
-                        className={`page-number ${categoryCurrentPage === page ? 'active' : ''}`}
-                        onClick={() => handleCategoryPageChange(page)}
+                        key={index}
+                        className={`page-number ${categoryCurrentPage === page ? 'active' : ''} ${page === '...' ? 'ellipsis' : ''}`}
+                        onClick={() => page !== '...' && handleCategoryPageChange(page)}
+                        disabled={page === '...'}
                       >
                         {page}
                       </button>
@@ -13152,11 +13223,12 @@ const Amain = () => {
                       </div>
 
                       <div className="page-numbers">
-                        {getPageNumbers().map(page => (
+                        {getPageNumbers().map((page, index) => (
                           <button
-                            key={page}
-                            className={`page-number ${currentPage === page ? 'active' : ''}`}
-                            onClick={() => handlePageChange(page)}
+                            key={index}
+                            className={`page-number ${currentPage === page ? 'active' : ''} ${page === '...' ? 'ellipsis' : ''}`}
+                            onClick={() => page !== '...' && handlePageChange(page)}
+                            disabled={page === '...'}
                           >
                             {page}
                           </button>

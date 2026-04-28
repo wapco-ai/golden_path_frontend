@@ -578,19 +578,40 @@ function Usersigned() {
   const totalPages = meta?.last_page || 1;
   const getPageNumbers = () => {
     const pages = [];
-    const maxVisiblePages = 6;
 
-    if (totalPages <= maxVisiblePages) {
+    if (totalPages <= 7) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      const startPage = Math.max(1, page - 2);
-      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+      pages.push(1);
+
+
+      let startPage = Math.max(2, page - 1);
+      let endPage = Math.min(totalPages - 1, page + 1);
+
+      if (startPage === 2) {
+        endPage = Math.min(totalPages - 1, 4);
+      }
+      if (endPage === totalPages - 1) {
+        startPage = Math.max(2, totalPages - 3);
+      }
+
+      if (startPage > 2) {
+        pages.push('...');
+      }
+
 
       for (let i = startPage; i <= endPage; i++) {
         pages.push(i);
       }
+
+      if (endPage < totalPages - 1) {
+        pages.push('...');
+      }
+
+      pages.push(totalPages);
     }
 
     return pages;
@@ -891,11 +912,12 @@ function Usersigned() {
                 </div>
 
                 <div className="page-numbers">
-                  {getPageNumbers().map((pageNumber) => (
+                  {getPageNumbers().map((pageNumber, index) => (
                     <button
-                      key={pageNumber}
-                      className={`page-number ${page === pageNumber ? 'active' : ''}`}
-                      onClick={() => handlePageChange(pageNumber)}
+                      key={index}
+                      className={`page-number ${page === pageNumber ? 'active' : ''} ${pageNumber === '...' ? 'ellipsis' : ''}`}
+                      onClick={() => pageNumber !== '...' && handlePageChange(pageNumber)}
+                      disabled={pageNumber === '...'}
                     >
                       {pageNumber}
                     </button>

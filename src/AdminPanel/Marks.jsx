@@ -148,7 +148,7 @@ const Marks = () => {
 
       map.on('load', () => {
         console.log('Map loaded successfully');
-        
+
         // Add marker with custom red marker
         if (markerRef.current) {
           markerRef.current.remove();
@@ -299,7 +299,7 @@ const Marks = () => {
       };
       reader.readAsDataURL(file);
     });
-    
+
     // Reset file input
     e.target.value = '';
   };
@@ -425,11 +425,11 @@ const Marks = () => {
       const updatedMarks = marks.map(mark =>
         mark.id === selectedMark.id
           ? {
-              ...mark,
-              title: formData.title.trim() || 'بدون عنوان', // Use default if empty
-              images: formData.images.length > 0 ? formData.images : [{ url: 'https://via.placeholder.com/40x40?text=No+Image', orientation: null }],
-              location: formData.location
-            }
+            ...mark,
+            title: formData.title.trim() || 'بدون عنوان', // Use default if empty
+            images: formData.images.length > 0 ? formData.images : [{ url: 'https://via.placeholder.com/40x40?text=No+Image', orientation: null }],
+            location: formData.location
+          }
           : mark
       );
 
@@ -478,19 +478,41 @@ const Marks = () => {
 
   const getPageNumbers = () => {
     const pages = [];
-    const maxVisiblePages = 6;
+    const delta = 2;
 
-    if (totalPages <= maxVisiblePages) {
+    if (totalPages <= 7) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      const startPage = Math.max(1, currentPage - 2);
-      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+      pages.push(1);
 
-      for (let i = startPage; i <= endPage; i++) {
+      let startRange = currentPage - delta;
+      let endRange = currentPage + delta;
+
+      if (startRange <= 2) {
+        startRange = 2;
+        endRange = Math.min(totalPages - 1, startRange + (delta * 2));
+      }
+
+      if (endRange >= totalPages - 1) {
+        endRange = totalPages - 1;
+        startRange = Math.max(2, endRange - (delta * 2));
+      }
+
+      if (startRange > 2) {
+        pages.push('...');
+      }
+
+      for (let i = startRange; i <= endRange; i++) {
         pages.push(i);
       }
+
+      if (endRange < totalPages - 1) {
+        pages.push('...');
+      }
+
+      pages.push(totalPages);
     }
 
     return pages;
@@ -663,11 +685,12 @@ const Marks = () => {
               </div>
 
               <div className="page-numbers">
-                {getPageNumbers().map(page => (
+                {getPageNumbers().map((page, index) => (
                   <button
-                    key={page}
-                    className={`page-number ${currentPage === page ? 'active' : ''}`}
-                    onClick={() => handlePageChange(page)}
+                    key={index}
+                    className={`page-number ${currentPage === page ? 'active' : ''} ${page === '...' ? 'ellipsis' : ''}`}
+                    onClick={() => page !== '...' && handlePageChange(page)}
+                    disabled={page === '...'}
                   >
                     {page}
                   </button>
@@ -766,8 +789,8 @@ const Marks = () => {
                 </div>
                 <div className="info-field">
                   <label>موقعیت روی نقشه <span style={{ color: 'red' }}>*</span></label>
-                  <div 
-                    ref={mapContainerRef} 
+                  <div
+                    ref={mapContainerRef}
                     style={{
                       width: '100%',
                       height: '250px',
@@ -776,7 +799,7 @@ const Marks = () => {
                       backgroundColor: '#f0f0f0',
                       position: 'relative',
                       zIndex: 1
-                    }} 
+                    }}
                   />
                   <div className="map-instruction" style={{ marginTop: '10px' }}>
                     <span>برای انتخاب موقعیت دقیق، روی نقشه کلیک کنید</span>
@@ -878,8 +901,8 @@ const Marks = () => {
                 </div>
                 <div className="info-field">
                   <label>موقعیت روی نقشه <span style={{ color: 'red' }}>*</span></label>
-                  <div 
-                    ref={mapContainerRef} 
+                  <div
+                    ref={mapContainerRef}
                     style={{
                       width: '100%',
                       height: '250px',
@@ -888,7 +911,7 @@ const Marks = () => {
                       backgroundColor: '#f0f0f0',
                       position: 'relative',
                       zIndex: 1
-                    }} 
+                    }}
                   />
                   <div className="map-instruction" style={{ marginTop: '10px' }}>
                     <span>برای تغییر موقعیت، روی نقشه کلیک کنید</span>
