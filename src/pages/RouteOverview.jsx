@@ -702,14 +702,13 @@ const RouteOverview = () => {
         );
       }
 
-      const isLegacyStartStep =
+      const isFirstStepWithTitle =
         idx === 0 &&
-        step.type === 'stepPassConnection' &&
-        typeof step.title === 'string' &&
-        step.title.trim() === 'شروع حرکت';
+        typeof stepTitle === 'string' &&
+        stepTitle.trim().length > 0;
 
-      if (isLegacyStartStep) {
-        return step.title.trim();
+      if (isFirstStepWithTitle) {
+        return stepTitle.trim();
       }
 
       return intl.formatMessage(
