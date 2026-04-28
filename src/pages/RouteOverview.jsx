@@ -739,7 +739,10 @@ const RouteOverview = () => {
           instruction,
           services: step?.services || {},
           distance: dist,
-          doorNames: step?.type === 'stepPassDoor' ? [stepName].filter(Boolean) : []
+          doorNames: step?.type === 'stepPassDoor' ? [stepName].filter(Boolean) : [],
+          stepType: step?.type,
+          stepTitle: step?.title,
+          stepName
         };
       })
       .filter(Boolean);
@@ -764,11 +767,23 @@ const RouteOverview = () => {
         instruction,
         services: step?.services || {},
         distance: dist,
-        doorNames: step?.type === 'stepPassDoor' ? [stepName].filter(Boolean) : []
+        doorNames: step?.type === 'stepPassDoor' ? [stepName].filter(Boolean) : [],
+        stepType: step?.type,
+        stepTitle: step?.title,
+        stepName
       };
     }).filter(seg => Array.isArray(seg.coordinates) && seg.coordinates.length >= 2);
 
-    return segments
+    const normalizedStepStart = intl.formatMessage({ id: 'stepStart' }).trim();
+    const startAlias = new Set([
+      normalizedStepStart,
+      'شروع حرکت',
+      'Start moving',
+      'بدء الحركة',
+      'حرکت شروع کریں'
+    ]);
+
+    const mappedSegments = segments
       .filter(seg => seg?.coordinates && seg.coordinates.length >= 2)
       .map((seg, idx) => {
         const instr =
@@ -784,9 +799,29 @@ const RouteOverview = () => {
           coordinates: seg.coordinates,
           instruction: instr,
           services: seg.services,
-          distance: seg.distance
+          distance: seg.distance,
+          stepType: seg.stepType,
+          stepTitle: seg.stepTitle,
+          stepName: seg.stepName
         };
       });
+
+    if (!mappedSegments.length) return mappedSegments;
+
+    const firstSegment = mappedSegments[0];
+    const firstInstruction = (firstSegment.instruction || '').trim();
+    const firstTitle = (firstSegment.stepTitle || firstSegment.stepName || '').trim();
+    const firstDistance = Number(firstSegment.distance) || 0;
+    const isStartPlaceholder =
+      firstSegment.stepType === 'stepStart'
+      || startAlias.has(firstInstruction)
+      || startAlias.has(firstTitle);
+
+    if (isStartPlaceholder && firstDistance <= 5 && mappedSegments.length > 1) {
+      return mappedSegments.slice(1).map((seg, idx) => ({ ...seg, id: idx + 1 }));
+    }
+
+    return mappedSegments;
   }, [routeCoordinates, routeSteps, intl]);
 
   const [viewState, setViewState] = useState({
