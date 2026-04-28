@@ -189,7 +189,6 @@
   "noRouteFound": "No route found for selected mode",
   "pwaCloseButton": "Close",
   "stepMoveToDoor": "Head toward {name}",
-  "stepStart": "Start moving",
   "stepPassConnection": "Pass connection {title}",
   "stepEnterNextSahn": "Enter next courtyard via {title}",
   "stepPassSahn": "Pass {title}",

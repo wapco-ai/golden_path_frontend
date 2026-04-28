@@ -189,7 +189,6 @@
   "noRouteFound": "مسیر با حالت انتخابی یافت نشد",
   "pwaCloseButton": "بستن",
   "stepMoveToDoor": "حرکت به سمت {name}",
-  "stepStart": "شروع حرکت",
   "stepPassConnection": "عبور از نقطه اتصال {title}",
   "stepEnterNextSahn": "ورود به صحن بعدی از طریق نقطه اتصال {title}",
   "stepPassSahn": "عبور از {title}",
