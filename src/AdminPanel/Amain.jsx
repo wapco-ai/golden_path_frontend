@@ -4175,6 +4175,14 @@ const Amain = () => {
       setCulturalTypeError(false);
       setCulturalStep(2);
 
+
+      setTimeout(() => {
+        const modalContent = document.querySelector('.add-cultural-modal .modal-content');
+        if (modalContent) {
+          modalContent.scrollTop = 0;
+        }
+      }, 50);
+
       setTimeout(() => {
         initializeCulturalMap();
       }, 100);
@@ -4191,8 +4199,25 @@ const Amain = () => {
       }
 
       setCulturalStep(3);
+
+
+      setTimeout(() => {
+        const modalContent = document.querySelector('.add-cultural-modal .modal-content');
+        if (modalContent) {
+          modalContent.scrollTop = 0;
+        }
+      }, 50);
+
     } else if (culturalStep === 3) {
       setCulturalStep(4);
+
+
+      setTimeout(() => {
+        const modalContent = document.querySelector('.add-cultural-modal .modal-content');
+        if (modalContent) {
+          modalContent.scrollTop = 0;
+        }
+      }, 50);
     }
   };
 
@@ -5189,8 +5214,39 @@ const Amain = () => {
   };
 
   const handleStepCircleClick = (stepNumber) => {
-    if (!isEditingDoorInfo) return;
-    setCurrentStep(stepNumber);
+
+    if (stepNumber > culturalStep) {
+
+      if (culturalStep === 1) {
+        if (!culturalTitle.trim()) {
+          alert('لطفا عنوان را وارد کنید');
+          return;
+        }
+        if (!selectedPlaceType) {
+          setCulturalTypeError(true);
+          alert('لطفا حداقل یک نوع مکان را انتخاب کنید');
+          return;
+        }
+      } else if (culturalStep === 2) {
+        if (!placeAddress.trim()) {
+          alert('لطفا آدرس را وارد کنید');
+          return;
+        }
+        if (!selectedLocation) {
+          alert('لطفا یک نقطه روی نقشه انتخاب کنید');
+          return;
+        }
+      }
+    }
+
+    setCulturalStep(stepNumber);
+
+    setTimeout(() => {
+      const modalContent = document.querySelector('.add-cultural-modal .modal-content');
+      if (modalContent) {
+        modalContent.scrollTop = 0;
+      }
+    }, 50);
   };
 
   const buildContextPointFeature = useCallback((point, role) => ({
@@ -11650,7 +11706,7 @@ const Amain = () => {
             <div className="cultural-management-section">
               {/* Header with buttons */}
               <div className="cultural-header-section9">
-                <button
+                {/* <button
                   className="export-cultural-btn"
                   onClick={() => exportCulturalItems({ language: 'fa', search: culturalSearchTerm })}
                 >
@@ -11658,7 +11714,7 @@ const Amain = () => {
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path fillRule="evenodd" clipRule="evenodd" d="M3.69247 7.09327C3.91711 6.83119 4.31167 6.80084 4.57375 7.02548L10.0003 11.6768L15.4269 7.02548C15.689 6.80084 16.0836 6.83119 16.3082 7.09327C16.5328 7.35535 16.5025 7.74991 16.2404 7.97455L10.4071 12.9745C10.173 13.1752 9.82765 13.1752 9.59359 12.9745L3.76026 7.97455C3.49818 7.74991 3.46783 7.35535 3.69247 7.09327Z" fill="#1E2023" />
                   </svg>
-                </button>
+                </button> */}
                 <button className="new-cultural-btn" onClick={openAddCulturalModal}>
                   ایجاد اطلاعات فرهنگی
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -14956,19 +15012,35 @@ const Amain = () => {
                 </span>
               </div>
               <div className="step-progress">
-                <div className={`step-circle ${culturalStep >= 1 ? 'active' : ''}`}>
+                <div
+                  className={`step-circle ${culturalStep >= 1 ? 'active' : ''}`}
+                  onClick={() => handleStepCircleClick(1)}
+                  style={{ cursor: 'pointer' }}
+                >
                   {culturalStep > 1 ? '✓' : '۱'}
                 </div>
                 <div className={`step-line ${culturalStep >= 2 ? 'active' : ''}`}></div>
-                <div className={`step-circle ${culturalStep >= 2 ? 'active' : ''}`}>
+                <div
+                  className={`step-circle ${culturalStep >= 2 ? 'active' : ''}`}
+                  onClick={() => handleStepCircleClick(2)}
+                  style={{ cursor: 'pointer' }}
+                >
                   {culturalStep > 2 ? '✓' : '۲'}
                 </div>
                 <div className={`step-line ${culturalStep >= 3 ? 'active' : ''}`}></div>
-                <div className={`step-circle ${culturalStep >= 3 ? 'active' : ''}`}>
+                <div
+                  className={`step-circle ${culturalStep >= 3 ? 'active' : ''}`}
+                  onClick={() => handleStepCircleClick(3)}
+                  style={{ cursor: 'pointer' }}
+                >
                   {culturalStep > 3 ? '✓' : '۳'}
                 </div>
                 <div className={`step-line ${culturalStep >= 4 ? 'active' : ''}`}></div>
-                <div className={`step-circle ${culturalStep >= 4 ? 'active' : ''}`}>
+                <div
+                  className={`step-circle ${culturalStep >= 4 ? 'active' : ''}`}
+                  onClick={() => handleStepCircleClick(4)}
+                  style={{ cursor: 'pointer' }}
+                >
                   {culturalStep > 4 ? '✓' : '۴'}
                 </div>
               </div>
@@ -16399,6 +16471,16 @@ const Amain = () => {
               >
                 رد کردن
               </button> */}
+              <button
+                className="cancel-btn"
+                onClick={() => {
+                  setShowOrientationModal(false);
+                  setPendingImageFile(null);
+                  setSelectedOrientation('');
+                }}
+              >
+                انصراف
+              </button>
               <button
                 className="confirm-btn"
                 onClick={() => selectedOrientation ? handleOrientationSelect(selectedOrientation) : handleSkipOrientation()}

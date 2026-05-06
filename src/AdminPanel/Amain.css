@@ -11517,3 +11517,37 @@ body {
 .page-number.ellipsis:hover {
   background: transparent;
 }
+
+.add-cultural-modal .modal-content {
+  max-height: 500px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+  direction: rtl; 
+}
+
+.add-cultural-modal .modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.add-cultural-modal .modal-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.add-cultural-modal .modal-content::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.add-cultural-modal .modal-content::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Ensure scrollbar appears on left for Webkit */
+.add-cultural-modal .modal-content {
+  scrollbar-width: thin;
+}
+
+
