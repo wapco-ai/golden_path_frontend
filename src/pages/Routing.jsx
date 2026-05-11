@@ -1221,7 +1221,7 @@ const RoutingPage = () => {
           heading: effectiveHeading,
           floor: getSessionFloor(),
           fov: 45,
-          maxDistance: 800,
+          maxDistance: 250,
           signal: controller.signal
         });
 

@@ -2024,13 +2024,17 @@ const Amain = () => {
   };
 
   const uploadCulturalFiles = async (files = [], entityId) => {
-    const targetEntityId = entityId ?? 'cultural-item';
+    const targetEntityId = Number(entityId);
+
+    if (!Number.isInteger(targetEntityId) || targetEntityId <= 0) {
+      throw new Error('entity_id معتبر برای آپلود فایل وجود ندارد');
+    }
+
     const uploadedFiles = [];
 
     for (const file of files) {
       if (!file) continue;
 
-      // Already uploaded/remote files
       if (!file.file) {
         uploadedFiles.push({
           ...file,
@@ -2043,29 +2047,25 @@ const Amain = () => {
         continue;
       }
 
-      try {
-        const response = await uploadFile({
-          file: file.file,
-          entityTable: 'contents',
-          entityId: targetEntityId,
-          bucket: resolveFileBucket(file),
-          keepOriginalName: true
-        });
+      const response = await uploadFile({
+        file: file.file,
+        entityTable: 'contents',
+        entityId: targetEntityId,
+        bucket: resolveFileBucket(file),
+        keepOriginalName: true
+      });
 
-        uploadedFiles.push({
-          id: file.id,
-          name: file.name,
-          orientation: file.orientation ?? null,
-          mime: response?.mime || file.mime || file.type,
-          path: response?.path || '',
-          url: response?.url || response?.path || '',
-          metadata: response?.metadata || response?.metaData || null,
-          bucket: response?.bucket || resolveFileBucket(file)
-        });
-      } catch (error) {
-        console.error('File upload failed', error);
-        throw error;
-      }
+      uploadedFiles.push({
+        id: file.id,
+        name: file.name,
+        orientation: file.orientation ?? null,
+        mime: response?.mime || file.mime || file.type,
+        path: response?.path || '',
+        url: response?.url || response?.path || '',
+        metadata: response?.metadata || response?.metaData || null,
+        bucket: response?.bucket || resolveFileBucket(file),
+        isPrimary: file.isPrimary || file.id === primaryImage?.id
+      });
     }
 
     return uploadedFiles;
@@ -3006,10 +3006,19 @@ const Amain = () => {
 
   const confirmDeleteCultural = async () => {
     if (!culturalToDelete) return;
+
     try {
       await deleteCulturalItem(culturalToDelete);
+
+      setCulturalData((prev) =>
+        prev.filter((item) => Number(item.id) !== Number(culturalToDelete))
+      );
+
+      setCulturalTotalItems((prev) => Math.max(0, prev - 1));
+
       toast.success('آیتم فرهنگی با موفقیت حذف شد');
-      loadCulturalItems();
+
+      await loadCulturalItems();
     } catch (error) {
       console.error('حذف آیتم فرهنگی با خطا مواجه شد', error);
       toast.error('حذف آیتم فرهنگی با خطا مواجه شد');
@@ -4409,13 +4418,15 @@ const Amain = () => {
     const el = document.createElement('div');
     el.innerHTML = `
     <svg width="24" height="41" viewBox="0 0 24 41" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path fillRule="evenodd" clip-rule="evenodd" d="M12 0C5.37258 0 0 6.00388 0 12.75C0 19.4433 3.82999 26.7186 9.8056 29.5117C11.1986 30.1628 12.8014 30.1628 14.1944 29.5117C20.17 26.7186 24 19.4433 24 12.75C24 6.00388 18.6274 0 12 0ZM12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" fill="#EA4335"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M12 0C5.37258 0 0 6.00388 0 12.75C0 19.4433 3.82999 26.7186 9.8056 29.5117C11.1986 30.1628 12.8014 30.1628 14.1944 29.5117C20.17 26.7186 24 19.4433 24 12.75C24 6.00388 18.6274 0 12 0ZM12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" fill="#EA4335"/>
       <path d="M12.0088 22.5685C7.15256 22.5687 3.21582 26.5061 3.21582 31.3624C3.21606 36.2185 7.15271 40.1552 12.0088 40.1554C16.8651 40.1554 20.8025 36.2187 20.8027 31.3624C20.8027 26.506 16.8652 22.5685 12.0088 22.5685Z" stroke="#EA4335" stroke-width="1.50419"/>
     </svg>
   `;
     el.style.cursor = 'pointer';
     el.style.width = '24px';
     el.style.height = '41px';
+    el.style.transform = 'translateZ(0)';
+    el.style.pointerEvents = 'none';
     return el;
   };
 
@@ -4510,8 +4521,9 @@ const Amain = () => {
       el.style.cursor = 'pointer';
       el.style.width = '24px';
       el.style.height = '41px';
-
-      el.style.transform = 'translate(-50%, -100%)';
+      el.style.transform = 'translateZ(0)';
+      el.style.pointerEvents = 'none';
+      // el.style.transform = 'translate(-50%, -100%)';
 
       return el;
     };
@@ -4522,7 +4534,8 @@ const Amain = () => {
     if (selectedLocation) {
       console.log('Adding marker at:', selectedLocation);
       marker = new maplibregl.Marker({
-        element: createRedMarker()  // Use custom red marker
+        element: createRedMarker(),  // Use custom red marker
+        // anchor: 'bottom'
       })
         .setLngLat([selectedLocation.lng, selectedLocation.lat])
         .addTo(mapInstance);
@@ -4906,6 +4919,14 @@ const Amain = () => {
       zoom: 16,
     });
 
+    mapInstance.once('load', () => {
+      mapInstance.resize();
+    });
+
+    setTimeout(() => {
+      mapInstance.resize();
+    }, 300);
+
     mapInstance.addControl(new maplibregl.NavigationControl());
 
     // Keep track of the marker
@@ -4923,7 +4944,9 @@ const Amain = () => {
 
       // Create new marker
       marker = new maplibregl.Marker({
-        element: createMarkerElement()
+        element: createMarkerElement(),
+        anchor: 'bottom',
+        offset: [0, 11]
       })
         .setLngLat([coordinates.lng, coordinates.lat])
         .addTo(mapInstance);
@@ -5021,16 +5044,22 @@ const Amain = () => {
       return Number.isNaN(numericValue) ? value : numericValue;
     };
 
-    try {
-      const uploadedFiles = await uploadCulturalFiles([
-        ...profileImages,
-        ...audioFiles,
-        ...textFiles
-      ], culturalPoiId || 'new-cultural-item');
+    const resolveCreatedPoiId = (createdItem) => {
+      const id =
+        createdItem?.poi_id ??
+        createdItem?.poiId ??
+        createdItem?.id ??
+        createdItem?.poi?.id ??
+        createdItem?.data?.poi_id ??
+        createdItem?.data?.id;
 
-      const attachments = buildAttachmentPayload(uploadedFiles);
-      const translationsPayload = buildCulturalTranslationsPayload(attachments);
+      const numericId = Number(id);
+      return Number.isInteger(numericId) && numericId > 0 ? numericId : null;
+    };
+
+    try {
       const settingsPayload = buildSettingsPayload();
+
       const poiPayload = {
         floor: culturalFloor,
         category_leaf_id: resolveCategoryLeafId(),
@@ -5047,21 +5076,65 @@ const Amain = () => {
         placeType: selectedPlaceType || 'farhangi'
       };
 
-      await createCulturalItem({
+      // مرحله ۱: اول آیتم را بدون فایل بساز تا poi_id واقعی بگیریم
+      const createdItem = await createCulturalItem({
         poi: poiPayload,
-        translations: translationsPayload,
+        translations: buildCulturalTranslationsPayload([]),
         settings: {
           ...settingsPayload,
           placeType: selectedPlaceType || 'farhangi'
-        }
+        },
+        time_restrictions: buildCulturalTimeRestrictionsPayload(),
+        prayer_restrictions: buildCulturalPrayerRestrictionsPayload()
       });
+
+      const createdPoiId = resolveCreatedPoiId(createdItem);
+
+      if (!createdPoiId) {
+        throw new Error('شناسه آیتم فرهنگی بعد از ثبت از سرور دریافت نشد');
+      }
+
+      // مرحله ۲: حالا فایل‌ها را با entity_id عددی آپلود کن
+      const filesToUpload = [
+        ...profileImages,
+        ...audioFiles,
+        ...textFiles
+      ];
+
+      if (filesToUpload.length > 0) {
+        const uploadedFiles = await uploadCulturalFiles(filesToUpload, createdPoiId);
+        const attachments = buildAttachmentPayload(uploadedFiles);
+
+        // مرحله ۳: آیتم را با media نهایی آپدیت کن
+        await updateCulturalItem(createdPoiId, {
+          poi_id: createdPoiId,
+          translations: buildCulturalTranslationsPayload(attachments),
+          addressInShrine: placeAddress,
+          grouping: {
+            group_id: culturalPlaceCategory,
+            sub_group_id: selectedSubGroup?.value || null,
+            sub_group_label: selectedSubGroup?.label || null
+          },
+          settings: {
+            ...settingsPayload,
+            placeType: selectedPlaceType || 'farhangi'
+          },
+          floor: culturalFloor,
+          location: {
+            lng: selectedLocation.lng,
+            lat: selectedLocation.lat
+          },
+          time_restrictions: buildCulturalTimeRestrictionsPayload(),
+          prayer_restrictions: buildCulturalPrayerRestrictionsPayload()
+        });
+      }
 
       toast.success('اطلاعات فرهنگی با موفقیت ثبت شد');
       closeAddCulturalModal();
       loadCulturalItems();
     } catch (error) {
       console.error('ثبت آیتم فرهنگی ناموفق بود', error);
-      toast.error('ثبت آیتم فرهنگی ناموفق بود');
+      toast.error(error?.message || 'ثبت آیتم فرهنگی ناموفق بود');
     }
   };
 

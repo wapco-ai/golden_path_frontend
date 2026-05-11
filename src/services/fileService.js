@@ -13,10 +13,15 @@ export const uploadFile = async ({
     throw new Error('فایل برای آپلود ارسال نشده است');
   }
 
+  const numericEntityId = Number(entityId);
+  if (!Number.isInteger(numericEntityId) || numericEntityId <= 0) {
+    throw new Error('برای آپلود فایل، ابتدا باید آیتم ذخیره شود و entity_id عددی معتبر داشته باشد');
+  }
+
   const formData = new FormData();
   formData.append('file', file);
   formData.append('entity_table', entityTable);
-  formData.append('entity_id', entityId);
+  formData.append('entity_id', String(numericEntityId));
   if (bucket) formData.append('bucket', bucket);
   formData.append('keep_original_name', keepOriginalName ? 'true' : 'false');
 

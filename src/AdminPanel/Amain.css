@@ -2421,8 +2421,8 @@ body {
 /* Ensure map takes full container */
 .maplibregl-canvas {
   border-radius: 12px;
-  width: 100% !important;
-  height: 100% !important;
+  /* width: 100% !important;
+  height: 100% !important; */
 }
 
 /* Hide charts and users table when in map management */
