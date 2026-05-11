@@ -809,27 +809,28 @@ const RouteOverview = () => {
     if (!mappedSegments.length) return mappedSegments;
 
     const firstSegment = mappedSegments[0];
+    const matchesStartAlias = (value = '') => {
+      const normalized = value.trim();
+      return [...startAlias].some((alias) => {
+        if (normalized === alias) return true;
+        if (!normalized.startsWith(alias)) return false;
+        const suffix = normalized.slice(alias.length).trimStart();
+        return suffix.startsWith('(') || suffix.startsWith('（');
+      });
+    };
+
     const firstInstruction = (firstSegment.instruction || '').trim();
     const firstTitle = (firstSegment.stepTitle || firstSegment.stepName || '').trim();
     const isStartPlaceholder =
       firstSegment.stepType === 'stepStart'
-      || startAlias.has(firstInstruction)
-      || startAlias.has(firstTitle);
+      || matchesStartAlias(firstInstruction)
+      || matchesStartAlias(firstTitle);
 
     if (isStartPlaceholder && mappedSegments.length > 1) {
-      return mappedSegments.slice(0, -1).map((seg, idx) => {
-        const instructionSource = mappedSegments[idx + 1];
-
-        return {
-          ...seg,
-          id: idx + 1,
-          instruction: instructionSource.instruction,
-          services: instructionSource.services,
-          stepType: instructionSource.stepType,
-          stepTitle: instructionSource.stepTitle,
-          stepName: instructionSource.stepName
-        };
-      });
+      return mappedSegments.slice(1).map((seg, idx) => ({
+        ...seg,
+        id: idx + 1
+      }));
     }
 
     return mappedSegments;
