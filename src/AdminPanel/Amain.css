@@ -2983,6 +2983,91 @@ body {
   cursor: not-allowed;
 }
 
+
+
+.add-place-combo-field {
+  z-index: 1;
+}
+
+.add-place-combo-trigger {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  margin-bottom: 0 !important;
+  background: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fillRule='evenodd' clipRule='evenodd' d='M3.64645 5.64645C3.84171 5.45118 4.15829 5.45118 4.35355 5.64645L8 9.29289L11.6464 5.64645C11.8417 5.45118 12.1583 5.45118 12.3536 5.64645C12.5488 5.84171 12.5488 6.15829 12.3536 6.35355L8.35355 10.3536C8.15829 10.5488 7.84171 10.5488 7.64645 10.3536L3.64645 6.35355C3.45118 6.15829 3.45118 5.84171 3.64645 5.64645Z' fill='%231E2023'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: left 12px center;
+  background-size: 16px;
+  color: #1E2023;
+  cursor: pointer;
+  text-align: right;
+}
+
+.add-place-combo-trigger span {
+  display: block;
+  width: 100%;
+  padding-left: 26px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.add-place-combo-trigger.placeholder span {
+  color: #858585;
+}
+
+.add-place-combo-trigger:disabled {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+.add-place-combo-menu {
+  direction: rtl;
+  z-index: 20000;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #fff;
+  border: 1px solid #D9D9D9;
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+.add-place-combo-option {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: #1E2023;
+  cursor: pointer;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  font-size: 14px;
+  line-height: 1.7;
+  padding: 8px 10px;
+  text-align: right;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.add-place-combo-option:hover,
+.add-place-combo-option.selected {
+  background: #F5F6FF;
+  color: #0F71EF;
+}
+
+.add-place-combo-empty {
+  color: #858585;
+  font-size: 13px;
+  padding: 12px;
+  text-align: center;
+}
+
 /* Modal Footer */
 .modal-footer,
 .modal-footer16,
@@ -4930,6 +5015,7 @@ body {
   background: #0F71EF;
   border-radius: 50%;
 }
+
 
 /* Modal Footer */
 .create-category-modal .modal-footer {
@@ -10779,6 +10865,7 @@ body {
   color: #1E2023;
   display: block;
 }
+
 
 /* Modal Footer */
 

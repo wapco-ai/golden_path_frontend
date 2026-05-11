@@ -1,5 +1,6 @@
 // src/pages/Amain.jsx
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useIntl } from 'react-intl';
 import { toast } from 'react-toastify';
 import QRCode from 'qrcode';
@@ -73,6 +74,133 @@ function ensureRtlOnce() {
   window.__RTL_PLUGIN_SET__ = true;
   maplibregl.setRTLTextPlugin("/rtl/mapbox-gl-rtl-text.js", null, true);
 }
+
+
+const ADD_PLACE_FUNCTION_OPTIONS = [
+  { value: 'door', label: 'درب' },
+  { value: 'connection', label: 'نقطه اتصال' },
+  { value: 'elevator', label: 'آسانسور' },
+  { value: 'escalator', label: 'پله برقی' }
+];
+
+const AddPlaceSelect = ({
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled = false
+}) => {
+  const triggerRef = useRef(null);
+  const menuRef = useRef(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState(null);
+
+  const selectedOption = options.find((option) => option.value === value);
+
+  const updateMenuPosition = useCallback(() => {
+    if (!triggerRef.current) return;
+
+    const rect = triggerRef.current.getBoundingClientRect();
+    const viewportPadding = 12;
+    const gap = 6;
+    const spaceBelow = window.innerHeight - rect.bottom - viewportPadding;
+    const spaceAbove = rect.top - viewportPadding;
+    const shouldOpenUp = spaceBelow < 220 && spaceAbove > spaceBelow;
+    const availableHeight = shouldOpenUp ? spaceAbove - gap : spaceBelow - gap;
+    const maxHeight = Math.max(160, Math.min(320, availableHeight));
+
+    setMenuStyle({
+      position: 'fixed',
+      top: shouldOpenUp ? undefined : `${rect.bottom + gap}px`,
+      bottom: shouldOpenUp ? `${window.innerHeight - rect.top + gap}px` : undefined,
+      left: `${rect.left}px`,
+      width: `${rect.width}px`,
+      maxHeight: `${maxHeight}px`
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    updateMenuPosition();
+    const handleOutsideClick = (event) => {
+      if (
+        triggerRef.current?.contains(event.target)
+        || menuRef.current?.contains(event.target)
+      ) {
+        return;
+      }
+      setIsOpen(false);
+    };
+
+    window.addEventListener('resize', updateMenuPosition);
+    window.addEventListener('scroll', updateMenuPosition, true);
+    document.addEventListener('mousedown', handleOutsideClick);
+
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition);
+      window.removeEventListener('scroll', updateMenuPosition, true);
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [isOpen, updateMenuPosition]);
+
+  useEffect(() => {
+    if (disabled) {
+      setIsOpen(false);
+    }
+  }, [disabled]);
+
+  const handleToggle = () => {
+    if (disabled) return;
+    setIsOpen((previous) => !previous);
+  };
+
+  const handleSelect = (optionValue) => {
+    onChange(optionValue);
+    setIsOpen(false);
+  };
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        className={`form-input add-place-combo-trigger ${!selectedOption ? 'placeholder' : ''}`}
+        onClick={handleToggle}
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+      >
+        <span>{selectedOption?.label || placeholder}</span>
+      </button>
+
+      {isOpen && menuStyle && createPortal(
+        <div
+          ref={menuRef}
+          className="add-place-combo-menu"
+          style={menuStyle}
+          role="listbox"
+        >
+          {options.length > 0 ? options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={`add-place-combo-option ${option.value === value ? 'selected' : ''}`}
+              onClick={() => handleSelect(option.value)}
+              role="option"
+              aria-selected={option.value === value}
+            >
+              {option.label}
+            </button>
+          )) : (
+            <div className="add-place-combo-empty">موردی برای نمایش وجود ندارد</div>
+          )}
+        </div>,
+        document.body
+      )}
+    </>
+  );
+};
 
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
 const SELECTED_EDITABLE_FEATURE_SOURCE_ID = 'selected-editable-feature-source';
@@ -13760,56 +13888,39 @@ const Amain = () => {
                         <div className="dropdown-group">
                           {!isDoorAccessLayerActive && (
                             <>
-                              <div className="dropdown-field">
-                                <select
-                                  className="form-input"
+                              <div className="dropdown-field add-place-combo-field">
+                                <AddPlaceSelect
                                   value={placeCategory}
-                                  onChange={(e) => {
-                                    setPlaceCategory(e.target.value);
+                                  onChange={(nextValue) => {
+                                    setPlaceCategory(nextValue);
                                     setPlaceSubcategory('');
                                   }}
+                                  options={groupOptions}
+                                  placeholder="گروه اصلی"
                                   disabled={isLoadingGroups}
-                                >
-                                  <option value="" disabled>گروه اصلی</option>
-                                  {groupOptions.map((group, index) => (
-                                    <option key={`group-${group.value}-${index}`} value={group.value}>
-                                      {group.label}
-                                    </option>
-                                  ))}
-                                </select>
+                                />
                               </div>
 
-                              <div className="dropdown-field">
-                                <select
-                                  className="form-input"
+                              <div className="dropdown-field add-place-combo-field">
+                                <AddPlaceSelect
                                   value={placeSubcategory}
-                                  onChange={(e) => setPlaceSubcategory(e.target.value)}
+                                  onChange={setPlaceSubcategory}
+                                  options={subGroupOptions}
+                                  placeholder="زیرگروه"
                                   disabled={!placeCategory || isLoadingSubGroups}
-                                >
-                                  <option value="" disabled>زیرگروه</option>
-                                  {subGroupOptions.map((subGroup, index) => (
-                                    <option key={`subgroup-${subGroup.value}-${index}`} value={subGroup.value}>
-                                      {subGroup.label}
-                                    </option>
-                                  ))}
-                                </select>
+                                />
                               </div>
                             </>
                           )}
 
-                          <div className="dropdown-field">
-                            <select
-                              className="form-input"
+                          <div className="dropdown-field add-place-combo-field">
+                            <AddPlaceSelect
                               value={placeFunction}
-                              onChange={(e) => setPlaceFunction(e.target.value)}
+                              onChange={setPlaceFunction}
+                              options={ADD_PLACE_FUNCTION_OPTIONS}
+                              placeholder="کارکرد گروه"
                               disabled={!placeSubcategory && !isDoorAccessLayerActive}
-                            >
-                              <option value="" disabled>کارکرد گروه</option>
-                              <option value="door">درب</option>
-                              <option value="connection">نقطه اتصال</option>
-                              <option value="elevator">آسانسور</option>
-                              <option value="escalator">پله برقی</option>
-                            </select>
+                            />
                           </div>
                         </div>
                       </div>
