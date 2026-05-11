@@ -683,6 +683,43 @@ const RoutingPage = () => {
     return diff > 0 ? 'bend-left' : 'bend-right';
   };
 
+  const normalizeInstructionSteps = useCallback((steps = []) => {
+    const normalizedStepStart = intl.formatMessage({ id: 'stepStart' }).trim();
+    const startAlias = new Set([
+      normalizedStepStart,
+      'شروع حرکت',
+      'Start moving',
+      'بدء الحركة',
+      'حرکت شروع کریں'
+    ]);
+
+    const firstStep = steps[0];
+    const firstInstruction = (firstStep?.instruction || '').trim();
+    const firstTitle = (firstStep?.title || firstStep?.name || '').trim();
+    const isStartPlaceholder =
+      firstStep?.type === 'stepStart'
+      || startAlias.has(firstInstruction)
+      || startAlias.has(firstTitle);
+
+    if (!isStartPlaceholder || steps.length <= 1) {
+      return steps;
+    }
+
+    return steps.slice(0, -1).map((step, idx) => {
+      const instructionSource = steps[idx + 1];
+
+      return {
+        ...step,
+        instruction: instructionSource.instruction,
+        services: instructionSource.services,
+        type: instructionSource.type,
+        title: instructionSource.title,
+        name: instructionSource.name,
+        landmark: instructionSource.landmark
+      };
+    });
+  }, [intl]);
+
   const resolveLandmarkName = useCallback((step) => {
     const candidate =
       step?.landmark
@@ -968,9 +1005,10 @@ const RoutingPage = () => {
       console.warn('failed to read stored route summary', err);
     }
 
-    const totalMinutes = summaryMinutes || calculateTotalTime(steps);
+    const displaySteps = normalizeInstructionSteps(steps);
+    const totalMinutes = summaryMinutes || calculateTotalTime(displaySteps);
     const totalDistance = summaryDistance ||
-      steps.reduce((acc, st) => acc + parseInt(st.distance), 0);
+      displaySteps.reduce((acc, st) => acc + parseInt(st.distance), 0);
     const formattedTotalTime = formatTotalTime(totalMinutes);
     const arrivalTime = calculateArrivalTime(totalMinutes);
 
@@ -1022,11 +1060,12 @@ const RoutingPage = () => {
           direction
         };
       });
-      const minutes = calculateTotalTime(altSteps);
-      const distTot = altSteps.reduce((acc, st) => acc + parseInt(st.distance), 0);
+      const displayAltSteps = normalizeInstructionSteps(altSteps);
+      const minutes = calculateTotalTime(displayAltSteps);
+      const distTot = displayAltSteps.reduce((acc, st) => acc + parseInt(st.distance), 0);
       return {
         id: ridx + 1,
-        steps: altSteps,
+        steps: displayAltSteps,
         geo: alt.geo,
         totalTime: formatTotalTime(minutes),
         totalDistance: `${distTot} ${intl.formatMessage({ id: 'meters' })}`,
@@ -1038,7 +1077,7 @@ const RoutingPage = () => {
     });
 
     setRouteData({
-      steps,
+      steps: displaySteps,
       totalTime: formattedTotalTime,
       arrivalTime,
       totalDistance: `${totalDistance} ${intl.formatMessage({ id: 'meters' })}`,
@@ -1058,7 +1097,7 @@ const RoutingPage = () => {
     } catch (err) {
       console.warn('failed to persist route summary', err);
     }
-  }, [routeSteps, routeGeo, alternativeRoutes, transportMode, resolveLandmarkName, formatDurationFromSeconds, calculateTotalTime, buildStepInstruction]);
+  }, [routeSteps, routeGeo, alternativeRoutes, transportMode, resolveLandmarkName, formatDurationFromSeconds, calculateTotalTime, buildStepInstruction, normalizeInstructionSteps]);
 
 
   // Update arrival time every minute
