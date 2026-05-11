@@ -4908,12 +4908,30 @@ const Amain = () => {
   };
 
 
-  // Map initialization function for cultural modal - FIXED VERSION
+  const getCulturalMapClickCoordinates = useCallback((mapInstance, event) => {
+    const originalEvent = event?.originalEvent;
+    const container = mapInstance?.getContainer?.();
+
+    if (!originalEvent || !container) {
+      return event.lngLat;
+    }
+
+    const rect = container.getBoundingClientRect();
+    const point = [
+      originalEvent.clientX - rect.left,
+      originalEvent.clientY - rect.top
+    ];
+
+    return mapInstance.unproject(point);
+  }, []);
+
+  // Map initialization function for cultural modal
   const initializeCulturalMap = useCallback(() => {
-    if (!document.getElementById('cultural-map-container')) return null;
+    const mapContainer = document.getElementById('cultural-map-container');
+    if (!mapContainer) return null;
 
     const mapInstance = new maplibregl.Map({
-      container: 'cultural-map-container',
+      container: mapContainer,
       style: './map-styles/osm-voyager/style-en.json',
       center: [59.6161, 36.2908],
       zoom: 16,
@@ -4922,6 +4940,8 @@ const Amain = () => {
     mapInstance.once('load', () => {
       mapInstance.resize();
     });
+
+    requestAnimationFrame(() => mapInstance.resize());
 
     setTimeout(() => {
       mapInstance.resize();
@@ -4933,8 +4953,9 @@ const Amain = () => {
     let marker = null;
 
     // Add click event to map
-    mapInstance.on('click', (e) => {
-      const coordinates = e.lngLat;
+    mapInstance.on('click', (event) => {
+      mapInstance.resize();
+      const coordinates = getCulturalMapClickCoordinates(mapInstance, event);
       setSelectedLocation(coordinates);
 
       // Remove existing marker if it exists
@@ -4942,7 +4963,7 @@ const Amain = () => {
         marker.remove();
       }
 
-      // Create new marker
+      // Create new marker exactly on the clicked point.
       marker = new maplibregl.Marker({
         element: createMarkerElement(),
         anchor: 'bottom',
@@ -4957,7 +4978,7 @@ const Amain = () => {
 
     setCulturalMap(mapInstance);
     return mapInstance;
-  }, []);
+  }, [getCulturalMapClickCoordinates]);
 
   useEffect(() => {
     if (!isAddCulturalModalOpen || culturalStep !== 2) return;
