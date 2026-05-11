@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { navigateToPreviousPage } from '../utils/navigationHistory';
 import { FormattedMessage, useIntl } from 'react-intl';
-import '../styles/FAQ.css';
+import '../styles/Faq.css';
 import { fetchFaqPage } from '../services/publicPagesService';
 import { useLangStore } from '../store/langStore';
 
