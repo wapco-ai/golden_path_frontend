@@ -5307,6 +5307,19 @@ const Amain = () => {
     setCurrentDescriptionField(null);
   };
 
+  const handleAddPlaceStepCircleClick = (stepNumber) => {
+    if (!isEditingDoorInfo) return;
+
+    setCurrentStep(stepNumber);
+
+    setTimeout(() => {
+      const modalContent = document.querySelector('.add-place-modal .modal-content');
+      if (modalContent) {
+        modalContent.scrollTop = 0;
+      }
+    }, 50);
+  };
+
   const handleStepCircleClick = (stepNumber) => {
 
     if (stepNumber > culturalStep) {
@@ -13677,21 +13690,21 @@ const Amain = () => {
               <div className="step-progress">
                 <div
                   className={`step-circle ${currentStep >= 1 ? 'active' : ''} ${isEditingDoorInfo ? 'clickable' : ''}`}
-                  onClick={() => handleStepCircleClick(1)}
+                  onClick={() => handleAddPlaceStepCircleClick(1)}
                 >
                   {currentStep > 1 ? '✓' : '۱'}
                 </div>
                 <div className={`step-line ${currentStep >= 2 ? 'active' : ''}`}></div>
                 <div
                   className={`step-circle ${currentStep >= 2 ? 'active' : ''} ${isEditingDoorInfo ? 'clickable' : ''}`}
-                  onClick={() => handleStepCircleClick(2)}
+                  onClick={() => handleAddPlaceStepCircleClick(2)}
                 >
                   {currentStep > 2 ? '✓' : '۲'}
                 </div>
                 <div className={`step-line ${currentStep >= 3 ? 'active' : ''}`}></div>
                 <div
                   className={`step-circle ${currentStep >= 3 ? 'active' : ''} ${isEditingDoorInfo ? 'clickable' : ''}`}
-                  onClick={() => handleStepCircleClick(3)}
+                  onClick={() => handleAddPlaceStepCircleClick(3)}
                 >
                   {currentStep > 3 ? '✓' : '۳'}
                 </div>
