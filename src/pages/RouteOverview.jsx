@@ -811,24 +811,29 @@ const RouteOverview = () => {
     const firstSegment = mappedSegments[0];
     const firstInstruction = (firstSegment.instruction || '').trim();
     const firstTitle = (firstSegment.stepTitle || firstSegment.stepName || '').trim();
-    const firstDistance = Number(firstSegment.distance) || 0;
     const isStartPlaceholder =
       firstSegment.stepType === 'stepStart'
       || startAlias.has(firstInstruction)
       || startAlias.has(firstTitle);
 
-    const firstCoords = firstSegment.coordinates;
-    const hasDegenerateGeometry =
-      Array.isArray(firstCoords) &&
-      firstCoords.length >= 2 &&
-      toMeters(firstCoords[0], firstCoords[firstCoords.length - 1]) <= 1;
+    if (isStartPlaceholder && mappedSegments.length > 1) {
+      return mappedSegments.slice(0, -1).map((seg, idx) => {
+        const instructionSource = mappedSegments[idx + 1];
 
-    if (isStartPlaceholder && firstDistance <= 1 && hasDegenerateGeometry && mappedSegments.length > 1) {
-      return mappedSegments.slice(1).map((seg, idx) => ({ ...seg, id: idx + 1 }));
+        return {
+          ...seg,
+          id: idx + 1,
+          instruction: instructionSource.instruction,
+          services: instructionSource.services,
+          stepType: instructionSource.stepType,
+          stepTitle: instructionSource.stepTitle,
+          stepName: instructionSource.stepName
+        };
+      });
     }
 
     return mappedSegments;
-  }, [routeCoordinates, routeSteps, intl, toMeters]);
+  }, [routeCoordinates, routeSteps, intl]);
 
   const [viewState, setViewState] = useState({
     latitude: routeCoordinates[0]?.[1] || 0,

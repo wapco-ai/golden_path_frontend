@@ -10,7 +10,7 @@ import { toJalaali, toGregorian } from 'jalaali-js';
 import ReactDatePicker from 'react-datepicker';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import PagesManage from './PagesManage';
+import PagesManage from './Pagesmanage';
 import Reviews from './Reviews';
 import Feedbacks from './Feedbacks';
 import Admins from './Admins';
