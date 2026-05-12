@@ -193,7 +193,7 @@
   "stepPassConnection": "عبور از نقطه اتصال {title}",
   "stepEnterNextSahn": "ورود به صحن بعدی از طریق نقطه اتصال {title}",
   "stepPassSahn": "عبور از {title}",
-  "stepPassDoor": "از درب شماره {name} عبور کنید و به صحن/ایوان {title} وارد شوید",
+  "stepPassDoor": "از {name} عبور کنید و به {title} بروید",
   "stepArriveDestination": "رسیدن به  {name}",
   "stepNumber": "گام {num}",
   "landmarkSuffix": "به سمت {name} بچرخید و {distance} متر به جلو بروید",

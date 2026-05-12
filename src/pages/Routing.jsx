@@ -747,8 +747,8 @@ const RoutingPage = () => {
     const stepName = step?.name || step?.title;
     const stepTitle = typeof step?.title === 'string' ? step.title.trim() : '';
 
+    if (typeof step?.instruction === 'string' && step.instruction.trim()) return step.instruction.trim();
     if (stepTitle) return stepTitle;
-    if (typeof step?.instruction === 'string' && step.instruction.trim()) return step.instruction;
     if (!step?.type) return '';
 
     return intl.formatMessage(
