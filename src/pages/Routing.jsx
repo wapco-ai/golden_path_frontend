@@ -992,10 +992,29 @@ const RoutingPage = () => {
   useEffect(() => {
     if (!routeSteps || routeSteps.length === 0 || !routeGeo) return;
     const coords = routeGeo.geometry.coordinates;
+    const toLngLat = (coord) => {
+      if (!Array.isArray(coord) || coord.length < 2) return null;
+
+      const [first, second] = coord;
+      if (!Number.isFinite(first) || !Number.isFinite(second)) return null;
+
+      const matchesRouteCoordinate = coords.some(([lng, lat]) => lng === first && lat === second);
+      if (matchesRouteCoordinate) return [first, second];
+
+      return [second, first];
+    };
+
+    const normalizeStepCoordinates = (stepCoordinates = []) => (Array.isArray(stepCoordinates) ? stepCoordinates : [])
+      .map(toLngLat)
+      .filter(Boolean);
+
     const getStepCoords = (stepIndex) => {
       const step = routeSteps[stepIndex];
       if (Array.isArray(step?.coordinates?.[0])) {
-        return step.coordinates;
+        const normalizedCoordinates = normalizeStepCoordinates(step.coordinates);
+        if (normalizedCoordinates.length >= 2) {
+          return normalizedCoordinates;
+        }
       }
       return coords.slice(stepIndex, stepIndex + 2);
     };
