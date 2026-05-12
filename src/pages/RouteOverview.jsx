@@ -677,8 +677,8 @@ const RouteOverview = () => {
       const stepTitle = step?.title || stepName || '';
       const hasServerInstruction = typeof step?.instruction === 'string' && step.instruction.trim().length > 0;
 
+      if (hasServerInstruction) return step.instruction.trim();
       if (stepTitle && step?.routeM !== undefined) return stepTitle.trim();
-      if (hasServerInstruction) return step.instruction;
       if (!step || !step.type) {
         return intl.formatMessage(
           { id: 'stepArriveDestination' },

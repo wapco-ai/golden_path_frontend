@@ -35,17 +35,72 @@ const buildRequestBody = ({ origin, destination, mode, gender, lang, maxAlternat
   };
 };
 
-const mapSteps = (steps = [], sahns = []) => {
-  const sahnTitles = Array.isArray(sahns)
-    ? sahns.map(sahn => sahn?.name).filter(Boolean)
-    : [];
+const normalizeStepsPayload = (steps = []) => {
+  if (Array.isArray(steps)) return steps;
+  if (!steps || typeof steps !== 'object') return [];
 
-  let sahnIndex = 0;
+  return Object.entries(steps)
+    .map(([key, value]) => ({
+      ...value,
+      __payloadOrder: Number.isFinite(Number(key)) ? Number(key) : Number.MAX_SAFE_INTEGER
+    }))
+    .sort((a, b) => {
+      const aOrder = Number.isFinite(Number(a?.stepOrder)) ? Number(a.stepOrder) : a.__payloadOrder;
+      const bOrder = Number.isFinite(Number(b?.stepOrder)) ? Number(b.stepOrder) : b.__payloadOrder;
+      return aOrder - bOrder;
+    });
+};
 
-  return steps
+const normalizePersianDoorName = (title = '', toAreaName = '') => {
+  const trimmedTitle = typeof title === 'string' ? title.trim() : '';
+  const trimmedArea = typeof toAreaName === 'string' ? toAreaName.trim() : '';
+
+  if (!trimmedTitle) return '';
+  if (!trimmedArea) return trimmedTitle;
+
+  const splitPattern = new RegExp(`\\s+به\\s+${trimmedArea.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
+  const exactAreaPrefix = trimmedArea.startsWith('صحن ') ? trimmedArea.replace(/^صحن\s+/, '') : trimmedArea;
+  const genericSplit = trimmedTitle.split(/\s+به\s+/);
+
+  if (splitPattern.test(trimmedTitle)) {
+    return trimmedTitle.replace(splitPattern, '').trim();
+  }
+
+  if (genericSplit.length > 1) {
+    return genericSplit.slice(0, -1).join(' به ').trim();
+  }
+
+  if (exactAreaPrefix && trimmedTitle.endsWith(exactAreaPrefix)) {
+    return trimmedTitle.slice(0, -exactAreaPrefix.length).trim();
+  }
+
+  return trimmedTitle;
+};
+
+const buildStepInstruction = (step, type, name, title) => {
+  if (typeof step?.instruction === 'string' && step.instruction.trim().length > 0) {
+    return step.instruction.trim();
+  }
+
+  if (type === 'stepPassDoor') {
+    const doorName = name || step?.title || '';
+    const areaName = step?.toAreaName || title || '';
+
+    if (doorName && areaName) {
+      return `از ${doorName} عبور کنید و به ${areaName} بروید`;
+    }
+  }
+
+  return '';
+};
+
+const mapSteps = (steps = []) => {
+  const normalizedSteps = normalizeStepsPayload(steps);
+
+  return normalizedSteps
     .filter(step => step?.coord?.lat != null && step?.coord?.lon != null)
-    .map((step, idx) => {
-      const nextStep = steps[idx + 1];
+    .map((step, idx, validSteps) => {
+      const nextStep = validSteps[idx + 1];
       const start = [Number(step.coord.lat), Number(step.coord.lon)];
       const end =
         nextStep?.coord?.lat != null && nextStep?.coord?.lon != null
@@ -53,8 +108,10 @@ const mapSteps = (steps = [], sahns = []) => {
           : start;
 
       let type = step.type;
-      let title = step.title;
-      let name = step.title || '';
+      const isDoorStep = step.type === 'stepPassDoor';
+      const doorName = isDoorStep ? normalizePersianDoorName(step.title, step.toAreaName) : '';
+      const title = isDoorStep && step.toAreaName ? step.toAreaName : step.title;
+      const name = isDoorStep ? (doorName || step.title || '') : (step.title || '');
 
       const isLegacyStartStep =
         idx === 0 &&
@@ -64,14 +121,6 @@ const mapSteps = (steps = [], sahns = []) => {
 
       if (isLegacyStartStep) {
         type = 'stepStart';
-      }
-
-      if (step.type === 'stepPassDoor' && sahnTitles.length > 0) {
-        const sahnName = sahnTitles[Math.min(sahnIndex, sahnTitles.length - 1)];
-        type = 'stepPassSahn';
-        title = sahnName || title;
-        name = sahnName || name;
-        sahnIndex += 1;
       }
 
       const landmarkCandidate =
@@ -92,13 +141,19 @@ const mapSteps = (steps = [], sahns = []) => {
         type,
         title,
         name,
+        originalTitle: step.title,
         coordinates: [start, end],
         landmark: landmarkCandidate,
         services: step.services || {},
-        instruction:
-          typeof step.instruction === 'string' && step.instruction.trim().length > 0
-            ? step.instruction.trim()
-            : ''
+        doorId: step.doorId ?? null,
+        edgeId: step.edgeId ?? null,
+        routeM: step.routeM,
+        stepOrder: step.stepOrder ?? idx + 1,
+        fromAreaId: step.fromAreaId ?? null,
+        toAreaId: step.toAreaId ?? null,
+        fromAreaName: step.fromAreaName || '',
+        toAreaName: step.toAreaName || '',
+        instruction: buildStepInstruction(step, type, name, title)
       };
     });
 };
@@ -127,7 +182,7 @@ const toGeoLine = (steps = []) => {
 
 const mapRoute = (route = {}, originName = '', destinationName = '') => {
   const sahns = route.sahns || route.viaPoints || [];
-  const steps = mapSteps(route.steps || [], sahns);
+  const steps = mapSteps(route.steps || []);
   const geo = toGeoLine(steps);
   const distanceMeters =
     typeof route.distanceMeters === 'number'

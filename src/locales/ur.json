@@ -192,7 +192,7 @@
   "stepPassConnection": "کنکشن پوائنٹ {title} سے گزریں",
   "stepEnterNextSahn": "{title} کنکشن کے ذریعے اگلے صحن میں داخل ہوں",
   "stepPassSahn": "{title} سے گزریں",
-  "stepPassDoor": "دروازہ نمبر {name} سے گزریں اور صحن/ایوان {title} میں داخل ہوں",
+  "stepPassDoor": "{name} سے گزریں اور {title} جائیں",
   "stepArriveDestination": "{name} پر پہنچیں",
   "stepNumber": "قدم {num}",
   "qrScanInstruction": "QR کوڈ کو فریم کے اندر رکھیں",
