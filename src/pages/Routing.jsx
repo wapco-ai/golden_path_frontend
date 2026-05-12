@@ -17,6 +17,7 @@ import ttsService from '../services/ttsService';
 import { requestRouting } from '../services/routingService';
 import { fetchLandmarkViewImage } from '../services/landmarkViewImageService';
 import { getSessionFloor } from '../utils/sessionFloor';
+import { buildRouteMSegments, getLineDistanceMeters, normalizeRouteMSteps } from '../utils/routeSegments';
 
 const RoutingPage = () => {
   const intl = useIntl();
@@ -674,14 +675,14 @@ const RoutingPage = () => {
     return (toDeg(Math.atan2(y, x)) + 360) % 360;
   }, [toDeg, toRad]);
 
-  const computeTurn = (b1, b2) => {
+  const computeTurn = useCallback((b1, b2) => {
     const diff = ((b1 - b2 + 540) % 360) - 180;
     const ad = Math.abs(diff);
     if (ad < 30) return 'up';
     if (ad > 150) return 'down';
     if (ad < 100) return diff > 0 ? 'left' : 'right';
     return diff > 0 ? 'bend-left' : 'bend-right';
-  };
+  }, []);
 
   const normalizeInstructionSteps = useCallback((steps = []) => {
     const normalizedStepStart = intl.formatMessage({ id: 'stepStart' }).trim();
@@ -741,6 +742,66 @@ const RoutingPage = () => {
 
     return null;
   }, []);
+
+  const resolveRouteMStepInstructionBase = useCallback((step, idx) => {
+    const stepName = step?.name || step?.title;
+    const stepTitle = typeof step?.title === 'string' ? step.title.trim() : '';
+
+    if (stepTitle) return stepTitle;
+    if (typeof step?.instruction === 'string' && step.instruction.trim()) return step.instruction;
+    if (!step?.type) return '';
+
+    return intl.formatMessage(
+      { id: step.type },
+      { name: stepName, title: step?.title, num: idx + 1 }
+    );
+  }, [intl]);
+
+  const buildDisplayStepFromRouteMSegment = useCallback((segment, idx, allSegments, routeCoords) => {
+    const step = segment.step;
+    const stepName = step?.name || step?.title;
+    const distance = getLineDistanceMeters(segment.coordinates);
+    const hasPrebuiltInstruction = typeof step?.instruction === 'string' && step.instruction.trim();
+    const base = resolveRouteMStepInstructionBase(step, idx + 1);
+    const landmarkName = resolveLandmarkName(step);
+    const roundedDistance = Math.round(distance);
+    const instruction = buildStepInstruction(base, landmarkName, roundedDistance, Boolean(hasPrebuiltInstruction));
+    let direction = 'arrived';
+    const nextSegment = allSegments[idx + 1];
+
+    if (nextSegment?.coordinates?.length >= 2 && segment.coordinates?.length >= 2) {
+      const b1 = bearing(
+        segment.coordinates[Math.max(segment.coordinates.length - 2, 0)],
+        segment.coordinates[segment.coordinates.length - 1]
+      );
+      const b2 = bearing(nextSegment.coordinates[0], nextSegment.coordinates[1]);
+      direction = computeTurn(b1, b2);
+    } else if (Array.isArray(routeCoords) && routeCoords.length >= 2 && idx < allSegments.length - 1) {
+      const b1 = bearing(segment.coordinates[0], segment.coordinates[segment.coordinates.length - 1]);
+      direction = computeTurn(b1, b1);
+    }
+
+    const durationSeconds = Math.max(1, Math.round(distance));
+
+    return {
+      id: idx + 1,
+      type: step?.type,
+      title: step?.title,
+      name: stepName,
+      instruction,
+      distance: `${Math.round(distance)} ${intl.formatMessage({ id: 'meters' })}`,
+      time: formatDurationFromSeconds(durationSeconds),
+      durationSeconds,
+      coordinates: segment.coordinates,
+      fromM: segment.fromM,
+      toM: segment.toM,
+      routeStep: step,
+      doorId: step?.doorId ?? null,
+      landmark: landmarkName,
+      services: step?.services || {},
+      direction
+    };
+  }, [bearing, buildStepInstruction, computeTurn, formatDurationFromSeconds, intl, resolveLandmarkName, resolveRouteMStepInstructionBase]);
 
   const resolveStepHeading = useCallback((step, stepIndex) => {
     if (Number.isFinite(step?.heading)) {
@@ -1005,7 +1066,11 @@ const RoutingPage = () => {
       console.warn('failed to read stored route summary', err);
     }
 
-    const displaySteps = normalizeInstructionSteps(steps);
+    const routeMSegments = buildRouteMSegments(routeSteps, coords);
+    const displaySteps = routeMSegments.length
+      ? routeMSegments.map((segment, idx) => buildDisplayStepFromRouteMSegment(segment, idx, routeMSegments, coords))
+      : normalizeInstructionSteps(steps);
+    const routeInstructionSteps = routeMSegments.length ? normalizeRouteMSteps(routeSteps) : displaySteps;
     const totalMinutes = summaryMinutes || calculateTotalTime(displaySteps);
     const totalDistance = summaryDistance ||
       displaySteps.reduce((acc, st) => acc + parseInt(st.distance), 0);
@@ -1060,7 +1125,10 @@ const RoutingPage = () => {
           direction
         };
       });
-      const displayAltSteps = normalizeInstructionSteps(altSteps);
+      const altRouteMSegments = buildRouteMSegments(alt.steps, altCoords);
+      const displayAltSteps = altRouteMSegments.length
+        ? altRouteMSegments.map((segment, idx) => buildDisplayStepFromRouteMSegment(segment, idx, altRouteMSegments, altCoords))
+        : normalizeInstructionSteps(altSteps);
       const minutes = calculateTotalTime(displayAltSteps);
       const distTot = displayAltSteps.reduce((acc, st) => acc + parseInt(st.distance), 0);
       return {
@@ -1078,6 +1146,7 @@ const RoutingPage = () => {
 
     setRouteData({
       steps: displaySteps,
+      instructionSteps: routeInstructionSteps,
       totalTime: formattedTotalTime,
       arrivalTime,
       totalDistance: `${totalDistance} ${intl.formatMessage({ id: 'meters' })}`,
@@ -1097,7 +1166,7 @@ const RoutingPage = () => {
     } catch (err) {
       console.warn('failed to persist route summary', err);
     }
-  }, [routeSteps, routeGeo, alternativeRoutes, transportMode, resolveLandmarkName, formatDurationFromSeconds, calculateTotalTime, buildStepInstruction, normalizeInstructionSteps]);
+  }, [routeSteps, routeGeo, alternativeRoutes, transportMode, resolveLandmarkName, formatDurationFromSeconds, calculateTotalTime, buildStepInstruction, normalizeInstructionSteps, buildDisplayStepFromRouteMSegment, intl, bearing, computeTurn]);
 
 
   // Update arrival time every minute

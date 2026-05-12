@@ -12,6 +12,7 @@ import { useLangStore } from '../../store/langStore';
 import { createHaramVectorTileConfig } from '../../config/vectorTiles';
 import voyagerBaseMapStyle from '../../services/osmMapStyle';
 import { MBTILES_SATELLITE_STYLE } from '../../services/mbtilesMapStyle';
+import { sliceLineByFraction } from '../../utils/routeSegments';
 
 import { forwardRef, useImperativeHandle } from 'react';
 
@@ -210,14 +211,23 @@ const RouteMap = forwardRef(({
       return;
     }
 
-    // Simple approach: each step corresponds to moving forward in the coordinates
-    let traveledIndex = currentStep + 1;
-    
-    // Make sure we don't go out of bounds
-    traveledIndex = Math.max(1, Math.min(traveledIndex, coords.length));
-    
-    const traveledCoords = coords.slice(0, traveledIndex);
-    const remainingCoords = coords.slice(traveledIndex - 1);
+    const activeSegment = routeSteps[currentStep];
+    const hasRouteM = Number.isFinite(activeSegment?.fromM) && Number.isFinite(activeSegment?.toM);
+    let traveledCoords;
+    let remainingCoords;
+
+    if (hasRouteM) {
+      traveledCoords = sliceLineByFraction(coords, 0, activeSegment.fromM);
+      remainingCoords = sliceLineByFraction(coords, activeSegment.fromM, 1);
+    } else {
+      // Fallback for legacy routes without routeM: keep the previous index-based split.
+      let traveledIndex = currentStep + 1;
+
+      traveledIndex = Math.max(1, Math.min(traveledIndex, coords.length));
+
+      traveledCoords = coords.slice(0, traveledIndex);
+      remainingCoords = coords.slice(traveledIndex - 1);
+    }
 
     if (traveledCoords.length >= 2) {
       setTraveledRouteGeo({
@@ -329,24 +339,27 @@ const RouteMap = forwardRef(({
 
   // Zoom to current segment when step changes
   useEffect(() => {
-    if (
-      mapRef.current &&
-      routeGeo &&
-      currentStep < routeGeo.geometry.coordinates.length - 1
-    ) {
-      const start = routeGeo.geometry.coordinates[currentStep];
-      const end = routeGeo.geometry.coordinates[currentStep + 1];
-      const bounds = new maplibregl.LngLatBounds(
-        [start[0], start[1]],
-        [start[0], start[1]]
-      );
-      bounds.extend([end[0], end[1]]);
-      const dist = Math.hypot(end[0] - start[0], end[1] - start[1]) * 100000;
-      const options = { padding: 80, duration: 700 };
-      if (dist < 50) options.maxZoom = 17;
-      mapRef.current.fitBounds(bounds, options);
-    }
-  }, [currentStep, routeGeo]);
+    if (!mapRef.current || !routeGeo) return;
+
+    const activeSegment = routeSteps?.[currentStep];
+    const segmentCoords = activeSegment?.coordinates?.length >= 2
+      ? activeSegment.coordinates
+      : routeGeo.geometry.coordinates.slice(currentStep, currentStep + 2);
+
+    if (!segmentCoords || segmentCoords.length < 2) return;
+
+    const bounds = new maplibregl.LngLatBounds(
+      [segmentCoords[0][0], segmentCoords[0][1]],
+      [segmentCoords[0][0], segmentCoords[0][1]]
+    );
+    segmentCoords.forEach(([lng, lat]) => bounds.extend([lng, lat]));
+    const start = segmentCoords[0];
+    const end = segmentCoords[segmentCoords.length - 1];
+    const dist = Math.hypot(end[0] - start[0], end[1] - start[1]) * 100000;
+    const options = { padding: 80, duration: 700 };
+    if (dist < 50) options.maxZoom = 17;
+    mapRef.current.fitBounds(bounds, options);
+  }, [currentStep, routeGeo, routeSteps]);
 
   // Fit map to the full route when a new route is loaded
   useEffect(() => {
