@@ -56,11 +56,6 @@ const RouteMap = forwardRef(({
     ? userLocation
     : [36.297, 59.606];
 
-  const isValidStepCoordinates = (step) => Array.isArray(step?.coordinates)
-    && step.coordinates.length === 2
-    && Number.isFinite(step.coordinates[0])
-    && Number.isFinite(step.coordinates[1]);
-
   const getStepCoordinate = (step) => {
     if (!step?.coordinates) return null;
 
@@ -492,15 +487,20 @@ const RouteMap = forwardRef(({
       )}
 
       {/* Destination marker */}
-      {routeSteps && routeSteps.length > 0 && isValidStepCoordinates(routeSteps[routeSteps.length - 1]) && (
-        <Marker
-          longitude={routeSteps[routeSteps.length - 1].coordinates[1]}
-          latitude={routeSteps[routeSteps.length - 1].coordinates[0]}
-          anchor="bottom"
-        >
-          <DestinationPin />
-        </Marker>
-      )}
+      {routeSteps && routeSteps.length > 0 && (() => {
+        const destinationCoordinate = getStepCoordinate(routeSteps[routeSteps.length - 1]);
+        if (!destinationCoordinate) return null;
+
+        return (
+          <Marker
+            longitude={destinationCoordinate[0]}
+            latitude={destinationCoordinate[1]}
+            anchor="bottom"
+          >
+            <DestinationPin />
+          </Marker>
+        );
+      })()}
 
       {is3DView && routeSteps && routeSteps.map((step) => {
         const landmarkLabel = getStepLandmark(step);
