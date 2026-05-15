@@ -43,7 +43,7 @@ import {
   layerEditSettings
 } from '../config/vectorTiles';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
-import { bulkOpenCloseDoors, createDoor, deleteDoor, getDoorInfo, moveDoor, updateDoorInfo } from '../services/adminDoorsService';
+import { bulkOpenCloseDoors, createDoor, deleteDoor, getDoorInfo, moveDoor, pollDoorGraphStatus, updateDoorInfo } from '../services/adminDoorsService';
 import { deleteArea, getAreaInfo, listAreas, moveArea, updateAreaInfo } from '../services/adminAreasService';
 import { convertLngLatToUtm32640 } from '../utils/utm';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
@@ -857,8 +857,10 @@ const Amain = () => {
   });
   const [contextRouteGeoData, setContextRouteGeoData] = useState({ type: 'FeatureCollection', features: [] });
   const [isContextRoutingLoading, setIsContextRoutingLoading] = useState(false);
+  const [graphJobsByDoorId, setGraphJobsByDoorId] = useState({});
   const mapRef = useRef(null);
   const contextRouteRequestAbortRef = useRef(null);
+  const doorGraphPollingControllersRef = useRef(new Map());
   const layerTileRefreshGuardRef = useRef(new Map());
   const lastSelectedFeatureJsonRef = useRef('');
   useEffect(() => {
@@ -1309,6 +1311,119 @@ const Amain = () => {
 
     layerIdsToRefresh.forEach((layerId) => refreshLayerTiles(layerId));
   }, [activeEditableLayerId, refreshLayerTiles]);
+
+  const updateDoorGraphJobState = useCallback((doorId, patch) => {
+    if (!doorId) return;
+
+    setGraphJobsByDoorId((current) => ({
+      ...current,
+      [doorId]: {
+        ...(current[doorId] || {}),
+        ...patch,
+        updatedAt: patch.updatedAt || patch.updated_at || new Date().toISOString()
+      }
+    }));
+  }, []);
+
+  const startDoorGraphPolling = useCallback((doorId, initialGraph = {}) => {
+    if (!doorId) return;
+
+    const normalizedDoorId = String(doorId);
+    if (doorGraphPollingControllersRef.current.has(normalizedDoorId)) {
+      updateDoorGraphJobState(normalizedDoorId, {
+        status: initialGraph.status || 'queued',
+        error: null,
+        updatedAt: initialGraph.updated_at || initialGraph.updatedAt
+      });
+      return;
+    }
+
+    const abortController = new AbortController();
+    doorGraphPollingControllersRef.current.set(normalizedDoorId, abortController);
+    updateDoorGraphJobState(normalizedDoorId, {
+      status: initialGraph.status || 'queued',
+      error: null,
+      updatedAt: initialGraph.updated_at || initialGraph.updatedAt
+    });
+
+    pollDoorGraphStatus(normalizedDoorId, {
+      intervalMs: 3000,
+      timeoutMs: 300000,
+      signal: abortController.signal,
+      onStatus: (graph) => {
+        updateDoorGraphJobState(normalizedDoorId, {
+          status: graph?.status || 'unknown',
+          error: null,
+          updatedAt: graph?.updated_at || graph?.updatedAt
+        });
+      },
+      onDone: (graph) => {
+        updateDoorGraphJobState(normalizedDoorId, {
+          status: 'ready',
+          error: null,
+          updatedAt: graph?.updated_at || graph?.updatedAt
+        });
+        toast.success('گراف مسیر‌یابی بروزرسانی شد.');
+        refreshActiveEditableLayerTiles(DOOR_ACCESS_LAYER_ID);
+      },
+      onFailed: (graph) => {
+        updateDoorGraphJobState(normalizedDoorId, {
+          status: graph?.status || 'failed',
+          error: graph?.message || 'بروزرسانی گراف ناموفق بود.',
+          updatedAt: graph?.updated_at || graph?.updatedAt
+        });
+        toast.warning('درب ثبت شد، اما بروزرسانی گراف ناموفق بود. لطفاً بازسازی گراف را دوباره اجرا کنید.');
+      }
+    }).catch((error) => {
+      if (error?.name === 'AbortError' || abortController.signal.aborted) return;
+
+      updateDoorGraphJobState(normalizedDoorId, {
+        status: 'unknown',
+        error: error?.message || 'دریافت وضعیت گراف ناموفق بود.'
+      });
+    }).finally(() => {
+      if (doorGraphPollingControllersRef.current.get(normalizedDoorId) === abortController) {
+        doorGraphPollingControllersRef.current.delete(normalizedDoorId);
+      }
+    });
+  }, [refreshActiveEditableLayerTiles, updateDoorGraphJobState]);
+
+  const handleSuccessfulDoorGraphMutation = useCallback((response, fallbackMessage = 'درب با موفقیت ثبت شد') => {
+    const doorId = response?.door?.id || response?.door_id || response?.id || null;
+    const graphStatus = response?.graph_status || response?.graph?.status || null;
+    const shouldTrackGraph = Boolean(doorId && (graphStatus === 'queued' || response?.door?.id));
+
+    toast.success(
+      shouldTrackGraph
+        ? 'درب ثبت شد. بروزرسانی گراف در حال انجام است و تا چند لحظه دیگر در مسیریابی اعمال می‌شود.'
+        : (response?.message || fallbackMessage)
+    );
+
+    if (shouldTrackGraph) {
+      startDoorGraphPolling(doorId, {
+        status: graphStatus || 'queued',
+        updated_at: response?.graph?.updated_at
+      });
+    }
+
+    return { doorId, shouldTrackGraph };
+  }, [startDoorGraphPolling]);
+
+  const handleDoorMutationError = useCallback((error, fallbackMessage) => {
+    if (error?.response?.status === 504) {
+      toast.warning('درخواست ثبت شد یا در حال پردازش است، اما پاسخ سرور دیر رسید. لطفاً وضعیت درب را دوباره بررسی کنید.');
+      refreshActiveEditableLayerTiles(DOOR_ACCESS_LAYER_ID);
+      return true;
+    }
+
+    toast.error(getApiErrorMessage(error, fallbackMessage));
+    return false;
+  }, [refreshActiveEditableLayerTiles]);
+
+  const hasUpdatingDoorGraphJobs = useMemo(
+    () => Object.values(graphJobsByDoorId).some((job) => ['queued', 'rebuilding', 'unknown'].includes(job?.status)),
+    [graphJobsByDoorId]
+  );
   useEffect(() => {
     const mappedSubMenu = editableLayerActionMenuMap[activeEditableLayer?.id];
     if (typeof mappedSubMenu === 'number') {
@@ -5504,6 +5619,11 @@ const Amain = () => {
   const requestContextRouting = useCallback(async (originPoint, destinationPoint) => {
     if (!originPoint || !destinationPoint) return;
 
+    if (hasUpdatingDoorGraphJobs) {
+      toast.info('گراف هنوز آماده نیست؛ لطفاً پس از پایان بروزرسانی گراف دوباره مسیریابی کنید.');
+      return;
+    }
+
     if (contextRouteRequestAbortRef.current) {
       contextRouteRequestAbortRef.current.abort();
     }
@@ -5565,7 +5685,7 @@ const Amain = () => {
       }
       setIsContextRoutingLoading(false);
     }
-  }, [buildContextPointFeature, mapLanguage]);
+  }, [buildContextPointFeature, hasUpdatingDoorGraphJobs, mapLanguage]);
 
   const activeLayerTitle = activeEditableLayer?.titleFa
     || activeEditableLayer?.label
@@ -6695,6 +6815,21 @@ const Amain = () => {
   }, []);
 
   useEffect(() => {
+    if (activeMenu === 'mapmanage') return undefined;
+
+    doorGraphPollingControllersRef.current.forEach((controller) => controller.abort());
+    doorGraphPollingControllersRef.current.clear();
+    setGraphJobsByDoorId({});
+
+    return undefined;
+  }, [activeMenu]);
+
+  useEffect(() => () => {
+    doorGraphPollingControllersRef.current.forEach((controller) => controller.abort());
+    doorGraphPollingControllersRef.current.clear();
+  }, []);
+
+  useEffect(() => {
     if (!contextRouteSelection.origin || !contextRouteSelection.destination) return;
 
     requestContextRouting(contextRouteSelection.origin, contextRouteSelection.destination);
@@ -7079,6 +7214,8 @@ const Amain = () => {
       }
 
       if (isDoorMoveMode && activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && selectedDoorId) {
+        let shouldKeepDoorMoveMode = false;
+
         try {
           const floor = floorLabelToValue(mapFloor);
           const { x, y } = convertLngLatToUtm32640({ lng: lngLat.lng, lat: lngLat.lat });
@@ -7106,11 +7243,13 @@ const Amain = () => {
 
           setSelectedEditableFeature(movedFeature);
           refreshActiveEditableLayerTiles();
-          toast.success(moveResponse?.message || 'درب با موفقیت جابجا شد');
+          handleSuccessfulDoorGraphMutation(moveResponse, 'درب با موفقیت جابجا شد');
         } catch (error) {
-          toast.error(error?.message || 'جابجایی درب ناموفق بود');
+          shouldKeepDoorMoveMode = handleDoorMutationError(error, 'جابجایی درب ناموفق بود');
         } finally {
-          setIsDoorMoveMode(false);
+          if (!shouldKeepDoorMoveMode) {
+            setIsDoorMoveMode(false);
+          }
         }
         return;
       }
@@ -9009,6 +9148,7 @@ const Amain = () => {
     }
 
     const floor = floorLabelToValue(mapFloor);
+    let shouldKeepDoorDraft = false;
 
     try {
       setIsCreatingDoor(true);
@@ -9031,23 +9171,26 @@ const Amain = () => {
       const newDoorId = response?.door?.id || null;
       const newAccessPointId = response?.door_access_point?.id || null;
 
-      toast.success('درب جدید با موفقیت ثبت شد');
+      handleSuccessfulDoorGraphMutation(response, 'درب جدید با موفقیت ثبت شد');
       console.log('door creation response', response);
       await openDoorInfoModal(newDoorId, newAccessPointId, false);
 
       refreshActiveEditableLayerTiles();
     } catch (error) {
-      toast.error(error?.message || 'ثبت درب ناموفق بود');
+      shouldKeepDoorDraft = handleDoorMutationError(error, 'ثبت درب ناموفق بود');
     } finally {
       setIsCreatingDoor(false);
-      setIsLocationMarkerMode(false);
 
-      if (locationMarker) {
-        locationMarker.remove();
-        setLocationMarker(null);
+      if (!shouldKeepDoorDraft) {
+        setIsLocationMarkerMode(false);
+
+        if (locationMarker) {
+          locationMarker.remove();
+          setLocationMarker(null);
+        }
+
+        setSelectedLocation(null);
       }
-
-      setSelectedLocation(null);
     }
   };
 
@@ -9396,7 +9539,13 @@ const Amain = () => {
         } else {
           setIsSavingDoorInfo(true);
           const response = await updateDoorInfo(lastCreatedDoorId, payload);
-          toast.success(response?.message || 'اطلاعات مکان با موفقیت ثبت شد');
+          handleSuccessfulDoorGraphMutation({
+            ...response,
+            door: {
+              ...(response?.door || {}),
+              id: response?.door?.id || lastCreatedDoorId
+            }
+          }, 'اطلاعات مکان با موفقیت ثبت شد');
         }
         refreshActiveEditableLayerTiles();
         setIsAddPlaceModalOpen(false);
@@ -9406,7 +9555,11 @@ const Amain = () => {
         const defaultMessage = isAreaLayerActive
           ? 'ثبت اطلاعات محدوده ناموفق بود'
           : 'ثبت اطلاعات مکان ناموفق بود';
-        toast.error(getApiErrorMessage(error, defaultMessage));
+        if (isAreaLayerActive) {
+          toast.error(getApiErrorMessage(error, defaultMessage));
+        } else {
+          handleDoorMutationError(error, defaultMessage);
+        }
       } finally {
         if (isAreaLayerActive) {
           setIsSavingAreaInfo(false);
@@ -12502,9 +12655,9 @@ const Amain = () => {
                         <button
                           type="button"
                           onClick={() => handleMapContextAction('set-destination')}
-                          disabled={isContextRoutingLoading}
+                          disabled={isContextRoutingLoading || hasUpdatingDoorGraphJobs}
                         >
-                          {isContextRoutingLoading ? 'در حال محاسبه مسیر...' : 'انتخاب مقصد و مسیریابی'}
+                          {hasUpdatingDoorGraphJobs ? 'گراف هنوز آماده نیست' : (isContextRoutingLoading ? 'در حال محاسبه مسیر...' : 'انتخاب مقصد و مسیریابی')}
                         </button>
                       </>
                     )}
@@ -12512,9 +12665,9 @@ const Amain = () => {
                       <button
                         type="button"
                         onClick={() => handleMapContextAction('reroute-last')}
-                        disabled={isContextRoutingLoading}
+                        disabled={isContextRoutingLoading || hasUpdatingDoorGraphJobs}
                       >
-                        مسیریابی مجدد مبدا/مقصد قبلی
+                        {hasUpdatingDoorGraphJobs ? 'گراف هنوز آماده نیست' : 'مسیریابی مجدد مبدا/مقصد قبلی'}
                       </button>
                     )}
                     {(contextRouteSelection.origin || contextRouteSelection.destination) && (
@@ -12522,6 +12675,25 @@ const Amain = () => {
                         پاک کردن مسیر
                       </button>
                     )}
+                  </div>
+                )}
+
+                {Object.keys(graphJobsByDoorId).length > 0 && (
+                  <div className="door-graph-status-panel" aria-live="polite">
+                    {Object.entries(graphJobsByDoorId).map(([doorId, job]) => {
+                      const statusLabel = job?.status === 'ready'
+                        ? 'گراف آماده است'
+                        : job?.status === 'failed'
+                          ? 'بروزرسانی گراف ناموفق بود'
+                          : 'بروزرسانی گراف...';
+
+                      return (
+                        <div key={doorId} className={`door-graph-status-badge status-${job?.status || 'unknown'}`}>
+                          <span className="door-graph-status-dot" />
+                          <span>درب {doorId}: {statusLabel}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 

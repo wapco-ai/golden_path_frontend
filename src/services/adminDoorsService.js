@@ -41,6 +41,75 @@ export const moveDoor = async (id, { x, y, floor }, { signal } = {}) => {
   return response.data;
 };
 
+export const getDoorGraphStatus = async (id, { signal } = {}) => {
+  const response = await apiAdmin.get(`${DOORS_BASE_URL}/${id}/graph-status`, { signal });
+  return response.data;
+};
+
+const createAbortError = () => {
+  const error = new Error('Polling aborted');
+  error.name = 'AbortError';
+  return error;
+};
+
+const waitForDoorGraphPollInterval = (intervalMs, signal) => new Promise((resolve, reject) => {
+  if (signal?.aborted) {
+    reject(createAbortError());
+    return;
+  }
+
+  const handleAbort = () => {
+    clearTimeout(timeoutId);
+    reject(createAbortError());
+  };
+
+  const timeoutId = setTimeout(() => {
+    signal?.removeEventListener('abort', handleAbort);
+    resolve();
+  }, intervalMs);
+
+  signal?.addEventListener('abort', handleAbort, { once: true });
+});
+
+export async function pollDoorGraphStatus(doorId, {
+  intervalMs = 3000,
+  timeoutMs = 300000,
+  signal,
+  onStatus,
+  onDone,
+  onFailed
+} = {}) {
+  const startedAt = Date.now();
+
+  while (!signal?.aborted) {
+    if (Date.now() - startedAt > timeoutMs) {
+      onFailed?.({
+        status: 'timeout',
+        message: 'بروزرسانی گراف بیش از حد طول کشید.'
+      });
+      return;
+    }
+
+    const result = await getDoorGraphStatus(doorId, { signal });
+    const graph = result?.graph || {};
+    const status = graph.status || 'unknown';
+
+    onStatus?.({ ...graph, status });
+
+    if (status === 'ready') {
+      onDone?.({ ...graph, status });
+      return;
+    }
+
+    if (status === 'failed') {
+      onFailed?.({ ...graph, status });
+      return;
+    }
+
+    await waitForDoorGraphPollInterval(intervalMs, signal);
+  }
+}
+
 export const deleteDoor = async (id, { signal } = {}) => {
   const response = await apiAdmin.delete(`${DOORS_BASE_URL}/${id}`, { signal });
   return response.data;
