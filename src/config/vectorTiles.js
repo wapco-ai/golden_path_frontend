@@ -207,7 +207,7 @@ const buildHaramVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     sourceLayer: AREAS_VECTOR_LAYER_NAME,
     tileUrlFactory: buildAreasTileUrlFactory(tileLang),
     type: 'line',
-    minzoom: 14,
+    minzoom: 12,
     maxzoom: 22,
     visibleByDefault: true,
     paint: {
@@ -227,7 +227,7 @@ const buildHaramVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     sourceLayer: 'areas',
     tileUrlFactory: buildAreasTileUrlFactory(tileLang),
     type: 'fill',
-    minzoom: 14,
+    minzoom: 12,
     maxzoom: 22,
     visibleByDefault: false,
     paint: {
@@ -251,7 +251,7 @@ const buildHaramVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     sourceLayer: AREAS_VECTOR_LAYER_NAME,  // همون
     tileUrlFactory: buildAreasTileUrlFactory(tileLang),
     type: 'symbol',
-    minzoom: 15,
+    minzoom: 12,
     maxzoom: 22,
     visibleByDefault: true,
     layout: {
@@ -284,7 +284,7 @@ const buildHaramVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     sourceLayer: DOORS_ACCESS_POINT_SOURCE_LAYER,
     tileUrlFactory: buildDoorAccessPointsTileUrlFactory(),
     type: 'circle',
-    minzoom: 15,
+    minzoom: 12,
     maxzoom: 22,
     visibleByDefault: true,
     paint: {
@@ -302,7 +302,7 @@ const buildHaramVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     sourceLayer: DOORS_VECTOR_LAYER_NAME,
     tileUrlFactory: buildDoorsTileUrlFactory(),
     type: 'line',
-    minzoom: 15,
+    minzoom: 12,
     maxzoom: 22,
     visibleByDefault: true,
     paint: {
@@ -328,7 +328,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
       sourceLayer: AREAS_VECTOR_LAYER_NAME,
       tileUrlFactory: buildAreasTileUrlFactory(tileLang),
       type: 'line',
-      minzoom: 14,
+      minzoom: 10,
       maxzoom: 22,
       visibleByDefault: true,
       paint: {
@@ -348,7 +348,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     sourceLayer: AREAS_VECTOR_LAYER_NAME,  // همون
     tileUrlFactory: buildAreasTileUrlFactory(tileLang),
     type: 'symbol',
-    minzoom: 15,
+    minzoom: 12,
     maxzoom: 22,
     visibleByDefault: false,
     layout: {
@@ -381,7 +381,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     sourceLayer: TEMP_AREAS_VECTOR_LAYER_NAME,
     tileUrlFactory: buildTempAreasTileUrlFactory(tileLang),
     type: 'line',
-    minzoom: 14,
+    minzoom: 12,
     maxzoom: 22,
     visibleByDefault: true,
     paint: {
@@ -401,7 +401,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     sourceLayer: DOORS_VECTOR_LAYER_NAME,
     tileUrlFactory: buildDoorsTileUrlFactory(),
     type: 'line',
-    minzoom: 15,
+    minzoom: 12,
     maxzoom: 22,
     visibleByDefault: true,
     paint: {
@@ -417,11 +417,11 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     sourceLayer: ROUTING_EDGES_STATIC_SOURCE_LAYER,
     tileUrl: ROUTING_EDGES_STATIC_BASE,
     type: 'line',
-    minzoom: 15,
+    minzoom: 12,
     maxzoom: 22,
     visibleByDefault: false,
     paint: {
-      'line-color': '#ffddcc',
+      'line-color': '#f50e0e',
       'line-width': 0.55
     },
     layout: {
@@ -437,7 +437,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     sourceLayer: VAN_EDGES_VECTOR_LAYER_NAME,
     tileUrlFactory: buildVanEdgesTileUrlFactory(),
     type: 'line',
-    minzoom: 15,
+    minzoom: 12,
     maxzoom: 22,
     visibleByDefault: true,
     paint: {
@@ -457,7 +457,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     sourceLayer: VAN_NODES_VECTOR_LAYER_NAME,
     tileUrlFactory: buildVanNodesTileUrlFactory(),
     type: 'circle',
-    minzoom: 15,
+    minzoom: 12,
     maxzoom: 22,
     visibleByDefault: true,
     paint: {
@@ -475,7 +475,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     sourceLayer: DOORS_ACCESS_POINT_LAYER_NAME,
     tileUrlFactory: buildDoorAccessPointsTileUrlFactory(),
     type: 'circle',
-    minzoom: 15,
+    minzoom: 12,
     maxzoom: 22,
     visibleByDefault: true,
     paint: {

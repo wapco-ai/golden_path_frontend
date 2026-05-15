@@ -180,10 +180,56 @@ const toGeoLine = (steps = []) => {
     : null;
 };
 
+
+const normalizeGeoFeature = (route = {}) => {
+  const rawGeo =
+    route.geo ||
+    route.routeGeo ||
+    route.route_geo ||
+    null;
+
+  if (rawGeo?.type === 'Feature' && rawGeo?.geometry?.coordinates?.length) {
+    return rawGeo;
+  }
+
+  const rawGeometry =
+    route.geometry ||
+    route.geom ||
+    route.routeGeometry ||
+    route.route_geometry ||
+    null;
+
+  if (rawGeometry?.type && rawGeometry?.coordinates?.length) {
+    return {
+      type: 'Feature',
+      geometry: rawGeometry,
+      properties: {}
+    };
+  }
+
+  if (typeof rawGeometry === 'string') {
+    try {
+      const parsed = JSON.parse(rawGeometry);
+      if (parsed?.type && parsed?.coordinates?.length) {
+        return {
+          type: 'Feature',
+          geometry: parsed,
+          properties: {}
+        };
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+};
+
+
 const mapRoute = (route = {}, originName = '', destinationName = '') => {
   const sahns = route.sahns || route.viaPoints || [];
   const steps = mapSteps(route.steps || []);
-  const geo = toGeoLine(steps);
+  const geo = normalizeGeoFeature(route) || toGeoLine(steps);
   const distanceMeters =
     typeof route.distanceMeters === 'number'
       ? route.distanceMeters
