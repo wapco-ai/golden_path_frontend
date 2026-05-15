@@ -11638,3 +11638,75 @@ body {
 }
 
 
+
+.door-graph-status-panel {
+  position: absolute;
+  right: 18px;
+  bottom: 26px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(360px, calc(100% - 36px));
+  direction: rtl;
+  pointer-events: none;
+}
+
+.door-graph-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.86);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+.door-graph-status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.18);
+}
+
+.door-graph-status-badge.status-queued .door-graph-status-dot,
+.door-graph-status-badge.status-rebuilding .door-graph-status-dot,
+.door-graph-status-badge.status-unknown .door-graph-status-dot {
+  animation: doorGraphPulse 1.15s ease-in-out infinite;
+}
+
+.door-graph-status-badge.status-ready {
+  background: rgba(22, 101, 52, 0.9);
+}
+
+.door-graph-status-badge.status-ready .door-graph-status-dot {
+  background: #86efac;
+  box-shadow: 0 0 0 4px rgba(134, 239, 172, 0.2);
+}
+
+.door-graph-status-badge.status-failed,
+.door-graph-status-badge.status-timeout {
+  background: rgba(146, 64, 14, 0.92);
+}
+
+.door-graph-status-badge.status-failed .door-graph-status-dot,
+.door-graph-status-badge.status-timeout .door-graph-status-dot {
+  background: #fbbf24;
+  box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.22);
+}
+
+@keyframes doorGraphPulse {
+  0%, 100% {
+    transform: scale(0.9);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 1;
+  }
+}
