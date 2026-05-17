@@ -11071,13 +11071,11 @@ const Amain = () => {
           ) : isEditingCultural && editingCulturalData ? (
             /* Edit Cultural Information Page */
             <div className="edit-cultural-page">
-
-              {/* Edit Form Container */}
               <div className="edit-form-container">
 
-
-                {/* Left Side - Form Fields */}
+                {/* Right Side - Form Fields */}
                 <div className="edit-right-section">
+
                   {/* Title and Details */}
                   <div className="edit-form-section">
                     <h3 className="edit-form-title">عنوان و جزئیات</h3>
@@ -11106,17 +11104,6 @@ const Amain = () => {
                         </button>
                       </div>
                     </div>
-                    {/* 
-                    <div className="edit-form-group">
-                      <label className="edit-form-label">شناسه POI</label>
-                      <input
-                        type="number"
-                        className="edit-form-input"
-                        placeholder="شناسه POI را وارد کنید"
-                        value={culturalPoiId}
-                        onChange={(e) => setCulturalPoiId(e.target.value)}
-                      />
-                    </div> */}
 
                     <div className="edit-form-group">
                       <label className="edit-form-label">توضیحات</label>
@@ -11131,7 +11118,7 @@ const Amain = () => {
                         <button
                           className="language-input-btn15"
                           type="button"
-                          onClick={() => setIsDescriptionLanguageModalOpen(true)}  // Only for description
+                          onClick={() => setIsDescriptionLanguageModalOpen(true)}
                           title="ورود توضیحات به زبان‌های دیگر"
                         >
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -11185,7 +11172,6 @@ const Amain = () => {
                       </select>
                     </div>
 
-                    {/* map section is */}
                     <div className="edit-form-group">
                       <label className="edit-form-label">موقعیت جغرافیایی</label>
                       <div className="edit-map-container">
@@ -11201,12 +11187,10 @@ const Amain = () => {
                         <button
                           className="select-location-btn-edit"
                           onClick={() => {
-                            // Reinitialize the map if it doesn't exist
                             const isEditMapInstance = culturalMap?.getContainer?.()?.id === 'edit-cultural-map-container';
                             if (isEditingCultural && editingCulturalData && (!culturalMap || !isEditMapInstance)) {
                               initializeEditMap();
                             } else if (selectedLocation) {
-                              // Focus on current location
                               culturalMap.flyTo({
                                 center: [selectedLocation.lng, selectedLocation.lat],
                                 zoom: 16
@@ -11220,18 +11204,14 @@ const Amain = () => {
                     </div>
                   </div>
 
-
+                  {/* Restrictions Section */}
                   <div className="edit-form-section">
                     <h3 className="edit-form-title">محدودیت‌های اعمال شده</h3>
 
-                    {/* Time-based Restrictions */}
                     <div className="edit-restrictions-section">
                       <div className="edit-restriction-header">
                         <span className="edit-restriction-title">محدودیت‌های اعمال شده بر این مکان بر اساس روز، ساعت و جنسیت</span>
-                        <button
-                          className="add-restriction-btn"
-                          onClick={handleOpenRestrictionModal}
-                        >
+                        <button className="add-restriction-btn" onClick={handleOpenRestrictionModal}>
                           افزودن محدودیت
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#1E2023" />
@@ -11256,17 +11236,13 @@ const Amain = () => {
                                   ))}
                                 </span>
                               </div>
-                              <button
-                                className="remove-restriction-display-btn"
-                                onClick={() => removeCulturalRestriction(index)}
-                              >
+                              <button className="remove-restriction-display-btn" onClick={() => removeCulturalRestriction(index)}>
                                 <svg width="75" height="32" viewBox="0 0 75 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                                   <rect x="0.5" y="0.5" width="74" height="31" rx="5.5" stroke="#EA4335" />
                                   <path fillRule="evenodd" clipRule="evenodd" d="M15.4099 13.1678C15.6855 13.1494 15.9237 13.3579 15.9421 13.6334L16.2487 18.2328C16.3086 19.1314 16.3513 19.7566 16.445 20.227C16.5359 20.6833 16.6628 20.9249 16.8451 21.0954C17.0274 21.2659 17.2768 21.3765 17.7381 21.4368C18.2137 21.499 18.8404 21.5 19.741 21.5H20.2565C21.1571 21.5 21.7838 21.499 22.2594 21.4368C22.7207 21.3765 22.9701 21.2659 23.1524 21.0954C23.3347 20.9249 23.4616 20.6833 23.5525 20.227C23.6462 19.7566 23.6889 19.1314 23.7488 18.2328L24.0554 13.6334C24.0738 13.3579 24.312 13.1494 24.5876 13.1678C24.8631 13.1862 25.0716 13.4244 25.0532 13.7L24.7442 18.3345C24.6872 19.1896 24.6412 19.8804 24.5332 20.4224C24.421 20.986 24.23 21.4567 23.8356 21.8256C23.4412 22.1946 22.9588 22.3538 22.3891 22.4284C21.8411 22.5001 21.1488 22.5 20.2917 22.5H19.7058C18.8488 22.5 18.1565 22.5001 17.6084 22.4284C17.0387 22.3538 16.5563 22.1946 16.1619 21.8256C15.7675 21.4567 15.5766 20.986 15.4643 20.4224C15.3563 19.8804 15.3103 19.1896 15.2533 18.3344L14.9443 13.7C14.9259 13.4244 15.1344 13.1862 15.4099 13.1678Z" fill="#EA4335" />
-                                  <path fillRule="evenodd" clipRule="evenodd" d="M18.9023 9.50003L18.8716 9.50001C18.7273 9.49992 18.6017 9.49984 18.483 9.51879C18.0141 9.59366 17.6084 9.8861 17.3891 10.3072C17.3336 10.4138 17.2939 10.5331 17.2484 10.67L17.2387 10.6991L17.174 10.8932C17.1613 10.9312 17.1578 10.9417 17.1547 10.9502C17.038 11.2729 16.7353 11.4911 16.3922 11.4998C16.3832 11.5 16.3721 11.5 16.3321 11.5H14.332C14.0559 11.5 13.832 11.7239 13.832 12C13.832 12.2762 14.0559 12.5 14.332 12.5L16.3378 12.5L16.349 12.5H23.6486L23.6597 12.5L25.6654 12.5C25.9416 12.5 26.1654 12.2762 26.1654 12C26.1654 11.7239 25.9416 11.5 25.6654 11.5H23.6654C23.6254 11.5 23.6143 11.5 23.6053 11.4998C23.2622 11.4911 22.9595 11.2729 22.8428 10.9501C22.8397 10.9417 22.8361 10.931 22.8235 10.8932L22.7588 10.6991L22.7491 10.67C22.7036 10.5331 22.6639 10.4138 22.6084 10.3072C22.3891 9.8861 21.9834 9.59366 21.5145 9.51879C21.3958 9.49984 21.2702 9.49992 21.1259 9.50001L21.0952 9.50003H18.9023ZM18.0951 11.2903C18.0689 11.3627 18.0385 11.4327 18.0041 11.5H21.9934C21.959 11.4327 21.9286 11.3627 21.9024 11.2903L21.8766 11.2148L21.8101 11.0153C21.7493 10.8329 21.7354 10.7958 21.7215 10.7691C21.6484 10.6287 21.5131 10.5312 21.3568 10.5063C21.3272 10.5015 21.2875 10.5 21.0952 10.5H18.9023C18.7101 10.5 18.6704 10.5015 18.6407 10.5063C18.4844 10.5312 18.3491 10.6287 18.276 10.7691C18.2622 10.7958 18.2482 10.8329 18.1874 11.0153L18.1208 11.2149C18.1108 11.2449 18.103 11.2683 18.0951 11.2903Z" fill="#EA4335" />
+                                  <path fillRule="evenodd" clipRule="evenodd" d="M18.9023 9.50003L18.8716 9.50001C18.7273 9.49992 18.6017 9.49984 18.483 9.51879C18.0141 9.59366 17.6084 9.8861 17.3891 10.3072C17.3336 10.4138 17.2939 10.5331 17.2484 10.67L17.2387 10.6991L17.174 10.8932C17.1613 10.9312 17.1578 10.9417 17.1547 10.9502C17.038 11.2729 16.7353 11.4911 16.3922 11.4998C16.3832 11.5 16.3721 11.5 16.3321 11.5H14.332C14.0559 11.5 13.832 11.7239 13.832 12C13.832 12.2762 14.0559 12.5 14.332 12.5L16.3378 12.5L16.349 12.5H23.6486L23.6597 12.5H25.6654C25.9416 12.5 26.1654 12.2762 26.1654 12C26.1654 11.7239 25.9416 11.5 25.6654 11.5H23.6654C23.6254 11.5 23.6143 11.5 23.6053 11.4998C23.2622 11.4911 22.9595 11.2729 22.8428 10.9501C22.8397 10.9417 22.8361 10.931 22.8235 10.8932L22.7588 10.6991L22.7491 10.67C22.7036 10.5331 22.6639 10.4138 22.6084 10.3072C22.3891 9.8861 21.9834 9.59366 21.5145 9.51879C21.3958 9.49984 21.2702 9.49992 21.1259 9.50001L21.0952 9.50003H18.9023ZM18.0951 11.2903C18.0689 11.3627 18.0385 11.4327 18.0041 11.5H21.9934C21.959 11.4327 21.9286 11.3627 21.9024 11.2903L21.8766 11.2148L21.8101 11.0153C21.7493 10.8329 21.7354 10.7958 21.7215 10.7691C21.6484 10.6287 21.5131 10.5312 21.3568 10.5063C21.3272 10.5015 21.2875 10.5 21.0952 10.5H18.9023C18.7101 10.5 18.6704 10.5015 18.6407 10.5063C18.4844 10.5312 18.3491 10.6287 18.276 10.7691C18.2622 10.7958 18.2482 10.8329 18.1874 11.0153L18.1208 11.2149C18.1108 11.2449 18.103 11.2683 18.0951 11.2903Z" fill="#EA4335" />
                                   <path d="M38.7759 20C37.7026 20 36.8953 19.9907 36.3539 19.972C35.8219 19.944 35.4253 19.9067 35.1639 19.86C34.9119 19.8133 34.6646 19.734 34.4219 19.622C33.9926 19.4353 33.6659 19.1647 33.4419 18.81C33.2273 18.4553 33.1199 18.04 33.1199 17.564C33.1199 17.2747 33.1619 16.9713 33.2459 16.654L33.7639 14.68L34.7859 14.988L34.2679 17.004C34.2119 17.228 34.1839 17.424 34.1839 17.592C34.1839 17.816 34.2353 18.0073 34.3379 18.166C34.4499 18.3153 34.6179 18.4413 34.8419 18.544C35.0006 18.6187 35.1826 18.6747 35.3879 18.712C35.6026 18.7493 35.9713 18.7773 36.4939 18.796C37.0166 18.8147 37.8006 18.824 38.8459 18.824H41.6319C42.1826 18.824 42.5933 18.8007 42.8639 18.754C43.1346 18.7073 43.3213 18.628 43.4239 18.516C43.5266 18.3947 43.5779 18.2173 43.5779 17.984C43.5779 17.844 43.5733 17.732 43.5639 17.648C43.0226 17.732 42.4346 17.774 41.7999 17.774C41.1186 17.774 40.5726 17.578 40.1619 17.186C39.7606 16.7847 39.5599 16.2387 39.5599 15.548C39.5599 15.0627 39.6486 14.61 39.8259 14.19C40.0126 13.77 40.2833 13.434 40.6379 13.182C41.0019 12.9207 41.4359 12.79 41.9399 12.79C42.6119 12.79 43.1719 13.042 43.6199 13.546C44.0773 14.05 44.3433 14.722 44.4179 15.562L44.5719 17.48C44.5906 17.76 44.5999 17.9513 44.5999 18.054C44.5999 18.53 44.5113 18.908 44.3339 19.188C44.1659 19.468 43.8626 19.6733 43.4239 19.804C42.9946 19.9347 42.3879 20 41.6039 20H38.8459H38.7759ZM40.5399 15.408C40.5399 15.8 40.6519 16.1127 40.8759 16.346C41.0999 16.57 41.4079 16.682 41.7999 16.682C42.3786 16.682 42.9339 16.6353 43.4659 16.542L43.3959 15.66C43.3306 15.0907 43.1626 14.652 42.8919 14.344C42.6306 14.0267 42.2993 14.868 41.8979 13.868C41.4779 13.868 41.1466 14.022 40.9039 14.33C40.6613 14.6287 40.5399 14.988 40.5399 15.408ZM41.2959 10.088H42.7099V11.488H41.2959V10.088ZM48.5068 20C47.8161 20 47.2655 19.8647 46.8548 19.594C46.4535 19.314 46.2295 18.95 46.1828 18.502C46.1361 18.306 46.1128 17.998 46.1128 17.578H47.0928C47.0928 17.8673 47.1115 18.1007 47.1488 18.278C47.1861 18.474 47.2981 18.614 47.4848 18.698C47.6808 18.782 47.9655 18.824 48.3388 18.824H49.1928C50.1728 18.824 50.6628 18.53 50.6628 17.942C50.6628 17.8767 50.6441 17.76 50.6068 17.592V17.564L49.5568 13.448L50.5928 13.168L51.6428 17.298C51.7361 17.662 51.8201 17.9467 51.8948 18.152C51.9788 18.348 52.0908 18.5113 52.2308 18.642C52.3708 18.7633 52.5575 18.824 52.7908 18.824H53.4768L53.5468 19.412L53.4768 20H52.7908C52.1655 20 51.6615 19.7387 51.2788 19.216C50.8308 19.7387 50.0888 20 49.0528 20H48.5068ZM49.1788 10.704H50.5788V12.104H49.1788V10.704ZM53.3362 18.824H53.5323C54.3629 18.824 55.0583 18.8053 55.6183 18.768C56.1783 18.7213 56.7523 18.614 57.3403 18.446L60.6303 17.564L57.7883 15.94C57.5083 15.772 57.2189 15.688 56.9203 15.688C56.6309 15.688 56.3556 15.772 56.0943 15.94C55.8329 16.0987 55.6229 16.3227 55.4642 16.612L55.2123 17.046L54.2883 16.472L54.5543 15.996C54.8156 15.52 55.1516 15.1513 55.5623 14.89C55.9823 14.6287 56.4303 14.498 56.9062 14.498C57.3916 14.498 57.8583 14.6333 58.3063 14.904L61.8763 17.06L61.7083 18.432L57.6063 19.594C56.9529 19.7713 56.3229 19.8833 55.7163 19.93C55.1096 19.9767 54.3769 20 53.5183 20H53.3362V18.824Z" fill="#EA4335" />
                                 </svg>
-
                               </button>
                             </div>
                           ))}
@@ -11274,7 +11250,6 @@ const Amain = () => {
                       )}
                     </div>
 
-                    {/* Prayer Time Restrictions */}
                     <div className="edit-restrictions-section">
                       <div className="edit-restriction-header">
                         <span className="edit-restriction-title">محدودیت‌های اعمال شده بر این مکان بر اساس اوقات شرعي</span>
@@ -11283,17 +11258,18 @@ const Amain = () => {
                       {culturalPrayerTimeRestrictionsList.length > 0 && (
                         <div className="prayer-restrictions-list">
                           {culturalPrayerTimeRestrictionsList.map((item, idx) => (
-                            <div key={item.id} className="prayer-restriction-row">
+                            <div key={item.id} className="prayer-restriction-row-edit">
                               <div className="prayer-restriction-badge">
                                 <span className="prayer-restriction-text">{item.date} ، {item.title}</span>
                               </div>
                               <button className="remove-prayer-btn" onClick={() => {
                                 setCulturalPrayerTimeRestrictionsList(prev => prev.filter((_, i) => i !== idx));
                               }}>
-                                حذف
-                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <path fillRule="evenodd" clipRule="evenodd" d="M3.40994 5.1678C3.68547 5.14943 3.92372 5.3579 3.94209 5.63343L4.24872 10.2328C4.30862 11.1314 4.35131 11.7566 4.44502 12.227C4.53592 12.6833 4.66281 12.9249 4.84508 13.0954C5.02736 13.2659 5.2768 13.3765 5.73813 13.4368C6.21373 13.499 6.8404 13.5 7.74097 13.5H8.25654C9.1571 13.5 9.78377 13.499 10.2594 13.4368C10.7207 13.3765 10.9701 13.2659 11.1524 13.0954C11.3347 12.9249 11.4616 12.6833 11.5525 12.227C11.6462 11.7566 11.6889 11.1314 11.7488 10.2328L12.0554 5.63343C12.0738 5.3579 12.312 5.14943 12.5876 5.1678C12.8631 5.18617 13.0716 5.42442 13.0532 5.69995L12.7442 10.3345C12.6872 11.1896 12.6412 11.8804 12.5332 12.4224C12.421 12.986 12.23 13.4567 11.8356 13.8256C11.4412 14.1946 10.9588 14.3538 10.3891 14.4284C9.84105 14.5001 9.14876 14.5 8.2917 14.5H7.70581C6.84875 14.5 6.15646 14.5001 5.60843 14.4284C5.03866 14.3538 4.5563 14.1946 4.1619 13.8256C3.7675 13.4567 3.57656 12.986 3.46429 12.4224C3.35631 11.8804 3.31027 11.1896 3.25327 10.3344L2.94431 5.69995C2.92594 5.42442 3.13441 5.18617 3.40994 5.1678Z" fill="#EA4335" />
-                                  <path fillRule="evenodd" clipRule="evenodd" d="M6.90226 1.50003L6.87161 1.50001C6.72734 1.49992 6.60166 1.49984 6.48298 1.51879C6.01412 1.59366 5.60838 1.8861 5.38909 2.30723C5.33358 2.41382 5.29391 2.53309 5.24838 2.66998L5.2387 2.69905L5.17397 2.89323C5.16131 2.93121 5.15778 2.94168 5.15471 2.95016C5.03797 3.2729 4.73529 3.49106 4.39219 3.49976C4.38317 3.49999 4.37212 3.50003 4.33209 3.50003H2.33203C2.05589 3.50003 1.83203 3.72388 1.83203 4.00003C1.83203 4.27617 2.05589 4.50003 2.33203 4.50003L4.3378 4.50003L4.34896 4.50003H11.6486L11.6597 4.50003L13.6654 4.50003C13.9416 4.50003 14.1654 4.27617 14.1654 4.00003C14.1654 3.72388 13.9416 3.50003 13.6654 3.50003H11.6654C11.6254 3.50003 11.6143 3.49999 11.6053 3.49976C11.2622 3.49106 10.9595 3.27289 10.8428 2.95014C10.8397 2.94172 10.8361 2.93102 10.8235 2.89323L10.7588 2.69905L10.7491 2.66996C10.7036 2.53307 10.6639 2.41382 10.6084 2.30723C10.3891 1.8861 9.98339 1.59366 9.51453 1.51879C9.39585 1.49984 9.27016 1.49992 9.1259 1.50001L9.09525 1.50003H6.90226ZM6.09508 3.29032C6.0689 3.36269 6.03847 3.43268 6.00413 3.50003H9.99338C9.95904 3.43268 9.92861 3.3627 9.90243 3.29033L9.87662 3.21477L9.81013 3.01528C9.74934 2.83294 9.73535 2.79575 9.72147 2.76909C9.64837 2.62872 9.51313 2.53124 9.35684 2.50628C9.32715 2.50154 9.28746 2.50003 9.09525 2.50003H6.90226C6.71005 2.50003 6.67035 2.50154 6.64067 2.50628C6.48438 2.53124 6.34914 2.62872 6.27604 2.76909C6.26216 2.79575 6.24816 2.83294 6.18738 3.01528L6.12085 3.21489C6.11083 3.24495 6.10303 3.26834 6.09508 3.29032Z" fill="#EA4335" />
+                                <svg width="75" height="32" viewBox="0 0 75 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <rect x="0.5" y="0.5" width="74" height="31" rx="5.5" stroke="#EA4335" />
+                                  <path fillRule="evenodd" clipRule="evenodd" d="M15.4099 13.1678C15.6855 13.1494 15.9237 13.3579 15.9421 13.6334L16.2487 18.2328C16.3086 19.1314 16.3513 19.7566 16.445 20.227C16.5359 20.6833 16.6628 20.9249 16.8451 21.0954C17.0274 21.2659 17.2768 21.3765 17.7381 21.4368C18.2137 21.499 18.8404 21.5 19.741 21.5H20.2565C21.1571 21.5 21.7838 21.499 22.2594 21.4368C22.7207 21.3765 22.9701 21.2659 23.1524 21.0954C23.3347 20.9249 23.4616 20.6833 23.5525 20.227C23.6462 19.7566 23.6889 19.1314 23.7488 18.2328L24.0554 13.6334C24.0738 13.3579 24.312 13.1494 24.5876 13.1678C24.8631 13.1862 25.0716 13.4244 25.0532 13.7L24.7442 18.3345C24.6872 19.1896 24.6412 19.8804 24.5332 20.4224C24.421 20.986 24.23 21.4567 23.8356 21.8256C23.4412 22.1946 22.9588 22.3538 22.3891 22.4284C21.8411 22.5001 21.1488 22.5 20.2917 22.5H19.7058C18.8488 22.5 18.1565 22.5001 17.6084 22.4284C17.0387 22.3538 16.5563 22.1946 16.1619 21.8256C15.7675 21.4567 15.5766 20.986 15.4643 20.4224C15.3563 19.8804 15.3103 19.1896 15.2533 18.3344L14.9443 13.7C14.9259 13.4244 15.1344 13.1862 15.4099 13.1678Z" fill="#EA4335" />
+                                  <path fillRule="evenodd" clipRule="evenodd" d="M18.9023 9.50003L18.8716 9.50001C18.7273 9.49992 18.6017 9.49984 18.483 9.51879C18.0141 9.59366 17.6084 9.8861 17.3891 10.3072C17.3336 10.4138 17.2939 10.5331 17.2484 10.67L17.2387 10.6991L17.174 10.8932C17.1613 10.9312 17.1578 10.9417 17.1547 10.9502C17.038 11.2729 16.7353 11.4911 16.3922 11.4998C16.3832 11.5 16.3721 11.5 16.3321 11.5H14.332C14.0559 11.5 13.832 11.7239 13.832 12C13.832 12.2762 14.0559 12.5 14.332 12.5L16.3378 12.5L16.349 12.5H23.6486L23.6597 12.5H25.6654C25.9416 12.5 26.1654 12.2762 26.1654 12C26.1654 11.7239 25.9416 11.5 25.6654 11.5H23.6654C23.6254 11.5 23.6143 11.5 23.6053 11.4998C23.2622 11.4911 22.9595 11.2729 22.8428 10.9501C22.8397 10.9417 22.8361 10.931 22.8235 10.8932L22.7588 10.6991L22.7491 10.67C22.7036 10.5331 22.6639 10.4138 22.6084 10.3072C22.3891 9.8861 21.9834 9.59366 21.5145 9.51879C21.3958 9.49984 21.2702 9.49992 21.1259 9.50001L21.0952 9.50003H18.9023ZM18.0951 11.2903C18.0689 11.3627 18.0385 11.4327 18.0041 11.5H21.9934C21.959 11.4327 21.9286 11.3627 21.9024 11.2903L21.8766 11.2148L21.8101 11.0153C21.7493 10.8329 21.7354 10.7958 21.7215 10.7691C21.6484 10.6287 21.5131 10.5312 21.3568 10.5063C21.3272 10.5015 21.2875 10.5 21.0952 10.5H18.9023C18.7101 10.5 18.6704 10.5015 18.6407 10.5063C18.4844 10.5312 18.3491 10.6287 18.276 10.7691C18.2622 10.7958 18.2482 10.8329 18.1874 11.0153L18.1208 11.2149C18.1108 11.2449 18.103 11.2683 18.0951 11.2903Z" fill="#EA4335" />
+                                  <path d="M38.7759 20C37.7026 20 36.8953 19.9907 36.3539 19.972C35.8219 19.944 35.4253 19.9067 35.1639 19.86C34.9119 19.8133 34.6646 19.734 34.4219 19.622C33.9926 19.4353 33.6659 19.1647 33.4419 18.81C33.2273 18.4553 33.1199 18.04 33.1199 17.564C33.1199 17.2747 33.1619 16.9713 33.2459 16.654L33.7639 14.68L34.7859 14.988L34.2679 17.004C34.2119 17.228 34.1839 17.424 34.1839 17.592C34.1839 17.816 34.2353 18.0073 34.3379 18.166C34.4499 18.3153 34.6179 18.4413 34.8419 18.544C35.0006 18.6187 35.1826 18.6747 35.3879 18.712C35.6026 18.7493 35.9713 18.7773 36.4939 18.796C37.0166 18.8147 37.8006 18.824 38.8459 18.824H41.6319C42.1826 18.824 42.5933 18.8007 42.8639 18.754C43.1346 18.7073 43.3213 18.628 43.4239 18.516C43.5266 18.3947 43.5779 18.2173 43.5779 17.984C43.5779 17.844 43.5733 17.732 43.5639 17.648C43.0226 17.732 42.4346 17.774 41.7999 17.774C41.1186 17.774 40.5726 17.578 40.1619 17.186C39.7606 16.7847 39.5599 16.2387 39.5599 15.548C39.5599 15.0627 39.6486 14.61 39.8259 14.19C40.0126 13.77 40.2833 13.434 40.6379 13.182C41.0019 12.9207 41.4359 12.79 41.9399 12.79C42.6119 12.79 43.1719 13.042 43.6199 13.546C44.0773 14.05 44.3433 14.722 44.4179 15.562L44.5719 17.48C44.5906 17.76 44.5999 17.9513 44.5999 18.054C44.5999 18.53 44.5113 18.908 44.3339 19.188C44.1659 19.468 43.8626 19.6733 43.4239 19.804C42.9946 19.9347 42.3879 20 41.6039 20H38.8459H38.7759ZM40.5399 15.408C40.5399 15.8 40.6519 16.1127 40.8759 16.346C41.0999 16.57 41.4079 16.682 41.7999 16.682C42.3786 16.682 42.9339 16.6353 43.4659 16.542L43.3959 15.66C43.3306 15.0907 43.1626 14.652 42.8919 14.344C42.6306 14.0267 42.2993 14.868 41.8979 13.868C41.4779 13.868 41.1466 14.022 40.9039 14.33C40.6613 14.6287 40.5399 14.988 40.5399 15.408ZM41.2959 10.088H42.7099V11.488H41.2959V10.088ZM48.5068 20C47.8161 20 47.2655 19.8647 46.8548 19.594C46.4535 19.314 46.2295 18.95 46.1828 18.502C46.1361 18.306 46.1128 17.998 46.1128 17.578H47.0928C47.0928 17.8673 47.1115 18.1007 47.1488 18.278C47.1861 18.474 47.2981 18.614 47.4848 18.698C47.6808 18.782 47.9655 18.824 48.3388 18.824H49.1928C50.1728 18.824 50.6628 18.53 50.6628 17.942C50.6628 17.8767 50.6441 17.76 50.6068 17.592V17.564L49.5568 13.448L50.5928 13.168L51.6428 17.298C51.7361 17.662 51.8201 17.9467 51.8948 18.152C51.9788 18.348 52.0908 18.5113 52.2308 18.642C52.3708 18.7633 52.5575 18.824 52.7908 18.824H53.4768L53.5468 19.412L53.4768 20H52.7908C52.1655 20 51.6615 19.7387 51.2788 19.216C50.8308 19.7387 50.0888 20 49.0528 20H48.5068ZM49.1788 10.704H50.5788V12.104H49.1788V10.704ZM53.3362 18.824H53.5323C54.3629 18.824 55.0583 18.8053 55.6183 18.768C56.1783 18.7213 56.7523 18.614 57.3403 18.446L60.6303 17.564L57.7883 15.94C57.5083 15.772 57.2189 15.688 56.9203 15.688C56.6309 15.688 56.3556 15.772 56.0943 15.94C55.8329 16.0987 55.6229 16.3227 55.4642 16.612L55.2123 17.046L54.2883 16.472L54.5543 15.996C54.8156 15.52 55.1516 15.1513 55.5623 14.89C55.9823 14.6287 56.4303 14.498 56.9062 14.498C57.3916 14.498 57.8583 14.6333 58.3063 14.904L61.8763 17.06L61.7083 18.432L57.6063 19.594C56.9529 19.7713 56.3229 19.8833 55.7163 19.93C55.1096 19.9767 54.3769 20 53.5183 20H53.3362V18.824Z" fill="#EA4335" />
                                 </svg>
                               </button>
                             </div>
@@ -11305,34 +11281,24 @@ const Amain = () => {
 
                   {/* Action Buttons */}
                   <div className="edit-action-buttons">
-                    <button
-                      className="cancel-edit-btn"
-                      onClick={handleCancelEditCultural}
-                    >
+                    <button className="cancel-edit-btn" onClick={handleCancelEditCultural}>
                       انصراف
                     </button>
-                    <button
-                      className="save-edit-btn"
-                      onClick={handleSaveEditCultural}
-                    >
+                    <button className="save-edit-btn" onClick={handleSaveEditCultural}>
                       ثبت تغییرات
                     </button>
                   </div>
                 </div>
+
                 {/* Left Section */}
                 <div className="edit-left-section">
+
                   {/* Profile Images and Videos Section */}
                   <div className="edit-media-section">
                     <div className="edit-section-header">
                       <span className="edit-section-title">تصاویر و ویدئوهای پروفایل اطلاعات فرهنگی</span>
                       <label className="add-file-btn12">
-                        <input
-                          type="file"
-                          accept="image/*,video/*"
-                          multiple
-                          onChange={(e) => handleFileUploadWithModal(e, 'image')} // Changed
-                          className="file-input-hidden"
-                        />
+                        <input type="file" accept="image/*,video/*" multiple onChange={(e) => handleFileUploadWithModal(e, 'image')} className="file-input-hidden" />
                         افزودن فایل
                         <svg width="25" height="25" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path d="M22.2824 0H18.8284C17.8063 0 17.0544 0.42296 16.7137 1.17489C16.5257 1.51561 16.4435 1.91507 16.4435 2.38502V5.8392C16.4435 7.33131 17.3363 8.22422 18.8284 8.22422H22.2824C22.7523 8.22422 23.1517 8.14198 23.4924 7.954C24.2443 7.61328 24.6672 6.86135 24.6672 5.8392V2.38502C24.6672 0.892916 23.7744 0 22.2824 0ZM23.3867 4.61731C23.2692 4.7348 23.093 4.81705 22.905 4.82879H21.2485V5.42799L21.2603 6.46189C21.2485 6.66162 21.178 6.82611 21.037 6.96709C20.9196 7.08458 20.7433 7.16682 20.5554 7.16682C20.1677 7.16682 19.8505 6.8496 19.8505 6.46189V4.81705L18.2057 4.82879C18.0177 4.82571 17.8384 4.74885 17.7065 4.61477C17.5747 4.4807 17.5008 4.30017 17.5008 4.11211C17.5008 3.7244 17.818 3.40718 18.2057 3.40718L19.2396 3.41893H19.8505V1.77408C19.8505 1.38637 20.1677 1.0574 20.5554 1.0574C20.9431 1.0574 21.2603 1.38637 21.2603 1.77408L21.2485 2.60825V3.40718H22.905C23.2927 3.40718 23.6099 3.7244 23.6099 4.11211C23.5979 4.3017 23.5188 4.48081 23.3867 4.61731ZM8.22089 11.0216C8.96245 11.0216 9.67365 10.727 10.198 10.2026C10.7224 9.67824 11.017 8.96701 11.017 8.2254C11.017 7.48379 10.7224 6.77256 10.198 6.24816C9.67365 5.72376 8.96245 5.42916 8.22089 5.42916C7.47932 5.42916 6.76812 5.72376 6.24376 6.24816C5.71939 6.77256 5.4248 7.48379 5.4248 8.2254C5.4248 8.96701 5.71939 9.67824 6.24376 10.2026C6.76812 10.727 7.47932 11.0216 8.22089 11.0216Z" fill="#0F71EF" />
@@ -11341,38 +11307,19 @@ const Amain = () => {
                       </label>
                     </div>
 
-                    {/* Primary Image Display */}
                     {primaryImage && (
                       <div className="primary-image-section-edit">
                         <div className="primary-image-label">تصویر اصلی</div>
                         <div className="primary-image-container-edit">
                           {primaryImage.type.startsWith('image/') ? (
-                            <img
-                              src={primaryImage.url}
-                              alt={primaryImage.name}
-                              className="primary-image-edit"
-                            />
+                            <img src={primaryImage.url} alt={primaryImage.name} className="primary-image-edit" />
                           ) : primaryImage.type.startsWith('video/') ? (
                             <video controls className="primary-image-edit">
                               <source src={primaryImage.url} type={primaryImage.type} />
                             </video>
                           ) : null}
-                          <button
-                            className="remove-file-btn-edit"
-                            onClick={() => handleRemoveFile(primaryImage.id, 'image')}
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="24"
-                              height="24"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              className="icon icon-tabler icons-tabler-outline icon-tabler-x"
-                            >
+                          <button className="remove-file-btn-edit" onClick={() => handleRemoveFile(primaryImage.id, 'image')}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                               <path d="M18 6l-12 12" />
                               <path d="M6 6l12 12" />
@@ -11382,21 +11329,13 @@ const Amain = () => {
                       </div>
                     )}
 
-                    {/* Profile Images Grid */}
                     {profileImages.length > 0 && (
                       <div className="profile-images-grid-edit">
                         {profileImages.map((file) => (
-                          <div
-                            key={file.id}
-                            className={`profile-image-item-edit ${file.id === primaryImage?.id ? 'primary' : ''}`}
-                          >
+                          <div key={file.id} className={`profile-image-item-edit ${file.id === primaryImage?.id ? 'primary' : ''}`}>
                             {file.type.startsWith('image/') ? (
                               <div className="image-container-with-badge-edit">
-                                <img
-                                  src={file.url}
-                                  alt={file.name}
-                                  className="media-preview-edit"
-                                />
+                                <img src={file.url} alt={file.name} className="media-preview-edit" />
                                 {file.orientation && (
                                   <div className="orientation-badge-edit">
                                     {file.orientation === 'north' && 'شمال'}
@@ -11405,43 +11344,25 @@ const Amain = () => {
                                     {file.orientation === 'west' && 'غرب'}
                                   </div>
                                 )}
+                                <button className="remove-file-btn-small-edit" onClick={() => handleRemoveFile(file.id, 'image')}>
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M18 6l-12 12" />
+                                    <path d="M6 6l12 12" />
+                                  </svg>
+                                </button>
                               </div>
                             ) : file.type.startsWith('video/') ? (
                               <video controls className="media-preview-edit">
                                 <source src={file.url} type={file.type} />
                               </video>
                             ) : null}
-
                             <div className="profile-image-actions-edit">
                               {file.type.startsWith('image/') && file.id !== primaryImage?.id && (
-                                <button
-                                  className="set-primary-btn-edit"
-                                  onClick={() => handleSetPrimaryImage(file.id)}
-                                >
+                                <button className="set-primary-btn-edit" onClick={() => handleSetPrimaryImage(file.id)}>
                                   اصلی
                                 </button>
                               )}
-                              <button
-                                className="remove-file-btn-small-edit"
-                                onClick={() => handleRemoveFile(file.id, 'image')}
-                              >
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  width="24"
-                                  height="24"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  className="icon icon-tabler icons-tabler-outline icon-tabler-x"
-                                >
-                                  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                  <path d="M18 6l-12 12" />
-                                  <path d="M6 6l12 12" />
-                                </svg>
-                              </button>
                             </div>
                           </div>
                         ))}
@@ -11451,18 +11372,11 @@ const Amain = () => {
 
                   {/* Text and Audio Files Section */}
                   <div className="edit-files-section">
-                    {/* Audio Files */}
                     <div className="edit-file-subsection">
                       <div className="edit-section-header">
                         <span className="edit-section-title">فایل‌های صوتی</span>
                         <label className="add-file-btn-small">
-                          <input
-                            type="file"
-                            accept="audio/*"
-                            multiple
-                            onChange={(e) => handleFileUploadWithModal(e, 'audio')} // Changed
-                            className="file-input-hidden"
-                          />
+                          <input type="file" accept="audio/*" multiple onChange={(e) => handleFileUploadWithModal(e, 'audio')} className="file-input-hidden" />
                           افزودن فایل صوتی
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#1E2023" />
@@ -11470,7 +11384,6 @@ const Amain = () => {
                           </svg>
                         </label>
                       </div>
-
                       {audioFiles.length > 0 && (
                         <div className="audio-files-list-edit">
                           {audioFiles.map((audio) => (
@@ -11485,22 +11398,8 @@ const Amain = () => {
                                 </div>
                                 <span className="audio-file-name-edit">{audio.name}</span>
                               </div>
-                              <button
-                                className="remove-file-btn-small-edit"
-                                onClick={() => handleRemoveFile(audio.id, 'audio')}
-                              >
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  width="24"
-                                  height="24"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  className="icon icon-tabler icons-tabler-outline icon-tabler-x"
-                                >
+                              <button className="remove-file-btn-small-edit" onClick={() => handleRemoveFile(audio.id, 'audio')}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                   <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                                   <path d="M18 6l-12 12" />
                                   <path d="M6 6l12 12" />
@@ -11512,18 +11411,11 @@ const Amain = () => {
                       )}
                     </div>
 
-                    {/* Text Files */}
                     <div className="edit-file-subsection">
                       <div className="edit-section-header">
                         <span className="edit-section-title">فایل‌های متنی</span>
                         <label className="add-file-btn-small">
-                          <input
-                            type="file"
-                            accept=".pdf,.txt,.doc,.docx,.xls,.xlsx"
-                            multiple
-                            onChange={(e) => handleFileUploadWithModal(e, 'text')} // Changed
-                            className="file-input-hidden"
-                          />
+                          <input type="file" accept=".pdf,.txt,.doc,.docx,.xls,.xlsx" multiple onChange={(e) => handleFileUploadWithModal(e, 'text')} className="file-input-hidden" />
                           افزودن فایل متنی
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#1E2023" />
@@ -11531,7 +11423,6 @@ const Amain = () => {
                           </svg>
                         </label>
                       </div>
-
                       {textFiles.length > 0 && (
                         <div className="text-files-list-edit">
                           {textFiles.map((textFile) => (
@@ -11546,22 +11437,8 @@ const Amain = () => {
                                 </div>
                                 <span className="text-file-name-edit">{textFile.name}</span>
                               </div>
-                              <button
-                                className="remove-file-btn-small-edit"
-                                onClick={() => handleRemoveFile(textFile.id, 'text')}
-                              >
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  width="24"
-                                  height="24"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  className="icon icon-tabler icons-tabler-outline icon-tabler-x"
-                                >
+                              <button className="remove-file-btn-small-edit" onClick={() => handleRemoveFile(textFile.id, 'text')}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                   <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                                   <path d="M18 6l-12 12" />
                                   <path d="M6 6l12 12" />
@@ -11573,53 +11450,29 @@ const Amain = () => {
                       )}
                     </div>
                   </div>
+
                   {/* Display Settings Section */}
                   <div className="edit-display-section">
                     <div className="edit-section-header">
                       <span className="edit-section-title">نمایش و عدم نمایش اطلاعات به کاربر</span>
                     </div>
-
                     <div className="display-options-edit">
-                      {/* دیدگاه‌های کاربران */}
                       <div className="display-option-edit">
                         <span className="option-label-edit">دیدگاه‌های کاربران</span>
                         <div className="display-toggle-edit">
-                          <div
-                            className={`toggle-option2-edit ${showUserFeedbacks ? 'selected' : ''}`}
-                            onClick={() => setShowUserFeedbacks(true)}
-                          >
-                            نمایش
-                          </div>
-                          <div
-                            className={`toggle-option-edit ${!showUserFeedbacks ? 'selected' : ''}`}
-                            onClick={() => setShowUserFeedbacks(false)}
-                          >
-                            عدم نمایش
-                          </div>
+                          <div className={`toggle-option2-edit ${showUserFeedbacks ? 'selected' : ''}`} onClick={() => setShowUserFeedbacks(true)}>نمایش</div>
+                          <div className={`toggle-option-edit ${!showUserFeedbacks ? 'selected' : ''}`} onClick={() => setShowUserFeedbacks(false)}>عدم نمایش</div>
                         </div>
                       </div>
-
-                      {/* چند رسانه‌ای‌ها */}
                       <div className="display-option-edit">
                         <span className="option-label-edit">چند رسانه‌ای‌ها</span>
                         <div className="display-toggle-edit">
-                          <div
-                            className={`toggle-option2-edit ${showMediaGallery ? 'selected' : ''}`}
-                            onClick={() => setShowMediaGallery(true)}
-                          >
-                            نمایش
-                          </div>
-                          <div
-                            className={`toggle-option-edit ${!showMediaGallery ? 'selected' : ''}`}
-                            onClick={() => setShowMediaGallery(false)}
-                          >
-                            عدم نمایش
-                          </div>
+                          <div className={`toggle-option2-edit ${showMediaGallery ? 'selected' : ''}`} onClick={() => setShowMediaGallery(true)}>نمایش</div>
+                          <div className={`toggle-option-edit ${!showMediaGallery ? 'selected' : ''}`} onClick={() => setShowMediaGallery(false)}>عدم نمایش</div>
                         </div>
                       </div>
                     </div>
                   </div>
-
 
                   {/* Cultural Type Selection */}
                   <div className="edit-form-section">
@@ -11628,11 +11481,7 @@ const Amain = () => {
                       {PLACE_TYPE_OPTIONS.map((typeOption) => {
                         const isSelected = selectedCulturalTypes.includes(typeOption.label);
                         return (
-                          <div
-                            key={typeOption.value}
-                            className={`cultural-type-option-edit ${isSelected ? 'selected' : ''}`}
-                            onClick={() => handleCulturalTypeToggle(typeOption.label)}
-                          >
+                          <div key={typeOption.value} className={`cultural-type-option-edit ${isSelected ? 'selected' : ''}`} onClick={() => handleCulturalTypeToggle(typeOption.label)}>
                             <div className="cultural-type-checkbox-edit">
                               {isSelected ? (
                                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -11650,48 +11499,29 @@ const Amain = () => {
                         );
                       })}
                     </div>
-                    {culturalTypeError && (
-                      <div className="error-message-edit">لطفا حداقل یک نوع مکان را انتخاب کنید</div>
-                    )}
+                    {culturalTypeError && <div className="error-message-edit">لطفا حداقل یک نوع مکان را انتخاب کنید</div>}
                   </div>
 
+                  {/* Cultural Group Selection */}
                   <div className="edit-form-section">
                     <h3 className="edit-form-title">تعیین گروه این مکان فرهنگی</h3>
                     <div className="dropdown-group-cultural-edit">
                       <div className="dropdown-field-cultural-edit">
                         <div className="select-wrapper">
-                          <select
-                            className="form-input-cultural-edit"
-                            value={culturalPlaceCategory}
-                            onChange={(e) => {
-                              setCulturalPlaceCategory(e.target.value);
-                              setCulturalPlaceSubcategory('');
-                            }}
-                            disabled={isLoadingCulturalGroups}
-                          >
+                          <select className="form-input-cultural-edit" value={culturalPlaceCategory} onChange={(e) => { setCulturalPlaceCategory(e.target.value); setCulturalPlaceSubcategory(''); }} disabled={isLoadingCulturalGroups}>
                             <option value="" disabled>گروه اصلی فرهنگی</option>
                             {culturalGroupOptions.map((group) => (
-                              <option key={`cultural-edit-group-${group.value}`} value={group.value}>
-                                {group.label}
-                              </option>
+                              <option key={`cultural-edit-group-${group.value}`} value={group.value}>{group.label}</option>
                             ))}
                           </select>
                         </div>
                       </div>
-
                       <div className="dropdown-field-cultural-edit">
                         <div className="select-wrapper">
-                          <select
-                            className="form-input-cultural-edit"
-                            value={culturalPlaceSubcategory}
-                            onChange={(e) => setCulturalPlaceSubcategory(e.target.value)}
-                            disabled={!culturalPlaceCategory || isLoadingCulturalSubGroups}
-                          >
+                          <select className="form-input-cultural-edit" value={culturalPlaceSubcategory} onChange={(e) => setCulturalPlaceSubcategory(e.target.value)} disabled={!culturalPlaceCategory || isLoadingCulturalSubGroups}>
                             <option value="" disabled>زیرگروه فرهنگی</option>
                             {culturalSubGroupOptions.map((subGroup, index) => (
-                              <option key={`cultural-edit-subgroup-${subGroup.value}-${index}`} value={subGroup.value}>
-                                {subGroup.label}
-                              </option>
+                              <option key={`cultural-edit-subgroup-${subGroup.value}-${index}`} value={subGroup.value}>{subGroup.label}</option>
                             ))}
                           </select>
                         </div>
