@@ -192,7 +192,7 @@
   "stepPassConnection": "عبر نقطة الاتصال {title}",
   "stepEnterNextSahn": "ادخل الساحة التالية عبر {title}",
   "stepPassSahn": "اعبر {title}",
-  "stepPassDoor": "من باب رقم {name} ادخل إلى صحن/إيوان {title}",
+  "stepPassDoor": "اعبر من {name} وتوجه إلى {title}",
   "stepArriveDestination": "الوصول إلى {name}",
   "stepNumber": "الخطوة {num}",
   "qrScanInstruction": "ضع رمز QR داخل الإطار",

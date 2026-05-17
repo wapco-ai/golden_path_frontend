@@ -20,6 +20,7 @@ import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/grou
 import { requestRouting } from '../services/routingService';
 import { loadGeoJsonData } from '../utils/loadGeoJsonData';
 import { analyzeRoute } from '../utils/routeAnalysis';
+import { buildRouteMSegments, getLineDistanceMeters } from '../utils/routeSegments';
 
 const HIDDEN_VECTOR_LAYER_IDS = new Set([
   'areas-outline',
@@ -665,36 +666,19 @@ const RouteOverview = () => {
   const routeData = useMemo(() => {
     if (!routeCoordinates || routeCoordinates.length < 2) return [];
 
-    const computeDistance = (coords = []) => {
-      if (!coords || coords.length < 2) return 0;
-      return coords.slice(1).reduce((acc, point, index) => {
-        const prev = coords[index];
-        return acc + (Math.hypot(point[0] - prev[0], point[1] - prev[1]) * 100000);
-      }, 0);
-    };
+    const computeDistance = (coords = []) => getLineDistanceMeters(coords);
 
     const toLngLat = (coord) => Array.isArray(coord) && coord.length >= 2
       ? [coord[1], coord[0]]
       : null;
-
-    const normalizeStepCoords = (step, idx) => {
-      const mappedCoords = Array.isArray(step?.coordinates?.[0])
-        ? step.coordinates.map(toLngLat).filter(Boolean)
-        : [];
-
-      if (mappedCoords.length >= 2) return mappedCoords;
-
-      const start = routeCoordinates[idx];
-      const end = routeCoordinates[idx + 1];
-      return [start, end].filter(Boolean);
-    };
 
     const resolveStepInstructionBase = (step, idx) => {
       const stepName = step?.name || step?.title;
       const stepTitle = step?.title || stepName || '';
       const hasServerInstruction = typeof step?.instruction === 'string' && step.instruction.trim().length > 0;
 
-      if (hasServerInstruction) return step.instruction;
+      if (hasServerInstruction) return step.instruction.trim();
+      if (stepTitle && step?.routeM !== undefined) return stepTitle.trim();
       if (!step || !step.type) {
         return intl.formatMessage(
           { id: 'stepArriveDestination' },
@@ -717,9 +701,40 @@ const RouteOverview = () => {
       );
     };
 
-    const buildFromSteps = () => (routeSteps || [])
+    const buildRouteMSyncedSegments = () => buildRouteMSegments(routeSteps, routeCoordinates)
+      .map((segment, idx) => {
+        const step = segment.step;
+        const stepName = step?.name || step?.title;
+        const hasServerInstruction = typeof step?.instruction === 'string' && step.instruction.trim().length > 0;
+        const base = resolveStepInstructionBase(step, idx + 1);
+        const dist = computeDistance(segment.coordinates);
+        const roundedDist = Math.round(dist);
+        const instruction = !hasServerInstruction && step?.landmark && roundedDist > 0
+          ? `${base}، ${intl.formatMessage({ id: 'landmarkSuffix' }, { name: step.landmark, distance: roundedDist })}`
+          : base;
+
+        return {
+          id: idx + 1,
+          fromM: segment.fromM,
+          toM: segment.toM,
+          step,
+          coordinates: segment.coordinates,
+          instruction,
+          services: step?.services || {},
+          distance: dist,
+          doorNames: step?.type === 'stepPassDoor' ? [stepName].filter(Boolean) : [],
+          stepType: step?.type,
+          stepTitle: step?.title,
+          stepName,
+          doorId: step?.doorId ?? null
+        };
+      });
+
+    const buildFallbackFromSteps = () => (routeSteps || [])
       .map((step, idx) => {
-        const coords = normalizeStepCoords(step, idx);
+        const coords = Array.isArray(step?.coordinates?.[0])
+          ? step.coordinates.map(toLngLat).filter(Boolean)
+          : [routeCoordinates[idx], routeCoordinates[idx + 1]].filter(Boolean);
 
         if (!coords || coords.length < 2) return null;
 
@@ -747,7 +762,8 @@ const RouteOverview = () => {
       })
       .filter(Boolean);
 
-    const segments = routeSteps?.length ? buildFromSteps() : routeCoordinates.slice(1).map((c, idx) => {
+    const routeMSegments = buildRouteMSyncedSegments();
+    const segments = routeMSegments.length ? routeMSegments : routeSteps?.length ? buildFallbackFromSteps() : routeCoordinates.slice(1).map((c, idx) => {
       const step = routeSteps?.[idx];
       const stepName = step?.name || step?.title;
       const hasServerInstruction = typeof step?.instruction === 'string' && step.instruction.trim().length > 0;
@@ -802,7 +818,11 @@ const RouteOverview = () => {
           distance: seg.distance,
           stepType: seg.stepType,
           stepTitle: seg.stepTitle,
-          stepName: seg.stepName
+          stepName: seg.stepName,
+          fromM: seg.fromM,
+          toM: seg.toM,
+          step: seg.step,
+          doorId: seg.doorId
         };
       });
 
@@ -816,7 +836,7 @@ const RouteOverview = () => {
       || startAlias.has(firstInstruction)
       || startAlias.has(firstTitle);
 
-    if (isStartPlaceholder && mappedSegments.length > 1) {
+    if (!routeMSegments.length && isStartPlaceholder && mappedSegments.length > 1) {
       return mappedSegments.slice(0, -1).map((seg, idx) => {
         const instructionSource = mappedSegments[idx + 1];
 

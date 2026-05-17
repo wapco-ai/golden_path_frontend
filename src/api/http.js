@@ -48,7 +48,8 @@ const http = axios.create({
   headers: {
     Accept: 'application/json',
     'Content-Type': 'application/json'
-  }
+  },
+  validateStatus: (status) => status >= 200 && status < 300
 });
 
 http.interceptors.request.use((config) => {

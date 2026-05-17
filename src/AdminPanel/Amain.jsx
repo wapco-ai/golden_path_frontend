@@ -1,5 +1,6 @@
 // src/pages/Amain.jsx
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useIntl } from 'react-intl';
 import { toast } from 'react-toastify';
 import QRCode from 'qrcode';
@@ -42,7 +43,7 @@ import {
   layerEditSettings
 } from '../config/vectorTiles';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
-import { bulkOpenCloseDoors, createDoor, deleteDoor, getDoorInfo, moveDoor, updateDoorInfo } from '../services/adminDoorsService';
+import { bulkOpenCloseDoors, createDoor, deleteDoor, getDoorInfo, moveDoor, pollDoorGraphStatus, updateDoorInfo } from '../services/adminDoorsService';
 import { deleteArea, getAreaInfo, listAreas, moveArea, updateAreaInfo } from '../services/adminAreasService';
 import { convertLngLatToUtm32640 } from '../utils/utm';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
@@ -73,6 +74,133 @@ function ensureRtlOnce() {
   window.__RTL_PLUGIN_SET__ = true;
   maplibregl.setRTLTextPlugin("/rtl/mapbox-gl-rtl-text.js", null, true);
 }
+
+
+const ADD_PLACE_FUNCTION_OPTIONS = [
+  { value: 'door', label: 'درب' },
+  { value: 'connection', label: 'نقطه اتصال' },
+  { value: 'elevator', label: 'آسانسور' },
+  { value: 'escalator', label: 'پله برقی' }
+];
+
+const AddPlaceSelect = ({
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled = false
+}) => {
+  const triggerRef = useRef(null);
+  const menuRef = useRef(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState(null);
+
+  const selectedOption = options.find((option) => option.value === value);
+
+  const updateMenuPosition = useCallback(() => {
+    if (!triggerRef.current) return;
+
+    const rect = triggerRef.current.getBoundingClientRect();
+    const viewportPadding = 12;
+    const gap = 6;
+    const spaceBelow = window.innerHeight - rect.bottom - viewportPadding;
+    const spaceAbove = rect.top - viewportPadding;
+    const shouldOpenUp = spaceBelow < 220 && spaceAbove > spaceBelow;
+    const availableHeight = shouldOpenUp ? spaceAbove - gap : spaceBelow - gap;
+    const maxHeight = Math.max(160, Math.min(320, availableHeight));
+
+    setMenuStyle({
+      position: 'fixed',
+      top: shouldOpenUp ? undefined : `${rect.bottom + gap}px`,
+      bottom: shouldOpenUp ? `${window.innerHeight - rect.top + gap}px` : undefined,
+      left: `${rect.left}px`,
+      width: `${rect.width}px`,
+      maxHeight: `${maxHeight}px`
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    updateMenuPosition();
+    const handleOutsideClick = (event) => {
+      if (
+        triggerRef.current?.contains(event.target)
+        || menuRef.current?.contains(event.target)
+      ) {
+        return;
+      }
+      setIsOpen(false);
+    };
+
+    window.addEventListener('resize', updateMenuPosition);
+    window.addEventListener('scroll', updateMenuPosition, true);
+    document.addEventListener('mousedown', handleOutsideClick);
+
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition);
+      window.removeEventListener('scroll', updateMenuPosition, true);
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [isOpen, updateMenuPosition]);
+
+  useEffect(() => {
+    if (disabled) {
+      setIsOpen(false);
+    }
+  }, [disabled]);
+
+  const handleToggle = () => {
+    if (disabled) return;
+    setIsOpen((previous) => !previous);
+  };
+
+  const handleSelect = (optionValue) => {
+    onChange(optionValue);
+    setIsOpen(false);
+  };
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        className={`form-input add-place-combo-trigger ${!selectedOption ? 'placeholder' : ''}`}
+        onClick={handleToggle}
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+      >
+        <span>{selectedOption?.label || placeholder}</span>
+      </button>
+
+      {isOpen && menuStyle && createPortal(
+        <div
+          ref={menuRef}
+          className="add-place-combo-menu"
+          style={menuStyle}
+          role="listbox"
+        >
+          {options.length > 0 ? options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={`add-place-combo-option ${option.value === value ? 'selected' : ''}`}
+              onClick={() => handleSelect(option.value)}
+              role="option"
+              aria-selected={option.value === value}
+            >
+              {option.label}
+            </button>
+          )) : (
+            <div className="add-place-combo-empty">موردی برای نمایش وجود ندارد</div>
+          )}
+        </div>,
+        document.body
+      )}
+    </>
+  );
+};
 
 const DOOR_ACCESS_SOURCE_ID = DOORS_ACCESS_POINT_LAYER_NAME;
 const SELECTED_EDITABLE_FEATURE_SOURCE_ID = 'selected-editable-feature-source';
@@ -729,8 +857,10 @@ const Amain = () => {
   });
   const [contextRouteGeoData, setContextRouteGeoData] = useState({ type: 'FeatureCollection', features: [] });
   const [isContextRoutingLoading, setIsContextRoutingLoading] = useState(false);
+  const [graphJobsByDoorId, setGraphJobsByDoorId] = useState({});
   const mapRef = useRef(null);
   const contextRouteRequestAbortRef = useRef(null);
+  const doorGraphPollingControllersRef = useRef(new Map());
   const layerTileRefreshGuardRef = useRef(new Map());
   const lastSelectedFeatureJsonRef = useRef('');
   useEffect(() => {
@@ -1181,6 +1311,119 @@ const Amain = () => {
 
     layerIdsToRefresh.forEach((layerId) => refreshLayerTiles(layerId));
   }, [activeEditableLayerId, refreshLayerTiles]);
+
+  const updateDoorGraphJobState = useCallback((doorId, patch) => {
+    if (!doorId) return;
+
+    setGraphJobsByDoorId((current) => ({
+      ...current,
+      [doorId]: {
+        ...(current[doorId] || {}),
+        ...patch,
+        updatedAt: patch.updatedAt || patch.updated_at || new Date().toISOString()
+      }
+    }));
+  }, []);
+
+  const startDoorGraphPolling = useCallback((doorId, initialGraph = {}) => {
+    if (!doorId) return;
+
+    const normalizedDoorId = String(doorId);
+    if (doorGraphPollingControllersRef.current.has(normalizedDoorId)) {
+      updateDoorGraphJobState(normalizedDoorId, {
+        status: initialGraph.status || 'queued',
+        error: null,
+        updatedAt: initialGraph.updated_at || initialGraph.updatedAt
+      });
+      return;
+    }
+
+    const abortController = new AbortController();
+    doorGraphPollingControllersRef.current.set(normalizedDoorId, abortController);
+    updateDoorGraphJobState(normalizedDoorId, {
+      status: initialGraph.status || 'queued',
+      error: null,
+      updatedAt: initialGraph.updated_at || initialGraph.updatedAt
+    });
+
+    pollDoorGraphStatus(normalizedDoorId, {
+      intervalMs: 3000,
+      timeoutMs: 300000,
+      signal: abortController.signal,
+      onStatus: (graph) => {
+        updateDoorGraphJobState(normalizedDoorId, {
+          status: graph?.status || 'unknown',
+          error: null,
+          updatedAt: graph?.updated_at || graph?.updatedAt
+        });
+      },
+      onDone: (graph) => {
+        updateDoorGraphJobState(normalizedDoorId, {
+          status: 'ready',
+          error: null,
+          updatedAt: graph?.updated_at || graph?.updatedAt
+        });
+        toast.success('گراف مسیر‌یابی بروزرسانی شد.');
+        refreshActiveEditableLayerTiles(DOOR_ACCESS_LAYER_ID);
+      },
+      onFailed: (graph) => {
+        updateDoorGraphJobState(normalizedDoorId, {
+          status: graph?.status || 'failed',
+          error: graph?.message || 'بروزرسانی گراف ناموفق بود.',
+          updatedAt: graph?.updated_at || graph?.updatedAt
+        });
+        toast.warning('درب ثبت شد، اما بروزرسانی گراف ناموفق بود. لطفاً بازسازی گراف را دوباره اجرا کنید.');
+      }
+    }).catch((error) => {
+      if (error?.name === 'AbortError' || abortController.signal.aborted) return;
+
+      updateDoorGraphJobState(normalizedDoorId, {
+        status: 'unknown',
+        error: error?.message || 'دریافت وضعیت گراف ناموفق بود.'
+      });
+    }).finally(() => {
+      if (doorGraphPollingControllersRef.current.get(normalizedDoorId) === abortController) {
+        doorGraphPollingControllersRef.current.delete(normalizedDoorId);
+      }
+    });
+  }, [refreshActiveEditableLayerTiles, updateDoorGraphJobState]);
+
+  const handleSuccessfulDoorGraphMutation = useCallback((response, fallbackMessage = 'درب با موفقیت ثبت شد') => {
+    const doorId = response?.door?.id || response?.door_id || response?.id || null;
+    const graphStatus = response?.graph_status || response?.graph?.status || null;
+    const shouldTrackGraph = Boolean(doorId && (graphStatus === 'queued' || response?.door?.id));
+
+    toast.success(
+      shouldTrackGraph
+        ? 'درب ثبت شد. بروزرسانی گراف در حال انجام است و تا چند لحظه دیگر در مسیریابی اعمال می‌شود.'
+        : (response?.message || fallbackMessage)
+    );
+
+    if (shouldTrackGraph) {
+      startDoorGraphPolling(doorId, {
+        status: graphStatus || 'queued',
+        updated_at: response?.graph?.updated_at
+      });
+    }
+
+    return { doorId, shouldTrackGraph };
+  }, [startDoorGraphPolling]);
+
+  const handleDoorMutationError = useCallback((error, fallbackMessage) => {
+    if (error?.response?.status === 504) {
+      toast.warning('درخواست ثبت شد یا در حال پردازش است، اما پاسخ سرور دیر رسید. لطفاً وضعیت درب را دوباره بررسی کنید.');
+      refreshActiveEditableLayerTiles(DOOR_ACCESS_LAYER_ID);
+      return true;
+    }
+
+    toast.error(getApiErrorMessage(error, fallbackMessage));
+    return false;
+  }, [refreshActiveEditableLayerTiles]);
+
+  const hasUpdatingDoorGraphJobs = useMemo(
+    () => Object.values(graphJobsByDoorId).some((job) => ['queued', 'rebuilding', 'unknown'].includes(job?.status)),
+    [graphJobsByDoorId]
+  );
   useEffect(() => {
     const mappedSubMenu = editableLayerActionMenuMap[activeEditableLayer?.id];
     if (typeof mappedSubMenu === 'number') {
@@ -2024,13 +2267,17 @@ const Amain = () => {
   };
 
   const uploadCulturalFiles = async (files = [], entityId) => {
-    const targetEntityId = entityId ?? 'cultural-item';
+    const targetEntityId = Number(entityId);
+
+    if (!Number.isInteger(targetEntityId) || targetEntityId <= 0) {
+      throw new Error('entity_id معتبر برای آپلود فایل وجود ندارد');
+    }
+
     const uploadedFiles = [];
 
     for (const file of files) {
       if (!file) continue;
 
-      // Already uploaded/remote files
       if (!file.file) {
         uploadedFiles.push({
           ...file,
@@ -2043,29 +2290,25 @@ const Amain = () => {
         continue;
       }
 
-      try {
-        const response = await uploadFile({
-          file: file.file,
-          entityTable: 'contents',
-          entityId: targetEntityId,
-          bucket: resolveFileBucket(file),
-          keepOriginalName: true
-        });
+      const response = await uploadFile({
+        file: file.file,
+        entityTable: 'contents',
+        entityId: targetEntityId,
+        bucket: resolveFileBucket(file),
+        keepOriginalName: true
+      });
 
-        uploadedFiles.push({
-          id: file.id,
-          name: file.name,
-          orientation: file.orientation ?? null,
-          mime: response?.mime || file.mime || file.type,
-          path: response?.path || '',
-          url: response?.url || response?.path || '',
-          metadata: response?.metadata || response?.metaData || null,
-          bucket: response?.bucket || resolveFileBucket(file)
-        });
-      } catch (error) {
-        console.error('File upload failed', error);
-        throw error;
-      }
+      uploadedFiles.push({
+        id: file.id,
+        name: file.name,
+        orientation: file.orientation ?? null,
+        mime: response?.mime || file.mime || file.type,
+        path: response?.path || '',
+        url: response?.url || response?.path || '',
+        metadata: response?.metadata || response?.metaData || null,
+        bucket: response?.bucket || resolveFileBucket(file),
+        isPrimary: file.isPrimary || file.id === primaryImage?.id
+      });
     }
 
     return uploadedFiles;
@@ -3006,10 +3249,19 @@ const Amain = () => {
 
   const confirmDeleteCultural = async () => {
     if (!culturalToDelete) return;
+
     try {
       await deleteCulturalItem(culturalToDelete);
+
+      setCulturalData((prev) =>
+        prev.filter((item) => Number(item.id) !== Number(culturalToDelete))
+      );
+
+      setCulturalTotalItems((prev) => Math.max(0, prev - 1));
+
       toast.success('آیتم فرهنگی با موفقیت حذف شد');
-      loadCulturalItems();
+
+      await loadCulturalItems();
     } catch (error) {
       console.error('حذف آیتم فرهنگی با خطا مواجه شد', error);
       toast.error('حذف آیتم فرهنگی با خطا مواجه شد');
@@ -4409,13 +4661,15 @@ const Amain = () => {
     const el = document.createElement('div');
     el.innerHTML = `
     <svg width="24" height="41" viewBox="0 0 24 41" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path fillRule="evenodd" clip-rule="evenodd" d="M12 0C5.37258 0 0 6.00388 0 12.75C0 19.4433 3.82999 26.7186 9.8056 29.5117C11.1986 30.1628 12.8014 30.1628 14.1944 29.5117C20.17 26.7186 24 19.4433 24 12.75C24 6.00388 18.6274 0 12 0ZM12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" fill="#EA4335"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M12 0C5.37258 0 0 6.00388 0 12.75C0 19.4433 3.82999 26.7186 9.8056 29.5117C11.1986 30.1628 12.8014 30.1628 14.1944 29.5117C20.17 26.7186 24 19.4433 24 12.75C24 6.00388 18.6274 0 12 0ZM12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" fill="#EA4335"/>
       <path d="M12.0088 22.5685C7.15256 22.5687 3.21582 26.5061 3.21582 31.3624C3.21606 36.2185 7.15271 40.1552 12.0088 40.1554C16.8651 40.1554 20.8025 36.2187 20.8027 31.3624C20.8027 26.506 16.8652 22.5685 12.0088 22.5685Z" stroke="#EA4335" stroke-width="1.50419"/>
     </svg>
   `;
     el.style.cursor = 'pointer';
     el.style.width = '24px';
     el.style.height = '41px';
+    el.style.transform = 'translateZ(0)';
+    el.style.pointerEvents = 'none';
     return el;
   };
 
@@ -4510,8 +4764,9 @@ const Amain = () => {
       el.style.cursor = 'pointer';
       el.style.width = '24px';
       el.style.height = '41px';
-
-      el.style.transform = 'translate(-50%, -100%)';
+      el.style.transform = 'translateZ(0)';
+      el.style.pointerEvents = 'none';
+      // el.style.transform = 'translate(-50%, -100%)';
 
       return el;
     };
@@ -4522,7 +4777,8 @@ const Amain = () => {
     if (selectedLocation) {
       console.log('Adding marker at:', selectedLocation);
       marker = new maplibregl.Marker({
-        element: createRedMarker()  // Use custom red marker
+        element: createRedMarker(),  // Use custom red marker
+        // anchor: 'bottom'
       })
         .setLngLat([selectedLocation.lng, selectedLocation.lat])
         .addTo(mapInstance);
@@ -4895,16 +5151,44 @@ const Amain = () => {
   };
 
 
-  // Map initialization function for cultural modal - FIXED VERSION
+  const getCulturalMapClickCoordinates = useCallback((mapInstance, event) => {
+    const originalEvent = event?.originalEvent;
+    const container = mapInstance?.getContainer?.();
+
+    if (!originalEvent || !container) {
+      return event.lngLat;
+    }
+
+    const rect = container.getBoundingClientRect();
+    const point = [
+      originalEvent.clientX - rect.left,
+      originalEvent.clientY - rect.top
+    ];
+
+    return mapInstance.unproject(point);
+  }, []);
+
+  // Map initialization function for cultural modal
   const initializeCulturalMap = useCallback(() => {
-    if (!document.getElementById('cultural-map-container')) return null;
+    const mapContainer = document.getElementById('cultural-map-container');
+    if (!mapContainer) return null;
 
     const mapInstance = new maplibregl.Map({
-      container: 'cultural-map-container',
+      container: mapContainer,
       style: './map-styles/osm-voyager/style-en.json',
       center: [59.6161, 36.2908],
       zoom: 16,
     });
+
+    mapInstance.once('load', () => {
+      mapInstance.resize();
+    });
+
+    requestAnimationFrame(() => mapInstance.resize());
+
+    setTimeout(() => {
+      mapInstance.resize();
+    }, 300);
 
     mapInstance.addControl(new maplibregl.NavigationControl());
 
@@ -4912,8 +5196,9 @@ const Amain = () => {
     let marker = null;
 
     // Add click event to map
-    mapInstance.on('click', (e) => {
-      const coordinates = e.lngLat;
+    mapInstance.on('click', (event) => {
+      mapInstance.resize();
+      const coordinates = getCulturalMapClickCoordinates(mapInstance, event);
       setSelectedLocation(coordinates);
 
       // Remove existing marker if it exists
@@ -4921,9 +5206,11 @@ const Amain = () => {
         marker.remove();
       }
 
-      // Create new marker
+      // Create new marker exactly on the clicked point.
       marker = new maplibregl.Marker({
-        element: createMarkerElement()
+        element: createMarkerElement(),
+        anchor: 'bottom',
+        offset: [0, 11]
       })
         .setLngLat([coordinates.lng, coordinates.lat])
         .addTo(mapInstance);
@@ -4934,7 +5221,7 @@ const Amain = () => {
 
     setCulturalMap(mapInstance);
     return mapInstance;
-  }, []);
+  }, [getCulturalMapClickCoordinates]);
 
   useEffect(() => {
     if (!isAddCulturalModalOpen || culturalStep !== 2) return;
@@ -5021,16 +5308,22 @@ const Amain = () => {
       return Number.isNaN(numericValue) ? value : numericValue;
     };
 
-    try {
-      const uploadedFiles = await uploadCulturalFiles([
-        ...profileImages,
-        ...audioFiles,
-        ...textFiles
-      ], culturalPoiId || 'new-cultural-item');
+    const resolveCreatedPoiId = (createdItem) => {
+      const id =
+        createdItem?.poi_id ??
+        createdItem?.poiId ??
+        createdItem?.id ??
+        createdItem?.poi?.id ??
+        createdItem?.data?.poi_id ??
+        createdItem?.data?.id;
 
-      const attachments = buildAttachmentPayload(uploadedFiles);
-      const translationsPayload = buildCulturalTranslationsPayload(attachments);
+      const numericId = Number(id);
+      return Number.isInteger(numericId) && numericId > 0 ? numericId : null;
+    };
+
+    try {
       const settingsPayload = buildSettingsPayload();
+
       const poiPayload = {
         floor: culturalFloor,
         category_leaf_id: resolveCategoryLeafId(),
@@ -5047,21 +5340,65 @@ const Amain = () => {
         placeType: selectedPlaceType || 'farhangi'
       };
 
-      await createCulturalItem({
+      // مرحله ۱: اول آیتم را بدون فایل بساز تا poi_id واقعی بگیریم
+      const createdItem = await createCulturalItem({
         poi: poiPayload,
-        translations: translationsPayload,
+        translations: buildCulturalTranslationsPayload([]),
         settings: {
           ...settingsPayload,
           placeType: selectedPlaceType || 'farhangi'
-        }
+        },
+        time_restrictions: buildCulturalTimeRestrictionsPayload(),
+        prayer_restrictions: buildCulturalPrayerRestrictionsPayload()
       });
+
+      const createdPoiId = resolveCreatedPoiId(createdItem);
+
+      if (!createdPoiId) {
+        throw new Error('شناسه آیتم فرهنگی بعد از ثبت از سرور دریافت نشد');
+      }
+
+      // مرحله ۲: حالا فایل‌ها را با entity_id عددی آپلود کن
+      const filesToUpload = [
+        ...profileImages,
+        ...audioFiles,
+        ...textFiles
+      ];
+
+      if (filesToUpload.length > 0) {
+        const uploadedFiles = await uploadCulturalFiles(filesToUpload, createdPoiId);
+        const attachments = buildAttachmentPayload(uploadedFiles);
+
+        // مرحله ۳: آیتم را با media نهایی آپدیت کن
+        await updateCulturalItem(createdPoiId, {
+          poi_id: createdPoiId,
+          translations: buildCulturalTranslationsPayload(attachments),
+          addressInShrine: placeAddress,
+          grouping: {
+            group_id: culturalPlaceCategory,
+            sub_group_id: selectedSubGroup?.value || null,
+            sub_group_label: selectedSubGroup?.label || null
+          },
+          settings: {
+            ...settingsPayload,
+            placeType: selectedPlaceType || 'farhangi'
+          },
+          floor: culturalFloor,
+          location: {
+            lng: selectedLocation.lng,
+            lat: selectedLocation.lat
+          },
+          time_restrictions: buildCulturalTimeRestrictionsPayload(),
+          prayer_restrictions: buildCulturalPrayerRestrictionsPayload()
+        });
+      }
 
       toast.success('اطلاعات فرهنگی با موفقیت ثبت شد');
       closeAddCulturalModal();
       loadCulturalItems();
     } catch (error) {
       console.error('ثبت آیتم فرهنگی ناموفق بود', error);
-      toast.error('ثبت آیتم فرهنگی ناموفق بود');
+      toast.error(error?.message || 'ثبت آیتم فرهنگی ناموفق بود');
     }
   };
 
@@ -5213,6 +5550,19 @@ const Amain = () => {
     setCurrentDescriptionField(null);
   };
 
+  const handleAddPlaceStepCircleClick = (stepNumber) => {
+    if (!isEditingDoorInfo) return;
+
+    setCurrentStep(stepNumber);
+
+    setTimeout(() => {
+      const modalContent = document.querySelector('.add-place-modal .modal-content');
+      if (modalContent) {
+        modalContent.scrollTop = 0;
+      }
+    }, 50);
+  };
+
   const handleStepCircleClick = (stepNumber) => {
 
     if (stepNumber > culturalStep) {
@@ -5268,6 +5618,11 @@ const Amain = () => {
 
   const requestContextRouting = useCallback(async (originPoint, destinationPoint) => {
     if (!originPoint || !destinationPoint) return;
+
+    if (hasUpdatingDoorGraphJobs) {
+      toast.info('گراف هنوز آماده نیست؛ لطفاً پس از پایان بروزرسانی گراف دوباره مسیریابی کنید.');
+      return;
+    }
 
     if (contextRouteRequestAbortRef.current) {
       contextRouteRequestAbortRef.current.abort();
@@ -5330,7 +5685,7 @@ const Amain = () => {
       }
       setIsContextRoutingLoading(false);
     }
-  }, [buildContextPointFeature, mapLanguage]);
+  }, [buildContextPointFeature, hasUpdatingDoorGraphJobs, mapLanguage]);
 
   const activeLayerTitle = activeEditableLayer?.titleFa
     || activeEditableLayer?.label
@@ -6460,6 +6815,21 @@ const Amain = () => {
   }, []);
 
   useEffect(() => {
+    if (activeMenu === 'mapmanage') return undefined;
+
+    doorGraphPollingControllersRef.current.forEach((controller) => controller.abort());
+    doorGraphPollingControllersRef.current.clear();
+    setGraphJobsByDoorId({});
+
+    return undefined;
+  }, [activeMenu]);
+
+  useEffect(() => () => {
+    doorGraphPollingControllersRef.current.forEach((controller) => controller.abort());
+    doorGraphPollingControllersRef.current.clear();
+  }, []);
+
+  useEffect(() => {
     if (!contextRouteSelection.origin || !contextRouteSelection.destination) return;
 
     requestContextRouting(contextRouteSelection.origin, contextRouteSelection.destination);
@@ -6844,6 +7214,8 @@ const Amain = () => {
       }
 
       if (isDoorMoveMode && activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && selectedDoorId) {
+        let shouldKeepDoorMoveMode = false;
+
         try {
           const floor = floorLabelToValue(mapFloor);
           const { x, y } = convertLngLatToUtm32640({ lng: lngLat.lng, lat: lngLat.lat });
@@ -6871,11 +7243,13 @@ const Amain = () => {
 
           setSelectedEditableFeature(movedFeature);
           refreshActiveEditableLayerTiles();
-          toast.success(moveResponse?.message || 'درب با موفقیت جابجا شد');
+          handleSuccessfulDoorGraphMutation(moveResponse, 'درب با موفقیت جابجا شد');
         } catch (error) {
-          toast.error(error?.message || 'جابجایی درب ناموفق بود');
+          shouldKeepDoorMoveMode = handleDoorMutationError(error, 'جابجایی درب ناموفق بود');
         } finally {
-          setIsDoorMoveMode(false);
+          if (!shouldKeepDoorMoveMode) {
+            setIsDoorMoveMode(false);
+          }
         }
         return;
       }
@@ -8774,6 +9148,7 @@ const Amain = () => {
     }
 
     const floor = floorLabelToValue(mapFloor);
+    let shouldKeepDoorDraft = false;
 
     try {
       setIsCreatingDoor(true);
@@ -8796,23 +9171,26 @@ const Amain = () => {
       const newDoorId = response?.door?.id || null;
       const newAccessPointId = response?.door_access_point?.id || null;
 
-      toast.success('درب جدید با موفقیت ثبت شد');
+      handleSuccessfulDoorGraphMutation(response, 'درب جدید با موفقیت ثبت شد');
       console.log('door creation response', response);
       await openDoorInfoModal(newDoorId, newAccessPointId, false);
 
       refreshActiveEditableLayerTiles();
     } catch (error) {
-      toast.error(error?.message || 'ثبت درب ناموفق بود');
+      shouldKeepDoorDraft = handleDoorMutationError(error, 'ثبت درب ناموفق بود');
     } finally {
       setIsCreatingDoor(false);
-      setIsLocationMarkerMode(false);
 
-      if (locationMarker) {
-        locationMarker.remove();
-        setLocationMarker(null);
+      if (!shouldKeepDoorDraft) {
+        setIsLocationMarkerMode(false);
+
+        if (locationMarker) {
+          locationMarker.remove();
+          setLocationMarker(null);
+        }
+
+        setSelectedLocation(null);
       }
-
-      setSelectedLocation(null);
     }
   };
 
@@ -9161,7 +9539,13 @@ const Amain = () => {
         } else {
           setIsSavingDoorInfo(true);
           const response = await updateDoorInfo(lastCreatedDoorId, payload);
-          toast.success(response?.message || 'اطلاعات مکان با موفقیت ثبت شد');
+          handleSuccessfulDoorGraphMutation({
+            ...response,
+            door: {
+              ...(response?.door || {}),
+              id: response?.door?.id || lastCreatedDoorId
+            }
+          }, 'اطلاعات مکان با موفقیت ثبت شد');
         }
         refreshActiveEditableLayerTiles();
         setIsAddPlaceModalOpen(false);
@@ -9171,7 +9555,11 @@ const Amain = () => {
         const defaultMessage = isAreaLayerActive
           ? 'ثبت اطلاعات محدوده ناموفق بود'
           : 'ثبت اطلاعات مکان ناموفق بود';
-        toast.error(getApiErrorMessage(error, defaultMessage));
+        if (isAreaLayerActive) {
+          toast.error(getApiErrorMessage(error, defaultMessage));
+        } else {
+          handleDoorMutationError(error, defaultMessage);
+        }
       } finally {
         if (isAreaLayerActive) {
           setIsSavingAreaInfo(false);
@@ -12097,9 +12485,9 @@ const Amain = () => {
                         <button
                           type="button"
                           onClick={() => handleMapContextAction('set-destination')}
-                          disabled={isContextRoutingLoading}
+                          disabled={isContextRoutingLoading || hasUpdatingDoorGraphJobs}
                         >
-                          {isContextRoutingLoading ? 'در حال محاسبه مسیر...' : 'انتخاب مقصد و مسیریابی'}
+                          {hasUpdatingDoorGraphJobs ? 'گراف هنوز آماده نیست' : (isContextRoutingLoading ? 'در حال محاسبه مسیر...' : 'انتخاب مقصد و مسیریابی')}
                         </button>
                       </>
                     )}
@@ -12107,9 +12495,9 @@ const Amain = () => {
                       <button
                         type="button"
                         onClick={() => handleMapContextAction('reroute-last')}
-                        disabled={isContextRoutingLoading}
+                        disabled={isContextRoutingLoading || hasUpdatingDoorGraphJobs}
                       >
-                        مسیریابی مجدد مبدا/مقصد قبلی
+                        {hasUpdatingDoorGraphJobs ? 'گراف هنوز آماده نیست' : 'مسیریابی مجدد مبدا/مقصد قبلی'}
                       </button>
                     )}
                     {(contextRouteSelection.origin || contextRouteSelection.destination) && (
@@ -12117,6 +12505,25 @@ const Amain = () => {
                         پاک کردن مسیر
                       </button>
                     )}
+                  </div>
+                )}
+
+                {Object.keys(graphJobsByDoorId).length > 0 && (
+                  <div className="door-graph-status-panel" aria-live="polite">
+                    {Object.entries(graphJobsByDoorId).map(([doorId, job]) => {
+                      const statusLabel = job?.status === 'ready'
+                        ? 'گراف آماده است'
+                        : job?.status === 'failed'
+                          ? 'بروزرسانی گراف ناموفق بود'
+                          : 'بروزرسانی گراف...';
+
+                      return (
+                        <div key={doorId} className={`door-graph-status-badge status-${job?.status || 'unknown'}`}>
+                          <span className="door-graph-status-dot" />
+                          <span>درب {doorId}: {statusLabel}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -13413,21 +13820,21 @@ const Amain = () => {
               <div className="step-progress">
                 <div
                   className={`step-circle ${currentStep >= 1 ? 'active' : ''} ${isEditingDoorInfo ? 'clickable' : ''}`}
-                  onClick={() => handleStepCircleClick(1)}
+                  onClick={() => handleAddPlaceStepCircleClick(1)}
                 >
                   {currentStep > 1 ? '✓' : '۱'}
                 </div>
                 <div className={`step-line ${currentStep >= 2 ? 'active' : ''}`}></div>
                 <div
                   className={`step-circle ${currentStep >= 2 ? 'active' : ''} ${isEditingDoorInfo ? 'clickable' : ''}`}
-                  onClick={() => handleStepCircleClick(2)}
+                  onClick={() => handleAddPlaceStepCircleClick(2)}
                 >
                   {currentStep > 2 ? '✓' : '۲'}
                 </div>
                 <div className={`step-line ${currentStep >= 3 ? 'active' : ''}`}></div>
                 <div
                   className={`step-circle ${currentStep >= 3 ? 'active' : ''} ${isEditingDoorInfo ? 'clickable' : ''}`}
-                  onClick={() => handleStepCircleClick(3)}
+                  onClick={() => handleAddPlaceStepCircleClick(3)}
                 >
                   {currentStep > 3 ? '✓' : '۳'}
                 </div>
@@ -13483,56 +13890,39 @@ const Amain = () => {
                         <div className="dropdown-group">
                           {!isDoorAccessLayerActive && (
                             <>
-                              <div className="dropdown-field">
-                                <select
-                                  className="form-input"
+                              <div className="dropdown-field add-place-combo-field">
+                                <AddPlaceSelect
                                   value={placeCategory}
-                                  onChange={(e) => {
-                                    setPlaceCategory(e.target.value);
+                                  onChange={(nextValue) => {
+                                    setPlaceCategory(nextValue);
                                     setPlaceSubcategory('');
                                   }}
+                                  options={groupOptions}
+                                  placeholder="گروه اصلی"
                                   disabled={isLoadingGroups}
-                                >
-                                  <option value="" disabled>گروه اصلی</option>
-                                  {groupOptions.map((group, index) => (
-                                    <option key={`group-${group.value}-${index}`} value={group.value}>
-                                      {group.label}
-                                    </option>
-                                  ))}
-                                </select>
+                                />
                               </div>
 
-                              <div className="dropdown-field">
-                                <select
-                                  className="form-input"
+                              <div className="dropdown-field add-place-combo-field">
+                                <AddPlaceSelect
                                   value={placeSubcategory}
-                                  onChange={(e) => setPlaceSubcategory(e.target.value)}
+                                  onChange={setPlaceSubcategory}
+                                  options={subGroupOptions}
+                                  placeholder="زیرگروه"
                                   disabled={!placeCategory || isLoadingSubGroups}
-                                >
-                                  <option value="" disabled>زیرگروه</option>
-                                  {subGroupOptions.map((subGroup, index) => (
-                                    <option key={`subgroup-${subGroup.value}-${index}`} value={subGroup.value}>
-                                      {subGroup.label}
-                                    </option>
-                                  ))}
-                                </select>
+                                />
                               </div>
                             </>
                           )}
 
-                          <div className="dropdown-field">
-                            <select
-                              className="form-input"
+                          <div className="dropdown-field add-place-combo-field">
+                            <AddPlaceSelect
                               value={placeFunction}
-                              onChange={(e) => setPlaceFunction(e.target.value)}
+                              onChange={setPlaceFunction}
+                              options={ADD_PLACE_FUNCTION_OPTIONS}
+                              placeholder="کارکرد گروه"
                               disabled={!placeSubcategory && !isDoorAccessLayerActive}
-                            >
-                              <option value="" disabled>کارکرد گروه</option>
-                              <option value="door">درب</option>
-                              <option value="connection">نقطه اتصال</option>
-                              <option value="elevator">آسانسور</option>
-                              <option value="escalator">پله برقی</option>
-                            </select>
+                            />
                           </div>
                         </div>
                       </div>

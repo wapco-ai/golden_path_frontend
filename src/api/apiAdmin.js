@@ -6,7 +6,8 @@ const apiAdmin = axios.create({
   baseURL: appConfig.apiBaseUrl,
   headers: {
     Accept: 'application/json'
-  }
+  },
+  validateStatus: (status) => status >= 200 && status < 300
 });
 
 apiAdmin.interceptors.request.use((config) => {

@@ -2421,8 +2421,8 @@ body {
 /* Ensure map takes full container */
 .maplibregl-canvas {
   border-radius: 12px;
-  width: 100% !important;
-  height: 100% !important;
+  /* width: 100% !important;
+  height: 100% !important; */
 }
 
 /* Hide charts and users table when in map management */
@@ -2981,6 +2981,91 @@ body {
   background-color: #f8f9fa;
   color: #6c757d;
   cursor: not-allowed;
+}
+
+
+
+.add-place-combo-field {
+  z-index: 1;
+}
+
+.add-place-combo-trigger {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  margin-bottom: 0 !important;
+  background: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fillRule='evenodd' clipRule='evenodd' d='M3.64645 5.64645C3.84171 5.45118 4.15829 5.45118 4.35355 5.64645L8 9.29289L11.6464 5.64645C11.8417 5.45118 12.1583 5.45118 12.3536 5.64645C12.5488 5.84171 12.5488 6.15829 12.3536 6.35355L8.35355 10.3536C8.15829 10.5488 7.84171 10.5488 7.64645 10.3536L3.64645 6.35355C3.45118 6.15829 3.45118 5.84171 3.64645 5.64645Z' fill='%231E2023'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: left 12px center;
+  background-size: 16px;
+  color: #1E2023;
+  cursor: pointer;
+  text-align: right;
+}
+
+.add-place-combo-trigger span {
+  display: block;
+  width: 100%;
+  padding-left: 26px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.add-place-combo-trigger.placeholder span {
+  color: #858585;
+}
+
+.add-place-combo-trigger:disabled {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+.add-place-combo-menu {
+  direction: rtl;
+  z-index: 20000;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #fff;
+  border: 1px solid #D9D9D9;
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+.add-place-combo-option {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: #1E2023;
+  cursor: pointer;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  font-size: 14px;
+  line-height: 1.7;
+  padding: 8px 10px;
+  text-align: right;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.add-place-combo-option:hover,
+.add-place-combo-option.selected {
+  background: #F5F6FF;
+  color: #0F71EF;
+}
+
+.add-place-combo-empty {
+  color: #858585;
+  font-size: 13px;
+  padding: 12px;
+  text-align: center;
 }
 
 /* Modal Footer */
@@ -4932,6 +5017,7 @@ body {
   background: #0F71EF;
   border-radius: 50%;
 }
+
 
 /* Modal Footer */
 .create-category-modal .modal-footer {
@@ -10142,6 +10228,7 @@ body {
   display: block;
 }
 
+
 /* Modal Footer */
 
 .modal-close-button {
@@ -11422,5 +11509,77 @@ body {
   }
   .edit-cultural-page {
     padding: 1rem;
+  }
+}
+
+.door-graph-status-panel {
+  position: absolute;
+  right: 18px;
+  bottom: 26px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(360px, calc(100% - 36px));
+  direction: rtl;
+  pointer-events: none;
+}
+
+.door-graph-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.86);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+.door-graph-status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.18);
+}
+
+.door-graph-status-badge.status-queued .door-graph-status-dot,
+.door-graph-status-badge.status-rebuilding .door-graph-status-dot,
+.door-graph-status-badge.status-unknown .door-graph-status-dot {
+  animation: doorGraphPulse 1.15s ease-in-out infinite;
+}
+
+.door-graph-status-badge.status-ready {
+  background: rgba(22, 101, 52, 0.9);
+}
+
+.door-graph-status-badge.status-ready .door-graph-status-dot {
+  background: #86efac;
+  box-shadow: 0 0 0 4px rgba(134, 239, 172, 0.2);
+}
+
+.door-graph-status-badge.status-failed,
+.door-graph-status-badge.status-timeout {
+  background: rgba(146, 64, 14, 0.92);
+}
+
+.door-graph-status-badge.status-failed .door-graph-status-dot,
+.door-graph-status-badge.status-timeout .door-graph-status-dot {
+  background: #fbbf24;
+  box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.22);
+}
+
+@keyframes doorGraphPulse {
+  0%, 100% {
+    transform: scale(0.9);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 1;
   }
 }
