@@ -552,7 +552,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
           'intra_area', 0.7,
           0.7
         ],
-        'line-opacity': 0.85
+        'line-opacity': 0.45
       },
       layout: {
         'line-join': 'round',
