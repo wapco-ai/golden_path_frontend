@@ -2,6 +2,10 @@ import apiAdmin from '../api/apiAdmin';
 
 const DOORS_BASE_URL = '/api/v1/doors';
 
+const DOOR_GRAPH_POLL_INTERVAL_MS = 5000;
+const DOOR_GRAPH_POLL_TIMEOUT_MS = 30 * 60 * 1000;
+const TRANSIENT_GRAPH_STATUS_CODES = new Set([408, 429, 502, 503, 504]);
+
 export const createDoor = async ({
   x,
   y,
@@ -71,9 +75,18 @@ const waitForDoorGraphPollInterval = (intervalMs, signal) => new Promise((resolv
   signal?.addEventListener('abort', handleAbort, { once: true });
 });
 
+const isTransientDoorGraphPollingError = (error) => {
+  if (error?.name === 'AbortError') return false;
+
+  const status = error?.response?.status;
+  if (TRANSIENT_GRAPH_STATUS_CODES.has(status)) return true;
+
+  return error?.code === 'ECONNABORTED' || error?.code === 'ERR_NETWORK';
+};
+
 export async function pollDoorGraphStatus(doorId, {
-  intervalMs = 3000,
-  timeoutMs = 300000,
+  intervalMs = DOOR_GRAPH_POLL_INTERVAL_MS,
+  timeoutMs = DOOR_GRAPH_POLL_TIMEOUT_MS,
   signal,
   onStatus,
   onDone,
@@ -90,20 +103,31 @@ export async function pollDoorGraphStatus(doorId, {
       return;
     }
 
-    const result = await getDoorGraphStatus(doorId, { signal });
-    const graph = result?.graph || {};
-    const status = graph.status || 'unknown';
+    try {
+      const result = await getDoorGraphStatus(doorId, { signal });
+      const graph = result?.graph || {};
+      const status = graph.status || 'unknown';
 
-    onStatus?.({ ...graph, status });
+      onStatus?.({ ...graph, status });
 
-    if (status === 'ready') {
-      onDone?.({ ...graph, status });
-      return;
-    }
+      if (status === 'ready') {
+        onDone?.({ ...graph, status });
+        return;
+      }
 
-    if (status === 'failed') {
-      onFailed?.({ ...graph, status });
-      return;
+      if (status === 'failed') {
+        onFailed?.({ ...graph, status });
+        return;
+      }
+    } catch (error) {
+      if (!isTransientDoorGraphPollingError(error)) {
+        throw error;
+      }
+
+      onStatus?.({
+        status: 'unknown',
+        message: 'دریافت وضعیت گراف موقتاً ناموفق بود؛ بررسی ادامه دارد.'
+      });
     }
 
     await waitForDoorGraphPollInterval(intervalMs, signal);

@@ -11605,6 +11605,8 @@ body {
 
 .door-graph-status-badge.status-queued .door-graph-status-dot,
 .door-graph-status-badge.status-rebuilding .door-graph-status-dot,
+.door-graph-status-badge.status-processing .door-graph-status-dot,
+.door-graph-status-badge.status-pending .door-graph-status-dot,
 .door-graph-status-badge.status-unknown .door-graph-status-dot {
   animation: doorGraphPulse 1.15s ease-in-out infinite;
 }
