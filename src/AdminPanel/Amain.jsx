@@ -233,6 +233,9 @@ const TEMP_AREA_FLOW_STATES = {
   editing: 'editing'
 };
 
+const DOOR_GRAPH_UPDATING_STATUSES = new Set(['queued', 'rebuilding', 'processing', 'pending', 'unknown']);
+const DOOR_GRAPH_POLL_TIMEOUT_MS = 30 * 60 * 1000;
+
 const getApiErrorMessage = (error, fallbackMessage = '') => error?.response?.data?.message
   || error?.response?.data?.errors?.operational?.is_covered?.[0]
   || error?.message
@@ -1347,8 +1350,7 @@ const Amain = () => {
     });
 
     pollDoorGraphStatus(normalizedDoorId, {
-      intervalMs: 3000,
-      timeoutMs: 300000,
+      timeoutMs: DOOR_GRAPH_POLL_TIMEOUT_MS,
       signal: abortController.signal,
       onStatus: (graph) => {
         updateDoorGraphJobState(normalizedDoorId, {
@@ -1367,19 +1369,24 @@ const Amain = () => {
         refreshActiveEditableLayerTiles(DOOR_ACCESS_LAYER_ID);
       },
       onFailed: (graph) => {
+        const isTimeout = graph?.status === 'timeout';
         updateDoorGraphJobState(normalizedDoorId, {
           status: graph?.status || 'failed',
           error: graph?.message || 'بروزرسانی گراف ناموفق بود.',
           updatedAt: graph?.updated_at || graph?.updatedAt
         });
-        toast.warning('درب ثبت شد، اما بروزرسانی گراف ناموفق بود. لطفاً بازسازی گراف را دوباره اجرا کنید.');
+        toast.warning(
+          isTimeout
+            ? 'بازسازی گراف هنوز تمام نشده است و بررسی خودکار متوقف شد. لطفاً چند دقیقه دیگر صفحه مدیریت نقشه را باز کنید یا وضعیت درب را دوباره بررسی کنید.'
+            : 'درب ثبت شد، اما بروزرسانی گراف ناموفق بود. لطفاً بازسازی گراف را دوباره اجرا کنید.'
+        );
       }
     }).catch((error) => {
       if (error?.name === 'AbortError' || abortController.signal.aborted) return;
 
       updateDoorGraphJobState(normalizedDoorId, {
         status: 'unknown',
-        error: error?.message || 'دریافت وضعیت گراف ناموفق بود.'
+        error: error?.message || 'دریافت وضعیت گراف ناموفق بود؛ بررسی پس از تازه‌سازی صفحه ادامه پیدا می‌کند.'
       });
     }).finally(() => {
       if (doorGraphPollingControllersRef.current.get(normalizedDoorId) === abortController) {
@@ -1421,7 +1428,7 @@ const Amain = () => {
   }, [refreshActiveEditableLayerTiles]);
 
   const hasUpdatingDoorGraphJobs = useMemo(
-    () => Object.values(graphJobsByDoorId).some((job) => ['queued', 'rebuilding', 'unknown'].includes(job?.status)),
+    () => Object.values(graphJobsByDoorId).some((job) => DOOR_GRAPH_UPDATING_STATUSES.has(job?.status)),
     [graphJobsByDoorId]
   );
   useEffect(() => {
@@ -12519,7 +12526,9 @@ const Amain = () => {
                         ? 'گراف آماده است'
                         : job?.status === 'failed'
                           ? 'بروزرسانی گراف ناموفق بود'
-                          : 'بروزرسانی گراف...';
+                          : job?.status === 'timeout'
+                            ? 'بازسازی گراف طولانی شد؛ کمی بعد دوباره بررسی کنید'
+                            : 'بروزرسانی گراف...';
 
                       return (
                         <div key={doorId} className={`door-graph-status-badge status-${job?.status || 'unknown'}`}>
