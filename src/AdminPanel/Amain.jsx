@@ -5633,15 +5633,19 @@ const Amain = () => {
     setIsContextRoutingLoading(true);
 
     try {
+      const selectedFloor = floorLabelToValue(mapFloor);
       const routingResult = await requestRouting({
         origin: {
           name: 'مبدا',
-          coordinates: [originPoint.lat, originPoint.lng]
+          coordinates: [originPoint.lat, originPoint.lng],
+          floor: selectedFloor
         },
         destination: {
           name: 'مقصد',
-          coordinates: [destinationPoint.lat, destinationPoint.lng]
+          coordinates: [destinationPoint.lat, destinationPoint.lng],
+          floor: selectedFloor
         },
+        floor: selectedFloor,
         mode: 'walk',
         gender: 'both',
         lang: mapLanguage || 'fa',
@@ -5685,7 +5689,7 @@ const Amain = () => {
       }
       setIsContextRoutingLoading(false);
     }
-  }, [buildContextPointFeature, hasUpdatingDoorGraphJobs, mapLanguage]);
+  }, [buildContextPointFeature, hasUpdatingDoorGraphJobs, mapFloor, mapLanguage]);
 
   const activeLayerTitle = activeEditableLayer?.titleFa
     || activeEditableLayer?.label

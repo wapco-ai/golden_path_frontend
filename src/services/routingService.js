@@ -1,19 +1,29 @@
 import appConfig from '../config/appConfig.js';
 
-const buildCoordinatePayload = (point) => {
+const normalizeFloor = (floor) => {
+  if (floor === null || floor === undefined || floor === '') return null;
+
+  const normalized = Number(floor);
+  return Number.isFinite(normalized) ? normalized : null;
+};
+
+const buildCoordinatePayload = (point, fallbackFloor = null) => {
   if (!point?.coordinates || point.coordinates.length < 2) return null;
   const [lat, lon] = point.coordinates;
+  const floor = normalizeFloor(point.floor ?? fallbackFloor);
 
   return {
     type: 'coordinate',
     lat: Number(lat),
-    lon: Number(lon)
+    lon: Number(lon),
+    ...(floor !== null ? { floor } : {})
   };
 };
 
-const buildRequestBody = ({ origin, destination, mode, gender, lang, maxAlternatives }) => {
-  const originPayload = buildCoordinatePayload(origin);
-  const destinationPayload = buildCoordinatePayload(destination);
+const buildRequestBody = ({ origin, destination, mode, gender, lang, maxAlternatives, floor }) => {
+  const normalizedFloor = normalizeFloor(floor);
+  const originPayload = buildCoordinatePayload(origin, normalizedFloor);
+  const destinationPayload = buildCoordinatePayload(destination, normalizedFloor);
 
   if (!originPayload || !destinationPayload) {
     throw new Error('Missing origin or destination coordinates');
@@ -30,6 +40,7 @@ const buildRequestBody = ({ origin, destination, mode, gender, lang, maxAlternat
     gender: gender || 'both',
     lang: lang || 'fa',
     maxAlternatives: typeof maxAlternatives === 'number' ? maxAlternatives : 2,
+    ...(normalizedFloor !== null ? { floor: normalizedFloor } : {}),
     origin: originPayload,
     destination: destinationPayload
   };
@@ -255,8 +266,8 @@ const mapRoute = (route = {}, originName = '', destinationName = '') => {
   };
 };
 
-export const requestRouting = async ({ origin, destination, mode, gender, lang, maxAlternatives, signal }) => {
-  const body = buildRequestBody({ origin, destination, mode, gender, lang, maxAlternatives });
+export const requestRouting = async ({ origin, destination, mode, gender, lang, maxAlternatives, floor, signal }) => {
+  const body = buildRequestBody({ origin, destination, mode, gender, lang, maxAlternatives, floor });
 
   const response = await fetch(appConfig.routingRouteUrl, {
     method: 'POST',

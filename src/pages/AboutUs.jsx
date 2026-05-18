@@ -15,18 +15,21 @@ function AboutUs() {
 
   useEffect(() => {
 
-    window.scrollTo(0, 0);
+    if (location.pathname.includes('/edit-cultural') || 
+        location.pathname.includes('edit-cultural-info') ||
+        isEditingCultural) {
+      
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      
 
-
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-
-    // Force a reflow
-    document.body.style.overflow = 'hidden';
-    setTimeout(() => {
-      document.body.style.overflow = 'auto';
-    }, 10);
-  }, [location.pathname]);
+      document.body.style.overflow = 'hidden';
+      setTimeout(() => {
+        document.body.style.overflow = 'auto';
+      }, 10);
+    }
+  }, [location.pathname, isEditingCultural]);
 
   useEffect(() => {
     let isMounted = true;
