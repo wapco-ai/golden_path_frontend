@@ -1276,11 +1276,6 @@ const RoutingPage = () => {
   }, [currentStep, routeData, isRoutingActive]);
 
   useEffect(() => {
-    if (!isRoutingActive) {
-      setIsLiveImageLoading(false);
-      return;
-    }
-
     const fallbackGeo = isDrActive
       ? Number.isFinite(drPosition?.lat) && Number.isFinite(drPosition?.lng)
       ? { lat: drPosition.lat, lng: drPosition.lng }
@@ -1343,7 +1338,7 @@ const RoutingPage = () => {
     };
 
     requestLandmarkImage();
-    const intervalId = setInterval(requestLandmarkImage, 4000);
+    const intervalId = setInterval(requestLandmarkImage, isRoutingActive ? 4000 : 8000);
 
     return () => {
       cancelled = true;
