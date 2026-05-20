@@ -4760,6 +4760,15 @@ const Amain = () => {
 
     mapInstance.addControl(new maplibregl.NavigationControl());
 
+    const editOverlayLayerIds = new Set(['areas-outline', 'doorsAccessPoint']);
+    const editVectorConfig = adminVectorTileConfig
+      .filter((layer) => editOverlayLayerIds.has(layer.id))
+      .map((layer) => ({ ...layer, visibleByDefault: true }));
+
+    mapInstance.on('load', () => {
+      initHaramVectorLayers(mapInstance, editVectorConfig);
+    });
+
     const createRedMarker = () => {
       const el = document.createElement('div');
       el.innerHTML = `
@@ -4823,7 +4832,26 @@ const Amain = () => {
 
     setCulturalMap(mapInstance);
     return mapInstance;
-  }, [cleanupCulturalMap, culturalMap, selectedLocation]);
+  }, [adminVectorTileConfig, cleanupCulturalMap, culturalMap, selectedLocation]);
+
+  const syncEditMapFloor = useCallback((mapInstance, floorValue) => {
+    if (!mapInstance || mapInstance.getContainer?.()?.id !== 'edit-cultural-map-container') return;
+    const editOverlayLayerIds = new Set(['areas-outline', 'doorsAccessPoint']);
+    const floor = Number.isFinite(Number(floorValue)) ? Number(floorValue) : 0;
+
+    adminVectorTileConfig.forEach((layer) => {
+      if (!editOverlayLayerIds.has(layer.id)) return;
+      const source = mapInstance.getSource(layer.sourceId);
+      const tileUrlFactory = typeof layer.tileUrlFactory === 'function' ? layer.tileUrlFactory : null;
+      const nextTileUrl = tileUrlFactory ? tileUrlFactory({ floor }) : layer.tileUrl;
+      if (source && typeof source.setTiles === 'function' && nextTileUrl) {
+        source.setTiles([`${nextTileUrl}${nextTileUrl.includes('?') ? '&' : '?'}cacheBust=${Date.now()}`]);
+      }
+      if (mapInstance.getLayer(layer.id)) {
+        mapInstance.setLayoutProperty(layer.id, 'visibility', 'visible');
+      }
+    });
+  }, [adminVectorTileConfig]);
 
 
   useEffect(() => {
@@ -4898,6 +4926,11 @@ const Amain = () => {
       }
     };
   }, [isEditingCultural, culturalMap]);
+
+  useEffect(() => {
+    if (!isEditingCultural || !culturalMap) return;
+    syncEditMapFloor(culturalMap, culturalFloor);
+  }, [isEditingCultural, culturalFloor, culturalMap, syncEditMapFloor]);
 
   const handleCulturalPrayerNextMonth = () => {
     setCulturalPrayerCalendarDate(prev => {
