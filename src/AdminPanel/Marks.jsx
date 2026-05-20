@@ -4,8 +4,7 @@ import { toast } from 'react-toastify';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../AdminPanel/Amain.css';
-import appConfig from '../config/appConfig';
-import { getAdminToken } from '../api/http';
+import apiAdmin from '../api/apiAdmin';
 
 // RTL plugin initialization
 function ensureRtlOnce() {
@@ -77,7 +76,6 @@ const Marks = () => {
     location: null,
     floor: 0
   });
-  const GUIDANCE_BASE_URL = `${appConfig.apiBaseUrl}/api/v1/admin/guidance-points`;
 
   // Map refs
   const mapContainerRef = useRef(null);
@@ -107,11 +105,9 @@ const Marks = () => {
       params.set('page', String(page));
       params.set('limit', String(itemsPerPage));
       if (searchTerm?.trim()) params.set('search', searchTerm.trim());
-      const res = await fetch(`${GUIDANCE_BASE_URL}?${params.toString()}`, {
-        headers: { Accept: 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` }
-      });
-      const payload = await res.json();
-      if (!res.ok || !payload?.success) throw new Error(payload?.message || 'خطا در دریافت لیست نقاط');
+      const res = await apiAdmin.get(`/api/v1/admin/guidance-points?${params.toString()}`);
+      const payload = res.data;
+      if (!payload?.success) throw new Error(payload?.message || 'خطا در دریافت لیست نقاط');
       const list = Array.isArray(payload?.data) ? payload.data : [];
       setMarks(list.map(normalizeMark));
       setTotalItems(Number(payload?.meta?.total || list.length));
@@ -404,13 +400,9 @@ const Marks = () => {
     request.append('x', String(formData.location.lng));
     request.append('y', String(formData.location.lat));
     formData.images.forEach((img) => { if (img?.file) request.append('images[]', img.file); });
-    fetch(GUIDANCE_BASE_URL, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${getAdminToken() || ''}` },
-      body: request
-    }).then(async (res) => {
-      const payload = await res.json();
-      if (!res.ok || !payload?.success) throw new Error(payload?.message || 'خطا در ایجاد نقطه');
+    apiAdmin.post('/api/v1/admin/guidance-points', request).then((res) => {
+      const payload = res.data;
+      if (!payload?.success) throw new Error(payload?.message || 'خطا در ایجاد نقطه');
       setIsSaving(false);
       setIsAddModalOpen(false);
       toast.success('نقطه جدید با موفقیت اضافه شد');
@@ -445,13 +437,9 @@ const Marks = () => {
     if (formData.images.some((img) => img?.file)) {
       formData.images.forEach((img) => { if (img?.file) request.append('images[]', img.file); });
     }
-    fetch(`${GUIDANCE_BASE_URL}/${selectedMark.id}`, {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${getAdminToken() || ''}` },
-      body: request
-    }).then(async (res) => {
-      const payload = await res.json();
-      if (!res.ok || !payload?.success) throw new Error(payload?.message || 'خطا در ویرایش نقطه');
+    apiAdmin.patch(`/api/v1/admin/guidance-points/${selectedMark.id}`, request).then((res) => {
+      const payload = res.data;
+      if (!payload?.success) throw new Error(payload?.message || 'خطا در ویرایش نقطه');
       setIsSaving(false);
       setIsEditModalOpen(false);
       toast.success('نقطه با موفقیت ویرایش شد');
@@ -466,12 +454,9 @@ const Marks = () => {
   const handleDeleteMark = () => {
     setIsSaving(true);
 
-    fetch(`${GUIDANCE_BASE_URL}/${selectedMark.id}`, {
-      method: 'DELETE',
-      headers: { Accept: 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` }
-    }).then(async (res) => {
-      const payload = await res.json();
-      if (!res.ok || !payload?.success) throw new Error(payload?.message || 'خطا در حذف نقطه');
+    apiAdmin.delete(`/api/v1/admin/guidance-points/${selectedMark.id}`).then((res) => {
+      const payload = res.data;
+      if (!payload?.success) throw new Error(payload?.message || 'خطا در حذف نقطه');
       setIsSaving(false);
       setIsDeleteModalOpen(false);
       toast.success('نقطه با موفقیت حذف شد');
