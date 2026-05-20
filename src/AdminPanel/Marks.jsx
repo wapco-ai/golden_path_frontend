@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../AdminPanel/Amain.css';
+import appConfig from '../config/appConfig';
 
 // RTL plugin initialization
 function ensureRtlOnce() {
@@ -45,27 +46,7 @@ const getDirectionLabel = (orientation) => {
 };
 
 const Marks = () => {
-  // Mock data (front-end only)
-  const [marks, setMarks] = useState([
-    {
-      id: 1,
-      title: 'حرم امام رضا (ع)',
-      images: [{ url: 'https://via.placeholder.com/40x40?text=Image1', orientation: null }],
-      location: { lat: 36.2880, lng: 59.6157 }
-    },
-    {
-      id: 2,
-      title: 'گنبد طلا',
-      images: [{ url: 'https://via.placeholder.com/40x40?text=Image2', orientation: null }],
-      location: { lat: 36.2885, lng: 59.6160 }
-    },
-    {
-      id: 3,
-      title: 'صحن انقلاب',
-      images: [{ url: 'https://via.placeholder.com/40x40?text=Image3', orientation: null }],
-      location: { lat: 36.2875, lng: 59.6150 }
-    }
-  ]);
+  const [marks, setMarks] = useState([]);
 
   // State management
   const [searchTerm, setSearchTerm] = useState('');
@@ -80,6 +61,7 @@ const Marks = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedMark, setSelectedMark] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [totalItems, setTotalItems] = useState(0);
 
   // Orientation modal states
   const [showOrientationModal, setShowOrientationModal] = useState(false);
@@ -91,8 +73,11 @@ const Marks = () => {
   const [formData, setFormData] = useState({
     title: '',
     images: [],
-    location: null
+    location: null,
+    floor: 0
   });
+  const adminToken = localStorage.getItem('adminToken') || localStorage.getItem('token');
+  const GUIDANCE_BASE_URL = `${appConfig.apiBaseUrl}/api/v1/admin/guidance-points`;
 
   // Map refs
   const mapContainerRef = useRef(null);
@@ -101,16 +86,43 @@ const Marks = () => {
   const [selectedLocation, setSelectedLocation] = useState(null);
 
   // Filter marks based on search
-  const filteredMarks = marks.filter(mark =>
-    mark.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredMarks = marks;
 
   // Pagination
-  const totalPages = Math.max(1, Math.ceil(filteredMarks.length / itemsPerPage));
-  const currentMarks = filteredMarks.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const totalPages = Math.max(1, Math.ceil((totalItems || filteredMarks.length) / itemsPerPage));
+  const currentMarks = filteredMarks;
+  const normalizeMark = (item) => ({
+    id: item.id,
+    title: item.title || 'بدون عنوان',
+    images: (item.images || []).map((image) => ({ ...image, url: image.image_url || image.url })),
+    location: { lat: Number(item.latitude), lng: Number(item.longitude) },
+    x: item.x,
+    y: item.y,
+    floor: item.floor
+  });
+  const fetchMarks = async ({ page = currentPage } = {}) => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set('page', String(page));
+      params.set('limit', String(itemsPerPage));
+      if (searchTerm?.trim()) params.set('search', searchTerm.trim());
+      const res = await fetch(`${GUIDANCE_BASE_URL}?${params.toString()}`, {
+        headers: { Accept: 'application/json', Authorization: `Bearer ${adminToken}` }
+      });
+      const payload = await res.json();
+      if (!res.ok || !payload?.success) throw new Error(payload?.message || 'خطا در دریافت لیست نقاط');
+      const list = Array.isArray(payload?.data) ? payload.data : [];
+      setMarks(list.map(normalizeMark));
+      setTotalItems(Number(payload?.meta?.total || list.length));
+    } catch (err) {
+      toast.error(err.message || 'خطا در دریافت لیست نقاط');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+  useEffect(() => { fetchMarks({ page: currentPage }); }, [currentPage, itemsPerPage]);
 
   // Initialize map function
   const initializeMap = (lat, lng) => {
@@ -386,28 +398,34 @@ const Marks = () => {
 
     setIsSaving(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      const newMark = {
-        id: marks.length + 1,
-        title: formData.title.trim() || 'بدون عنوان', // Use default if empty
-        images: formData.images.length > 0 ? formData.images : [{ url: 'https://via.placeholder.com/40x40?text=No+Image', orientation: null }],
-        location: formData.location
-      };
-
-      setMarks([...marks, newMark]);
+    const request = new FormData();
+    request.append('floor', String(formData.floor ?? 0));
+    request.append('title', formData.title?.trim() || '');
+    request.append('x', String(formData.location.lng));
+    request.append('y', String(formData.location.lat));
+    formData.images.forEach((img) => { if (img?.file) request.append('images[]', img.file); });
+    fetch(GUIDANCE_BASE_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: request
+    }).then(async (res) => {
+      const payload = await res.json();
+      if (!res.ok || !payload?.success) throw new Error(payload?.message || 'خطا در ایجاد نقطه');
       setIsSaving(false);
       setIsAddModalOpen(false);
       toast.success('نقطه جدید با موفقیت اضافه شد');
       setCurrentPage(1);
-
-      // Reset form
+      fetchMarks({ page: 1 });
       setFormData({
         title: '',
         images: [],
-        location: null
+        location: null,
+        floor: 0
       });
-    }, 500);
+    }).catch((err) => {
+      setIsSaving(false);
+      toast.error(err.message || 'خطا در ایجاد نقطه');
+    });
   };
 
   // Handle edit mark (title no longer mandatory)
@@ -420,43 +438,48 @@ const Marks = () => {
 
     setIsSaving(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      const updatedMarks = marks.map(mark =>
-        mark.id === selectedMark.id
-          ? {
-            ...mark,
-            title: formData.title.trim() || 'بدون عنوان', // Use default if empty
-            images: formData.images.length > 0 ? formData.images : [{ url: 'https://via.placeholder.com/40x40?text=No+Image', orientation: null }],
-            location: formData.location
-          }
-          : mark
-      );
-
-      setMarks(updatedMarks);
+    const request = new FormData();
+    request.append('title', formData.title?.trim() || '');
+    request.append('x', String(formData.location.lng));
+    request.append('y', String(formData.location.lat));
+    if (formData.images.some((img) => img?.file)) {
+      formData.images.forEach((img) => { if (img?.file) request.append('images[]', img.file); });
+    }
+    fetch(`${GUIDANCE_BASE_URL}/${selectedMark.id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: request
+    }).then(async (res) => {
+      const payload = await res.json();
+      if (!res.ok || !payload?.success) throw new Error(payload?.message || 'خطا در ویرایش نقطه');
       setIsSaving(false);
       setIsEditModalOpen(false);
       toast.success('نقطه با موفقیت ویرایش شد');
-    }, 500);
+      fetchMarks({ page: currentPage });
+    }).catch((err) => {
+      setIsSaving(false);
+      toast.error(err.message || 'خطا در ویرایش نقطه');
+    });
   };
 
   // Handle delete mark
   const handleDeleteMark = () => {
     setIsSaving(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      const updatedMarks = marks.filter(mark => mark.id !== selectedMark.id);
-      setMarks(updatedMarks);
-
-      if (updatedMarks.length === 0 && currentPage > 1) {
-        setCurrentPage(currentPage - 1);
-      }
-
+    fetch(`${GUIDANCE_BASE_URL}/${selectedMark.id}`, {
+      method: 'DELETE',
+      headers: { Accept: 'application/json', Authorization: `Bearer ${adminToken}` }
+    }).then(async (res) => {
+      const payload = await res.json();
+      if (!res.ok || !payload?.success) throw new Error(payload?.message || 'خطا در حذف نقطه');
       setIsSaving(false);
       setIsDeleteModalOpen(false);
       toast.success('نقطه با موفقیت حذف شد');
-    }, 500);
+      fetchMarks({ page: currentPage });
+    }).catch((err) => {
+      setIsSaving(false);
+      toast.error(err.message || 'خطا در حذف نقطه');
+    });
   };
 
   // Handle refresh
@@ -464,11 +487,7 @@ const Marks = () => {
     setIsRefreshing(true);
     setIsLoading(true);
 
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsRefreshing(false);
-      toast.success('لیست نقاط به‌روزرسانی شد');
-    }, 1000);
+    fetchMarks({ page: currentPage }).then(() => toast.success('لیست نقاط به‌روزرسانی شد'));
   };
 
   // Pagination handlers
