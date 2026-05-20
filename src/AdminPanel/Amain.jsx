@@ -4760,7 +4760,7 @@ const Amain = () => {
 
     mapInstance.addControl(new maplibregl.NavigationControl());
 
-    const editOverlayLayerIds = new Set(['areas-outline', 'doorsAccessPoint']);
+    const editOverlayLayerIds = new Set(['areas-outline', 'areas-fill', 'areas-label']);
     const editVectorConfig = adminVectorTileConfig
       .filter((layer) => editOverlayLayerIds.has(layer.id))
       .map((layer) => ({ ...layer, visibleByDefault: true }));
@@ -4836,7 +4836,7 @@ const Amain = () => {
 
   const syncEditMapFloor = useCallback((mapInstance, floorValue) => {
     if (!mapInstance || mapInstance.getContainer?.()?.id !== 'edit-cultural-map-container') return;
-    const editOverlayLayerIds = new Set(['areas-outline', 'doorsAccessPoint']);
+    const editOverlayLayerIds = new Set(['areas-outline', 'areas-fill', 'areas-label']);
     const floor = Number.isFinite(Number(floorValue)) ? Number(floorValue) : 0;
 
     adminVectorTileConfig.forEach((layer) => {
