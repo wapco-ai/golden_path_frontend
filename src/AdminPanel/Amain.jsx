@@ -5216,8 +5216,19 @@ const Amain = () => {
     const mapInstance = new maplibregl.Map({
       container: mapContainer,
       style: './map-styles/osm-voyager/style-en.json',
-      center: [59.6161, 36.2908],
+      center: selectedLocation
+        ? [selectedLocation.lng, selectedLocation.lat]
+        : [59.6161, 36.2908],
       zoom: 16,
+    });
+
+    const modalOverlayLayerIds = new Set(['areas-outline', 'areas-fill', 'areas-label']);
+    const modalVectorConfig = adminVectorTileConfig
+      .filter((layer) => modalOverlayLayerIds.has(layer.id))
+      .map((layer) => ({ ...layer, visibleByDefault: true }));
+
+    mapInstance.on('load', () => {
+      initHaramVectorLayers(mapInstance, modalVectorConfig);
     });
 
     mapInstance.once('load', () => {
@@ -5234,6 +5245,17 @@ const Amain = () => {
 
     // Keep track of the marker
     let marker = null;
+
+    if (selectedLocation) {
+      marker = new maplibregl.Marker({
+        element: createMarkerElement(),
+        anchor: 'bottom',
+        offset: [0, 11]
+      })
+        .setLngLat([selectedLocation.lng, selectedLocation.lat])
+        .addTo(mapInstance);
+      setCurrentMarker(marker);
+    }
 
     // Add click event to map
     mapInstance.on('click', (event) => {
@@ -5261,7 +5283,7 @@ const Amain = () => {
 
     setCulturalMap(mapInstance);
     return mapInstance;
-  }, [getCulturalMapClickCoordinates]);
+  }, [getCulturalMapClickCoordinates, selectedLocation, adminVectorTileConfig]);
 
   useEffect(() => {
     if (!isAddCulturalModalOpen || culturalStep !== 2) return;
