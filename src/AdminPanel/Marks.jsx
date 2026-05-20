@@ -5,6 +5,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../AdminPanel/Amain.css';
 import appConfig from '../config/appConfig';
+import { getAdminToken } from '../api/http';
 
 // RTL plugin initialization
 function ensureRtlOnce() {
@@ -76,7 +77,6 @@ const Marks = () => {
     location: null,
     floor: 0
   });
-  const adminToken = localStorage.getItem('adminToken') || localStorage.getItem('token');
   const GUIDANCE_BASE_URL = `${appConfig.apiBaseUrl}/api/v1/admin/guidance-points`;
 
   // Map refs
@@ -108,7 +108,7 @@ const Marks = () => {
       params.set('limit', String(itemsPerPage));
       if (searchTerm?.trim()) params.set('search', searchTerm.trim());
       const res = await fetch(`${GUIDANCE_BASE_URL}?${params.toString()}`, {
-        headers: { Accept: 'application/json', Authorization: `Bearer ${adminToken}` }
+        headers: { Accept: 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` }
       });
       const payload = await res.json();
       if (!res.ok || !payload?.success) throw new Error(payload?.message || 'خطا در دریافت لیست نقاط');
@@ -406,7 +406,7 @@ const Marks = () => {
     formData.images.forEach((img) => { if (img?.file) request.append('images[]', img.file); });
     fetch(GUIDANCE_BASE_URL, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${adminToken}` },
+      headers: { Authorization: `Bearer ${getAdminToken() || ''}` },
       body: request
     }).then(async (res) => {
       const payload = await res.json();
@@ -447,7 +447,7 @@ const Marks = () => {
     }
     fetch(`${GUIDANCE_BASE_URL}/${selectedMark.id}`, {
       method: 'PATCH',
-      headers: { Authorization: `Bearer ${adminToken}` },
+      headers: { Authorization: `Bearer ${getAdminToken() || ''}` },
       body: request
     }).then(async (res) => {
       const payload = await res.json();
@@ -468,7 +468,7 @@ const Marks = () => {
 
     fetch(`${GUIDANCE_BASE_URL}/${selectedMark.id}`, {
       method: 'DELETE',
-      headers: { Accept: 'application/json', Authorization: `Bearer ${adminToken}` }
+      headers: { Accept: 'application/json', Authorization: `Bearer ${getAdminToken() || ''}` }
     }).then(async (res) => {
       const payload = await res.json();
       if (!res.ok || !payload?.success) throw new Error(payload?.message || 'خطا در حذف نقطه');
