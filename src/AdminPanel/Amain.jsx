@@ -4255,9 +4255,9 @@ const Amain = () => {
       };
     }
 
-    if (currentReportView === 'مدیریت نقاط مسیر') {
+    if (currentReportView === 'مدیریت نقاط راهنما') {
       return {
-        title: ' مدیریت نقاط مسیر در مسیریابی',
+        title: ' مدیریت نقاط راهنما در مسیریابی',
         description: ''
       };
     }
@@ -5499,7 +5499,7 @@ const Amain = () => {
     } else if (viewName === 'مدیریت دسته بندی‌ها' ||
       viewName === 'مدیریت اطلاعات فرهنگی' ||
       viewName === 'مدیریت ادمین‌ها' ||
-      viewName === 'مدیریت نقاط مسیر' ||
+      viewName === 'مدیریت نقاط راهنما' ||
       viewName === 'مدیریت صفحات') {
       setActiveMenu('facmanage');
       setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات', viewName]);
@@ -11358,11 +11358,11 @@ const Amain = () => {
                   <span>مدیریت ادمین‌ها</span>
                 </div>
                 <div
-                  className={`submenu-item ${currentReportView === 'مدیریت نقاط مسیر' ? 'active' : ''}`}
-                  onClick={() => handleSubmenuClick('مدیریت نقاط مسیر')}
+                  className={`submenu-item ${currentReportView === 'مدیریت نقاط راهنما' ? 'active' : ''}`}
+                  onClick={() => handleSubmenuClick('مدیریت نقاط راهنما')}
                 >
                   <div className="submenu-branch"></div>
-                  <span>مدیریت نقاط مسیر</span>
+                  <span>مدیریت نقاط راهنما</span>
                 </div>
               </div>
             )}
@@ -12242,7 +12242,7 @@ const Amain = () => {
             <Feedbacks />
           ) : currentReportView === 'مدیریت ادمین‌ها' ? (
             <Admins />
-          ) : currentReportView === 'مدیریت نقاط مسیر' ? (
+          ) : currentReportView === 'مدیریت نقاط راهنما' ? (
             <Marks />
           ) : currentReportView === 'مدیریت دسته بندی‌ها' ? (
             /* Category Management Section */
@@ -13431,7 +13431,7 @@ const Amain = () => {
             currentReportView !== 'دیدگاه ها' &&
             currentReportView !== 'بازخورد ها' &&
             currentReportView !== 'مدیریت ادمین‌ها' &&
-            currentReportView !== 'مدیریت نقاط مسیر' &&
+            currentReportView !== 'مدیریت نقاط راهنما' &&
             currentReportView !== 'کاربران ثبت نام کرده' &&
             currentReportView !== 'لاگ های مسیریابی کاربران' &&
             activeMenu !== 'mapmanage' && (
