@@ -746,7 +746,6 @@
 
 
 .map-subgroup-image {
-  position: relative;
   overflow: hidden;
   margin-top: 12px;
   border-radius: 8px;
@@ -754,23 +753,6 @@
   height: 100px;
   overflow: hidden;
   flex-shrink: 0;
-}
-
-.map-subgroup-direction-badge {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  z-index: 2;
-  background: rgba(15, 113, 239, 0.88);
-  color: #fff;
-  font-size: 11px;
-  line-height: 1;
-  padding: 4px 7px;
-  border-radius: 999px;
-  max-width: 90%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .map-subgroup-svg {

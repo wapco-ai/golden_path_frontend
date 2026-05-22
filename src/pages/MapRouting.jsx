@@ -89,32 +89,6 @@ const MapRoutingPage = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [landmarkSearchResults, setLandmarkSearchResults] = useState([]);
 
-  const getLandmarkDirectionLabel = useCallback((landmark) => {
-    if (!landmark || typeof landmark !== 'object') return null;
-
-    const directionCandidate =
-      landmark.directionLabel
-      || landmark.direction_label
-      || landmark.directionName
-      || landmark.direction_name
-      || landmark.directionTitle
-      || landmark.direction_title
-      || landmark.direction
-      || landmark.headingLabel
-      || landmark.heading_label;
-
-    if (typeof directionCandidate === 'string') {
-      const trimmed = directionCandidate.trim();
-      return trimmed || null;
-    }
-
-    if (typeof directionCandidate === 'number' && Number.isFinite(directionCandidate)) {
-      return `${Math.round(directionCandidate)}°`;
-    }
-
-    return null;
-  }, []);
-
   useEffect(() => {
 
     if (storedLat && storedLng) {
@@ -1721,7 +1695,6 @@ const MapRoutingPage = () => {
 
                 // Get image URL
                 const imageUrl = Array.isArray(subGroup.img) ? subGroup.img[0] : subGroup.img;
-                const directionLabel = getLandmarkDirectionLabel(subGroup);
 
                 if (!imageUrl) {
                   console.log(`Skipping ${subGroup.label} - no image URL`);
@@ -1779,11 +1752,6 @@ const MapRoutingPage = () => {
                         </div>
                       </div>
                       <div className="map-subgroup-image">
-                        {directionLabel && (
-                          <div className="map-subgroup-direction-badge" title={directionLabel}>
-                            {directionLabel}
-                          </div>
-                        )}
                         <img
                           src={imageUrl}
                           alt={subGroup.label}
@@ -2016,9 +1984,6 @@ const MapRoutingPage = () => {
                     {modalFilteredSubGroups
                       .filter(subgroup => subgroup.img)
                       .map((subgroup, index) => (
-                        (() => {
-                          const directionLabel = getLandmarkDirectionLabel(subgroup);
-                          return (
                         <div
                           key={index}
                           className="subgroup-item with-image"
@@ -2047,11 +2012,8 @@ const MapRoutingPage = () => {
                         >
                           <div className="subgroup-info">
                             <h4>{subgroup.label}</h4>
-                            {directionLabel && <p>{directionLabel}</p>}
                           </div>
                         </div>
-                          );
-                        })()
                       ))}
                   </div>
                 </div>
