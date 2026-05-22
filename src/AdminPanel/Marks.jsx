@@ -5,6 +5,14 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../AdminPanel/Amain.css';
 import apiAdmin from '../api/apiAdmin';
+import { uploadFile } from '../services/fileService';
+
+const resolveFileBucket = (file) => {
+  const mime = file?.type || file?.mime || '';
+  if (mime.startsWith('image/') || mime.startsWith('video/')) return 'images';
+  if (mime.startsWith('audio/')) return 'audio';
+  return 'files';
+};
 
 // RTL plugin initialization
 function ensureRtlOnce() {
@@ -385,6 +393,22 @@ const Marks = () => {
   };
 
   // Handle add mark (title no longer mandatory)
+  const uploadGuidancePointImages = async (images, pointId) => {
+    const files = images.filter((img) => img?.file);
+    if (!files.length) return;
+
+    for (const img of files) {
+      await uploadFile({
+        file: img.file,
+        entityTable: 'poi_points',
+        entityId: pointId,
+        bucket: resolveFileBucket(img),
+        keepOriginalName: true
+      });
+    }
+  };
+
+  // Handle add mark (title no longer mandatory)
   const handleAddMark = () => {
     // Only check location, title is optional
     if (!formData.location) {
@@ -399,10 +423,13 @@ const Marks = () => {
     request.append('title', formData.title?.trim() || '');
     request.append('x', String(formData.location.lng));
     request.append('y', String(formData.location.lat));
-    formData.images.forEach((img) => { if (img?.file) request.append('images[]', img.file); });
-    apiAdmin.post('/api/v1/admin/guidance-points', request).then((res) => {
+    apiAdmin.post('/api/v1/admin/guidance-points', request).then(async (res) => {
       const payload = res.data;
       if (!payload?.success) throw new Error(payload?.message || 'خطا در ایجاد نقطه');
+      const pointId = Number(payload?.data?.id || payload?.id);
+      if (Number.isInteger(pointId) && pointId > 0) {
+        await uploadGuidancePointImages(formData.images, pointId);
+      }
       setIsSaving(false);
       setIsAddModalOpen(false);
       toast.success('نقطه جدید با موفقیت اضافه شد');
@@ -431,15 +458,16 @@ const Marks = () => {
     setIsSaving(true);
 
     const request = new FormData();
+    request.append('floor', String(formData.floor ?? selectedMark?.floor ?? 0));
     request.append('title', formData.title?.trim() || '');
     request.append('x', String(formData.location.lng));
     request.append('y', String(formData.location.lat));
-    if (formData.images.some((img) => img?.file)) {
-      formData.images.forEach((img) => { if (img?.file) request.append('images[]', img.file); });
-    }
-    apiAdmin.patch(`/api/v1/admin/guidance-points/${selectedMark.id}`, request).then((res) => {
+    apiAdmin.patch(`/api/v1/admin/guidance-points/${selectedMark.id}`, request).then(async (res) => {
       const payload = res.data;
       if (!payload?.success) throw new Error(payload?.message || 'خطا در ویرایش نقطه');
+      if (formData.images.some((img) => img?.file)) {
+        await uploadGuidancePointImages(formData.images, selectedMark.id);
+      }
       setIsSaving(false);
       setIsEditModalOpen(false);
       toast.success('نقطه با موفقیت ویرایش شد');
