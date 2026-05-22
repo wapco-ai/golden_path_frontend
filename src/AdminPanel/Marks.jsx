@@ -566,7 +566,7 @@ const Marks = () => {
         <div className="section-header-top">
           <div className="title-container">
             <div className="title-cell">
-              <h3>نقاط شاخص مسیریابی</h3>
+              <h3>مدیریت نقاط راهنما</h3>
               <button
                 className="refresh-btn"
                 onClick={handleRefresh}
@@ -607,7 +607,7 @@ const Marks = () => {
               />
             </div>
             <button className="add-admin-btn" onClick={openAddModal}>
-              اضافه کردن نقطه ی جدید
+              اضافه کردن نقطه راهنمای جدید
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path fillRule="evenodd" clipRule="evenodd" d="M10.0003 18.3334C14.6027 18.3334 18.3337 14.6024 18.3337 10C18.3337 5.39765 14.6027 1.66669 10.0003 1.66669C5.39795 1.66669 1.66699 5.39765 1.66699 10C1.66699 14.6024 5.39795 18.3334 10.0003 18.3334ZM10.6253 7.50002C10.6253 7.15484 10.3455 6.87502 10.0003 6.87502C9.65515 6.87502 9.37533 7.15484 9.37533 7.50002L9.37532 9.37504H7.50033C7.15515 9.37504 6.87533 9.65486 6.87533 10C6.87533 10.3452 7.15515 10.625 7.50033 10.625H9.37532V12.5C9.37532 12.8452 9.65515 13.125 10.0003 13.125C10.3455 13.125 10.6253 12.8451 10.6253 12.5L10.6253 10.625H12.5003C12.8455 10.625 13.1253 10.3452 13.1253 10C13.1253 9.65486 12.8455 9.37504 12.5003 9.37504H10.6253V7.50002Z" fill="white" />
               </svg>
@@ -760,7 +760,7 @@ const Marks = () => {
         <div className="modal-overlay">
           <div className="add-admin-modal" style={{ maxWidth: '800px' }}>
             <div className="modal-header-add-admin">
-              <h3>افزودن نقطه جدید</h3>
+              <h3>افزودن نقطه راهنما</h3>
               <button
                 className="close-btn"
                 onClick={() => setIsAddModalOpen(false)}
@@ -860,7 +860,7 @@ const Marks = () => {
                 onClick={handleAddMark}
                 disabled={isSaving || !formData.location}
               >
-                {isSaving ? 'در حال ذخیره...' : 'افزودن نقطه'}
+                {isSaving ? 'در حال ذخیره...' : 'افزودن نقطه راهنما'}
               </button>
             </div>
           </div>
@@ -872,7 +872,7 @@ const Marks = () => {
         <div className="modal-overlay">
           <div className="add-admin-modal" style={{ maxWidth: '800px' }}>
             <div className="modal-header-add-admin">
-              <h3>ویرایش نقطه</h3>
+              <h3>ویرایش نقطه راهنما</h3>
               <button
                 className="close-btn"
                 onClick={() => setIsEditModalOpen(false)}
@@ -972,7 +972,7 @@ const Marks = () => {
                 onClick={handleEditMark}
                 disabled={isSaving || !formData.location}
               >
-                {isSaving ? 'در حال ذخیره...' : 'ویرایش نقطه'}
+                {isSaving ? 'در حال ذخیره...' : 'ویرایش نقطه راهنما'}
               </button>
             </div>
           </div>
@@ -986,7 +986,7 @@ const Marks = () => {
             <div className="modal-header-delete-admin">
             </div>
             <div className="modal-body-delete-admin">
-              <h4>آیا از حذف این نقطه مطمئن هستید؟</h4>
+              <h4>آیا از حذف این نقطه راهنما مطمئن هستید؟</h4>
             </div>
             <div className="modal-footer-delete-admin">
               <button
@@ -1001,7 +1001,7 @@ const Marks = () => {
                 onClick={handleDeleteMark}
                 disabled={isSaving}
               >
-                {isSaving ? 'در حال حذف...' : 'حذف نقطه'}
+                {isSaving ? 'در حال حذف...' : 'حذف نقطه راهنما'}
               </button>
             </div>
           </div>
