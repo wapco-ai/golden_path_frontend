@@ -46,6 +46,12 @@ const getDirectionLabel = (orientation) => {
   }
 };
 
+
+const getImageOrientation = (image) => {
+  if (!image || typeof image !== 'object') return '';
+  return image.orientation || image.direction || image.dir || image.heading || '';
+};
+
 const Marks = () => {
   const [marks, setMarks] = useState([]);
 
@@ -94,7 +100,7 @@ const Marks = () => {
   const normalizeMark = (item) => ({
     id: item.id,
     title: item.title || 'بدون عنوان',
-    images: (item.images || []).map((image) => ({ ...image, url: image.image_url || image.url })),
+    images: (item.images || []).map((image) => ({ ...image, url: image.image_url || image.url, orientation: getImageOrientation(image) })),
     location: { lat: Number(item.latitude), lng: Number(item.longitude) },
     x: item.x,
     y: item.y,
@@ -685,12 +691,28 @@ const Marks = () => {
                 <tr key={mark.id}>
                   <td>
                     <div className="user-profile-cell">
-                      <div className="profile-image-small2">
+                      <div className="profile-image-small2" style={{ position: 'relative' }}>
                         <img
                           src={mark.images[0]?.url || mark.images[0]}
                           alt={mark.title}
                           style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
                         />
+                        {getImageOrientation(mark.images[0]) && (
+                          <span style={{
+                            position: 'absolute',
+                            bottom: '-8px',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: 'rgba(0, 0, 0, 0.75)',
+                            color: '#fff',
+                            fontSize: '9px',
+                            borderRadius: '8px',
+                            padding: '1px 5px',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {getDirectionLabel(getImageOrientation(mark.images[0]))}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -834,7 +856,7 @@ const Marks = () => {
                     {formData.images.map((img, idx) => (
                       <div key={idx} style={{ position: 'relative' }}>
                         <img src={img.url} alt={`preview-${idx}`} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
-                        {img.orientation && (
+                        {getImageOrientation(img) && (
                           <div style={{
                             position: 'absolute',
                             bottom: '-5px',
@@ -847,7 +869,7 @@ const Marks = () => {
                             borderRadius: '4px',
                             whiteSpace: 'nowrap'
                           }}>
-                            {getDirectionLabel(img.orientation)}
+                            {getDirectionLabel(getImageOrientation(img))}
                           </div>
                         )}
                         <button
@@ -946,7 +968,7 @@ const Marks = () => {
                     {formData.images.map((img, idx) => (
                       <div key={idx} style={{ position: 'relative' }}>
                         <img src={img.url} alt={`preview-${idx}`} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
-                        {img.orientation && (
+                        {getImageOrientation(img) && (
                           <div style={{
                             position: 'absolute',
                             bottom: '-5px',
@@ -959,7 +981,7 @@ const Marks = () => {
                             borderRadius: '4px',
                             whiteSpace: 'nowrap'
                           }}>
-                            {getDirectionLabel(img.orientation)}
+                            {getDirectionLabel(getImageOrientation(img))}
                           </div>
                         )}
                         <button
