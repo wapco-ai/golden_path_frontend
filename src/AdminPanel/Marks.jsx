@@ -5,7 +5,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../AdminPanel/Amain.css';
 import apiAdmin from '../api/apiAdmin';
-import { uploadFile } from '../services/fileService';
+import { uploadFile, deleteFile } from '../services/fileService';
 
 // RTL plugin initialization
 function ensureRtlOnce() {
@@ -63,6 +63,7 @@ const Marks = () => {
   const [selectedMark, setSelectedMark] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [totalItems, setTotalItems] = useState(0);
+  const [deletedImages, setDeletedImages] = useState([]);
 
   // Orientation modal states
   const [showOrientationModal, setShowOrientationModal] = useState(false);
@@ -326,6 +327,7 @@ const Marks = () => {
       location: null
     });
     setSelectedLocation(null);
+    setDeletedImages([]);
     setIsAddModalOpen(true);
 
     // Initialize map after modal is rendered
@@ -345,6 +347,7 @@ const Marks = () => {
       location: mark.location
     });
     setSelectedLocation(mark.location);
+    setDeletedImages([]);
     setIsEditModalOpen(true);
 
     setTimeout(() => {
@@ -384,10 +387,46 @@ const Marks = () => {
 
   // Remove image
   const removeImage = (indexToRemove) => {
-    setFormData(prev => ({
-      ...prev,
-      images: prev.images.filter((_, index) => index !== indexToRemove)
-    }));
+    setFormData((prev) => {
+      const imageToRemove = prev.images[indexToRemove];
+
+      const isExistingBackendImage =
+        imageToRemove &&
+        !imageToRemove.file &&
+        (imageToRemove.id || imageToRemove.path || imageToRemove.image_key);
+
+      if (isExistingBackendImage) {
+        setDeletedImages((current) => [
+          ...current,
+          {
+            id: imageToRemove.id || null,
+            path: imageToRemove.path || imageToRemove.image_key || null,
+            image_key: imageToRemove.image_key || imageToRemove.path || null,
+            url: imageToRemove.url || imageToRemove.image_url || null
+          }
+        ]);
+      }
+
+      return {
+        ...prev,
+        images: prev.images.filter((_, index) => index !== indexToRemove)
+      };
+    });
+  };
+
+
+  const deleteRemovedGuidancePointImages = async (images) => {
+    const uniquePaths = [
+      ...new Set(
+        images
+          .map((img) => img?.path || img?.image_key)
+          .filter(Boolean)
+      )
+    ];
+
+    for (const path of uniquePaths) {
+      await deleteFile(path);
+    }
   };
 
   // Handle add mark (title no longer mandatory)
@@ -463,11 +502,15 @@ const Marks = () => {
     apiAdmin.patch(`/api/v1/admin/guidance-points/${selectedMark.id}`, request).then(async (res) => {
       const payload = res.data;
       if (!payload?.success) throw new Error(payload?.message || 'خطا در ویرایش نقطه');
+      if (deletedImages.length > 0) {
+        await deleteRemovedGuidancePointImages(deletedImages);
+      }
       if (formData.images.some((img) => img?.file)) {
         await uploadGuidancePointImages(formData.images, selectedMark.id);
       }
       setIsSaving(false);
       setIsEditModalOpen(false);
+      setDeletedImages([]);
       toast.success('نقطه با موفقیت ویرایش شد');
       fetchMarks({ page: currentPage });
     }).catch((err) => {
