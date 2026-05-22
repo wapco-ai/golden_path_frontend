@@ -7,13 +7,6 @@ import '../AdminPanel/Amain.css';
 import apiAdmin from '../api/apiAdmin';
 import { uploadFile } from '../services/fileService';
 
-const resolveFileBucket = (file) => {
-  const mime = file?.type || file?.mime || '';
-  if (mime.startsWith('image/') || mime.startsWith('video/')) return 'images';
-  if (mime.startsWith('audio/')) return 'audio';
-  return 'files';
-};
-
 // RTL plugin initialization
 function ensureRtlOnce() {
   if (window.__RTL_PLUGIN_SET__) return;
@@ -269,9 +262,13 @@ const Marks = () => {
     // Create the image object with orientation
     const newImage = {
       id: Date.now() + Math.random(),
+      file: pendingImageFile.file,
       url: pendingImageFile.url,
-      orientation: orientation,
-      name: pendingImageFile.name
+      orientation,
+      name: pendingImageFile.name,
+      size: pendingImageFile.size,
+      type: pendingImageFile.type || pendingImageFile.file?.type || '',
+      mime: pendingImageFile.type || pendingImageFile.file?.type || ''
     };
 
     // Add to form data using the callback
@@ -308,7 +305,8 @@ const Marks = () => {
           file,
           url: reader.result,
           name: file.name,
-          size: file.size
+          size: file.size,
+          type: file.type
         });
         setPendingImageCallback(() => callback);
         setShowOrientationModal(true);
@@ -402,7 +400,7 @@ const Marks = () => {
         file: img.file,
         entityTable: 'poi_points',
         entityId: pointId,
-        bucket: resolveFileBucket(img),
+        bucket: 'images',
         keepOriginalName: true
       });
     }
