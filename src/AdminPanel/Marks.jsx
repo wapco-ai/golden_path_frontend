@@ -1038,6 +1038,12 @@ const Marks = () => {
                 />
               </div>
 
+              {selectedOrientation && (
+                <div style={{ marginTop: '12px', textAlign: 'center', fontWeight: 600, color: '#1E2023' }}>
+                  جهت انتخاب شده: {getDirectionLabel(selectedOrientation)}
+                </div>
+              )}
+
               <div className="orientation-options-grid">
                 <button
                   className={`orientation-option ${selectedOrientation === 'north' ? 'selected' : ''}`}
