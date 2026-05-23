@@ -35,31 +35,15 @@ export const uploadFile = async ({
 };
 
 export const deleteFile = async (path) => {
-  if (!path) return null;
-
-  const url = `${FILES_BASE_URL}?path=${encodeURIComponent(path)}`;
-  try {
-    const response = await apiAdmin.delete(url, {
-      headers: {
-        Accept: 'application/json'
-      }
-    });
-
-    return response.data;
-  } catch (error) {
-    const status = error?.response?.status;
-    const message = error?.response?.data?.message;
-
-    if (status === 404 || message === 'File not found') {
-      return {
-        deleted: false,
-        path,
-        message: 'File not found'
-      };
-    }
-
-    throw error;
+  if (!path) {
+    throw new Error('File path is required for delete');
   }
+
+  const response = await apiAdmin.delete(FILES_BASE_URL, {
+    params: { path }
+  });
+
+  return response.data;
 };
 
 export const getFileUrl = (path, { inline = false, as } = {}) => {
