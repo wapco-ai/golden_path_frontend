@@ -4,6 +4,8 @@ import { toast } from 'react-toastify';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../AdminPanel/Amain.css';
+import apiAdmin from '../api/apiAdmin';
+import { uploadFile, deleteFile } from '../services/fileService';
 
 // RTL plugin initialization
 function ensureRtlOnce() {
@@ -44,28 +46,14 @@ const getDirectionLabel = (orientation) => {
   }
 };
 
+
+const getImageOrientation = (image) => {
+  if (!image || typeof image !== 'object') return '';
+  return image.orientation || image.direction || image.dir || image.heading || '';
+};
+
 const Marks = () => {
-  // Mock data (front-end only)
-  const [marks, setMarks] = useState([
-    {
-      id: 1,
-      title: 'حرم امام رضا (ع)',
-      images: [{ url: 'https://via.placeholder.com/40x40?text=Image1', orientation: null }],
-      location: { lat: 36.2880, lng: 59.6157 }
-    },
-    {
-      id: 2,
-      title: 'گنبد طلا',
-      images: [{ url: 'https://via.placeholder.com/40x40?text=Image2', orientation: null }],
-      location: { lat: 36.2885, lng: 59.6160 }
-    },
-    {
-      id: 3,
-      title: 'صحن انقلاب',
-      images: [{ url: 'https://via.placeholder.com/40x40?text=Image3', orientation: null }],
-      location: { lat: 36.2875, lng: 59.6150 }
-    }
-  ]);
+  const [marks, setMarks] = useState([]);
 
   // State management
   const [searchTerm, setSearchTerm] = useState('');
@@ -80,6 +68,8 @@ const Marks = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedMark, setSelectedMark] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [totalItems, setTotalItems] = useState(0);
+  const [deletedImages, setDeletedImages] = useState([]);
 
   // Orientation modal states
   const [showOrientationModal, setShowOrientationModal] = useState(false);
@@ -91,7 +81,8 @@ const Marks = () => {
   const [formData, setFormData] = useState({
     title: '',
     images: [],
-    location: null
+    location: null,
+    floor: 0
   });
 
   // Map refs
@@ -101,16 +92,41 @@ const Marks = () => {
   const [selectedLocation, setSelectedLocation] = useState(null);
 
   // Filter marks based on search
-  const filteredMarks = marks.filter(mark =>
-    mark.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredMarks = marks;
 
   // Pagination
-  const totalPages = Math.max(1, Math.ceil(filteredMarks.length / itemsPerPage));
-  const currentMarks = filteredMarks.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const totalPages = Math.max(1, Math.ceil((totalItems || filteredMarks.length) / itemsPerPage));
+  const currentMarks = filteredMarks;
+  const normalizeMark = (item) => ({
+    id: item.id,
+    title: item.title || 'بدون عنوان',
+    images: (item.images || []).map((image) => ({ ...image, url: image.image_url || image.url, orientation: getImageOrientation(image) })),
+    location: { lat: Number(item.latitude), lng: Number(item.longitude) },
+    x: item.x,
+    y: item.y,
+    floor: item.floor
+  });
+  const fetchMarks = async ({ page = currentPage } = {}) => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set('page', String(page));
+      params.set('limit', String(itemsPerPage));
+      if (searchTerm?.trim()) params.set('search', searchTerm.trim());
+      const res = await apiAdmin.get(`/api/v1/admin/guidance-points?${params.toString()}`);
+      const payload = res.data;
+      if (!payload?.success) throw new Error(payload?.message || 'خطا در دریافت لیست نقاط');
+      const list = Array.isArray(payload?.data) ? payload.data : [];
+      setMarks(list.map(normalizeMark));
+      setTotalItems(Number(payload?.meta?.total || list.length));
+    } catch (err) {
+      toast.error(err.message || 'خطا در دریافت لیست نقاط');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+  useEffect(() => { fetchMarks({ page: currentPage }); }, [currentPage, itemsPerPage]);
 
   // Initialize map function
   const initializeMap = (lat, lng) => {
@@ -253,9 +269,13 @@ const Marks = () => {
     // Create the image object with orientation
     const newImage = {
       id: Date.now() + Math.random(),
+      file: pendingImageFile.file,
       url: pendingImageFile.url,
-      orientation: orientation,
-      name: pendingImageFile.name
+      orientation,
+      name: pendingImageFile.name,
+      size: pendingImageFile.size,
+      type: pendingImageFile.type || pendingImageFile.file?.type || '',
+      mime: pendingImageFile.type || pendingImageFile.file?.type || ''
     };
 
     // Add to form data using the callback
@@ -292,7 +312,8 @@ const Marks = () => {
           file,
           url: reader.result,
           name: file.name,
-          size: file.size
+          size: file.size,
+          type: file.type
         });
         setPendingImageCallback(() => callback);
         setShowOrientationModal(true);
@@ -312,6 +333,7 @@ const Marks = () => {
       location: null
     });
     setSelectedLocation(null);
+    setDeletedImages([]);
     setIsAddModalOpen(true);
 
     // Initialize map after modal is rendered
@@ -331,6 +353,7 @@ const Marks = () => {
       location: mark.location
     });
     setSelectedLocation(mark.location);
+    setDeletedImages([]);
     setIsEditModalOpen(true);
 
     setTimeout(() => {
@@ -370,10 +393,62 @@ const Marks = () => {
 
   // Remove image
   const removeImage = (indexToRemove) => {
-    setFormData(prev => ({
-      ...prev,
-      images: prev.images.filter((_, index) => index !== indexToRemove)
-    }));
+    setFormData((prev) => {
+      const imageToRemove = prev.images[indexToRemove];
+
+      const isExistingBackendImage =
+        imageToRemove &&
+        !imageToRemove.file &&
+        (imageToRemove.id || imageToRemove.path || imageToRemove.image_key);
+
+      if (isExistingBackendImage) {
+        setDeletedImages((current) => [
+          ...current,
+          {
+            id: imageToRemove.id || null,
+            path: imageToRemove.path || imageToRemove.image_key || null,
+            image_key: imageToRemove.image_key || imageToRemove.path || null,
+            url: imageToRemove.url || imageToRemove.image_url || null
+          }
+        ]);
+      }
+
+      return {
+        ...prev,
+        images: prev.images.filter((_, index) => index !== indexToRemove)
+      };
+    });
+  };
+
+
+  const deleteRemovedGuidancePointImages = async (images) => {
+    const uniquePaths = [
+      ...new Set(
+        images
+          .map((img) => img?.path || img?.image_key)
+          .filter(Boolean)
+      )
+    ];
+
+    for (const path of uniquePaths) {
+      await deleteFile(path);
+    }
+  };
+
+  // Handle add mark (title no longer mandatory)
+  const uploadGuidancePointImages = async (images, pointId) => {
+    const files = images.filter((img) => img?.file);
+    if (!files.length) return;
+
+    for (const img of files) {
+      await uploadFile({
+        file: img.file,
+        entityTable: 'poi_points',
+        entityId: pointId,
+        bucket: 'images',
+        keepOriginalName: true
+      });
+    }
   };
 
   // Handle add mark (title no longer mandatory)
@@ -386,28 +461,33 @@ const Marks = () => {
 
     setIsSaving(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      const newMark = {
-        id: marks.length + 1,
-        title: formData.title.trim() || 'بدون عنوان', // Use default if empty
-        images: formData.images.length > 0 ? formData.images : [{ url: 'https://via.placeholder.com/40x40?text=No+Image', orientation: null }],
-        location: formData.location
-      };
-
-      setMarks([...marks, newMark]);
+    const request = new FormData();
+    request.append('floor', String(formData.floor ?? 0));
+    request.append('title', formData.title?.trim() || '');
+    request.append('x', String(formData.location.lng));
+    request.append('y', String(formData.location.lat));
+    apiAdmin.post('/api/v1/admin/guidance-points', request).then(async (res) => {
+      const payload = res.data;
+      if (!payload?.success) throw new Error(payload?.message || 'خطا در ایجاد نقطه');
+      const pointId = Number(payload?.data?.id || payload?.id);
+      if (Number.isInteger(pointId) && pointId > 0) {
+        await uploadGuidancePointImages(formData.images, pointId);
+      }
       setIsSaving(false);
       setIsAddModalOpen(false);
       toast.success('نقطه جدید با موفقیت اضافه شد');
       setCurrentPage(1);
-
-      // Reset form
+      fetchMarks({ page: 1 });
       setFormData({
         title: '',
         images: [],
-        location: null
+        location: null,
+        floor: 0
       });
-    }, 500);
+    }).catch((err) => {
+      setIsSaving(false);
+      toast.error(err.message || 'خطا در ایجاد نقطه');
+    });
   };
 
   // Handle edit mark (title no longer mandatory)
@@ -420,43 +500,46 @@ const Marks = () => {
 
     setIsSaving(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      const updatedMarks = marks.map(mark =>
-        mark.id === selectedMark.id
-          ? {
-            ...mark,
-            title: formData.title.trim() || 'بدون عنوان', // Use default if empty
-            images: formData.images.length > 0 ? formData.images : [{ url: 'https://via.placeholder.com/40x40?text=No+Image', orientation: null }],
-            location: formData.location
-          }
-          : mark
-      );
-
-      setMarks(updatedMarks);
+    const request = new FormData();
+    request.append('floor', String(formData.floor ?? selectedMark?.floor ?? 0));
+    request.append('title', formData.title?.trim() || '');
+    request.append('x', String(formData.location.lng));
+    request.append('y', String(formData.location.lat));
+    apiAdmin.patch(`/api/v1/admin/guidance-points/${selectedMark.id}`, request).then(async (res) => {
+      const payload = res.data;
+      if (!payload?.success) throw new Error(payload?.message || 'خطا در ویرایش نقطه');
+      if (deletedImages.length > 0) {
+        await deleteRemovedGuidancePointImages(deletedImages);
+      }
+      if (formData.images.some((img) => img?.file)) {
+        await uploadGuidancePointImages(formData.images, selectedMark.id);
+      }
       setIsSaving(false);
       setIsEditModalOpen(false);
+      setDeletedImages([]);
       toast.success('نقطه با موفقیت ویرایش شد');
-    }, 500);
+      fetchMarks({ page: currentPage });
+    }).catch((err) => {
+      setIsSaving(false);
+      toast.error(err.message || 'خطا در ویرایش نقطه');
+    });
   };
 
   // Handle delete mark
   const handleDeleteMark = () => {
     setIsSaving(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      const updatedMarks = marks.filter(mark => mark.id !== selectedMark.id);
-      setMarks(updatedMarks);
-
-      if (updatedMarks.length === 0 && currentPage > 1) {
-        setCurrentPage(currentPage - 1);
-      }
-
+    apiAdmin.delete(`/api/v1/admin/guidance-points/${selectedMark.id}`).then((res) => {
+      const payload = res.data;
+      if (!payload?.success) throw new Error(payload?.message || 'خطا در حذف نقطه');
       setIsSaving(false);
       setIsDeleteModalOpen(false);
       toast.success('نقطه با موفقیت حذف شد');
-    }, 500);
+      fetchMarks({ page: currentPage });
+    }).catch((err) => {
+      setIsSaving(false);
+      toast.error(err.message || 'خطا در حذف نقطه');
+    });
   };
 
   // Handle refresh
@@ -464,11 +547,7 @@ const Marks = () => {
     setIsRefreshing(true);
     setIsLoading(true);
 
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsRefreshing(false);
-      toast.success('لیست نقاط به‌روزرسانی شد');
-    }, 1000);
+    fetchMarks({ page: currentPage }).then(() => toast.success('لیست نقاط به‌روزرسانی شد'));
   };
 
   // Pagination handlers
@@ -534,7 +613,7 @@ const Marks = () => {
         <div className="section-header-top">
           <div className="title-container">
             <div className="title-cell">
-              <h3>نقاط شاخص مسیریابی</h3>
+              <h3>مدیریت نقاط راهنما</h3>
               <button
                 className="refresh-btn"
                 onClick={handleRefresh}
@@ -575,7 +654,7 @@ const Marks = () => {
               />
             </div>
             <button className="add-admin-btn" onClick={openAddModal}>
-              اضافه کردن نقطه ی جدید
+              اضافه کردن نقطه راهنمای جدید
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path fillRule="evenodd" clipRule="evenodd" d="M10.0003 18.3334C14.6027 18.3334 18.3337 14.6024 18.3337 10C18.3337 5.39765 14.6027 1.66669 10.0003 1.66669C5.39795 1.66669 1.66699 5.39765 1.66699 10C1.66699 14.6024 5.39795 18.3334 10.0003 18.3334ZM10.6253 7.50002C10.6253 7.15484 10.3455 6.87502 10.0003 6.87502C9.65515 6.87502 9.37533 7.15484 9.37533 7.50002L9.37532 9.37504H7.50033C7.15515 9.37504 6.87533 9.65486 6.87533 10C6.87533 10.3452 7.15515 10.625 7.50033 10.625H9.37532V12.5C9.37532 12.8452 9.65515 13.125 10.0003 13.125C10.3455 13.125 10.6253 12.8451 10.6253 12.5L10.6253 10.625H12.5003C12.8455 10.625 13.1253 10.3452 13.1253 10C13.1253 9.65486 12.8455 9.37504 12.5003 9.37504H10.6253V7.50002Z" fill="white" />
               </svg>
@@ -612,12 +691,28 @@ const Marks = () => {
                 <tr key={mark.id}>
                   <td>
                     <div className="user-profile-cell">
-                      <div className="profile-image-small2">
+                      <div className="profile-image-small2" style={{ position: 'relative' }}>
                         <img
                           src={mark.images[0]?.url || mark.images[0]}
                           alt={mark.title}
                           style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
                         />
+                        {getImageOrientation(mark.images[0]) && (
+                          <span style={{
+                            position: 'absolute',
+                            bottom: '-8px',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: 'rgba(0, 0, 0, 0.75)',
+                            color: '#fff',
+                            fontSize: '9px',
+                            borderRadius: '8px',
+                            padding: '1px 5px',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {getDirectionLabel(getImageOrientation(mark.images[0]))}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -728,7 +823,7 @@ const Marks = () => {
         <div className="modal-overlay">
           <div className="add-admin-modal" style={{ maxWidth: '800px' }}>
             <div className="modal-header-add-admin">
-              <h3>افزودن نقطه جدید</h3>
+              <h3>افزودن نقطه راهنما</h3>
               <button
                 className="close-btn"
                 onClick={() => setIsAddModalOpen(false)}
@@ -761,7 +856,7 @@ const Marks = () => {
                     {formData.images.map((img, idx) => (
                       <div key={idx} style={{ position: 'relative' }}>
                         <img src={img.url} alt={`preview-${idx}`} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
-                        {img.orientation && (
+                        {getImageOrientation(img) && (
                           <div style={{
                             position: 'absolute',
                             bottom: '-5px',
@@ -774,7 +869,7 @@ const Marks = () => {
                             borderRadius: '4px',
                             whiteSpace: 'nowrap'
                           }}>
-                            {getDirectionLabel(img.orientation)}
+                            {getDirectionLabel(getImageOrientation(img))}
                           </div>
                         )}
                         <button
@@ -828,7 +923,7 @@ const Marks = () => {
                 onClick={handleAddMark}
                 disabled={isSaving || !formData.location}
               >
-                {isSaving ? 'در حال ذخیره...' : 'افزودن نقطه'}
+                {isSaving ? 'در حال ذخیره...' : 'افزودن نقطه راهنما'}
               </button>
             </div>
           </div>
@@ -840,7 +935,7 @@ const Marks = () => {
         <div className="modal-overlay">
           <div className="add-admin-modal" style={{ maxWidth: '800px' }}>
             <div className="modal-header-add-admin">
-              <h3>ویرایش نقطه</h3>
+              <h3>ویرایش نقطه راهنما</h3>
               <button
                 className="close-btn"
                 onClick={() => setIsEditModalOpen(false)}
@@ -873,7 +968,7 @@ const Marks = () => {
                     {formData.images.map((img, idx) => (
                       <div key={idx} style={{ position: 'relative' }}>
                         <img src={img.url} alt={`preview-${idx}`} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
-                        {img.orientation && (
+                        {getImageOrientation(img) && (
                           <div style={{
                             position: 'absolute',
                             bottom: '-5px',
@@ -886,7 +981,7 @@ const Marks = () => {
                             borderRadius: '4px',
                             whiteSpace: 'nowrap'
                           }}>
-                            {getDirectionLabel(img.orientation)}
+                            {getDirectionLabel(getImageOrientation(img))}
                           </div>
                         )}
                         <button
@@ -940,7 +1035,7 @@ const Marks = () => {
                 onClick={handleEditMark}
                 disabled={isSaving || !formData.location}
               >
-                {isSaving ? 'در حال ذخیره...' : 'ویرایش نقطه'}
+                {isSaving ? 'در حال ذخیره...' : 'ویرایش نقطه راهنما'}
               </button>
             </div>
           </div>
@@ -954,7 +1049,7 @@ const Marks = () => {
             <div className="modal-header-delete-admin">
             </div>
             <div className="modal-body-delete-admin">
-              <h4>آیا از حذف این نقطه مطمئن هستید؟</h4>
+              <h4>آیا از حذف این نقطه راهنما مطمئن هستید؟</h4>
             </div>
             <div className="modal-footer-delete-admin">
               <button
@@ -969,7 +1064,7 @@ const Marks = () => {
                 onClick={handleDeleteMark}
                 disabled={isSaving}
               >
-                {isSaving ? 'در حال حذف...' : 'حذف نقطه'}
+                {isSaving ? 'در حال حذف...' : 'حذف نقطه راهنما'}
               </button>
             </div>
           </div>
@@ -1007,6 +1102,12 @@ const Marks = () => {
                   className="image-preview"
                 />
               </div>
+
+              {selectedOrientation && (
+                <div style={{ marginTop: '12px', textAlign: 'center', fontWeight: 600, color: '#1E2023' }}>
+                  جهت انتخاب شده: {getDirectionLabel(selectedOrientation)}
+                </div>
+              )}
 
               <div className="orientation-options-grid">
                 <button

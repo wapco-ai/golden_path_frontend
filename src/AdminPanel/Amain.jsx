@@ -233,6 +233,9 @@ const TEMP_AREA_FLOW_STATES = {
   editing: 'editing'
 };
 
+const DOOR_GRAPH_UPDATING_STATUSES = new Set(['queued', 'rebuilding', 'processing', 'pending', 'unknown']);
+const DOOR_GRAPH_POLL_TIMEOUT_MS = 30 * 60 * 1000;
+
 const getApiErrorMessage = (error, fallbackMessage = '') => error?.response?.data?.message
   || error?.response?.data?.errors?.operational?.is_covered?.[0]
   || error?.message
@@ -1347,8 +1350,7 @@ const Amain = () => {
     });
 
     pollDoorGraphStatus(normalizedDoorId, {
-      intervalMs: 3000,
-      timeoutMs: 300000,
+      timeoutMs: DOOR_GRAPH_POLL_TIMEOUT_MS,
       signal: abortController.signal,
       onStatus: (graph) => {
         updateDoorGraphJobState(normalizedDoorId, {
@@ -1367,19 +1369,24 @@ const Amain = () => {
         refreshActiveEditableLayerTiles(DOOR_ACCESS_LAYER_ID);
       },
       onFailed: (graph) => {
+        const isTimeout = graph?.status === 'timeout';
         updateDoorGraphJobState(normalizedDoorId, {
           status: graph?.status || 'failed',
           error: graph?.message || 'بروزرسانی گراف ناموفق بود.',
           updatedAt: graph?.updated_at || graph?.updatedAt
         });
-        toast.warning('درب ثبت شد، اما بروزرسانی گراف ناموفق بود. لطفاً بازسازی گراف را دوباره اجرا کنید.');
+        toast.warning(
+          isTimeout
+            ? 'بازسازی گراف هنوز تمام نشده است و بررسی خودکار متوقف شد. لطفاً چند دقیقه دیگر صفحه مدیریت نقشه را باز کنید یا وضعیت درب را دوباره بررسی کنید.'
+            : 'درب ثبت شد، اما بروزرسانی گراف ناموفق بود. لطفاً بازسازی گراف را دوباره اجرا کنید.'
+        );
       }
     }).catch((error) => {
       if (error?.name === 'AbortError' || abortController.signal.aborted) return;
 
       updateDoorGraphJobState(normalizedDoorId, {
         status: 'unknown',
-        error: error?.message || 'دریافت وضعیت گراف ناموفق بود.'
+        error: error?.message || 'دریافت وضعیت گراف ناموفق بود؛ بررسی پس از تازه‌سازی صفحه ادامه پیدا می‌کند.'
       });
     }).finally(() => {
       if (doorGraphPollingControllersRef.current.get(normalizedDoorId) === abortController) {
@@ -1421,7 +1428,7 @@ const Amain = () => {
   }, [refreshActiveEditableLayerTiles]);
 
   const hasUpdatingDoorGraphJobs = useMemo(
-    () => Object.values(graphJobsByDoorId).some((job) => ['queued', 'rebuilding', 'unknown'].includes(job?.status)),
+    () => Object.values(graphJobsByDoorId).some((job) => DOOR_GRAPH_UPDATING_STATUSES.has(job?.status)),
     [graphJobsByDoorId]
   );
   useEffect(() => {
@@ -4248,9 +4255,9 @@ const Amain = () => {
       };
     }
 
-    if (currentReportView === 'مدیریت نقاط مسیر') {
+    if (currentReportView === 'مدیریت نقاط راهنما') {
       return {
-        title: ' مدیریت نقاط مسیر در مسیریابی',
+        title: ' مدیریت نقاط راهنما در مسیریابی',
         description: ''
       };
     }
@@ -4753,6 +4760,15 @@ const Amain = () => {
 
     mapInstance.addControl(new maplibregl.NavigationControl());
 
+    const editOverlayLayerIds = new Set(['areas-outline', 'areas-fill', 'areas-label']);
+    const editVectorConfig = adminVectorTileConfig
+      .filter((layer) => editOverlayLayerIds.has(layer.id))
+      .map((layer) => ({ ...layer, visibleByDefault: true }));
+
+    mapInstance.on('load', () => {
+      initHaramVectorLayers(mapInstance, editVectorConfig);
+    });
+
     const createRedMarker = () => {
       const el = document.createElement('div');
       el.innerHTML = `
@@ -4816,7 +4832,26 @@ const Amain = () => {
 
     setCulturalMap(mapInstance);
     return mapInstance;
-  }, [cleanupCulturalMap, culturalMap, selectedLocation]);
+  }, [adminVectorTileConfig, cleanupCulturalMap, culturalMap, selectedLocation]);
+
+  const syncEditMapFloor = useCallback((mapInstance, floorValue) => {
+    if (!mapInstance || mapInstance.getContainer?.()?.id !== 'edit-cultural-map-container') return;
+    const editOverlayLayerIds = new Set(['areas-outline', 'areas-fill', 'areas-label']);
+    const floor = Number.isFinite(Number(floorValue)) ? Number(floorValue) : 0;
+
+    adminVectorTileConfig.forEach((layer) => {
+      if (!editOverlayLayerIds.has(layer.id)) return;
+      const source = mapInstance.getSource(layer.sourceId);
+      const tileUrlFactory = typeof layer.tileUrlFactory === 'function' ? layer.tileUrlFactory : null;
+      const nextTileUrl = tileUrlFactory ? tileUrlFactory({ floor }) : layer.tileUrl;
+      if (source && typeof source.setTiles === 'function' && nextTileUrl) {
+        source.setTiles([`${nextTileUrl}${nextTileUrl.includes('?') ? '&' : '?'}cacheBust=${Date.now()}`]);
+      }
+      if (mapInstance.getLayer(layer.id)) {
+        mapInstance.setLayoutProperty(layer.id, 'visibility', 'visible');
+      }
+    });
+  }, [adminVectorTileConfig]);
 
 
   useEffect(() => {
@@ -4891,6 +4926,11 @@ const Amain = () => {
       }
     };
   }, [isEditingCultural, culturalMap]);
+
+  useEffect(() => {
+    if (!isEditingCultural || !culturalMap) return;
+    syncEditMapFloor(culturalMap, culturalFloor);
+  }, [isEditingCultural, culturalFloor, culturalMap, syncEditMapFloor]);
 
   const handleCulturalPrayerNextMonth = () => {
     setCulturalPrayerCalendarDate(prev => {
@@ -5176,8 +5216,19 @@ const Amain = () => {
     const mapInstance = new maplibregl.Map({
       container: mapContainer,
       style: './map-styles/osm-voyager/style-en.json',
-      center: [59.6161, 36.2908],
+      center: selectedLocation
+        ? [selectedLocation.lng, selectedLocation.lat]
+        : [59.6161, 36.2908],
       zoom: 16,
+    });
+
+    const modalOverlayLayerIds = new Set(['areas-outline', 'areas-fill', 'areas-label']);
+    const modalVectorConfig = adminVectorTileConfig
+      .filter((layer) => modalOverlayLayerIds.has(layer.id))
+      .map((layer) => ({ ...layer, visibleByDefault: true }));
+
+    mapInstance.on('load', () => {
+      initHaramVectorLayers(mapInstance, modalVectorConfig);
     });
 
     mapInstance.once('load', () => {
@@ -5194,6 +5245,17 @@ const Amain = () => {
 
     // Keep track of the marker
     let marker = null;
+
+    if (selectedLocation) {
+      marker = new maplibregl.Marker({
+        element: createMarkerElement(),
+        anchor: 'bottom',
+        offset: [0, 11]
+      })
+        .setLngLat([selectedLocation.lng, selectedLocation.lat])
+        .addTo(mapInstance);
+      setCurrentMarker(marker);
+    }
 
     // Add click event to map
     mapInstance.on('click', (event) => {
@@ -5221,7 +5283,7 @@ const Amain = () => {
 
     setCulturalMap(mapInstance);
     return mapInstance;
-  }, [getCulturalMapClickCoordinates]);
+  }, [getCulturalMapClickCoordinates, selectedLocation, adminVectorTileConfig]);
 
   useEffect(() => {
     if (!isAddCulturalModalOpen || culturalStep !== 2) return;
@@ -5437,7 +5499,7 @@ const Amain = () => {
     } else if (viewName === 'مدیریت دسته بندی‌ها' ||
       viewName === 'مدیریت اطلاعات فرهنگی' ||
       viewName === 'مدیریت ادمین‌ها' ||
-      viewName === 'مدیریت نقاط مسیر' ||
+      viewName === 'مدیریت نقاط راهنما' ||
       viewName === 'مدیریت صفحات') {
       setActiveMenu('facmanage');
       setBreadcrumbPath(['منوی اصلی', 'مدیریت امکانات', viewName]);
@@ -5633,15 +5695,19 @@ const Amain = () => {
     setIsContextRoutingLoading(true);
 
     try {
+      const selectedFloor = floorLabelToValue(mapFloor);
       const routingResult = await requestRouting({
         origin: {
           name: 'مبدا',
-          coordinates: [originPoint.lat, originPoint.lng]
+          coordinates: [originPoint.lat, originPoint.lng],
+          floor: selectedFloor
         },
         destination: {
           name: 'مقصد',
-          coordinates: [destinationPoint.lat, destinationPoint.lng]
+          coordinates: [destinationPoint.lat, destinationPoint.lng],
+          floor: selectedFloor
         },
+        floor: selectedFloor,
         mode: 'walk',
         gender: 'both',
         lang: mapLanguage || 'fa',
@@ -5685,7 +5751,7 @@ const Amain = () => {
       }
       setIsContextRoutingLoading(false);
     }
-  }, [buildContextPointFeature, hasUpdatingDoorGraphJobs, mapLanguage]);
+  }, [buildContextPointFeature, hasUpdatingDoorGraphJobs, mapFloor, mapLanguage]);
 
   const activeLayerTitle = activeEditableLayer?.titleFa
     || activeEditableLayer?.label
@@ -11292,11 +11358,11 @@ const Amain = () => {
                   <span>مدیریت ادمین‌ها</span>
                 </div>
                 <div
-                  className={`submenu-item ${currentReportView === 'مدیریت نقاط مسیر' ? 'active' : ''}`}
-                  onClick={() => handleSubmenuClick('مدیریت نقاط مسیر')}
+                  className={`submenu-item ${currentReportView === 'مدیریت نقاط راهنما' ? 'active' : ''}`}
+                  onClick={() => handleSubmenuClick('مدیریت نقاط راهنما')}
                 >
                   <div className="submenu-branch"></div>
-                  <span>مدیریت نقاط مسیر</span>
+                  <span>مدیریت نقاط راهنما</span>
                 </div>
               </div>
             )}
@@ -12176,7 +12242,7 @@ const Amain = () => {
             <Feedbacks />
           ) : currentReportView === 'مدیریت ادمین‌ها' ? (
             <Admins />
-          ) : currentReportView === 'مدیریت نقاط مسیر' ? (
+          ) : currentReportView === 'مدیریت نقاط راهنما' ? (
             <Marks />
           ) : currentReportView === 'مدیریت دسته بندی‌ها' ? (
             /* Category Management Section */
@@ -12515,7 +12581,9 @@ const Amain = () => {
                         ? 'گراف آماده است'
                         : job?.status === 'failed'
                           ? 'بروزرسانی گراف ناموفق بود'
-                          : 'بروزرسانی گراف...';
+                          : job?.status === 'timeout'
+                            ? 'بازسازی گراف طولانی شد؛ کمی بعد دوباره بررسی کنید'
+                            : 'بروزرسانی گراف...';
 
                       return (
                         <div key={doorId} className={`door-graph-status-badge status-${job?.status || 'unknown'}`}>
@@ -13363,7 +13431,7 @@ const Amain = () => {
             currentReportView !== 'دیدگاه ها' &&
             currentReportView !== 'بازخورد ها' &&
             currentReportView !== 'مدیریت ادمین‌ها' &&
-            currentReportView !== 'مدیریت نقاط مسیر' &&
+            currentReportView !== 'مدیریت نقاط راهنما' &&
             currentReportView !== 'کاربران ثبت نام کرده' &&
             currentReportView !== 'لاگ های مسیریابی کاربران' &&
             activeMenu !== 'mapmanage' && (

@@ -804,16 +804,16 @@ const RoutingPage = () => {
   }, [bearing, buildStepInstruction, computeTurn, formatDurationFromSeconds, intl, resolveLandmarkName, resolveRouteMStepInstructionBase]);
 
   const resolveStepHeading = useCallback((step, stepIndex) => {
+    if (Array.isArray(step?.coordinates) && step.coordinates.length > 1 && Array.isArray(step.coordinates[0])) {
+      return bearing(step.coordinates[0], step.coordinates[step.coordinates.length - 1]);
+    }
+
     if (Number.isFinite(step?.heading)) {
       return normalizeHeading(step.heading);
     }
 
     if (Number.isFinite(step?.maneuver?.bearing_after)) {
       return normalizeHeading(step.maneuver.bearing_after);
-    }
-
-    if (Array.isArray(step?.coordinates) && step.coordinates.length > 1 && Array.isArray(step.coordinates[0])) {
-      return bearing(step.coordinates[0], step.coordinates[step.coordinates.length - 1]);
     }
 
     const routeCoords = routeGeo?.geometry?.coordinates;
@@ -948,9 +948,9 @@ const RoutingPage = () => {
     return resolveNearestRouteSegmentHeading(stepBasedGeo);
   }, [isRoutingActive, resolveNearestRouteSegmentHeading, stepBasedGeo]);
 
-  const effectiveHeading = Number.isFinite(routeSegmentHeading)
-    ? routeSegmentHeading
-    : (Number.isFinite(stepBasedHeading) ? stepBasedHeading : userHeading);
+  const effectiveHeading = Number.isFinite(stepBasedHeading)
+    ? stepBasedHeading
+    : userHeading;
 
   useEffect(() => {
     const coords = routeGeo?.geometry?.coordinates;
@@ -1276,15 +1276,10 @@ const RoutingPage = () => {
   }, [currentStep, routeData, isRoutingActive]);
 
   useEffect(() => {
-    if (!isRoutingActive) {
-      setIsLiveImageLoading(false);
-      return;
-    }
-
     const fallbackGeo = isDrActive
       ? Number.isFinite(drPosition?.lat) && Number.isFinite(drPosition?.lng)
-      ? { lat: drPosition.lat, lng: drPosition.lng }
-      : null
+        ? { lat: drPosition.lat, lng: drPosition.lng }
+        : null
       : Number.isFinite(userLocation?.[0]) && Number.isFinite(userLocation?.[1])
         ? { lat: userLocation[0], lng: userLocation[1] }
         : null;
@@ -1343,7 +1338,7 @@ const RoutingPage = () => {
     };
 
     requestLandmarkImage();
-    const intervalId = setInterval(requestLandmarkImage, 4000);
+    const intervalId = setInterval(requestLandmarkImage, isRoutingActive ? 4000 : 8000);
 
     return () => {
       cancelled = true;

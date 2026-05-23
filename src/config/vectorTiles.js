@@ -33,7 +33,8 @@ const VAN_EDGES_FUNCTION_TILE_BASE = `${TILE_BASE_URL}/${VAN_EDGES_FUNCTION_SOUR
 const MESH_TRIANGLES_SOURCE_LAYER = 'public.vw_mesh_triangles';
 const MESH_TRIANGLES_TILE_BASE = `${TILE_BASE_URL}/${MESH_TRIANGLES_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
 
-const ROUTING_EDGES_STATIC_SOURCE_LAYER = 'public.routing_edges_static';
+const ROUTING_EDGES_STATIC_SOURCE_LAYER = 'public.fn_routing_edges_static_mvt';
+const ROUTING_EDGES_STATIC_VECTOR_LAYER_NAME = 'routing_edges_static';
 const ROUTING_EDGES_STATIC_BASE = `${TILE_BASE_URL}/${ROUTING_EDGES_STATIC_SOURCE_LAYER}/{z}/{x}/{y}.pbf`;
 
 const DOORS_ACCESS_POINT_SOURCE_LAYER = 'public.fn_door_access_points_mvt';
@@ -46,6 +47,8 @@ const buildDoorAccessPointsTileUrlFactory = () => buildFloorOnlyTileUrlFactory(D
 
 const buildVanNodesTileUrlFactory = () => buildFloorOnlyTileUrlFactory(VAN_NODES_FUNCTION_TILE_BASE);
 const buildVanEdgesTileUrlFactory = () => buildFloorOnlyTileUrlFactory(VAN_EDGES_FUNCTION_TILE_BASE);
+const buildRoutingEdgesTileUrlFactory = () => buildFloorOnlyTileUrlFactory(ROUTING_EDGES_STATIC_BASE);
+
 
 const normalizeFloorValue = (floor) => {
   if (typeof floor === 'number' && !Number.isNaN(floor)) {
@@ -199,117 +202,162 @@ const buildHaramVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
   const tileLang = normalizeLang(lang);
 
   return [
-  {
-    id: 'areas-outline',
-    titleFa: 'مرز محدوده‌ها',
-    table: 'public.fn_areas_mvt',
-    sourceId: 'fn_areas_mvt',
-    sourceLayer: AREAS_VECTOR_LAYER_NAME,
-    tileUrlFactory: buildAreasTileUrlFactory(tileLang),
-    type: 'line',
-    minzoom: 12,
-    maxzoom: 22,
-    visibleByDefault: true,
-    paint: {
-      'line-color': '#d1c2fa',
-      'line-width': 2
+    {
+      id: 'areas-outline',
+      titleFa: 'مرز محدوده‌ها',
+      table: 'public.fn_areas_mvt',
+      sourceId: 'fn_areas_mvt',
+      sourceLayer: AREAS_VECTOR_LAYER_NAME,
+      tileUrlFactory: buildAreasTileUrlFactory(tileLang),
+      type: 'line',
+      minzoom: 12,
+      maxzoom: 22,
+      visibleByDefault: true,
+      paint: {
+        'line-color': '#d1c2fa',
+        'line-width': 2
+      },
+      layout: {
+        'line-cap': 'round',
+        'line-join': 'round'
+      }
     },
-    layout: {
-      'line-cap': 'round',
-      'line-join': 'round'
-    }
-  },
-  {
-    id: 'areas-fill',
-    titleFa: 'رنگ محدوده‌ها',
-    table: 'public.fn_areas_mvt',
-    sourceId: 'fn_areas_mvt',
-    sourceLayer: 'areas',
-    tileUrlFactory: buildAreasTileUrlFactory(tileLang),
-    type: 'fill',
-    minzoom: 12,
-    maxzoom: 22,
-    visibleByDefault: false,
-    paint: {
-      'fill-color': [
-        'match',
-        ['get', 'area_type'],
-        'sahn', '#fff5cc',
-        'ravaq', '#e6f2ff',
-        'eyvan', '#ffe6e6',
-        'masjed', '#e8e0ff',
-      /* default */ '#dddddd'
-      ],
-      'fill-opacity': 0.35
-    }
-  },
-  {
-    id: 'areas-label',
-    titleFa: 'برچسب محدوده‌ها',
-    table: 'public.fn_areas_mvt',          // همون
-    sourceId: 'fn_areas_mvt',              // همون
-    sourceLayer: AREAS_VECTOR_LAYER_NAME,  // همون
-    tileUrlFactory: buildAreasTileUrlFactory(tileLang),
-    type: 'symbol',
-    minzoom: 12,
-    maxzoom: 22,
-    visibleByDefault: true,
-    layout: {
-      // اسم فیلدی که از MVT میاد را اینجا بگذار
-      'text-field': buildAreaLabelWithIdTextField(),
-      'text-size': 12,
-      'text-anchor': 'center',
-      'text-allow-overlap': false,
-      'text-ignore-placement': false,
-      // فونت‌ها (باید داخل glyphs استایل شما موجود باشند)
-      'text-font': ['Vazirmatn Regular'],
+    {
+      id: 'areas-fill',
+      titleFa: 'رنگ محدوده‌ها',
+      table: 'public.fn_areas_mvt',
+      sourceId: 'fn_areas_mvt',
+      sourceLayer: 'areas',
+      tileUrlFactory: buildAreasTileUrlFactory(tileLang),
+      type: 'fill',
+      minzoom: 12,
+      maxzoom: 22,
+      visibleByDefault: true,
+      paint: {
+        'fill-color': [
+          'match',
+          ['to-string', ['get', 'area_type']],
 
-      // کمک به خوانایی RTL
-      'text-justify': 'right',
-      // اگر فونت RTL داری:
-      // برای راست‌به‌چپ معمولاً کمک می‌کند:
-      'text-writing-mode': ['horizontal']
+          // محدوده‌های عمومی
+          'sahn', '#fff5cc',
+          'courtyard', '#fff5cc',
+          'ravaq', '#e6f2ff',
+          'ravagh', '#e6f2ff',
+          'eyvan', '#ffe6e6',
+          'masjed', '#e8e0ff',
+          'madrese', '#eef2ff',
+
+          // پله، رمپ، آسانسور
+          'stair_area', '#f97316',
+          'ramp_area', '#22c55e',
+          'elevator_area', '#0ea5e9',
+
+          // محدوده‌های اداری / خدماتی / غیرقابل عبور عمومی
+          'admin_zone', '#64748b',
+          'administrative', '#64748b',
+          'storage_area', '#78716c',
+          'warehouse_area', '#78716c',
+          'warehouse', '#78716c',
+          'facility_area', '#a855f7',
+          'technical_area', '#a855f7',
+          'service_room', '#94a3b8',
+          'functional_area', '#94a3b8',
+
+          // پیش‌فرض
+          '#dddddd'
+        ],
+        'fill-opacity': [
+          'case',
+          [
+            'in',
+            ['to-string', ['get', 'area_type']],
+            ['literal', [
+              'stair_area',
+              'ramp_area',
+              'elevator_area',
+              'admin_zone',
+              'administrative',
+              'storage_area',
+              'warehouse_area',
+              'warehouse',
+              'facility_area',
+              'technical_area',
+              'service_room',
+              'functional_area'
+            ]]
+          ],
+          0.55,
+          0.35
+        ]
+      }
     },
-    paint: {
-      'text-color': '#111',
-      'text-halo-color': '#fff',
-      'text-halo-width': 2
+    {
+      id: 'areas-label',
+      titleFa: 'برچسب محدوده‌ها',
+      table: 'public.fn_areas_mvt',          // همون
+      sourceId: 'fn_areas_mvt',              // همون
+      sourceLayer: AREAS_VECTOR_LAYER_NAME,  // همون
+      tileUrlFactory: buildAreasTileUrlFactory(tileLang),
+      type: 'symbol',
+      minzoom: 12,
+      maxzoom: 22,
+      visibleByDefault: true,
+      layout: {
+        // اسم فیلدی که از MVT میاد را اینجا بگذار
+        'text-field': buildAreaLabelWithIdTextField(),
+        'text-size': 12,
+        'text-anchor': 'center',
+        'text-allow-overlap': false,
+        'text-ignore-placement': false,
+        // فونت‌ها (باید داخل glyphs استایل شما موجود باشند)
+        'text-font': ['Vazirmatn Regular'],
+
+        // کمک به خوانایی RTL
+        'text-justify': 'right',
+        // اگر فونت RTL داری:
+        // برای راست‌به‌چپ معمولاً کمک می‌کند:
+        'text-writing-mode': ['horizontal']
+      },
+      paint: {
+        'text-color': '#111',
+        'text-halo-color': '#fff',
+        'text-halo-width': 2
+      }
+    },
+    {
+      id: 'doorsAccessPoint',
+      titleFa: 'نقاط اتصال درب‌ها',
+      table: DOORS_ACCESS_POINT_SOURCE_LAYER,
+      sourceId: 'fn_door_access_points_mvt',
+      sourceLayer: DOORS_ACCESS_POINT_SOURCE_LAYER,
+      tileUrlFactory: buildDoorAccessPointsTileUrlFactory(),
+      type: 'circle',
+      minzoom: 12,
+      maxzoom: 22,
+      visibleByDefault: true,
+      paint: {
+        'circle-color': '#ff7f50',
+        'circle-radius': 50,
+        'circle-stroke-color': '#ffffff',
+        // 'circle-stroke-width': 1.5
+      }
+    },
+    {
+      id: 'doors',
+      titleFa: 'درب‌ها',
+      table: 'public.fn_doors_mvt',
+      sourceId: 'fn_doors_mvt',
+      sourceLayer: DOORS_VECTOR_LAYER_NAME,
+      tileUrlFactory: buildDoorsTileUrlFactory(),
+      type: 'line',
+      minzoom: 12,
+      maxzoom: 22,
+      visibleByDefault: true,
+      paint: {
+        'line-color': '#ff3b30',
+        'line-width': 2
+      }
     }
-  },
-  {
-    id: 'doorsAccessPoint',
-    titleFa: 'نقاط اتصال درب‌ها',
-    table: DOORS_ACCESS_POINT_SOURCE_LAYER,
-    sourceId: 'fn_door_access_points_mvt',
-    sourceLayer: DOORS_ACCESS_POINT_SOURCE_LAYER,
-    tileUrlFactory: buildDoorAccessPointsTileUrlFactory(),
-    type: 'circle',
-    minzoom: 12,
-    maxzoom: 22,
-    visibleByDefault: true,
-    paint: {
-      'circle-color': '#ff7f50',
-      'circle-radius': 50,
-      'circle-stroke-color': '#ffffff',
-      // 'circle-stroke-width': 1.5
-    }
-  },
-  {
-    id: 'doors',
-    titleFa: 'درب‌ها',
-    table: 'public.fn_doors_mvt',
-    sourceId: 'fn_doors_mvt',
-    sourceLayer: DOORS_VECTOR_LAYER_NAME,
-    tileUrlFactory: buildDoorsTileUrlFactory(),
-    type: 'line',
-    minzoom: 12,
-    maxzoom: 22,
-    visibleByDefault: true,
-    paint: {
-      'line-color': '#ff3b30',
-      'line-width': 2
-    }
-  }
   ];
 };
 
@@ -340,157 +388,239 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
         'line-join': 'round'
       }
     },
-  {
-    id: 'areas-label',
-    titleFa: 'برچسب محدوده‌ها',
-    table: 'public.fn_areas_mvt',          // همون
-    sourceId: 'fn_areas_mvt',              // همون
-    sourceLayer: AREAS_VECTOR_LAYER_NAME,  // همون
-    tileUrlFactory: buildAreasTileUrlFactory(tileLang),
-    type: 'symbol',
-    minzoom: 12,
-    maxzoom: 22,
-    visibleByDefault: false,
-    layout: {
-      // اسم فیلدی که از MVT میاد را اینجا بگذار
-      'text-field': buildAreaLabelWithIdTextField(),
-      'text-size': 12,
-      'text-anchor': 'center',
-      'text-allow-overlap': false,
-      'text-ignore-placement': false,
-      // فونت‌ها (باید داخل glyphs استایل شما موجود باشند)
-      'text-font': ['Vazirmatn Regular'],
+    {
+      id: 'areas-fill',
+      titleFa: 'رنگ محدوده‌ها',
+      table: 'public.fn_areas_mvt',
+      sourceId: 'fn_areas_mvt',
+      sourceLayer: 'areas',
+      tileUrlFactory: buildAreasTileUrlFactory(tileLang),
+      type: 'fill',
+      minzoom: 12,
+      maxzoom: 22,
+      visibleByDefault: true,
+      paint: {
+        'fill-color': [
+          'match',
+          ['to-string', ['get', 'area_type']],
 
-      // کمک به خوانایی RTL
-      'text-justify': 'right',
-      // اگر فونت RTL داری:
-      // برای راست‌به‌چپ معمولاً کمک می‌کند:
-      'text-writing-mode': ['horizontal']
+          // محدوده‌های عمومی
+          'sahn', '#fff5cc',
+          'courtyard', '#fff5cc',
+          'ravaq', '#e6f2ff',
+          'ravagh', '#e6f2ff',
+          'eyvan', '#ffe6e6',
+          'masjed', '#e8e0ff',
+          'madrese', '#eef2ff',
+
+          // پله، رمپ، آسانسور
+          'stair_area', '#f97316',
+          'ramp_area', '#22c55e',
+          'elevator_area', '#0ea5e9',
+
+          // محدوده‌های اداری / خدماتی / غیرقابل عبور عمومی
+          'admin_zone', '#64748b',
+          'administrative', '#64748b',
+          'storage_area', '#78716c',
+          'warehouse_area', '#78716c',
+          'warehouse', '#78716c',
+          'facility_area', '#a855f7',
+          'technical_area', '#a855f7',
+          'service_room', '#94a3b8',
+          'functional_area', '#94a3b8',
+
+          // پیش‌فرض
+          '#dddddd'
+        ],
+        'fill-opacity': [
+          'case',
+          [
+            'in',
+            ['to-string', ['get', 'area_type']],
+            ['literal', [
+              'stair_area',
+              'ramp_area',
+              'elevator_area',
+              'admin_zone',
+              'administrative',
+              'storage_area',
+              'warehouse_area',
+              'warehouse',
+              'facility_area',
+              'technical_area',
+              'service_room',
+              'functional_area'
+            ]]
+          ],
+          0.55,
+          0.35
+        ]
+      }
     },
-    paint: {
-      'text-color': '#111',
-      'text-halo-color': '#fff',
-      'text-halo-width': 2
-    }
-  },
-  {
-    id: 'temp-areas-outline',
-    titleFa: 'محدوده‌ موقت',
-    table: 'public.fn_temp_block_areas_live_mvt',
-    sourceId: 'fn_temp_block_areas_live_mvt',
-    sourceLayer: TEMP_AREAS_VECTOR_LAYER_NAME,
-    tileUrlFactory: buildTempAreasTileUrlFactory(tileLang),
-    type: 'line',
-    minzoom: 12,
-    maxzoom: 22,
-    visibleByDefault: true,
-    paint: {
-      'line-color': '#d3516f',
-      'line-width': 2
+    {
+      id: 'areas-label',
+      titleFa: 'برچسب محدوده‌ها',
+      table: 'public.fn_areas_mvt',          // همون
+      sourceId: 'fn_areas_mvt',              // همون
+      sourceLayer: AREAS_VECTOR_LAYER_NAME,  // همون
+      tileUrlFactory: buildAreasTileUrlFactory(tileLang),
+      type: 'symbol',
+      minzoom: 12,
+      maxzoom: 22,
+      visibleByDefault: false,
+      layout: {
+        // اسم فیلدی که از MVT میاد را اینجا بگذار
+        'text-field': buildAreaLabelWithIdTextField(),
+        'text-size': 12,
+        'text-anchor': 'center',
+        'text-allow-overlap': false,
+        'text-ignore-placement': false,
+        // فونت‌ها (باید داخل glyphs استایل شما موجود باشند)
+        'text-font': ['Vazirmatn Regular'],
+
+        // کمک به خوانایی RTL
+        'text-justify': 'right',
+        // اگر فونت RTL داری:
+        // برای راست‌به‌چپ معمولاً کمک می‌کند:
+        'text-writing-mode': ['horizontal']
+      },
+      paint: {
+        'text-color': '#111',
+        'text-halo-color': '#fff',
+        'text-halo-width': 2
+      }
     },
-    layout: {
-      'line-cap': 'round',
-      'line-join': 'round'
-    }
-  },
-  {
-    id: 'doors',
-    titleFa: 'درب‌ها',
-    table: 'public.fn_doors_mvt',
-    sourceId: 'fn_doors_mvt',
-    sourceLayer: DOORS_VECTOR_LAYER_NAME,
-    tileUrlFactory: buildDoorsTileUrlFactory(),
-    type: 'line',
-    minzoom: 12,
-    maxzoom: 22,
-    visibleByDefault: true,
-    paint: {
-      'line-color': '#ff3b30',
-      'line-width': 2
-    }
-  },
-  {
-    id: 'routing_edges_static-ground',
-    titleFa: 'گراف مسیریابی',
-    table: ROUTING_EDGES_STATIC_SOURCE_LAYER,
-    sourceId: 'routing_edges_static',
-    sourceLayer: ROUTING_EDGES_STATIC_SOURCE_LAYER,
-    tileUrl: ROUTING_EDGES_STATIC_BASE,
-    type: 'line',
-    minzoom: 12,
-    maxzoom: 22,
-    visibleByDefault: false,
-    paint: {
-      'line-color': '#f50e0e',
-      'line-width': 0.55
+    {
+      id: 'temp-areas-outline',
+      titleFa: 'محدوده‌ موقت',
+      table: 'public.fn_temp_block_areas_live_mvt',
+      sourceId: 'fn_temp_block_areas_live_mvt',
+      sourceLayer: TEMP_AREAS_VECTOR_LAYER_NAME,
+      tileUrlFactory: buildTempAreasTileUrlFactory(tileLang),
+      type: 'line',
+      minzoom: 12,
+      maxzoom: 22,
+      visibleByDefault: true,
+      paint: {
+        'line-color': '#d3516f',
+        'line-width': 2
+      },
+      layout: {
+        'line-cap': 'round',
+        'line-join': 'round'
+      }
     },
-    layout: {
-      'line-join': 'round',
-      'line-cap': 'round'
-    }
-  },
-  {
-    id: 'van-edges',
-    titleFa: 'مسیر ون برقی',
-    table: MESH_TRIANGLES_SOURCE_LAYER,
-    sourceId: 'van_edges',
-    sourceLayer: VAN_EDGES_VECTOR_LAYER_NAME,
-    tileUrlFactory: buildVanEdgesTileUrlFactory(),
-    type: 'line',
-    minzoom: 12,
-    maxzoom: 22,
-    visibleByDefault: true,
-    paint: {
-      'line-color': '#ffddcc',
-      'line-width': 2
+    {
+      id: 'doors',
+      titleFa: 'درب‌ها',
+      table: 'public.fn_doors_mvt',
+      sourceId: 'fn_doors_mvt',
+      sourceLayer: DOORS_VECTOR_LAYER_NAME,
+      tileUrlFactory: buildDoorsTileUrlFactory(),
+      type: 'line',
+      minzoom: 12,
+      maxzoom: 22,
+      visibleByDefault: true,
+      paint: {
+        'line-color': '#ff3b30',
+        'line-width': 2
+      }
     },
-    layout: {
-      'line-join': 'round',
-      'line-cap': 'round'
+    {
+      id: 'routing_edges_static-ground',
+      titleFa: 'گراف مسیریابی',
+      table: ROUTING_EDGES_STATIC_SOURCE_LAYER,
+      sourceId: 'fn_routing_edges_static_mvt',
+      sourceLayer: ROUTING_EDGES_STATIC_VECTOR_LAYER_NAME,
+      tileUrlFactory: buildRoutingEdgesTileUrlFactory(),
+      type: 'line',
+      minzoom: 12,
+      maxzoom: 22,
+      visibleByDefault: false,
+      paint: {
+        'line-color': [
+          'match',
+          ['get', 'edge_type'],
+          'door_transition', '#22c55e',
+          'intra_area', '#f50e0e',
+          '#f50e0e'
+        ],
+        'line-width': [
+          'match',
+          ['get', 'edge_type'],
+          'door_transition', 1.4,
+          'intra_area', 0.7,
+          0.7
+        ],
+        'line-opacity': 0.45
+      },
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round'
+      }
+    },
+    {
+      id: 'van-edges',
+      titleFa: 'مسیر ون برقی',
+      table: MESH_TRIANGLES_SOURCE_LAYER,
+      sourceId: 'van_edges',
+      sourceLayer: VAN_EDGES_VECTOR_LAYER_NAME,
+      tileUrlFactory: buildVanEdgesTileUrlFactory(),
+      type: 'line',
+      minzoom: 12,
+      maxzoom: 22,
+      visibleByDefault: true,
+      paint: {
+        'line-color': '#ffddcc',
+        'line-width': 2
+      },
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round'
+      }
+    },
+    {
+      id: 'van-nodes',
+      titleFa: 'گره مسیر ون',
+      table: VAN_EDGES_FUNCTION_SOURCE_LAYER,
+      sourceId: 'van_nodes',
+      sourceLayer: VAN_NODES_VECTOR_LAYER_NAME,
+      tileUrlFactory: buildVanNodesTileUrlFactory(),
+      type: 'circle',
+      minzoom: 12,
+      maxzoom: 22,
+      visibleByDefault: true,
+      paint: {
+        'circle-color': '#190fff',
+        'circle-radius': 5,
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 1.5
+      }
+    },
+    {
+      id: DOOR_ACCESS_LAYER_ID,
+      titleFa: 'نقاط اتصال درب‌ها',
+      table: DOORS_ACCESS_POINT_SOURCE_LAYER,
+      sourceId: 'door_access_points',
+      sourceLayer: DOORS_ACCESS_POINT_LAYER_NAME,
+      tileUrlFactory: buildDoorAccessPointsTileUrlFactory(),
+      type: 'circle',
+      minzoom: 12,
+      maxzoom: 22,
+      visibleByDefault: true,
+      paint: {
+        // 'circle-color': '#00f449',
+        'circle-color': [
+          'case',
+          ['==', ['get', 'is_open'], false],
+          '#ef4444',
+          '#00f449'
+        ],
+        'circle-radius': 5,
+        'circle-stroke-color': '#054b03',
+        'circle-stroke-width': 1.5
+      }
     }
-  },
-  {
-    id: 'van-nodes',
-    titleFa: 'گره مسیر ون',
-    table: VAN_EDGES_FUNCTION_SOURCE_LAYER,
-    sourceId: 'van_nodes',
-    sourceLayer: VAN_NODES_VECTOR_LAYER_NAME,
-    tileUrlFactory: buildVanNodesTileUrlFactory(),
-    type: 'circle',
-    minzoom: 12,
-    maxzoom: 22,
-    visibleByDefault: true,
-    paint: {
-      'circle-color': '#190fff',
-      'circle-radius': 5,
-      'circle-stroke-color': '#ffffff',
-      'circle-stroke-width': 1.5
-    }
-  },
-  {
-    id: DOOR_ACCESS_LAYER_ID,
-    titleFa: 'نقاط اتصال درب‌ها',
-    table: DOORS_ACCESS_POINT_SOURCE_LAYER,
-    sourceId: 'door_access_points',
-    sourceLayer: DOORS_ACCESS_POINT_LAYER_NAME,
-    tileUrlFactory: buildDoorAccessPointsTileUrlFactory(),
-    type: 'circle',
-    minzoom: 12,
-    maxzoom: 22,
-    visibleByDefault: true,
-    paint: {
-      // 'circle-color': '#00f449',
-      'circle-color': [
-        'case',
-        ['==', ['get', 'is_open'], false],
-        '#ef4444',
-        '#00f449'
-      ],
-      'circle-radius': 5,
-      'circle-stroke-color': '#054b03',
-      'circle-stroke-width': 1.5
-    }
-  }
   ];
 };
 
