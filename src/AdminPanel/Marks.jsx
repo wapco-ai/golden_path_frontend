@@ -5,7 +5,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../AdminPanel/Amain.css';
 import apiAdmin from '../api/apiAdmin';
-import { uploadFile, deleteFile } from '../services/fileService';
+import { deleteFile } from '../services/fileService';
 
 // RTL plugin initialization
 function ensureRtlOnce() {
@@ -30,23 +30,78 @@ const createRedMarker = () => {
   return el;
 };
 
-// Helper function to get direction label in Persian
-const getDirectionLabel = (orientation) => {
-  switch (orientation) {
-    case 'north':
-      return 'شمالی';
-    case 'south':
-      return 'جنوبی';
-    case 'east':
-      return 'شرقی';
-    case 'west':
-      return 'غربی';
-    default:
-      return '';
-  }
+const ORIENTATION_TO_AZIMUTH = {
+  north: 0,
+  north_east: 45,
+  east: 90,
+  south_east: 135,
+  south: 180,
+  south_west: 225,
+  west: 270,
+  north_west: 315,
+  unknown: null
 };
 
+const ORIENTATION_LABELS_FA = {
+  north: 'شمال',
+  north_east: 'شمال‌شرق',
+  east: 'شرق',
+  south_east: 'جنوب‌شرق',
+  south: 'جنوب',
+  south_west: 'جنوب‌غرب',
+  west: 'غرب',
+  north_west: 'شمال‌غرب',
+  unknown: 'نامشخص'
+};
 
+const ORIENTATION_OPTIONS = Object.keys(ORIENTATION_LABELS_FA);
+
+const getImageOrientation = (image) => {
+  if (!image || typeof image !== 'object') return 'unknown';
+  return image.view_orientation || image.orientation || image.direction || image.dir || image.heading || 'unknown';
+};
+
+const getDirectionLabel = (orientation) => ORIENTATION_LABELS_FA[orientation] || ORIENTATION_LABELS_FA.unknown;
+
+const normalizeGuidanceImage = (image = {}, index = 0) => {
+  const orientation = getImageOrientation(image);
+  const azimuthRaw = image.azimuth_deg;
+  const azimuth = azimuthRaw === '' || azimuthRaw === undefined || azimuthRaw === null
+    ? ORIENTATION_TO_AZIMUTH[orientation]
+    : Number(azimuthRaw);
+
+  return {
+    ...image,
+    id: image.id || `existing-${index}-${image.image_key || image.path || image.image_url || image.url || Date.now()}`,
+    file: image.file,
+    path: image.image_key || image.path || extractStoragePath(image.image_url) || extractStoragePath(image.url) || null,
+    image_key: image.image_key || image.path || extractStoragePath(image.image_url) || extractStoragePath(image.url) || null,
+    image_url: image.image_url || image.url || image.previewUrl || '',
+    url: image.url || image.image_url || image.previewUrl || '',
+    previewUrl: image.previewUrl || image.url || image.image_url || '',
+    sort_order: Number.isFinite(Number(image.sort_order)) ? Number(image.sort_order) : index,
+    view_orientation: orientation,
+    azimuth_deg: Number.isFinite(azimuth) ? azimuth : null,
+    fov_deg: Number.isFinite(Number(image.fov_deg)) ? Number(image.fov_deg) : 60,
+    caption: image.caption || ''
+  };
+};
+
+const appendGuidanceImagesToFormData = (fd, images) => {
+  const newImages = images.filter((img) => img.file instanceof File);
+  newImages.forEach((img, index) => {
+    const orientation = img.view_orientation || 'unknown';
+    const azimuth = img.azimuth_deg !== undefined && img.azimuth_deg !== null
+      ? img.azimuth_deg
+      : ORIENTATION_TO_AZIMUTH[orientation];
+
+    fd.append('images[]', img.file);
+    fd.append(`image_orientations[${index}]`, orientation);
+    fd.append(`image_azimuths[${index}]`, azimuth === null || azimuth === undefined || azimuth === '' ? '' : String(azimuth));
+    fd.append(`image_fovs[${index}]`, String(img.fov_deg || 60));
+    fd.append(`image_captions[${index}]`, img.caption || '');
+  });
+};
 
 const extractStoragePath = (urlOrPath) => {
   if (!urlOrPath || typeof urlOrPath !== 'string') return null;
@@ -77,11 +132,6 @@ const resolvePersistedImagePath = (image) => {
   );
 };
 
-const getImageOrientation = (image) => {
-  if (!image || typeof image !== 'object') return '';
-  return image.orientation || image.direction || image.dir || image.heading || '';
-};
-
 const Marks = () => {
   const [marks, setMarks] = useState([]);
 
@@ -104,7 +154,7 @@ const Marks = () => {
   // Orientation modal states
   const [showOrientationModal, setShowOrientationModal] = useState(false);
   const [pendingImageFile, setPendingImageFile] = useState(null);
-  const [selectedOrientation, setSelectedOrientation] = useState('');
+  const [selectedOrientation, setSelectedOrientation] = useState('unknown');
   const [pendingImageCallback, setPendingImageCallback] = useState(null);
 
   // Form states
@@ -131,22 +181,7 @@ const Marks = () => {
     ...item,
     id: item.id,
     title: item.title || 'بدون عنوان',
-    images: (item.images || []).map((image) => {
-      const path =
-        image.image_key ||
-        image.path ||
-        extractStoragePath(image.image_url) ||
-        extractStoragePath(image.url);
-
-      return {
-        ...image,
-        path,
-        image_key: image.image_key || path,
-        url: image.image_url || image.url,
-        image_url: image.image_url || image.url,
-        orientation: getImageOrientation(image)
-      };
-    }),
+    images: (item.images || []).map((image, index) => normalizeGuidanceImage(image, index)),
     location: { lat: Number(item.latitude), lng: Number(item.longitude) },
     x: item.x,
     y: item.y,
@@ -304,7 +339,7 @@ const Marks = () => {
   const closeOrientationModal = () => {
     setShowOrientationModal(false);
     setPendingImageFile(null);
-    setSelectedOrientation('');
+    setSelectedOrientation('unknown');
     setPendingImageCallback(null);
   };
 
@@ -313,16 +348,21 @@ const Marks = () => {
     if (!pendingImageFile) return;
 
     // Create the image object with orientation
-    const newImage = {
+    const newImage = normalizeGuidanceImage({
       id: Date.now() + Math.random(),
       file: pendingImageFile.file,
+      previewUrl: pendingImageFile.url,
+      image_url: pendingImageFile.url,
       url: pendingImageFile.url,
-      orientation,
+      view_orientation: orientation || 'unknown',
+      azimuth_deg: ORIENTATION_TO_AZIMUTH[orientation || 'unknown'],
+      fov_deg: 60,
+      caption: '',
       name: pendingImageFile.name,
       size: pendingImageFile.size,
       type: pendingImageFile.type || pendingImageFile.file?.type || '',
       mime: pendingImageFile.type || pendingImageFile.file?.type || ''
-    };
+    }, formData.images.length);
 
     // Add to form data using the callback
     if (pendingImageCallback) {
@@ -376,7 +416,8 @@ const Marks = () => {
     setFormData({
       title: '',
       images: [],
-      location: null
+      location: null,
+      floor: 0
     });
     setSelectedLocation(null);
     setDeletedImages([]);
@@ -395,7 +436,7 @@ const Marks = () => {
     setSelectedMark(mark);
     setFormData({
       title: mark.title,
-      images: mark.images || [],
+      images: (mark.images || []).map((image, index) => normalizeGuidanceImage(image, index)),
       location: mark.location
     });
     setSelectedLocation(mark.location);
@@ -473,6 +514,18 @@ const Marks = () => {
   };
 
 
+
+  const updateImageOrientation = (index, orientation) => {
+    setFormData((prev) => ({
+      ...prev,
+      images: prev.images.map((img, idx) => idx !== index ? img : {
+        ...img,
+        view_orientation: orientation,
+        azimuth_deg: ORIENTATION_TO_AZIMUTH[orientation],
+      })
+    }));
+  };
+
   const deleteRemovedGuidancePointImages = async (images) => {
     const uniquePaths = [
       ...new Set(
@@ -488,21 +541,6 @@ const Marks = () => {
   };
 
   // Handle add mark (title no longer mandatory)
-  const uploadGuidancePointImages = async (images, pointId) => {
-    const files = images.filter((img) => img?.file);
-    if (!files.length) return;
-
-    for (const img of files) {
-      await uploadFile({
-        file: img.file,
-        entityTable: 'poi_points',
-        entityId: pointId,
-        bucket: 'images',
-        keepOriginalName: true
-      });
-    }
-  };
-
   // Handle add mark (title no longer mandatory)
   const handleAddMark = () => {
     // Only check location, title is optional
@@ -518,13 +556,11 @@ const Marks = () => {
     request.append('title', formData.title?.trim() || '');
     request.append('x', String(formData.location.lng));
     request.append('y', String(formData.location.lat));
+    appendGuidanceImagesToFormData(request, formData.images);
     apiAdmin.post('/api/v1/admin/guidance-points', request).then(async (res) => {
       const payload = res.data;
       if (!payload?.success) throw new Error(payload?.message || 'خطا در ایجاد نقطه');
-      const pointId = Number(payload?.data?.id || payload?.id);
-      if (Number.isInteger(pointId) && pointId > 0) {
-        await uploadGuidancePointImages(formData.images, pointId);
-      }
+
       setIsSaving(false);
       setIsAddModalOpen(false);
       setDeletedImages([]);
@@ -558,14 +594,12 @@ const Marks = () => {
     request.append('title', formData.title?.trim() || '');
     request.append('x', String(formData.location.lng));
     request.append('y', String(formData.location.lat));
+    appendGuidanceImagesToFormData(request, formData.images);
     apiAdmin.patch(`/api/v1/admin/guidance-points/${selectedMark.id}`, request).then(async (res) => {
       const payload = res.data;
       if (!payload?.success) throw new Error(payload?.message || 'خطا در ویرایش نقطه');
       if (deletedImages.length > 0) {
         await deleteRemovedGuidancePointImages(deletedImages);
-      }
-      if (formData.images.some((img) => img?.file)) {
-        await uploadGuidancePointImages(formData.images, selectedMark.id);
       }
       setIsSaving(false);
       setIsEditModalOpen(false);
@@ -909,8 +943,8 @@ const Marks = () => {
                   <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
                     {formData.images.map((img, idx) => (
                       <div key={idx} style={{ position: 'relative' }}>
-                        <img src={img.url} alt={`preview-${idx}`} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
-                        {getImageOrientation(img) && (
+                        <img src={img.previewUrl || img.url || img.image_url} alt={`preview-${idx}`} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
+                        {
                           <div style={{
                             position: 'absolute',
                             bottom: '-5px',
@@ -923,9 +957,16 @@ const Marks = () => {
                             borderRadius: '4px',
                             whiteSpace: 'nowrap'
                           }}>
-                            {getDirectionLabel(getImageOrientation(img))}
+                            {`${getDirectionLabel(img.view_orientation)}${img.azimuth_deg !== null && img.azimuth_deg !== undefined ? ` - ${img.azimuth_deg}°` : ''}`}
                           </div>
-                        )}
+                        }
+                        <select
+                          value={img.view_orientation || 'unknown'}
+                          onChange={(e) => updateImageOrientation(idx, e.target.value)}
+                          style={{ position: 'absolute', left: 0, top: '84px', fontSize: '11px' }}
+                        >
+                          {ORIENTATION_OPTIONS.map((option) => <option key={option} value={option}>{ORIENTATION_LABELS_FA[option]}</option>)}
+                        </select>
                         <button
                           onClick={() => removeImage(idx)}
                           style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', cursor: 'pointer' }}
@@ -1021,8 +1062,8 @@ const Marks = () => {
                   <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
                     {formData.images.map((img, idx) => (
                       <div key={idx} style={{ position: 'relative' }}>
-                        <img src={img.url} alt={`preview-${idx}`} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
-                        {getImageOrientation(img) && (
+                        <img src={img.previewUrl || img.url || img.image_url} alt={`preview-${idx}`} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
+                        {
                           <div style={{
                             position: 'absolute',
                             bottom: '-5px',
@@ -1035,9 +1076,16 @@ const Marks = () => {
                             borderRadius: '4px',
                             whiteSpace: 'nowrap'
                           }}>
-                            {getDirectionLabel(getImageOrientation(img))}
+                            {`${getDirectionLabel(img.view_orientation)}${img.azimuth_deg !== null && img.azimuth_deg !== undefined ? ` - ${img.azimuth_deg}°` : ''}`}
                           </div>
-                        )}
+                        }
+                        <select
+                          value={img.view_orientation || 'unknown'}
+                          onChange={(e) => updateImageOrientation(idx, e.target.value)}
+                          style={{ position: 'absolute', left: 0, top: '84px', fontSize: '11px' }}
+                        >
+                          {ORIENTATION_OPTIONS.map((option) => <option key={option} value={option}>{ORIENTATION_LABELS_FA[option]}</option>)}
+                        </select>
                         <button
                           onClick={() => removeImage(idx)}
                           style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', cursor: 'pointer' }}
@@ -1164,35 +1212,17 @@ const Marks = () => {
               )}
 
               <div className="orientation-options-grid">
-                <button
-                  className={`orientation-option ${selectedOrientation === 'north' ? 'selected' : ''}`}
-                  onClick={() => setSelectedOrientation('north')}
-                >
-                  <span>جهت شمالی</span>
-                </button>
-
-                <button
-                  className={`orientation-option ${selectedOrientation === 'south' ? 'selected' : ''}`}
-                  onClick={() => setSelectedOrientation('south')}
-                >
-                  <span>جهت جنوبی</span>
-                </button>
-
-                <button
-                  className={`orientation-option ${selectedOrientation === 'east' ? 'selected' : ''}`}
-                  onClick={() => setSelectedOrientation('east')}
-                >
-                  <span>جهت شرقی</span>
-                </button>
-
-                <button
-                  className={`orientation-option ${selectedOrientation === 'west' ? 'selected' : ''}`}
-                  onClick={() => setSelectedOrientation('west')}
-                >
-                  <span>جهت غربی</span>
-                </button>
+                {ORIENTATION_OPTIONS.map((option) => (
+                  <button
+                    key={option}
+                    className={`orientation-option ${selectedOrientation === option ? 'selected' : ''}`}
+                    onClick={() => setSelectedOrientation(option)}
+                  >
+                    <span>{getDirectionLabel(option)}</span>
+                  </button>
+                ))}
               </div>
-            </div>
+</div>
 
             <div className="modal-footer">
               <button
