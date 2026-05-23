@@ -9222,14 +9222,14 @@ const Amain = () => {
       setLocationMarker(null);
     }
   }, [isLocationMarkerMode, locationMarker]);
+
   useEffect(() => {
-    // Reset scroll position when menu changes
     if (contentRef.current) {
       contentRef.current.scrollTop = 0;
     }
     // Also reset window scroll
     window.scrollTo(0, 0);
-  }, [activeMenu, currentReportView]);
+  }, [activeMenu, currentReportView, isEditingCultural]);
 
   const handleMenuClick = (menuName, breadcrumbLabel) => {
     if (menuName !== 'reports') {
