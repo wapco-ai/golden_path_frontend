@@ -47,6 +47,36 @@ const getDirectionLabel = (orientation) => {
 };
 
 
+
+const extractStoragePath = (urlOrPath) => {
+  if (!urlOrPath || typeof urlOrPath !== 'string') return null;
+
+  if (urlOrPath.startsWith('uploads/')) {
+    return urlOrPath;
+  }
+
+  const marker = '/storage/';
+  const index = urlOrPath.indexOf(marker);
+
+  if (index >= 0) {
+    return urlOrPath.slice(index + marker.length);
+  }
+
+  return null;
+};
+
+const resolvePersistedImagePath = (image) => {
+  if (!image || image.file) return null;
+
+  return (
+    image.image_key ||
+    image.path ||
+    extractStoragePath(image.image_url) ||
+    extractStoragePath(image.url) ||
+    null
+  );
+};
+
 const getImageOrientation = (image) => {
   if (!image || typeof image !== 'object') return '';
   return image.orientation || image.direction || image.dir || image.heading || '';
@@ -98,9 +128,25 @@ const Marks = () => {
   const totalPages = Math.max(1, Math.ceil((totalItems || filteredMarks.length) / itemsPerPage));
   const currentMarks = filteredMarks;
   const normalizeMark = (item) => ({
+    ...item,
     id: item.id,
     title: item.title || 'بدون عنوان',
-    images: (item.images || []).map((image) => ({ ...image, url: image.image_url || image.url, orientation: getImageOrientation(image) })),
+    images: (item.images || []).map((image) => {
+      const path =
+        image.image_key ||
+        image.path ||
+        extractStoragePath(image.image_url) ||
+        extractStoragePath(image.url);
+
+      return {
+        ...image,
+        path,
+        image_key: image.image_key || path,
+        url: image.image_url || image.url,
+        image_url: image.image_url || image.url,
+        orientation: getImageOrientation(image)
+      };
+    }),
     location: { lat: Number(item.latitude), lng: Number(item.longitude) },
     x: item.x,
     y: item.y,
@@ -396,21 +442,27 @@ const Marks = () => {
     setFormData((prev) => {
       const imageToRemove = prev.images[indexToRemove];
 
-      const isExistingBackendImage =
-        imageToRemove &&
-        !imageToRemove.file &&
-        (imageToRemove.id || imageToRemove.path || imageToRemove.image_key);
+      const persistedPath = resolvePersistedImagePath(imageToRemove);
 
-      if (isExistingBackendImage) {
-        setDeletedImages((current) => [
-          ...current,
-          {
-            id: imageToRemove.id || null,
-            path: imageToRemove.path || imageToRemove.image_key || null,
-            image_key: imageToRemove.image_key || imageToRemove.path || null,
-            url: imageToRemove.url || imageToRemove.image_url || null
-          }
-        ]);
+      if (persistedPath) {
+        setDeletedImages((current) => {
+          const alreadyExists = current.some((img) => {
+            const currentPath = resolvePersistedImagePath(img) || img.path || img.image_key;
+            return currentPath === persistedPath;
+          });
+
+          if (alreadyExists) return current;
+
+          return [
+            ...current,
+            {
+              id: imageToRemove.id || null,
+              path: persistedPath,
+              image_key: persistedPath,
+              url: imageToRemove.url || imageToRemove.image_url || null
+            }
+          ];
+        });
       }
 
       return {
@@ -425,7 +477,7 @@ const Marks = () => {
     const uniquePaths = [
       ...new Set(
         images
-          .map((img) => img?.path || img?.image_key)
+          .map((img) => img?.image_key || img?.path || resolvePersistedImagePath(img))
           .filter(Boolean)
       )
     ];
@@ -475,6 +527,7 @@ const Marks = () => {
       }
       setIsSaving(false);
       setIsAddModalOpen(false);
+      setDeletedImages([]);
       toast.success('نقطه جدید با موفقیت اضافه شد');
       setCurrentPage(1);
       fetchMarks({ page: 1 });
@@ -534,6 +587,7 @@ const Marks = () => {
       if (!payload?.success) throw new Error(payload?.message || 'خطا در حذف نقطه');
       setIsSaving(false);
       setIsDeleteModalOpen(false);
+      setDeletedImages([]);
       toast.success('نقطه با موفقیت حذف شد');
       fetchMarks({ page: currentPage });
     }).catch((err) => {
@@ -826,7 +880,7 @@ const Marks = () => {
               <h3>افزودن نقطه راهنما</h3>
               <button
                 className="close-btn"
-                onClick={() => setIsAddModalOpen(false)}
+                onClick={() => { setIsAddModalOpen(false); setDeletedImages([]); }}
               >
                 ×
               </button>
@@ -913,7 +967,7 @@ const Marks = () => {
             <div className="modal-footer-add-admin">
               <button
                 className="cancel-btn-add-admin"
-                onClick={() => setIsAddModalOpen(false)}
+                onClick={() => { setIsAddModalOpen(false); setDeletedImages([]); }}
                 disabled={isSaving}
               >
                 انصراف
@@ -938,7 +992,7 @@ const Marks = () => {
               <h3>ویرایش نقطه راهنما</h3>
               <button
                 className="close-btn"
-                onClick={() => setIsEditModalOpen(false)}
+                onClick={() => { setIsEditModalOpen(false); setDeletedImages([]); }}
               >
                 ×
               </button>
@@ -1025,7 +1079,7 @@ const Marks = () => {
             <div className="modal-footer-add-admin">
               <button
                 className="cancel-btn-add-admin"
-                onClick={() => setIsEditModalOpen(false)}
+                onClick={() => { setIsEditModalOpen(false); setDeletedImages([]); }}
                 disabled={isSaving}
               >
                 انصراف
@@ -1054,7 +1108,7 @@ const Marks = () => {
             <div className="modal-footer-delete-admin">
               <button
                 className="action-btn cancel-delete-btn"
-                onClick={() => setIsDeleteModalOpen(false)}
+                onClick={() => { setIsDeleteModalOpen(false); setDeletedImages([]); }}
                 disabled={isSaving}
               >
                 انصراف
