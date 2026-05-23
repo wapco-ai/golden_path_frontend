@@ -38,13 +38,28 @@ export const deleteFile = async (path) => {
   if (!path) return null;
 
   const url = `${FILES_BASE_URL}?path=${encodeURIComponent(path)}`;
-  const response = await apiAdmin.delete(url, {
-    headers: {
-      Accept: 'application/json'
-    }
-  });
+  try {
+    const response = await apiAdmin.delete(url, {
+      headers: {
+        Accept: 'application/json'
+      }
+    });
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    const status = error?.response?.status;
+    const message = error?.response?.data?.message;
+
+    if (status === 404 || message === 'File not found') {
+      return {
+        deleted: false,
+        path,
+        message: 'File not found'
+      };
+    }
+
+    throw error;
+  }
 };
 
 export const getFileUrl = (path, { inline = false, as } = {}) => {
