@@ -147,6 +147,31 @@ const RouteOverview = () => {
     setAlternativeRoutes
   } = useRouteStore();
   const routeCoordinates = routeGeo?.geometry?.coordinates ?? EMPTY_ROUTE_COORDINATES;
+  const originMarkerCoord = useMemo(() => {
+    const coords = origin?.coordinates;
+
+    if (Array.isArray(coords) && coords.length >= 2) {
+      const lat = Number(coords[0]);
+      const lng = Number(coords[1]);
+
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        return [lng, lat]; // برای Map Marker باید [lng, lat] باشد
+      }
+    }
+
+    const fallback = routeGeo?.geometry?.coordinates?.[0];
+
+    if (Array.isArray(fallback) && fallback.length >= 2) {
+      const lng = Number(fallback[0]);
+      const lat = Number(fallback[1]);
+
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        return [lng, lat];
+      }
+    }
+
+    return null;
+  }, [origin, routeGeo]);
   const initialRouteFlyDone = useRef(false);
   const hasHydratedRouteRef = useRef(false);
 
@@ -1098,17 +1123,15 @@ const RouteOverview = () => {
           onLoad={handleMapLoad}
           onError={handleMapError}
         >
-          {routeCoordinates.length > 0 &&
-            Array.isArray(routeCoordinates[0]) &&
-            routeCoordinates[0].length === 2 && (
-              <Marker
-                longitude={routeCoordinates[0][0]}
-                latitude={routeCoordinates[0][1]}
-                anchor="bottom"
-              >
-                <div className="c-circle"></div>
-              </Marker>
-            )}
+          {originMarkerCoord && (
+            <Marker
+              longitude={originMarkerCoord[0]}
+              latitude={originMarkerCoord[1]}
+              anchor="bottom"
+            >
+              <div className="c-circle"></div>
+            </Marker>
+          )}
           {routeCoordinates.length > 1 &&
             Array.isArray(routeCoordinates[routeCoordinates.length - 1]) && (
               <Marker

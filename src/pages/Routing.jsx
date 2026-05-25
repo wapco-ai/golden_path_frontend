@@ -17,7 +17,131 @@ import ttsService from '../services/ttsService';
 import { requestRouting } from '../services/routingService';
 import { fetchLandmarkViewImage } from '../services/landmarkViewImageService';
 import { getSessionFloor } from '../utils/sessionFloor';
-import { buildRouteMSegments, getLineDistanceMeters, normalizeRouteMSteps } from '../utils/routeSegments';
+import {
+  buildRouteMSegments,
+  getLineDistanceMeters,
+  haversineMeters,
+  normalizeRouteMSteps
+} from '../utils/routeSegments';
+
+const haversineDistanceMeters = (a, b) => {
+  if (
+    !Number.isFinite(a?.lat) ||
+    !Number.isFinite(a?.lng) ||
+    !Number.isFinite(b?.lat) ||
+    !Number.isFinite(b?.lng)
+  ) {
+    return Infinity;
+  }
+
+  const R = 6371000;
+  const lat1 = a.lat * Math.PI / 180;
+  const lat2 = b.lat * Math.PI / 180;
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLng = (b.lng - a.lng) * Math.PI / 180;
+
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+
+  return 2 * R * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+};
+
+const STEP_ADVANCE_LATERAL_TOLERANCE_M = 10;
+const STEP_ADVANCE_PROGRESS_TOLERANCE_M = 5;
+const STEP_ADVANCE_FALLBACK_RADIUS_M = 6;
+
+const toRad = (deg) => (deg * Math.PI) / 180;
+
+const lngLatToLocalMeters = (coord, refLat) => {
+  const [lng, lat] = coord;
+  const metersPerDegLat = 111320;
+  const metersPerDegLng = 111320 * Math.cos(toRad(refLat));
+
+  return {
+    x: lng * metersPerDegLng,
+    y: lat * metersPerDegLat
+  };
+};
+
+const projectPointOnRoute = (pointLngLat, routeCoords) => {
+  if (!Array.isArray(routeCoords) || routeCoords.length < 2) {
+    return null;
+  }
+
+  const validCoords = routeCoords.filter(
+    (coord) =>
+      Array.isArray(coord) &&
+      coord.length >= 2 &&
+      Number.isFinite(Number(coord[0])) &&
+      Number.isFinite(Number(coord[1]))
+  );
+
+  if (validCoords.length < 2) return null;
+
+  const refLat = pointLngLat[1];
+  const p = lngLatToLocalMeters(pointLngLat, refLat);
+
+  let best = null;
+  let traversed = 0;
+
+  for (let i = 0; i < validCoords.length - 1; i += 1) {
+    const aCoord = validCoords[i];
+    const bCoord = validCoords[i + 1];
+
+    const segmentLength = haversineMeters(aCoord, bCoord);
+    if (segmentLength <= 0) continue;
+
+    const a = lngLatToLocalMeters(aCoord, refLat);
+    const b = lngLatToLocalMeters(bCoord, refLat);
+
+    const vx = b.x - a.x;
+    const vy = b.y - a.y;
+    const wx = p.x - a.x;
+    const wy = p.y - a.y;
+
+    const len2 = vx * vx + vy * vy;
+    const t = len2 > 0 ? Math.max(0, Math.min(1, (wx * vx + wy * vy) / len2)) : 0;
+
+    const proj = {
+      x: a.x + t * vx,
+      y: a.y + t * vy
+    };
+
+    const dx = p.x - proj.x;
+    const dy = p.y - proj.y;
+    const lateralDistanceM = Math.sqrt(dx * dx + dy * dy);
+    const alongDistanceM = traversed + segmentLength * t;
+
+    if (!best || lateralDistanceM < best.lateralDistanceM) {
+      best = {
+        lateralDistanceM,
+        alongDistanceM
+      };
+    }
+
+    traversed += segmentLength;
+  }
+
+  if (!best || traversed <= 0) return null;
+
+  return {
+    lateralDistanceM: best.lateralDistanceM,
+    alongDistanceM: best.alongDistanceM,
+    routeM: best.alongDistanceM / traversed,
+    totalDistanceM: traversed
+  };
+};
+
+const getStepRouteM = (step, fallbackIndex, stepsLength) => {
+  if (Number.isFinite(Number(step?.routeM))) {
+    return Math.max(0, Math.min(1, Number(step.routeM)));
+  }
+
+  if (stepsLength <= 1) return 0;
+
+  return fallbackIndex / (stepsLength - 1);
+};
 
 const RoutingPage = () => {
   const intl = useIntl();
@@ -167,8 +291,31 @@ const RoutingPage = () => {
     return [startLat, startLng];
   }, [routeGeo]);
 
+  const getOriginStartLocation = useCallback(() => {
+    const coords = origin?.coordinates;
+
+    if (!Array.isArray(coords) || coords.length < 2) {
+      return null;
+    }
+
+    const lat = Number(coords[0]);
+    const lng = Number(coords[1]);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return null;
+    }
+
+    return [lat, lng];
+  }, [origin]);
+
+  const getNavigationStartLocation = useCallback((geo = routeGeo) => {
+    return getOriginStartLocation() || getRouteStartLocation(geo);
+  }, [getOriginStartLocation, getRouteStartLocation, routeGeo]);
+
+
+
   const updateUserLocationToRouteStart = useCallback(() => {
-    const startLocation = getRouteStartLocation();
+    const startLocation = getNavigationStartLocation();
     if (!startLocation) {
       return false;
     }
@@ -182,7 +329,7 @@ const RoutingPage = () => {
     }
 
     return true;
-  }, [getRouteStartLocation]);
+  }, [getNavigationStartLocation]);
 
   useEffect(() => {
     return () => {
@@ -1259,21 +1406,79 @@ const RoutingPage = () => {
     }
   }, [PRECISE_GPS_ACCURACY_THRESHOLD, storedLat, storedLng, updateUserLocationToRouteStart]);
 
-  // Auto-advance steps when routing is active
+  // Advance step by route progress, not only by radial distance to next step point
   useEffect(() => {
-    if (!routeData || !isRoutingActive) return;
+    if (!routeData?.steps?.length || !isRoutingActive) return;
+    if (currentStep >= routeData.steps.length - 1) return;
 
-    const timer = setInterval(() => {
-      if (currentStep < routeData.steps.length - 1) {
-        setCurrentStep(prev => prev + 1);
-      } else {
-        setIsRoutingActive(false);
-        setIs3DView(false); // Return to 2D when routing completes
+    const routeCoords = routeGeo?.geometry?.coordinates;
+    if (!Array.isArray(routeCoords) || routeCoords.length < 2) return;
+
+    const currentPos = isDrActive
+      ? Number.isFinite(drPosition?.lat) && Number.isFinite(drPosition?.lng)
+        ? { lat: drPosition.lat, lng: drPosition.lng }
+        : null
+      : Number.isFinite(userLocation?.[0]) && Number.isFinite(userLocation?.[1])
+        ? { lat: userLocation[0], lng: userLocation[1] }
+        : null;
+
+    if (!currentPos) return;
+
+    const currentLngLat = [currentPos.lng, currentPos.lat];
+    const projection = projectPointOnRoute(currentLngLat, routeCoords);
+
+    if (!projection) return;
+
+    const nextStepIndex = currentStep + 1;
+    const nextStep = routeData.steps[nextStepIndex];
+
+    const nextStepRouteM = getStepRouteM(
+      nextStep,
+      nextStepIndex,
+      routeData.steps.length
+    );
+
+    const nextStepDistanceM = nextStepRouteM * projection.totalDistanceM;
+
+    const hasPassedNextStep =
+      projection.alongDistanceM >= nextStepDistanceM - STEP_ADVANCE_PROGRESS_TOLERANCE_M;
+
+    const isCloseEnoughToRoute =
+      projection.lateralDistanceM <= STEP_ADVANCE_LATERAL_TOLERANCE_M;
+
+    let isCloseToNextPointFallback = false;
+
+    const nextCoord = nextStep?.coordinates?.[0];
+
+    if (Array.isArray(nextCoord) && nextCoord.length >= 2) {
+      const nextLngLat = [Number(nextCoord[0]), Number(nextCoord[1])];
+
+      if (Number.isFinite(nextLngLat[0]) && Number.isFinite(nextLngLat[1])) {
+        const directDistanceToNextStep = haversineMeters(currentLngLat, nextLngLat);
+        isCloseToNextPointFallback = directDistanceToNextStep <= STEP_ADVANCE_FALLBACK_RADIUS_M;
       }
-    }, 30000);
+    }
 
-    return () => clearInterval(timer);
-  }, [currentStep, routeData, isRoutingActive]);
+    if ((hasPassedNextStep && isCloseEnoughToRoute) || isCloseToNextPointFallback) {
+      setCurrentStep(prev => {
+        if (prev >= routeData.steps.length - 1) {
+          setIsRoutingActive(false);
+          setIs3DView(false);
+          return prev;
+        }
+
+        return prev + 1;
+      });
+    }
+  }, [
+    routeData,
+    routeGeo,
+    isRoutingActive,
+    currentStep,
+    isDrActive,
+    drPosition,
+    userLocation
+  ]);
 
   useEffect(() => {
     const fallbackGeo = isDrActive
@@ -1413,7 +1618,7 @@ const RoutingPage = () => {
     }
 
     if (newRoutingState) {
-      const routeStart = getRouteStartLocation();
+      const routeStart = getNavigationStartLocation();
       const [lat, lng] = routeStart || userLocation;
       if (routeStart) {
         setUserLocation(routeStart);
@@ -1548,7 +1753,7 @@ const RoutingPage = () => {
     setRouteGeo(route.geo);
     setRouteSteps(route.steps);
     setAlternativeRoutes(newAlternatives);
-    const routeStart = getRouteStartLocation(route.geo);
+    const routeStart = getNavigationStartLocation(route.geo);
     if (routeStart) {
       const [startLat, startLng] = routeStart;
       initialRouteCoordRef.current = `${startLat},${startLng}`;

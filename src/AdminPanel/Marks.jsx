@@ -592,23 +592,58 @@ const Marks = () => {
     const request = new FormData();
     request.append('floor', String(formData.floor ?? selectedMark?.floor ?? 0));
     request.append('title', formData.title?.trim() || '');
-    request.append('x', String(formData.location.lng));
-    request.append('y', String(formData.location.lat));
+    const currentLng = Number(formData.location?.lng);
+    const currentLat = Number(formData.location?.lat);
+    const originalLng = Number(selectedMark?.location?.lng);
+    const originalLat = Number(selectedMark?.location?.lat);
+
+    const locationChanged =
+      Number.isFinite(currentLng) &&
+      Number.isFinite(currentLat) &&
+      (
+        Math.abs(currentLng - originalLng) > 0.0000001 ||
+        Math.abs(currentLat - originalLat) > 0.0000001
+      );
+
+    if (locationChanged) {
+      request.append('x', String(currentLng));
+      request.append('y', String(currentLat));
+    }
     appendGuidanceImagesToFormData(request, formData.images);
-    apiAdmin.patch(`/api/v1/admin/guidance-points/${selectedMark.id}`, request).then(async (res) => {
+    appendExistingGuidanceImageMetaToFormData(request, formData.images);
+
+    apiAdmin.post(
+      `/api/v1/admin/guidance-points/${selectedMark.id}`,
+      request,
+      {
+        headers: {
+          Accept: 'application/json'
+        }
+      }
+    ).then(async (res) => {
       const payload = res.data;
-      if (!payload?.success) throw new Error(payload?.message || 'خطا در ویرایش نقطه');
+
+      if (!payload?.success) {
+        throw new Error(payload?.message || 'خطا در ویرایش نقطه');
+      }
+
       if (deletedImages.length > 0) {
         await deleteRemovedGuidancePointImages(deletedImages);
       }
+
       setIsSaving(false);
       setIsEditModalOpen(false);
       setDeletedImages([]);
       toast.success('نقطه با موفقیت ویرایش شد');
       fetchMarks({ page: currentPage });
     }).catch((err) => {
+      console.error('Edit guidance point failed:', err);
       setIsSaving(false);
-      toast.error(err.message || 'خطا در ویرایش نقطه');
+      toast.error(
+        err?.response?.data?.message ||
+        err?.message ||
+        'خطا در ویرایش نقطه'
+      );
     });
   };
 
@@ -641,6 +676,26 @@ const Marks = () => {
   // Pagination handlers
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
+  };
+
+  const appendExistingGuidanceImageMetaToFormData = (fd, images) => {
+    images
+      .filter((img) => !(img.file instanceof File) && img.id)
+      .forEach((img, index) => {
+        const orientation = img.view_orientation || 'unknown';
+        const azimuth = img.azimuth_deg !== undefined && img.azimuth_deg !== null
+          ? img.azimuth_deg
+          : ORIENTATION_TO_AZIMUTH[orientation];
+
+        fd.append(`existing_image_ids[${index}]`, String(img.id));
+        fd.append(`existing_image_orientations[${index}]`, orientation);
+        fd.append(
+          `existing_image_azimuths[${index}]`,
+          azimuth === null || azimuth === undefined || azimuth === '' ? '' : String(azimuth)
+        );
+        fd.append(`existing_image_fovs[${index}]`, String(img.fov_deg || 60));
+        fd.append(`existing_image_captions[${index}]`, img.caption || '');
+      });
   };
 
   const getPageNumbers = () => {
@@ -1222,7 +1277,7 @@ const Marks = () => {
                   </button>
                 ))}
               </div>
-</div>
+            </div>
 
             <div className="modal-footer">
               <button

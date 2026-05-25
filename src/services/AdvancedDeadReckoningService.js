@@ -7,6 +7,15 @@ class AdvancedDeadReckoningService {
     this.geoPath = [];
     this.listeners = new Set();
     this._lastMagnitude = 0;
+
+    this._lastStepAt = 0;
+    this._stepArmed = true;
+    this._smoothedMagnitude = null;
+    this.stepLengthMeters = 0.38;
+    this.stepThresholdHigh = 12.2;
+    this.stepThresholdLow = 10.8;
+    this.minStepIntervalMs = 380;
+
     this.motionHandler = this._handleMotion.bind(this);
     this.orientationHandler = this._handleOrientation.bind(this);
   }
@@ -65,6 +74,12 @@ class AdvancedDeadReckoningService {
     this.geoPosition = { ...initialPosition };
     this.geoPath = [this.geoPosition];
     this.stepCount = 0;
+
+    this._lastMagnitude = 0;
+    this._lastStepAt = 0;
+    this._stepArmed = true;
+    this._smoothedMagnitude = null;
+
     this.isActive = true;
     await this._startSensors();
     this._emit('serviceStateChanged');
@@ -125,14 +140,49 @@ class AdvancedDeadReckoningService {
 
   _handleMotion(e) {
     if (!this.isActive) return;
+
     const acc = e.accelerationIncludingGravity || e.acceleration;
     if (!acc) return;
-    const magnitude = Math.sqrt(acc.x ** 2 + acc.y ** 2 + acc.z ** 2);
-    const threshold = 12;
-    if (magnitude > threshold && this._lastMagnitude <= threshold) {
+
+    const x = Number(acc.x);
+    const y = Number(acc.y);
+    const z = Number(acc.z);
+
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) {
+      return;
+    }
+
+    const rawMagnitude = Math.sqrt(x ** 2 + y ** 2 + z ** 2);
+
+    // Low-pass smoothing برای حذف پرش‌های ریز سنسور
+    this._smoothedMagnitude =
+      this._smoothedMagnitude == null
+        ? rawMagnitude
+        : this._smoothedMagnitude * 0.75 + rawMagnitude * 0.25;
+
+    const magnitude = this._smoothedMagnitude;
+    const now = e.timeStamp || Date.now();
+
+    // Hysteresis:
+    // تا وقتی مقدار دوباره پایین نیامده، آماده ثبت قدم بعدی نشود
+    if (magnitude < this.stepThresholdLow) {
+      this._stepArmed = true;
+    }
+
+    const enoughTimePassed =
+      !this._lastStepAt || now - this._lastStepAt >= this.minStepIntervalMs;
+
+    if (
+      this._stepArmed &&
+      enoughTimePassed &&
+      magnitude > this.stepThresholdHigh
+    ) {
+      this._stepArmed = false;
+      this._lastStepAt = now;
       this.stepCount += 1;
       this._processStep();
     }
+
     this._lastMagnitude = magnitude;
   }
 
@@ -147,7 +197,7 @@ class AdvancedDeadReckoningService {
 
   _processStep() {
     if (!this.geoPosition) return;
-    const stepLength = 0.7; // meters
+    const stepLength = this.stepLengthMeters; // meters
     const rad = (this.heading * Math.PI) / 180;
     const dLat = (stepLength * Math.cos(rad)) / 111111;
     const dLng = (stepLength * Math.sin(rad)) / (111111 * Math.cos(this.geoPosition.lat * Math.PI / 180));
