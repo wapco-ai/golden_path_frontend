@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { navigateToPreviousPage } from '../utils/navigationHistory';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
 import { FormattedMessage, useIntl } from 'react-intl';
 import RouteMap from '../components/map/RouteMap';
@@ -154,6 +153,9 @@ const RoutingPage = () => {
   const hasShownTtsErrorRef = useRef(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(true);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(true);
+  const infoModalRef = useRef(null);
+  const infoDragRef = useRef({ active: false, startY: 0, lastY: 0, lastTime: 0, velocity: 0, moved: false });
+  const [isInfoModalDragging, setIsInfoModalDragging] = useState(false);
   const [routeData, setRouteData] = useState(null);
   const [currentStep, setCurrentStep] = useState(0);
   const storedLat = sessionStorage.getItem('qrLat');
@@ -1560,6 +1562,64 @@ const RoutingPage = () => {
     setIsInfoModalOpen(!isInfoModalOpen);
   };
 
+  const handleInfoDragStart = (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (e.target.closest('button, a, input, textarea, select, [role="button"]')) return;
+
+    const now = performance.now();
+    infoDragRef.current = {
+      active: true,
+      startY: e.clientY,
+      lastY: e.clientY,
+      lastTime: now,
+      velocity: 0,
+      moved: false
+    };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    setIsInfoModalDragging(true);
+  };
+
+  const handleInfoDragMove = (e) => {
+    const drag = infoDragRef.current;
+    if (!drag.active || !infoModalRef.current) return;
+
+    const now = performance.now();
+    const elapsed = Math.max(now - drag.lastTime, 1);
+    const totalDelta = e.clientY - drag.startY;
+    drag.velocity = (e.clientY - drag.lastY) / elapsed;
+    drag.lastY = e.clientY;
+    drag.lastTime = now;
+    drag.moved = drag.moved || Math.abs(totalDelta) > 4;
+
+    const allowedDelta = isInfoModalOpen ? Math.max(0, totalDelta) : Math.min(0, totalDelta);
+    infoModalRef.current.style.setProperty('--info-drag-y', `${allowedDelta}px`);
+    if (drag.moved) e.preventDefault();
+  };
+
+  const handleInfoDragEnd = (e) => {
+    const drag = infoDragRef.current;
+    if (!drag.active) return;
+
+    const delta = e.clientY - drag.startY;
+    const shouldOpen = !isInfoModalOpen && (delta < -45 || drag.velocity < -0.45);
+    const shouldClose = isInfoModalOpen && (delta > 45 || drag.velocity > 0.45);
+
+    drag.active = false;
+    infoModalRef.current?.style.removeProperty('--info-drag-y');
+    setIsInfoModalDragging(false);
+    if (shouldOpen) setIsInfoModalOpen(true);
+    if (shouldClose) setIsInfoModalOpen(false);
+  };
+
+  const handleInfoToggleClick = (e) => {
+    if (infoDragRef.current.moved) {
+      e.preventDefault();
+      infoDragRef.current.moved = false;
+      return;
+    }
+    toggleInfoModal();
+  };
+
   const toggleEmergencyModal = () => {
     if (showEmergencyModal) {
       // Clear form when closing modal without submission
@@ -1640,15 +1700,6 @@ const RoutingPage = () => {
 
   const handleSoundOptionSelect = (option) => {
     setSelectedSoundOption(option);
-  };
-
-  const handleDirectionIconClick = () => {
-    const stepCount = routeData?.steps?.length || 0;
-    if (stepCount <= 1) {
-      return;
-    }
-
-    setCurrentStep(prevStep => (prevStep + 1) % stepCount);
   };
 
   const handleAllRoutesClick = () => {
@@ -2025,7 +2076,7 @@ const RoutingPage = () => {
       {/* Live Image Container */}
       <div className="live-image-container">
         <div className="fixed-header-icons">
-          <button className="back-btn6" onClick={() => navigate('/fs')}>
+          <button className="back-btn6" onClick={() => navigate(-1)}>
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path fillRule="evenodd" clipRule="evenodd" d="M11.2244 4.55806C11.4685 4.31398 11.8642 4.31398 12.1083 4.55806L17.1083 9.55806C17.3524 9.80214 17.3524 10.1979 17.1083 10.4419L12.1083 15.4419C11.8642 15.686 11.4685 15.686 11.2244 15.4419C10.9803 15.1979 10.9803 14.8021 11.2244 14.5581L15.1575 10.625H3.33301C2.98783 10.625 2.70801 10.3452 2.70801 10C2.70801 9.65482 2.98783 9.375 3.33301 9.375H15.1575L11.2244 5.44194C10.9803 5.19786 10.9803 4.80214 11.2244 4.55806Z" fill="#1E2023" />
             </svg>
@@ -2222,9 +2273,18 @@ const RoutingPage = () => {
               </div>
             </div>
           ) : (
-            <div className={`info-modal ${isInfoModalOpen ? 'open' : 'closed'}`}>
-              <div className="info-content">
-                <div className="modal-toggle3 info-toggle" onClick={toggleInfoModal}>
+            <div
+              ref={infoModalRef}
+              className={`info-modal ${isInfoModalOpen ? 'open' : 'closed'} ${isInfoModalDragging ? 'dragging' : ''}`}
+            >
+              <div
+                className="info-content"
+                onPointerDown={handleInfoDragStart}
+                onPointerMove={handleInfoDragMove}
+                onPointerUp={handleInfoDragEnd}
+                onPointerCancel={handleInfoDragEnd}
+              >
+                <div className="modal-toggle3 info-toggle" onClick={handleInfoToggleClick}>
                   <div className="toggle-handle3"></div>
                 </div>
 
@@ -2233,10 +2293,7 @@ const RoutingPage = () => {
                   {routeData.steps[currentStep] && (
                     <div className="guide-step active">
                       <p className="step-instruction">
-                        <span
-                          className="direction-icon-rng"
-                          onClick={handleDirectionIconClick}
-                        >
+                        <span className="direction-icon-rng">
                           {renderDirectionArrow(routeData.steps[currentStep].direction)}
                         </span>
                         <span className="instruction-text">

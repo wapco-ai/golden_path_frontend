@@ -200,3 +200,7 @@
     max-width: 48px;
   }
 }
+@media (max-width: 767px) {
+  .gp-date-picker, .gp-date-picker .rmdp-container, .gp-date-picker .rmdp-wrapper { width: 100%; min-width: 0; max-width: 100%; }
+  .gp-date-picker .rmdp-day { width: clamp(34px, 10vw, 44px); height: clamp(34px, 10vw, 44px); min-width: 34px; min-height: 34px; }
+}

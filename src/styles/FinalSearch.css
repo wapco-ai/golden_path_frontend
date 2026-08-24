@@ -721,3 +721,11 @@
 .mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
   border-left-color: var(--popup-bg-color);
 }
+@media (max-width: 767px) {
+  .final-search-page { width: 100%; min-width: 0; overflow-x: hidden; }
+  .final-search-page .header { padding: 12px; gap: 8px; }
+  .final-search-page img, .final-search-page svg { max-width: 100%; }
+}
+@media (min-width: 768px) and (max-width: 1366px) {
+  .final-search-page { width: 100%; min-width: 0; }
+}

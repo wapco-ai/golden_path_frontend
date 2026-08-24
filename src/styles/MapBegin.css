@@ -1620,6 +1620,11 @@ body.modal-open {
   pointer-events: none;
 }
 
+.search-bar-container.dragging {
+  transition: none;
+  will-change: height;
+}
+
 /* Add smooth transition for scroll */
 .modal-content-wrapper {
   scroll-behavior: smooth;
@@ -2352,4 +2357,13 @@ body.sidebar-open {
 .search-no-results3 p {
   margin: 0;
   font-size: 14px;
+}
+@media (max-width: 767px) {
+  .map-routing-page { width: 100%; min-width: 0; height: 100dvh; overflow: hidden; }
+  .map-routing-header { padding: 12px; gap: 8px; }
+  .map-categories-scroll { padding: 10px 8px; }
+  .map-routing-page img, .map-routing-page canvas { max-width: 100%; }
+}
+@media (min-width: 768px) and (max-width: 1366px) {
+  .map-routing-page { width: 100%; min-width: 0; height: 100dvh; }
 }

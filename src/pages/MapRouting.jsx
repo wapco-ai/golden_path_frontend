@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { navigateToPreviousPage } from '../utils/navigationHistory';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
 import { FormattedMessage, useIntl } from 'react-intl';
 import Mprc from '../components/map/Mprc';
@@ -534,6 +533,14 @@ const MapRoutingPage = () => {
     setSearchQuery('');
   };
 
+  const handlePageBack = () => {
+    if (location.state?.fromFinalSearch) {
+      navigate('/fs', { replace: true });
+      return;
+    }
+    navigate(-1);
+  };
+
   const getLocalizedValue = (value) => {
     if (!value) return value;
     if (typeof value === 'object' && !Array.isArray(value)) {
@@ -601,7 +608,7 @@ const MapRoutingPage = () => {
         name: selectedDestination.name,
         coordinates: selectedDestination.coordinates
       });
-      navigate('/fs');
+      navigate('/fs', { replace: Boolean(location.state?.fromFinalSearch) });
     }
   }, [
     userLocation,
@@ -612,7 +619,8 @@ const MapRoutingPage = () => {
     showDestinationModal,
     showOriginModal,
     isSelectingFromMap,
-    showEntryModal
+    showEntryModal,
+    location.state?.fromFinalSearch
   ]);
 
   useEffect(() => {
@@ -745,7 +753,7 @@ const MapRoutingPage = () => {
           name: destination.name,
           coordinates: destination.coordinates
         }));
-        navigate('/fs');
+        navigate('/fs', { replace: true });
       }
     }
     setSearchQuery('');
@@ -1453,7 +1461,7 @@ const MapRoutingPage = () => {
             </svg>
           </button>
         ) : (
-          <button className="map-back-button" onClick={() => navigateToPreviousPage(navigate)}>
+          <button className="map-back-button" onClick={handlePageBack}>
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path fillRule="evenodd" clipRule="evenodd" d="M11.2244 4.55806C11.4685 4.31398 11.8642 4.31398 12.1083 4.55806L17.1083 9.55806C17.3524 9.80214 17.3524 10.1979 17.1083 10.4419L12.1083 15.4419C11.8642 15.686 11.4685 15.686 11.2244 15.4419C10.9803 15.1979 10.9803 14.8021 11.2244 14.5581L15.1575 10.625H3.33301C2.98783 10.625 2.70801 10.3452 2.70801 10C2.70801 9.65482 2.98783 9.375 3.33301 9.375H15.1575L11.2244 5.44194C10.9803 5.19786 10.9803 4.80214 11.2244 4.55806Z" fill="#1E2023" />
             </svg>

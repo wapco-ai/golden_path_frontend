@@ -335,3 +335,12 @@
   scroll-behavior: auto !important;
   overflow-anchor: none !important;
 }
+@media (max-width: 767px) {
+  .rules-page-container, .rules-page-content { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; overflow-x: hidden; }
+  .rules-page-container { padding: 12px; }
+  .rules-description-header { padding: 18px 16px; }
+}
+@media (min-width: 768px) {
+  .rules-page-container { width: 100%; min-width: 0; max-width: 1180px; margin-inline: auto; padding: clamp(20px, 3vw, 40px); }
+  .rules-page-content { width: 100%; min-width: 0; max-width: 100%; }
+}

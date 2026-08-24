@@ -37,3 +37,7 @@
   text-overflow: ellipsis;
   min-width: 0;
 }
+@media (max-width: 767px) {
+  .mode-options { display: flex; width: 100%; min-width: 0; gap: 6px; }
+  .mode-options .transport-btn { flex: 1 1 0; min-width: 0; padding: 9px 6px; }
+}

@@ -348,3 +348,10 @@
     height: 100px;
   }
 }
+@media (max-width: 767px) {
+  .profile-container { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; padding: 12px; overflow-x: hidden; }
+  .profile-top, .profile-header, .profile-info { width: 100%; min-width: 0; }
+}
+@media (min-width: 768px) {
+  .profile-container { width: 100%; min-width: 0; max-width: 1180px; margin-inline: auto; padding: clamp(20px, 3vw, 40px); }
+}

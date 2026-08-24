@@ -63,3 +63,7 @@
   fill: none;  
   opacity: 0.8;  
 }  
+@media (max-width: 767px) {
+  .dr-controls { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; max-width: 100%; }
+  .dr-toggle-button, .dr-calibrate-button, .dr-export-button { flex: 1 1 120px; min-width: 0; }
+}

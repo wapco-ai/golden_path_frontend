@@ -438,3 +438,10 @@
   }
 }
 
+@media (max-width: 767px) {
+  .profile-info-container { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; padding: 12px; overflow-x: hidden; }
+  .profile-info-header, .profile-info-form { width: 100%; min-width: 0; }
+}
+@media (min-width: 768px) {
+  .profile-info-container { width: 100%; min-width: 0; max-width: 960px; margin-inline: auto; padding: clamp(20px, 3vw, 40px); }
+}

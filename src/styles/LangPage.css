@@ -175,3 +175,10 @@
   margin-right: 35px;
   margin-left: 0px;
 }
+@media (max-width: 767px) {
+  .lang-page-container { width: 100%; min-width: 0; min-height: 100dvh; padding: clamp(12px, 4vw, 24px); overflow-y: auto; }
+  .lang-logo { width: clamp(130px, 42vw, 180px); }
+}
+@media (min-width: 768px) {
+  .lang-page-container { width: 100%; min-width: 0; min-height: 100dvh; padding: clamp(24px, 4vw, 48px); }
+}

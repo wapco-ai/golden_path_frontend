@@ -790,3 +790,14 @@
   scroll-behavior: auto !important;
   overflow-anchor: none !important;
 }
+@media (max-width: 767px) {
+  .support-container { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; padding: 12px; overflow-x: hidden; }
+  .support-content { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; }
+  .header-image-container3 { width: 100%; min-width: 0; max-width: 100%; height: clamp(150px, 28vh, 220px); }
+  .feedback-form { width: 100%; min-width: 0; }
+}
+@media (min-width: 768px) {
+  .support-container { width: 100%; min-width: 0; max-width: 1180px; margin-inline: auto; padding: clamp(20px, 3vw, 40px); }
+  .support-content { width: 100%; min-width: 0; max-width: 100%; }
+  .header-image-container3 { width: 100%; min-width: 0; max-width: 100%; }
+}

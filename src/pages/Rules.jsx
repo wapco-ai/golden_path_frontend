@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { navigateToPreviousPage } from '../utils/navigationHistory';
 import { FormattedMessage, useIntl } from 'react-intl';
 import logo from '../assets/images/logo.png';
 import '../styles/Rules.css';
@@ -76,7 +75,7 @@ function Rules() {
     <div className="rules-page-container">
       {/* Header with Back Arrow */}
       <div className="rules-page-header">
-        <button className="rules-back-arrow" onClick={() => navigateToPreviousPage(navigate)}>
+        <button className="rules-back-arrow" onClick={() => navigate(-1)}>
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M3.33301 10H16.6663M16.6663 10L11.6663 5M16.6663 10L11.6663 15" stroke="#1E2023" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>

@@ -88,6 +88,8 @@ const MapBeginPage = () => {
   const [preventScroll, setPreventScroll] = useState(false);
   const [scrollStartY, setScrollStartY] = useState(0);
   const [scrollStartScrollTop, setScrollStartScrollTop] = useState(0);
+  const modalGestureRef = useRef({ active: false, moved: false, startY: 0, startHeight: 140, lastY: 0, lastTime: 0, velocity: 0, height: 140 });
+  const modalFrameRef = useRef(null);
   const [preventMapCentering, setPreventMapCentering] = useState(false);
   const [groups, setGroups] = useState([]);
   const [subGroups, setSubGroups] = useState({});
@@ -377,6 +379,18 @@ const MapBeginPage = () => {
       setModalLastTouchTime(Date.now());
       setModalVelocity(0);
 
+      const now = performance.now();
+      modalGestureRef.current = {
+        active: true,
+        moved: false,
+        startY: touchY,
+        startHeight: currentHeight,
+        lastY: touchY,
+        lastTime: now,
+        velocity: 0,
+        height: currentHeight
+      };
+
       setScrollStartY(touchY);
       setScrollStartScrollTop(modalContent.scrollTop);
     } else {
@@ -385,29 +399,24 @@ const MapBeginPage = () => {
   };
 
   const handleModalTouchMove = (e) => {
-    if (!isModalDragging) return;
+    if (!modalGestureRef.current.active) return;
 
     const touchY = e.touches[0].clientY;
 
     // Prevent default to stop page reload/pull-to-refresh
     e.preventDefault();
 
-    // If we're in fully expanded mode and trying to scroll down, allow scrolling
-    if (expandedSearch && !preventScroll) {
-      return;
-    }
-
-    const currentTime = Date.now();
-    const deltaTime = currentTime - modalLastTouchTime;
+    const gesture = modalGestureRef.current;
+    const currentTime = performance.now();
+    const deltaTime = currentTime - gesture.lastTime;
 
     if (deltaTime > 0) {
-      const deltaY = modalLastTouchY - touchY;
-      const newVelocity = deltaY / deltaTime;
-      setModalVelocity(newVelocity);
+      gesture.velocity = (gesture.lastY - touchY) / deltaTime;
     }
 
-    const deltaY = modalDragStartY - touchY;
-    const newHeight = modalDragStartHeight + deltaY;
+    const deltaY = gesture.startY - touchY;
+    gesture.moved = gesture.moved || Math.abs(deltaY) > 4;
+    const newHeight = gesture.startHeight + deltaY;
 
     let resistance = 1;
     if (newHeight < 140) {
@@ -417,14 +426,24 @@ const MapBeginPage = () => {
     }
 
     const clampedHeight = Math.max(80, Math.min(newHeight * resistance, window.innerHeight * 1.1));
-    setCurrentHeight(clampedHeight);
-
-    setModalLastTouchY(touchY);
-    setModalLastTouchTime(currentTime);
+    gesture.height = clampedHeight;
+    gesture.lastY = touchY;
+    gesture.lastTime = currentTime;
+    if (!modalFrameRef.current) {
+      modalFrameRef.current = requestAnimationFrame(() => {
+        setCurrentHeight(modalGestureRef.current.height);
+        modalFrameRef.current = null;
+      });
+    }
   };
 
   const handleModalTouchEnd = () => {
-    if (!isModalDragging) return;
+    if (!modalGestureRef.current.active) return;
+    modalGestureRef.current.active = false;
+    if (modalFrameRef.current) {
+      cancelAnimationFrame(modalFrameRef.current);
+      modalFrameRef.current = null;
+    }
     setIsModalDragging(false);
     setPreventScroll(false);
 
@@ -434,13 +453,15 @@ const MapBeginPage = () => {
 
     let targetHeight;
 
-    if (Math.abs(modalVelocity) > velocityThreshold) {
-      if (modalVelocity > 0) {
+    const finalVelocity = modalGestureRef.current.velocity;
+    const finalHeight = modalGestureRef.current.height;
+    if (Math.abs(finalVelocity) > velocityThreshold) {
+      if (finalVelocity > 0) {
         // Swiping up
         targetHeight = window.innerHeight;
       } else {
         // Swiping down
-        if (currentHeight < screenHeight * 0.3) {
+        if (finalHeight < screenHeight * 0.3) {
           targetHeight = 140;
         } else {
           targetHeight = window.innerHeight * 0.41;
@@ -448,11 +469,11 @@ const MapBeginPage = () => {
       }
     } else {
       // No significant velocity - use position-based snapping
-      if (currentHeight < 140 + snapThreshold) {
+      if (finalHeight < 140 + snapThreshold) {
         targetHeight = 140;
-      } else if (currentHeight < screenHeight * 0.35) {
+      } else if (finalHeight < screenHeight * 0.35) {
         targetHeight = window.innerHeight * 0.41;
-      } else if (currentHeight < screenHeight * 0.7) {
+      } else if (finalHeight < screenHeight * 0.7) {
         targetHeight = window.innerHeight * 0.41;
       } else {
         targetHeight = screenHeight;
@@ -1308,25 +1329,31 @@ const MapBeginPage = () => {
 
       {/* Search Bar with Integrated Routing */}
       <div
-        className={`search-bar-container ${showRouting ? 'expanded' : ''} ${expandedSearch ? 'fully-expanded' : ''} ${isDragging ? 'dragging' : ''} ${isQrCodeEntry ? 'qr-code-entry' : ''}`}
-        style={isDragging || isAutoExpanding ? { height: `${currentHeight}px`, transform: 'translateY(0)' } : {}}
+        className={`search-bar-container ${showRouting ? 'expanded' : ''} ${expandedSearch ? 'fully-expanded' : ''} ${isDragging || isModalDragging ? 'dragging' : ''} ${isQrCodeEntry ? 'qr-code-entry' : ''}`}
+        style={isDragging || isModalDragging || isAutoExpanding ? { height: `${currentHeight}px`, transform: 'translateY(0)' } : {}}
       >
         <div className="search-bar-pinned-wrapper">
           <div
             className="search-bar-toggle"
-            onClick={handleSearchToggle}
+            onClick={(e) => {
+              if (modalGestureRef.current.moved) {
+                e.preventDefault();
+                modalGestureRef.current.moved = false;
+                return;
+              }
+              handleSearchToggle();
+            }}
             onTouchStart={(e) => {
-              // Prevent modal content drag when dragging the handle
               e.stopPropagation();
-              handleTouchStart(e);
+              handleModalTouchStart(e);
             }}
             onTouchMove={(e) => {
               e.stopPropagation();
-              handleTouchMove(e);
+              handleModalTouchMove(e);
             }}
             onTouchEnd={(e) => {
               e.stopPropagation();
-              handleTouchEnd(e);
+              handleModalTouchEnd(e);
             }}
           >
             <div className="toggle-handle"></div>

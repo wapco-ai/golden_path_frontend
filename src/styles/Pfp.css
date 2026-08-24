@@ -493,3 +493,13 @@
   text-align: left;
   direction: ltr;
 }
+@media (max-width: 767px) {
+  .pfp-container { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; padding: 12px; overflow-x: hidden; }
+  .pfp-header { width: 100%; padding: 10px 12px; }
+  .add-location-btn { width: min(100%, 360px); }
+}
+@media (min-width: 768px) {
+  .pfp-container { width: 100%; min-width: 0; max-width: 1180px; margin-inline: auto; padding: clamp(20px, 3vw, 40px); }
+  .pfp-header { width: 100%; }
+  .add-location-btn { width: min(50%, 420px); }
+}

@@ -123,3 +123,11 @@
 #confirmContinue:not(.disabled):hover {
   background-color: #0a5fc6;
 }
+@media (max-width: 767px) {
+  .plang-container { width: 100%; min-width: 0; min-height: 100dvh; max-height: none; padding: 16px 12px; overflow-y: auto; }
+  .lang-options-list2 { width: 100%; min-width: 0; }
+  #confirmContinue { width: min(100%, 400px); }
+}
+@media (min-width: 768px) {
+  .plang-container { width: 100%; min-width: 0; min-height: 100dvh; padding: clamp(24px, 4vw, 48px); }
+}

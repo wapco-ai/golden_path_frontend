@@ -367,3 +367,12 @@
   align-content: center;
   justify-content: center;
 }
+@media (max-width: 767px) {
+  .proute-container { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; padding: 12px; overflow-x: hidden; }
+  .proute-header, .proute-content, .routes-list { width: 100%; min-width: 0; }
+  .route-map { width: 100%; height: clamp(150px, 24vh, 240px); }
+}
+@media (min-width: 768px) {
+  .proute-container { width: 100%; min-width: 0; max-width: 1180px; margin-inline: auto; padding: clamp(20px, 3vw, 40px); }
+  .proute-header { width: 100%; }
+}

@@ -606,3 +606,13 @@
 
 
 
+@media (max-width: 767px) {
+  .route-overview-container { width: 100%; min-width: 0; height: 100dvh; overflow-x: hidden; }
+  .route-overview-header { padding: 12px; gap: 8px; }
+  .route-info-container { padding: 16px 14px 12px; }
+  .route-map-container { width: 100%; min-width: 0; }
+}
+@media (min-width: 768px) and (max-width: 1366px) {
+  .route-overview-container { width: 100%; min-width: 0; height: 100dvh; }
+  .route-info-container { padding-inline: clamp(24px, 5vw, 64px); }
+}

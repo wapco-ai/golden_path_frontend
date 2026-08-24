@@ -672,3 +672,12 @@
   height: 46px;
   border-radius: 50px;
 }
+@media (max-width: 767px) {
+  .pmap-page, .pmap-container { width: 100%; min-width: 0; height: 100dvh; overflow: hidden; }
+  .pmap-search-container { width: 100%; padding: 12px; }
+  .pmap-search-box { width: 100%; min-width: 0; padding: 14px; }
+}
+@media (min-width: 768px) and (max-width: 1366px) {
+  .pmap-page, .pmap-container { width: 100%; min-width: 0; height: 100dvh; }
+  .pmap-search-container { width: 100%; padding: clamp(16px, 3vw, 32px); }
+}

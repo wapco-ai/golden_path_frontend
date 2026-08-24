@@ -10,7 +10,6 @@ import { useUserAuthStore, USER_REFRESH_TOKEN_KEY } from '../auth/user/userAuthS
 import { authLogout, getUserMe } from '../services/publicAuthApi';
 import mapApiError from '../services/apiErrorMapper';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { navigateToPreviousPage } from '../utils/navigationHistory';
 
 function Profile() {
   const navigate = useNavigate();
@@ -84,7 +83,7 @@ function Profile() {
       localStorage.removeItem('profile_origin_page');
       navigate(originFromLogin);
     } else {
-      navigateToPreviousPage(navigate);
+      navigate(-1);
     }
   };
 

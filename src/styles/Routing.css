@@ -1144,3 +1144,13 @@
   height: 100vh;
   font-size: 1.2rem;
 }
+@media (max-width: 767px) {
+  .routing-page { width: 100%; min-width: 0; height: 100dvh; overflow-x: hidden; }
+  .live-image-container { width: 100%; height: clamp(280px, 58dvh, 560px); }
+  .fixed-header-icons { width: 100%; padding: 12px; gap: 8px; }
+  .routing-page img, .routing-page video, .routing-page canvas { max-width: 100%; }
+}
+@media (min-width: 768px) and (max-width: 1366px) {
+  .routing-page { width: 100%; min-width: 0; height: 100dvh; }
+  .live-image-container { height: clamp(440px, 60dvh, 760px); }
+}
