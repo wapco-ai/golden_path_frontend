@@ -5,10 +5,11 @@
   "sources": {
     "carto": {
       "type": "vector",
-      "url": "https://tiles.basemaps.cartocdn.com/vector/carto.streets/v1/tiles.json"
+      "url": "/map-styles/osm-voyager/tiles.json",
+      "maxzoom": 17
     }
   },
-  "sprite": "https://tiles.basemaps.cartocdn.com/gl/voyager-gl-style/sprite",
+  "sprite": "http://localhost:5173/map-styles/osm-voyager/sprite",
   "glyphs": "http://localhost:8080/fonts/{fontstack}/{range}.pbf",
   "layers": [
     {
