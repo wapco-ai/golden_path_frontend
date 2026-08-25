@@ -1,4 +1,8 @@
 import appConfig from '../config/appConfig.js';
+import {
+  beginRoutingRequest,
+  endRoutingRequest
+} from '../utils/routingRequestActivity.js';
 
 const normalizeFloor = (floor) => {
   if (floor === null || floor === undefined || floor === '') return null;
@@ -267,32 +271,38 @@ const mapRoute = (route = {}, originName = '', destinationName = '') => {
 };
 
 export const requestRouting = async ({ origin, destination, mode, gender, lang, maxAlternatives, floor, signal }) => {
-  const body = buildRequestBody({ origin, destination, mode, gender, lang, maxAlternatives, floor });
+  beginRoutingRequest();
 
-  const response = await fetch(appConfig.routingRouteUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(body),
-    signal
-  });
+  try {
+    const body = buildRequestBody({ origin, destination, mode, gender, lang, maxAlternatives, floor });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Routing request failed: ${response.status} ${errorText}`);
+    const response = await fetch(appConfig.routingRouteUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(body),
+      signal
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Routing request failed: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    const mainRoute = mapRoute(data, origin?.name || '', destination?.name || '');
+    const alternatives = Array.isArray(data.alternatives)
+      ? data.alternatives.map(alt => mapRoute(alt, origin?.name || '', destination?.name || ''))
+      : [];
+
+    return {
+      ...mainRoute,
+      mode: data.mode || body.mode,
+      gender: data.gender || body.gender,
+      alternatives
+    };
+  } finally {
+    endRoutingRequest();
   }
-
-  const data = await response.json();
-  const mainRoute = mapRoute(data, origin?.name || '', destination?.name || '');
-  const alternatives = Array.isArray(data.alternatives)
-    ? data.alternatives.map(alt => mapRoute(alt, origin?.name || '', destination?.name || ''))
-    : [];
-
-  return {
-    ...mainRoute,
-    mode: data.mode || body.mode,
-    gender: data.gender || body.gender,
-    alternatives
-  };
 };
 
 export default requestRouting;
