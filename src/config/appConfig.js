@@ -15,7 +15,7 @@ const inferHostedBaseUrl = () => {
 
 const inferHostedTileBaseUrl = () => {
   if (typeof window === 'undefined' || !window?.location?.origin) {
-    return 'http://192.168.70.130:8085/tiles';
+    return 'http://localhost:8080/tiles';
   }
 
   const { origin, hostname } = window.location;
@@ -24,10 +24,10 @@ const inferHostedTileBaseUrl = () => {
     return `${origin.replace(/\/$/, '')}/tiles`;
   }
 
-  return 'http://192.168.70.130:8085/tiles';
+  return 'http://localhost:8080/tiles';
 };
 
-const defaultApiBaseUrl = inferHostedBaseUrl() || 'http://192.168.70.130:8085';
+const defaultApiBaseUrl = inferHostedBaseUrl() || 'http://localhost:8080';
 const defaultTileBaseUrl = inferHostedTileBaseUrl();
 const defaultRoutingRouteUrl = `${defaultApiBaseUrl}/api/v1/routing/route`;
 const defaultLanguagesUrl = `${defaultApiBaseUrl}/api/v1/languages`;
