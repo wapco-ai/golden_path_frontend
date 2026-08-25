@@ -28,6 +28,7 @@
   gap: 10px;
   width: min(230px, 72vw);
   margin: 0 auto 18px;
+  direction: ltr;
 }
 
 .route-request-loader__endpoint {
