@@ -6,6 +6,7 @@ import RouteMap from '../components/map/RouteMap';
 import DeadReckoningControls from '../components/map/DeadReckoningControls';
 import advancedDeadReckoningService from '../services/AdvancedDeadReckoningService';
 import '../styles/Routing.css';
+import '../styles/RngNavigation.css';
 import { useRouteStore } from '../store/routeStore';
 import { useLangStore } from '../store/langStore';
 import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
@@ -14,133 +15,15 @@ import useLocaleDigits from '../utils/useLocaleDigits';
 import { toast } from 'react-toastify';
 import ttsService from '../services/ttsService';
 import { requestRouting } from '../services/routingService';
-import { fetchLandmarkViewImage } from '../services/landmarkViewImageService';
-import { getSessionFloor } from '../utils/sessionFloor';
+import useGuidanceImage from '../hooks/useGuidanceImage.js';
+import { getLiveNavigationGeo, getNavigationProgress, nextDemoStep, resolveNavigationFrame } from '../utils/rngNavigation.js';
+import { rngMessages } from '../utils/rngMessages.js';
+import { getSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
 import {
   buildRouteMSegments,
   getLineDistanceMeters,
-  haversineMeters,
   normalizeRouteMSteps
 } from '../utils/routeSegments';
-
-const haversineDistanceMeters = (a, b) => {
-  if (
-    !Number.isFinite(a?.lat) ||
-    !Number.isFinite(a?.lng) ||
-    !Number.isFinite(b?.lat) ||
-    !Number.isFinite(b?.lng)
-  ) {
-    return Infinity;
-  }
-
-  const R = 6371000;
-  const lat1 = a.lat * Math.PI / 180;
-  const lat2 = b.lat * Math.PI / 180;
-  const dLat = (b.lat - a.lat) * Math.PI / 180;
-  const dLng = (b.lng - a.lng) * Math.PI / 180;
-
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-
-  return 2 * R * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-};
-
-const STEP_ADVANCE_LATERAL_TOLERANCE_M = 10;
-const STEP_ADVANCE_PROGRESS_TOLERANCE_M = 5;
-const STEP_ADVANCE_FALLBACK_RADIUS_M = 6;
-
-const toRad = (deg) => (deg * Math.PI) / 180;
-
-const lngLatToLocalMeters = (coord, refLat) => {
-  const [lng, lat] = coord;
-  const metersPerDegLat = 111320;
-  const metersPerDegLng = 111320 * Math.cos(toRad(refLat));
-
-  return {
-    x: lng * metersPerDegLng,
-    y: lat * metersPerDegLat
-  };
-};
-
-const projectPointOnRoute = (pointLngLat, routeCoords) => {
-  if (!Array.isArray(routeCoords) || routeCoords.length < 2) {
-    return null;
-  }
-
-  const validCoords = routeCoords.filter(
-    (coord) =>
-      Array.isArray(coord) &&
-      coord.length >= 2 &&
-      Number.isFinite(Number(coord[0])) &&
-      Number.isFinite(Number(coord[1]))
-  );
-
-  if (validCoords.length < 2) return null;
-
-  const refLat = pointLngLat[1];
-  const p = lngLatToLocalMeters(pointLngLat, refLat);
-
-  let best = null;
-  let traversed = 0;
-
-  for (let i = 0; i < validCoords.length - 1; i += 1) {
-    const aCoord = validCoords[i];
-    const bCoord = validCoords[i + 1];
-
-    const segmentLength = haversineMeters(aCoord, bCoord);
-    if (segmentLength <= 0) continue;
-
-    const a = lngLatToLocalMeters(aCoord, refLat);
-    const b = lngLatToLocalMeters(bCoord, refLat);
-
-    const vx = b.x - a.x;
-    const vy = b.y - a.y;
-    const wx = p.x - a.x;
-    const wy = p.y - a.y;
-
-    const len2 = vx * vx + vy * vy;
-    const t = len2 > 0 ? Math.max(0, Math.min(1, (wx * vx + wy * vy) / len2)) : 0;
-
-    const proj = {
-      x: a.x + t * vx,
-      y: a.y + t * vy
-    };
-
-    const dx = p.x - proj.x;
-    const dy = p.y - proj.y;
-    const lateralDistanceM = Math.sqrt(dx * dx + dy * dy);
-    const alongDistanceM = traversed + segmentLength * t;
-
-    if (!best || lateralDistanceM < best.lateralDistanceM) {
-      best = {
-        lateralDistanceM,
-        alongDistanceM
-      };
-    }
-
-    traversed += segmentLength;
-  }
-
-  if (!best || traversed <= 0) return null;
-
-  return {
-    lateralDistanceM: best.lateralDistanceM,
-    alongDistanceM: best.alongDistanceM,
-    routeM: best.alongDistanceM / traversed,
-    totalDistanceM: traversed
-  };
-};
-
-const getStepRouteM = (step, fallbackIndex, stepsLength) => {
-  if (Number.isFinite(Number(step?.routeM))) {
-    return Math.max(0, Math.min(1, Number(step.routeM)));
-  }
-
-  if (stepsLength <= 1) return 0;
-
-  return fallbackIndex / (stepsLength - 1);
-};
 
 const RoutingPage = () => {
   const intl = useIntl();
@@ -189,9 +72,11 @@ const RoutingPage = () => {
   const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
   const [hasPreciseGps, setHasPreciseGps] = useState(false);
   const [userHeading, setUserHeading] = useState(null);
-  const [liveLandmarkImage, setLiveLandmarkImage] = useState(null);
-  const [isLiveImageLoading, setIsLiveImageLoading] = useState(false);
-  const [recentLandmarkImages, setRecentLandmarkImages] = useState([]);
+  const [isDemoMode, setIsDemoMode] = useState(false);
+  const [hasArrived, setHasArrived] = useState(false);
+  const [failedImageUrl, setFailedImageUrl] = useState(null);
+  const [sessionFloor, setCurrentFloor] = useState(getSessionFloor);
+  useEffect(() => subscribeToSessionFloor(setCurrentFloor), []);
   const navigate = useNavigate();
   const {
     origin,
@@ -208,6 +93,17 @@ const RoutingPage = () => {
     setAlternativeRoutes
   } = useRouteStore();
   const language = useLangStore(state => state.language);
+  const rngText = rngMessages[language] || rngMessages.fa;
+  const previousRoute = useRef(routeGeo);
+  useEffect(() => {
+    if (previousRoute.current === routeGeo) return;
+    previousRoute.current = routeGeo;
+    setCurrentStep(0);
+    setIsDemoMode(false);
+    setHasArrived(false);
+    setIsRoutingActive(false);
+    advancedDeadReckoningService.stop();
+  }, [routeGeo]);
   const routingRequestRef = useRef({ key: null, promise: null });
 
   const formatViaItem = useCallback((item) => {
@@ -813,7 +709,6 @@ const RoutingPage = () => {
 
   const toRad = useCallback((deg) => (deg * Math.PI) / 180, []);
   const toDeg = useCallback((rad) => (rad * 180) / Math.PI, []);
-  const normalizeHeading = useCallback((value) => ((value % 360) + 360) % 360, []);
   const bearing = useCallback((from, to) => {
     const [lng1, lat1] = from;
     const [lng2, lat2] = to;
@@ -952,154 +847,30 @@ const RoutingPage = () => {
     };
   }, [bearing, buildStepInstruction, computeTurn, formatDurationFromSeconds, intl, resolveLandmarkName, resolveRouteMStepInstructionBase]);
 
-  const resolveStepHeading = useCallback((step, stepIndex) => {
-    if (Array.isArray(step?.coordinates) && step.coordinates.length > 1 && Array.isArray(step.coordinates[0])) {
-      return bearing(step.coordinates[0], step.coordinates[step.coordinates.length - 1]);
-    }
-
-    if (Number.isFinite(step?.heading)) {
-      return normalizeHeading(step.heading);
-    }
-
-    if (Number.isFinite(step?.maneuver?.bearing_after)) {
-      return normalizeHeading(step.maneuver.bearing_after);
-    }
-
-    const routeCoords = routeGeo?.geometry?.coordinates;
-    if (Array.isArray(routeCoords) && Number.isInteger(stepIndex) && stepIndex >= 0 && stepIndex < routeCoords.length - 1) {
-      return bearing(routeCoords[stepIndex], routeCoords[stepIndex + 1]);
-    }
-
-    return null;
-  }, [bearing, normalizeHeading, routeGeo]);
-
-  const stepBasedHeading = useMemo(() => {
-    if (!isRoutingActive || !Array.isArray(routeData?.steps)) {
-      return null;
-    }
-
-    const activeStep = routeData.steps[currentStep];
-    if (!activeStep) {
-      return null;
-    }
-
-    return resolveStepHeading(activeStep, currentStep);
-  }, [currentStep, isRoutingActive, resolveStepHeading, routeData?.steps]);
-
-  const resolveStepGeo = useCallback((step, stepIndex) => {
-    const pickNearestStepCoordinate = (first, second, referenceCoordinate) => {
-      if (!Array.isArray(referenceCoordinate)) {
-        return first;
-      }
-
-      const [refLng, refLat] = referenceCoordinate;
-      if (!Number.isFinite(refLat) || !Number.isFinite(refLng)) {
-        return first;
-      }
-
-      const firstDistance = Math.hypot(first.lat - refLat, first.lng - refLng);
-      const secondDistance = Math.hypot(second.lat - refLat, second.lng - refLng);
-
-      return secondDistance < firstDistance ? second : first;
-    };
-
-    if (Array.isArray(step?.coordinates) && Array.isArray(step.coordinates[0])) {
-      const [first, second] = step.coordinates[0];
-      if (Number.isFinite(first) && Number.isFinite(second)) {
-        const coordinateAsLngLat = { lat: second, lng: first };
-        const coordinateAsLatLng = { lat: first, lng: second };
-        const referenceCoordinate = routeGeo?.geometry?.coordinates?.[stepIndex];
-
-        return pickNearestStepCoordinate(coordinateAsLngLat, coordinateAsLatLng, referenceCoordinate);
-      }
-    }
-
-    const routeCoords = routeGeo?.geometry?.coordinates;
-    if (Array.isArray(routeCoords) && Number.isInteger(stepIndex) && stepIndex >= 0 && stepIndex < routeCoords.length) {
-      const [lng, lat] = routeCoords[stepIndex] || [];
-      if (Number.isFinite(lat) && Number.isFinite(lng)) {
-        return { lat, lng };
-      }
-    }
-
-    return null;
-  }, [routeGeo]);
-
-  const stepBasedGeo = useMemo(() => {
-    if (!isRoutingActive || !Array.isArray(routeData?.steps)) {
-      return null;
-    }
-
-    const activeStep = routeData.steps[currentStep];
-    if (!activeStep) {
-      return null;
-    }
-
-    return resolveStepGeo(activeStep, currentStep);
-  }, [currentStep, isRoutingActive, resolveStepGeo, routeData?.steps]);
-
-  const resolveNearestRouteSegmentHeading = useCallback((referenceGeo) => {
-    if (!Number.isFinite(referenceGeo?.lat) || !Number.isFinite(referenceGeo?.lng)) {
-      return null;
-    }
-
-    const routeCoords = routeGeo?.geometry?.coordinates;
-    if (!Array.isArray(routeCoords) || routeCoords.length < 2) {
-      return null;
-    }
-
-    const px = referenceGeo.lng;
-    const py = referenceGeo.lat;
-
-    let bestSegment = null;
-    let bestDistanceSq = Infinity;
-
-    for (let i = 0; i < routeCoords.length - 1; i++) {
-      const [x1, y1] = routeCoords[i] || [];
-      const [x2, y2] = routeCoords[i + 1] || [];
-
-      if (![x1, y1, x2, y2].every(Number.isFinite)) {
-        continue;
-      }
-
-      const dx = x2 - x1;
-      const dy = y2 - y1;
-      const lenSq = dx * dx + dy * dy;
-
-      let t = 0;
-      if (lenSq > 0) {
-        t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
-        t = Math.max(0, Math.min(1, t));
-      }
-
-      const projX = x1 + t * dx;
-      const projY = y1 + t * dy;
-      const distSq = (px - projX) ** 2 + (py - projY) ** 2;
-
-      if (distSq < bestDistanceSq) {
-        bestDistanceSq = distSq;
-        bestSegment = [routeCoords[i], routeCoords[i + 1]];
-      }
-    }
-
-    if (!bestSegment) {
-      return null;
-    }
-
-    return bearing(bestSegment[0], bestSegment[1]);
-  }, [bearing, routeGeo]);
-
-  const routeSegmentHeading = useMemo(() => {
-    if (!isRoutingActive) {
-      return null;
-    }
-
-    return resolveNearestRouteSegmentHeading(stepBasedGeo);
-  }, [isRoutingActive, resolveNearestRouteSegmentHeading, stepBasedGeo]);
-
-  const effectiveHeading = Number.isFinite(stepBasedHeading)
-    ? stepBasedHeading
-    : userHeading;
+  // One navigation frame feeds the image and map in both open/closed panel states.
+  // Demo/preview uses the selected segment; live navigation uses actual DR/GPS.
+  const navigationFrame = useMemo(() => resolveNavigationFrame({
+    step: routeData?.steps?.[currentStep],
+    stepIndex: currentStep,
+    routeCoordinates: routeGeo?.geometry?.coordinates || [],
+    isRoutingActive, isDemoMode, hasArrived, isDrActive,
+    drPosition, userLocation, userHeading, sessionFloor
+  }), [routeData?.steps, currentStep, routeGeo, isRoutingActive, isDemoMode,
+    hasArrived, isDrActive, drPosition, userLocation, userHeading, sessionFloor]);
+  const effectiveHeading = navigationFrame.heading;
+  const navigationLocation = useMemo(() => navigationFrame.geo
+    ? [navigationFrame.geo.lat, navigationFrame.geo.lng] : userLocation,
+  [navigationFrame.geo?.lat, navigationFrame.geo?.lng, userLocation]);
+  const routeImageKey = useMemo(() => JSON.stringify(routeGeo?.geometry || null), [routeGeo]);
+  const guidanceContextKey = JSON.stringify([
+    routeImageKey, currentStep, navigationFrame.mode, navigationFrame.floor, language, effectiveHeading
+  ]);
+  const guidanceImage = useGuidanceImage({
+    language, geo: navigationFrame.geo, heading: effectiveHeading,
+    floor: navigationFrame.floor, fov: 45, maxDistance: 250
+  }, guidanceContextKey);
+  const liveLandmarkImage = guidanceImage.data;
+  const isLiveImageLoading = guidanceImage.loading;
 
   useEffect(() => {
     const coords = routeGeo?.geometry?.coordinates;
@@ -1210,6 +981,10 @@ const RoutingPage = () => {
         time: formatDurationFromSeconds(durationSeconds),
         durationSeconds,
         coordinates: stepCoords,
+        fromM: s.fromM,
+        toM: s.toM,
+        routeM: s.routeM,
+        floor: s.floor,
         landmark: landmarkName,
         services: s.services || {},
         direction
@@ -1408,151 +1183,22 @@ const RoutingPage = () => {
     }
   }, [PRECISE_GPS_ACCURACY_THRESHOLD, storedLat, storedLng, updateUserLocationToRouteStart]);
 
-  // Advance step by route progress, not only by radial distance to next step point
+  // fromM is the real segment boundary, including unequal two-step routes.
   useEffect(() => {
-    if (!routeData?.steps?.length || !isRoutingActive) return;
-    if (currentStep >= routeData.steps.length - 1) return;
-
-    const routeCoords = routeGeo?.geometry?.coordinates;
-    if (!Array.isArray(routeCoords) || routeCoords.length < 2) return;
-
-    const currentPos = isDrActive
-      ? Number.isFinite(drPosition?.lat) && Number.isFinite(drPosition?.lng)
-        ? { lat: drPosition.lat, lng: drPosition.lng }
-        : null
-      : Number.isFinite(userLocation?.[0]) && Number.isFinite(userLocation?.[1])
-        ? { lat: userLocation[0], lng: userLocation[1] }
-        : null;
-
-    if (!currentPos) return;
-
-    const currentLngLat = [currentPos.lng, currentPos.lat];
-    const projection = projectPointOnRoute(currentLngLat, routeCoords);
-
-    if (!projection) return;
-
-    const nextStepIndex = currentStep + 1;
-    const nextStep = routeData.steps[nextStepIndex];
-
-    const nextStepRouteM = getStepRouteM(
-      nextStep,
-      nextStepIndex,
-      routeData.steps.length
+    if (!isRoutingActive || isDemoMode) return;
+    const geo = getLiveNavigationGeo({ isDrActive, drPosition, userLocation });
+    const progress = getNavigationProgress(
+      geo, routeData?.steps, currentStep, routeGeo?.geometry?.coordinates || []
     );
-
-    const nextStepDistanceM = nextStepRouteM * projection.totalDistanceM;
-
-    const hasPassedNextStep =
-      projection.alongDistanceM >= nextStepDistanceM - STEP_ADVANCE_PROGRESS_TOLERANCE_M;
-
-    const isCloseEnoughToRoute =
-      projection.lateralDistanceM <= STEP_ADVANCE_LATERAL_TOLERANCE_M;
-
-    let isCloseToNextPointFallback = false;
-
-    const nextCoord = nextStep?.coordinates?.[0];
-
-    if (Array.isArray(nextCoord) && nextCoord.length >= 2) {
-      const nextLngLat = [Number(nextCoord[0]), Number(nextCoord[1])];
-
-      if (Number.isFinite(nextLngLat[0]) && Number.isFinite(nextLngLat[1])) {
-        const directDistanceToNextStep = haversineMeters(currentLngLat, nextLngLat);
-        isCloseToNextPointFallback = directDistanceToNextStep <= STEP_ADVANCE_FALLBACK_RADIUS_M;
-      }
+    if (progress.nextStep !== currentStep) setCurrentStep(progress.nextStep);
+    if (progress.arrived) {
+      setHasArrived(true);
+      setIsRoutingActive(false);
+      setIs3DView(false);
+      advancedDeadReckoningService.stop();
     }
-
-    if ((hasPassedNextStep && isCloseEnoughToRoute) || isCloseToNextPointFallback) {
-      setCurrentStep(prev => {
-        if (prev >= routeData.steps.length - 1) {
-          setIsRoutingActive(false);
-          setIs3DView(false);
-          return prev;
-        }
-
-        return prev + 1;
-      });
-    }
-  }, [
-    routeData,
-    routeGeo,
-    isRoutingActive,
-    currentStep,
-    isDrActive,
-    drPosition,
-    userLocation
-  ]);
-
-  useEffect(() => {
-    const fallbackGeo = isDrActive
-      ? Number.isFinite(drPosition?.lat) && Number.isFinite(drPosition?.lng)
-        ? { lat: drPosition.lat, lng: drPosition.lng }
-        : null
-      : Number.isFinite(userLocation?.[0]) && Number.isFinite(userLocation?.[1])
-        ? { lat: userLocation[0], lng: userLocation[1] }
-        : null;
-
-    const requestGeo = stepBasedGeo || fallbackGeo;
-    const hasLocation = Number.isFinite(requestGeo?.lat) && Number.isFinite(requestGeo?.lng);
-
-    if (!hasLocation || !Number.isFinite(effectiveHeading)) {
-      return;
-    }
-
-    let cancelled = false;
-    const controller = new AbortController();
-
-    const requestLandmarkImage = async () => {
-      try {
-        setIsLiveImageLoading(true);
-
-        const data = await fetchLandmarkViewImage({
-          language,
-          geo: requestGeo,
-          heading: effectiveHeading,
-          floor: getSessionFloor(),
-          fov: 45,
-          maxDistance: 250,
-          signal: controller.signal
-        });
-
-        if (cancelled) return;
-
-        setLiveLandmarkImage(data);
-        setRecentLandmarkImages((prev) => {
-          if (!data?.image?.url || data?.poi_id == null) {
-            return prev;
-          }
-
-          const next = [{
-            poiId: data.poi_id,
-            title: data?.content?.title || '',
-            imageUrl: data.image.url,
-            distanceM: data.distance_m,
-            orientation: data.image.orientation || data.selected_orientation || null
-          }, ...prev.filter((item) => item.poiId !== data.poi_id)];
-
-          return next.slice(0, 5);
-        });
-      } catch (error) {
-        if (error?.name !== 'AbortError') {
-          console.warn('Failed to fetch live landmark image', error);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLiveImageLoading(false);
-        }
-      }
-    };
-
-    requestLandmarkImage();
-    const intervalId = setInterval(requestLandmarkImage, isRoutingActive ? 4000 : 8000);
-
-    return () => {
-      cancelled = true;
-      controller.abort();
-      clearInterval(intervalId);
-    };
-  }, [drPosition, effectiveHeading, isDrActive, isRoutingActive, language, stepBasedGeo, userLocation]);
+  }, [routeData?.steps, routeGeo, isRoutingActive, isDemoMode, currentStep,
+    isDrActive, drPosition, userLocation]);
 
   const toggleMapModal = () => {
     setIsMapModalOpen(!isMapModalOpen);
@@ -1670,28 +1316,46 @@ const RoutingPage = () => {
   };
 
   const toggleRouting = () => {
-    const newRoutingState = !isRoutingActive;
-    setIsRoutingActive(newRoutingState);
-
-    if (newRoutingState && currentStep >= routeData?.steps?.length - 1) {
-      setCurrentStep(0);
-    }
-
-    if (newRoutingState) {
-      const routeStart = getNavigationStartLocation();
-      const [lat, lng] = routeStart || userLocation;
-      if (routeStart) {
-        setUserLocation(routeStart);
-      }
-      advancedDeadReckoningService.start({ lat, lng });
-    } else {
+    if (isRoutingActive) {
+      setIsRoutingActive(false);
       advancedDeadReckoningService.stop();
+      setIs3DView(false);
+      return;
     }
+    if (!routeData?.steps?.length || !routeGeo) return;
+    // A real start must not resume a simulated step with a real origin position.
+    setIsDemoMode(false);
+    setHasArrived(false);
+    setCurrentStep(0);
+    const routeStart = getNavigationStartLocation();
+    const [lat, lng] = routeStart || userLocation;
+    setUserLocation([lat, lng]);
+    setDrPosition({ lat, lng });
+    setIsRoutingActive(true);
+    advancedDeadReckoningService.start({ lat, lng }).catch((error) => {
+      console.warn('Unable to start navigation sensors', error);
+      advancedDeadReckoningService.stop();
+      setIsRoutingActive(false);
+      setIs3DView(false);
+    });
+    if (!showAllRoutesView && !showAlternativeRoutes) setIs3DView(true);
+  };
 
-    // Only change 3D view if not in all routes or alternative routes view
-    if (!showAllRoutesView && !showAlternativeRoutes) {
-      setIs3DView(newRoutingState);
-    }
+  const handleDirectionIconClick = (event) => {
+    event.stopPropagation();
+    const count = routeData?.steps?.length || 0;
+    if (!count || !routeGeo) return;
+    advancedDeadReckoningService.stop();
+    setIsRoutingActive(false);
+    setHasArrived(false);
+    setIsDemoMode(true);
+    setCurrentStep((previous) => nextDemoStep(previous, count));
+  };
+
+  const exitDemo = () => {
+    setIsDemoMode(false);
+    setHasArrived(false);
+    setCurrentStep(0);
   };
 
   const handleEmergencySelect = (type) => {
@@ -1816,6 +1480,9 @@ const RoutingPage = () => {
     sessionStorage.setItem('routeSahns', JSON.stringify(route.via || []));
     sessionStorage.setItem('manualRouteSelected', 'true');
     setCurrentStep(0);
+    setIsDemoMode(false);
+    setHasArrived(false);
+    advancedDeadReckoningService.stop();
     setIsRoutingActive(false);
     setShowAlternativeRoutes(false);
     setShowAlternativeRoutesOnMap(false);
@@ -1870,7 +1537,7 @@ const RoutingPage = () => {
   }
 
   return (
-    <div className="routing-page">
+    <div className="routing-page" data-navigation-mode={navigationFrame.mode} data-current-step={currentStep}>
       {/* Separate overlay for info modal */}
       {isInfoModalOpen && isMapModalOpen && !showAllRoutesView && !showAlternativeRoutes && (
         <div
@@ -2100,11 +1767,12 @@ const RoutingPage = () => {
           </button>
         </div>
         <div className="image-placeholder">
-          {liveLandmarkImage?.image?.url ? (
+          {liveLandmarkImage?.image?.url && failedImageUrl !== liveLandmarkImage.image.url ? (
             <>
               <img
                 src={liveLandmarkImage.image.url}
-                alt={liveLandmarkImage?.content?.title || 'landmark'}
+                alt={liveLandmarkImage?.content?.title || rngText.imageAlt}
+                onError={() => setFailedImageUrl(liveLandmarkImage.image.url)}
                 className="live-landmark-image"
               />
               {/* <div className="live-landmark-overlay">
@@ -2118,20 +1786,12 @@ const RoutingPage = () => {
             </>
           ) : (
             <div className="image-placeholder-text">
-              {isLiveImageLoading ? <FormattedMessage id="liveLandmarkLoading" /> : <FormattedMessage id="liveLandmarkWaiting" />}
+              {guidanceImage.error ? rngText.error
+                : liveLandmarkImage?.image?.url && failedImageUrl === liveLandmarkImage.image.url ? rngText.imageError
+                : isLiveImageLoading ? <FormattedMessage id="liveLandmarkLoading" /> : rngText.waiting}
             </div>
           )}
         </div>
-        {/* {recentLandmarkImages.length > 0 && (
-          <div className="recent-landmarks-strip">
-            {recentLandmarkImages.map((item) => (
-              <div className="recent-landmark-card" key={item.poiId}>
-                <img src={item.imageUrl} alt={item.title || `poi-${item.poiId}`} />
-                <span>{item.title || `#${item.poiId}`}</span>
-              </div>
-            ))}
-          </div>
-        )} */}
         <div className="map-fade-rng"></div>
       </div>
 
@@ -2155,8 +1815,11 @@ const RoutingPage = () => {
         <div className={`map-container-rng ${!showAllRoutesView && !showAlternativeRoutes && isInfoModalOpen ? 'dark-overlay' : 'No-dark-overlay'}`}>
           <RouteMap
             ref={routeMapRef}
-            userLocation={userLocation}
+            userLocation={navigationLocation}
             userHeading={effectiveHeading}
+            navigationControlled={true}
+            progressRouteM={navigationFrame.routeM}
+            showDrTrace={isRoutingActive && !isDemoMode}
             routeSteps={routeData.steps}
             currentStep={currentStep}
             isInfoModalOpen={isInfoModalOpen}
@@ -2290,12 +1953,26 @@ const RoutingPage = () => {
 
                 {/* Current Guide Display */}
                 <div className="current-guide">
+                  {isDemoMode && (
+                    <div className="rng-demo-status" role="status">
+                      <span>{rngText.demo} — {formatDigits(currentStep + 1)}/{formatDigits(routeData.steps.length)}</span>
+                      <button type="button" onClick={exitDemo}>{rngText.exit}</button>
+                    </div>
+                  )}
                   {routeData.steps[currentStep] && (
                     <div className="guide-step active">
                       <p className="step-instruction">
-                        <span className="direction-icon-rng">
+                        <button
+                          type="button"
+                          className="direction-icon-rng"
+                          onClick={handleDirectionIconClick}
+                          onPointerDown={(event) => event.stopPropagation()}
+                          aria-label={rngText.next}
+                          title={rngText.next}
+                          disabled={!routeGeo || !routeData.steps.length}
+                        >
                           {renderDirectionArrow(routeData.steps[currentStep].direction)}
-                        </span>
+                        </button>
                         <span className="instruction-text">
                           {routeData.steps[currentStep].instruction}
                         </span>
