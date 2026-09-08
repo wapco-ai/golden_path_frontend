@@ -1,0 +1,40 @@
+name: frontend-ci
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  navigation-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Snapshot navigation sources for verification
+        run: >-
+          git archive --format=tar.gz -o rng-source.tar.gz HEAD
+          src/pages/Routing.jsx src/components/map/RouteMap.jsx
+          src/styles/Routing.css src/config/appConfig.js
+          src/services/landmarkViewImageService.js
+          src/services/AdvancedDeadReckoningService.js
+          src/utils/routeSegments.js src/utils/sessionFloor.js
+          package.json package-lock.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rng-source
+          path: rng-source.tar.gz
+          retention-days: 1
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
