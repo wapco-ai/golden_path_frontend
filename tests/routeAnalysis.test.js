@@ -1,85 +1,8 @@
 import assert from 'assert';
 import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const projectRoot = path.resolve(__dirname, '..');
-const zustandDir = path.join(projectRoot, 'node_modules', 'zustand');
-const zustandPackageJson = path.join(zustandDir, 'package.json');
-const desiredZustandPackage = {
-  name: 'zustand',
-  version: '0.0.0-test-stub',
-  type: 'module',
-  exports: {
-    '.': './index.js',
-    './middleware': './middleware/index.js'
-  }
-};
-
-let needsStub = true;
-if (fs.existsSync(zustandPackageJson)) {
-  try {
-    const existing = JSON.parse(fs.readFileSync(zustandPackageJson, 'utf8'));
-    if (
-      existing?.exports?.['.'] === desiredZustandPackage.exports['.'] &&
-      existing?.exports?.['./middleware'] === desiredZustandPackage.exports['./middleware']
-    ) {
-      needsStub = false;
-    }
-  } catch (error) {
-    needsStub = true;
-  }
-}
-
-if (needsStub) {
-  fs.mkdirSync(path.join(zustandDir, 'middleware'), { recursive: true });
-  fs.writeFileSync(
-    zustandPackageJson,
-    JSON.stringify(desiredZustandPackage),
-    'utf8'
-  );
-  fs.writeFileSync(
-    path.join(zustandDir, 'index.js'),
-    `export const create = (initializer) => {
-  let state;
-  const listeners = new Set();
-  const setState = (partial) => {
-    const nextState = typeof partial === 'function' ? partial(state) : partial || {};
-    state = { ...(state || {}), ...nextState };
-    listeners.forEach(listener => listener(state));
-    return state;
-  };
-  const getState = () => state;
-  const api = {
-    setState,
-    getState,
-    subscribe: (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    }
-  };
-  state = initializer(setState, getState, api) || {};
-  const useStore = () => state;
-  useStore.getState = getState;
-  useStore.setState = setState;
-  useStore.subscribe = api.subscribe;
-  return useStore;
-};
-export default { create };
-`,
-    'utf8'
-  );
-  fs.writeFileSync(
-    path.join(zustandDir, 'middleware', 'index.js'),
-    `export const persist = (initializer) => initializer;
-export default { persist };
-`,
-    'utf8'
-  );
-}
-
+// Use the installed dependency. Tests must never replace node_modules with stubs:
+// doing so breaks subsequent Vite builds and any running local development server.
 const { computeShortestPath, analyzeRoute, genderAllowed } = await import('../src/utils/routeAnalysis.js');
 
 const geo = JSON.parse(fs.readFileSync(new URL('./sample.geojson', import.meta.url)));
@@ -193,7 +116,7 @@ assert.strictEqual(
 assert.strictEqual(
   genderAllowed('family', 'female'),
   true,
-  'female selection should allow family segments'
+  'family selection should allow family segments'
 );
 
 assert.strictEqual(
@@ -204,7 +127,7 @@ assert.strictEqual(
 assert.strictEqual(
   genderAllowed(['female', 'family'], 'male'),
   true,
-  'male selection should allow segments tagged with family alongside other genders'
+  'family selection should allow segments tagged with family alongside other genders'
 );
 
 console.log('analyzeRoute service filtering tests passed');

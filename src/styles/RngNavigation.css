@@ -1,0 +1,32 @@
+/* Demo controls must remain clickable inside either state of the draggable panel. */
+button.direction-icon-rng {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 4px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+button.direction-icon-rng:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+button.direction-icon-rng:disabled { cursor: default; opacity: 0.5; }
+.rng-demo-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 12px;
+}
+.rng-demo-status > span { flex: 1; min-width: 0; }
+.rng-demo-status button { font: inherit; cursor: pointer; flex-shrink: 0; }
+
+/* Keep the instruction, demo label and controls inside the viewport when collapsed. */
+.routing-page .info-modal.closed {
+  bottom: 0;
+  height: auto;
+  transform: translateY(var(--info-drag-y, 0px));
+}
+.routing-page .info-modal.closed .current-guide { min-height: 0; }

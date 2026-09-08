@@ -36,7 +36,10 @@ const RouteMap = forwardRef(({
   routeGeo,
   alternativeRoutes = [],
   onSelectAlternativeRoute,
-  showAlternativeRoutes = false
+  showAlternativeRoutes = false,
+  navigationControlled = false,
+  progressRouteM = null,
+  showDrTrace = true
 }, ref) => {
   const mapRef = useRef(null);
   const lastHeading = useRef(null);
@@ -110,6 +113,7 @@ const RouteMap = forwardRef(({
   const [drPosition, setDrPosition] = useState(null);
   const [drGeoPath, setDrGeoPath] = useState([]);
   const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
+  const useDrPosition = isDrActive && !navigationControlled;
   const [heading, setHeading] = useState(userHeading ?? 0);
   const [terrainAvailable, setTerrainAvailable] = useState(false);
   const [traveledRouteGeo, setTraveledRouteGeo] = useState(null);
@@ -174,22 +178,22 @@ const RouteMap = forwardRef(({
       setIsDrActive(data.isActive);
       if (data.geoPosition) setDrPosition(data.geoPosition);
       if (data.geoPath) setDrGeoPath(data.geoPath);
-      if (data.heading !== undefined && data.heading !== null) {
+      if (!navigationControlled && data.heading !== undefined && data.heading !== null) {
         setHeading(data.heading);
       }
     });
     return remove;
-  }, []);
+  }, [navigationControlled]);
 
   useEffect(() => {
-    if (!isDrActive && Number.isFinite(userHeading)) {
+    if (!useDrPosition && Number.isFinite(userHeading)) {
       setHeading(userHeading);
       lastHeading.current = userHeading;
       if (mapRef.current) {
         mapRef.current.setBearing(userHeading);
       }
     }
-  }, [isDrActive, userHeading]);
+  }, [useDrPosition, userHeading]);
 
   // Split route into traveled and remaining parts based on currentStep
   useEffect(() => {
@@ -211,9 +215,10 @@ const RouteMap = forwardRef(({
     let traveledCoords;
     let remainingCoords;
 
-    if (hasRouteM) {
-      traveledCoords = sliceLineByFraction(coords, 0, activeSegment.fromM);
-      remainingCoords = sliceLineByFraction(coords, activeSegment.fromM, 1);
+    if (Number.isFinite(progressRouteM) || hasRouteM) {
+      const split = Number.isFinite(progressRouteM) ? progressRouteM : activeSegment.fromM;
+      traveledCoords = sliceLineByFraction(coords, 0, split);
+      remainingCoords = sliceLineByFraction(coords, split, 1);
     } else {
       // Fallback for legacy routes without routeM: keep the previous index-based split.
       let traveledIndex = currentStep + 1;
@@ -247,7 +252,7 @@ const RouteMap = forwardRef(({
     } else {
       setRemainingRouteGeo(null);
     }
-  }, [routeGeo, routeSteps, currentStep]);
+  }, [routeGeo, routeSteps, currentStep, progressRouteM]);
 
   // Handle map resize when modal opens/closes
   useEffect(() => {
@@ -325,12 +330,12 @@ const RouteMap = forwardRef(({
   // Keep map centered on the user's location
   useEffect(() => {
     if (!mapRef.current) return;
-    if (isDrActive && drPosition) {
+    if (useDrPosition && drPosition) {
       mapRef.current.setCenter([drPosition.lng, drPosition.lat]);
-    } else if (!isDrActive && isValidUserLocation) {
+    } else if (!useDrPosition && isValidUserLocation) {
       mapRef.current.setCenter([userLocation[1], userLocation[0]]);
     }
-  }, [drPosition, userLocation, isDrActive, isValidUserLocation]);
+  }, [drPosition, userLocation, useDrPosition, isValidUserLocation]);
 
   // Zoom to current segment when step changes
   useEffect(() => {
@@ -458,19 +463,19 @@ const RouteMap = forwardRef(({
       onError={handleMapError}
     >
       {/* User location marker */}
-      {!isDrActive && isValidUserLocation && (
+      {!useDrPosition && isValidUserLocation && (
         <Marker longitude={userLocation[1]} latitude={userLocation[0]} anchor="center">
           <ArrowMarker />
         </Marker>
       )}
 
-      {isDrActive && drPosition && Number.isFinite(drPosition.lng) && Number.isFinite(drPosition.lat) && (
+      {useDrPosition && drPosition && Number.isFinite(drPosition.lng) && Number.isFinite(drPosition.lat) && (
         <Marker longitude={drPosition.lng} latitude={drPosition.lat} anchor="center">
           <ArrowMarker />
         </Marker>
       )}
 
-      {isDrActive && drGeoPath.length > 1 && (
+      {showDrTrace && isDrActive && drGeoPath.length > 1 && (
         <Source
           id="dr-path"
           type="geojson"
