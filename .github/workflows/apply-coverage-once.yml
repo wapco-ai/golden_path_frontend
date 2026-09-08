@@ -1,0 +1,75 @@
+name: apply-coverage-once
+on:
+  push:
+    branches: [fix/guidance-coverage-radius]
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.repository == 'wapco-ai/golden_path_frontend' && github.ref == 'refs/heads/fix/guidance-coverage-radius'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: fix/guidance-coverage-radius
+      - name: Apply reviewed coverage-only edits to exact source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess, re
+          p = Path('src/AdminPanel/Marks.jsx')
+          assert subprocess.check_output(['git','hash-object',str(p)],text=True).strip() == '3172d97e81df188fc232f9d9d1011d092a5f3976'
+          s = p.read_text()
+          old = "import { deleteFile } from '../services/fileService';"
+          assert s.count(old) == 1
+          s = s.replace(old, old + "\nimport { DEFAULT_GUIDANCE_COVERAGE_RADIUS_M, coverageRadiusForForm, parseCoverageRadius } from '../utils/guidanceCoverage.js';")
+          s, count = re.subn(r'(?m)^([ \t]*)floor: 0$', r'\1floor: 0,\n\1coverage_radius_m: DEFAULT_GUIDANCE_COVERAGE_RADIUS_M', s)
+          assert count == 3, count
+          old = '      location: mark.location\n'
+          assert s.count(old) == 1
+          s = s.replace(old, '      location: mark.location,\n      coverage_radius_m: coverageRadiusForForm(mark.coverage_radius_m)\n')
+          old = '    setIsSaving(true);\n\n    const request = new FormData();'
+          assert s.count(old) == 2
+          new = "    const coverageRadius = parseCoverageRadius(formData.coverage_radius_m);\n    if (coverageRadius === null) {\n      toast.error('شعاع پوشش باید بین ۰٫۰۱ و ۱۰۰ متر و حداکثر دارای دو رقم اعشار باشد.');\n      return;\n    }\n\n    setIsSaving(true);\n\n    const request = new FormData();\n    request.append('coverage_radius_m', String(coverageRadius));"
+          s = s.replace(old, new)
+          anchor = '                <div className="info-field">\n                  <label>تصاویر (حداکثر 4 عدد)</label>'
+          assert s.count(anchor) == 2
+          for prefix in ['add','edit']:
+              field = f'''                <div className="info-field">
+                            <label htmlFor="{prefix}-guidance-coverage-radius">شعاع پوشش (متر)</label>
+                            <input
+                              id="{prefix}-guidance-coverage-radius"
+                              name="coverage_radius_m"
+                              type="number"
+                              inputMode="decimal"
+                              min="0.01"
+                              max="100"
+                              step="0.01"
+                              required
+                              className="form-input-add-admin"
+                              value={{formData.coverage_radius_m}}
+                              onChange={{(e) => setFormData({{ ...formData, coverage_radius_m: e.target.value }})}}
+                            />
+                          </div>
+          '''
+              # Retain the surrounding JSX indentation and existing classes.
+              lines = field.splitlines()
+              field = '\n'.join([lines[0]] + [line[10:] if line.startswith('          ') else line for line in lines[1:]]) + '\n'
+              start = s.index(anchor, 0 if prefix == 'add' else s.index('{/* Edit Mark Modal */}'))
+              s = s[:start] + field + s[start:]
+          p.write_text(s)
+          p = Path('package.json'); s = p.read_text()
+          old = 'tests/rngAppearance.test.js"'
+          assert s.count(old) == 1
+          p.write_text(s.replace(old, 'tests/rngAppearance.test.js tests/guidanceCoverage.test.js"'))
+          PY
+          git diff --check
+          node --test tests/guidanceCoverage.test.js
+          git rm .github/workflows/apply-coverage-once.yml
+          git add src/AdminPanel/Marks.jsx package.json
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'feat: wire editable guidance coverage radius with 100 metre defaults'
+          git push origin HEAD:refs/heads/fix/guidance-coverage-radius
