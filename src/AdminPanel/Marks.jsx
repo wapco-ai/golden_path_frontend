@@ -6,6 +6,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import '../AdminPanel/Amain.css';
 import apiAdmin from '../api/apiAdmin';
 import { deleteFile } from '../services/fileService';
+import { MBTILES_SATELLITE_STYLE } from '../services/mbtilesMapStyle';
 import { DEFAULT_GUIDANCE_COVERAGE_RADIUS_M, coverageRadiusForForm, parseCoverageRadius } from '../utils/guidanceCoverage.js';
 
 // RTL plugin initialization
@@ -238,7 +239,7 @@ const Marks = () => {
     try {
       const map = new maplibregl.Map({
         container: mapContainerRef.current,
-        style: './map-styles/osm-voyager/style-en.json',
+        style: MBTILES_SATELLITE_STYLE,
         center: [lng, lat],
         zoom: 16
       });

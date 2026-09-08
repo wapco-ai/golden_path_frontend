@@ -58,3 +58,36 @@ test('add and edit each have a labeled radius field reusing the existing input s
     assert.doesNotMatch(input, /style=/);
   }
 });
+
+// Source-level integration guards; these do not test tile-server availability.
+test('guidance placement reuses the exact satellite style used during navigation', () => {
+  const routeMap = readFileSync(new URL('../src/components/map/RouteMap.jsx', import.meta.url), 'utf8');
+  assert.match(source, /import \{ MBTILES_SATELLITE_STYLE \} from '\.\.\/services\/mbtilesMapStyle';/);
+  assert.match(routeMap, /import \{ MBTILES_SATELLITE_STYLE \} from '\.\.\/\.\.\/services\/mbtilesMapStyle';/);
+  assert.match(routeMap, /const mapStyle = MBTILES_SATELLITE_STYLE;/);
+  assert.match(source, /style: MBTILES_SATELLITE_STYLE,/);
+  assert.doesNotMatch(source, /osm-voyager\/style-en\.json/);
+  // Do not fork the shared URL, numbering scheme, tile size or zoom settings here.
+  assert.doesNotMatch(source, /tiles:\s*\[|scheme:\s*['"]|tileSize:\s*\d/);
+});
+
+test('add and edit share the map initializer while retaining coordinate selection', () => {
+  assert.equal((source.match(/new maplibregl\.Map\(/g) || []).length, 1);
+  const initializerStart = source.indexOf('const initializeMap =');
+  const initializerEnd = source.indexOf('// Cleanup map on unmount', initializerStart);
+  assert.ok(initializerStart >= 0 && initializerEnd > initializerStart);
+  const initializer = source.slice(initializerStart, initializerEnd);
+  assert.match(initializer, /center: \[lng, lat\]/);
+  assert.match(initializer, /zoom: 16/);
+  assert.match(initializer, /draggable: true/);
+  assert.match(initializer, /map\.on\('click'/);
+  assert.match(initializer, /markerRef\.current\.on\('dragend'/);
+  assert.match(initializer, /location: newLocation/);
+
+  const addStart = source.indexOf('const openAddModal =');
+  const editStart = source.indexOf('const openEditModal =');
+  const deleteStart = source.indexOf('const openDeleteModal =');
+  assert.ok(addStart >= 0 && editStart > addStart && deleteStart > editStart);
+  assert.match(source.slice(addStart, editStart), /initializeMap\(36\.2880, 59\.6157\)/);
+  assert.match(source.slice(editStart, deleteStart), /initializeMap\(mark\.location\.lat, mark\.location\.lng\)/);
+});
