@@ -13,7 +13,7 @@
 		"predeploy": "npm run build",
 		"deploy": "gh-pages -d dist",
 		"generate-pwa-assets": "pwa-assets-generator",
-		"test": "node tests/routeAnalysis.test.js && node --test tests/rngNavigation.test.js tests/rngAppearance.test.js"
+		"test": "node tests/routeAnalysis.test.js && node --test tests/rngNavigation.test.js tests/rngAppearance.test.js tests/guidanceCoverage.test.js"
 	},
 	"dependencies": {
 		"@mapbox/mapbox-gl-language": "^1.0.1",

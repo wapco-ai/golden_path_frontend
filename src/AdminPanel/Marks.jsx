@@ -6,6 +6,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import '../AdminPanel/Amain.css';
 import apiAdmin from '../api/apiAdmin';
 import { deleteFile } from '../services/fileService';
+import { DEFAULT_GUIDANCE_COVERAGE_RADIUS_M, coverageRadiusForForm, parseCoverageRadius } from '../utils/guidanceCoverage.js';
 
 // RTL plugin initialization
 function ensureRtlOnce() {
@@ -162,7 +163,8 @@ const Marks = () => {
     title: '',
     images: [],
     location: null,
-    floor: 0
+    floor: 0,
+    coverage_radius_m: DEFAULT_GUIDANCE_COVERAGE_RADIUS_M
   });
 
   // Map refs
@@ -417,7 +419,8 @@ const Marks = () => {
       title: '',
       images: [],
       location: null,
-      floor: 0
+      floor: 0,
+      coverage_radius_m: DEFAULT_GUIDANCE_COVERAGE_RADIUS_M
     });
     setSelectedLocation(null);
     setDeletedImages([]);
@@ -437,7 +440,8 @@ const Marks = () => {
     setFormData({
       title: mark.title,
       images: (mark.images || []).map((image, index) => normalizeGuidanceImage(image, index)),
-      location: mark.location
+      location: mark.location,
+      coverage_radius_m: coverageRadiusForForm(mark.coverage_radius_m)
     });
     setSelectedLocation(mark.location);
     setDeletedImages([]);
@@ -549,9 +553,16 @@ const Marks = () => {
       return;
     }
 
+    const coverageRadius = parseCoverageRadius(formData.coverage_radius_m);
+    if (coverageRadius === null) {
+      toast.error('شعاع پوشش باید بین ۰٫۰۱ و ۱۰۰ متر و حداکثر دارای دو رقم اعشار باشد.');
+      return;
+    }
+
     setIsSaving(true);
 
     const request = new FormData();
+    request.append('coverage_radius_m', String(coverageRadius));
     request.append('floor', String(formData.floor ?? 0));
     request.append('title', formData.title?.trim() || '');
     request.append('x', String(formData.location.lng));
@@ -571,7 +582,8 @@ const Marks = () => {
         title: '',
         images: [],
         location: null,
-        floor: 0
+        floor: 0,
+        coverage_radius_m: DEFAULT_GUIDANCE_COVERAGE_RADIUS_M
       });
     }).catch((err) => {
       setIsSaving(false);
@@ -587,9 +599,16 @@ const Marks = () => {
       return;
     }
 
+    const coverageRadius = parseCoverageRadius(formData.coverage_radius_m);
+    if (coverageRadius === null) {
+      toast.error('شعاع پوشش باید بین ۰٫۰۱ و ۱۰۰ متر و حداکثر دارای دو رقم اعشار باشد.');
+      return;
+    }
+
     setIsSaving(true);
 
     const request = new FormData();
+    request.append('coverage_radius_m', String(coverageRadius));
     request.append('floor', String(formData.floor ?? selectedMark?.floor ?? 0));
     request.append('title', formData.title?.trim() || '');
     const currentLng = Number(formData.location?.lng);
@@ -987,6 +1006,22 @@ const Marks = () => {
                   />
                 </div>
                 <div className="info-field">
+                  <label htmlFor="add-guidance-coverage-radius">شعاع پوشش (متر)</label>
+                  <input
+                    id="add-guidance-coverage-radius"
+                    name="coverage_radius_m"
+                    type="number"
+                    inputMode="decimal"
+                    min="0.01"
+                    max="100"
+                    step="0.01"
+                    required
+                    className="form-input-add-admin"
+                    value={formData.coverage_radius_m}
+                    onChange={(e) => setFormData({ ...formData, coverage_radius_m: e.target.value })}
+                  />
+                </div>
+                <div className="info-field">
                   <label>تصاویر (حداکثر 4 عدد)</label>
                   <input
                     type="file"
@@ -1103,6 +1138,22 @@ const Marks = () => {
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     placeholder="عنوان مکان را وارد کنید (اختیاری)"
+                  />
+                </div>
+                <div className="info-field">
+                  <label htmlFor="edit-guidance-coverage-radius">شعاع پوشش (متر)</label>
+                  <input
+                    id="edit-guidance-coverage-radius"
+                    name="coverage_radius_m"
+                    type="number"
+                    inputMode="decimal"
+                    min="0.01"
+                    max="100"
+                    step="0.01"
+                    required
+                    className="form-input-add-admin"
+                    value={formData.coverage_radius_m}
+                    onChange={(e) => setFormData({ ...formData, coverage_radius_m: e.target.value })}
                   />
                 </div>
                 <div className="info-field">
