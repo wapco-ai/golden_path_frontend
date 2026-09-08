@@ -16,25 +16,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '20'
           cache: npm
-      - name: Snapshot navigation sources for verification
-        run: >-
-          git archive --format=tar.gz -o rng-source.tar.gz HEAD
-          src/pages/Routing.jsx src/components/map/RouteMap.jsx
-          src/styles/Routing.css src/config/appConfig.js
-          src/services/landmarkViewImageService.js
-          src/services/AdvancedDeadReckoningService.js
-          src/utils/routeSegments.js src/utils/sessionFloor.js
-          package.json package-lock.json
-      - uses: actions/upload-artifact@v4
-        with:
-          name: rng-source
-          path: rng-source.tar.gz
-          retention-days: 1
       - run: npm ci
+      - name: Inspect installed Zustand exports
+        run: |
+          npm ls zustand
+          node --input-type=module -e "import * as m from 'zustand/middleware'; console.log(Object.keys(m)); console.log(import.meta.resolve('zustand/middleware'));"
+          cat node_modules/zustand/package.json
+          node -e "const f=require('fs'); const p=require.resolve('zustand/middleware'); console.log(p); console.log(f.readFileSync(p,'utf8').slice(0,4000));"
       - run: npm test
       - run: npm run build
