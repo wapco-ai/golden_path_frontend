@@ -57,7 +57,14 @@ export default defineConfig({
       workbox: {  
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],  
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // Set to 5 MiB for example
-        runtimeCaching: [  
+        runtimeCaching: [
+          {
+            // A stale image-selection response must not be replayed during navigation.
+            // Keep this before the generic API NetworkFirst rule below.
+            urlPattern: ({ url }) => url.pathname === '/api/v1/landmark-view-image'
+              && url.searchParams.get('source') === 'guidance_points',
+            handler: 'NetworkOnly'
+          },
           {  
             urlPattern: /^https:\/\/api\.mapbox\.com\/.*/,   
             handler: 'CacheFirst',  

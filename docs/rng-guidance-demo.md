@@ -15,6 +15,8 @@
   that returns a POI or ignores the source is rejected with an error, not displayed.
 - One request is active at a time. Latest position is sampled between polls;
   step/floor/mode changes abort the previous context. Errors clear stale imagery.
+- Guidance-only image selection uses NetworkOnly in the PWA service worker; it
+  cannot replay a previously cached API match when the network is unavailable.
 
 ## Deployment
 
