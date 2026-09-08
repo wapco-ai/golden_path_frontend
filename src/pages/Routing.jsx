@@ -6,7 +6,6 @@ import RouteMap from '../components/map/RouteMap';
 import DeadReckoningControls from '../components/map/DeadReckoningControls';
 import advancedDeadReckoningService from '../services/AdvancedDeadReckoningService';
 import '../styles/Routing.css';
-import '../styles/RngNavigation.css';
 import { useRouteStore } from '../store/routeStore';
 import { useLangStore } from '../store/langStore';
 import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
@@ -1352,12 +1351,6 @@ const RoutingPage = () => {
     setCurrentStep((previous) => nextDemoStep(previous, count));
   };
 
-  const exitDemo = () => {
-    setIsDemoMode(false);
-    setHasArrived(false);
-    setCurrentStep(0);
-  };
-
   const handleEmergencySelect = (type) => {
     setSelectedEmergency(type);
   };
@@ -1771,7 +1764,7 @@ const RoutingPage = () => {
             <>
               <img
                 src={liveLandmarkImage.image.url}
-                alt={liveLandmarkImage?.content?.title || rngText.imageAlt}
+                alt={liveLandmarkImage?.content?.title || 'landmark'}
                 onError={() => setFailedImageUrl(liveLandmarkImage.image.url)}
                 className="live-landmark-image"
               />
@@ -1786,9 +1779,7 @@ const RoutingPage = () => {
             </>
           ) : (
             <div className="image-placeholder-text">
-              {guidanceImage.error ? rngText.error
-                : liveLandmarkImage?.image?.url && failedImageUrl === liveLandmarkImage.image.url ? rngText.imageError
-                : isLiveImageLoading ? <FormattedMessage id="liveLandmarkLoading" /> : rngText.waiting}
+              {isLiveImageLoading ? <FormattedMessage id="liveLandmarkLoading" /> : <FormattedMessage id="liveLandmarkWaiting" />}
             </div>
           )}
         </div>
@@ -1953,26 +1944,26 @@ const RoutingPage = () => {
 
                 {/* Current Guide Display */}
                 <div className="current-guide">
-                  {isDemoMode && (
-                    <div className="rng-demo-status" role="status">
-                      <span>{rngText.demo} — {formatDigits(currentStep + 1)}/{formatDigits(routeData.steps.length)}</span>
-                      <button type="button" onClick={exitDemo}>{rngText.exit}</button>
-                    </div>
-                  )}
                   {routeData.steps[currentStep] && (
                     <div className="guide-step active">
                       <p className="step-instruction">
-                        <button
-                          type="button"
+                        <span
                           className="direction-icon-rng"
+                          role="button"
+                          tabIndex={!routeGeo || !routeData.steps.length ? -1 : 0}
+                          aria-disabled={!routeGeo || !routeData.steps.length}
+                          aria-label={rngText.next}
                           onClick={handleDirectionIconClick}
                           onPointerDown={(event) => event.stopPropagation()}
-                          aria-label={rngText.next}
-                          title={rngText.next}
-                          disabled={!routeGeo || !routeData.steps.length}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              handleDirectionIconClick(event);
+                            }
+                          }}
                         >
                           {renderDirectionArrow(routeData.steps[currentStep].direction)}
-                        </button>
+                        </span>
                         <span className="instruction-text">
                           {routeData.steps[currentStep].instruction}
                         </span>
