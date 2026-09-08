@@ -4,7 +4,7 @@ User-approved UI change: one numeric field labeled شعاع پوشش (متر), u
 
 New-point state and form resets default to 100 m. Editing loads coverage_radius_m from the saved point, including older 10 m values. Both create and update send the validated value in multipart FormData. The accepted range is 0.01 through 100 m with up to two decimal places, matching the database column and existing upper bound.
 
-Companion backend change sets the omitted-create default and null selection fallback to 100 m, and adds a targeted migration for the database default. Existing points are not mass-updated. Edit and save an existing point explicitly to change its radius.
+Companion backend PR wapco-ai/golden_path_backend#4 sets the omitted-create default and null selection fallback to 100 m, and adds database/migrations/2026_09_08_180000_set_guidance_coverage_default_to_100.php for the database default. Existing points are not mass-updated. Edit and save an existing point explicitly to change its radius.
 
 Coverage is only a distance filter. Floor and image heading/FOV still apply, and preview/demo still samples the selected step start. Increasing coverage alone is not a guarantee that an image is directionally eligible. No route geometry or graph source changes.
 
