@@ -20,4 +20,13 @@ button.direction-icon-rng:disabled { cursor: default; opacity: 0.5; }
   padding: 6px 0;
   font-size: 12px;
 }
-.rng-demo-status button { font: inherit; cursor: pointer; }
+.rng-demo-status > span { flex: 1; min-width: 0; }
+.rng-demo-status button { font: inherit; cursor: pointer; flex-shrink: 0; }
+
+/* Keep the instruction, demo label and controls inside the viewport when collapsed. */
+.routing-page .info-modal.closed {
+  bottom: 0;
+  height: auto;
+  transform: translateY(var(--info-drag-y, 0px));
+}
+.routing-page .info-modal.closed .current-guide { min-height: 0; }
