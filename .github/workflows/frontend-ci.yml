@@ -22,11 +22,8 @@ jobs:
           node-version: '20'
           cache: npm
       - run: npm ci
-      - name: Inspect installed Zustand exports
-        run: |
-          npm ls zustand
-          node --input-type=module -e "import * as m from 'zustand/middleware'; console.log(Object.keys(m)); console.log(import.meta.resolve('zustand/middleware'));"
-          cat node_modules/zustand/package.json
-          node -e "const f=require('fs'); const p=require.resolve('zustand/middleware'); console.log(p); console.log(f.readFileSync(p,'utf8').slice(0,4000));"
-      - run: npm test
+      - name: Route and RNG regression tests
+        run: npm test
+      - name: Verify tests do not corrupt installed dependencies
+        run: node --input-type=module -e "import { createJSONStorage } from 'zustand/middleware'; if (typeof createJSONStorage !== 'function') process.exit(1);"
       - run: npm run build
