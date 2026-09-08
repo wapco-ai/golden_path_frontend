@@ -1006,21 +1006,21 @@ const Marks = () => {
                   />
                 </div>
                 <div className="info-field">
-        <label htmlFor="add-guidance-coverage-radius">شعاع پوشش (متر)</label>
-        <input
-          id="add-guidance-coverage-radius"
-          name="coverage_radius_m"
-          type="number"
-          inputMode="decimal"
-          min="0.01"
-          max="100"
-          step="0.01"
-          required
-          className="form-input-add-admin"
-          value={formData.coverage_radius_m}
-          onChange={(e) => setFormData({ ...formData, coverage_radius_m: e.target.value })}
-        />
-      </div>
+                  <label htmlFor="add-guidance-coverage-radius">شعاع پوشش (متر)</label>
+                  <input
+                    id="add-guidance-coverage-radius"
+                    name="coverage_radius_m"
+                    type="number"
+                    inputMode="decimal"
+                    min="0.01"
+                    max="100"
+                    step="0.01"
+                    required
+                    className="form-input-add-admin"
+                    value={formData.coverage_radius_m}
+                    onChange={(e) => setFormData({ ...formData, coverage_radius_m: e.target.value })}
+                  />
+                </div>
                 <div className="info-field">
                   <label>تصاویر (حداکثر 4 عدد)</label>
                   <input
@@ -1141,21 +1141,21 @@ const Marks = () => {
                   />
                 </div>
                 <div className="info-field">
-        <label htmlFor="edit-guidance-coverage-radius">شعاع پوشش (متر)</label>
-        <input
-          id="edit-guidance-coverage-radius"
-          name="coverage_radius_m"
-          type="number"
-          inputMode="decimal"
-          min="0.01"
-          max="100"
-          step="0.01"
-          required
-          className="form-input-add-admin"
-          value={formData.coverage_radius_m}
-          onChange={(e) => setFormData({ ...formData, coverage_radius_m: e.target.value })}
-        />
-      </div>
+                  <label htmlFor="edit-guidance-coverage-radius">شعاع پوشش (متر)</label>
+                  <input
+                    id="edit-guidance-coverage-radius"
+                    name="coverage_radius_m"
+                    type="number"
+                    inputMode="decimal"
+                    min="0.01"
+                    max="100"
+                    step="0.01"
+                    required
+                    className="form-input-add-admin"
+                    value={formData.coverage_radius_m}
+                    onChange={(e) => setFormData({ ...formData, coverage_radius_m: e.target.value })}
+                  />
+                </div>
                 <div className="info-field">
                   <label>تصاویر (حداکثر 4 عدد)</label>
                   <input
