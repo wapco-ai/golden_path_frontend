@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { buildRouteMSegments, sliceLineByFraction } from '../src/utils/routeSegments.js';
 import {
   getStepStartRouteM, getNavigationProgress, getStepPreview,
@@ -186,4 +187,50 @@ test('request failure clears through onError and polling can recover', async () 
   clock.fire(1500); await flush();
   assert.equal(results.length, 1);
   stop();
+});
+
+// Read the actual RNG call site: service defaults alone did not catch the
+// page's explicit 45-degree override. No database or live network is used.
+const rngImageOptions = () => {
+  const source = readFileSync(new URL('../src/pages/Routing.jsx', import.meta.url), 'utf8');
+  const call = source.match(/useGuidanceImage\(\{([\s\S]*?)\}, guidanceContextKey\)/);
+  assert.ok(call, 'The RNG image request must be wired to the shared navigation frame');
+  assert.match(call[1], /geo: navigationFrame\.geo/);
+  assert.match(call[1], /heading: effectiveHeading/);
+  assert.match(call[1], /floor: navigationFrame\.floor/);
+  const fov = call[1].match(/\bfov:\s*(\d+)/);
+  const maxDistance = call[1].match(/\bmaxDistance:\s*(\d+)/);
+  assert.ok(fov && maxDistance);
+  return { fov: Number(fov[1]), maxDistance: Number(maxDistance[1]) };
+};
+
+test('RNG uses a 60-degree request FOV for the reported diagonal-heading case', () => {
+  const options = rngImageOptions();
+  assert.deepEqual(options, { fov: 60, maxDistance: 250 });
+  const imageFov = 60;
+  const difference = Math.abs(90 - 62.318348205083794);
+  assert.ok(difference > Math.min(imageFov, 45) / 2);
+  assert.ok(difference <= Math.min(imageFov, options.fov) / 2);
+});
+
+test('RNG FOV reaches the image request without changing position, heading or source', async (t) => {
+  const heading = 62.318348205083794;
+  const options = rngImageOptions();
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    const params = new URL(url).searchParams;
+    assert.equal(params.get('fov'), '60');
+    assert.equal(params.get('max_distance'), '250');
+    assert.equal(params.get('source'), 'guidance_points');
+    assert.equal(Number(params.get('heading')), heading);
+    assert.equal(Number(params.get('geo[lat]')), input.geo.lat);
+    assert.equal(Number(params.get('geo[lng]')), input.geo.lng);
+    assert.equal(params.get('floor'), '0');
+    return { ok: true, json: async () => ({
+      status: 'OK', source: 'guidance_points',
+      image: { id: 31, url: '/storage/test-guidance.jpg' }
+    }) };
+  });
+  const result = await fetchLandmarkViewImage({ ...input, ...options, heading });
+  assert.equal(result.image.id, 31);
+  assert.equal(result.status, 'OK');
 });

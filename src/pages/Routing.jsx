@@ -866,7 +866,7 @@ const RoutingPage = () => {
   ]);
   const guidanceImage = useGuidanceImage({
     language, geo: navigationFrame.geo, heading: effectiveHeading,
-    floor: navigationFrame.floor, fov: 45, maxDistance: 250
+    floor: navigationFrame.floor, fov: 60, maxDistance: 250
   }, guidanceContextKey);
   const liveLandmarkImage = guidanceImage.data;
   const isLiveImageLoading = guidanceImage.loading;
