@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { USER_ACCESS_TOKEN_KEY, useUserAuthStore } from '../../auth/user/userAuthStore';
@@ -15,19 +15,22 @@ import {
 import '../../styles/LocationShareOverlay.css';
 
 const ACTIVE_PATHS = new Set(['/mpr', '/fs']);
+const REFRESH_INTERVAL_MS = 30000;
 
 const LocationShareOverlay = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const language = useLangStore((state) => state.language);
-  const { accessToken } = useUserAuthStore();
+  const { accessToken, user } = useUserAuthStore();
   const setDestination = useRouteStore((state) => state.setDestination);
   const t = useMemo(() => getLocationShareText(language), [language]);
 
-  const hasToken = Boolean(
-    accessToken ||
-    (typeof window !== 'undefined' && window.sessionStorage?.getItem?.(USER_ACCESS_TOKEN_KEY))
-  );
+  const sessionToken = typeof window !== 'undefined'
+    ? window.sessionStorage?.getItem?.(USER_ACCESS_TOKEN_KEY)
+    : null;
+  const effectiveToken = accessToken || sessionToken || null;
+  const authIdentity = user?.id != null ? `user:${user.id}` : (effectiveToken ? `token:${effectiveToken}` : 'anonymous');
+  const hasToken = Boolean(effectiveToken);
   const shouldRender = ACTIVE_PATHS.has(location.pathname) && hasToken;
 
   const [isOpen, setIsOpen] = useState(false);
@@ -40,28 +43,73 @@ const LocationShareOverlay = () => {
   const [isLocating, setIsLocating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const refreshShares = useCallback(async () => {
+  const identityRef = useRef(authIdentity);
+  const refreshAbortRef = useRef(null);
+  const modalRef = useRef(null);
+  const previousFocusRef = useRef(null);
+
+  useEffect(() => {
+    identityRef.current = authIdentity;
+    refreshAbortRef.current?.abort?.();
+    refreshAbortRef.current = null;
+    setIncoming([]);
+    setOutgoing([]);
+    setIsOpen(false);
+    setPhone('');
+    setPosition(null);
+  }, [authIdentity]);
+
+  const refreshShares = useCallback(async ({ silent = false } = {}) => {
     if (!hasToken) return;
-    setIsLoadingShares(true);
+
+    const startedIdentity = identityRef.current;
+    refreshAbortRef.current?.abort?.();
+    const controller = new AbortController();
+    refreshAbortRef.current = controller;
+
+    if (!silent) setIsLoadingShares(true);
     try {
       const [nextIncoming, nextOutgoing] = await Promise.all([
-        listIncomingLocationShares(),
-        listOutgoingLocationShares()
+        listIncomingLocationShares({ signal: controller.signal }),
+        listOutgoingLocationShares({ signal: controller.signal })
       ]);
+
+      if (controller.signal.aborted || identityRef.current !== startedIdentity) return;
       setIncoming(nextIncoming);
       setOutgoing(nextOutgoing);
     } catch (error) {
+      if (controller.signal.aborted || error?.code === 'ERR_CANCELED') return;
       if (error?.status !== 401) {
         console.warn('location share refresh failed', error);
       }
     } finally {
-      setIsLoadingShares(false);
+      if (!silent && !controller.signal.aborted && identityRef.current === startedIdentity) {
+        setIsLoadingShares(false);
+      }
+      if (refreshAbortRef.current === controller) {
+        refreshAbortRef.current = null;
+      }
     }
   }, [hasToken]);
 
   useEffect(() => {
-    if (!shouldRender) return;
+    if (!shouldRender) return undefined;
+
     refreshShares();
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        refreshShares({ silent: true });
+      }
+    }, REFRESH_INTERVAL_MS);
+
+    const refreshOnFocus = () => refreshShares({ silent: true });
+    window.addEventListener('focus', refreshOnFocus);
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refreshOnFocus);
+      refreshAbortRef.current?.abort?.();
+    };
   }, [shouldRender, refreshShares]);
 
   const requestFreshLocation = useCallback(() => {
@@ -74,6 +122,7 @@ const LocationShareOverlay = () => {
     navigator.geolocation.getCurrentPosition(
       (geoPosition) => {
         const floor = Number(getSessionFloor());
+        // Product domain currently contains only ground (0) and basement (-1).
         if (![0, -1].includes(floor)) {
           setIsLocating(false);
           toast.error(t('generalError'));
@@ -103,6 +152,47 @@ const LocationShareOverlay = () => {
       }
     );
   }, [t]);
+
+  const closeModal = useCallback(() => {
+    setIsOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    previousFocusRef.current = document.activeElement;
+    const modal = modalRef.current;
+    const selector = 'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
+    const focusables = () => Array.from(modal?.querySelectorAll?.(selector) || []);
+    window.setTimeout(() => focusables()[0]?.focus?.(), 0);
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeModal();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const items = focusables();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      previousFocusRef.current?.focus?.();
+    };
+  }, [isOpen, closeModal]);
 
   const openShare = () => {
     setMode('share');
@@ -163,14 +253,23 @@ const LocationShareOverlay = () => {
     }
 
     const senderName = share?.sender?.displayName || '';
-    setDestination({
+    const destination = {
       name: t('sharedFrom', { name: senderName }),
       coordinates: [lat, lng],
       floor,
       source: 'shared_location',
       sourceId: String(share.id)
-    });
+    };
+
+    setDestination(destination);
     setIsOpen(false);
+
+    if (location.pathname === '/fs') {
+      sessionStorage.setItem('updatedDestination', JSON.stringify(destination));
+      window.dispatchEvent(new CustomEvent('goldenpath:destination-updated', { detail: destination }));
+      return;
+    }
+
     navigate('/fs');
   };
 
@@ -217,8 +316,9 @@ const LocationShareOverlay = () => {
       </div>
 
       {isOpen && (
-        <div className="location-share-backdrop" role="presentation" onMouseDown={() => setIsOpen(false)}>
+        <div className="location-share-backdrop" role="presentation" onMouseDown={closeModal}>
           <section
+            ref={modalRef}
             className="location-share-modal"
             role="dialog"
             aria-modal="true"
@@ -227,7 +327,7 @@ const LocationShareOverlay = () => {
           >
             <div className="location-share-header">
               <strong>{mode === 'incoming' ? t('incomingTitle') : t('shareMyLocation')}</strong>
-              <button type="button" className="location-share-close" onClick={() => setIsOpen(false)} aria-label={t('close')}>×</button>
+              <button type="button" className="location-share-close" onClick={closeModal} aria-label={t('close')}>×</button>
             </div>
 
             {mode === 'share' ? (
