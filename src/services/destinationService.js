@@ -46,8 +46,11 @@ const normalizeCoordinates = ({ x, y, coordinates }) => {
 };
 
 const normalizeFloor = (floor) => {
-  const parsed = Number(floor);
-  if (Number.isFinite(parsed)) return parsed;
+  if (floor !== null && floor !== undefined && floor !== '') {
+    const parsed = Number(floor);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
   return Number(getSessionFloor());
 };
 
