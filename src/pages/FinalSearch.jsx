@@ -1,3 +1,5 @@
+import { getSessionFloor } from '../utils/sessionFloor';
+import { routeCoordinates as getRouteCoordinates, routeOnFloor } from '../utils/multifloorRoute';
 // src/pages/FinalSearch.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -147,8 +149,11 @@ const FinalSearch = () => {
 
   React.useEffect(() => {
     let info;
-    if (routeGeo) {
-      const coords = routeGeo.geometry?.coordinates || [];
+    if (routeGeo?.properties?.durationSeconds != null) {
+      info = { time: `${Math.max(1, Math.round(routeGeo.properties.durationSeconds / 60))}`,
+        distance: `${Math.round(routeGeo.properties.distanceMeters)}`, mode: transportMode };
+    } else if (routeGeo) {
+      const coords = getRouteCoordinates(routeGeo) || [];
       const dist = coords.slice(1).reduce((acc, c, i) => {
         const prev = coords[i];
         return acc + Math.hypot(c[0] - prev[0], c[1] - prev[1]) * 100000;
@@ -329,8 +334,8 @@ const FinalSearch = () => {
     const controller = new AbortController();
 
     const attemptKey = JSON.stringify({
-      origin: origin.coordinates,
-      destination: destination.coordinates,
+      origin: origin.coordinates, originFloor: origin.floor ?? getSessionFloor(),
+      destination: destination.coordinates, destinationFloor: destination.floor ?? getSessionFloor(),
       transportMode,
       gender: selectedGender
     });
@@ -358,6 +363,8 @@ const FinalSearch = () => {
       hasStoredRoute &&
       sameCoordinates(origin.coordinates, storedOrigin?.coordinates) &&
       sameCoordinates(destination.coordinates, storedDestination?.coordinates) &&
+      Number(origin.floor ?? getSessionFloor()) === Number(storedOrigin?.floor ?? getSessionFloor()) &&
+      Number(destination.floor ?? getSessionFloor()) === Number(storedDestination?.floor ?? getSessionFloor()) &&
       sessionStorage.getItem('transportMode') === transportMode &&
       sessionStorage.getItem('gender') === selectedGender;
 
@@ -419,7 +426,8 @@ const FinalSearch = () => {
         return;
       } catch (err) {
         if (err?.name === 'AbortError') return;
-        console.warn('routing service failed, falling back to local analysis', err);
+        console.warn('routing service failed', err);
+        if (err.status) { clearPersistedRouteData(); setLastFailedKey(attemptKey); toast.error(intl.formatMessage({ id: 'noRouteFound' })); return; }
       } finally {
         if (isMounted) setIsRequestingRoute(false);
       }
@@ -463,7 +471,7 @@ const FinalSearch = () => {
   const alternativeSummaries = React.useMemo(() => {
     if (!storedAlternativeRoutes) return [];
     return storedAlternativeRoutes.map((alt, idx) => {
-      const coords = alt.geo?.geometry?.coordinates || [];
+      const coords = getRouteCoordinates(alt.geo) || [];
       const dist = coords.slice(1).reduce((acc, c, i) => {
         const prev = coords[i];
         return acc + Math.hypot(c[0] - prev[0], c[1] - prev[1]) * 100000;
@@ -473,8 +481,8 @@ const FinalSearch = () => {
         from: alt.from,
         to: alt.to,
         via: alt.sahns || [],
-        totalTime: `${Math.max(1, Math.round(dist / 60))} ${intl.formatMessage({ id: 'minutesUnit' })}`,
-        totalDistance: `${Math.round(dist)} ${intl.formatMessage({ id: 'meters' })}`
+        totalTime: `${Math.max(1, Math.round((alt.durationSeconds ?? alt.geo?.properties?.durationSeconds ?? dist) / 60))} ${intl.formatMessage({ id: 'minutesUnit' })}`,
+        totalDistance: `${Math.round(alt.distanceMeters ?? alt.geo?.properties?.distanceMeters ?? dist)} ${intl.formatMessage({ id: 'meters' })}`
       };
     });
   }, [storedAlternativeRoutes, intl]);
@@ -498,7 +506,7 @@ const FinalSearch = () => {
   // Zoom map to route bounds when a new route is loaded
   useEffect(() => {
     if (mapRef.current && routeGeo) {
-      const coords = routeGeo.geometry?.coordinates || [];
+      const coords = getRouteCoordinates(routeGeo) || [];
       if (coords.length > 0) {
         const bounds = new maplibregl.LngLatBounds(
           [coords[0][0], coords[0][1]],
@@ -512,7 +520,7 @@ const FinalSearch = () => {
 
   // Clear popup information when no route is available
   useEffect(() => {
-    if (!routeGeo || !(routeGeo.geometry?.coordinates?.length > 0)) {
+    if (!routeGeo || !(getRouteCoordinates(routeGeo)?.length > 0)) {
       setPopupCoord(null);
       setPopupMinutes(null);
     }
@@ -521,20 +529,20 @@ const FinalSearch = () => {
   // Determine popup location and total minutes for main route
   useEffect(() => {
     if (!routeGeo) return;
-    const coords = routeGeo.geometry?.coordinates || [];
+    const coords = getRouteCoordinates(routeGeo) || [];
     if (coords.length === 0) return;
 
     const dist = coords.slice(1).reduce((acc, c, i) => {
       const prev = coords[i];
       return acc + Math.hypot(c[0] - prev[0], c[1] - prev[1]) * 100000;
     }, 0);
-    setPopupMinutes(Math.max(1, Math.round(dist / 60)));
+    setPopupMinutes(Math.max(1, Math.round((routeGeo.properties?.durationSeconds ?? dist) / 60)));
 
     let chosen = null;
     for (let i = 0; i < coords.length; i++) {
       const [lng, lat] = coords[i];
       const conflict = (storedAlternativeRoutes || []).some((alt) =>
-        alt.geo.geometry.coordinates.some(
+        getRouteCoordinates(alt.geo).some(
           ([alng, alat]) =>
             Math.abs(alng - lng) < 1e-6 && Math.abs(alat - lat) < 1e-6
         )
@@ -564,7 +572,7 @@ const FinalSearch = () => {
     const minutesArr = [];
 
     storedAlternativeRoutes.forEach((alt) => {
-      const coords = alt.geo?.geometry?.coordinates || [];
+      const coords = getRouteCoordinates(alt.geo) || [];
       if (coords.length === 0) {
         coordsArr.push(null);
         minutesArr.push(null);
@@ -575,12 +583,12 @@ const FinalSearch = () => {
         const prev = coords[i];
         return acc + Math.hypot(c[0] - prev[0], c[1] - prev[1]) * 100000;
       }, 0);
-      minutesArr.push(Math.max(1, Math.round(dist / 60)));
+      minutesArr.push(Math.max(1, Math.round((alt.durationSeconds ?? alt.geo?.properties?.durationSeconds ?? dist) / 60)));
 
       let chosen = null;
       for (let i = 0; i < coords.length; i++) {
         const [lng, lat] = coords[i];
-        const conflict = routeGeo?.geometry?.coordinates?.some(
+        const conflict = getRouteCoordinates(routeGeo)?.some(
           ([mlng, mlat]) =>
             Math.abs(mlng - lng) < 1e-6 && Math.abs(mlat - lat) < 1e-6
         );
@@ -910,7 +918,7 @@ const FinalSearch = () => {
           {storedAlternativeRoutes &&
             storedAlternativeRoutes.map((alt, idx) => (
               <React.Fragment key={idx}>
-                <Source id={`alt-route-${idx}`} type="geojson" data={alt.geo}>
+                <Source id={`alt-route-${idx}`} type="geojson" data={routeOnFloor(alt.geo, origin?.floor ?? getSessionFloor())}>
                   <Layer
                     id={`alt-route-border-${idx}`}
                     type="line"
@@ -945,7 +953,7 @@ const FinalSearch = () => {
             ))}
 
           {routeGeo && (
-            <Source id="main-route" type="geojson" data={routeGeo}>
+            <Source id="main-route" type="geojson" data={routeOnFloor(routeGeo, origin?.floor ?? getSessionFloor())}>
               <Layer id="main-line" type="line" paint={{ 'line-color': '#0f71ef', 'line-width': 10 }} />
             </Source>
           )}
