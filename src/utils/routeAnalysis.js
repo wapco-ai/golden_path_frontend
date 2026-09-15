@@ -1,3 +1,4 @@
+import { getSessionFloor } from './sessionFloor.js';
 
 
 import appConfig from '../config/appConfig.js';
@@ -941,6 +942,14 @@ function angleBetween(p1, p2, p3) {
 }
 
 export function analyzeRoute(origin, destination, geoData, transportMode = 'walking', gender = 'male') {
+  const fromFloor = Number(origin?.floor ?? getSessionFloor());
+  const toFloor = Number(destination?.floor ?? getSessionFloor());
+  if (fromFloor !== toFloor) return null;
+  // Legacy local data cannot invent inter-floor transfers.
+  if (geoData?.features) geoData = { ...geoData, features: geoData.features.filter(f =>
+    (f.properties?.floor == null ? fromFloor === 0 : Number(f.properties.floor) === fromFloor)
+    && !['elevator','stair','ramp','escalator'].includes(f.properties?.nodeFunction)) };
+
   console.log('analyzeRoute called with Connection Priority Logic');
 
   const serviceKeyMap = {

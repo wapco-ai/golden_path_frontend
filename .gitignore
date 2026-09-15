@@ -41,3 +41,6 @@ public/rtl/style.json
 public/rtl/style-en.json
 src/AdminPanel/Amain.jsx
 src/config/appConfig.js
+
+/test-results/
+/playwright-report/

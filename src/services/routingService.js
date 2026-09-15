@@ -1,3 +1,4 @@
+import { getSessionFloor } from '../utils/sessionFloor.js';
 import appConfig from '../config/appConfig.js';
 import {
   beginRoutingRequest,
@@ -25,7 +26,7 @@ const buildCoordinatePayload = (point, fallbackFloor = null) => {
 };
 
 const buildRequestBody = ({ origin, destination, mode, gender, lang, maxAlternatives, floor }) => {
-  const normalizedFloor = normalizeFloor(floor);
+  const normalizedFloor = normalizeFloor(floor ?? getSessionFloor());
   const originPayload = buildCoordinatePayload(origin, normalizedFloor);
   const destinationPayload = buildCoordinatePayload(destination, normalizedFloor);
 
@@ -117,7 +118,7 @@ const mapSteps = (steps = []) => {
     .map((step, idx, validSteps) => {
       const nextStep = validSteps[idx + 1];
       const start = [Number(step.coord.lat), Number(step.coord.lon)];
-      const end =
+      const end = step.endCoord ? [Number(step.endCoord.lat), Number(step.endCoord.lon)] :
         nextStep?.coord?.lat != null && nextStep?.coord?.lon != null
           ? [Number(nextStep.coord.lat), Number(nextStep.coord.lon)]
           : start;
@@ -152,6 +153,7 @@ const mapSteps = (steps = []) => {
         || null;
 
       return {
+        ...step,
         id: idx + 1,
         type,
         title,
@@ -244,7 +246,7 @@ const normalizeGeoFeature = (route = {}) => {
 const mapRoute = (route = {}, originName = '', destinationName = '') => {
   const sahns = route.sahns || route.viaPoints || [];
   const steps = mapSteps(route.steps || []);
-  const geo = normalizeGeoFeature(route) || toGeoLine(steps);
+  const geo = normalizeGeoFeature(route) || (route.multifloor ? null : toGeoLine(steps));
   const distanceMeters =
     typeof route.distanceMeters === 'number'
       ? route.distanceMeters
@@ -285,7 +287,9 @@ export const requestRouting = async ({ origin, destination, mode, gender, lang, 
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Routing request failed: ${response.status} ${errorText}`);
+      const error = new Error(`Routing request failed: ${response.status} ${errorText}`);
+      error.status = response.status;
+      throw error;
     }
 
     const data = await response.json();

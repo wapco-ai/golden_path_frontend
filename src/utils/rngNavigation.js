@@ -59,6 +59,11 @@ const getBearing = (a, b) => {
 };
 
 export const getStepPreview = (step, routeCoordinates = [], stepIndex = 0) => {
+  if (step?.type === 'stepChangeFloor') {
+    const point = step.coordinates?.[0];
+    return { geo: asGeo(point), heading: Number.isFinite(step.heading) ? step.heading : null,
+      routeM: null, coordinates: isCoordinate(point) ? [point, point] : [] };
+  }
   const fromM = fraction(step?.fromM);
   const toM = fraction(step?.toM);
   let coordinates = Array.isArray(step?.coordinates) ? step.coordinates.filter(isCoordinate) : [];
@@ -113,9 +118,20 @@ export const resolveNavigationFrame = ({
 export const getNavigationProgress = (geo, steps, currentStep, routeCoordinates) => {
   const unchanged = { nextStep: currentStep, arrived: false };
   if (!isNavigationGeo(geo) || !Array.isArray(steps) || !steps[currentStep]) return unchanged;
+  if (steps[currentStep].type === 'stepChangeFloor') return unchanged;
   const point = [geo.lng, geo.lat];
   const projection = projectPointOnRoute(point, routeCoordinates);
-  if (!projection) return unchanged;
+  if (!projection) {
+    // A landing can coincide exactly with the origin/destination. It still cannot skip a transfer.
+    const current = steps[currentStep];
+    const next = steps[currentStep + 1];
+    const atPoint = current.segmentId != null && routeCoordinates.length >= 2
+      && routeCoordinates.every(p => isCoordinate(p) && haversineMeters(routeCoordinates[0], p) < 0.01)
+      && haversineMeters(point, routeCoordinates[0]) <= 3;
+    if (atPoint && next) return { nextStep: currentStep + 1, arrived: false };
+    if (atPoint && current.type === 'stepArriveDestination') return { ...unchanged, arrived: true };
+    return unchanged;
+  }
   if (currentStep === steps.length - 1) {
     const nearEnd = haversineMeters(point, routeCoordinates.at(-1)) <= 3;
     return { ...unchanged, arrived: nearEnd && projection.lateralDistanceM <= 6

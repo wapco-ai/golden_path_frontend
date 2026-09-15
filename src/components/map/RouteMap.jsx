@@ -1,3 +1,4 @@
+import { routeCoordinates as getRouteCoordinates, routeOnFloor, isMultifloor } from '../../utils/multifloorRoute';
 // src/components/map/RouteMap.jsx
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
@@ -39,7 +40,8 @@ const RouteMap = forwardRef(({
   showAlternativeRoutes = false,
   navigationControlled = false,
   progressRouteM = null,
-  showDrTrace = true
+  showDrTrace = true,
+  routeFloor = 0
 }, ref) => {
   const mapRef = useRef(null);
   const lastHeading = useRef(null);
@@ -203,7 +205,25 @@ const RouteMap = forwardRef(({
       return;
     }
 
-    const coords = routeGeo.geometry?.coordinates || [];
+    if (isMultifloor(routeGeo)) {
+      const active = routeSteps[currentStep];
+      const floor = active?.floor ?? routeFloor;
+      const previous = routeOnFloor(routeGeo, floor, s => s.id < active?.segmentId);
+      const remaining = routeOnFloor(routeGeo, floor, s => s.id >= (active?.segmentId ?? 0));
+      if (active?.type !== 'stepChangeFloor') {
+        const current = remaining.features.find(f => f.properties.segmentId === active?.segmentId);
+        if (current) {
+          const fraction = Number.isFinite(progressRouteM) ? progressRouteM : active?.fromM || 0;
+          const before = sliceLineByFraction(current.geometry.coordinates, 0, fraction);
+          const after = sliceLineByFraction(current.geometry.coordinates, fraction, 1);
+          if (before.length >= 2) previous.features.push({ ...current, geometry: { type: 'LineString', coordinates: before } });
+          if (after.length >= 2) current.geometry = { type: 'LineString', coordinates: after };
+        }
+      }
+      setTraveledRouteGeo(previous); setRemainingRouteGeo(remaining);
+      return;
+    }
+    const coords = getRouteCoordinates(routeGeo) || [];
     if (coords.length === 0) {
       setTraveledRouteGeo(null);
       setRemainingRouteGeo(routeGeo);
@@ -252,7 +272,7 @@ const RouteMap = forwardRef(({
     } else {
       setRemainingRouteGeo(null);
     }
-  }, [routeGeo, routeSteps, currentStep, progressRouteM]);
+  }, [routeGeo, routeSteps, currentStep, progressRouteM, routeFloor]);
 
   // Handle map resize when modal opens/closes
   useEffect(() => {
@@ -344,7 +364,7 @@ const RouteMap = forwardRef(({
     const activeSegment = routeSteps?.[currentStep];
     const segmentCoords = activeSegment?.coordinates?.length >= 2
       ? activeSegment.coordinates
-      : routeGeo.geometry.coordinates.slice(currentStep, currentStep + 2);
+      : getRouteCoordinates(routeGeo).slice(currentStep, currentStep + 2);
 
     if (!segmentCoords || segmentCoords.length < 2) return;
 
@@ -364,7 +384,7 @@ const RouteMap = forwardRef(({
   // Fit map to the full route when a new route is loaded
   useEffect(() => {
     if (mapRef.current && routeGeo) {
-      const coords = routeGeo.geometry?.coordinates || [];
+      const coords = getRouteCoordinates(routeGeo) || [];
       if (coords.length > 0) {
         const bounds = new maplibregl.LngLatBounds(
           [coords[0][0], coords[0][1]],
@@ -395,7 +415,7 @@ const RouteMap = forwardRef(({
   // Expose a method to parent components for fitting bounds
   const fitRouteBounds = () => {
     if (mapRef.current && routeGeo) {
-      const coords = routeGeo.geometry?.coordinates || [];
+      const coords = getRouteCoordinates(routeGeo) || [];
       if (coords.length > 0) {
         const bounds = new maplibregl.LngLatBounds(
           [coords[0][0], coords[0][1]],
@@ -507,7 +527,7 @@ const RouteMap = forwardRef(({
         );
       })()}
 
-      {is3DView && routeSteps && routeSteps.map((step) => {
+      {is3DView && routeSteps && routeSteps.filter(s => !isMultifloor(routeGeo) || Number(s.floor) === Number(routeSteps?.[currentStep]?.floor ?? routeFloor)).map((step) => {
         const landmarkLabel = getStepLandmark(step);
         if (!landmarkLabel) return null;
         const coord = getStepCoordinate(step);
@@ -530,7 +550,7 @@ const RouteMap = forwardRef(({
 
       {!isDrActive && showAlternativeRoutes &&
         alternativeRoutes.map((alt, idx) => (
-          <Source key={idx} id={`alt-route-${idx}`} type="geojson" data={alt.geo}>
+          <Source key={idx} id={`alt-route-${idx}`} type="geojson" data={routeOnFloor(alt.geo, routeSteps?.[currentStep]?.floor ?? routeFloor)}>
             <Layer
               id={`alt-route-border-${idx}`}
               type="line"
@@ -554,7 +574,7 @@ const RouteMap = forwardRef(({
         ))}
 
       {/* Traveled route portion - RED */}
-      {traveledRouteGeo && traveledRouteGeo.geometry.coordinates.length >= 2 && (
+      {traveledRouteGeo && (traveledRouteGeo.features?.length > 0 || traveledRouteGeo.geometry?.coordinates?.length >= 2) && (
         <Source id="traveled-route" type="geojson" data={traveledRouteGeo}>
           <Layer
             id="traveled-route-line"
@@ -569,7 +589,7 @@ const RouteMap = forwardRef(({
       )}
 
       {/* Remaining route portion - Original style (white + blue dots) */}
-      {remainingRouteGeo && remainingRouteGeo.geometry.coordinates.length >= 2 && (
+      {remainingRouteGeo && (remainingRouteGeo.features?.length > 0 || remainingRouteGeo.geometry?.coordinates?.length >= 2) && (
         <Source id="remaining-route" type="geojson" data={remainingRouteGeo}>
           <Layer
             id="remaining-route-line"
