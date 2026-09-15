@@ -10,6 +10,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../hooks/useOfflineMapStyle';
 import '../styles/FinalSearch.css';
 import ModeSelector from '../components/common/ModeSelector';
+import SaveDestinationModal from '../components/common/SaveDestinationModal';
 import { useRouteStore } from '../store/routeStore';
 import { useLangStore } from '../store/langStore';
 import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
@@ -136,6 +137,7 @@ const FinalSearch = () => {
   const [hasUserSelectedRoute, setHasUserSelectedRoute] = useState(
     sessionStorage.getItem('manualRouteSelected') === 'true'
   );
+  const [showSaveDestinationModal, setShowSaveDestinationModal] = useState(false);
   const [isSavingDestination, setIsSavingDestination] = useState(false);
   const [isDestinationSaved, setIsDestinationSaved] = useState(false);
   const lastSavedDestinationRef = useRef(null);
@@ -737,7 +739,7 @@ const FinalSearch = () => {
     (typeof window !== 'undefined' && sessionStorage.getItem(USER_ACCESS_TOKEN_KEY))
   );
 
-  const handleSaveDestination = async () => {
+  const handleSaveDestination = () => {
     if (!isUserLoggedIn || isSavingDestination) return;
 
     if (!destination?.coordinates) {
@@ -746,15 +748,25 @@ const FinalSearch = () => {
     }
 
     setMenuOpen(false);
-    setIsSavingDestination(true);
+    setShowSaveDestinationModal(true);
+  };
 
+  const handleConfirmSaveDestination = async ({ title, description }) => {
+    if (isSavingDestination) return;
+
+    setIsSavingDestination(true);
     try {
+      const source = ['poi', 'area', 'manual'].includes(destination?.source)
+        ? destination.source
+        : 'manual';
+
       await createDestination({
-        title: destination?.name || intl.formatMessage({ id: 'destination' }),
+        title,
+        description,
         coordinates: destination.coordinates,
         floor: destination?.floor,
-        source: destination?.source || 'manual',
-        sourceId: destination?.id || destination?.source_id || null,
+        source,
+        sourceId: destination?.sourceId || destination?.id || destination?.source_id || null,
         tags: ['favorite'],
         address: destination?.address || '',
         metadata: destination?.metadata || {}
@@ -764,6 +776,7 @@ const FinalSearch = () => {
         coordinates: destination.coordinates
       };
       setIsDestinationSaved(true);
+      setShowSaveDestinationModal(false);
     } catch (err) {
       console.error('failed to save destination', err);
       toast.error(err?.message || 'Failed to save destination');
@@ -1164,6 +1177,17 @@ const FinalSearch = () => {
           </button>
         </div>
       )}
+
+      <SaveDestinationModal
+        isOpen={showSaveDestinationModal}
+        defaultName={destination?.name || ''}
+        defaultDescription={destination?.description || ''}
+        isSaving={isSavingDestination}
+        onCancel={() => {
+          if (!isSavingDestination) setShowSaveDestinationModal(false);
+        }}
+        onSave={handleConfirmSaveDestination}
+      />
     </div>
   );
 };
