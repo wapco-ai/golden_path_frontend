@@ -9738,7 +9738,7 @@ const Amain = () => {
     try {
       setIsLoadingDoorInfo(true);
       const info = await getDoorInfo(doorId);
-      fillDoorInfoForm(info);
+      fillDoorInfoForm({ ...info, point: info.point ? { ...info.point, door_id: doorId } : null });
       if (!Array.isArray(info?.routing?.areas) && !Array.isArray(info?.routing?.available_areas)) {
         await loadRoutingAreaOptions();
       }
@@ -14133,7 +14133,7 @@ const Amain = () => {
 
                     {isVerticalConnector && <ConnectorStops value={connectorForm.value} onChange={connectorForm.setValue}
                       kind={placeFunction} floors={connectorForm.floors} groups={connectorForm.groups}
-                      onJoin={connectorForm.join} onPick={connectorForm.pick} Select={AddPlaceSelect} />}
+                      selectedPoint={connectorForm.point} onJoin={connectorForm.join} onPick={connectorForm.pick} Select={AddPlaceSelect} />}
                     {!isAreaLayerActive && !isVerticalConnector && (
                       <div className="form-group routing-direction-section">
                         <label className="form-label">جهت عبور</label>

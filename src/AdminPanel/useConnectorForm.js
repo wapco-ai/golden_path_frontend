@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { getConnector, listConnectors, listFloors, resolveConnectorArea } from '../services/adminConnectorsService';
-import { emptyConnector, floorLabel, newStop } from '../utils/connectorForm';
+import { emptyConnector, floorLabel, isSelectedStop, newStop } from '../utils/connectorForm';
 import { DOOR_ACCESS_LAYER_ID } from '../config/vectorTiles';
 
 export default function useConnectorForm({ map, mapFloor, setMapFloor, setModalOpen, fillInfo }) {
@@ -12,6 +12,7 @@ export default function useConnectorForm({ map, mapFloor, setMapFloor, setModalO
   const [picking, setPicking] = useState(null);
   const pickRef = useRef(null);
   const generation = useRef(0);
+  const joinRequest = useRef(0);
   useEffect(() => { let active = true; listFloors().then(data => { if (active) setFloors(data); }).catch(() => {}); return () => { active = false; }; }, []);
   const reset = () => { generation.current++; setValue(emptyConnector()); setPoint(null); };
   const resolve = async (stop, index, currentGeneration = generation.current) => {
@@ -38,18 +39,24 @@ export default function useConnectorForm({ map, mapFloor, setMapFloor, setModalO
     listConnectors().then(setGroups).catch(() => toast.error('دریافت اتصال‌های موجود ناموفق بود.'));
   };
   const join = async (id) => {
+    const request = ++joinRequest.current;
+    const currentGeneration = generation.current;
     try {
       const connector = await getConnector(id);
-      if (point && !connector.stops.some(s => Number(s.floor) === Number(point.floor))) {
+      if (request !== joinRequest.current || currentGeneration !== generation.current) return;
+      if (point && !connector.stops.some(s => isSelectedStop(s, point)) && !connector.stops.some(s => Number(s.floor) === Number(point.floor))) {
         connector.stops.push({ ...newStop(point.floor, connector.kind), ...point, resolving: true });
-      } else if (point && !connector.stops.some(s => Number(s.access_id) === Number(point.access_id))) {
-        toast.error('این اتصال در طبقهٔ فعلی توقف دارد؛ آن توقف را از همین فرم ویرایش کنید.');
+      } else if (point && !connector.stops.some(s => isSelectedStop(s, point))) {
+        toast.error('این اتصال در طبقهٔ فعلی نقطهٔ دیگری دارد؛ برای ویرایش آن، همان نقطه را روی نقشه انتخاب کنید.');
+        return;
       }
       generation.current++;
-      fillInfo({ ...connector.info, connector });
+      fillInfo({ ...connector.info, connector, point });
       setValue(connector);
       connector.stops.forEach((s, i) => { if (s.resolving) resolve(s, i); });
-    } catch (error) { toast.error(error?.response?.data?.message || 'دریافت اتصال ناموفق بود.'); }
+    } catch (error) {
+      if (request === joinRequest.current && currentGeneration === generation.current) toast.error(error?.response?.data?.message || 'دریافت اتصال ناموفق بود.');
+    }
   };
   const cancelPick = () => {
     const current = pickRef.current;
@@ -58,6 +65,7 @@ export default function useConnectorForm({ map, mapFloor, setMapFloor, setModalO
     pickRef.current = null; setPicking(null); setMapFloor(current.previousFloor); setModalOpen(true);
   };
   const pick = (index) => {
+    if (!value.stops[index] || isSelectedStop(value.stops[index], point)) return;
     if (!map) { toast.error('نقشه هنوز آماده نیست.'); return; }
     const next = { index, floor: value.stops[index].floor, previousFloor: mapFloor };
     pickRef.current = next; setPicking(next);
@@ -73,7 +81,7 @@ export default function useConnectorForm({ map, mapFloor, setMapFloor, setModalO
       const hits = map.getLayer(DOOR_ACCESS_LAYER_ID) ? map.queryRenderedFeatures(event.point, { layers: [DOOR_ACCESS_LAYER_ID] }) : [];
       const hit = hits.find(f => f.geometry?.type === 'Point' && Number(f.properties.floor) === Number(current.floor));
       const coords = hit?.geometry.coordinates || [event.lngLat.lng, event.lngLat.lat];
-      const stop = { floor: Number(current.floor), lat: coords[1], lon: coords[0], access_id: hit ? Number(hit.properties.access_id || hit.properties.id) : null, area_id: null, areas: [], resolving: true, error: '' };
+      const stop = { floor: Number(current.floor), lat: coords[1], lon: coords[0], access_id: hit ? Number(hit.properties.access_id || hit.properties.id) : null, door_id: hit?.properties?.door_id || null, area_id: null, area_name: null, areas: [], resolving: true, error: '' };
       setValue(c => ({ ...c, stops: c.stops.map((s, i) => i === current.index ? { ...s, ...stop } : s) }));
       // Keep the guard until every click listener has seen this event.
       queueMicrotask(cancelPick);
@@ -83,5 +91,9 @@ export default function useConnectorForm({ map, mapFloor, setMapFloor, setModalO
     map.on('click', click); window.addEventListener('keydown', key);
     return () => { map.off('click', click); window.removeEventListener('keydown', key); };
   }, [map, picking]);
-  return { value, setValue, point, floors, groups, picking, pickRef, reset, initialize, join, pick, cancelPick };
+  const updateValue = next => {
+    if (point && !next.stops.some(stop => isSelectedStop(stop, point))) return;
+    setValue(next);
+  };
+  return { value, setValue: updateValue, point, floors, groups, picking, pickRef, reset, initialize, join, pick, cancelPick };
 }

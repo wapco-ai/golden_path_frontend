@@ -18,6 +18,14 @@ overwrite a newer change. Adding a point no longer creates an active door before
 the modal is complete. Final save commits all stops and their metadata together.
 Canceling a new form writes nothing.
 
+The point used to open the form is marked as the selected point. Its location and
+floor stay fixed and it cannot be deleted from that form. This follows the point's
+identity, so it also works when editing from a middle floor or reordering stops.
+Other stops can still be picked on the map. Access-space selection remains
+available when the selected point has multiple candidate areas. Choosing a shared
+connector with a different point already on this floor leaves the draft intact.
+The stop section uses the modal's existing typography, colors and input styling.
+
 Elevators connect all usable served floors. Waiting time applies once per boarding.
 Stairs, ramps and escalators connect consecutive stops in the displayed physical
 order. Reverse travel time defaults to forward time and can be overridden.
