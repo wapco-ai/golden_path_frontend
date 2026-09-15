@@ -24,6 +24,7 @@ import Faq from './pages/Faq';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import RouteRequestLoader from './components/common/RouteRequestLoader';
+import LocationShareOverlay from './components/common/LocationShareOverlay';
 import { ToastContainer, toast } from 'react-toastify';
 import adminRoutes from './routes/adminRoutes';
 import { recordPathInHistory } from './utils/navigationHistory';
@@ -183,6 +184,7 @@ function App() {
         toastClassName="custom-toast"
       />
       <RouteRequestLoader />
+      <LocationShareOverlay />
       <AppContent />
     </Router>
   );
