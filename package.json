@@ -13,7 +13,7 @@
 		"predeploy": "npm run build",
 		"deploy": "gh-pages -d dist",
 		"generate-pwa-assets": "pwa-assets-generator",
-		"test": "node tests/routeAnalysis.test.js && node --test tests/rngNavigation.test.js tests/rngAppearance.test.js tests/guidanceCoverage.test.js tests/profilePersistence.test.js tests/locationShare.test.js && node --test tests/multifloor.test.js",
+		"test": "node tests/routeAnalysis.test.js && node --test tests/rngNavigation.test.js tests/rngAppearance.test.js tests/guidanceCoverage.test.js tests/profilePersistence.test.js tests/locationShare.test.js tests/routeHistory.test.js && node --test tests/multifloor.test.js",
 		"test:browser": "playwright test"
 	},
 	"dependencies": {
