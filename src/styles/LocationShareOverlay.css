@@ -1,54 +1,75 @@
-.location-share-overlay {
-  position: fixed;
-  left: 16px;
-  bottom: 88px;
-  z-index: 900;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  font-family: 'Vazir', Tahoma, sans-serif;
+.map-routing-container.with-location-share-control .map-navigate-button {
+  bottom: 440px;
 }
 
-:root:lang(en) .location-share-overlay {
-  left: auto;
-  right: 16px;
+.map-routing-container.with-location-share-control .map-gps-button {
+  bottom: 370px;
 }
 
-.location-share-fab,
-.location-share-inbox {
-  border: 1px solid #eceff2;
+.map-location-share-slot {
+  position: absolute;
+  right: 18px;
+  bottom: 300px;
+  width: 54px;
+  height: 54px;
+  z-index: 1000;
+}
+
+.map-location-share-button {
+  width: 54px;
+  height: 54px;
+  border: none;
+  border-radius: 50%;
   background: #fff;
   color: #333;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.14);
-  cursor: pointer;
-}
-
-.location-share-fab {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  padding: 0;
 }
 
-.location-share-fab:active,
-.location-share-inbox:active {
+.map-location-share-button:active {
   transform: scale(0.97);
 }
 
-.location-share-inbox {
-  min-width: 42px;
-  height: 32px;
-  padding: 0 10px;
-  border-radius: 18px;
-  display: flex;
+.map-location-share-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border: 2px solid #fff;
+  border-radius: 12px;
+  background: #2196f3;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.location-share-menu-item {
+  position: relative;
+}
+
+.location-share-menu-count {
+  margin-inline-start: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: #2196f3;
+  color: #fff;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.68rem;
+  font-weight: 700;
 }
 
 .location-share-backdrop {
@@ -99,6 +120,49 @@
   cursor: pointer;
 }
 
+.location-share-incoming-link {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 12px;
+  padding: 0 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.location-share-count {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 12px;
+  background: #2196f3;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.location-share-mode-switch {
+  border: none;
+  background: transparent;
+  color: #2196f3;
+  padding: 4px 0 10px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .location-share-hint,
 .location-share-empty {
   margin: 10px 0 14px;
@@ -130,7 +194,7 @@
 .location-share-retry {
   border: none;
   background: transparent;
-  color: #2196F3;
+  color: #2196f3;
   text-align: start;
   padding: 2px 0;
   font-family: inherit;
@@ -162,14 +226,14 @@
 }
 
 .location-share-form input:focus {
-  border-color: #2196F3;
+  border-color: #2196f3;
 }
 
 .location-share-primary,
 .location-share-route-button {
   border: none;
   border-radius: 50px;
-  background: #2196F3;
+  background: #2196f3;
   color: #fff;
   font-family: inherit;
   font-size: 0.88rem;

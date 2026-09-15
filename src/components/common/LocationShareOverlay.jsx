@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { USER_ACCESS_TOKEN_KEY, useUserAuthStore } from '../../auth/user/userAuthStore';
@@ -14,8 +15,17 @@ import {
 } from '../../services/locationShareService';
 import '../../styles/LocationShareOverlay.css';
 
-const ACTIVE_PATHS = new Set(['/mpr', '/fs']);
+const ACTIVE_PATHS = new Set(['/mpb', '/fs']);
 const REFRESH_INTERVAL_MS = 30000;
+
+const ShareIcon = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <circle cx="18" cy="5" r="3" stroke="currentColor" strokeWidth="2" />
+    <circle cx="6" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+    <circle cx="18" cy="19" r="3" stroke="currentColor" strokeWidth="2" />
+    <path d="M8.7 10.6 15.3 6.4M8.7 13.4l6.6 4.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
 
 const LocationShareOverlay = () => {
   const location = useLocation();
@@ -42,11 +52,43 @@ const LocationShareOverlay = () => {
   const [isLoadingShares, setIsLoadingShares] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mpbPortalTarget, setMpbPortalTarget] = useState(null);
+  const [fsMenuPortalTarget, setFsMenuPortalTarget] = useState(null);
 
   const identityRef = useRef(authIdentity);
   const refreshAbortRef = useRef(null);
   const modalRef = useRef(null);
   const previousFocusRef = useRef(null);
+
+  useEffect(() => {
+    let frameId = null;
+    let boundMapTarget = null;
+
+    setMpbPortalTarget(null);
+    setFsMenuPortalTarget(null);
+
+    const bindPortalTarget = () => {
+      if (location.pathname === '/mpb') {
+        const target = document.querySelector('.map-routing-container');
+        if (target) {
+          boundMapTarget = target;
+          target.classList.add('with-location-share-control');
+          setMpbPortalTarget(target);
+        }
+      } else if (location.pathname === '/fs') {
+        const target = document.querySelector('.final-search-page .menu-dropdown');
+        if (target) setFsMenuPortalTarget(target);
+      }
+    };
+
+    bindPortalTarget();
+    frameId = window.requestAnimationFrame(bindPortalTarget);
+
+    return () => {
+      if (frameId) window.cancelAnimationFrame(frameId);
+      boundMapTarget?.classList?.remove?.('with-location-share-control');
+    };
+  }, [location.pathname]);
 
   useEffect(() => {
     identityRef.current = authIdentity;
@@ -58,6 +100,10 @@ const LocationShareOverlay = () => {
     setPhone('');
     setPosition(null);
   }, [authIdentity]);
+
+  useEffect(() => {
+    if (!shouldRender && isOpen) setIsOpen(false);
+  }, [shouldRender, isOpen]);
 
   const refreshShares = useCallback(async ({ silent = false } = {}) => {
     if (!hasToken) return;
@@ -122,7 +168,6 @@ const LocationShareOverlay = () => {
     navigator.geolocation.getCurrentPosition(
       (geoPosition) => {
         const floor = Number(getSessionFloor());
-        // Product domain currently contains only ground (0) and basement (-1).
         if (![0, -1].includes(floor)) {
           setIsLocating(false);
           toast.error(t('generalError'));
@@ -153,12 +198,25 @@ const LocationShareOverlay = () => {
     );
   }, [t]);
 
+  const openShare = useCallback(() => {
+    setMode('share');
+    setPosition(null);
+    setIsOpen(true);
+    requestFreshLocation();
+  }, [requestFreshLocation]);
+
+  const openIncoming = useCallback(() => {
+    setMode('incoming');
+    setIsOpen(true);
+    refreshShares();
+  }, [refreshShares]);
+
   const closeModal = useCallback(() => {
     setIsOpen(false);
   }, []);
 
   useEffect(() => {
-    if (!isOpen) return undefined;
+    if (!isOpen || !shouldRender) return undefined;
 
     previousFocusRef.current = document.activeElement;
     const modal = modalRef.current;
@@ -192,20 +250,7 @@ const LocationShareOverlay = () => {
       document.removeEventListener('keydown', handleKeyDown);
       previousFocusRef.current?.focus?.();
     };
-  }, [isOpen, closeModal]);
-
-  const openShare = () => {
-    setMode('share');
-    setIsOpen(true);
-    setPosition(null);
-    requestFreshLocation();
-  };
-
-  const openIncoming = () => {
-    setMode('incoming');
-    setIsOpen(true);
-    refreshShares();
-  };
+  }, [isOpen, shouldRender, closeModal]);
 
   const submitShare = async (event) => {
     event.preventDefault();
@@ -273,6 +318,11 @@ const LocationShareOverlay = () => {
     navigate('/fs');
   };
 
+  const handleFsShareClick = () => {
+    openShare();
+    document.querySelector('.final-search-page .menu-btn.active')?.click?.();
+  };
+
   const locale = language === 'fa' ? 'fa-IR' : language === 'ar' ? 'ar-SA' : language === 'ur' ? 'ur-PK' : 'en-US';
   const formatTime = (value) => {
     if (!value) return '';
@@ -285,35 +335,40 @@ const LocationShareOverlay = () => {
 
   return (
     <>
-      <div className="location-share-overlay" aria-label={t('shareMyLocation')}>
-        <button
-          type="button"
-          className="location-share-fab"
-          onClick={openShare}
-          title={t('shareMyLocation')}
-          aria-label={t('shareMyLocation')}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="18" cy="5" r="3" stroke="currentColor" strokeWidth="2" />
-            <circle cx="6" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
-            <circle cx="18" cy="19" r="3" stroke="currentColor" strokeWidth="2" />
-            <path d="M8.7 10.6 15.3 6.4M8.7 13.4l6.6 4.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </button>
-
-        {incoming.length > 0 && (
+      {location.pathname === '/mpb' && mpbPortalTarget && createPortal(
+        <div className="map-location-share-slot">
           <button
             type="button"
-            className="location-share-inbox"
-            onClick={openIncoming}
-            aria-label={t('incomingTitle')}
-            title={t('incomingTitle')}
+            className="map-location-share-button"
+            onClick={openShare}
+            title={t('shareMyLocation')}
+            aria-label={t('shareMyLocation')}
           >
-            <span aria-hidden="true">⌖</span>
-            <span>{incoming.length}</span>
+            <ShareIcon size={24} />
           </button>
-        )}
-      </div>
+          {incoming.length > 0 && (
+            <button
+              type="button"
+              className="map-location-share-badge"
+              onClick={openIncoming}
+              title={t('incomingTitle')}
+              aria-label={`${t('incomingTitle')}: ${incoming.length}`}
+            >
+              {incoming.length > 9 ? '9+' : incoming.length}
+            </button>
+          )}
+        </div>,
+        mpbPortalTarget
+      )}
+
+      {location.pathname === '/fs' && fsMenuPortalTarget && createPortal(
+        <button className="menu-item-fs location-share-menu-item" type="button" onClick={handleFsShareClick}>
+          <ShareIcon size={24} />
+          <span>{t('shareMyLocation')}</span>
+          {incoming.length > 0 && <span className="location-share-menu-count">{incoming.length}</span>}
+        </button>,
+        fsMenuPortalTarget
+      )}
 
       {isOpen && (
         <div className="location-share-backdrop" role="presentation" onMouseDown={closeModal}>
@@ -332,6 +387,13 @@ const LocationShareOverlay = () => {
 
             {mode === 'share' ? (
               <>
+                {incoming.length > 0 && (
+                  <button type="button" className="location-share-incoming-link" onClick={openIncoming}>
+                    <span>{t('incomingTitle')}</span>
+                    <span className="location-share-count">{incoming.length}</span>
+                  </button>
+                )}
+
                 <p className="location-share-hint">{t('shareLocationDescription')}</p>
                 <div className="location-share-current">
                   <strong>{t('currentLocation')}</strong>
@@ -381,6 +443,9 @@ const LocationShareOverlay = () => {
               </>
             ) : (
               <div className="location-share-section incoming">
+                <button type="button" className="location-share-mode-switch" onClick={openShare}>
+                  {t('shareMyLocation')}
+                </button>
                 {isLoadingShares && incoming.length === 0 && <p>{t('loading')}</p>}
                 {!isLoadingShares && incoming.length === 0 && <p className="location-share-empty">{t('noIncoming')}</p>}
                 {incoming.map((share) => (
