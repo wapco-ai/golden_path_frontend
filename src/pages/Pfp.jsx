@@ -3,12 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import '../styles/Pfp.css';
 import { USER_ACCESS_TOKEN_KEY, useUserAuthStore } from '../auth/user/userAuthStore';
-import { listDestinations } from '../services/destinationService';
+import { deleteDestination, listDestinations, updateDestination } from '../services/destinationService';
+import { convertUtm32640ToLngLat } from '../utils/utm';
+import { getSessionFloor } from '../utils/sessionFloor';
+import { useRouteStore } from '../store/routeStore';
 
 function Pfp() {
   const navigate = useNavigate();
   const intl = useIntl();
   const { accessToken, user } = useUserAuthStore();
+  const setDestinationStore = useRouteStore(state => state.setDestination);
 
   const [savedLocations, setSavedLocations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -19,8 +23,9 @@ function Pfp() {
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editNameError, setEditNameError] = useState('');
+  const [isUpdatingLocation, setIsUpdatingLocation] = useState(false);
+  const [deletingLocationId, setDeletingLocationId] = useState(null);
 
-  const optionsMenuRef = useRef(null);
   const editModalRef = useRef(null);
 
   const isUserLoggedIn = Boolean(
@@ -66,10 +71,10 @@ function Pfp() {
     };
   }, [intl, isUserLoggedIn]);
 
-  // Close options menu when clicking outside
+  // Keep the current card menu open while interacting with it and close it elsewhere.
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (optionsMenuRef.current && !optionsMenuRef.current.contains(event.target)) {
+      if (!event.target.closest('.location-options-container')) {
         setShowOptionsMenu(null);
       }
     };
@@ -85,6 +90,32 @@ function Pfp() {
     setShowOptionsMenu(showOptionsMenu === locationId ? null : locationId);
   };
 
+  const handleRoute = (location) => {
+    try {
+      const x = Number(location?.x);
+      const y = Number(location?.y);
+      const { lat, lng } = convertUtm32640ToLngLat({ x, y });
+      const parsedFloor = Number(location?.floor);
+      const destination = {
+        name: location?.title || location?.name || intl.formatMessage({ id: 'destination' }),
+        coordinates: [lat, lng],
+        floor: Number.isFinite(parsedFloor) ? parsedFloor : getSessionFloor(),
+        source: 'saved_destination',
+        sourceId: String(location?.id ?? ''),
+        address: location?.address || '',
+        metadata: location?.metadata || {}
+      };
+
+      setDestinationStore(destination);
+      sessionStorage.setItem('updatedDestination', JSON.stringify(destination));
+      setShowOptionsMenu(null);
+      navigate('/fs');
+    } catch (err) {
+      console.error('failed to route to saved destination', err);
+      window.alert(err?.message || intl.formatMessage({ id: 'generalErrorMessage' }));
+    }
+  };
+
   const handleEdit = (location) => {
     setEditingLocation(location);
     setEditName(location.title || location.name || '');
@@ -95,44 +126,58 @@ function Pfp() {
   };
 
   const handleDelete = async (locationId) => {
-    // Frontend-only delete - just remove from local state
-    if (window.confirm(intl.formatMessage({ id: 'confirmDeleteLocation' }))) {
-      setSavedLocations(prev => prev.filter(loc => loc.id !== locationId));
-      // Show success message
-      alert(intl.formatMessage({ id: 'locationDeleted' }));
-    }
     setShowOptionsMenu(null);
+    if (!window.confirm(intl.formatMessage({ id: 'confirmDeleteLocation' }))) return;
+
+    setDeletingLocationId(locationId);
+    try {
+      await deleteDestination(locationId);
+      setSavedLocations(prev => prev.filter(loc => loc.id !== locationId));
+      window.alert(intl.formatMessage({ id: 'locationDeleted' }));
+    } catch (err) {
+      console.error('failed to delete destination', err);
+      window.alert(err?.message || intl.formatMessage({ id: 'generalErrorMessage' }));
+    } finally {
+      setDeletingLocationId(null);
+    }
   };
 
-  const handleUpdateLocation = () => {
-    if (!editingLocation) return;
+  const handleUpdateLocation = async () => {
+    if (!editingLocation || isUpdatingLocation) return;
 
-    // Validate name
     if (!editName.trim()) {
       setEditNameError(intl.formatMessage({ id: 'nameRequiredError' }));
       return;
     }
 
-    // Frontend-only update - update local state
-    setSavedLocations(prev =>
-      prev.map(loc =>
-        loc.id === editingLocation.id
-          ? {
-            ...loc,
-            title: editName.trim(),
-            name: editName.trim(),
-            description: editDescription.trim()
-          }
-          : loc
-      )
-    );
+    setIsUpdatingLocation(true);
+    try {
+      const updatedLocation = await updateDestination(editingLocation.id, {
+        title: editName,
+        description: editDescription
+      });
 
-    // Show success message
-    alert(intl.formatMessage({ id: 'locationUpdated' }));
-    setShowEditModal(false);
+      setSavedLocations(prev =>
+        prev.map(loc =>
+          loc.id === editingLocation.id
+            ? { ...loc, ...updatedLocation }
+            : loc
+        )
+      );
+
+      window.alert(intl.formatMessage({ id: 'locationUpdated' }));
+      setShowEditModal(false);
+      setEditingLocation(null);
+    } catch (err) {
+      console.error('failed to update destination', err);
+      window.alert(err?.message || intl.formatMessage({ id: 'generalErrorMessage' }));
+    } finally {
+      setIsUpdatingLocation(false);
+    }
   };
 
   const handleCancelEdit = () => {
+    if (isUpdatingLocation) return;
     setShowEditModal(false);
     setEditingLocation(null);
     setEditName('');
@@ -142,22 +187,13 @@ function Pfp() {
 
   const handleDescriptionChange = (e) => {
     const text = e.target.value;
-    // Limit to 60 words
-    const words = text.trim().split(/\s+/);
+    const words = text.trim().split(/\s+/).filter(Boolean);
     if (words.length <= 60) {
       setEditDescription(text);
     }
   };
 
   const editWordCount = editDescription.trim().split(/\s+/).filter(word => word.length > 0).length;
-
-  // Function to truncate description for display
-  const truncateDescription = (description, wordLimit = 10) => {
-    if (!description) return '';
-    const words = description.trim().split(/\s+/);
-    if (words.length <= wordLimit) return description;
-    return words.slice(0, wordLimit).join(' ') + '...';
-  };
 
   return (
     <div className="pfp-container">
@@ -208,11 +244,10 @@ function Pfp() {
             </button>
           </div>
         ) : savedLocations.length === 0 ? (
-          // Empty state when no locations are saved
           <div className="empty-state">
             <div className="empty-icon3">
               <svg width="57" height="56" viewBox="0 0 57 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path fillRule="evenodd" clipRule="evenodd" d="M49.5 25.894V37.5453C49.5 44.7706 49.5 48.3833 47.7871 49.9619C46.9702 50.7147 45.939 51.1877 44.8405 51.3134C42.5373 51.577 39.8476 49.198 34.4683 44.4401C32.0905 42.337 30.9016 41.2854 29.526 41.0083C28.8487 40.8719 28.1513 40.8719 27.474 41.0083C26.0984 41.2854 24.9095 42.337 22.5317 44.4401C17.1524 49.198 14.4627 51.577 12.1595 51.3134C11.061 51.1877 10.0298 50.7147 9.21291 49.9619C7.5 48.3833 7.5 44.7706 7.5 37.5453V25.894C7.5 15.8873 7.5 10.8839 10.5754 7.77521C13.6508 4.6665 18.6005 4.6665 28.5 4.6665C38.3995 4.6665 43.3492 4.6665 46.4246 7.77521C49.5 10.8839 49.5 15.8873 49.5 25.894ZM19.75 13.9998C19.75 13.0333 20.5335 12.2498 21.5 12.2498H35.5C36.4665 12.2498 37.25 13.0333 37.25 13.9998C37.25 14.9663 36.4665 15.7498 35.5 15.7498H21.5C20.5335 15.7498 19.75 14.9663 19.75 13.9998Z" fill="black" />
+                <path fillRule="evenodd" clipRule="evenodd" d="M49.5 25.894V37.5453C49.5 44.7706 49.5 48.3833 47.7871 49.9619C46.9702 50.7147 45.939 51.1877 44.8405 51.3134C42.5373 51.577 39.8476 49.198 34.4683 44.4401C32.0905 42.337 30.9016 41.2854 29.526 41.0083C28.8487 40.8719 28.1513 40.8719 27.474 41.0083C26.0984 41.2854 24.9095 42.337 22.5317 44.4401C17.1524 49.198 14.4627 51.577 12.1595 51.3134C11.061 51.1877 10.0298 50.7147 9.21291 49.9619C7.5 48.3833 7.5 44.7706 7.5 37.5453V25.894C7.5 15.8873 7.5 10.8839 10.5754 7.77521C13.6508 4.6665 18.6005 4.6665 28.5 4.6665C38.3995 4.6665 43.3492 6.6665 46.4246 7.77521C49.5 10.8839 49.5 15.8873 49.5 25.894ZM19.75 13.9998C19.75 13.0333 20.5335 12.2498 21.5 12.2498H35.5C36.4665 12.2498 37.25 13.0333 37.25 13.9998C37.25 14.9663 36.4665 15.7498 35.5 15.7498H21.5C20.5335 15.7498 19.75 14.9663 19.75 13.9998Z" fill="black" />
               </svg>
             </div>
 
@@ -229,7 +264,6 @@ function Pfp() {
             </button>
           </div>
         ) : (
-          // List of saved locations
           <div className="locations-section">
             <div className="locations-list">
               {savedLocations.map((location) => (
@@ -255,7 +289,7 @@ function Pfp() {
                     </div>
                   </div>
 
-                  <div className="location-options-container" ref={optionsMenuRef}>
+                  <div className="location-options-container">
                     <button
                       className="location-options-btn"
                       onClick={(e) => handleOptionsClick(e, location.id)}
@@ -271,6 +305,7 @@ function Pfp() {
                       <div className="location-options-menu">
                         <button
                           className="location-options-item routing"
+                          onClick={() => handleRoute(location)}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
@@ -290,6 +325,7 @@ function Pfp() {
                         <button
                           className="location-options-item delete"
                           onClick={() => handleDelete(location.id)}
+                          disabled={deletingLocationId === location.id}
                         >
                           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M2 4H3.33333H14" stroke="#DC2626" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -325,7 +361,7 @@ function Pfp() {
               <h3 className="pfp-edit-modal-title">
                 <FormattedMessage id="editLocationTitle" />
               </h3>
-              <button className="pfp-edit-modal-close" onClick={handleCancelEdit}>
+              <button className="pfp-edit-modal-close" onClick={handleCancelEdit} disabled={isUpdatingLocation}>
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M5 5L15 15M15 5L5 15" stroke="#1E2023" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -347,6 +383,7 @@ function Pfp() {
                   }}
                   placeholder={intl.formatMessage({ id: 'locationNamePlaceholder' })}
                   maxLength={50}
+                  disabled={isUpdatingLocation}
                 />
                 {editNameError && (
                   <div className="pfp-form-error">{editNameError}</div>
@@ -367,6 +404,7 @@ function Pfp() {
                   placeholder={intl.formatMessage({ id: 'locationDescriptionPlaceholder' })}
                   rows="4"
                   maxLength={300}
+                  disabled={isUpdatingLocation}
                 />
                 <div className="pfp-form-hint">
                   <FormattedMessage id="descriptionHint" />
@@ -378,14 +416,16 @@ function Pfp() {
               <button
                 className="pfp-cancel-button"
                 onClick={handleCancelEdit}
+                disabled={isUpdatingLocation}
               >
                 <FormattedMessage id="cancel" />
               </button>
               <button
                 className="pfp-save-button"
                 onClick={handleUpdateLocation}
+                disabled={isUpdatingLocation}
               >
-                <FormattedMessage id="saveChanges" />
+                {isUpdatingLocation ? <FormattedMessage id="saving" /> : <FormattedMessage id="saveChanges" />}
               </button>
             </div>
           </div>
