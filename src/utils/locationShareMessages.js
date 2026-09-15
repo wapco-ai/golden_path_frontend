@@ -1,0 +1,118 @@
+const messages = {
+  fa: {
+    shareMyLocation: 'اشتراک موقعیت من',
+    shareLocationDescription: 'این موقعیت برای مدت محدودی در دسترس گیرنده خواهد بود.',
+    recipientPhone: 'شماره موبایل گیرنده',
+    recipientPlaceholder: '09xxxxxxxxx',
+    shareButton: 'اشتراک‌گذاری موقعیت',
+    currentLocation: 'موقعیت فعلی شما',
+    accuracy: 'دقت تقریبی {value} متر',
+    floorGround: 'طبقه همکف',
+    floorMinusOne: 'طبقه منفی یک',
+    permissionDenied: 'برای اشتراک موقعیت، دسترسی مکان را فعال کنید.',
+    unavailable: 'موقعیت فعلی دریافت نشد. دوباره تلاش کنید.',
+    shareSuccess: 'موقعیت شما با موفقیت به اشتراک گذاشته شد.',
+    recipientUnavailable: 'امکان اشتراک موقعیت با این شماره وجود ندارد.',
+    cannotShareSelf: 'نمی‌توانید موقعیت را با خودتان به اشتراک بگذارید.',
+    incomingTitle: 'موقعیت‌های اشتراک‌شده با من',
+    outgoingTitle: 'اشتراک‌های فعال',
+    stop: 'توقف',
+    routeTo: 'مسیریابی',
+    sharedFrom: 'موقعیت {name}',
+    expiresAt: 'اعتبار تا {time}',
+    noIncoming: 'موقعیت فعالی با شما به اشتراک گذاشته نشده است.',
+    close: 'بستن',
+    loading: 'در حال بارگذاری...',
+    generalError: 'خطایی رخ داد. دوباره تلاش کنید.'
+  },
+  ar: {
+    shareMyLocation: 'مشاركة موقعي',
+    shareLocationDescription: 'سيكون هذا الموقع متاحًا للمستلم لفترة محدودة.',
+    recipientPhone: 'رقم هاتف المستلم',
+    recipientPlaceholder: '09xxxxxxxxx',
+    shareButton: 'مشاركة الموقع',
+    currentLocation: 'موقعك الحالي',
+    accuracy: 'الدقة التقريبية {value} متر',
+    floorGround: 'الطابق الأرضي',
+    floorMinusOne: 'الطابق -1',
+    permissionDenied: 'يرجى السماح بالوصول إلى الموقع لمشاركته.',
+    unavailable: 'تعذر الحصول على موقعك الحالي. حاول مرة أخرى.',
+    shareSuccess: 'تمت مشاركة موقعك بنجاح.',
+    recipientUnavailable: 'لا يمكن مشاركة الموقع مع هذا الرقم.',
+    cannotShareSelf: 'لا يمكنك مشاركة موقعك مع نفسك.',
+    incomingTitle: 'المواقع المشتركة معي',
+    outgoingTitle: 'المشاركات النشطة',
+    stop: 'إيقاف',
+    routeTo: 'المسار',
+    sharedFrom: 'موقع {name}',
+    expiresAt: 'صالح حتى {time}',
+    noIncoming: 'لا توجد مواقع نشطة مشتركة معك.',
+    close: 'إغلاق',
+    loading: 'جارٍ التحميل...',
+    generalError: 'حدث خطأ. حاول مرة أخرى.'
+  },
+  ur: {
+    shareMyLocation: 'میرا مقام شیئر کریں',
+    shareLocationDescription: 'یہ مقام محدود وقت کے لیے وصول کنندہ کو دستیاب ہوگا۔',
+    recipientPhone: 'وصول کنندہ کا موبائل نمبر',
+    recipientPlaceholder: '09xxxxxxxxx',
+    shareButton: 'مقام شیئر کریں',
+    currentLocation: 'آپ کا موجودہ مقام',
+    accuracy: 'تقریبی درستگی {value} میٹر',
+    floorGround: 'گراؤنڈ فلور',
+    floorMinusOne: 'فلور -1',
+    permissionDenied: 'مقام شیئر کرنے کے لیے لوکیشن کی اجازت دیں۔',
+    unavailable: 'موجودہ مقام حاصل نہیں ہو سکا۔ دوبارہ کوشش کریں۔',
+    shareSuccess: 'آپ کا مقام کامیابی سے شیئر ہو گیا۔',
+    recipientUnavailable: 'اس نمبر کے ساتھ مقام شیئر نہیں کیا جا سکتا۔',
+    cannotShareSelf: 'آپ اپنا مقام خود کے ساتھ شیئر نہیں کر سکتے۔',
+    incomingTitle: 'میرے ساتھ شیئر کیے گئے مقامات',
+    outgoingTitle: 'فعال شیئرز',
+    stop: 'روکیں',
+    routeTo: 'راستہ',
+    sharedFrom: '{name} کا مقام',
+    expiresAt: '{time} تک فعال',
+    noIncoming: 'آپ کے ساتھ کوئی فعال مقام شیئر نہیں کیا گیا۔',
+    close: 'بند کریں',
+    loading: 'لوڈ ہو رہا ہے...',
+    generalError: 'خرابی پیش آئی۔ دوبارہ کوشش کریں۔'
+  },
+  en: {
+    shareMyLocation: 'Share my location',
+    shareLocationDescription: 'This location will be available to the recipient for a limited time.',
+    recipientPhone: 'Recipient mobile number',
+    recipientPlaceholder: '09xxxxxxxxx',
+    shareButton: 'Share location',
+    currentLocation: 'Your current location',
+    accuracy: 'Approx. accuracy {value} m',
+    floorGround: 'Ground floor',
+    floorMinusOne: 'Floor -1',
+    permissionDenied: 'Allow location access to share your location.',
+    unavailable: 'Your current location could not be obtained. Try again.',
+    shareSuccess: 'Your location was shared successfully.',
+    recipientUnavailable: 'Location cannot be shared with this number.',
+    cannotShareSelf: 'You cannot share your location with yourself.',
+    incomingTitle: 'Locations shared with me',
+    outgoingTitle: 'Active shares',
+    stop: 'Stop',
+    routeTo: 'Navigate',
+    sharedFrom: '{name} location',
+    expiresAt: 'Available until {time}',
+    noIncoming: 'No active location has been shared with you.',
+    close: 'Close',
+    loading: 'Loading...',
+    generalError: 'Something went wrong. Try again.'
+  }
+};
+
+const format = (template, values = {}) => Object.entries(values).reduce(
+  (text, [key, value]) => text.replace(`{${key}}`, String(value)),
+  template
+);
+
+export const getLocationShareText = (language = 'fa') => {
+  const selected = messages[language] || messages.fa;
+  return (key, values) => format(selected[key] || messages.fa[key] || key, values);
+};
+
+export default getLocationShareText;
