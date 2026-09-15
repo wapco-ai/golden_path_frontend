@@ -43,6 +43,7 @@ const defaultAdminCommentsBaseUrl = `${defaultApiBaseUrl}/api/v1/admin/comments`
 const defaultAdminUsersBaseUrl = `${defaultApiBaseUrl}/api/v1/admin/users`;
 const defaultTempBlockAreasBaseUrl = `${defaultApiBaseUrl}/api/v1/admin/temp-block-areas`;
 const defaultDestinationsUrl = `${defaultApiBaseUrl}/api/v1/destinations`;
+const defaultLocationSharesUrl = `${defaultApiBaseUrl}/api/v1/location-shares`;
 // const defaultMbtilesSatelliteTilesUrl = 'http://localhost:8088/services/gsm/tiles/{z}/{x}/{y}.jpg';
 const defaultMbtilesSatelliteTilesUrl = `${defaultApiBaseUrl}/tms/services/gsm/tiles/{z}/{x}/{y}.jpg`;
 const defaultMbtilesOfflineOsmhTilesUrl = `${defaultApiBaseUrl}/tms/services/osmh/tiles/{z}/{x}/{y}.png`;
@@ -64,6 +65,7 @@ const appConfig = {
   adminUsersBaseUrl: (import.meta?.env?.VITE_ADMIN_USERS_BASE_URL?.trim() || defaultAdminUsersBaseUrl).replace(/\/$/, ''),
   adminTempBlockAreasBaseUrl: (import.meta?.env?.VITE_ADMIN_TEMP_BLOCK_AREAS_BASE_URL?.trim() || defaultTempBlockAreasBaseUrl).replace(/\/$/, ''),
   destinationsUrl: (import.meta?.env?.VITE_DESTINATIONS_URL?.trim() || defaultDestinationsUrl).replace(/\/$/, ''),
+  locationSharesUrl: (import.meta?.env?.VITE_LOCATION_SHARES_URL?.trim() || defaultLocationSharesUrl).replace(/\/$/, ''),
   mbtilesSatelliteTilesUrl: (import.meta?.env?.VITE_MBTILES_SATELLITE_TILES_URL?.trim() || defaultMbtilesSatelliteTilesUrl).replace(/\/$/, ''),
   mbtilesOfflineOsmhTilesUrl: (import.meta?.env?.VITE_MBTILES_OFFLINE_OSMH_TILES_URL?.trim() || defaultMbtilesOfflineOsmhTilesUrl).replace(/\/$/, ''),
   adminCommentsRequestTimeoutMs: Number(import.meta?.env?.VITE_ADMIN_COMMENTS_REQUEST_TIMEOUT_MS ?? '') || 15000,
