@@ -13,7 +13,7 @@
 		"predeploy": "npm run build",
 		"deploy": "gh-pages -d dist",
 		"generate-pwa-assets": "pwa-assets-generator",
-		"test": "node tests/routeAnalysis.test.js && node --test tests/rngNavigation.test.js tests/rngAppearance.test.js tests/guidanceCoverage.test.js tests/profilePersistence.test.js tests/locationShare.test.js tests/routeHistory.test.js && node --test tests/multifloor.test.js",
+		"test": "node tests/routeAnalysis.test.js && node --test tests/rngNavigation.test.js tests/rngAppearance.test.js tests/guidanceCoverage.test.js tests/profilePersistence.test.js tests/locationShare.test.js tests/routeHistory.test.js tests/savedDestinations.test.js && node --test tests/multifloor.test.js",
 		"test:browser": "playwright test"
 	},
 	"dependencies": {
@@ -38,7 +38,7 @@
 		"react-multi-date-picker": "^4.5.2",
 		"react-router-dom": "^6.30.0",
 		"react-toastify": "^9.1.3",
-		"string.prototype.matchall": "^4.0.12",
+		"string.prototype.matchall": "^1.24.0",
 		"uuid": "^9.0.1",
 		"validator": "^13.11.0",
 		"vazir-font": "^30.1.0",
