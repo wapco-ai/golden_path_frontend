@@ -3,8 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
-import { getUserMe, updateUserMe } from '../services/publicAuthApi';
-import apiUser from '../api/apiUser';
+import { authMe, getUserMe, updateUserMe, uploadUserAvatar } from '../services/publicAuthApi';
 import mapApiError from '../services/apiErrorMapper';
 import '../styles/ProfileInfo.css';
 import { useLangStore } from '../store/langStore';
@@ -31,6 +30,7 @@ function ProfileInfo() {
   });
 
   const [avatar, setAvatar] = useState(null);
+  const [avatarFile, setAvatarFile] = useState(null);
   // Add message state
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,8 +53,8 @@ function ProfileInfo() {
 
     // Also check for separate avatar storage
     const savedAvatar = localStorage.getItem('userAvatar');
-    if (savedAvatar && !avatar) {
-      setAvatar(savedAvatar);
+    if (savedAvatar) {
+      setAvatar((currentAvatar) => currentAvatar || savedAvatar);
     }
   }, []);
 
@@ -83,10 +83,11 @@ function ProfileInfo() {
           birthDate: (profile?.birthDate || '').split('T')[0] || prevData.birthDate
         }));
 
-        if (profile?.avatar) {
-          setAvatar(profile.avatar);
-          localStorage.setItem('userAvatar', profile.avatar);
-          sessionStorage.setItem('userAvatar', profile.avatar);
+        const profileAvatar = profile?.avatarUrl || profile?.avatar;
+        if (profileAvatar) {
+          setAvatar(profileAvatar);
+          localStorage.setItem('userAvatar', profileAvatar);
+          sessionStorage.setItem('userAvatar', profileAvatar);
         }
       } catch (err) {
         const mapped = mapApiError(err);
@@ -131,12 +132,10 @@ function ProfileInfo() {
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (file) {
+      setAvatarFile(file);
       const reader = new FileReader();
       reader.onload = (e) => {
-        const avatarDataUrl = e.target.result;
-        setAvatar(avatarDataUrl);
-        localStorage.setItem('userAvatar', avatarDataUrl);
-        sessionStorage.setItem('userAvatar', avatarDataUrl);
+        setAvatar(e.target.result);
       };
       reader.readAsDataURL(file);
     }
@@ -176,20 +175,8 @@ function ProfileInfo() {
     return phoneRegex.test(phone.replace(/\D/g, ''));
   };
 
-  // Format phone number for display
-  const formatPhoneNumber = (phone) => {
-    if (!phone) return '';
-    // Remove any non-digit characters and format
-    const cleaned = phone.replace(/\D/g, '');
-    if (cleaned.startsWith('+98')) {
-      return `${cleaned}`;
-    } else if (cleaned.startsWith('0')) {
-      return `98-${cleaned.substring(1)}+`;
-    } else if (cleaned.length === 10) {
-      return `98${cleaned}`;
-    }
-    return phone;
-  };
+  // Phone is the OTP identity and is display-only on this form.
+  const formatPhoneNumber = (phone) => phone || '';
 
   // Handle form submission
   const handleSubmit = async () => {
@@ -206,21 +193,20 @@ function ProfileInfo() {
       return;
     }
 
-    // Format phone number before sending
-    const formattedPhone = formatPhoneNumber(userData.phoneNumber);
+    const firstName = userData.firstName.trim();
+    const lastName = userData.lastName.trim();
+    const fullName = `${firstName} ${lastName}`.trim();
 
     const payload = {
-      fullName: `${userData.firstName} ${userData.lastName}`.trim(),
+      firstName,
+      lastName,
+      fullName,
       birthDate: userData.birthDate,
       address: {
         province: userData.province,
         city: userData.city
       }
     };
-
-    if (formattedPhone) {
-      payload.phone = formattedPhone;
-    }
 
     if (userData.email) {
       payload.email = userData.email;
@@ -233,13 +219,39 @@ function ProfileInfo() {
     try {
       await updateUserMe(payload);
 
-      const meData = await apiUser.get('/api/v1/auth/me').then((res) => res.data);
+      if (avatarFile) {
+        await uploadUserAvatar(avatarFile);
+      }
+
+      const meData = await authMe();
       setSession({
         accessToken,
         refreshToken,
         user: meData,
         profileCompleted: meData?.profileCompleted ?? true
       });
+
+      const cachedProfile = {
+        firstName: meData?.firstName || firstName,
+        lastName: meData?.lastName || lastName,
+        username: meData?.username || '',
+        phoneNumber: meData?.phone || meData?.phoneNumber || userData.phoneNumber,
+        province: meData?.address?.province || meData?.province || userData.province,
+        city: meData?.address?.city || meData?.city || userData.city,
+        email: meData?.email || '',
+        nationalId: meData?.nationalId || '',
+        birthDate: meData?.birthDate || userData.birthDate,
+        avatar: meData?.avatarUrl || meData?.avatar || null
+      };
+      localStorage.setItem('userProfile', JSON.stringify(cachedProfile));
+
+      const savedAvatar = meData?.avatarUrl || meData?.avatar;
+      if (savedAvatar) {
+        setAvatar(savedAvatar);
+        setAvatarFile(null);
+        localStorage.setItem('userAvatar', savedAvatar);
+        sessionStorage.setItem('userAvatar', savedAvatar);
+      }
 
       setMessage({
         type: 'success',
@@ -284,20 +296,15 @@ function ProfileInfo() {
     if (userData.username) {
       return userData.username;
     }
-    if (userData.username) {
-      return userData.username;
-    }
     return intl.formatMessage({ id: 'Username' });
   };
 
   // Check if form is valid
   const hasContactInfo = Boolean(userData.email || userData.nationalId);
   const isFormValid =
-    userData.firstName
-    && userData.lastName
+    userData.firstName.trim()
+    && userData.lastName.trim()
     && userData.birthDate
-    && userData.province
-    && userData.city
     && hasContactInfo
     && !isSubmitting;
 
@@ -454,7 +461,8 @@ function ProfileInfo() {
               type="tel"
               placeholder={intl.formatMessage({ id: 'enterPhoneNumber' })}
               value={userData.phoneNumber}
-              onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+              readOnly
+              aria-readonly="true"
               className="form-input phone-input"
               dir="auto"
             />
