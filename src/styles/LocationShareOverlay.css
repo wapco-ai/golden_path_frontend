@@ -1,0 +1,256 @@
+.location-share-overlay {
+  position: fixed;
+  left: 16px;
+  bottom: 88px;
+  z-index: 1250;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Vazir', Tahoma, sans-serif;
+}
+
+:root:lang(en) .location-share-overlay {
+  left: auto;
+  right: 16px;
+}
+
+.location-share-fab,
+.location-share-inbox {
+  border: 1px solid #eceff2;
+  background: #fff;
+  color: #333;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.14);
+  cursor: pointer;
+}
+
+.location-share-fab {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.location-share-fab:active,
+.location-share-inbox:active {
+  transform: scale(0.97);
+}
+
+.location-share-inbox {
+  min-width: 42px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.location-share-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1600;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  font-family: 'Vazir', Tahoma, sans-serif;
+}
+
+.location-share-modal {
+  width: min(100%, 520px);
+  max-height: min(78vh, 650px);
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 18px 18px 0 0;
+  padding: 18px 16px 22px;
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.14);
+  direction: rtl;
+}
+
+:root:lang(en) .location-share-modal {
+  direction: ltr;
+}
+
+.location-share-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 1rem;
+  color: #222;
+}
+
+.location-share-close {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: #f5f5f5;
+  color: #333;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.location-share-hint,
+.location-share-empty {
+  margin: 10px 0 14px;
+  color: #6b7280;
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+
+.location-share-current {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.location-share-current strong {
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.location-share-current span {
+  color: #6b7280;
+  font-size: 0.78rem;
+}
+
+.location-share-retry {
+  border: none;
+  background: transparent;
+  color: #2196F3;
+  text-align: start;
+  padding: 2px 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.location-share-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.location-share-form label,
+.location-share-section-title {
+  color: #333;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.location-share-form input {
+  height: 46px;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 0 13px;
+  font-family: inherit;
+  font-size: 0.92rem;
+  outline: none;
+  background: #fff;
+}
+
+.location-share-form input:focus {
+  border-color: #2196F3;
+}
+
+.location-share-primary,
+.location-share-route-button {
+  border: none;
+  border-radius: 50px;
+  background: #2196F3;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.location-share-primary {
+  min-height: 44px;
+  margin-top: 4px;
+}
+
+.location-share-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.location-share-section {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #eeeeee;
+}
+
+.location-share-section.incoming {
+  margin-top: 8px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.location-share-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f2f4;
+}
+
+.location-share-row > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.location-share-row strong {
+  color: #333;
+  font-size: 0.86rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.location-share-row small {
+  color: #8a8f98;
+  font-size: 0.74rem;
+}
+
+.location-share-text-button {
+  border: none;
+  background: transparent;
+  color: #d14343;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.location-share-route-button {
+  flex: 0 0 auto;
+  min-width: 86px;
+  min-height: 38px;
+  padding: 0 14px;
+}
+
+@media (min-width: 600px) {
+  .location-share-backdrop {
+    align-items: center;
+    padding: 20px;
+  }
+
+  .location-share-modal {
+    border-radius: 18px;
+  }
+}
