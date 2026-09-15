@@ -5,8 +5,10 @@ const shared = { id:7,version:3,kind:'elevator',direction:'both',wait_seconds:20
   info:{basic_info:{title:{fa:'آسانسور مشترک'},description:'توضیح مشترک'},operational:{place_function:'elevator',status:'active',transport_modes:['walk','wheelchair'],gender_access:['both']}},
   stops: floors.map(({floor},i) => ({floor,access_id:100+i,door_id:200+i,area_id:300+i,area_name:`فضای ${floor}`,travel_seconds:8,reverse_seconds:null,lat:36.287,lon:59.615})) };
 
-async function setup(page) {
+async function setup(page, { verifyPendingMap = false } = {}) {
   const writes=[]; const errors=[];
+  let releaseStyle;
+  const styleReady = verifyPendingMap ? new Promise(resolve => { releaseStyle = resolve; }) : Promise.resolve();
   page.on('pageerror',e => errors.push(e.message));
   await page.addInitScript(() => {
     sessionStorage.setItem('gp_admin_access_token','browser-fixture-only');
@@ -24,10 +26,21 @@ async function setup(page) {
     else if (path.endsWith('/graph-status')) json={graph:{status:'ready'}};
     await route.fulfill({json});
   });
-  await page.route('**/map-styles/**/style*.json',route=>route.fulfill({json:{version:8,glyphs:'http://localhost:8080/glyphs/{fontstack}/{range}.pbf',sources:{},layers:[{id:'background',type:'background',paint:{'background-color':'#f8f5f0'}}]}}));
+  await page.route('**/map-styles/**/style*.json',async route=>{
+    await styleReady;
+    await route.fulfill({json:{version:8,glyphs:'http://localhost:8080/glyphs/{fontstack}/{range}.pbf',sources:{},layers:[{id:'background',type:'background',paint:{'background-color':'#f8f5f0'}}]}});
+  });
   await page.route('**/tiles/**',route=>route.fulfill({status:204}));
   await page.goto('/#/admin');
   await page.getByText('مدیریت نقشه',{exact:true}).click();
+  if (verifyPendingMap) {
+    await expect(page.locator('.manage-door-point')).toHaveAttribute('aria-disabled','true');
+    // Even a click dispatched before map readiness must not open the wrong wizard.
+    await page.locator('.manage-door-point').dispatchEvent('click');
+    await expect(page.locator('.add-place-btn')).toHaveCount(0);
+    releaseStyle();
+  }
+  await expect(page.locator('.manage-door-point')).toHaveAttribute('aria-disabled','false');
   await page.locator('.manage-door-point').click();
   await page.getByText('افزودن مکان روی نشانگر تنظیم شده',{exact:true}).click();
   await expect(page.locator('.add-place-modal')).toBeVisible();
@@ -90,8 +103,8 @@ test('loading an existing shared elevator edits all stops and retains its versio
 });
 
 test('canceling map selection preserves the form and canceling the wizard writes nothing',async ({page},testInfo)=>{
-  const {writes,errors}=await setup(page);
   await page.setViewportSize({width:430,height:932});
+  const {writes,errors}=await setup(page,{verifyPendingMap:true});
   await chooseType(page,'رمپ');
   await page.getByRole('button',{name:'افزودن توقف در طبقه دیگر',exact:true}).click();
   await page.getByTestId('connector-stop').nth(1).getByRole('button',{name:'انتخاب نقطه روی نقشه',exact:true}).click();

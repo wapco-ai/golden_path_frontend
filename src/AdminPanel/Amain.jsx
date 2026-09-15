@@ -9041,6 +9041,9 @@ const Amain = () => {
   };
 
   const handleLocationMarkerSelect = () => {
+    const layerOption = editableLayerOptions.find((layer) => layer.id === DOOR_ACCESS_LAYER_ID);
+    if (!canUserEditLayer(layerOption) || !isMapLayerAvailable(DOOR_ACCESS_LAYER_ID)) return;
+
     if (activeEditableLayerId !== DOOR_ACCESS_LAYER_ID) {
       handleEditableLayerSelect(DOOR_ACCESS_LAYER_ID);
     }
@@ -9205,6 +9208,7 @@ const Amain = () => {
   };
 
   const handleAddPlaceToMarker = async () => {
+    if (!isDoorAccessLayerActive) return;
     if (!selectedLocation || !Number.isFinite(selectedLocation.lng) || !Number.isFinite(selectedLocation.lat)) {
       toast.error('لطفاً ابتدا نشانگر را روی نقطه مدنظر قرار دهید');
       return;
@@ -12901,6 +12905,7 @@ const Amain = () => {
 
                     {/* Button 4 - Location Marker */}
                     <div className={`action-button manage-door-point ${isLocationMarkerMode ? 'selected' : ''}`}
+                      aria-disabled={!isMapLayerAvailable(DOOR_ACCESS_LAYER_ID) || !canUserEditLayer(editableLayerOptions.find((layer) => layer.id === DOOR_ACCESS_LAYER_ID))}
                       onClick={() => {
                         handleLocationMarkerSelect();
                         setOpenSubMenu(openSubMenu === 4 ? null : 4);

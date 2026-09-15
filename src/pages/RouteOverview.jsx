@@ -1,4 +1,5 @@
 import { routeCoordinates as getRouteCoordinates, routeOnFloor, isMultifloor, multifloorSteps } from '../utils/multifloorRoute';
+import { getSessionFloor, setSessionFloor } from '../utils/sessionFloor';
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
@@ -102,8 +103,8 @@ const RouteOverview = () => {
     return diff > 0 ? 'bend-left' : 'bend-right';
   };
 
-  const formatSegmentTime = useCallback((distanceInMeters) => {
-    const totalMinutes = distanceInMeters / 60;
+  const formatSegmentTime = useCallback((distanceInMeters, durationSeconds = distanceInMeters) => {
+    const totalMinutes = durationSeconds / 60;
 
     if (totalMinutes < 1) {
       return `${formatDigits(Math.max(1, Math.round(totalMinutes * 60)))} ${intl.formatMessage({ id: 'secondsUnit' })}`;
@@ -908,6 +909,9 @@ const RouteOverview = () => {
     if (routeData[currentSlide]) {
       const segObj = routeData[currentSlide];
       const coords = segObj.coordinates;
+      const d = segObj.distance;
+      setDistance(`${formatDigits(Math.round(d))} ${intl.formatMessage({ id: 'meters' })}`);
+      setTime(formatSegmentTime(d, isMultifloor(routeGeo) ? segObj.durationSeconds : undefined));
 
       if (
         !Array.isArray(coords) ||
@@ -920,12 +924,6 @@ const RouteOverview = () => {
 
       const [lng1, lat1] = coords[0];
       const [lng2, lat2] = coords[coords.length - 1];
-      const d = segObj.distance;
-      setDistance(
-        `${formatDigits(Math.round(d))} ${intl.formatMessage({ id: 'meters' })}`
-      );
-      setTime(isMultifloor(routeGeo) ? `${Math.ceil(segObj.durationSeconds / 60)} ${intl.formatMessage({ id: 'minutesUnit' })}` : formatSegmentTime(d));
-
       if (currentSlide === routeData.length - 1) {
         setDirectionArrow('arrived');
       } else {
@@ -1021,7 +1019,9 @@ const RouteOverview = () => {
     }
   }, [routeCoordinates]);
 
-  const allGeo = routeOnFloor(routeGeo, routeData[currentSlide]?.floor ?? 0);
+  const activeRouteFloor = routeData[currentSlide]?.floor ?? origin?.floor ?? getSessionFloor();
+  useEffect(() => { setSessionFloor(activeRouteFloor); }, [activeRouteFloor]);
+  const allGeo = routeOnFloor(routeGeo, activeRouteFloor);
 
   const nextSlide = () => {
     if (currentSlide < routeData.length - 1) {

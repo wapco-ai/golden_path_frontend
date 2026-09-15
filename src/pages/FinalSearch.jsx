@@ -1,4 +1,4 @@
-import { getSessionFloor } from '../utils/sessionFloor';
+import { getSessionFloor, setSessionFloor } from '../utils/sessionFloor';
 import { routeCoordinates as getRouteCoordinates, routeOnFloor } from '../utils/multifloorRoute';
 // src/pages/FinalSearch.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -98,6 +98,9 @@ const FinalSearch = () => {
     }
   );
   const routeGeo = storedRouteGeo;
+  useEffect(() => {
+    if (origin?.floor !== undefined && origin?.floor !== null) setSessionFloor(origin.floor);
+  }, [origin?.floor]);
   useEffect(() => {
     storeSetOrigin(origin);
   }, [origin, storeSetOrigin]);

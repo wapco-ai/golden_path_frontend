@@ -14,7 +14,7 @@ const steps=[
   {type:'stepArriveDestination',segmentId:2,floor:1,routeM:1,coordinates:[[36.287,59.6152],[36.287,59.6152]],instruction:'به مقصد رسیدید'}
 ];
 
-test('RNG previews transfers in sequence and switches the existing map floor',async({page})=>{
+async function setupRoute(page) {
   const errors=[]; page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(({geo,steps})=>{
     const origin={name:'مبدأ',floor:-1,coordinates:[36.287,59.615]};
@@ -22,11 +22,16 @@ test('RNG previews transfers in sequence and switches the existing map floor',as
     const state={origin,destination,routeGeo:geo,routeSteps:steps,alternativeRoutes:[],transportMode:'walking',gender:'both'};
     localStorage.setItem('route-storage',JSON.stringify({state,version:1}));
     for(const [key,value] of Object.entries({origin,destination,routeGeo:geo,routeSteps:steps,alternativeRoutes:[]})) sessionStorage.setItem(key,JSON.stringify(value));
-    sessionStorage.setItem('haramCurrentFloor','-1');
+    sessionStorage.setItem('haramCurrentFloor','1');
   },{geo,steps});
   await page.route('**/api/v1/**',r=>r.fulfill({json:{status:'NO_MATCH',data:[],features:[]}}));
   await page.route('**/tiles/**',r=>r.fulfill({status:204}));
   await page.route('**/tms/**',r=>r.fulfill({status:204}));
+  return errors;
+}
+
+test('RNG previews transfers in sequence and switches the existing map floor',async({page})=>{
+  const errors=await setupRoute(page);
   await page.goto('/#/rng');
   await expect(page.locator('.instruction-text')).toContainText('حرکت در طبقه منفی یک');
   await page.locator('.direction-icon-rng').click();
@@ -34,6 +39,21 @@ test('RNG previews transfers in sequence and switches the existing map floor',as
   expect(await page.evaluate(()=>sessionStorage.getItem('haramCurrentFloor'))).toBe('-1');
   await page.locator('.direction-icon-rng').click();
   await expect(page.locator('.instruction-text')).toContainText('حرکت در طبقه یک');
+  await expect.poll(()=>page.evaluate(()=>sessionStorage.getItem('haramCurrentFloor'))).toBe('1');
+  expect(errors).toEqual([]);
+});
+
+test('route overview shows the current floor and the transfer duration in the existing carousel',async({page})=>{
+  const errors=await setupRoute(page);
+  await page.goto('/#/rop');
+  await expect(page.locator('.instruction-text2')).toContainText('حرکت در طبقه منفی یک');
+  await expect.poll(()=>page.evaluate(()=>sessionStorage.getItem('haramCurrentFloor'))).toBe('-1');
+  await page.locator('.carousel-next').click();
+  await expect(page.locator('.instruction-text2')).toContainText('با آسانسور به طبقه یک بروید');
+  await expect(page.locator('.route-time .time-value')).toContainText('۳۶');
+  await expect(page.locator('.route-time .time-value')).toContainText('ثانیه');
+  await page.locator('.carousel-next').click();
+  await expect(page.locator('.instruction-text2')).toContainText('حرکت در طبقه یک');
   await expect.poll(()=>page.evaluate(()=>sessionStorage.getItem('haramCurrentFloor'))).toBe('1');
   expect(errors).toEqual([]);
 });
