@@ -1,39 +1,43 @@
-## مستندات کوتاه برای فرانت (Markdown)
-
-### `docs/public-auth-profile.md`
-
-````md
 # GoldenPath - Public Auth & Profile APIs (After OTP)
 
 ## Base URL
 `/api/v1`
 
----
+## قرارداد نام کاربر
+
+از این نسخه، `firstName` و `lastName` فیلدهای canonical پروفایل هستند و مرز آن‌ها باید همان چیزی باشد که کاربر در دو ورودی مستقل فرم وارد کرده است. هر دو فیلد می‌توانند شامل فاصله باشند؛ برای مثال `firstName = "محمد رضا"` و `lastName = "حسینی سادات"` معتبر است.
+
+`fullName` برای نمایش و سازگاری با کلاینت‌های قدیمی حفظ می‌شود، اما نباید برای استخراج نام و نام خانوادگی split شود. برای رکوردهای قدیمی که فقط `fullName/name` دارند، API می‌تواند `firstName` و `lastName` را `null` برگرداند تا کاربر در اولین ویرایش آن‌ها را صریحاً مشخص کند.
+
+شماره موبایل شناسه احراز هویت OTP است و از endpoint ویرایش پروفایل تغییر نمی‌کند. تغییر شماره موبایل باید در یک flow مستقل همراه با OTP انجام شود.
 
 ## Sequence پیشنهادی بعد از OTP
-1) (OTP قبلاً انجام شده و موبایل verified است)
-2) `POST /users`  → ایجاد/ثبت‌نام کاربر
-3) `GET /auth/me` → تشخیص اینکه پروفایل کامل است یا نه (profileCompleted)
-4) اگر کامل نیست: `PATCH /users/me` یا `PUT /users/me/profile`
-5) در طول کار: refresh توکن با `POST /auth/refresh`
-6) خروج: `POST /auth/logout`
 
----
+1. OTP تأیید می‌شود.
+2. `POST /users` برای ایجاد/ثبت‌نام کاربر.
+3. `GET /auth/me` برای دریافت کاربر و `profileCompleted`.
+4. ویرایش پروفایل با `PATCH /users/me` یا `PUT /users/me/profile`.
+5. refresh توکن با `POST /auth/refresh`.
+6. خروج با `POST /auth/logout`.
 
-## 1) POST /users
-ایجاد کاربر بعد از OTP
+## POST /users
 
-### Request
+### Request پیشنهادی برای کلاینت جدید
+
 ```json
 {
   "phone": "09xxxxxxxxx",
-  "fullName": "نام و نام خانوادگی",
+  "firstName": "محمد رضا",
+  "lastName": "حسینی",
+  "fullName": "محمد رضا حسینی",
   "email": "user@example.com",
   "nationalId": "**********",
   "referralCode": "ABC123",
   "password": "strong-password"
 }
-````
+```
+
+`fullName` همچنان برای سازگاری با کلاینت‌های قدیمی پذیرفته می‌شود.
 
 ### Response (201)
 
@@ -41,7 +45,10 @@
 {
   "id": 10,
   "phone": "0912....",
-  "fullName": "....",
+  "username": null,
+  "firstName": "محمد رضا",
+  "lastName": "حسینی",
+  "fullName": "محمد رضا حسینی",
   "email": "user@example.com",
   "nationalId": "**********",
   "gender": null,
@@ -57,77 +64,93 @@
 
 ### Errors
 
-* 409 `PHONE_EXISTS`
-* 409 `EMAIL_EXISTS`
-* 400 `VALIDATION_ERROR` (laravel validation)
+- 409 `PHONE_EXISTS`
+- 409 `EMAIL_EXISTS`
+- 400/422 validation error مطابق middleware/handler فعال پروژه
 
----
+## GET /auth/me و GET /users/me
 
-## 2) GET /auth/me
+Header:
 
-Header: `Authorization: Bearer <accessToken>`
-
-### Response (200)
-
-```json
-{
-  "id": 10,
-  "phone": "0912....",
-  "fullName": "....",
-  "email": "user@example.com",
-  "profileCompleted": false,
-  "roles": [],
-  "level": null
-}
+```text
+Authorization: Bearer <accessToken>
 ```
 
----
+هر دو endpoint ساختار عمومی User را برمی‌گردانند؛ پاسخ شامل `firstName`, `lastName`, `fullName`, `address`, `avatarUrl` و `profileCompleted` است.
 
-## 3) PATCH /users/me  (or PUT /users/me/profile)
+## PATCH /users/me یا PUT /users/me/profile
 
-Header: `Authorization: Bearer <accessToken>`
+Header:
+
+```text
+Authorization: Bearer <accessToken>
+```
 
 ### Request
 
 ```json
 {
-  "fullName": "نام و نام خانوادگی",
+  "firstName": "محمد رضا",
+  "lastName": "حسینی سادات",
+  "fullName": "محمد رضا حسینی سادات",
   "email": "user@example.com",
   "gender": "male",
   "birthDate": "2000-01-01",
   "nationalId": "**********",
   "address": {
-    "province": "تهران",
-    "city": "تهران",
+    "province": "خراسان رضوی",
+    "city": "مشهد",
     "postalCode": "##########",
     "line1": "..."
   },
   "preferences": {
     "language": "fa",
-    "notifications": { "sms": true, "push": true, "email": false }
-  },
-  "avatarUrl": "https://..."
+    "notifications": {
+      "sms": true,
+      "push": true,
+      "email": false
+    }
+  }
 }
 ```
 
-### Response (200)
+در صورت وجود `firstName/lastName`، بک‌اند مقدار legacy `name/fullName` را از همین دو فیلد sync می‌کند. اگر یک کلاینت قدیمی فقط `fullName` بفرستد، فقط فیلد legacy به‌روزرسانی می‌شود و بک‌اند مرز نام/نام خانوادگی را حدس نمی‌زند.
 
-همان ساختار User + `profileCompleted: true/false`
+## POST /files/avatar
 
-### Errors
+Header:
 
-* 401 `UNAUTHORIZED`
-* 409 `EMAIL_EXISTS`
-* 400 `VALIDATION_ERROR`
+```text
+Authorization: Bearer <accessToken>
+Content-Type: multipart/form-data
+```
 
----
+Form field:
 
-## 4) POST /auth/refresh
+```text
+file=<image>
+```
+
+محدودیت فعلی: تصویر، حداکثر 2MB. فایل روی disk عمومی پروژه ذخیره می‌شود و پاسخ شامل URL قابل نمایش است:
+
+```json
+{
+  "url": "/storage/avatars/..."
+}
+```
+
+## DELETE /files/avatar
+
+تصویر فعلی پروفایل را از رکورد کاربر و storage عمومی حذف می‌کند.
+
+## POST /auth/refresh
 
 ### Request
 
 ```json
-{ "refreshToken": "..." }
+{
+  "refreshToken": "..."
+}
 ```
 
 ### Response (200)
@@ -137,49 +160,31 @@ Header: `Authorization: Bearer <accessToken>`
   "accessToken": "...",
   "refreshToken": "...",
   "expiresIn": 1800,
-  "user": { "...": "..." }
+  "user": {
+    "...": "..."
+  }
 }
 ```
 
-### Errors
+## POST /auth/logout
 
-* 401 `INVALID_TOKEN`
-* 401 `TOKEN_EXPIRED` (در عمل همان invalid/expired)
+Header:
 
----
-
-## 5) POST /auth/logout
-
-Header: `Authorization: Bearer <accessToken>`
-
-### Request
-
-```json
-{ "refreshToken": "..." }
+```text
+Authorization: Bearer <accessToken>
 ```
 
-### Response (204)
-
-بدون body (یا پیام کوتاه)
-
----
-
-## Error Format
+Request:
 
 ```json
 {
-  "message": "....",
-  "code": "PHONE_EXISTS",
-  "errors": {}
+  "refreshToken": "..."
 }
 ```
 
-```
+## نکات Session
 
----
-
-## 7) نکات امنیتی/Session (طبق نیازمندی شما)
-- access کوتاه‌مدت: `JWT_PUBLIC_ACCESS_TTL` (پیش‌فرض 1800 ثانیه)
-- refresh بلندمدت: `JWT_PUBLIC_REFRESH_TTL` (پیش‌فرض 30 روز)
-- Rotation روی refresh: در `/auth/refresh` توکن قبلی revoke و توکن جدید صادر می‌شود (مثل ادمین).
-- logout: همه refresh tokenهای فعال همان user revoke می‌شوند (مرتبط با همان نشست/توکن).
+- access کوتاه‌مدت: `JWT_PUBLIC_ACCESS_TTL`، پیش‌فرض 1800 ثانیه.
+- refresh بلندمدت: `JWT_PUBLIC_REFRESH_TTL`، پیش‌فرض 30 روز.
+- refresh token در `/auth/refresh` rotate می‌شود.
+- logout refresh tokenهای معتبر مرتبط را revoke می‌کند.
