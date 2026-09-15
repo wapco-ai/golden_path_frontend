@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { routeOnFloor, routeCoordinates, multifloorSteps, activeRouteCoordinates } from '../src/utils/multifloorRoute.js';
-import { connectorError, connectorPayload, emptyConnector, newStop, floorValue, floorLabel } from '../src/utils/connectorForm.js';
+import { connectorError, connectorPayload, emptyConnector, newStop, floorValue, floorLabel, isSelectedStop } from '../src/utils/connectorForm.js';
 import { getNavigationProgress } from '../src/utils/rngNavigation.js';
 import { requestRouting } from '../src/services/routingService.js';
 import { analyzeRoute } from '../src/utils/routeAnalysis.js';
@@ -72,6 +72,17 @@ test('API payload preserves shared identity, order, zero floor and optional reve
 });
 test('existing and additional floor labels round trip without becoming ground floor', () => {
   for (const floor of [-3,-1,0,1,4]) assert.equal(floorValue(floorLabel(floor)),floor);
+});
+test('the selected portal stays fixed by identity across reordering and coincident floor coordinates', () => {
+  const point={floor:0,door_id:10,access_id:7,lat:36.3,lon:59.6};
+  const stops=[{...point,floor:-1,door_id:11,access_id:8},{...point,access_id:70},{...point,floor:1,door_id:12,access_id:9}];
+  assert.deepEqual(stops.map(s=>isSelectedStop(s,point)),[false,true,false]);
+  assert.deepEqual([stops[1],stops[2],stops[0]].map(s=>isSelectedStop(s,point)),[true,false,false]);
+  assert.equal(isSelectedStop({...point,door_id:99,access_id:99},point),false);
+  const draft={floor:0,lat:36.3,lon:59.6};
+  assert.equal(isSelectedStop(stops[1],draft),true);
+  assert.equal(isSelectedStop({...draft,floor:1},draft),false);
+  assert.equal(isSelectedStop(newStop(0),draft),false);
 });
 test('routing request and response preserve floor and transfer metadata', async t => {
   let body;

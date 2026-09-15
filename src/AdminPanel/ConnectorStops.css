@@ -1,0 +1,65 @@
+/* Scoped to the connector section; modal steps, header and footer keep their styles. */
+.add-place-modal .connector-editor {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  color: #1E2023;
+}
+.add-place-modal .connector-editor * { box-sizing: border-box; }
+.add-place-modal .connector-editor button,
+.add-place-modal .connector-editor input { font-family: inherit; font-size: 14px; }
+.add-place-modal .connector-intro { display: grid; gap: 8px; }
+.add-place-modal .connector-intro h4,
+.add-place-modal .connector-stop-heading h5 { margin: 0; font-size: 14px; font-weight: 500; line-height: 1.8; }
+.add-place-modal .connector-help { margin: 0; font-size: 12px; line-height: 1.9; color: #858585; }
+.add-place-modal .connector-label { display: block; font-size: 13px; line-height: 1.8; color: #1E2023; }
+.add-place-modal .connector-field { display: grid; gap: 8px; min-width: 0; align-content: start; }
+.add-place-modal .connector-editor .form-input { margin: 0; min-width: 0; min-height: 44px; }
+.add-place-modal .connector-settings { display: grid; gap: 20px; }
+.add-place-modal .connector-settings--elevator { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+.add-place-modal .connector-direction { display: flex; gap: 8px; flex-wrap: wrap; }
+.add-place-modal .connector-direction .location-type-option { min-width: 0; flex: 1 1 100px; padding: 10px; gap: 6px; }
+.add-place-modal .connector-direction .location-type-option > span:last-child { font-size: 12px; line-height: 1.8; }
+.add-place-modal .connector-direction .location-type-radio { flex-shrink: 0; width: 16px; height: 16px; }
+.add-place-modal .connector-stop-list { display: grid; gap: 16px; }
+.add-place-modal .connector-stop { display: grid; gap: 16px; min-width: 0; padding: 16px; border: 1px solid #D9D9D9; border-radius: 8px; background: #fff; }
+.add-place-modal .connector-stop--current { border-color: #0F71EF; }
+.add-place-modal .connector-stop-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.add-place-modal .connector-stop-heading { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 1; min-width: 0; }
+.add-place-modal .connector-stop-heading h5 span { color: #858585; font-weight: 400; }
+.add-place-modal .connector-current-label { color: #0F71EF; background: #F5F6FF; padding: 3px 8px; border-radius: 6px; font-size: 12px; line-height: 1.8; }
+.add-place-modal .connector-stop-actions { display: flex; gap: 4px; margin-inline-start: auto; }
+.add-place-modal .connector-stop-actions button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 1px solid #D9D9D9; border-radius: 8px; background: #fff; color: #858585; cursor: pointer; }
+.add-place-modal .connector-stop-actions .connector-remove { color: #EA4335; }
+.add-place-modal .connector-stop-actions button:hover:not(:disabled) { background: #F5F6FF; border-color: #0F71EF; color: #0F71EF; }
+.add-place-modal .connector-stop-actions .connector-remove:hover:not(:disabled) { background: #fff5f5; border-color: #EA4335; color: #EA4335; }
+.add-place-modal .connector-location,
+.add-place-modal .connector-stop-fields,
+.add-place-modal .connector-return { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: end; }
+.add-place-modal .connector-area-value { margin: 0; min-height: 44px; display: flex; align-items: center; font-size: 14px; line-height: 1.9; overflow-wrap: anywhere; }
+.add-place-modal .connector-seconds { position: relative; }
+.add-place-modal .connector-seconds .form-input { padding-inline-end: 58px; appearance: textfield; }
+.add-place-modal .connector-seconds input::-webkit-inner-spin-button,
+.add-place-modal .connector-seconds input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.add-place-modal .connector-seconds > span { position: absolute; inset-inline-end: 14px; top: 50%; transform: translateY(-50%); color: #858585; font-size: 12px; pointer-events: none; }
+.add-place-modal .connector-checkbox { display: flex; align-items: center; gap: 8px; min-height: 32px; font-size: 13px; line-height: 1.8; cursor: pointer; }
+.add-place-modal .connector-checkbox input { width: 16px; height: 16px; margin: 0; flex-shrink: 0; accent-color: #0F71EF; }
+.add-place-modal .connector-map-button,
+.add-place-modal .connector-add-button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 14px; line-height: 1.8; border: 1px solid #0F71EF; border-radius: 8px; background: #fff; color: #0F71EF; cursor: pointer; }
+.add-place-modal .connector-map-button svg,
+.add-place-modal .connector-add-button svg { flex-shrink: 0; }
+.add-place-modal .connector-map-button:hover:not(:disabled),
+.add-place-modal .connector-add-button:hover:not(:disabled) { background: #F5F6FF; }
+.add-place-modal .connector-editor button:disabled { cursor: not-allowed; opacity: .45; }
+.add-place-modal .connector-editor button:focus-visible,
+.add-place-modal .connector-checkbox input:focus-visible { outline: 2px solid #0F71EF; outline-offset: 2px; }
+.add-place-modal .connector-error { margin: 0; color: #EA4335; font-size: 12px; line-height: 1.9; }
+@media (max-width: 640px) {
+  .add-place-modal .connector-settings--elevator,
+  .add-place-modal .connector-location,
+  .add-place-modal .connector-stop-fields,
+  .add-place-modal .connector-return { grid-template-columns: minmax(0, 1fr); }
+  .add-place-modal .connector-stop { padding: 12px; }
+  .add-place-modal .connector-direction .location-type-option { flex-basis: 100%; }
+}

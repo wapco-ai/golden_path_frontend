@@ -4,6 +4,17 @@ export const floorLabel = (floor) => Number(floor) === 0 ? 'همکف' : Number(f
 export const floorValue = (label) => label === 'همکف' ? 0 : label === 'منفی ۱' ? -1 : Number(String(label).replace('طبقه ', ''));
 export const newStop = (floor, kind = 'elevator') => ({ floor: Number(floor), resolving: false, travel_seconds: kind === 'elevator' ? 8 : 30, reverse_seconds: null });
 
+// The point used to open the form stays fixed, even when stop order changes.
+export function isSelectedStop(stop, point) {
+  if (!stop || !point || stop.floor == null || point.floor == null || Number(stop.floor) !== Number(point.floor)) return false;
+  if (stop.door_id && point.door_id) return Number(stop.door_id) === Number(point.door_id);
+  if (stop.access_id && point.access_id) return Number(stop.access_id) === Number(point.access_id);
+  if (point.door_id || point.access_id) return false;
+  return ['lat', 'lon'].every(key => stop[key] != null && point[key] != null
+    && Number.isFinite(Number(stop[key])) && Number.isFinite(Number(point[key]))
+    && Math.abs(Number(stop[key]) - Number(point[key])) < 1e-8);
+}
+
 export function connectorError(connector, kind, modes) {
   if (modes.includes('van')) return 'اتصال بین طبقات برای ون برقی قابل استفاده نیست.';
   if (connector.stops.length < 2) return 'حداقل دو توقف در طبقات متفاوت مشخص کنید.';
