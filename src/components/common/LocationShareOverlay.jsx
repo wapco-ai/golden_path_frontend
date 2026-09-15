@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { USER_ACCESS_TOKEN_KEY, useUserAuthStore } from '../../auth/user/userAuthStore';
 import { useLangStore } from '../../store/langStore';
 import { useRouteStore } from '../../store/routeStore';
+import { useLocationShareUiStore } from '../../store/locationShareUiStore';
 import { getSessionFloor } from '../../utils/sessionFloor';
 import { getLocationShareText } from '../../utils/locationShareMessages';
 import {
@@ -14,7 +15,7 @@ import {
 } from '../../services/locationShareService';
 import '../../styles/LocationShareOverlay.css';
 
-const ACTIVE_PATHS = new Set(['/mpr', '/fs']);
+const ACTIVE_PATHS = new Set(['/mpb', '/fs']);
 const REFRESH_INTERVAL_MS = 30000;
 
 const LocationShareOverlay = () => {
@@ -23,6 +24,14 @@ const LocationShareOverlay = () => {
   const language = useLangStore((state) => state.language);
   const { accessToken, user } = useUserAuthStore();
   const setDestination = useRouteStore((state) => state.setDestination);
+  const {
+    isOpen,
+    mode,
+    openShare,
+    openIncoming,
+    close: closeShareUi,
+    setIncomingCount
+  } = useLocationShareUiStore();
   const t = useMemo(() => getLocationShareText(language), [language]);
 
   const sessionToken = typeof window !== 'undefined'
@@ -33,8 +42,6 @@ const LocationShareOverlay = () => {
   const hasToken = Boolean(effectiveToken);
   const shouldRender = ACTIVE_PATHS.has(location.pathname) && hasToken;
 
-  const [isOpen, setIsOpen] = useState(false);
-  const [mode, setMode] = useState('share');
   const [phone, setPhone] = useState('');
   const [position, setPosition] = useState(null);
   const [incoming, setIncoming] = useState([]);
@@ -54,10 +61,17 @@ const LocationShareOverlay = () => {
     refreshAbortRef.current = null;
     setIncoming([]);
     setOutgoing([]);
-    setIsOpen(false);
+    setIncomingCount(0);
+    closeShareUi();
     setPhone('');
     setPosition(null);
-  }, [authIdentity]);
+  }, [authIdentity, closeShareUi, setIncomingCount]);
+
+  useEffect(() => {
+    if (!shouldRender && isOpen) {
+      closeShareUi();
+    }
+  }, [shouldRender, isOpen, closeShareUi]);
 
   const refreshShares = useCallback(async ({ silent = false } = {}) => {
     if (!hasToken) return;
@@ -77,6 +91,7 @@ const LocationShareOverlay = () => {
       if (controller.signal.aborted || identityRef.current !== startedIdentity) return;
       setIncoming(nextIncoming);
       setOutgoing(nextOutgoing);
+      setIncomingCount(nextIncoming.length);
     } catch (error) {
       if (controller.signal.aborted || error?.code === 'ERR_CANCELED') return;
       if (error?.status !== 401) {
@@ -90,7 +105,7 @@ const LocationShareOverlay = () => {
         refreshAbortRef.current = null;
       }
     }
-  }, [hasToken]);
+  }, [hasToken, setIncomingCount]);
 
   useEffect(() => {
     if (!shouldRender) return undefined;
@@ -153,12 +168,23 @@ const LocationShareOverlay = () => {
     );
   }, [t]);
 
+  useEffect(() => {
+    if (!isOpen || !shouldRender) return;
+
+    if (mode === 'share') {
+      setPosition(null);
+      requestFreshLocation();
+    } else if (mode === 'incoming') {
+      refreshShares();
+    }
+  }, [isOpen, mode, shouldRender, requestFreshLocation, refreshShares]);
+
   const closeModal = useCallback(() => {
-    setIsOpen(false);
-  }, []);
+    closeShareUi();
+  }, [closeShareUi]);
 
   useEffect(() => {
-    if (!isOpen) return undefined;
+    if (!isOpen || !shouldRender) return undefined;
 
     previousFocusRef.current = document.activeElement;
     const modal = modalRef.current;
@@ -192,20 +218,7 @@ const LocationShareOverlay = () => {
       document.removeEventListener('keydown', handleKeyDown);
       previousFocusRef.current?.focus?.();
     };
-  }, [isOpen, closeModal]);
-
-  const openShare = () => {
-    setMode('share');
-    setIsOpen(true);
-    setPosition(null);
-    requestFreshLocation();
-  };
-
-  const openIncoming = () => {
-    setMode('incoming');
-    setIsOpen(true);
-    refreshShares();
-  };
+  }, [isOpen, shouldRender, closeModal]);
 
   const submitShare = async (event) => {
     event.preventDefault();
@@ -262,7 +275,7 @@ const LocationShareOverlay = () => {
     };
 
     setDestination(destination);
-    setIsOpen(false);
+    closeShareUi();
 
     if (location.pathname === '/fs') {
       sessionStorage.setItem('updatedDestination', JSON.stringify(destination));
@@ -281,124 +294,100 @@ const LocationShareOverlay = () => {
     return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
   };
 
-  if (!shouldRender) return null;
+  if (!shouldRender || !isOpen) return null;
 
   return (
-    <>
-      <div className="location-share-overlay" aria-label={t('shareMyLocation')}>
-        <button
-          type="button"
-          className="location-share-fab"
-          onClick={openShare}
-          title={t('shareMyLocation')}
-          aria-label={t('shareMyLocation')}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="18" cy="5" r="3" stroke="currentColor" strokeWidth="2" />
-            <circle cx="6" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
-            <circle cx="18" cy="19" r="3" stroke="currentColor" strokeWidth="2" />
-            <path d="M8.7 10.6 15.3 6.4M8.7 13.4l6.6 4.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </button>
+    <div className="location-share-backdrop" role="presentation" onMouseDown={closeModal}>
+      <section
+        ref={modalRef}
+        className="location-share-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={mode === 'incoming' ? t('incomingTitle') : t('shareMyLocation')}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="location-share-header">
+          <strong>{mode === 'incoming' ? t('incomingTitle') : t('shareMyLocation')}</strong>
+          <button type="button" className="location-share-close" onClick={closeModal} aria-label={t('close')}>×</button>
+        </div>
 
-        {incoming.length > 0 && (
-          <button
-            type="button"
-            className="location-share-inbox"
-            onClick={openIncoming}
-            aria-label={t('incomingTitle')}
-            title={t('incomingTitle')}
-          >
-            <span aria-hidden="true">⌖</span>
-            <span>{incoming.length}</span>
-          </button>
-        )}
-      </div>
+        {mode === 'share' ? (
+          <>
+            {incoming.length > 0 && (
+              <button type="button" className="location-share-incoming-link" onClick={openIncoming}>
+                <span>{t('incomingTitle')}</span>
+                <span className="location-share-count">{incoming.length}</span>
+              </button>
+            )}
 
-      {isOpen && (
-        <div className="location-share-backdrop" role="presentation" onMouseDown={closeModal}>
-          <section
-            ref={modalRef}
-            className="location-share-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label={mode === 'incoming' ? t('incomingTitle') : t('shareMyLocation')}
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <div className="location-share-header">
-              <strong>{mode === 'incoming' ? t('incomingTitle') : t('shareMyLocation')}</strong>
-              <button type="button" className="location-share-close" onClick={closeModal} aria-label={t('close')}>×</button>
+            <p className="location-share-hint">{t('shareLocationDescription')}</p>
+            <div className="location-share-current">
+              <strong>{t('currentLocation')}</strong>
+              {isLocating && <span>{t('loading')}</span>}
+              {!isLocating && position && (
+                <>
+                  <span>{t('accuracy', { value: Math.round(position.accuracyM || 0) })}</span>
+                  <span>{position.floor === -1 ? t('floorMinusOne') : t('floorGround')}</span>
+                </>
+              )}
+              {!isLocating && !position && (
+                <button type="button" className="location-share-retry" onClick={requestFreshLocation}>{t('unavailable')}</button>
+              )}
             </div>
 
-            {mode === 'share' ? (
-              <>
-                <p className="location-share-hint">{t('shareLocationDescription')}</p>
-                <div className="location-share-current">
-                  <strong>{t('currentLocation')}</strong>
-                  {isLocating && <span>{t('loading')}</span>}
-                  {!isLocating && position && (
-                    <>
-                      <span>{t('accuracy', { value: Math.round(position.accuracyM || 0) })}</span>
-                      <span>{position.floor === -1 ? t('floorMinusOne') : t('floorGround')}</span>
-                    </>
-                  )}
-                  {!isLocating && !position && (
-                    <button type="button" className="location-share-retry" onClick={requestFreshLocation}>{t('unavailable')}</button>
-                  )}
-                </div>
+            <form onSubmit={submitShare} className="location-share-form">
+              <label htmlFor="location-share-phone">{t('recipientPhone')}</label>
+              <input
+                id="location-share-phone"
+                type="tel"
+                inputMode="tel"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                placeholder={t('recipientPlaceholder')}
+                autoComplete="tel"
+                maxLength={32}
+              />
+              <button type="submit" className="location-share-primary" disabled={!position || !phone.trim() || isSubmitting}>
+                {isSubmitting ? t('loading') : t('shareButton')}
+              </button>
+            </form>
 
-                <form onSubmit={submitShare} className="location-share-form">
-                  <label htmlFor="location-share-phone">{t('recipientPhone')}</label>
-                  <input
-                    id="location-share-phone"
-                    type="tel"
-                    inputMode="tel"
-                    value={phone}
-                    onChange={(event) => setPhone(event.target.value)}
-                    placeholder={t('recipientPlaceholder')}
-                    autoComplete="tel"
-                    maxLength={32}
-                  />
-                  <button type="submit" className="location-share-primary" disabled={!position || !phone.trim() || isSubmitting}>
-                    {isSubmitting ? t('loading') : t('shareButton')}
-                  </button>
-                </form>
-
-                {outgoing.length > 0 && (
-                  <div className="location-share-section">
-                    <div className="location-share-section-title">{t('outgoingTitle')}</div>
-                    {outgoing.map((share) => (
-                      <div key={share.id} className="location-share-row">
-                        <div>
-                          <strong>{share?.recipient?.displayName || share?.recipient?.mobileMasked || ''}</strong>
-                          <small>{t('expiresAt', { time: formatTime(share.expiresAt) })}</small>
-                        </div>
-                        <button type="button" className="location-share-text-button" onClick={() => stopShare(share.id)}>{t('stop')}</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="location-share-section incoming">
-                {isLoadingShares && incoming.length === 0 && <p>{t('loading')}</p>}
-                {!isLoadingShares && incoming.length === 0 && <p className="location-share-empty">{t('noIncoming')}</p>}
-                {incoming.map((share) => (
-                  <div key={share.id} className="location-share-row incoming-row">
+            {outgoing.length > 0 && (
+              <div className="location-share-section">
+                <div className="location-share-section-title">{t('outgoingTitle')}</div>
+                {outgoing.map((share) => (
+                  <div key={share.id} className="location-share-row">
                     <div>
-                      <strong>{t('sharedFrom', { name: share?.sender?.displayName || '' })}</strong>
-                      <small>{share?.location?.floor === -1 ? t('floorMinusOne') : t('floorGround')}</small>
+                      <strong>{share?.recipient?.displayName || share?.recipient?.mobileMasked || ''}</strong>
                       <small>{t('expiresAt', { time: formatTime(share.expiresAt) })}</small>
                     </div>
-                    <button type="button" className="location-share-route-button" onClick={() => navigateToShare(share)}>{t('routeTo')}</button>
+                    <button type="button" className="location-share-text-button" onClick={() => stopShare(share.id)}>{t('stop')}</button>
                   </div>
                 ))}
               </div>
             )}
-          </section>
-        </div>
-      )}
-    </>
+          </>
+        ) : (
+          <div className="location-share-section incoming">
+            <button type="button" className="location-share-mode-switch" onClick={openShare}>
+              {t('shareMyLocation')}
+            </button>
+            {isLoadingShares && incoming.length === 0 && <p>{t('loading')}</p>}
+            {!isLoadingShares && incoming.length === 0 && <p className="location-share-empty">{t('noIncoming')}</p>}
+            {incoming.map((share) => (
+              <div key={share.id} className="location-share-row incoming-row">
+                <div>
+                  <strong>{t('sharedFrom', { name: share?.sender?.displayName || '' })}</strong>
+                  <small>{share?.location?.floor === -1 ? t('floorMinusOne') : t('floorGround')}</small>
+                  <small>{t('expiresAt', { time: formatTime(share.expiresAt) })}</small>
+                </div>
+                <button type="button" className="location-share-route-button" onClick={() => navigateToShare(share)}>{t('routeTo')}</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
   );
 };
 
