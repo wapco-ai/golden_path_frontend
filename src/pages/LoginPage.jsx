@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import apiUser from '../api/apiUser';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
 import mapApiError from '../services/apiErrorMapper';
+import { resolvePostLoginDestination } from '../utils/authNavigation';
 import logo from '../assets/images/logo.png';
 import '../styles/Login.css';
 
@@ -139,11 +140,11 @@ const LoginPage = () => {
             : user?.profileCompleted;
 
         setShowCodeError(false);
-        if (profileCompleted === false) {
-          navigate('/pinfo');
-        } else {
-          navigate('/profile');
-        }
+        const destination = resolvePostLoginDestination({
+          profileCompleted,
+          storage: localStorage
+        });
+        navigate(destination, { replace: true });
       } catch (err) {
         setShowCodeError(true);
         const mapped = mapApiError(err);
