@@ -1,6 +1,7 @@
 import appConfig from '../config/appConfig';
 import { USER_ACCESS_TOKEN_KEY, useUserAuthStore } from '../auth/user/userAuthStore';
 import { convertLngLatToUtm32640 } from '../utils/utm';
+import { getSessionFloor } from '../utils/sessionFloor';
 
 const resolveAuthToken = () => {
   const storeToken = useUserAuthStore.getState().accessToken;
@@ -44,6 +45,22 @@ const normalizeCoordinates = ({ x, y, coordinates }) => {
   throw new Error('مختصات مقصد برای ذخیره معتبر نیست');
 };
 
+const normalizeFloor = (floor) => {
+  const parsed = Number(floor);
+  if (Number.isFinite(parsed)) return parsed;
+  return Number(getSessionFloor());
+};
+
+const parseResponse = async (response, fallbackMessage) => {
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data?.message || fallbackMessage);
+  }
+
+  return data;
+};
+
 export const createDestination = async ({
   title,
   description,
@@ -63,7 +80,7 @@ export const createDestination = async ({
   }
 
   const { x: resolvedX, y: resolvedY } = normalizeCoordinates({ x, y, coordinates });
-  const resolvedFloor = Number.isFinite(floor) ? Number(floor) : null;
+  const resolvedFloor = normalizeFloor(floor);
   const resolvedTags = Array.isArray(tags) ? tags.filter(Boolean) : [];
 
   const payload = {
@@ -93,16 +110,9 @@ export const createDestination = async ({
     body: JSON.stringify(payload)
   });
 
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(data?.message || 'Failed to save destination');
-  }
-
+  const data = await parseResponse(response, 'Failed to save destination');
   return data?.destination || data;
 };
-
-export default createDestination;
 
 export const listDestinations = async ({
   page = 1,
@@ -128,14 +138,64 @@ export const listDestinations = async ({
     signal
   });
 
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(data?.message || 'Failed to load destinations');
-  }
+  const data = await parseResponse(response, 'Failed to load destinations');
 
   return {
     items: data?.items || [],
     pagination: data?.pagination || null
   };
 };
+
+export const updateDestination = async (destinationId, {
+  title,
+  description,
+  tags,
+  address,
+  metadata
+} = {}) => {
+  if (destinationId == null) {
+    throw new Error('شناسه مقصد معتبر نیست');
+  }
+
+  const payload = {};
+
+  if (typeof title === 'string') {
+    const resolvedTitle = title.trim();
+    if (!resolvedTitle) {
+      throw new Error('عنوان مقصد الزامی است');
+    }
+    payload.title = resolvedTitle;
+  }
+
+  if (typeof description === 'string') payload.description = description.trim();
+  if (Array.isArray(tags)) payload.tags = tags.filter(Boolean);
+  if (typeof address === 'string') payload.address = address;
+  if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) payload.metadata = metadata;
+
+  const response = await fetch(`${appConfig.destinationsUrl}/${destinationId}`, {
+    method: 'PUT',
+    headers: {
+      ...buildAuthHeaders(),
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await parseResponse(response, 'Failed to update destination');
+  return data?.destination || data;
+};
+
+export const deleteDestination = async (destinationId) => {
+  if (destinationId == null) {
+    throw new Error('شناسه مقصد معتبر نیست');
+  }
+
+  const response = await fetch(`${appConfig.destinationsUrl}/${destinationId}`, {
+    method: 'DELETE',
+    headers: buildAuthHeaders()
+  });
+
+  return parseResponse(response, 'Failed to delete destination');
+};
+
+export default createDestination;
