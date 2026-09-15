@@ -21,7 +21,8 @@ const buildCoordinatePayload = (point, fallbackFloor = null) => {
     type: 'coordinate',
     lat: Number(lat),
     lon: Number(lon),
-    ...(floor !== null ? { floor } : {})
+    ...(floor !== null ? { floor } : {}),
+    ...(point?.name ? { name: String(point.name) } : {})
   };
 };
 
@@ -197,7 +198,6 @@ const toGeoLine = (steps = []) => {
     : null;
 };
 
-
 const normalizeGeoFeature = (route = {}) => {
   const rawGeo =
     route.geo ||
@@ -242,7 +242,6 @@ const normalizeGeoFeature = (route = {}) => {
   return null;
 };
 
-
 const mapRoute = (route = {}, originName = '', destinationName = '') => {
   const sahns = route.sahns || route.viaPoints || [];
   const steps = mapSteps(route.steps || []);
@@ -255,7 +254,7 @@ const mapRoute = (route = {}, originName = '', destinationName = '') => {
         : null;
   const durationSeconds =
     typeof route.estimatedMinutes === 'number'
-    ? route.estimatedMinutes * 60
+      ? route.estimatedMinutes * 60
       : typeof route.duration_s === 'number'
         ? route.duration_s
         : null;
@@ -272,15 +271,37 @@ const mapRoute = (route = {}, originName = '', destinationName = '') => {
   };
 };
 
+export const normalizeRouteSnapshot = (data = {}, origin = null, destination = null, fallbackMode = 'walk', fallbackGender = 'both') => {
+  const mainRoute = mapRoute(data, origin?.name || '', destination?.name || '');
+  const alternatives = Array.isArray(data.alternatives)
+    ? data.alternatives.map(alt => mapRoute(alt, origin?.name || '', destination?.name || ''))
+    : [];
+
+  return {
+    ...mainRoute,
+    mode: data.mode || fallbackMode,
+    gender: data.gender || fallbackGender,
+    alternatives
+  };
+};
+
 export const requestRouting = async ({ origin, destination, mode, gender, lang, maxAlternatives, floor, signal }) => {
   beginRoutingRequest();
 
   try {
     const body = buildRequestBody({ origin, destination, mode, gender, lang, maxAlternatives, floor });
+    const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+    const accessToken = typeof sessionStorage !== 'undefined'
+      ? sessionStorage.getItem('gp_user_access_token')
+      : null;
+
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+    }
 
     const response = await fetch(appConfig.routingRouteUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers,
       body: JSON.stringify(body),
       signal
     });
@@ -293,17 +314,7 @@ export const requestRouting = async ({ origin, destination, mode, gender, lang, 
     }
 
     const data = await response.json();
-    const mainRoute = mapRoute(data, origin?.name || '', destination?.name || '');
-    const alternatives = Array.isArray(data.alternatives)
-      ? data.alternatives.map(alt => mapRoute(alt, origin?.name || '', destination?.name || ''))
-      : [];
-
-    return {
-      ...mainRoute,
-      mode: data.mode || body.mode,
-      gender: data.gender || body.gender,
-      alternatives
-    };
+    return normalizeRouteSnapshot(data, origin, destination, body.mode, body.gender);
   } finally {
     endRoutingRequest();
   }
