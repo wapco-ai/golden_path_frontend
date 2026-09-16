@@ -24,6 +24,7 @@ import Faq from './pages/Faq';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import RouteRequestLoader from './components/common/RouteRequestLoader';
+import LocationShareOverlay from './components/common/LocationShareOverlay';
 import { ToastContainer, toast } from 'react-toastify';
 import adminRoutes from './routes/adminRoutes';
 import { recordPathInHistory } from './utils/navigationHistory';
@@ -54,6 +55,7 @@ const AppContent = () => {
 
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstall, setShowInstall] = useState(false);
+  const [finalSearchRevision, setFinalSearchRevision] = useState(0);
 
   const isRunningAsInstalledApp = () =>
     window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
@@ -64,6 +66,17 @@ const AppContent = () => {
 
   useEffect(() => {
     recordPathInHistory(location.pathname);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const handleDestinationUpdate = () => {
+      if (location.pathname === '/fs') {
+        setFinalSearchRevision((value) => value + 1);
+      }
+    };
+
+    window.addEventListener('goldenpath:destination-updated', handleDestinationUpdate);
+    return () => window.removeEventListener('goldenpath:destination-updated', handleDestinationUpdate);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -135,7 +148,7 @@ const AppContent = () => {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/profile" element={<Profile />} />
-          <Route path="/fs" element={<FinalSearch />} />
+          <Route path="/fs" element={<FinalSearch key={`shared-destination-${finalSearchRevision}`} />} />
           <Route path="/rop" element={<RouteOverview />} />
           <Route path="/" element={<LangPage />} />
           <Route path="/mpr" element={<MapRouting/>} />
@@ -183,6 +196,7 @@ function App() {
         toastClassName="custom-toast"
       />
       <RouteRequestLoader />
+      <LocationShareOverlay />
       <AppContent />
     </Router>
   );

@@ -1,3 +1,5 @@
+import { routeCoordinates as getRouteCoordinates, routeOnFloor, isMultifloor, multifloorSteps } from '../utils/multifloorRoute';
+import { getSessionFloor, setSessionFloor } from '../utils/sessionFloor';
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
@@ -101,8 +103,8 @@ const RouteOverview = () => {
     return diff > 0 ? 'bend-left' : 'bend-right';
   };
 
-  const formatSegmentTime = useCallback((distanceInMeters) => {
-    const totalMinutes = distanceInMeters / 60;
+  const formatSegmentTime = useCallback((distanceInMeters, durationSeconds = distanceInMeters) => {
+    const totalMinutes = durationSeconds / 60;
 
     if (totalMinutes < 1) {
       return `${formatDigits(Math.max(1, Math.round(totalMinutes * 60)))} ${intl.formatMessage({ id: 'secondsUnit' })}`;
@@ -145,7 +147,7 @@ const RouteOverview = () => {
     setRouteSteps,
     setAlternativeRoutes
   } = useRouteStore();
-  const routeCoordinates = routeGeo?.geometry?.coordinates ?? EMPTY_ROUTE_COORDINATES;
+  const routeCoordinates = useMemo(() => getRouteCoordinates(routeGeo), [routeGeo]);
   const originMarkerCoord = useMemo(() => {
     const coords = origin?.coordinates;
 
@@ -158,7 +160,7 @@ const RouteOverview = () => {
       }
     }
 
-    const fallback = routeGeo?.geometry?.coordinates?.[0];
+    const fallback = getRouteCoordinates(routeGeo)?.[0];
 
     if (Array.isArray(fallback) && fallback.length >= 2) {
       const lng = Number(fallback[0]);
@@ -420,7 +422,7 @@ const RouteOverview = () => {
     }
 
     const hasRouteData =
-      (routeGeo?.geometry?.coordinates?.length || 0) > 0 ||
+      (getRouteCoordinates(routeGeo)?.length || 0) > 0 ||
       (routeSteps?.length || 0) > 0;
 
     if (hasRouteData) {
@@ -497,6 +499,7 @@ const RouteOverview = () => {
       } catch (err) {
         if (err?.name !== 'AbortError') {
           console.error('failed to fetch route overview from routing service', err);
+          if (err.status) { persistRouteData(null, [], []); return; }
         }
       }
 
@@ -688,6 +691,8 @@ const RouteOverview = () => {
     });
   };
   const routeData = useMemo(() => {
+    const multi = multifloorSteps(routeGeo, routeSteps, (s, i) => intl.formatMessage({ id: s.type }, { name: s.name, title: s.title, num: i + 1 }));
+    if (multi) return multi.map(s => ({ ...s, distance: s.distanceMeters, stepType: s.type, stepTitle: s.title, stepName: s.name, doorNames: s.type === 'stepPassDoor' ? [s.name] : [] }));
     if (!routeCoordinates || routeCoordinates.length < 2) return [];
 
     const computeDistance = (coords = []) => getLineDistanceMeters(coords);
@@ -877,7 +882,7 @@ const RouteOverview = () => {
     }
 
     return mappedSegments;
-  }, [routeCoordinates, routeSteps, intl]);
+  }, [routeCoordinates, routeGeo, routeSteps, intl]);
 
   const [viewState, setViewState] = useState({
     latitude: routeCoordinates[0]?.[1] || 0,
@@ -895,6 +900,7 @@ const RouteOverview = () => {
   }, [routeGeo]);
 
   const highlightGeo = useMemo(() => {
+    if (routeData[currentSlide]?.type === 'stepChangeFloor') return null;
     const seg = routeData[currentSlide]?.coordinates;
     return seg ? { type: 'Feature', geometry: { type: 'LineString', coordinates: seg } } : null;
   }, [currentSlide, routeData]);
@@ -903,6 +909,9 @@ const RouteOverview = () => {
     if (routeData[currentSlide]) {
       const segObj = routeData[currentSlide];
       const coords = segObj.coordinates;
+      const d = segObj.distance;
+      setDistance(`${formatDigits(Math.round(d))} ${intl.formatMessage({ id: 'meters' })}`);
+      setTime(formatSegmentTime(d, isMultifloor(routeGeo) ? segObj.durationSeconds : undefined));
 
       if (
         !Array.isArray(coords) ||
@@ -915,12 +924,6 @@ const RouteOverview = () => {
 
       const [lng1, lat1] = coords[0];
       const [lng2, lat2] = coords[coords.length - 1];
-      const d = segObj.distance;
-      setDistance(
-        `${formatDigits(Math.round(d))} ${intl.formatMessage({ id: 'meters' })}`
-      );
-      setTime(formatSegmentTime(d));
-
       if (currentSlide === routeData.length - 1) {
         setDirectionArrow('arrived');
       } else {
@@ -1016,10 +1019,9 @@ const RouteOverview = () => {
     }
   }, [routeCoordinates]);
 
-  const allGeo = {
-    type: 'Feature',
-    geometry: { type: 'LineString', coordinates: routeCoordinates }
-  };
+  const activeRouteFloor = routeData[currentSlide]?.floor ?? origin?.floor ?? getSessionFloor();
+  useEffect(() => { setSessionFloor(activeRouteFloor); }, [activeRouteFloor]);
+  const allGeo = routeOnFloor(routeGeo, activeRouteFloor);
 
   const nextSlide = () => {
     if (currentSlide < routeData.length - 1) {

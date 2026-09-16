@@ -1,3 +1,4 @@
+import { getSessionFloor } from '../utils/sessionFloor.js';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -11,8 +12,8 @@ export const useRouteStore = create(
       transportMode: 'walking',
       gender: 'male',
       alternativeRoutes: [],
-      setOrigin: (origin) => set({ origin }),
-      setDestination: (destination) => set({ destination }),
+      setOrigin: (origin) => set({ origin: origin ? { ...origin, floor: origin.floor ?? getSessionFloor() } : null }),
+      setDestination: (destination) => set({ destination: destination ? { ...destination, floor: destination.floor ?? getSessionFloor() } : null }),
       setRouteGeo: (routeGeo) => set({ routeGeo }),
       setRouteSteps: (routeSteps) => set({ routeSteps }),
       setTransportMode: (transportMode) => set({ transportMode }),

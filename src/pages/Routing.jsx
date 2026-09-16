@@ -1,3 +1,4 @@
+import { routeCoordinates as getRouteCoordinates, isMultifloor, multifloorSteps, activeRouteCoordinates } from '../utils/multifloorRoute';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
@@ -17,7 +18,7 @@ import { requestRouting } from '../services/routingService';
 import useGuidanceImage from '../hooks/useGuidanceImage.js';
 import { getLiveNavigationGeo, getNavigationProgress, nextDemoStep, resolveNavigationFrame } from '../utils/rngNavigation.js';
 import { rngMessages } from '../utils/rngMessages.js';
-import { getSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
+import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
 import {
   buildRouteMSegments,
   getLineDistanceMeters,
@@ -223,7 +224,7 @@ const RoutingPage = () => {
   const PRECISE_GPS_ACCURACY_THRESHOLD = 25;
 
   const getRouteStartLocation = useCallback((geo = routeGeo) => {
-    const startCoord = geo?.geometry?.coordinates?.[0];
+    const startCoord = getRouteCoordinates(geo)?.[0];
     if (!Array.isArray(startCoord) || startCoord.length < 2) {
       return null;
     }
@@ -401,8 +402,8 @@ const RoutingPage = () => {
 
   const buildRouteWithFallback = useCallback(async (orig, dest, controller) => {
     const key = JSON.stringify([
-      orig?.coordinates,
-      dest?.coordinates,
+      orig?.coordinates, orig?.floor ?? getSessionFloor(),
+      dest?.coordinates, dest?.floor ?? getSessionFloor(),
       transportMode,
       gender,
       language
@@ -429,7 +430,8 @@ const RoutingPage = () => {
         }
       } catch (err) {
         if (err?.name !== 'AbortError') {
-          console.warn('routing service failed, falling back to local analysis', err);
+          console.warn('routing service failed', err);
+          if (err.status || Number(orig?.floor ?? getSessionFloor()) !== Number(dest?.floor ?? getSessionFloor())) { persistRouteData(null, [], []); toast.error(intl.formatMessage({ id: 'noRouteFound' })); return false; }
         }
       }
 
@@ -656,7 +658,7 @@ const RoutingPage = () => {
     }
 
     if (!minutes || !dist) {
-      const coords = routeGeo.geometry.coordinates || [];
+      const coords = getRouteCoordinates(routeGeo) || [];
       if (coords.length === 0) return;
       dist = coords.slice(1).reduce((acc, c, i) => {
         const prev = coords[i];
@@ -899,11 +901,14 @@ const RoutingPage = () => {
   const navigationFrame = useMemo(() => resolveNavigationFrame({
     step: routeData?.steps?.[currentStep],
     stepIndex: currentStep,
-    routeCoordinates: routeGeo?.geometry?.coordinates || [],
+    routeCoordinates: activeRouteCoordinates(routeGeo, routeData?.steps?.[currentStep]),
     isRoutingActive, isDemoMode, hasArrived, isDrActive,
     drPosition, userLocation, userHeading, sessionFloor
   }), [routeData?.steps, currentStep, routeGeo, isRoutingActive, isDemoMode,
     hasArrived, isDrActive, drPosition, userLocation, userHeading, sessionFloor]);
+  useEffect(() => {
+    if (isMultifloor(routeGeo) && (!isRoutingActive || isDemoMode)) setSessionFloor(navigationFrame.floor);
+  }, [routeGeo, navigationFrame.floor, isRoutingActive, isDemoMode]);
   const effectiveHeading = navigationFrame.heading;
   const navigationLocation = useMemo(() => navigationFrame.geo
     ? [navigationFrame.geo.lat, navigationFrame.geo.lng] : userLocation,
@@ -920,7 +925,7 @@ const RoutingPage = () => {
   const isLiveImageLoading = guidanceImage.loading;
 
   useEffect(() => {
-    const coords = routeGeo?.geometry?.coordinates;
+    const coords = getRouteCoordinates(routeGeo);
     if (!Array.isArray(coords) || coords.length === 0) {
       return;
     }
@@ -958,7 +963,18 @@ const RoutingPage = () => {
   // Build route data from stored steps
   useEffect(() => {
     if (!routeSteps || routeSteps.length === 0 || !routeGeo) return;
-    const coords = routeGeo.geometry.coordinates;
+    const multi = multifloorSteps(routeGeo, routeSteps, (step, idx) => intl.formatMessage({ id: step.type }, { name: step.name, title: step.title, num: idx + 1 }));
+    if (multi) {
+      const decorate = steps => steps.map(s => ({ ...s, distance: `${Math.round(s.distanceMeters)} ${intl.formatMessage({ id: 'meters' })}`, time: formatDurationFromSeconds(s.durationSeconds) }));
+      const minutes = routeGeo.properties.durationSeconds / 60;
+      setRouteData({ steps: decorate(multi), instructionSteps: multi, mode: transportMode,
+        totalTime: formatTotalTime(minutes), arrivalTime: calculateArrivalTime(minutes),
+        totalDistance: `${Math.round(routeGeo.properties.distanceMeters)} ${intl.formatMessage({ id: 'meters' })}`,
+        alternativeRoutes: alternativeRoutes.map((alt, i) => ({ ...alt, id: i + 1, steps: decorate(multifloorSteps(alt.geo, alt.steps) || []),
+          totalTime: formatTotalTime(alt.durationSeconds / 60), totalDistance: `${Math.round(alt.distanceMeters)} ${intl.formatMessage({ id: 'meters' })}` })) });
+      return;
+    }
+    const coords = getRouteCoordinates(routeGeo);
     const toLngLat = (coord) => {
       if (!Array.isArray(coord) || coord.length < 2) return null;
 
@@ -1068,7 +1084,7 @@ const RoutingPage = () => {
     const arrivalTime = calculateArrivalTime(totalMinutes);
 
     const alternativesData = (alternativeRoutes || []).map((alt, ridx) => {
-      const altCoords = alt.geo.geometry.coordinates;
+      const altCoords = getRouteCoordinates(alt.geo);
       const altSteps = alt.steps.map((st, i) => {
         let dist = 0;
         const stepCoords = Array.isArray(st.coordinates?.[0]) ? st.coordinates : altCoords.slice(i, i + 2);
@@ -1235,7 +1251,7 @@ const RoutingPage = () => {
     if (!isRoutingActive || isDemoMode) return;
     const geo = getLiveNavigationGeo({ isDrActive, drPosition, userLocation });
     const progress = getNavigationProgress(
-      geo, routeData?.steps, currentStep, routeGeo?.geometry?.coordinates || []
+      geo, routeData?.steps, currentStep, activeRouteCoordinates(routeGeo, routeData?.steps?.[currentStep])
     );
     if (progress.nextStep !== currentStep) setCurrentStep(progress.nextStep);
     if (progress.arrived) {
@@ -1390,6 +1406,12 @@ const RoutingPage = () => {
 
   const handleDirectionIconClick = (event) => {
     event.stopPropagation();
+    const active = routeData?.steps?.[currentStep];
+    if (active?.type === 'stepChangeFloor' && isRoutingActive && !isDemoMode) {
+      setSessionFloor(active.toFloor);
+      setCurrentStep(previous => Math.min(previous + 1, routeData.steps.length - 1));
+      return;
+    }
     const count = routeData?.steps?.length || 0;
     if (!count || !routeGeo) return;
     advancedDeadReckoningService.stop();
@@ -1866,6 +1888,7 @@ const RoutingPage = () => {
             destination={destination}
             is3DView={is3DView}
             routeGeo={routeGeo}
+            routeFloor={navigationFrame.floor}
             alternativeRoutes={routeData.alternativeRoutes}
             onSelectAlternativeRoute={handleSelectAlternativeRoute}
             showAlternativeRoutes={showAlternativeRoutesOnMap}
@@ -2000,7 +2023,7 @@ const RoutingPage = () => {
                           role="button"
                           tabIndex={!routeGeo || !routeData.steps.length ? -1 : 0}
                           aria-disabled={!routeGeo || !routeData.steps.length}
-                          aria-label={rngText.next}
+                          aria-label={routeData.steps[currentStep]?.type === 'stepChangeFloor' && isRoutingActive && !isDemoMode ? ({ fa: 'تأیید رسیدن به طبقه مقصد', en: 'Confirm arrival on destination floor', ar: 'تأكيد الوصول إلى طابق الوجهة', ur: 'منزل پر پہنچنے کی تصدیق' })[language] : rngText.next}
                           onClick={handleDirectionIconClick}
                           onPointerDown={(event) => event.stopPropagation()}
                           onKeyDown={(event) => {
@@ -2014,6 +2037,8 @@ const RoutingPage = () => {
                         </span>
                         <span className="instruction-text">
                           {routeData.steps[currentStep].instruction}
+                          {routeData.steps[currentStep].type === 'stepChangeFloor' && isRoutingActive && !isDemoMode
+                            ? ({ fa: ' پس از رسیدن، فلش را لمس کنید.', en: ' Tap the arrow after arriving.', ar: ' اضغط السهم بعد الوصول.', ur: ' پہنچنے کے بعد تیر دبائیں۔' })[language] : ''}
                         </span>
                         <span className="step-time">
                           ({routeData.steps[currentStep].time})

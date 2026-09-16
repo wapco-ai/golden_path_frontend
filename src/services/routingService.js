@@ -1,3 +1,4 @@
+import { getSessionFloor } from '../utils/sessionFloor.js';
 import appConfig from '../config/appConfig.js';
 import {
   beginRoutingRequest,
@@ -20,12 +21,13 @@ const buildCoordinatePayload = (point, fallbackFloor = null) => {
     type: 'coordinate',
     lat: Number(lat),
     lon: Number(lon),
-    ...(floor !== null ? { floor } : {})
+    ...(floor !== null ? { floor } : {}),
+    ...(point?.name ? { name: String(point.name) } : {})
   };
 };
 
 const buildRequestBody = ({ origin, destination, mode, gender, lang, maxAlternatives, floor }) => {
-  const normalizedFloor = normalizeFloor(floor);
+  const normalizedFloor = normalizeFloor(floor ?? getSessionFloor());
   const originPayload = buildCoordinatePayload(origin, normalizedFloor);
   const destinationPayload = buildCoordinatePayload(destination, normalizedFloor);
 
@@ -117,7 +119,7 @@ const mapSteps = (steps = []) => {
     .map((step, idx, validSteps) => {
       const nextStep = validSteps[idx + 1];
       const start = [Number(step.coord.lat), Number(step.coord.lon)];
-      const end =
+      const end = step.endCoord ? [Number(step.endCoord.lat), Number(step.endCoord.lon)] :
         nextStep?.coord?.lat != null && nextStep?.coord?.lon != null
           ? [Number(nextStep.coord.lat), Number(nextStep.coord.lon)]
           : start;
@@ -152,6 +154,7 @@ const mapSteps = (steps = []) => {
         || null;
 
       return {
+        ...step,
         id: idx + 1,
         type,
         title,
@@ -194,7 +197,6 @@ const toGeoLine = (steps = []) => {
     ? { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } }
     : null;
 };
-
 
 const normalizeGeoFeature = (route = {}) => {
   const rawGeo =
@@ -240,11 +242,10 @@ const normalizeGeoFeature = (route = {}) => {
   return null;
 };
 
-
 const mapRoute = (route = {}, originName = '', destinationName = '') => {
   const sahns = route.sahns || route.viaPoints || [];
   const steps = mapSteps(route.steps || []);
-  const geo = normalizeGeoFeature(route) || toGeoLine(steps);
+  const geo = normalizeGeoFeature(route) || (route.multifloor ? null : toGeoLine(steps));
   const distanceMeters =
     typeof route.distanceMeters === 'number'
       ? route.distanceMeters
@@ -253,7 +254,7 @@ const mapRoute = (route = {}, originName = '', destinationName = '') => {
         : null;
   const durationSeconds =
     typeof route.estimatedMinutes === 'number'
-    ? route.estimatedMinutes * 60
+      ? route.estimatedMinutes * 60
       : typeof route.duration_s === 'number'
         ? route.duration_s
         : null;
@@ -270,36 +271,50 @@ const mapRoute = (route = {}, originName = '', destinationName = '') => {
   };
 };
 
+export const normalizeRouteSnapshot = (data = {}, origin = null, destination = null, fallbackMode = 'walk', fallbackGender = 'both') => {
+  const mainRoute = mapRoute(data, origin?.name || '', destination?.name || '');
+  const alternatives = Array.isArray(data.alternatives)
+    ? data.alternatives.map(alt => mapRoute(alt, origin?.name || '', destination?.name || ''))
+    : [];
+
+  return {
+    ...mainRoute,
+    mode: data.mode || fallbackMode,
+    gender: data.gender || fallbackGender,
+    alternatives
+  };
+};
+
 export const requestRouting = async ({ origin, destination, mode, gender, lang, maxAlternatives, floor, signal }) => {
   beginRoutingRequest();
 
   try {
     const body = buildRequestBody({ origin, destination, mode, gender, lang, maxAlternatives, floor });
+    const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+    const accessToken = typeof sessionStorage !== 'undefined'
+      ? sessionStorage.getItem('gp_user_access_token')
+      : null;
+
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+    }
 
     const response = await fetch(appConfig.routingRouteUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers,
       body: JSON.stringify(body),
       signal
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Routing request failed: ${response.status} ${errorText}`);
+      const error = new Error(`Routing request failed: ${response.status} ${errorText}`);
+      error.status = response.status;
+      throw error;
     }
 
     const data = await response.json();
-    const mainRoute = mapRoute(data, origin?.name || '', destination?.name || '');
-    const alternatives = Array.isArray(data.alternatives)
-      ? data.alternatives.map(alt => mapRoute(alt, origin?.name || '', destination?.name || ''))
-      : [];
-
-    return {
-      ...mainRoute,
-      mode: data.mode || body.mode,
-      gender: data.gender || body.gender,
-      alternatives
-    };
+    return normalizeRouteSnapshot(data, origin, destination, body.mode, body.gender);
   } finally {
     endRoutingRequest();
   }

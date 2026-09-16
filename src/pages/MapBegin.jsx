@@ -1,3 +1,4 @@
+import { getSessionFloor } from '../utils/sessionFloor';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { useIntl } from 'react-intl';
@@ -585,6 +586,7 @@ const MapBeginPage = () => {
 
     const locName = feature?.properties?.name || intl.formatMessage({ id: 'mapSelectedLocation' });
     const origin = {
+      floor: feature?.properties?.floor ?? getSessionFloor(),
       name: locName,
       coordinates: [latlng.lat, latlng.lng]
     };
@@ -604,11 +606,13 @@ const MapBeginPage = () => {
     if (!isQrEntry) {
       setOriginStore({
         name: origin.name,
+        floor: origin.floor ?? getSessionFloor(),
         coordinates: origin.coordinates
       });
     } else if (userLocation) {
       setOriginStore({
         name: userLocation.name,
+        floor: userLocation.floor ?? getSessionFloor(),
         coordinates: userLocation.coordinates
       });
     }

@@ -583,6 +583,7 @@ const MapRoutingPage = () => {
         id: place.id || place.value || place.subGroupValue,
         name: place.title || place.name || place.subGroup || '',
         location: localizedLocation,
+        floor: place.floor ?? place.properties?.floor ?? getSessionFloor(),
         coordinates: coords ? [coords.lat, coords.lng] : null,
         address: place.address,
         description: place.description || place?.content?.body || ''
@@ -602,10 +603,12 @@ const MapRoutingPage = () => {
 
       setOriginStore({
         name: userLocation.name,
+        floor: userLocation.floor ?? getSessionFloor(),
         coordinates: userLocation.coordinates
       });
       setDestinationStore({
         name: selectedDestination.name,
+        floor: selectedDestination.floor ?? getSessionFloor(),
         coordinates: selectedDestination.coordinates
       });
       navigate('/fs', { replace: Boolean(location.state?.fromFinalSearch) });
@@ -684,6 +687,7 @@ const MapRoutingPage = () => {
     );
     const destination = {
       id: subgroup.value,
+      floor: subgroup.floor ?? getSessionFloor(),
       name: subgroup.label,
       location: modalSelectedCategory ?
         intl.formatMessage({ id: modalSelectedCategory.label }) :
@@ -699,7 +703,7 @@ const MapRoutingPage = () => {
     if (isOriginSelection) {
       // For origin: Set directly without entry modal
       setIsTracking(false);
-      setUserLocation({ name: destination.name, coordinates: destination.coordinates });
+      setUserLocation({ name: destination.name, floor: destination.floor ?? getSessionFloor(), coordinates: destination.coordinates });
       setShowOriginModal(false);
       setSearchQuery('');
     } else {
@@ -738,20 +742,20 @@ const MapRoutingPage = () => {
 
       const [lat, lon] = destination?.coordinates || [];
       if (typeof lat === 'number' && typeof lon === 'number') {
-        requestAreaDoors(lat, lon);
+        requestAreaDoors(lat, lon, destination.floor ?? getSessionFloor());
       }
       if (!destination.fromMapSelection && !fromMapSelection) {
         addSearch(destination);
       }
     } else {
       setIsTracking(false);
-      setUserLocation({ name: destination.name, coordinates: destination.coordinates });
+      setUserLocation({ name: destination.name, floor: destination.floor ?? getSessionFloor(), coordinates: destination.coordinates });
       setShowOriginModal(false);
 
       if (location.state?.showOriginModal) {
         sessionStorage.setItem('updatedOrigin', JSON.stringify({
           name: destination.name,
-          coordinates: destination.coordinates
+          floor: destination.floor ?? getSessionFloor(), coordinates: destination.coordinates
         }));
         navigate('/fs', { replace: true });
       }
@@ -773,6 +777,7 @@ const MapRoutingPage = () => {
           setIsTracking(false);
           setUserLocation({
             name: locationData.name,
+            floor: locationData.floor ?? getSessionFloor(),
             coordinates: locationData.coordinates
           });
           sessionStorage.setItem('currentOrigin', JSON.stringify(locationData));
@@ -781,6 +786,7 @@ const MapRoutingPage = () => {
           setSelectedDestination({
             name: locationData.name,
             location: locationData.location || locationData.name,
+            floor: locationData.floor ?? getSessionFloor(),
             coordinates: locationData.coordinates
           });
           sessionStorage.setItem('currentDestination', JSON.stringify(locationData));
@@ -945,6 +951,7 @@ const MapRoutingPage = () => {
     );
     const destination = {
       id: subgroup.value,
+      floor: subgroup.floor ?? getSessionFloor(),
       name: subgroup.label,
       location: mapSelectedCategory ?
         intl.formatMessage({ id: mapSelectedCategory.label }) :
@@ -963,7 +970,7 @@ const MapRoutingPage = () => {
 
     if (coordinates && coordinates.length >= 2) {
       const [lat, lon] = coordinates;
-      requestAreaDoors(lat, lon);
+      requestAreaDoors(lat, lon, destination.floor ?? getSessionFloor());
     }
 
     handleClearCategorySelection();
@@ -991,6 +998,7 @@ const MapRoutingPage = () => {
       const destData = {
         name: userLocation.name,
         location: userLocation.location || userLocation.name,
+        floor: userLocation.floor ?? getSessionFloor(),
         coordinates: userLocation.coordinates
       };
 
@@ -1006,6 +1014,7 @@ const MapRoutingPage = () => {
     else if (!userLocation && selectedDestination) {
       const originData = {
         name: selectedDestination.name,
+        floor: selectedDestination.floor ?? getSessionFloor(),
         coordinates: selectedDestination.coordinates,
         location: selectedDestination.location || selectedDestination.name
       };
@@ -1022,12 +1031,14 @@ const MapRoutingPage = () => {
     else if (userLocation && selectedDestination) {
       const newOrigin = {
         name: selectedDestination.name,
+        floor: selectedDestination.floor ?? getSessionFloor(),
         coordinates: selectedDestination.coordinates,
         location: selectedDestination.location || selectedDestination.name
       };
 
       const newDestination = {
         name: userLocation.name,
+        floor: userLocation.floor ?? getSessionFloor(),
         coordinates: userLocation.coordinates,
         location: userLocation.location || userLocation.name
       };
@@ -1187,7 +1198,7 @@ const MapRoutingPage = () => {
     setShowOriginModal(false);
   };
 
-  const requestAreaDoors = useCallback(async (lat, lon) => {
+  const requestAreaDoors = useCallback(async (lat, lon, selectedFloor = getSessionFloor()) => {
     setAreaDoorsStatus('loading');
     setAreaDoorsMessage('');
     setMapEntryDoors([]);
@@ -1195,7 +1206,7 @@ const MapRoutingPage = () => {
     setLastAreaDoorsCoords([lat, lon]);
 
     try {
-      const floor = getSessionFloor();
+      const floor = selectedFloor;
       const response = await fetchAreaDoors({ lat, lon, floor, lang: language });
       const nextDoors = Array.isArray(response?.data?.doors) ? response.data.doors : [];
 
@@ -1381,6 +1392,7 @@ const MapRoutingPage = () => {
 
       // Create location object
       const locationData = {
+        floor: getSessionFloor(),
         name: locName,
         location: locName, // Use same name for location field
         coordinates: [latlng.lat, latlng.lng],

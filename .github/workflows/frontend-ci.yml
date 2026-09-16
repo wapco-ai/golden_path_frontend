@@ -27,3 +27,8 @@ jobs:
       - name: Verify tests do not corrupt installed dependencies
         run: node --input-type=module -e "import { createJSONStorage } from 'zustand/middleware'; if (typeof createJSONStorage !== 'function') process.exit(1);"
       - run: npm run build
+
+      - name: Install browser for form integration tests
+        run: npx playwright install --with-deps chromium
+      - name: Admin connector forms in desktop and mobile browser
+        run: npm run test:browser

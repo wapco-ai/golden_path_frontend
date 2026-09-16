@@ -1,41 +1,16 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
+import { useRouteHistoryActions } from '../hooks/useRouteHistoryActions';
 import '../styles/Proutes.css';
 
 function Proutes() {
   const navigate = useNavigate();
   const intl = useIntl();
-
-  // State for routes data - initially empty to show "no routes" message
-  const [routes, setRoutes] = useState([]);
-
-  // Sample data for demonstration - remove this to show empty state
-  const sampleRoutes = [
-    {
-      id: 1,
-      date: 'یکشنبه 17 فروردین 1۴۰۴',
-      time: '۱۳:۱۶',
-      type: 'walking',
-      distance: '۷۰۰ ',
-      origin: 'میدان باب الحوائج علیه السلام',
-      destination: 'صحن انقلاب اسلامی',
-      mapData: null // Placeholder for future map integration
-    },
-    {
-      id: 2,
-      date: 'شنبه 16 فروردین 1۴۰۴',
-      time: '۲۳:۲۴',
-      type: 'walking',
-      distance: '۸۰۰',
-      origin: 'میدان باب الحوائج علیه السلام',
-      destination: 'صحن آزادی',
-      mapData: null
-    }
-  ];
-
-  // Use sample data for demonstration - set to empty array to show "no routes" state
-  const displayRoutes = sampleRoutes; // Change to [] to show empty state
+  const { displayRoutes, repeatRoute, showPreviousRoute } = useRouteHistoryActions({
+    navigate,
+    locale: intl.locale
+  });
 
   return (
     <div className="proute-container">
@@ -98,7 +73,7 @@ function Proutes() {
                         <FormattedMessage id="routemode" />
                       </span>
                       <span className="metric-text">
-                        <FormattedMessage id="transportWalk" />
+                        <FormattedMessage id={route.transportMessageId || 'transportWalk'} />
                       </span>
                     </div>
                     <div className="metric-item">
@@ -123,7 +98,7 @@ function Proutes() {
                         </svg>
                       </span>
                       <span><FormattedMessage id="origin" /> :</span>
-                      <span className="location-text8">{route.origin}</span>
+                      <span className="location-text8">{route.originLabel}</span>
                     </div>
                     <div className="location-item2">
                       <span className="location-icon9">
@@ -153,15 +128,15 @@ function Proutes() {
                         </svg>
                       </span>
                       <span ><FormattedMessage id="destination" /> :</span>
-                      <span className="location-text8">{route.destination}</span>
+                      <span className="location-text8">{route.destinationLabel}</span>
                     </div>
                   </div>
                   <div className="btn-container3">
-                    <button className="repeat-route-btn">
+                    <button className="repeat-route-btn" onClick={() => repeatRoute(route)}>
 
                       <FormattedMessage id="repeatRoute" />
                     </button>
-                    <button className="repeat-prev-btn">
+                    <button className="repeat-prev-btn" onClick={() => showPreviousRoute(route)}>
 
                       <FormattedMessage id="showPrevRoute" />
                     </button>

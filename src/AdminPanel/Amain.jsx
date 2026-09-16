@@ -1,3 +1,4 @@
+import { routeOnFloor, isMultifloor, routeCoordinates } from '../utils/multifloorRoute';
 // src/pages/Amain.jsx
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
@@ -43,7 +44,7 @@ import {
   layerEditSettings
 } from '../config/vectorTiles';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
-import { bulkOpenCloseDoors, createDoor, deleteDoor, getDoorInfo, moveDoor, pollDoorGraphStatus, updateDoorInfo } from '../services/adminDoorsService';
+import { bulkOpenCloseDoors, deleteDoor, getDoorInfo, moveDoor, pollDoorGraphStatus, updateDoorInfo } from '../services/adminDoorsService';
 import { deleteArea, getAreaInfo, listAreas, moveArea, updateAreaInfo } from '../services/adminAreasService';
 import { convertLngLatToUtm32640 } from '../utils/utm';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
@@ -67,6 +68,10 @@ import {
   fetchDashboardNotifications,
   fetchDashboardRecentUsers
 } from '../services/adminDashboardService';
+import ConnectorStops from './ConnectorStops';
+import useConnectorForm from './useConnectorForm';
+import { CONNECTOR_KINDS, connectorError, connectorPayload, floorLabel, floorValue } from '../utils/connectorForm';
+import { createDoorWithInfo, saveConnector } from '../services/adminConnectorsService';
 import { requestRouting } from '../services/routingService';
 
 function ensureRtlOnce() {
@@ -80,6 +85,8 @@ const ADD_PLACE_FUNCTION_OPTIONS = [
   { value: 'door', label: 'درب' },
   { value: 'connection', label: 'نقطه اتصال' },
   { value: 'elevator', label: 'آسانسور' },
+  { value: 'stair', label: 'پله' },
+  { value: 'ramp', label: 'رمپ' },
   { value: 'escalator', label: 'پله برقی' }
 ];
 
@@ -756,22 +763,8 @@ const rebuildGeometryFromVertices = (geometryType, vertices = []) => {
   return null;
 };
 
-const floorLabelToValue = (label) => {
-  switch (label) {
-    case 'منفی ۱':
-      return -1;
-    case 'همکف':
-    default:
-      return 0;
-  }
-};
-
-const floorValueToLabel = (value) => {
-  if (value === -1) {
-    return 'منفی ۱';
-  }
-  return 'همکف';
-};
+const floorLabelToValue = floorValue;
+const floorValueToLabel = floorLabel;
 
 const logDoorAccessPointDebugInfo = (mapInstance) => {
   if (!mapInstance) return;
@@ -1639,6 +1632,8 @@ const Amain = () => {
   const [placeCategory, setPlaceCategory] = useState('');
   const [placeSubcategory, setPlaceSubcategory] = useState('');
   const [placeFunction, setPlaceFunction] = useState('');
+  const connectorForm = useConnectorForm({ map, mapFloor, setMapFloor, setModalOpen: setIsAddPlaceModalOpen, fillInfo: fillDoorInfoForm });
+  const isVerticalConnector = isDoorAccessLayerActive && CONNECTOR_KINDS.includes(placeFunction);
   const [groupOptions, setGroupOptions] = useState([]);
   const [subGroupOptions, setSubGroupOptions] = useState([]);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
@@ -5544,6 +5539,7 @@ const Amain = () => {
 
 
   const resetForm = () => {
+    connectorForm.reset();
     setSelectedPlace(null);
     setPlaceName('');
     setPlaceAddress('');
@@ -5700,12 +5696,12 @@ const Amain = () => {
         origin: {
           name: 'مبدا',
           coordinates: [originPoint.lat, originPoint.lng],
-          floor: selectedFloor
+          floor: originPoint.floor ?? selectedFloor
         },
         destination: {
           name: 'مقصد',
           coordinates: [destinationPoint.lat, destinationPoint.lng],
-          floor: selectedFloor
+          floor: destinationPoint.floor ?? selectedFloor
         },
         floor: selectedFloor,
         mode: 'walk',
@@ -5715,7 +5711,7 @@ const Amain = () => {
         signal: abortController.signal
       });
 
-      const lineCoordinates = routingResult?.geo?.geometry?.coordinates;
+      const lineCoordinates = routeCoordinates(routingResult?.geo);
       if (!Array.isArray(lineCoordinates) || lineCoordinates.length < 2) {
         throw new Error('مسیر معتبری از سرویس مسیریابی دریافت نشد');
       }
@@ -5723,11 +5719,11 @@ const Amain = () => {
       setContextRouteGeoData({
         type: 'FeatureCollection',
         features: [
-          {
-            type: 'Feature',
-            geometry: { type: 'LineString', coordinates: lineCoordinates },
-            properties: { role: 'route' }
-          },
+          ...(isMultifloor(routingResult.geo)
+            ? routingResult.geo.properties.segments.filter(segment => segment.kind === 'walk').map(segment => ({
+              type: 'Feature', geometry: segment.geometry, properties: { role: 'route', floor: segment.floor }
+            }))
+            : [{ ...routingResult.geo, properties: { role: 'route', floor: originPoint.floor ?? selectedFloor } }]),
           buildContextPointFeature(originPoint, 'origin'),
           buildContextPointFeature(destinationPoint, 'destination')
         ]
@@ -5759,7 +5755,7 @@ const Amain = () => {
     || 'نام لایه';
 
   const handleMapContextAction = useCallback((action) => {
-    const clickedPoint = mapContextMenu.lngLat;
+    const clickedPoint = mapContextMenu.lngLat ? { ...mapContextMenu.lngLat, floor: floorLabelToValue(mapFloor) } : null;
     if (!clickedPoint) {
       setMapContextMenu((prev) => ({ ...prev, isOpen: false }));
       return;
@@ -6807,13 +6803,13 @@ const Amain = () => {
 
     const source = map.getSource(ADMIN_CONTEXT_ROUTING_SOURCE_ID);
     if (source && typeof source.setData === 'function') {
-      source.setData(contextRouteGeoData);
+      source.setData({ ...contextRouteGeoData, features: contextRouteGeoData.features.filter(f => f.properties.floor == null || Number(f.properties.floor) === floorLabelToValue(mapFloor)) });
     }
 
     const syncData = () => {
       const currentSource = map.getSource(ADMIN_CONTEXT_ROUTING_SOURCE_ID);
       if (currentSource && typeof currentSource.setData === 'function') {
-        currentSource.setData(contextRouteGeoData);
+        currentSource.setData({ ...contextRouteGeoData, features: contextRouteGeoData.features.filter(f => f.properties.floor == null || Number(f.properties.floor) === floorLabelToValue(mapFloor)) });
       }
     };
 
@@ -6824,7 +6820,7 @@ const Amain = () => {
       map.off('style.load', syncData);
       map.off('load', syncData);
     };
-  }, [map, activeMenu, contextRouteGeoData]);
+  }, [map, activeMenu, contextRouteGeoData, mapFloor]);
 
   useEffect(() => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
@@ -7192,6 +7188,7 @@ const Amain = () => {
     if (!map || activeMenu !== 'mapmanage') return undefined;
 
     const handleMapClick = async (event) => {
+      if (connectorForm.pickRef.current) return;
       const { lngLat, point } = event;
 
       if (isDoorBulkSelectMode && isDoorAccessLayerActive) {
@@ -9044,6 +9041,9 @@ const Amain = () => {
   };
 
   const handleLocationMarkerSelect = () => {
+    const layerOption = editableLayerOptions.find((layer) => layer.id === DOOR_ACCESS_LAYER_ID);
+    if (!canUserEditLayer(layerOption) || !isMapLayerAvailable(DOOR_ACCESS_LAYER_ID)) return;
+
     if (activeEditableLayerId !== DOOR_ACCESS_LAYER_ID) {
       handleEditableLayerSelect(DOOR_ACCESS_LAYER_ID);
     }
@@ -9208,56 +9208,19 @@ const Amain = () => {
   };
 
   const handleAddPlaceToMarker = async () => {
-    if (!selectedLocation || typeof selectedLocation.lng !== 'number' || typeof selectedLocation.lat !== 'number') {
+    if (!isDoorAccessLayerActive) return;
+    if (!selectedLocation || !Number.isFinite(selectedLocation.lng) || !Number.isFinite(selectedLocation.lat)) {
       toast.error('لطفاً ابتدا نشانگر را روی نقطه مدنظر قرار دهید');
       return;
     }
-
-    const floor = floorLabelToValue(mapFloor);
-    let shouldKeepDoorDraft = false;
-
-    try {
-      setIsCreatingDoor(true);
-
-      const { x, y } = convertLngLatToUtm32640({
-        lng: selectedLocation.lng,
-        lat: selectedLocation.lat
-      });
-
-      const response = await createDoor({
-        x,
-        y,
-        floor,
-        allowed_gender: 'both',
-        is_open: true,
-        modes: ['walk', 'wheelchair'],
-        bidirectional: true
-      });
-
-      const newDoorId = response?.door?.id || null;
-      const newAccessPointId = response?.door_access_point?.id || null;
-
-      handleSuccessfulDoorGraphMutation(response, 'درب جدید با موفقیت ثبت شد');
-      console.log('door creation response', response);
-      await openDoorInfoModal(newDoorId, newAccessPointId, false);
-
-      refreshActiveEditableLayerTiles();
-    } catch (error) {
-      shouldKeepDoorDraft = handleDoorMutationError(error, 'ثبت درب ناموفق بود');
-    } finally {
-      setIsCreatingDoor(false);
-
-      if (!shouldKeepDoorDraft) {
-        setIsLocationMarkerMode(false);
-
-        if (locationMarker) {
-          locationMarker.remove();
-          setLocationMarker(null);
-        }
-
-        setSelectedLocation(null);
-      }
-    }
+    const point = { lon: selectedLocation.lng, lat: selectedLocation.lat, floor: floorLabelToValue(mapFloor) };
+    resetForm();
+    connectorForm.initialize({}, point);
+    setIsAddPlaceModalOpen(true);
+    setIsLocationMarkerMode(false);
+    locationMarker?.remove();
+    setLocationMarker(null);
+    setSelectedLocation(null);
   };
 
   useEffect(() => {
@@ -9566,6 +9529,8 @@ const Amain = () => {
         alert('لطفا تمام فیلدهای ضروری را پر کنید');
       }
     } else if (currentStep === 2) {
+      const invalidConnector = isVerticalConnector ? connectorError(connectorForm.value, placeFunction, selectedTransport) : '';
+      if (invalidConnector) { toast.error(invalidConnector); return; }
       if (selectedTransport.length === 0) {
         alert('لطفا حداقل یک نوع تردد را انتخاب کنید');
       } else if (selectedGenderAccess.length === 0) {
@@ -9583,7 +9548,7 @@ const Amain = () => {
         return;
       }
 
-      if (!isAreaLayerActive && !lastCreatedDoorId) {
+      if (!isAreaLayerActive && !lastCreatedDoorId && !connectorForm.point && !isVerticalConnector) {
         toast.error('شناسه درب برای ثبت اطلاعات در دسترس نیست');
         return;
       }
@@ -9604,7 +9569,17 @@ const Amain = () => {
           toast.success(response?.message || 'اطلاعات محدوده با موفقیت ثبت شد');
         } else {
           setIsSavingDoorInfo(true);
-          const response = await updateDoorInfo(lastCreatedDoorId, payload);
+          if (connectorForm.value.id && !isVerticalConnector) throw new Error('برای تغییر اتصال مشترک، یکی از انواع اتصال بین طبقات را انتخاب کنید.');
+          if (isVerticalConnector) {
+            const invalid = connectorError(connectorForm.value, placeFunction, selectedTransport);
+            if (invalid) throw new Error(invalid);
+            const saved = await saveConnector(connectorPayload(connectorForm.value, placeFunction, payload), connectorForm.value.id);
+            saved.stops.forEach(stop => handleSuccessfulDoorGraphMutation({ door: { id: stop.door_id }, graph: { status: 'queued' } }, 'اطلاعات اتصال با موفقیت ثبت شد'));
+          } else {
+          const draftPoint = connectorForm.point;
+          const response = lastCreatedDoorId ? await updateDoorInfo(lastCreatedDoorId, payload) : await createDoorWithInfo({
+            point: { ...convertLngLatToUtm32640({ lng: draftPoint.lon, lat: draftPoint.lat }), floor: draftPoint.floor }, info: payload
+          });
           handleSuccessfulDoorGraphMutation({
             ...response,
             door: {
@@ -9612,6 +9587,7 @@ const Amain = () => {
               id: response?.door?.id || lastCreatedDoorId
             }
           }, 'اطلاعات مکان با موفقیت ثبت شد');
+          }
         }
         refreshActiveEditableLayerTiles();
         setIsAddPlaceModalOpen(false);
@@ -9687,6 +9663,7 @@ const Amain = () => {
   }, [isLoadingRoutingAreas, language, normalizeRoutingAreaOption]);
 
   function fillDoorInfoForm(doorInfo = {}) {
+    if (isDoorAccessLayerActive) connectorForm.initialize(doorInfo);
     const basicInfo = doorInfo?.basic_info || {};
     const operational = doorInfo?.operational || {};
     const grouping = doorInfo?.grouping || {};
@@ -9747,6 +9724,7 @@ const Amain = () => {
   }
 
   async function openDoorInfoModal(doorId, accessPointId = null, isEditMode = false) {
+    connectorForm.reset();
     setLastCreatedDoorId(doorId || null);
     setLastCreatedAccessPointId(accessPointId || null);
     setLastCreatedAreaId(null);
@@ -9760,7 +9738,7 @@ const Amain = () => {
     try {
       setIsLoadingDoorInfo(true);
       const info = await getDoorInfo(doorId);
-      fillDoorInfoForm(info);
+      fillDoorInfoForm({ ...info, point: info.point ? { ...info.point, door_id: doorId } : null });
       if (!Array.isArray(info?.routing?.areas) && !Array.isArray(info?.routing?.available_areas)) {
         await loadRoutingAreaOptions();
       }
@@ -9893,10 +9871,7 @@ const Amain = () => {
 
   const activeLayerCount = Object.values(layerVisibility).filter(Boolean).length;
 
-  const mapFloors = [
-    'همکف',
-    'منفی ۱'
-  ];
+  const mapFloors = connectorForm.floors.map(f => floorValueToLabel(f.floor));
 
 
   useEffect(() => {
@@ -11621,8 +11596,7 @@ const Amain = () => {
                         value={culturalFloor}
                         onChange={(e) => setCulturalFloor(Number(e.target.value))}
                       >
-                        <option value={0}>همکف</option>
-                        <option value={-1}>منفی ۱</option>
+                        {connectorForm.floors.map(f => <option key={f.floor} value={f.floor}>{f.label}</option>)}
                       </select>
                     </div>
 
@@ -12533,6 +12507,7 @@ const Amain = () => {
             <div className="map-management-section">
               <div className="map-container">
                 <div id="map-container" className="map-instance"></div>
+                {connectorForm.picking && <button type="button" className="map-marker-action-btn" style={{ position: 'absolute', top: 12, left: 12, zIndex: 5 }} onClick={connectorForm.cancelPick}>لغو انتخاب توقف و بازگشت به فرم</button>}
 
                 {mapContextMenu.isOpen && (
                   <div
@@ -12930,6 +12905,7 @@ const Amain = () => {
 
                     {/* Button 4 - Location Marker */}
                     <div className={`action-button manage-door-point ${isLocationMarkerMode ? 'selected' : ''}`}
+                      aria-disabled={!isMapLayerAvailable(DOOR_ACCESS_LAYER_ID) || !canUserEditLayer(editableLayerOptions.find((layer) => layer.id === DOOR_ACCESS_LAYER_ID))}
                       onClick={() => {
                         handleLocationMarkerSelect();
                         setOpenSubMenu(openSubMenu === 4 ? null : 4);
@@ -13954,7 +13930,7 @@ const Amain = () => {
 
                     {!isAreaLayerActive && (
                       <div className="form-group">
-                        <label className="form-label">تعیین گروه این مکان </label>
+                        <label className="form-label">{isDoorAccessLayerActive ? 'نوع اتصال' : 'تعیین گروه این مکان'}</label>
                         <div className="dropdown-group">
                           {!isDoorAccessLayerActive && (
                             <>
@@ -14155,7 +14131,10 @@ const Amain = () => {
                       </div>
                     </div>
 
-                    {!isAreaLayerActive && (
+                    {isVerticalConnector && <ConnectorStops value={connectorForm.value} onChange={connectorForm.setValue}
+                      kind={placeFunction} floors={connectorForm.floors} groups={connectorForm.groups}
+                      selectedPoint={connectorForm.point} onJoin={connectorForm.join} onPick={connectorForm.pick} Select={AddPlaceSelect} />}
+                    {!isAreaLayerActive && !isVerticalConnector && (
                       <div className="form-group routing-direction-section">
                         <label className="form-label">جهت عبور</label>
                         <div className="routing-direction-switches">
@@ -15562,8 +15541,7 @@ const Amain = () => {
                           value={culturalFloor}
                           onChange={(e) => setCulturalFloor(Number(e.target.value))}
                         >
-                          <option value={0}>همکف</option>
-                          <option value={-1}>منفی ۱</option>
+                          {connectorForm.floors.map(f => <option key={f.floor} value={f.floor}>{f.label}</option>)}
                         </select>
                       </div>
 
