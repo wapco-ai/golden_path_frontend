@@ -24,6 +24,8 @@ import {
   normalizeRouteMSteps
 } from '../utils/routeSegments';
 
+const ROUTE_OVERVIEW_HISTORY_KEY = 'routingRouteOverviewHistory';
+
 const RoutingPage = () => {
   const intl = useIntl();
   const formatDigits = useLocaleDigits();
@@ -77,6 +79,52 @@ const RoutingPage = () => {
   const [sessionFloor, setCurrentFloor] = useState(getSessionFloor);
   useEffect(() => subscribeToSessionFloor(setCurrentFloor), []);
   const navigate = useNavigate();
+
+  const handleBackNavigation = useCallback(() => {
+    let overviewHistory = null;
+
+    try {
+      overviewHistory = JSON.parse(
+        sessionStorage.getItem(ROUTE_OVERVIEW_HISTORY_KEY) || 'null'
+      );
+    } catch {
+      overviewHistory = null;
+    }
+
+    sessionStorage.removeItem(ROUTE_OVERVIEW_HISTORY_KEY);
+
+    const currentHistoryIndex = window.history.state?.idx;
+    const routingHistoryIndex = overviewHistory?.routingHistoryIndex;
+    const isReturnedRoutingEntry =
+      overviewHistory?.routingPath === location.pathname &&
+      Number.isInteger(currentHistoryIndex) &&
+      Number.isInteger(routingHistoryIndex) &&
+      currentHistoryIndex > routingHistoryIndex;
+
+    if (isReturnedRoutingEntry && routingHistoryIndex > 0) {
+      navigate((routingHistoryIndex - 1) - currentHistoryIndex);
+      return;
+    }
+
+    navigate(-1);
+  }, [location.pathname, navigate]);
+
+  const handleRouteOverviewClick = useCallback(() => {
+    const routingHistoryIndex = window.history.state?.idx;
+
+    sessionStorage.setItem(
+      ROUTE_OVERVIEW_HISTORY_KEY,
+      JSON.stringify({
+        routingPath: location.pathname,
+        routingHistoryIndex: Number.isInteger(routingHistoryIndex)
+          ? routingHistoryIndex
+          : null
+      })
+    );
+
+    navigate('/rop');
+  }, [location.pathname, navigate]);
+
   const {
     origin,
     destination,
@@ -1736,7 +1784,7 @@ const RoutingPage = () => {
       {/* Live Image Container */}
       <div className="live-image-container">
         <div className="fixed-header-icons">
-          <button className="back-btn6" onClick={() => navigate(-1)}>
+          <button className="back-btn6" onClick={handleBackNavigation}>
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path fillRule="evenodd" clipRule="evenodd" d="M11.2244 4.55806C11.4685 4.31398 11.8642 4.31398 12.1083 4.55806L17.1083 9.55806C17.3524 9.80214 17.3524 10.1979 17.1083 10.4419L12.1083 15.4419C11.8642 15.686 11.4685 15.686 11.2244 15.4419C10.9803 15.1979 10.9803 14.8021 11.2244 14.5581L15.1575 10.625H3.33301C2.98783 10.625 2.70801 10.3452 2.70801 10C2.70801 9.65482 2.98783 9.375 3.33301 9.375H15.1575L11.2244 5.44194C10.9803 5.19786 10.9803 4.80214 11.2244 4.55806Z" fill="#1E2023" />
             </svg>
@@ -1978,7 +2026,7 @@ const RoutingPage = () => {
 
               {isInfoModalOpen && (
                 <div className="route-buttons">
-                  <button className="route-button" onClick={() => navigate('/rop')}>
+                  <button className="route-button" onClick={handleRouteOverviewClick}>
                     <div className="button-icon">
                       <svg width="22" height="22" viewBox="0 0 21 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path fillRule="evenodd" clipRule="evenodd" d="M15.916 11.6666C14.3052 11.6666 12.9993 12.8819 12.9993 14.3811C12.9993 15.8684 13.9302 17.6041 15.3827 18.2248C15.7212 18.3695 16.1108 18.3695 16.4494 18.2248C17.9018 17.6041 18.8327 15.8684 18.8327 14.3811C18.8327 12.8819 17.5268 11.6666 15.916 11.6666ZM15.916 15.4166C16.3763 15.4166 16.7493 15.0435 16.7493 14.5833C16.7493 14.1231 16.3763 13.75 15.916 13.75C15.4558 13.75 15.0827 14.1231 15.0827 14.5833C15.0827 15.0435 15.4558 15.4166 15.916 15.4166Z" fill="#1E2023" />

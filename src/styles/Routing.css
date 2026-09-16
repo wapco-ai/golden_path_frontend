@@ -29,7 +29,9 @@
 
 /* Live Image Container */
 .live-image-container {
-  height: 60vh;
+  flex: 0 0 60%;
+  height: 60%;
+  min-height: 0;
   width: 100%;
   background-color: #f5f5f5;
   position: relative;
@@ -120,7 +122,9 @@
 
 /* Map Section */
 .map-section {
-  height: 40vh;
+  flex: 0 0 40%;
+  height: 40%;
+  min-height: 0;
   width: 100%;
   position: relative;
   background-color: #fff;
@@ -1146,11 +1150,13 @@
 }
 @media (max-width: 767px) {
   .routing-page { width: 100%; min-width: 0; height: 100dvh; overflow-x: hidden; }
-  .live-image-container { width: 100%; height: clamp(280px, 58dvh, 560px); }
+  .live-image-container { width: 100%; flex-basis: 60%; height: 60%; min-height: 0; }
+  .map-section { flex-basis: 40%; height: 40%; min-height: 0; }
   .fixed-header-icons { width: 100%; padding: 12px; gap: 8px; }
   .routing-page img, .routing-page video, .routing-page canvas { max-width: 100%; }
 }
 @media (min-width: 768px) and (max-width: 1366px) {
   .routing-page { width: 100%; min-width: 0; height: 100dvh; }
-  .live-image-container { height: clamp(440px, 60dvh, 760px); }
+  .live-image-container { flex-basis: 60%; height: 60%; min-height: 0; }
+  .map-section { flex-basis: 40%; height: 40%; min-height: 0; }
 }

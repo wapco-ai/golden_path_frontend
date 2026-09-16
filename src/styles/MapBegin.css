@@ -1388,6 +1388,9 @@ body.modal-open {
 .location-image-scroll {
   display: flex;
   overflow-x: auto;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   gap: 10px;
   padding-bottom: 5px;
@@ -1482,7 +1485,7 @@ body.modal-open {
   border-top-left-radius: 20px;
   border-top-right-radius: 20px;
   overflow: hidden;
-  touch-action: none;
+  touch-action: pan-x;
 }
 
 .search-bar-container.fully-expanded {
@@ -1584,7 +1587,7 @@ body.modal-open {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
+  touch-action: pan-x pan-y;
 }
 
 /* When not expanded, disable scrolling */
@@ -1690,6 +1693,9 @@ body.modal-open {
   display: flex;
   gap: 15px;
   overflow-x: auto;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
   padding-bottom: 10px;
   scrollbar-width: none;
   align-items: center;

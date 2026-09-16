@@ -355,8 +355,9 @@ const MapBeginPage = () => {
     const target = e.target;
 
     const interactiveSelectors = 'button, input, a, .cultural-info-btn, .place-action-btn, .view-all-btn5, .view-all-events, .close-modal-btn, .transparent-save-btn';
+    const horizontalScrollSelectors = '.places-horizontal-list, .shrine-events-list, .location-image-scroll';
 
-    if (target.closest(interactiveSelectors)) {
+    if (target.closest(interactiveSelectors) || target.closest(horizontalScrollSelectors)) {
       setPreventScroll(false);
       setIsModalDragging(false);
       return;
