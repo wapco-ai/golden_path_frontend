@@ -1,32 +1,44 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useLangStore } from '../../store/langStore';
 import useFloorCatalog from '../../hooks/useFloorCatalog';
 import useMapFloor from '../../hooks/useMapFloor';
 import { floorLabel, floorMessages, normalizeFloor } from '../../utils/floors';
+import { canUserSelectMapFloor } from '../../utils/floorControlPolicy';
 import { setSessionFloor } from '../../utils/sessionFloor';
 import '../../styles/FloorControl.css';
 
 export default function FloorControl({ otherMenuOpen = false, onOpen, onChange, request = null, routeFloor = null, style, className = '' }) {
+  const location = useLocation();
   const language = useLangStore(state => state.language);
   const text = floorMessages[language] || floorMessages.fa;
   const mapFloor = useMapFloor();
-  const { floors, loading, error, retry } = useFloorCatalog();
+  const manualSelectionAllowed = canUserSelectMapFloor(location.pathname);
+  const { floors, loading, error, retry } = useFloorCatalog({ enabled: manualSelectionAllowed });
   const [open, setOpen] = useState(false);
   const root = useRef(null);
   const button = useRef(null);
   const menu = useRef(null);
   const requestRef = useRef(null);
   const id = useId();
-  const current = normalizeFloor(routeFloor) ?? mapFloor;
+  const normalizedRouteFloor = normalizeFloor(routeFloor);
+  const current = normalizedRouteFloor ?? mapFloor;
   const title = request ? text[request.target] || text.choose : text.map;
-  const locked = normalizeFloor(routeFloor) !== null;
+  const locked = normalizedRouteFloor !== null;
   const topMenu = style?.top !== undefined;
 
   useEffect(() => {
-    if (!loading && !error && floors.length === 1 && !request && !locked) setSessionFloor(floors[0].floor);
-  }, [floors, loading, error, request, locked]);
+    if (!manualSelectionAllowed && normalizedRouteFloor !== null) {
+      setSessionFloor(normalizedRouteFloor);
+    }
+  }, [manualSelectionAllowed, normalizedRouteFloor]);
+
+  useEffect(() => {
+    if (!loading && !error && floors.length === 1 && !request && !locked && manualSelectionAllowed) setSessionFloor(floors[0].floor);
+  }, [floors, loading, error, request, locked, manualSelectionAllowed]);
 
   useLayoutEffect(() => {
+    if (!manualSelectionAllowed) return undefined;
     const page = root.current?.closest('.gp-public-map-page');
     const container = root.current?.closest('.map-routing-container');
     if (!page || !container) return undefined;
@@ -61,13 +73,20 @@ export default function FloorControl({ otherMenuOpen = false, onOpen, onChange, 
       window.removeEventListener('resize', schedule);
       container.style.removeProperty('--gp-controls-lift');
     };
-  }, []);
+  }, [manualSelectionAllowed]);
 
   useEffect(() => { if (otherMenuOpen) setOpen(false); }, [otherMenuOpen]);
   useEffect(() => {
-    if (request && request !== requestRef.current) { setOpen(true); onOpen?.(); }
+    if (request && request !== requestRef.current) {
+      if (manualSelectionAllowed) {
+        setOpen(true);
+        onOpen?.();
+      } else {
+        request.onSelect?.(mapFloor);
+      }
+    }
     requestRef.current = request;
-  }, [request, onOpen]);
+  }, [request, onOpen, manualSelectionAllowed, mapFloor]);
   useEffect(() => {
     if (!open) return undefined;
     const outside = event => { if (!root.current?.contains(event.target)) setOpen(false); };
@@ -94,7 +113,9 @@ export default function FloorControl({ otherMenuOpen = false, onOpen, onChange, 
     fit();
     window.addEventListener('resize', fit);
     return () => window.removeEventListener('resize', fit);
-  }, [open]);
+  }, [open, topMenu]);
+
+  if (!manualSelectionAllowed) return null;
 
   // A one-floor catalog needs no map picker. A missing endpoint still needs a choice.
   if (floors.length === 1 && !request && !locked) return null;
