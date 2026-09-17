@@ -1,11 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getPointFloor, normalizeFloor, normalizeFloorCatalog, pointIsOnFloor } from '../src/utils/floors.js';
+import { canUserSelectMapFloor, manualFloorPaths } from '../src/utils/floorControlPolicy.js';
 import { normalizeSubGroupMetadata } from '../src/utils/groupMetadata.js';
 import { useRouteStore } from '../src/store/routeStore.js';
 import { setSessionFloor, getSessionFloor } from '../src/utils/sessionFloor.js';
 import { requestRouting } from '../src/services/routingService.js';
 import { routeOnMapFloor, routeCoordinatesOnFloor } from '../src/utils/multifloorRoute.js';
+
+test('manual map floor selection exists only on fs, mpr and mpb', () => {
+  assert.deepEqual(manualFloorPaths, ['/fs', '/mpr', '/mpb']);
+  for (const path of ['/fs', '/mpr', '/mpb', '/FS/', '/mpr/']) {
+    assert.equal(canUserSelectMapFloor(path), true, path);
+  }
+  for (const path of ['/rng', '/rop', '/pmap', '/location', '/', '', null]) {
+    assert.equal(canUserSelectMapFloor(path), false, String(path));
+  }
+});
 
 test('missing, malformed and zero floor remain distinct; subgroup geo floor is preserved', () => {
   for (const value of [null, undefined, '', ' ', true, false, [], {}, 0.5, 32768]) assert.equal(normalizeFloor(value), null);
