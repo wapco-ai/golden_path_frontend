@@ -18,6 +18,11 @@ export const routeOnMapFloor = (geo, floor, originFloor) => {
   return routeFloor !== null && routeFloor === normalizeFloor(floor)
     ? geo : { type: 'FeatureCollection', features: [] };
 };
+export const routeCoordinatesOnFloor = (geo, floor, originFloor) => {
+  const visible = routeOnMapFloor(geo, floor, originFloor);
+  return visible?.type === 'FeatureCollection'
+    ? visible.features.flatMap(feature => routeCoordinates(feature)) : routeCoordinates(visible);
+};
 export const activeRouteCoordinates = (geo, step) => isMultifloor(geo)
   ? geo.properties.segments?.find(s => s.id === step?.segmentId)?.geometry?.coordinates || step?.coordinates || []
   : routeCoordinates(geo);

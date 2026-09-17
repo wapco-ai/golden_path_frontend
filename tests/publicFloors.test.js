@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { getPointFloor, normalizeFloor, normalizeFloorCatalog, pointIsOnFloor } from '../src/utils/floors.js';
 import { normalizeSubGroupMetadata } from '../src/utils/groupMetadata.js';
 import { useRouteStore } from '../src/store/routeStore.js';
-import { setSessionFloor } from '../src/utils/sessionFloor.js';
+import { setSessionFloor, getSessionFloor } from '../src/utils/sessionFloor.js';
 import { requestRouting } from '../src/services/routingService.js';
-import { routeOnMapFloor } from '../src/utils/multifloorRoute.js';
+import { routeOnMapFloor, routeCoordinatesOnFloor } from '../src/utils/multifloorRoute.js';
 
 test('missing, malformed and zero floor remain distinct; subgroup geo floor is preserved', () => {
   for (const value of [null, undefined, '', ' ', true, false, [], {}, 0.5, 32768]) assert.equal(normalizeFloor(value), null);
@@ -79,4 +79,32 @@ test('a new QR clears a previous floor and empty coordinates are not accepted', 
   values.clear();
   captureQrLocation(new URLSearchParams('lat=&lng=&floor=0'));
   assert.equal(readQrPoint(),null);
+});
+
+test('a delayed QR lookup cannot replace an explicitly confirmed floor', async t => {
+  const values = new Map([['qrLat','36.3'],['qrLng','59.6'],['qrId','delayed-qr']]);
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage');
+  Object.defineProperty(globalThis,'sessionStorage',{value:{getItem:key=>values.get(key) ?? null,setItem:(key,value)=>values.set(key,String(value)),removeItem:key=>values.delete(key)},configurable:true});
+  t.after(() => { if (previous) Object.defineProperty(globalThis,'sessionStorage',previous); else delete globalThis.sessionStorage; });
+  let respond;
+  t.mock.method(globalThis,'fetch',()=>new Promise(resolve => { respond=resolve; }));
+  const {resolveQrPoint} = await import('../src/services/qrLocationService.js');
+  const pending = resolveQrPoint();
+  values.set('qrFloor','1'); setSessionFloor(1);
+  respond({ok:true,status:200,json:async()=>({floor:-1})});
+  assert.equal((await pending).floor,1);
+  assert.equal(values.get('qrFloor'),'1');
+  assert.equal(getSessionFloor(),1);
+});
+
+test('popup coordinates come only from the visible floor, including an empty floor', () => {
+  const a=[[59.6,36.3],[59.61,36.3]],b=[[59.62,36.3],[59.63,36.3]];
+  const geo={type:'Feature',properties:{multifloor:true,segments:[
+    {kind:'walk',floor:0,geometry:{type:'LineString',coordinates:a}},
+    {kind:'elevator',fromFloor:0,toFloor:-1,geometry:null},
+    {kind:'walk',floor:-1,geometry:{type:'LineString',coordinates:b}}
+  ]}};
+  assert.deepEqual(routeCoordinatesOnFloor(geo,0,0),a);
+  assert.deepEqual(routeCoordinatesOnFloor(geo,-1,0),b);
+  assert.deepEqual(routeCoordinatesOnFloor(geo,1,0),[]);
 });

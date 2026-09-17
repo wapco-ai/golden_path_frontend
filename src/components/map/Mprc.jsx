@@ -337,6 +337,8 @@ const Mprc = ({
           zoom: 18
         }));
       }
+    } else {
+      setUserCoords(null);
     }
   }, [userLocation, isTracking]);
 

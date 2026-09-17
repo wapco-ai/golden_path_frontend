@@ -1,3 +1,4 @@
+import FloorTag from '../components/map/FloorTag';
 import FloorControl from '../components/map/FloorControl';
 import useMapFloor from '../hooks/useMapFloor';
 import useEndpointFloor from '../hooks/useEndpointFloor';
@@ -713,7 +714,7 @@ const Pmap = () => {
                       </div>
                       <div className="pmap-destination-info">
                         <span className="pmap-destination-name">{destination.name}</span>
-                        <span className="pmap-destination-location">{destination.location}</span>
+                        <span className="pmap-destination-location">{destination.location}<FloorTag point={destination} /></span>
                       </div>
                     </li>
                   ))}
@@ -733,7 +734,7 @@ const Pmap = () => {
                   </div>
                   <div className="pmap-destination-info">
                     <span className="pmap-destination-name">{destination.name}</span>
-                    <span className="pmap-destination-location">{destination.location}</span>
+                    <span className="pmap-destination-location">{destination.location}<FloorTag point={destination} /></span>
                   </div>
                 </li>
               ))}

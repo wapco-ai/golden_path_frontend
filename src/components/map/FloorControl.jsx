@@ -22,6 +22,10 @@ export default function FloorControl({ otherMenuOpen = false, onOpen, onChange, 
   const locked = normalizeFloor(routeFloor) !== null;
   const topMenu = style?.top !== undefined;
 
+  useEffect(() => {
+    if (!loading && !error && floors.length === 1 && !request && !locked) setSessionFloor(floors[0].floor);
+  }, [floors, loading, error, request, locked]);
+
   useLayoutEffect(() => {
     const page = root.current?.closest('.gp-public-map-page');
     const container = root.current?.closest('.map-routing-container');

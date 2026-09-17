@@ -106,6 +106,9 @@ test('map taps preserve origin floor while the destination is chosen on another 
   await expect(page.locator('.gp-floor-trigger')).toContainText('منفی ۱');
   await page.waitForTimeout(500);
   expect(requests.length).toBe(count);
+  await chooseFloor(page,'طبقه ۱');
+  await expect(page.locator('.main-popup-container')).toHaveCount(0);
+  await chooseFloor(page,'منفی ۱');
   expect(tiles.some(url => /[?&]p_floor=-1(?:&|$)|[?&]floor=-1(?:&|$)/.test(url))).toBe(true);
   await page.locator('.swap-btn').click();
   await expect.poll(() => requests.length).toBeGreaterThan(count);
@@ -196,4 +199,72 @@ test('catalog request failure offers retry without inventing available floors', 
   await expect(page.locator('.gp-floor-option')).toHaveCount(0);
   await page.getByRole('button',{name:'تلاش دوباره',exact:true}).click();
   await expect(page.locator('.gp-floor-option')).toHaveCount(3);
+});
+
+test('replacing a mapped origin with GPS waits for fresh coordinates and explicit floor', async ({page,context}) => {
+  const {requests,errors} = await setup(page);
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({latitude:36.287,longitude:59.615,accuracy:5});
+  await page.goto('/#/mpr');
+  await tapMap(page);
+  await chooseFloor(page,'منفی ۱');
+  await tapMap(page);
+  await expect(page.locator('.location-input.origin-input')).toBeVisible();
+  await expect(page.locator('.route-request-loader')).toHaveCount(0);
+  const count = requests.length;
+  await page.locator('.location-input.origin-input').click();
+  await expect(page.locator('.map-option-item')).toHaveCount(2);
+  await page.locator('.map-option-item').nth(1).click();
+  await expect(page.getByRole('dialog',{name:'طبقهٔ مبدأ'})).toBeVisible();
+  expect(requests.length).toBe(count);
+  await page.locator('.gp-floor-option').filter({hasText:'همکف'}).click();
+  await expect.poll(() => requests.length).toBeGreaterThan(count);
+  expect(requests.at(-1).origin).toMatchObject({floor:0,lat:36.287,lon:59.615});
+  expect(requests.at(-1).destination.floor).toBe(-1);
+  await expect(page.locator('.route-request-loader')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('swapping endpoints replaces a pending floor request with the new target', async ({page}) => {
+  const {requests,errors}=await setup(page);
+  await page.addInitScript(() => {
+    const state={origin:{name:'GPS',source:'gps',floor:null,coordinates:[36.287,59.615]},destination:{name:'Known',floor:-1,coordinates:[36.288,59.616]}};
+    localStorage.setItem('route-storage',JSON.stringify({state,version:1}));
+  });
+  await page.goto('/#/fs');
+  await expect(page.getByRole('dialog',{name:'طبقهٔ مبدأ'})).toBeVisible();
+  await page.locator('.swap-btn').click();
+  await expect(page.getByRole('dialog',{name:'طبقهٔ مقصد'})).toBeVisible();
+  await page.locator('.gp-floor-option').filter({hasText:'همکف'}).click();
+  await expect.poll(() => requests.length).toBeGreaterThan(0);
+  expect(requests.at(-1).origin).toMatchObject({floor:-1,lat:36.288,lon:59.616});
+  expect(requests.at(-1).destination).toMatchObject({floor:0,lat:36.287,lon:59.615});
+  await expect(page.locator('.route-request-loader')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('a single-floor catalog restores an unsupported display floor before hiding the control', async ({page}) => {
+  const {tiles,errors}=await setup(page,{floors:[{floor:1,label:'طبقه ۱',sort_order:1}]});
+  await page.goto('/#/mpb');
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('haramCurrentFloor'))).toBe('1');
+  await expect(page.locator('.gp-floor-trigger')).toHaveCount(0);
+  await expect.poll(() => tiles.some(url => url.includes('p_floor=1'))).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('recent save-location choices show their floor even when names match', async ({page}) => {
+  const {errors}=await setup(page);
+  await page.goto('/#/pmap');
+  const map=page.locator('.pmap-container .maplibregl-canvas');
+  await map.click({position:{x:130,y:115}});
+  await page.locator('.pmap-confirm-modal .pmap-cancel-button').click();
+  await chooseFloor(page,'منفی ۱');
+  await map.click({position:{x:130,y:115}});
+  await page.locator('.pmap-confirm-modal .pmap-cancel-button').click();
+  await page.locator('.pmap-search-input').click();
+  const rows=page.locator('.pmap-destination-list li');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.first()).toContainText('منفی');
+  await expect(rows.last()).toContainText('همکف');
+  expect(errors).toEqual([]);
 });

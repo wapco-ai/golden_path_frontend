@@ -57,6 +57,9 @@ export async function resolveQrPoint(language = 'fa') {
       } catch { /* Unknown floors are selected explicitly in the existing map flow. */ }
     }
     if (key !== qrKey()) return null;
+    // A user's confirmation can arrive while the network lookup is pending.
+    const latest = readQrPoint();
+    if (!latest || latest.floor !== null) return latest;
     if (floor !== null) {
       sessionStorage.setItem('qrFloor', String(floor));
       if (sessionStorage.getItem('qrFloorApplied') !== key) {

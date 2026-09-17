@@ -5,7 +5,7 @@ import useEndpointFloor from '../hooks/useEndpointFloor';
 import { getPointFloor, pointIsOnFloor } from '../utils/floors';
 import { readQrPoint } from '../services/qrLocationService';
 import { getSessionFloor, setSessionFloor } from '../utils/sessionFloor';
-import { routeCoordinates as getRouteCoordinates, routeOnMapFloor } from '../utils/multifloorRoute';
+import { routeCoordinates as getRouteCoordinates, routeOnMapFloor, routeCoordinatesOnFloor } from '../utils/multifloorRoute';
 // src/pages/FinalSearch.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -59,7 +59,7 @@ const FinalSearch = () => {
   const location = useLocation();
   const intl = useIntl();
   const mapFloor = useMapFloor();
-  const { floorRequest, askFloor } = useEndpointFloor();
+  const { floorRequest, askFloor, clearFloorRequest } = useEndpointFloor();
   const formatDigits = useLocaleDigits();
   const language = useLangStore((state) => state.language);
   const isRtl = ["fa", "ar", "ur"].includes(language);
@@ -315,6 +315,7 @@ const FinalSearch = () => {
 
     if (getPointFloor(origin) === null) { askFloor(origin, 'origin', setOrigin); return undefined; }
     if (getPointFloor(destination) === null) { askFloor(destination, 'destination', setDestination); return undefined; }
+    clearFloorRequest();
 
     const attemptKey = JSON.stringify({
       origin: origin.coordinates, originFloor: getPointFloor(origin),
@@ -453,7 +454,7 @@ const FinalSearch = () => {
     storeSetAlternativeRoutes,
     clearPersistedRouteData,
     intl,
-    language, askFloor,
+    language, askFloor, clearFloorRequest,
     hasUserSelectedRoute,
     lastFailedKey
   ]);
@@ -519,8 +520,8 @@ const FinalSearch = () => {
   // Determine popup location and total minutes for main route
   useEffect(() => {
     if (!routeGeo) return;
-    const coords = getRouteCoordinates(routeGeo) || [];
-    if (coords.length === 0) return;
+    const coords = routeCoordinatesOnFloor(routeGeo, mapFloor, getPointFloor(origin)) || [];
+    if (coords.length === 0) { setPopupCoord(null); setPopupMinutes(null); return; }
 
     const dist = coords.slice(1).reduce((acc, c, i) => {
       const prev = coords[i];
@@ -532,7 +533,7 @@ const FinalSearch = () => {
     for (let i = 0; i < coords.length; i++) {
       const [lng, lat] = coords[i];
       const conflict = (storedAlternativeRoutes || []).some((alt) =>
-        getRouteCoordinates(alt.geo).some(
+        routeCoordinatesOnFloor(alt.geo, mapFloor, getPointFloor(origin)).some(
           ([alng, alat]) =>
             Math.abs(alng - lng) < 1e-6 && Math.abs(alat - lat) < 1e-6
         )
@@ -548,7 +549,7 @@ const FinalSearch = () => {
     }
 
     setPopupCoord(isValidLngLat(chosen) ? chosen : null);
-  }, [routeGeo, storedAlternativeRoutes]);
+  }, [routeGeo, storedAlternativeRoutes, mapFloor, origin.floor]);
 
   // Determine popup locations and minutes for alternative routes
   useEffect(() => {
@@ -562,7 +563,7 @@ const FinalSearch = () => {
     const minutesArr = [];
 
     storedAlternativeRoutes.forEach((alt) => {
-      const coords = getRouteCoordinates(alt.geo) || [];
+      const coords = routeCoordinatesOnFloor(alt.geo, mapFloor, getPointFloor(origin)) || [];
       if (coords.length === 0) {
         coordsArr.push(null);
         minutesArr.push(null);
@@ -578,7 +579,7 @@ const FinalSearch = () => {
       let chosen = null;
       for (let i = 0; i < coords.length; i++) {
         const [lng, lat] = coords[i];
-        const conflict = getRouteCoordinates(routeGeo)?.some(
+        const conflict = routeCoordinatesOnFloor(routeGeo, mapFloor, getPointFloor(origin))?.some(
           ([mlng, mlat]) =>
             Math.abs(mlng - lng) < 1e-6 && Math.abs(mlat - lat) < 1e-6
         );
@@ -597,7 +598,7 @@ const FinalSearch = () => {
 
     setAltPopupCoords(coordsArr);
     setAltPopupMinutes(minutesArr);
-  }, [storedAlternativeRoutes, routeGeo]);
+  }, [storedAlternativeRoutes, routeGeo, mapFloor, origin.floor]);
 
   const swapLocations = () => {
     setIsSwapping(true); // This will trigger the rotation

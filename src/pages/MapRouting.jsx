@@ -576,6 +576,7 @@ const MapRoutingPage = () => {
         return;
       }
 
+      clearFloorRequest();
       setOriginStore({
         name: userLocation.name,
         floor: getPointFloor(userLocation),
@@ -598,7 +599,7 @@ const MapRoutingPage = () => {
     showOriginModal,
     isSelectingFromMap,
     showEntryModal,
-    location.state?.fromFinalSearch, askFloor
+    location.state?.fromFinalSearch, askFloor, clearFloorRequest
   ]);
 
   useEffect(() => {
@@ -1130,17 +1131,21 @@ const MapRoutingPage = () => {
       setShowDestinationModal(true);
     } else {
       setShowOriginModal(true);
-
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          () => setIsGPSEnabled(true),
-          () => setIsGPSEnabled(false)
-        );
-      } else {
-        setIsGPSEnabled(false);
-      }
     }
   };
+
+  useEffect(() => {
+    if (!showOriginModal) return undefined;
+    let active = true;
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        () => { if (active) setIsGPSEnabled(true); },
+        () => { if (active) setIsGPSEnabled(false); },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+      );
+    } else setIsGPSEnabled(false);
+    return () => { active = false; };
+  }, [showOriginModal]);
 
   useEffect(() => {
     const fromLandmarkCard = sessionStorage.getItem('fromLandmarkCard');
@@ -1170,6 +1175,8 @@ const MapRoutingPage = () => {
   }, []);
 
   const handleCurrentLocationSelect = () => {
+    // Wait for fresh coordinates before the completed-endpoints effect can route.
+    setUserLocation(previous => previous?.source === 'gps' ? { ...previous, coordinates: null } : null);
     setIsTracking(true);
     setShowOriginModal(false);
   };
