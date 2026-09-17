@@ -1,3 +1,5 @@
+import useMapFloor from '../../hooks/useMapFloor';
+import { getPointFloor, pointIsOnFloor } from '../../utils/floors';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
 import { useIntl } from 'react-intl';
@@ -7,7 +9,6 @@ import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
 import { MBTILES_SATELLITE_STYLE, OSM_BASIC_STYLE_URL } from '../../services/mbtilesMapStyle';
 import { useLangStore } from '../../store/langStore';
 import { loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
-import { getLocationTitleById } from '../../utils/getLocationTitle';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
 import { createHaramVectorTileConfig } from '../../config/vectorTiles';
 const HIDDEN_VECTOR_LAYER_IDS = new Set([
@@ -91,6 +92,7 @@ const Mpbc = ({
   onZoomChange = () => {}
 }) => {
   const intl = useIntl();
+  const mapFloor = useMapFloor();
   const [viewState, setViewState] = useState({
     latitude: 36.2870,
     longitude: 59.6157,
@@ -183,24 +185,14 @@ const Mpbc = ({
     const storedId = sessionStorage.getItem('qrId');
 
     // Priority 1: QR code location
-    if (storedLat && storedLng) {
+    if (storedLat && storedLng && !isTracking && (!userLocation || userLocation.source === 'qr')) {
       const coords = {
         lat: parseFloat(storedLat),
         lng: parseFloat(storedLng)
       };
       setUserCoords(coords);
 
-      (async () => {
-        let name = intl.formatMessage({ id: 'mapCurrentLocationName' });
-        if (storedId) {
-          const title = await getLocationTitleById(storedId);
-          if (title) name = title;
-        }
-        setUserLocation({
-          name,
-          coordinates: [coords.lat, coords.lng]
-        });
-      })();
+
 
       setViewState(v => ({
         ...v,
@@ -214,9 +206,6 @@ const Mpbc = ({
     if (!isTracking) return undefined;
 
     const success = (pos) => {
-      if (sessionStorage.getItem('qrLat') && sessionStorage.getItem('qrLng')) {
-        return; // Don't override QR code location
-      }
 
       const c = {
         lat: pos.coords.latitude,
@@ -224,10 +213,11 @@ const Mpbc = ({
       };
 
       setUserCoords(c);
-      setUserLocation({
+      setUserLocation(previous => ({
         name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
-        coordinates: [c.lat, c.lng]
-      });
+        coordinates: [c.lat, c.lng], source: 'gps',
+        floor: previous?.source === 'gps' ? getPointFloor(previous) : null
+      }));
 
       setViewState((v) => ({
         ...v,
@@ -349,7 +339,9 @@ const Mpbc = ({
     let isMounted = true;
     const controller = new AbortController();
 
-    loadGeoJsonData({ language, signal: controller.signal })
+    setGeoData(null);
+    setSelectedFeatureForBubble(null);
+    loadGeoJsonData({ floor: mapFloor, signal: controller.signal })
       .then(data => {
         if (isMounted) {
           setGeoData(data);
@@ -366,7 +358,7 @@ const Mpbc = ({
       isMounted = false;
       controller.abort();
     };
-  }, [language]);
+  }, [language, mapFloor]);
 
   useEffect(() => {
     if (userCoords && destCoords && geoData) {
@@ -597,9 +589,10 @@ const Mpbc = ({
       return null;
     }
 
+    const floorLandmarks = landmarkPlaces.filter(place => pointIsOnFloor(place, mapFloor));
     const filteredLandmarks = selectedCategory
-      ? landmarkPlaces.filter(matchesSelectedCategory)
-      : landmarkPlaces;
+      ? floorLandmarks.filter(matchesSelectedCategory)
+      : floorLandmarks;
 
     const seenCoords = new Set();
 
@@ -611,7 +604,7 @@ const Mpbc = ({
         if (!coords || !imageUrl) return null;
 
         const key = place.id ? `landmark-${place.id}` : `landmark-${idx}`;
-        const coordKey = `${coords.lng.toFixed(6)}-${coords.lat.toFixed(6)}`;
+        const coordKey = `${mapFloor}-${coords.lng.toFixed(6)}-${coords.lat.toFixed(6)}`;
 
         if (seenCoords.has(coordKey)) return null;
         seenCoords.add(coordKey);
@@ -718,7 +711,7 @@ const Mpbc = ({
       interactive={true}
     >
       {/* User location marker */}
-      {userCoords && (
+      {userCoords && (getPointFloor(userLocation) === null || pointIsOnFloor(userLocation, mapFloor)) && (
         <Marker longitude={userCoords.lng} latitude={userCoords.lat} anchor="center">
           <div className="map-marker-origin">
           </div>
@@ -761,7 +754,7 @@ const Mpbc = ({
       )}
 
       {/* Destination marker */}
-      {destCoords && (
+      {destCoords && pointIsOnFloor(selectedDestination, mapFloor) && (
         <Marker longitude={destCoords.lng} latitude={destCoords.lat} anchor="center">
           <div className="map-marker-destination">
             <div className="map-marker-destination-inner" />

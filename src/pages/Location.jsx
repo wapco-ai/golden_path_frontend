@@ -1,3 +1,4 @@
+import { getPointFloor } from '../utils/floors';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation as useReactLocation } from 'react-router-dom';
 import '../styles/Location.css';
@@ -902,8 +903,8 @@ const Location = () => {
 
             // Find landmark by title
             const matchingLandmark = allLandmarks.find(landmark =>
-              landmark.title === decodedTitle ||
-              landmark.name === decodedTitle
+              (landmark.title === decodedTitle || landmark.name === decodedTitle) &&
+              (getPointFloor(locationState) === null || getPointFloor(landmark) === getPointFloor(locationState))
             );
 
             if (matchingLandmark) {
@@ -1391,6 +1392,7 @@ const Location = () => {
               // Store location data in session
               if (locationData) {
                 sessionStorage.setItem('locationFromPage', JSON.stringify({
+                  floor: getPointFloor(locationData),
                   name: locationData.title || locationData.name || locationData.label,
                   coordinates: locationData.coordinates,
                   location: locationData.location || '',
@@ -1471,6 +1473,7 @@ const Location = () => {
               // Store location data in session
               if (locationData) {
                 sessionStorage.setItem('locationFromPage', JSON.stringify({
+                  floor: getPointFloor(locationData),
                   name: locationData.title || locationData.name || locationData.label,
                   coordinates: locationData.coordinates,
                   location: locationData.location || '',

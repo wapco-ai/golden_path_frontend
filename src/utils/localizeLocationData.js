@@ -1,3 +1,5 @@
+import { getPointFloor } from './floors.js';
+
 export default function localizeLocationData(data, language = 'fa') {
   const get = (value) => {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
@@ -8,6 +10,7 @@ export default function localizeLocationData(data, language = 'fa') {
 
   return {
     ...data,
+    floor: getPointFloor(data),
     title: get(data.title),
     location: get(data.location),
     openingHours: get(data.openingHours),

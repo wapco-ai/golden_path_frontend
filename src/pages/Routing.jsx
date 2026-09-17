@@ -1,3 +1,4 @@
+import FloorControl from '../components/map/FloorControl';
 import { routeCoordinates as getRouteCoordinates, isMultifloor, multifloorSteps, activeRouteCoordinates } from '../utils/multifloorRoute';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -1874,6 +1875,7 @@ const RoutingPage = () => {
           </div>
         )}
         <div className={`map-container-rng ${!showAllRoutesView && !showAlternativeRoutes && isInfoModalOpen ? 'dark-overlay' : 'No-dark-overlay'}`}>
+          <FloorControl routeFloor={navigationFrame.floor} style={{ top: 16, bottom: 'auto' }} />
           <RouteMap
             ref={routeMapRef}
             userLocation={navigationLocation}

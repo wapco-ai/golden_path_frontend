@@ -1,3 +1,5 @@
+import { getPointFloor } from './floors.js';
+
 const basePath = (import.meta?.env?.BASE_URL || '/').replace(/\/$/, '');
 
 const withBasePath = (path) => {
@@ -111,6 +113,7 @@ const resolveGroupKey = (item) => {
 
 const normalizeSubGroupItem = (item, language) => ({
   ...item,
+  floor: getPointFloor(item),
   label: localizeField(item?.label, language) || item?.value,
   address: localizeField(item?.address, language),
   description: localizeField(item?.description, language),

@@ -1,0 +1,26 @@
+.gp-floor-control { position: absolute; right: 18px; bottom: 162px; width: 54px; height: 54px; z-index: 1001; font-family: 'Vazir', Tahoma, sans-serif; }
+.gp-floor-trigger { box-sizing: border-box; width: 54px; height: 54px; border: 3px solid #fff; border-radius: 4px; background: #fff; color: #333; box-shadow: 0 2px 6px #00000026; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2px; gap: 0; cursor: pointer; font-family: inherit; }
+.gp-floor-trigger > svg { width: 21px; height: 21px; flex-shrink: 0; }
+.gp-floor-trigger > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 19px; }
+.gp-floor-trigger.active { border-color: #0f71ef; color: #0f71ef; background: #f0f7ff; box-shadow: 0 0 0 2px #0f71ef25; }
+.gp-floor-menu { box-sizing: border-box; position: absolute; right: 66px; bottom: 0; width: 192px; max-width: calc(100vw - 100px); overflow-y: auto; overscroll-behavior: contain; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 6px; box-shadow: 0 4px 12px #00000026; }
+.gp-floor-title { color: #555; padding: 8px 10px 9px; border-bottom: 1px solid #ededed; font-size: 13px; text-align: start; }
+.gp-floor-option { box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 44px; margin: 2px 0 0; padding: 8px 10px; gap: 10px; border: 0; border-radius: 5px; font: inherit; font-size: 14px; text-align: start; cursor: pointer; background: #fff; color: #333; }
+.gp-floor-option > svg { width: 18px; height: 18px; flex-shrink: 0; visibility: hidden; }
+.gp-floor-option[aria-pressed='true'] { background: #eef5ff; color: #0f71ef; }
+.gp-floor-option[aria-pressed='true'] > svg { visibility: visible; }
+.gp-floor-option:disabled { opacity: .5; cursor: default; }
+.gp-floor-status { display: flex; flex-direction: column; gap: 8px; padding: 12px 10px; font-size: 13px; color: #555; }
+.gp-floor-status button { min-height: 44px; font: inherit; color: #0f71ef; background: #fff; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; }
+.gp-endpoint-floor { font: inherit; color: inherit; white-space: nowrap; }
+.gp-public-map-page .gp-floor-control { bottom: calc(162px + var(--gp-controls-lift, 0px)); }
+.gp-public-map-page .map-style-button-mpr { bottom: calc(230px + var(--gp-controls-lift, 0px)); }
+.gp-public-map-page .map-style-menu-mpr { bottom: calc(225px + var(--gp-controls-lift, 0px)); }
+.gp-public-map-page .map-gps-button { bottom: calc(300px + var(--gp-controls-lift, 0px)); }
+.gp-public-map-page .map-navigate-button { bottom: calc(370px + var(--gp-controls-lift, 0px)); }
+.gp-public-map-page .with-location-share-control .map-gps-button { bottom: calc(370px + var(--gp-controls-lift, 0px)); }
+.gp-public-map-page .with-location-share-control .map-navigate-button { bottom: calc(440px + var(--gp-controls-lift, 0px)); }
+.gp-public-map-page .map-location-share-slot { bottom: calc(300px + var(--gp-controls-lift, 0px)); }
+.gp-floor-trigger:focus-visible, .gp-floor-option:focus-visible { outline: 2px solid #0f71ef; outline-offset: 2px; }
+
+.gp-floor-control[data-menu-edge='top'] .gp-floor-menu { top: 0; bottom: auto; }

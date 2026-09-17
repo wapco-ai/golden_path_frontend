@@ -1,4 +1,5 @@
 import appConfig from '../config/appConfig.js';
+import { getPointFloor } from '../utils/floors.js';
 
 const inflightRequests = new Map();
 const responseCache = new Map();
@@ -78,6 +79,7 @@ const normalizeLandmarkPlace = (place = {}) => {
 
   return {
     ...place,
+    floor: getPointFloor(place),
     image: primaryImage || fallbackImage || place.image,
     images: Array.isArray(place.images)
       ? place.images.map((item) => resolveMediaValue(item)).filter(Boolean)

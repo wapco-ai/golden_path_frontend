@@ -1,4 +1,5 @@
 import { getLineDistanceMeters, sliceLineByFraction } from './routeSegments.js';
+import { normalizeFloor } from './floors.js';
 
 export const isMultifloor = geo => geo?.properties?.multifloor === true;
 // For bounds/point lookup only. Never draw these flattened coordinates as a line.
@@ -9,6 +10,13 @@ export const routeOnFloor = (geo, floor, predicate = () => true) => {
   return { type: 'FeatureCollection', features: (geo.properties.segments || [])
     .filter(s => s.kind === 'walk' && Number(s.floor) === Number(floor) && predicate(s))
     .map(s => ({ type: 'Feature', geometry: s.geometry, properties: { floor: s.floor, segmentId: s.id } })) };
+};
+// Public map browsing can also hide an ordinary single-floor route.
+export const routeOnMapFloor = (geo, floor, originFloor) => {
+  if (isMultifloor(geo)) return routeOnFloor(geo, floor);
+  const routeFloor = normalizeFloor(geo?.properties?.floor) ?? normalizeFloor(originFloor);
+  return routeFloor !== null && routeFloor === normalizeFloor(floor)
+    ? geo : { type: 'FeatureCollection', features: [] };
 };
 export const activeRouteCoordinates = (geo, step) => isMultifloor(geo)
   ? geo.properties.segments?.find(s => s.id === step?.segmentId)?.geometry?.coordinates || step?.coordinates || []

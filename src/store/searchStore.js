@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { getPointFloor } from '../utils/floors.js';
 
 export const useSearchStore = create(
   persist(
@@ -8,7 +9,7 @@ export const useSearchStore = create(
       addSearch: (item) =>
         set((state) => {
           const existsIndex = state.recentSearches.findIndex(
-            (s) => s.name === item.name && s.location === item.location
+            (s) => s.name === item.name && s.location === item.location && getPointFloor(s) === getPointFloor(item)
           );
           let updated = [...state.recentSearches];
           if (existsIndex !== -1) {

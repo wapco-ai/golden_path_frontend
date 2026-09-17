@@ -5,7 +5,6 @@ import '../styles/Pfp.css';
 import { USER_ACCESS_TOKEN_KEY, useUserAuthStore } from '../auth/user/userAuthStore';
 import { deleteDestination, listDestinations, updateDestination } from '../services/destinationService';
 import { convertUtm32640ToLngLat } from '../utils/utm';
-import { getSessionFloor } from '../utils/sessionFloor';
 import { useRouteStore } from '../store/routeStore';
 
 function Pfp() {
@@ -101,7 +100,7 @@ function Pfp() {
       const destination = {
         name: location?.title || location?.name || intl.formatMessage({ id: 'destination' }),
         coordinates: [lat, lng],
-        floor: Number.isFinite(parsedFloor) ? parsedFloor : getSessionFloor(),
+        floor: Number.isFinite(parsedFloor) ? parsedFloor : null,
         source: 'saved_destination',
         sourceId: String(location?.id ?? ''),
         address: location?.address || '',
