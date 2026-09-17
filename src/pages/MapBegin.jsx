@@ -601,12 +601,14 @@ const MapBeginPage = () => {
 
     if (!isQrEntry) {
       setOriginStore({
+        ...origin,
         name: origin.name,
         floor: getPointFloor(origin),
         coordinates: origin.coordinates
       });
     } else if (userLocation) {
       setOriginStore({
+        ...userLocation,
         name: userLocation.name,
         floor: getPointFloor(userLocation),
         coordinates: userLocation.coordinates

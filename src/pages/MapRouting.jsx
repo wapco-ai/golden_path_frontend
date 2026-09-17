@@ -578,11 +578,13 @@ const MapRoutingPage = () => {
 
       clearFloorRequest();
       setOriginStore({
+        ...userLocation,
         name: userLocation.name,
         floor: getPointFloor(userLocation),
         coordinates: userLocation.coordinates
       });
       setDestinationStore({
+        ...selectedDestination,
         name: selectedDestination.name,
         floor: getPointFloor(selectedDestination),
         coordinates: selectedDestination.coordinates
