@@ -255,10 +255,15 @@ test('a single-floor catalog restores an unsupported display floor before hiding
 test('recent save-location choices show their floor even when names match', async ({page}) => {
   const {errors}=await setup(page);
   await page.goto('/#/pmap');
+  await expect(page.locator('.gp-floor-trigger')).toHaveCount(0);
   const map=page.locator('.pmap-container .maplibregl-canvas');
   await map.click({position:{x:130,y:115}});
   await page.locator('.pmap-confirm-modal .pmap-cancel-button').click();
-  await chooseFloor(page,'منفی ۱');
+  await page.evaluate(() => {
+    sessionStorage.setItem('haramCurrentFloor', '-1');
+    window.dispatchEvent(new CustomEvent('haram-floor-change', { detail: { floor: -1 } }));
+  });
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('haramCurrentFloor'))).toBe('-1');
   await map.click({position:{x:130,y:115}});
   await page.locator('.pmap-confirm-modal .pmap-cancel-button').click();
   await page.locator('.pmap-search-input').click();
