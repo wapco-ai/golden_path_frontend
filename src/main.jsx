@@ -7,6 +7,7 @@ import './index.css';
 import { useGPSStore } from './store/gpsStore.js';
 import { DEFAULT_TILE_FLOOR } from './config/vectorTiles.js';
 import { initializeSessionFloor } from './utils/sessionFloor.js';
+import { captureQrLocation } from './services/qrLocationService.js';
 // main.jsx
 // import maplibregl from 'maplibre-gl';
 // import 'maplibre-gl/dist/maplibre-gl.css';
@@ -40,6 +41,7 @@ if (search && search.includes('&amp;')) {
 }
 
 const params = new URLSearchParams(search);
+captureQrLocation(params);
 const lat = params.get('lat');
 const lng = params.get('lng');
 const qrId = params.get('id');

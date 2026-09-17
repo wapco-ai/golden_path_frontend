@@ -1,4 +1,8 @@
-import { getSessionFloor } from '../utils/sessionFloor';
+import useQrOrigin from '../hooks/useQrOrigin';
+import FloorControl from '../components/map/FloorControl';
+import useMapFloor from '../hooks/useMapFloor';
+import { getPointFloor } from '../utils/floors';
+import { readQrPoint } from '../services/qrLocationService';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { useIntl } from 'react-intl';
@@ -7,7 +11,6 @@ import { toJalaali } from 'jalaali-js';
 import Mpbc from '../components/map/Mpbc';
 import { useRouteStore } from '../store/routeStore';
 import { useLangStore } from '../store/langStore';
-import { getLocationTitleById } from '../utils/getLocationTitle';
 import '../styles/MapBegin.css';
 import appConfig from '../config/appConfig';
 import { fetchLandmarkPlaces } from '../services/landmarkService';
@@ -23,6 +26,7 @@ const MapBeginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const intl = useIntl();
+  const mapFloor = useMapFloor();
   const language = useLangStore(state => state.language);
   const getCategoryLabel = (label) => intl.messages?.[label] ?? label;
   const { accessToken, user } = useUserAuthStore();
@@ -32,11 +36,13 @@ const MapBeginPage = () => {
   const storedId = sessionStorage.getItem('qrId');
   const initialUserLocation = storedLat && storedLng
     ? {
+      ...readQrPoint(),
       name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
       coordinates: [parseFloat(storedLat), parseFloat(storedLng)]
     }
     : null;
   const [userLocation, setUserLocation] = useState(initialUserLocation);
+  useQrOrigin(setUserLocation, language, intl.formatMessage({ id: 'mapCurrentLocationName' }));
   const [isTracking, setIsTracking] = useState(false);
   const [mapSelectedLocation, setMapSelectedLocation] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -137,19 +143,7 @@ const MapBeginPage = () => {
     return null;
   };
 
-  useEffect(() => {
-    if (storedLat && storedLng && storedId) {
-      getLocationTitleById(storedId).then((title) => {
-        if (title) {
-          sessionStorage.setItem('qrName', title);
-          setUserLocation({
-            name: title,
-            coordinates: [parseFloat(storedLat), parseFloat(storedLng)]
-          });
-        }
-      });
-    }
-  }, [storedLat, storedLng, storedId, language]);
+
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -508,6 +502,7 @@ const MapBeginPage = () => {
 
   const handlePlaceCulturalInfo = (place) => {
     const locationData = {
+      floor: getPointFloor(place),
       label: place.title || place.name || place.label || intl.formatMessage({ id: 'mapSelectedLocation' }),
       img: place.image ? [place.image] :
         place.images ? (Array.isArray(place.images) ? place.images : [place.images]) :
@@ -564,6 +559,7 @@ const MapBeginPage = () => {
           : [];
 
       setSelectedLocation({
+        floor: mapFloor,
         label: landmark.label || landmark.name || intl.formatMessage({ id: 'mapSelectedLocation' }),
         img: images,
         address: landmark.address,
@@ -586,7 +582,7 @@ const MapBeginPage = () => {
 
     const locName = feature?.properties?.name || intl.formatMessage({ id: 'mapSelectedLocation' });
     const origin = {
-      floor: feature?.properties?.floor ?? getSessionFloor(),
+      floor: mapFloor,
       name: locName,
       coordinates: [latlng.lat, latlng.lng]
     };
@@ -605,14 +601,16 @@ const MapBeginPage = () => {
 
     if (!isQrEntry) {
       setOriginStore({
+        ...origin,
         name: origin.name,
-        floor: origin.floor ?? getSessionFloor(),
+        floor: getPointFloor(origin),
         coordinates: origin.coordinates
       });
     } else if (userLocation) {
       setOriginStore({
+        ...userLocation,
         name: userLocation.name,
-        floor: userLocation.floor ?? getSessionFloor(),
+        floor: getPointFloor(userLocation),
         coordinates: userLocation.coordinates
       });
     }
@@ -649,6 +647,7 @@ const MapBeginPage = () => {
         // Set the selected location with coordinates from QR code
         setSelectedLocation({
           ...sahneEnghelabInfo,
+          floor: getPointFloor(readQrPoint()),
           coordinates: [parseFloat(storedLat), parseFloat(storedLng)]
         });
 
@@ -1005,6 +1004,7 @@ const MapBeginPage = () => {
 
 
         setSelectedLocation({
+          floor: getPointFloor(foundLandmark),
           label: foundLandmark.label || foundLandmark.name || foundLandmark.title || intl.formatMessage({ id: 'mapSelectedLocation' }),
           img: images,
           address: foundLandmark.address,
@@ -1113,6 +1113,7 @@ const MapBeginPage = () => {
       location: place.address || place.subGroup || '',
       coordinates: place.coordinates || [place.lat, place.lng],
       value: place.value || place.id || place.subGroupValue,
+      floor: getPointFloor(place),
       fromLandmarkCard: true
     };
 
@@ -1133,7 +1134,7 @@ const MapBeginPage = () => {
   };
 
   return (
-    <div className="map-routing-page">
+    <div className="map-routing-page gp-public-map-page gp-mapbegin">
       {/* Header */}
       <header className="map-routing-header">
         <button
@@ -1235,30 +1236,6 @@ const MapBeginPage = () => {
             <path d="M2 12l2 0" />
           </svg>
         </button>
-        {showMapStyleMenu && (
-          <div className="map-style-menu-mpr">
-            <div
-              className={`map-style-option ${selectedMapType === 'base' ? 'active' : ''}`}
-              onClick={() => {
-                setSelectedMapType('base');
-                setShowMapStyleMenu(false);
-                console.log('Base map selected from map button');
-              }}
-            >
-            </div>
-
-            <div
-              className={`map-style-option ${selectedMapType === 'satellite' ? 'active' : ''}`}
-              onClick={() => {
-                setSelectedMapType('satellite');
-                setShowMapStyleMenu(false);
-                console.log('Satellite map selected from map button');
-              }}
-            >
-            </div>
-          </div>
-        )}
-
         <button
           className={`map-style-button-mpr ${showMapStyleMenu ? 'active' : ''}`}
           onClick={() => setShowMapStyleMenu(!showMapStyleMenu)}
@@ -1330,6 +1307,7 @@ const MapBeginPage = () => {
             </div>
           </div>
         )}
+        <FloorControl otherMenuOpen={showMapStyleMenu} onOpen={() => setShowMapStyleMenu(false)} onChange={() => { setSelectedLandmarkId(null); setShowLocationDetails(false); }} />
       </div>
 
       {/* Search Bar with Integrated Routing */}

@@ -1,5 +1,11 @@
+import FloorControl from '../components/map/FloorControl';
+import FloorTag from '../components/map/FloorTag';
+import useMapFloor from '../hooks/useMapFloor';
+import useEndpointFloor from '../hooks/useEndpointFloor';
+import { getPointFloor, pointIsOnFloor } from '../utils/floors';
+import { readQrPoint } from '../services/qrLocationService';
 import { getSessionFloor, setSessionFloor } from '../utils/sessionFloor';
-import { routeCoordinates as getRouteCoordinates, routeOnFloor } from '../utils/multifloorRoute';
+import { routeCoordinates as getRouteCoordinates, routeOnMapFloor, routeCoordinatesOnFloor } from '../utils/multifloorRoute';
 // src/pages/FinalSearch.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -52,6 +58,8 @@ const FinalSearch = () => {
   const { accessToken, user } = useUserAuthStore();
   const location = useLocation();
   const intl = useIntl();
+  const mapFloor = useMapFloor();
+  const { floorRequest, askFloor, clearFloorRequest } = useEndpointFloor();
   const formatDigits = useLocaleDigits();
   const language = useLangStore((state) => state.language);
   const isRtl = ["fa", "ar", "ur"].includes(language);
@@ -84,17 +92,20 @@ const FinalSearch = () => {
     storedOrigin ||
     (qrLat && qrLng
       ? {
+        ...readQrPoint(),
         name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
         coordinates: [parseFloat(qrLat), parseFloat(qrLng)]
       }
       : {
         name: intl.formatMessage({ id: 'defaultBabRezaName' }),
+        floor: 0,
         coordinates: [36.2970, 59.6069]
       })
   );
   const [destination, setDestination] = useState(
     storedDestination || {
       name: intl.formatMessage({ id: 'destSahnEnqelabName' }),
+      floor: 0,
       coordinates: [36.2975, 59.6072]
     }
   );
@@ -132,7 +143,6 @@ const FinalSearch = () => {
   }, [vectorTileConfig]);
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [geoData, setGeoData] = useState(null);
   const [isRequestingRoute, setIsRequestingRoute] = useState(false);
   const [hasUserSelectedRoute, setHasUserSelectedRoute] = useState(
     sessionStorage.getItem('manualRouteSelected') === 'true'
@@ -246,26 +256,7 @@ const FinalSearch = () => {
     });
   };
 
-  useEffect(() => {
-    let isMounted = true;
-    const controller = new AbortController();
 
-    loadGeoJsonData({ language, signal: controller.signal })
-      .then(data => {
-        if (isMounted) {
-          setGeoData(data);
-        }
-      })
-      .catch(err => {
-        if (err?.name === 'AbortError') return;
-        console.error('failed to load geojson', err);
-      });
-
-    return () => {
-      isMounted = false;
-      controller.abort();
-    };
-  }, [language]);
 
   useEffect(() => {
     if (!destination.coordinates) {
@@ -292,28 +283,12 @@ const FinalSearch = () => {
   };
 
   const clearPersistedRouteData = React.useCallback(() => {
-    if (storedRouteGeo) {
-      storeSetRouteGeo(null);
-    }
-    if (storedRouteSteps?.length) {
-      storeSetRouteSteps([]);
-    }
-    if (storedAlternativeRoutes?.length) {
-      storeSetAlternativeRoutes([]);
-    }
-    sessionStorage.removeItem('routeGeo');
-    sessionStorage.removeItem('routeSteps');
-    sessionStorage.removeItem('alternativeRoutes');
-    sessionStorage.removeItem('routeSahns');
-    sessionStorage.removeItem('routeSummaryData');
-  }, [
-    storeSetAlternativeRoutes,
-    storeSetRouteGeo,
-    storeSetRouteSteps,
-    storedAlternativeRoutes,
-    storedRouteGeo,
-    storedRouteSteps
-  ]);
+    const current = useRouteStore.getState();
+    if (current.routeGeo) storeSetRouteGeo(null);
+    if (current.routeSteps?.length) storeSetRouteSteps([]);
+    if (current.alternativeRoutes?.length) storeSetAlternativeRoutes([]);
+    for (const key of ['routeGeo','routeSteps','alternativeRoutes','routeSahns','routeSummaryData']) sessionStorage.removeItem(key);
+  }, [storeSetRouteGeo, storeSetRouteSteps, storeSetAlternativeRoutes]);
 
   useEffect(() => {
     setHasUserSelectedRoute(false);
@@ -338,9 +313,13 @@ const FinalSearch = () => {
     let isMounted = true;
     const controller = new AbortController();
 
+    if (getPointFloor(origin) === null) { askFloor(origin, 'origin', setOrigin); return undefined; }
+    if (getPointFloor(destination) === null) { askFloor(destination, 'destination', setDestination); return undefined; }
+    clearFloorRequest();
+
     const attemptKey = JSON.stringify({
-      origin: origin.coordinates, originFloor: origin.floor ?? getSessionFloor(),
-      destination: destination.coordinates, destinationFloor: destination.floor ?? getSessionFloor(),
+      origin: origin.coordinates, originFloor: getPointFloor(origin),
+      destination: destination.coordinates, destinationFloor: getPointFloor(destination),
       transportMode,
       gender: selectedGender
     });
@@ -368,8 +347,8 @@ const FinalSearch = () => {
       hasStoredRoute &&
       sameCoordinates(origin.coordinates, storedOrigin?.coordinates) &&
       sameCoordinates(destination.coordinates, storedDestination?.coordinates) &&
-      Number(origin.floor ?? getSessionFloor()) === Number(storedOrigin?.floor ?? getSessionFloor()) &&
-      Number(destination.floor ?? getSessionFloor()) === Number(storedDestination?.floor ?? getSessionFloor()) &&
+      Number(getPointFloor(origin)) === Number(getPointFloor(storedOrigin)) &&
+      Number(getPointFloor(destination)) === Number(getPointFloor(storedDestination)) &&
       sessionStorage.getItem('transportMode') === transportMode &&
       sessionStorage.getItem('gender') === selectedGender;
 
@@ -437,8 +416,17 @@ const FinalSearch = () => {
         if (isMounted) setIsRequestingRoute(false);
       }
 
-      if (!geoData) return;
-      const result = analyzeRoute(origin, destination, geoData, transportMode, selectedGender);
+      if (!isMounted) return;
+      let result = null;
+      if (getPointFloor(origin) === getPointFloor(destination)) {
+        try {
+          const fallbackData = await loadGeoJsonData({ floor: getPointFloor(origin), signal: controller.signal });
+          if (!isMounted) return;
+          result = analyzeRoute(origin, destination, fallbackData, transportMode, selectedGender);
+        } catch (error) {
+          if (error?.name === 'AbortError' || !isMounted) return;
+        }
+      }
       if (!result) {
         toast.error(intl.formatMessage({ id: 'noRouteFound' }));
         clearPersistedRouteData();
@@ -457,7 +445,6 @@ const FinalSearch = () => {
       controller.abort();
     };
   }, [
-    geoData,
     origin,
     destination,
     transportMode,
@@ -467,9 +454,8 @@ const FinalSearch = () => {
     storeSetAlternativeRoutes,
     clearPersistedRouteData,
     intl,
+    language, askFloor, clearFloorRequest,
     hasUserSelectedRoute,
-    storedRouteGeo,
-    storedRouteSteps,
     lastFailedKey
   ]);
 
@@ -534,8 +520,8 @@ const FinalSearch = () => {
   // Determine popup location and total minutes for main route
   useEffect(() => {
     if (!routeGeo) return;
-    const coords = getRouteCoordinates(routeGeo) || [];
-    if (coords.length === 0) return;
+    const coords = routeCoordinatesOnFloor(routeGeo, mapFloor, getPointFloor(origin)) || [];
+    if (coords.length === 0) { setPopupCoord(null); setPopupMinutes(null); return; }
 
     const dist = coords.slice(1).reduce((acc, c, i) => {
       const prev = coords[i];
@@ -547,7 +533,7 @@ const FinalSearch = () => {
     for (let i = 0; i < coords.length; i++) {
       const [lng, lat] = coords[i];
       const conflict = (storedAlternativeRoutes || []).some((alt) =>
-        getRouteCoordinates(alt.geo).some(
+        routeCoordinatesOnFloor(alt.geo, mapFloor, getPointFloor(origin)).some(
           ([alng, alat]) =>
             Math.abs(alng - lng) < 1e-6 && Math.abs(alat - lat) < 1e-6
         )
@@ -563,7 +549,7 @@ const FinalSearch = () => {
     }
 
     setPopupCoord(isValidLngLat(chosen) ? chosen : null);
-  }, [routeGeo, storedAlternativeRoutes]);
+  }, [routeGeo, storedAlternativeRoutes, mapFloor, origin.floor]);
 
   // Determine popup locations and minutes for alternative routes
   useEffect(() => {
@@ -577,7 +563,7 @@ const FinalSearch = () => {
     const minutesArr = [];
 
     storedAlternativeRoutes.forEach((alt) => {
-      const coords = getRouteCoordinates(alt.geo) || [];
+      const coords = routeCoordinatesOnFloor(alt.geo, mapFloor, getPointFloor(origin)) || [];
       if (coords.length === 0) {
         coordsArr.push(null);
         minutesArr.push(null);
@@ -593,7 +579,7 @@ const FinalSearch = () => {
       let chosen = null;
       for (let i = 0; i < coords.length; i++) {
         const [lng, lat] = coords[i];
-        const conflict = getRouteCoordinates(routeGeo)?.some(
+        const conflict = routeCoordinatesOnFloor(routeGeo, mapFloor, getPointFloor(origin))?.some(
           ([mlng, mlat]) =>
             Math.abs(mlng - lng) < 1e-6 && Math.abs(mlat - lat) < 1e-6
         );
@@ -612,7 +598,7 @@ const FinalSearch = () => {
 
     setAltPopupCoords(coordsArr);
     setAltPopupMinutes(minutesArr);
-  }, [storedAlternativeRoutes, routeGeo]);
+  }, [storedAlternativeRoutes, routeGeo, mapFloor, origin.floor]);
 
   const swapLocations = () => {
     setIsSwapping(true); // This will trigger the rotation
@@ -625,28 +611,9 @@ const FinalSearch = () => {
     storeSetDestination(newDestination);
     sessionStorage.setItem('origin', JSON.stringify(newOrigin));
     sessionStorage.setItem('destination', JSON.stringify(newDestination));
-    sessionStorage.setItem('qrLat', String(newOrigin.coordinates[0]));
-    sessionStorage.setItem('qrLng', String(newOrigin.coordinates[1]));
-    // Immediately rebuild the route so session data stays in sync
-    if (geoData) {
-      const result = analyzeRoute(
-        newOrigin,
-        newDestination,
-        geoData,
-        transportMode,
-        selectedGender
-      );
-      if (result) {
-        const { geo, steps, alternatives, sahns } = result;
-        storeSetRouteGeo(geo);
-        storeSetRouteSteps(steps);
-        storeSetAlternativeRoutes(alternatives);
-        sessionStorage.setItem('routeGeo', JSON.stringify(geo));
-        sessionStorage.setItem('routeSteps', JSON.stringify(steps));
-        sessionStorage.setItem('alternativeRoutes', JSON.stringify(alternatives));
-        sessionStorage.setItem('routeSahns', JSON.stringify(sahns));
-      }
-    }
+    // Endpoint changes trigger the server request; never turn a swapped point into a QR scan.
+    clearPersistedRouteData();
+    setHasUserSelectedRoute(false);
   };
 
   const handleSelectAlternativeRoute = (route) => {
@@ -909,7 +876,7 @@ const FinalSearch = () => {
             }
           }}
         >
-          {isValidLngLat(origin.coordinates) && (
+          {isValidLngLat(origin.coordinates) && pointIsOnFloor(origin, mapFloor) && (
             <Marker
               longitude={origin.coordinates[1]}
               latitude={origin.coordinates[0]}
@@ -918,7 +885,7 @@ const FinalSearch = () => {
               <div className="marker-circle"></div>
             </Marker>
           )}
-          {isValidLngLat(destination.coordinates) && (
+          {isValidLngLat(destination.coordinates) && pointIsOnFloor(destination, mapFloor) && (
             <Marker
               longitude={destination.coordinates[1]}
               latitude={destination.coordinates[0]}
@@ -934,7 +901,7 @@ const FinalSearch = () => {
           {storedAlternativeRoutes &&
             storedAlternativeRoutes.map((alt, idx) => (
               <React.Fragment key={idx}>
-                <Source id={`alt-route-${idx}`} type="geojson" data={routeOnFloor(alt.geo, origin?.floor ?? getSessionFloor())}>
+                <Source id={`alt-route-${idx}`} type="geojson" data={routeOnMapFloor(alt.geo, mapFloor, getPointFloor(origin))}>
                   <Layer
                     id={`alt-route-border-${idx}`}
                     type="line"
@@ -969,7 +936,7 @@ const FinalSearch = () => {
             ))}
 
           {routeGeo && (
-            <Source id="main-route" type="geojson" data={routeOnFloor(routeGeo, origin?.floor ?? getSessionFloor())}>
+            <Source id="main-route" type="geojson" data={routeOnMapFloor(routeGeo, mapFloor, getPointFloor(origin))}>
               <Layer id="main-line" type="line" paint={{ 'line-color': '#0f71ef', 'line-width': 10 }} />
             </Source>
           )}
@@ -989,6 +956,7 @@ const FinalSearch = () => {
             </Popup>
           )}
         </Map>
+        <FloorControl request={floorRequest} style={{ bottom: 24 }} />
         <div className="map-fade"></div>
       </div>
 
@@ -1047,7 +1015,7 @@ const FinalSearch = () => {
             onClick={handleOriginClick} // Add this onClick handler
           >
             <div className="location-details">
-              <div className="location-name">{origin.name}</div>
+              <div className="location-name">{origin.name}<FloorTag point={origin} /></div>
             </div>
             <div className={`current-location-label ${isSwapButton ? 'visible' : 'hidden'}`}>
               {/* <FormattedMessage id="mapCurrentLocationName" /> */}
@@ -1080,7 +1048,7 @@ const FinalSearch = () => {
             onClick={handleDestinationClick} // Add this onClick handler
           >
             <div className="location-details">
-              <div className="location-name">{destination.name}</div>
+              <div className="location-name">{destination.name}<FloorTag point={destination} /></div>
             </div>
           </div>
         </div>

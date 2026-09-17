@@ -1,3 +1,5 @@
+import useMapFloor from '../../hooks/useMapFloor';
+import { getPointFloor, pointIsOnFloor } from '../../utils/floors';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
 import { useIntl } from 'react-intl';
@@ -6,7 +8,6 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
 import { MBTILES_SATELLITE_STYLE, OSM_BASIC_STYLE_URL } from '../../services/mbtilesMapStyle';
 import { useLangStore } from '../../store/langStore';
-import { getLocationTitleById } from '../../utils/getLocationTitle';
 import { loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
 import { createHaramVectorTileConfig } from '../../config/vectorTiles';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
@@ -100,6 +101,7 @@ const Mprc = ({
   onZoomChange = () => { }
 }) => {
   const intl = useIntl();
+  const mapFloor = useMapFloor();
   const [viewState, setViewState] = useState({
     latitude: 36.2880,  // Original shrine coordinates
     longitude: 59.6157,
@@ -261,24 +263,13 @@ const Mprc = ({
     const storedLng = sessionStorage.getItem('qrLng');
     const storedId = sessionStorage.getItem('qrId');
 
-    if (storedLat && storedLng) {
+    if (storedLat && storedLng && !isTracking && (!userLocation || userLocation.source === 'qr')) {
       const coords = {
         lat: parseFloat(storedLat),
         lng: parseFloat(storedLng)
       };
       setUserCoords(coords);
-      (async () => {
-        let name = intl.formatMessage({ id: 'mapCurrentLocationName' });
-        if (storedId) {
-          const title = await getLocationTitleById(storedId);
 
-          if (title) name = title;
-        }
-        setUserLocation({
-          name,
-          coordinates: [coords.lat, coords.lng]
-        });
-      })();
       setViewState(v => ({
         ...v,
         latitude: coords.lat,
@@ -291,18 +282,16 @@ const Mprc = ({
     if (!isTracking) return undefined;
 
     const success = (pos) => {
-      if (sessionStorage.getItem('qrLat') && sessionStorage.getItem('qrLng')) {
-        return; // Don't override QR code location
-      }
       const c = {
         lat: pos.coords.latitude,
         lng: pos.coords.longitude
       };
       setUserCoords(c);
-      setUserLocation({
+      setUserLocation(previous => ({
         name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
-        coordinates: [c.lat, c.lng]
-      });
+        coordinates: [c.lat, c.lng], source: 'gps',
+        floor: previous?.source === 'gps' ? getPointFloor(previous) : null
+      }));
       setViewState((v) => ({
         ...v,
         latitude: c.lat,
@@ -348,6 +337,8 @@ const Mprc = ({
           zoom: 18
         }));
       }
+    } else {
+      setUserCoords(null);
     }
   }, [userLocation, isTracking]);
 
@@ -619,9 +610,10 @@ const Mprc = ({
       return null;
     }
 
+    const floorLandmarks = landmarkPlaces.filter(place => pointIsOnFloor(place, mapFloor));
     const filteredLandmarks = isChoosingFromMap
-      ? landmarkPlaces  // Show all landmarks when choosing from map
-      : landmarkPlaces.filter(matchesSelectedCategory);  // Filter by category when category is selected
+      ? floorLandmarks
+      : floorLandmarks.filter(matchesSelectedCategory);
 
     if (filteredLandmarks.length === 0) {
       return null;
@@ -637,7 +629,7 @@ const Mprc = ({
         if (!coords || !imageUrl) return null;
 
         const key = place.id ? `landmark-${place.id}` : `landmark-${idx}`;
-        const coordKey = `${coords.lng.toFixed(6)}-${coords.lat.toFixed(6)}`;
+        const coordKey = `${mapFloor}-${coords.lng.toFixed(6)}-${coords.lat.toFixed(6)}`;
 
         if (seenCoords.has(coordKey)) return null;
         seenCoords.add(coordKey);
@@ -694,7 +686,7 @@ const Mprc = ({
         </Marker>
       );
     });
-  }, [showImageMarkers, landmarkPlaces, extractPlaceCoordinates, getFirstImage, onMapClick, matchesSelectedCategory, isChoosingFromMap, selectedCategory, selectedLandmarkId, onLandmarkSelect]);
+  }, [showImageMarkers, landmarkPlaces, extractPlaceCoordinates, getFirstImage, onMapClick, matchesSelectedCategory, isChoosingFromMap, selectedCategory, selectedLandmarkId, onLandmarkSelect, mapFloor]);
 
   useEffect(() => {
     if (!shouldLoadGeoJson) {
@@ -706,7 +698,9 @@ const Mprc = ({
     let isMounted = true;
     const controller = new AbortController();
 
-    loadGeoJsonData({ language, signal: controller.signal })
+    setPointFeatures([]);
+    setDoorConnectionNodes([]);
+    loadGeoJsonData({ floor: mapFloor, signal: controller.signal })
       .then(data => {
         if (!isMounted) {
           return;
@@ -739,10 +733,10 @@ const Mprc = ({
       isMounted = false;
       controller.abort();
     };
-  }, [language, shouldLoadGeoJson]);
+  }, [language, shouldLoadGeoJson, mapFloor]);
 
   useEffect(() => {
-    if (userCoords && destCoords && doorConnectionNodes.length) {
+    if (userCoords && destCoords && pointIsOnFloor(userLocation, mapFloor) && pointIsOnFloor(selectedDestination, mapFloor) && doorConnectionNodes.length) {
       const points = doorConnectionNodes;
       const nearest = (coords) => {
         let best = null;
@@ -770,7 +764,7 @@ const Mprc = ({
     } else {
       setRouteCoords(null);
     }
-  }, [userCoords, destCoords, doorConnectionNodes]);
+  }, [userCoords, destCoords, doorConnectionNodes, mapFloor, userLocation, selectedDestination]);
 
   return (
     <Map
@@ -787,7 +781,7 @@ const Mprc = ({
       interactive={true}
     >
       {/* User location marker */}
-      {userCoords && (
+      {userCoords && (getPointFloor(userLocation) === null || pointIsOnFloor(userLocation, mapFloor)) && (
         <Marker longitude={userCoords.lng} latitude={userCoords.lat} anchor="center">
           <div className="map-marker-origin">
           </div>
@@ -795,7 +789,7 @@ const Mprc = ({
       )}
 
       {/* Destination marker */}
-      {destCoords && (
+      {destCoords && pointIsOnFloor(selectedDestination, mapFloor) && (
         <Marker longitude={destCoords.lng} latitude={destCoords.lat} anchor="bottom">
           <div className="map-marker-destination">
             <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="#F44336">

@@ -1,3 +1,4 @@
+import FloorControl from '../components/map/FloorControl';
 import { routeCoordinates as getRouteCoordinates, routeOnFloor, isMultifloor, multifloorSteps } from '../utils/multifloorRoute';
 import { getSessionFloor, setSessionFloor } from '../utils/sessionFloor';
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
@@ -1172,6 +1173,7 @@ const RouteOverview = () => {
             </Popup>
           )}
         </Map>
+        <FloorControl routeFloor={activeRouteFloor} style={{ bottom: 24 }} />
       </div>
 
       <button className="start-routing-btn" onClick={() => navigate('/rng')}>

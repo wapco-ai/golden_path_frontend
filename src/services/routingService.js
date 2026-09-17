@@ -1,21 +1,15 @@
-import { getSessionFloor } from '../utils/sessionFloor.js';
+import { getPointFloor, normalizeFloor } from '../utils/floors.js';
 import appConfig from '../config/appConfig.js';
 import {
   beginRoutingRequest,
   endRoutingRequest
 } from '../utils/routingRequestActivity.js';
 
-const normalizeFloor = (floor) => {
-  if (floor === null || floor === undefined || floor === '') return null;
-
-  const normalized = Number(floor);
-  return Number.isFinite(normalized) ? normalized : null;
-};
-
 const buildCoordinatePayload = (point, fallbackFloor = null) => {
   if (!point?.coordinates || point.coordinates.length < 2) return null;
   const [lat, lon] = point.coordinates;
-  const floor = normalizeFloor(point.floor ?? fallbackFloor);
+  if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) return null;
+  const floor = getPointFloor(point, fallbackFloor);
 
   return {
     type: 'coordinate',
@@ -27,12 +21,15 @@ const buildCoordinatePayload = (point, fallbackFloor = null) => {
 };
 
 const buildRequestBody = ({ origin, destination, mode, gender, lang, maxAlternatives, floor }) => {
-  const normalizedFloor = normalizeFloor(floor ?? getSessionFloor());
+  const normalizedFloor = normalizeFloor(floor);
   const originPayload = buildCoordinatePayload(origin, normalizedFloor);
   const destinationPayload = buildCoordinatePayload(destination, normalizedFloor);
 
   if (!originPayload || !destinationPayload) {
     throw new Error('Missing origin or destination coordinates');
+  }
+  if (originPayload.floor === undefined || destinationPayload.floor === undefined) {
+    throw new Error('Choose the floor of each route endpoint');
   }
   const normalizedMode =
     mode === 'wheelchair'

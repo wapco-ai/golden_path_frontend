@@ -1,3 +1,9 @@
+import useQrOrigin from '../hooks/useQrOrigin';
+import useEndpointFloor from '../hooks/useEndpointFloor';
+import FloorControl from '../components/map/FloorControl';
+import FloorTag from '../components/map/FloorTag';
+import useMapFloor from '../hooks/useMapFloor';
+import { getPointFloor, pointIsOnFloor, floorLabel } from '../utils/floors';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
@@ -5,7 +11,6 @@ import { FormattedMessage, useIntl } from 'react-intl';
 import Mprc from '../components/map/Mprc';
 import { useRouteStore } from '../store/routeStore';
 import { useLangStore } from '../store/langStore';
-import { getLocationTitleById } from '../utils/getLocationTitle';
 import { useSearchStore } from '../store/searchStore';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -23,6 +28,8 @@ import mode3 from '../assets/images/mode3.png';
 const MapRoutingPage = () => {
   const navigate = useNavigate();
   const intl = useIntl();
+  const mapFloor = useMapFloor();
+  const { floorRequest, askFloor, clearFloorRequest } = useEndpointFloor();
   const location = useLocation()
   const { accessToken, user } = useUserAuthStore();
   const language = useLangStore(state => state.language);
@@ -88,50 +95,8 @@ const MapRoutingPage = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [landmarkSearchResults, setLandmarkSearchResults] = useState([]);
 
-  useEffect(() => {
+  useQrOrigin(setUserLocation, language, intl.formatMessage({ id: 'mapCurrentLocationName' }), !location.state?.fromFinalSearch && !location.state?.showOriginModal && !location.state?.showDestinationModal && !sessionStorage.getItem('locationFromPage'));
 
-    if (storedLat && storedLng) {
-      const coordinates = [parseFloat(storedLat), parseFloat(storedLng)];
-
-      if (storedQrName) {
-        setUserLocation({
-          name: storedQrName,
-          coordinates
-        });
-        return;
-      }
-
-      if (storedId) {
-        getLocationTitleById(storedId).then((title) => {
-          if (title) {
-            sessionStorage.setItem('qrName', title);
-            setUserLocation({
-              name: title,
-              coordinates: coordinates
-            });
-          } else {
-            setUserLocation({
-              name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
-              coordinates: coordinates
-            });
-          }
-        }).catch(() => {
-
-          setUserLocation({
-            name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
-            coordinates: coordinates
-          });
-        });
-      } else {
-
-        setUserLocation({
-          name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
-          coordinates: coordinates
-        });
-      }
-    }
-
-  }, [storedLat, storedLng, storedId, storedQrName, intl]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -366,6 +331,7 @@ const MapRoutingPage = () => {
           openingHours: '',
           coordinates: subGroup.coordinates,
           geo: subGroup.geo,
+          floor: getPointFloor(subGroup),
           category: mapSelectedCategory?.label,
           categoryIcon: mapSelectedCategory?.png,
           fromMPR: true,
@@ -583,7 +549,7 @@ const MapRoutingPage = () => {
         id: place.id || place.value || place.subGroupValue,
         name: place.title || place.name || place.subGroup || '',
         location: localizedLocation,
-        floor: place.floor ?? place.properties?.floor ?? getSessionFloor(),
+        floor: getPointFloor(place),
         coordinates: coords ? [coords.lat, coords.lng] : null,
         address: place.address,
         description: place.description || place?.content?.body || ''
@@ -601,14 +567,26 @@ const MapRoutingPage = () => {
       !isSelectingFromMap &&
       !showEntryModal) {
 
+      if (getPointFloor(userLocation) === null) {
+        askFloor(userLocation, 'origin', point => setUserLocation(previous => ({ ...previous, floor: point.floor })));
+        return;
+      }
+      if (getPointFloor(selectedDestination) === null) {
+        askFloor(selectedDestination, 'destination', setSelectedDestination);
+        return;
+      }
+
+      clearFloorRequest();
       setOriginStore({
+        ...userLocation,
         name: userLocation.name,
-        floor: userLocation.floor ?? getSessionFloor(),
+        floor: getPointFloor(userLocation),
         coordinates: userLocation.coordinates
       });
       setDestinationStore({
+        ...selectedDestination,
         name: selectedDestination.name,
-        floor: selectedDestination.floor ?? getSessionFloor(),
+        floor: getPointFloor(selectedDestination),
         coordinates: selectedDestination.coordinates
       });
       navigate('/fs', { replace: Boolean(location.state?.fromFinalSearch) });
@@ -623,7 +601,7 @@ const MapRoutingPage = () => {
     showOriginModal,
     isSelectingFromMap,
     showEntryModal,
-    location.state?.fromFinalSearch
+    location.state?.fromFinalSearch, askFloor, clearFloorRequest
   ]);
 
   useEffect(() => {
@@ -638,12 +616,12 @@ const MapRoutingPage = () => {
     setActiveInput('destination');
     setShowDestinationModal(false);
 
-    let coordinates = null;
+    let coordinates = subgroup.coordinates || (subgroup.geo ? [subgroup.geo.lat, subgroup.geo.lng] : null);
 
     // Try to get coordinates from geoData first
-    if (geoData) {
+    if (!coordinates && geoData) {
       const feature = geoData.features.find(
-        f => f.properties?.subGroupValue === subgroup.value
+        f => f.properties?.subGroupValue === subgroup.value && pointIsOnFloor(f, getPointFloor(subgroup))
       );
 
       if (feature) {
@@ -670,7 +648,7 @@ const MapRoutingPage = () => {
     // If still no coordinates, try to find any feature with this subgroup value for coordinates
     if (!coordinates && geoData) {
       const anyFeature = geoData.features.find(
-        f => f.properties?.subGroupValue === subgroup.value
+        f => f.properties?.subGroupValue === subgroup.value && pointIsOnFloor(f, getPointFloor(subgroup))
       );
       if (anyFeature) {
         const center = getFeatureCenter(anyFeature);
@@ -687,7 +665,7 @@ const MapRoutingPage = () => {
     );
     const destination = {
       id: subgroup.value,
-      floor: subgroup.floor ?? getSessionFloor(),
+      floor: getPointFloor(subgroup),
       name: subgroup.label,
       location: modalSelectedCategory ?
         intl.formatMessage({ id: modalSelectedCategory.label }) :
@@ -703,7 +681,7 @@ const MapRoutingPage = () => {
     if (isOriginSelection) {
       // For origin: Set directly without entry modal
       setIsTracking(false);
-      setUserLocation({ name: destination.name, floor: destination.floor ?? getSessionFloor(), coordinates: destination.coordinates });
+      setUserLocation({ name: destination.name, floor: getPointFloor(destination), coordinates: destination.coordinates });
       setShowOriginModal(false);
       setSearchQuery('');
     } else {
@@ -727,6 +705,14 @@ const MapRoutingPage = () => {
 
   const handleDestinationSelect = (destination, options = {}) => {
     const { forceDestination = false, fromMapSelection = false } = options;
+    if (getPointFloor(destination) === null) {
+      const target = activeInput === 'destination' || forceDestination ? 'destination' : 'origin';
+      setShowDestinationModal(false);
+      setShowOriginModal(false);
+      askFloor(destination, target, point => handleDestinationSelect(point, options));
+      return;
+    }
+
 
     setAreaDoorsData(null);
     setAreaDoorsStatus(null);
@@ -742,20 +728,20 @@ const MapRoutingPage = () => {
 
       const [lat, lon] = destination?.coordinates || [];
       if (typeof lat === 'number' && typeof lon === 'number') {
-        requestAreaDoors(lat, lon, destination.floor ?? getSessionFloor());
+        requestAreaDoors(lat, lon, getPointFloor(destination));
       }
       if (!destination.fromMapSelection && !fromMapSelection) {
         addSearch(destination);
       }
     } else {
       setIsTracking(false);
-      setUserLocation({ name: destination.name, floor: destination.floor ?? getSessionFloor(), coordinates: destination.coordinates });
+      setUserLocation({ name: destination.name, floor: getPointFloor(destination), coordinates: destination.coordinates });
       setShowOriginModal(false);
 
       if (location.state?.showOriginModal) {
         sessionStorage.setItem('updatedOrigin', JSON.stringify({
           name: destination.name,
-          floor: destination.floor ?? getSessionFloor(), coordinates: destination.coordinates
+          floor: getPointFloor(destination), coordinates: destination.coordinates
         }));
         navigate('/fs', { replace: true });
       }
@@ -777,7 +763,7 @@ const MapRoutingPage = () => {
           setIsTracking(false);
           setUserLocation({
             name: locationData.name,
-            floor: locationData.floor ?? getSessionFloor(),
+            floor: getPointFloor(locationData),
             coordinates: locationData.coordinates
           });
           sessionStorage.setItem('currentOrigin', JSON.stringify(locationData));
@@ -786,7 +772,7 @@ const MapRoutingPage = () => {
           setSelectedDestination({
             name: locationData.name,
             location: locationData.location || locationData.name,
-            floor: locationData.floor ?? getSessionFloor(),
+            floor: getPointFloor(locationData),
             coordinates: locationData.coordinates
           });
           sessionStorage.setItem('currentDestination', JSON.stringify(locationData));
@@ -850,7 +836,8 @@ const MapRoutingPage = () => {
     let isMounted = true;
     const controller = new AbortController();
 
-    loadGeoJsonData({ language, signal: controller.signal })
+    setGeoData(null);
+    loadGeoJsonData({ floor: mapFloor, signal: controller.signal })
       .then(data => {
         if (isMounted) {
           setGeoData(data);
@@ -865,7 +852,7 @@ const MapRoutingPage = () => {
       isMounted = false;
       controller.abort();
     };
-  }, [language]);
+  }, [language, mapFloor]);
 
   useEffect(() => {
     const trimmedQuery = searchQuery.trim();
@@ -913,11 +900,11 @@ const MapRoutingPage = () => {
   const handleRouteFromSubgroup = (subgroup) => {
     console.log('Routing from main page subgroup:', subgroup);
 
-    let coordinates = null;
+    let coordinates = subgroup.coordinates || (subgroup.geo ? [subgroup.geo.lat, subgroup.geo.lng] : null);
 
-    if (geoData) {
+    if (!coordinates && geoData) {
       const feature = geoData.features.find(
-        f => f.properties?.subGroupValue === subgroup.value
+        f => f.properties?.subGroupValue === subgroup.value && pointIsOnFloor(f, getPointFloor(subgroup))
       );
 
       if (feature) {
@@ -934,7 +921,7 @@ const MapRoutingPage = () => {
 
     if (!coordinates && geoData) {
       const anyFeature = geoData.features.find(
-        f => f.properties?.subGroupValue === subgroup.value
+        f => f.properties?.subGroupValue === subgroup.value && pointIsOnFloor(f, getPointFloor(subgroup))
       );
       if (anyFeature) {
         const center = getFeatureCenter(anyFeature);
@@ -951,7 +938,7 @@ const MapRoutingPage = () => {
     );
     const destination = {
       id: subgroup.value,
-      floor: subgroup.floor ?? getSessionFloor(),
+      floor: getPointFloor(subgroup),
       name: subgroup.label,
       location: mapSelectedCategory ?
         intl.formatMessage({ id: mapSelectedCategory.label }) :
@@ -962,16 +949,7 @@ const MapRoutingPage = () => {
 
     console.log('Setting destination from main page:', destination);
 
-    setTempDestination(destination);
-    setShowEntryModal(true);
-
-
-    addSearch(destination);
-
-    if (coordinates && coordinates.length >= 2) {
-      const [lat, lon] = coordinates;
-      requestAreaDoors(lat, lon, destination.floor ?? getSessionFloor());
-    }
+    handleDestinationSelect(destination, { forceDestination: true });
 
     handleClearCategorySelection();
   };
@@ -998,7 +976,7 @@ const MapRoutingPage = () => {
       const destData = {
         name: userLocation.name,
         location: userLocation.location || userLocation.name,
-        floor: userLocation.floor ?? getSessionFloor(),
+        floor: getPointFloor(userLocation),
         coordinates: userLocation.coordinates
       };
 
@@ -1014,7 +992,7 @@ const MapRoutingPage = () => {
     else if (!userLocation && selectedDestination) {
       const originData = {
         name: selectedDestination.name,
-        floor: selectedDestination.floor ?? getSessionFloor(),
+        floor: getPointFloor(selectedDestination),
         coordinates: selectedDestination.coordinates,
         location: selectedDestination.location || selectedDestination.name
       };
@@ -1031,14 +1009,14 @@ const MapRoutingPage = () => {
     else if (userLocation && selectedDestination) {
       const newOrigin = {
         name: selectedDestination.name,
-        floor: selectedDestination.floor ?? getSessionFloor(),
+        floor: getPointFloor(selectedDestination),
         coordinates: selectedDestination.coordinates,
         location: selectedDestination.location || selectedDestination.name
       };
 
       const newDestination = {
         name: userLocation.name,
-        floor: userLocation.floor ?? getSessionFloor(),
+        floor: getPointFloor(userLocation),
         coordinates: userLocation.coordinates,
         location: userLocation.location || userLocation.name
       };
@@ -1149,22 +1127,27 @@ const MapRoutingPage = () => {
   };
 
   const handleInputClick = (inputType) => {
+    clearFloorRequest();
     setActiveInput(inputType);
     if (inputType === 'destination') {
       setShowDestinationModal(true);
     } else {
       setShowOriginModal(true);
-
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          () => setIsGPSEnabled(true),
-          () => setIsGPSEnabled(false)
-        );
-      } else {
-        setIsGPSEnabled(false);
-      }
     }
   };
+
+  useEffect(() => {
+    if (!showOriginModal) return undefined;
+    let active = true;
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        () => { if (active) setIsGPSEnabled(true); },
+        () => { if (active) setIsGPSEnabled(false); },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+      );
+    } else setIsGPSEnabled(false);
+    return () => { active = false; };
+  }, [showOriginModal]);
 
   useEffect(() => {
     const fromLandmarkCard = sessionStorage.getItem('fromLandmarkCard');
@@ -1194,6 +1177,8 @@ const MapRoutingPage = () => {
   }, []);
 
   const handleCurrentLocationSelect = () => {
+    // Wait for fresh coordinates before the completed-endpoints effect can route.
+    setUserLocation(previous => previous?.source === 'gps' ? { ...previous, coordinates: null } : null);
     setIsTracking(true);
     setShowOriginModal(false);
   };
@@ -1294,6 +1279,7 @@ const MapRoutingPage = () => {
 
 
   const handleMapSelection = () => {
+    clearFloorRequest();
     setIsChoosingFromMap(true);
     setIsSelectingFromMap(true);
     setIsTracking(false);
@@ -1316,6 +1302,7 @@ const MapRoutingPage = () => {
           name: locName,
           location: intl.formatMessage({ id: 'mapSelectedLocation' }),
           coordinates: [latlng.lat, latlng.lng],
+          floor: mapFloor,
           fromMapSelection: true
         };
 
@@ -1330,6 +1317,7 @@ const MapRoutingPage = () => {
           name: locName,
           location: intl.formatMessage({ id: 'mapSelectedLocationFromMap' }),
           coordinates: [latlng.lat, latlng.lng],
+          floor: mapFloor,
           fromMapSelection: true
         };
 
@@ -1392,7 +1380,7 @@ const MapRoutingPage = () => {
 
       // Create location object
       const locationData = {
-        floor: getSessionFloor(),
+        floor: mapFloor,
         name: locName,
         location: locName, // Use same name for location field
         coordinates: [latlng.lat, latlng.lng],
@@ -1463,7 +1451,7 @@ const MapRoutingPage = () => {
   };
 
   return (
-    <div className="map-routing-page">
+    <div className="map-routing-page gp-public-map-page gp-maprouting">
       {/* Header */}
       <header className="map-routing-header">
         {isSelectingFromMap ? (
@@ -1561,7 +1549,7 @@ const MapRoutingPage = () => {
             </svg>
           </button>
         )}
-        {!isSelectingFromMap && (
+        {(
           <>
             <button
               className={`map-style-button-mpr ${showMapStyleMenu ? 'active' : ''}`}
@@ -1634,6 +1622,7 @@ const MapRoutingPage = () => {
             )}
           </>
         )}
+        <FloorControl otherMenuOpen={showMapStyleMenu} onOpen={() => setShowMapStyleMenu(false)} request={floorRequest} onChange={() => { setSelectedLandmarkId(null); }} />
       </div>
 
       {/* Subgroups Container - Only shown when a category is selected and has image subgroups */}
@@ -1643,7 +1632,7 @@ const MapRoutingPage = () => {
             {/* Sort subgroups: selected first, then others */}
             {(() => {
               // Create a sorted copy of the array
-              const sortedSubGroups = [...mapSelectedSubGroups].sort((a, b) => {
+              const sortedSubGroups = mapSelectedSubGroups.filter(item => pointIsOnFloor(item, mapFloor)).sort((a, b) => {
                 // Function to get coordinates ID from a subgroup
                 const getCoordinatesIdFromSubGroup = (item) => {
                   if (!item) return null;
@@ -1882,7 +1871,7 @@ const MapRoutingPage = () => {
                 <input
                   type="text"
                   placeholder={intl.formatMessage({ id: 'originPlaceholder' })}
-                  value={userLocation?.name || ''}
+                  value={userLocation ? `${userLocation.name}${getPointFloor(userLocation) === null ? '' : ` · ${floorLabel(getPointFloor(userLocation), language)}`}` : ''}
                   readOnly
                 />
               </div>
@@ -1904,7 +1893,7 @@ const MapRoutingPage = () => {
                 <input
                   type="text"
                   placeholder={intl.formatMessage({ id: 'destinationPlaceholder' })}
-                  value={selectedDestination ? selectedDestination.name : ''}
+                  value={selectedDestination ? `${selectedDestination.name}${getPointFloor(selectedDestination) === null ? '' : ` · ${floorLabel(getPointFloor(selectedDestination), language)}`}` : ''}
                   readOnly
                 />
               </div>
@@ -2116,7 +2105,7 @@ const MapRoutingPage = () => {
                           </div>
                           <div className="map-destination-info">
                             <span className="map-destination-name">{destination.name}</span>
-                            <span className="map-destination-location">{destination.location}</span>
+                            <span className="map-destination-location">{destination.location}<FloorTag point={destination} /></span>
                           </div>
                           <button className="map-recent-option">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-dots-vertical"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M12 19m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M12 5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /></svg>
@@ -2139,7 +2128,7 @@ const MapRoutingPage = () => {
                       </div>
                       <div className="map-destination-info">
                         <span className="map-destination-name">{destination.name}</span>
-                        <span className="map-destination-location">{destination.location}</span>
+                        <span className="map-destination-location">{destination.location}<FloorTag point={destination} /></span>
                       </div>
                     </li>
                   ))}

@@ -1,3 +1,9 @@
+import FloorTag from '../components/map/FloorTag';
+import FloorControl from '../components/map/FloorControl';
+import useMapFloor from '../hooks/useMapFloor';
+import useEndpointFloor from '../hooks/useEndpointFloor';
+import { getPointFloor, pointIsOnFloor } from '../utils/floors';
+import { setSessionFloor } from '../utils/sessionFloor';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
@@ -64,6 +70,8 @@ const getCompositeIcon = (group, nodeFunction, groups = [], size = 35, opacity =
 const Pmap = () => {
   const navigate = useNavigate();
   const intl = useIntl();
+  const mapFloor = useMapFloor();
+  const { floorRequest, askFloor, clearFloorRequest } = useEndpointFloor();
   const language = useLangStore(state => state.language);
   const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
   const { accessToken, user } = useUserAuthStore();
@@ -106,7 +114,8 @@ const Pmap = () => {
     let isMounted = true;
     const controller = new AbortController();
 
-    loadGeoJsonData({ language, signal: controller.signal })
+    setGeoData(null);
+    loadGeoJsonData({ floor: mapFloor, signal: controller.signal })
       .then(data => {
         if (!isMounted) return;
         setGeoData(data);
@@ -120,7 +129,7 @@ const Pmap = () => {
       isMounted = false;
       controller.abort();
     };
-  }, [language]);
+  }, [language, mapFloor]);
 
   useEffect(() => {
     let isMounted = true;
@@ -157,6 +166,7 @@ const Pmap = () => {
 
   // Handle map click for location selection
   const handleMapClick = useCallback((e) => {
+    clearFloorRequest();
     const { lng, lat } = e.lngLat;
 
     let closestFeature = null;
@@ -181,6 +191,7 @@ const Pmap = () => {
     }
 
     const location = {
+      floor: mapFloor,
       name: closestName,
       coordinates: [lat, lng],
       feature: closestFeature
@@ -200,15 +211,16 @@ const Pmap = () => {
       const newSearch = {
         id: Date.now().toString(),
         name: location.name,
+        floor: location.floor,
         location: closestFeature?.properties?.subGroup || '',
         coordinates: [lat, lng]
       };
 
-      const filtered = prev.filter(item => item.name !== location.name);
+      const filtered = prev.filter(item => item.name !== location.name || getPointFloor(item) !== location.floor);
       return [newSearch, ...filtered].slice(0, 10);
     });
 
-  }, [geoData, intl]);
+  }, [geoData, intl, mapFloor]);
 
   const handleSearchInputClick = () => {
     setShowBackButton(false);
@@ -216,7 +228,14 @@ const Pmap = () => {
   };
 
   const handlePlaceSelectFromSearch = (place) => {
+    if (getPointFloor(place) === null) {
+      setShowSearchModal(false);
+      askFloor(place, 'destination', handlePlaceSelectFromSearch);
+      return;
+    }
+    if (getPointFloor(place) !== null) setSessionFloor(getPointFloor(place));
     setSelectedPlace({
+      floor: getPointFloor(place),
       name: place.name,
       coordinates: place.coordinates,
       location: place.location
@@ -316,6 +335,7 @@ const Pmap = () => {
         description: customDescription.trim(),
         coordinates: selectedPlace.coordinates,
         source: 'manual',
+        floor: getPointFloor(selectedPlace),
         address: selectedPlace.feature?.properties?.subGroup ||
           selectedPlace.location ||
           intl.formatMessage({ id: 'mapSelectedLocationFromMap' }),
@@ -360,6 +380,7 @@ const Pmap = () => {
       const center = getFeatureCenter(f);
       return {
         id: f.properties?.uniqueId || f.id,
+        floor: getPointFloor(f, mapFloor),
         name: f.properties?.name || '',
         location: f.properties?.subGroup || '',
         coordinates: center ? [center[1], center[0]] : null
@@ -431,7 +452,7 @@ const Pmap = () => {
           interactive={true}
         >
           {/* Selected place marker */}
-          {selectedPlace && selectedPlace.coordinates && (
+          {selectedPlace && selectedPlace.coordinates && pointIsOnFloor(selectedPlace, mapFloor) && (
             <>
               {/* Blue circle marker */}
               <Marker
@@ -478,6 +499,7 @@ const Pmap = () => {
             );
           })}
         </Map>
+        <FloorControl request={floorRequest} style={{ bottom: 100 }} />
       </div>
 
       {/* First Modal - Confirmation Modal (slides down) */}
@@ -692,7 +714,7 @@ const Pmap = () => {
                       </div>
                       <div className="pmap-destination-info">
                         <span className="pmap-destination-name">{destination.name}</span>
-                        <span className="pmap-destination-location">{destination.location}</span>
+                        <span className="pmap-destination-location">{destination.location}<FloorTag point={destination} /></span>
                       </div>
                     </li>
                   ))}
@@ -712,7 +734,7 @@ const Pmap = () => {
                   </div>
                   <div className="pmap-destination-info">
                     <span className="pmap-destination-name">{destination.name}</span>
-                    <span className="pmap-destination-location">{destination.location}</span>
+                    <span className="pmap-destination-location">{destination.location}<FloorTag point={destination} /></span>
                   </div>
                 </li>
               ))}

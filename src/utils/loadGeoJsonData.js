@@ -1,6 +1,7 @@
 import { VectorTile } from '@mapbox/vector-tile';
 import Protobuf from 'pbf';
 import { TILE_BASE_URL, DEFAULT_TILE_FLOOR } from '../config/vectorTiles.js';
+import { getSessionFloor } from './sessionFloor.js';
 
 const DEFAULT_FLOOR = 0;
 const FALLBACK_FLOOR =
@@ -84,14 +85,32 @@ const decodeTileFeatures = (arrayBuffer, layerId, tileCoords) => {
   return features;
 };
 
-export async function loadGeoJsonData({ floor = FALLBACK_FLOOR, zoom = DEFAULT_VECTOR_TILE_ZOOM, signal } = {}) {
+const floorTileCache = new Map();
+
+export async function loadGeoJsonData({ floor = getSessionFloor(), zoom = DEFAULT_VECTOR_TILE_ZOOM, signal } = {}) {
+  const key = `${toFloorValue(floor)}:${zoom}`;
+  let entry = floorTileCache.get(key);
+  if (!entry || Date.now() - entry.createdAt > 60000) {
+    const promise = loadFloorTiles({ floor, zoom });
+    entry = { promise, createdAt: Date.now() };
+    floorTileCache.set(key, entry);
+    promise.catch(() => { if (floorTileCache.get(key) === entry) floorTileCache.delete(key); });
+    if (floorTileCache.size > 6) floorTileCache.delete(floorTileCache.keys().next().value);
+  }
+  const data = await entry.promise;
+  // Cancellation belongs to the caller, not to a shared tile request.
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+  return data;
+}
+
+async function loadFloorTiles({ floor, zoom }) {
   const tileRange = getTileRangeForBounds(HARAM_BOUNDS, zoom);
   const requests = [];
 
   for (let x = tileRange.minX; x <= tileRange.maxX; x += 1) {
     for (let y = tileRange.minY; y <= tileRange.maxY; y += 1) {
       const url = buildTileUrl({ z: zoom, x, y, floor });
-      const request = fetch(url, { signal })
+      const request = fetch(url)
         .then((response) => {
           if (!response.ok) {
             throw new Error(`Vector tile request failed with status ${response.status}`);
