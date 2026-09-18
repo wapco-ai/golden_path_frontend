@@ -3,19 +3,23 @@
 Text search for MPR origin/destination and MPB uses the existing
 `landmark-places?search=...` request. The paired backend change makes nonblank
 text search include matching POIs on every floor, even without cultural content,
-images or category assignments. The frontend already renders text results without
-an image requirement and preserves the returned POI floor. No map-floor or
-featured filter is added to endpoint text search. Normal map landmark discovery
-remains separate and keeps its existing behavior.
+images or category assignments. MPR already renders text results without an
+image requirement; MPB's remaining image-only search filter is now removed.
+Both preserve the returned POI floor. No map-floor or featured filter is added
+to endpoint text search. Normal map landmark discovery remains unchanged.
 
 The MPR search modal remains on `/mpr`, so route allowlisting alone cannot hide
-map controls. `FloorControl.css` now hides the entire floor control while the
-conditionally mounted MPR `.map-search-modal` or MPB `.search-modal3` exists.
-This is a scoped `display: none` rule, not a z-index workaround: the trigger/menu
-are not visible or keyboard targets. Closing search or choosing from the map
-restores the same control. Its appearance and placement are otherwise unchanged.
-The existing route-floor synchronization and explicit unknown-floor prompt stay
-intact; no routing/step geometry or database-derived coordinates are changed.
+map controls. MPR now passes `hidden={showOriginModal || showDestinationModal}`
+to FloorControl; MPB passes `hidden={showSearchModal}`. FloorControl returns null
+for its UI while hidden, closes any open menu and releases its layout observers.
+It stays mounted so route-floor synchronization is not lost. Opening search
+removes the trigger/menu from the DOM and keyboard navigation; closing search or
+choosing from the map restores the same control. The existing explicit
+unknown-endpoint-floor prompt remains available after the search modal closes.
+The final implementation does not depend on CSS :has or a larger z-index, and
+retains the original stylesheet, appearance and placement.
+
+No routing/step geometry, graph sources or database-derived coordinates change.
 
 Verification: `npm test`, `npm run build`, `npm run test:browser`.
 `tests/browser/poi-endpoint-search.spec.js` covers both MPR inputs at mobile and
