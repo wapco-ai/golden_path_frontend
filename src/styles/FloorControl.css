@@ -24,3 +24,12 @@
 .gp-floor-trigger:focus-visible, .gp-floor-option:focus-visible { outline: 2px solid #0f71ef; outline-offset: 2px; }
 
 .gp-floor-control[data-menu-edge='top'] .gp-floor-menu { top: 0; bottom: auto; }
+
+/* Search overlays are states of MPR/MPB, not separate router paths.
+   Hide the entire picker (including its menu and keyboard targets), rather than
+   only moving it behind the modal with z-index. When map-picking closes the
+   search overlay, the existing control and its placement are restored. */
+.gp-maprouting:has(.map-search-modal) .gp-floor-control,
+.gp-mapbegin:has(.search-modal3) .gp-floor-control {
+  display: none;
+}
