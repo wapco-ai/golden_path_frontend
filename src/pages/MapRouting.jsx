@@ -1622,7 +1622,7 @@ const MapRoutingPage = () => {
             )}
           </>
         )}
-        <FloorControl otherMenuOpen={showMapStyleMenu} onOpen={() => setShowMapStyleMenu(false)} request={floorRequest} onChange={() => { setSelectedLandmarkId(null); }} />
+        <FloorControl hidden={showOriginModal || showDestinationModal} otherMenuOpen={showMapStyleMenu} onOpen={() => setShowMapStyleMenu(false)} request={floorRequest} onChange={() => { setSelectedLandmarkId(null); }} />
       </div>
 
       {/* Subgroups Container - Only shown when a category is selected and has image subgroups */}

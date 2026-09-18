@@ -254,15 +254,11 @@ const MapBeginPage = () => {
           ? data.places.landmarkPlaces
           : [];
 
-        const landmarksWithImages = apiLandmarks
-          .map(place => {
-            const image = getLandmarkImage(place);
-            if (!image) return null;
-            return { ...place, image };
-          })
-          .filter(Boolean);
-
-        setSearchResults(landmarksWithImages);
+        // Endpoint search includes every POI; images are optional.
+        if (controller.signal.aborted) return;
+        setSearchResults(apiLandmarks.map(place => ({
+          ...place, image: getLandmarkImage(place)
+        })));
       } catch (error) {
         if (error?.name === 'AbortError') return;
         console.error('Failed to search landmark places', error);
@@ -1307,7 +1303,7 @@ const MapBeginPage = () => {
             </div>
           </div>
         )}
-        <FloorControl otherMenuOpen={showMapStyleMenu} onOpen={() => setShowMapStyleMenu(false)} onChange={() => { setSelectedLandmarkId(null); setShowLocationDetails(false); }} />
+        <FloorControl hidden={showSearchModal} otherMenuOpen={showMapStyleMenu} onOpen={() => setShowMapStyleMenu(false)} onChange={() => { setSelectedLandmarkId(null); setShowLocationDetails(false); }} />
       </div>
 
       {/* Search Bar with Integrated Routing */}

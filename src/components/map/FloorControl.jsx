@@ -8,7 +8,7 @@ import { canUserSelectMapFloor } from '../../utils/floorControlPolicy';
 import { setSessionFloor } from '../../utils/sessionFloor';
 import '../../styles/FloorControl.css';
 
-export default function FloorControl({ otherMenuOpen = false, onOpen, onChange, request = null, routeFloor = null, style, className = '' }) {
+export default function FloorControl({ otherMenuOpen = false, onOpen, onChange, request = null, routeFloor = null, style, className = '', hidden = false }) {
   const location = useLocation();
   const language = useLangStore(state => state.language);
   const text = floorMessages[language] || floorMessages.fa;
@@ -38,7 +38,7 @@ export default function FloorControl({ otherMenuOpen = false, onOpen, onChange, 
   }, [floors, loading, error, request, locked, manualSelectionAllowed]);
 
   useLayoutEffect(() => {
-    if (!manualSelectionAllowed) return undefined;
+    if (!manualSelectionAllowed || hidden) return undefined;
     const page = root.current?.closest('.gp-public-map-page');
     const container = root.current?.closest('.map-routing-container');
     if (!page || !container) return undefined;
@@ -73,10 +73,11 @@ export default function FloorControl({ otherMenuOpen = false, onOpen, onChange, 
       window.removeEventListener('resize', schedule);
       container.style.removeProperty('--gp-controls-lift');
     };
-  }, [manualSelectionAllowed]);
+  }, [manualSelectionAllowed, hidden]);
 
-  useEffect(() => { if (otherMenuOpen) setOpen(false); }, [otherMenuOpen]);
+  useEffect(() => { if (otherMenuOpen || hidden) setOpen(false); }, [otherMenuOpen, hidden]);
   useEffect(() => {
+    if (hidden) return;
     if (request && request !== requestRef.current) {
       if (manualSelectionAllowed) {
         setOpen(true);
@@ -86,7 +87,7 @@ export default function FloorControl({ otherMenuOpen = false, onOpen, onChange, 
       }
     }
     requestRef.current = request;
-  }, [request, onOpen, manualSelectionAllowed, mapFloor]);
+  }, [request, onOpen, manualSelectionAllowed, mapFloor, hidden]);
   useEffect(() => {
     if (!open) return undefined;
     const outside = event => { if (!root.current?.contains(event.target)) setOpen(false); };
@@ -115,7 +116,7 @@ export default function FloorControl({ otherMenuOpen = false, onOpen, onChange, 
     return () => window.removeEventListener('resize', fit);
   }, [open, topMenu]);
 
-  if (!manualSelectionAllowed) return null;
+  if (!manualSelectionAllowed || hidden) return null;
 
   // A one-floor catalog needs no map picker. A missing endpoint still needs a choice.
   if (floors.length === 1 && !request && !locked) return null;
