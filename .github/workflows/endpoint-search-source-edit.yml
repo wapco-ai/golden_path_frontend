@@ -1,0 +1,75 @@
+name: endpoint-search-source-edit
+on:
+  push:
+    branches: [chore/endpoint-search-source-edit-20260918]
+    paths: [.github/workflows/endpoint-search-source-edit.yml]
+permissions:
+  contents: write
+jobs:
+  edit:
+    if: github.repository == 'wapco-ai/golden_path_frontend'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 24d15016fe58ace63a215abb0fe1719ac4f60e37
+          fetch-depth: 0
+      - name: Apply narrowly anchored edits; never force-push
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          def edit(path, expected_blob, replacements):
+              actual = subprocess.check_output(['git', 'hash-object', path], text=True).strip()
+              assert actual == expected_blob, (path, actual)
+              p = Path(path)
+              text = p.read_text()
+              for before, after in replacements:
+                  assert text.count(before) == 1, (path, before, text.count(before))
+                  text = text.replace(before, after, 1)
+              p.write_text(text)
+
+          edit('src/pages/MapBegin.jsx', '2010fa158f0b7808d68a1f9f5260ca5783559b69', [
+              ('''        const landmarksWithImages = apiLandmarks
+                    .map(place => {
+                      const image = getLandmarkImage(place);
+                      if (!image) return null;
+                      return { ...place, image };
+                    })
+                    .filter(Boolean);
+
+                  setSearchResults(landmarksWithImages);'''.replace('          ', '', 0),
+               '''        // Endpoint search includes every POI; images are optional.
+                  if (controller.signal.aborted) return;
+                  setSearchResults(apiLandmarks.map(place => ({
+                    ...place, image: getLandmarkImage(place)
+                  })));'''),
+              ('<FloorControl otherMenuOpen=', '<FloorControl hidden={showSearchModal} otherMenuOpen=')
+          ])
+          edit('src/pages/MapRouting.jsx', '8ab63dea5f2638ddff8c8e7df82f3da1b7f5289f', [
+              ('<FloorControl otherMenuOpen=', '<FloorControl hidden={showOriginModal || showDestinationModal} otherMenuOpen=')
+          ])
+          edit('src/components/map/FloorControl.jsx', 'fb398eb3eb26228bf7077b3f9a1a73769af77e05', [
+              ("routeFloor = null, style, className = '' })", "routeFloor = null, style, className = '', hidden = false })"),
+              ('if (!manualSelectionAllowed) return undefined;', 'if (!manualSelectionAllowed || hidden) return undefined;'),
+              ('}, [manualSelectionAllowed]);', '}, [manualSelectionAllowed, hidden]);'),
+              ('useEffect(() => { if (otherMenuOpen) setOpen(false); }, [otherMenuOpen]);', 'useEffect(() => { if (otherMenuOpen || hidden) setOpen(false); }, [otherMenuOpen, hidden]);'),
+              ('    if (request && request !== requestRef.current) {', '    if (hidden) return;\n    if (request && request !== requestRef.current) {'),
+              ('}, [request, onOpen, manualSelectionAllowed, mapFloor]);', '}, [request, onOpen, manualSelectionAllowed, mapFloor, hidden]);'),
+              ('if (!manualSelectionAllowed) return null;', 'if (!manualSelectionAllowed || hidden) return null;')
+          ])
+          # Explicit React state replaces the provisional :has CSS, including on older browsers.
+          original = subprocess.check_output(['git', 'show', 'a4e4ceb65fb905c341e4c80ee548af72dae8fea5:src/styles/FloorControl.css'])
+          Path('src/styles/FloorControl.css').write_bytes(original)
+          PY
+          git diff --check
+          git diff --stat
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/pages/MapBegin.jsx src/pages/MapRouting.jsx src/components/map/FloorControl.jsx src/styles/FloorControl.css
+          git commit -m 'Keep imageless POIs in endpoint search and hide floor UI using React state'
+          git push origin HEAD:refs/heads/fix/endpoint-search-floor-overlay
