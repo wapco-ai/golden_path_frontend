@@ -999,79 +999,80 @@ const MapBeginPage = () => {
             <path d="M2 12l2 0" />
           </svg>
         </button>
-        <button
-          className={`map-style-button-mpr ${showMapStyleMenu ? 'active' : ''}`}
-          onClick={() => setShowMapStyleMenu(!showMapStyleMenu)}
-          onBlur={() => {
-            setTimeout(() => setShowMapStyleMenu(false), 200);
-          }}
-        >
-          <div className="map-button-preview">
-            <img
-              src={selectedMapType === 'satellite' ? mode2 : selectedMapType === 'simple' ? mode3 : mode1}
-              alt={selectedMapType === 'satellite' ? 'Satellite view' : selectedMapType === 'simple' ? 'Offline OSMH view' : 'Default view'}
-              className="map-preview-thumbnail"
-            />
-          </div>
-        </button>
-
-        {showMapStyleMenu && (
-          <div className="map-style-menu-mpr">
-
-            <div
-              className={`map-style-option ${selectedMapType === 'satellite' ? 'active' : ''}`}
-              onClick={() => {
-                setSelectedMapType('satellite');
-                setShowMapStyleMenu(false);
-              }}
-              title={intl.formatMessage({ id: 'satelliteMap' })}
-            >
-              <div className="map-preview-container">
-                <img
-                  src={mode2}
-                  alt="Satellite map view"
-                  className="map-preview-image"
-                />
-              </div>
-            </div>
-
-            <div
-              className={`map-style-option ${selectedMapType === 'base' ? 'active' : ''}`}
-              onClick={() => {
-                setSelectedMapType('base');
-                setShowMapStyleMenu(false);
-              }}
-              title={intl.formatMessage({ id: 'baseMap' })}
-            >
-              <div className="map-preview-container">
-                <img
-                  src={mode1}
-                  alt="Default map view"
-                  className="map-preview-image"
-                />
-              </div>
-            </div>
-
-            <div
-              className={`map-style-option ${selectedMapType === 'simple' ? 'active' : ''}`}
-              onClick={() => {
-                setSelectedMapType('simple');
-                setShowMapStyleMenu(false);
-              }}
-              title={intl.formatMessage({ id: 'simpleMap' })}
-            >
-              <div className="map-preview-container">
-                <img
-                  src={mode3}
-                  alt="Simple map view"
-                  className="map-preview-image"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-        <FloorControl hidden={showSearchModal} otherMenuOpen={showMapStyleMenu} onOpen={() => setShowMapStyleMenu(false)} onChange={() => { setSelectedLandmarkId(null); setShowLocationDetails(false); }} />
       </div>
+
+      <button
+        className={`map-style-button-mpr ${showMapStyleMenu ? 'active' : ''}`}
+        onClick={() => setShowMapStyleMenu(!showMapStyleMenu)}
+        onBlur={() => {
+          setTimeout(() => setShowMapStyleMenu(false), 200);
+        }}
+      >
+        <div className="map-button-preview">
+          <img
+            src={selectedMapType === 'satellite' ? mode2 : selectedMapType === 'simple' ? mode3 : mode1}
+            alt={selectedMapType === 'satellite' ? 'Satellite view' : selectedMapType === 'simple' ? 'Offline OSMH view' : 'Default view'}
+            className="map-preview-thumbnail"
+          />
+        </div>
+      </button>
+
+      {showMapStyleMenu && (
+        <div className="map-style-menu-mpr">
+
+          <div
+            className={`map-style-option ${selectedMapType === 'satellite' ? 'active' : ''}`}
+            onClick={() => {
+              setSelectedMapType('satellite');
+              setShowMapStyleMenu(false);
+            }}
+            title={intl.formatMessage({ id: 'satelliteMap' })}
+          >
+            <div className="map-preview-container">
+              <img
+                src={mode2}
+                alt="Satellite map view"
+                className="map-preview-image"
+              />
+            </div>
+          </div>
+
+          <div
+            className={`map-style-option ${selectedMapType === 'base' ? 'active' : ''}`}
+            onClick={() => {
+              setSelectedMapType('base');
+              setShowMapStyleMenu(false);
+            }}
+            title={intl.formatMessage({ id: 'baseMap' })}
+          >
+            <div className="map-preview-container">
+              <img
+                src={mode1}
+                alt="Default map view"
+                className="map-preview-image"
+              />
+            </div>
+          </div>
+
+          <div
+            className={`map-style-option ${selectedMapType === 'simple' ? 'active' : ''}`}
+            onClick={() => {
+              setSelectedMapType('simple');
+              setShowMapStyleMenu(false);
+            }}
+            title={intl.formatMessage({ id: 'simpleMap' })}
+          >
+            <div className="map-preview-container">
+              <img
+                src={mode3}
+                alt="Simple map view"
+                className="map-preview-image"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+      <FloorControl hidden={showSearchModal} otherMenuOpen={showMapStyleMenu} onOpen={() => setShowMapStyleMenu(false)} onChange={() => { setSelectedLandmarkId(null); setShowLocationDetails(false); }}  style={{ zIndex: 1000 }}/>
 
       {/* Search Bar with Integrated Routing */}
       <div

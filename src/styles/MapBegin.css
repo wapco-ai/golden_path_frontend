@@ -154,36 +154,6 @@
 }
 
 
-.map-floor-static-control {
-  position: absolute;
-  right: 18px;
-  bottom: 168px;
-  width: 54px;
-  height: 54px;
-  margin: 0;
-  padding: 0;
-  z-index: 2001;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000 !important;
-}
-
-.map-floor-static-control > * {
-  position: static !important;
-  inset: auto !important;
-  right: auto !important;
-  left: auto !important;
-  top: auto !important;
-  bottom: auto !important;
-  transform: none !important;
-  margin: 0 !important;
-  width: 54px !important;
-  height: 54px !important;
-  max-width: 54px !important;
-  max-height: 54px !important;
-}
-
 .map-gps-button {
   position: absolute;
   bottom: 300px;
@@ -1418,9 +1388,6 @@ body.modal-open {
 .location-image-scroll {
   display: flex;
   overflow-x: auto;
-  touch-action: pan-x;
-  overscroll-behavior-x: contain;
-  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   gap: 10px;
   padding-bottom: 5px;
@@ -1515,7 +1482,7 @@ body.modal-open {
   border-top-left-radius: 20px;
   border-top-right-radius: 20px;
   overflow: hidden;
-  touch-action: pan-x;
+  touch-action: none;
 }
 
 .search-bar-container.fully-expanded {
@@ -1617,7 +1584,7 @@ body.modal-open {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-x pan-y;
+  touch-action: pan-y;
 }
 
 /* When not expanded, disable scrolling */
@@ -1723,9 +1690,6 @@ body.modal-open {
   display: flex;
   gap: 15px;
   overflow-x: auto;
-  touch-action: pan-x;
-  overscroll-behavior-x: contain;
-  -webkit-overflow-scrolling: touch;
   padding-bottom: 10px;
   scrollbar-width: none;
   align-items: center;
@@ -2181,7 +2145,7 @@ body.sidebar-open {
 
 /* Map Style Button */
 .map-style-button-mpr {
-  position: absolute;
+  position: fixed;
   bottom: 230px;
   right: 18px;
   width: 54px;
@@ -2227,7 +2191,7 @@ body.sidebar-open {
 
 /* Map Style Menu Popup */
 .map-style-menu-mpr {
-  position: absolute;
+  position: fixed;
   bottom: 225px;
   right: 80px;
   width: auto;
