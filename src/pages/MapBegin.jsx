@@ -65,36 +65,20 @@ const MapBeginPage = () => {
   const [showLocationDetails, setShowLocationDetails] = useState(false);
   const [expandedSearch, setExpandedSearch] = useState(false);
   const [isQrCodeEntry, setIsQrCodeEntry] = useState(false);
-  const [touchStartY, setTouchStartY] = useState(0);
-  const [isSwiping, setIsSwiping] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStartHeight, setDragStartHeight] = useState(0);
-  const [dragStartY, setDragStartY] = useState(0);
-  const [velocity, setVelocity] = useState(0);
-  const [lastTouchY, setLastTouchY] = useState(0);
-  const [lastTouchTime, setLastTouchTime] = useState(0);
   const [selectedLandmarkId, setSelectedLandmarkId] = useState(null);
   const [currentHeight, setCurrentHeight] = useState(140);
   const [isAutoExpanding, setIsAutoExpanding] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
-  const [modalDragStartY, setModalDragStartY] = useState(0);
-  const [modalDragStartHeight, setModalDragStartHeight] = useState(0);
   const [isModalDragging, setIsModalDragging] = useState(false);
-  const [modalVelocity, setModalVelocity] = useState(0);
-  const [modalLastTouchY, setModalLastTouchY] = useState(0);
   const [showMapStyleMenu, setShowMapStyleMenu] = useState(false);
-  const [modalLastTouchTime, setModalLastTouchTime] = useState(0);
   const [mapZoomLevel, setMapZoomLevel] = useState(15);
   const isFeaturedZoom = mapZoomLevel <= 15;
   const handleMapZoomChange = useCallback((zoom) => {
     const roundedZoom = Math.round(zoom);
     setMapZoomLevel((prev) => (prev === roundedZoom ? prev : roundedZoom));
   }, []);
-  const [preventScroll, setPreventScroll] = useState(false);
-  const [scrollStartY, setScrollStartY] = useState(0);
-  const [scrollStartScrollTop, setScrollStartScrollTop] = useState(0);
   const modalGestureRef = useRef({ active: false, moved: false, startY: 0, startHeight: 140, lastY: 0, lastTime: 0, velocity: 0, height: 140 });
   const modalFrameRef = useRef(null);
   const [preventMapCentering, setPreventMapCentering] = useState(false);
@@ -180,7 +164,7 @@ const MapBeginPage = () => {
   const setOriginStore = useRouteStore(state => state.setOrigin);
 
   const handleSearchToggle = () => {
-    if (isModalDragging || isDragging) return;
+    if (isModalDragging) return;
 
     if (isQrCodeEntry && showLocationDetails && showRouting) {
       if (expandedSearch) {
@@ -342,85 +326,32 @@ const MapBeginPage = () => {
     navigate(target, { state: { location: selectedLocation } });
   };
 
+  // Overlay dragging is handle-only. The body remains native scroll content.
   const handleModalTouchStart = (e) => {
-    const target = e.target;
-
-    const interactiveSelectors = 'button, input, a, .cultural-info-btn, .place-action-btn, .view-all-btn5, .view-all-events, .close-modal-btn, .transparent-save-btn';
-    const horizontalScrollSelectors = '.places-horizontal-list, .shrine-events-list, .location-image-scroll';
-
-    if (target.closest(interactiveSelectors) || target.closest(horizontalScrollSelectors)) {
-      setPreventScroll(false);
-      setIsModalDragging(false);
-      return;
-    }
-
-    if (isModalDragging || isDragging) return;
-
+    if (isModalDragging || !e.touches?.length) return;
     const touchY = e.touches[0].clientY;
-    const modalContent = e.currentTarget;
-
-    const isAtTop = modalContent.scrollTop <= 0;
-    const isAtBottom = modalContent.scrollHeight - modalContent.scrollTop <= modalContent.clientHeight + 1;
-
-    if (isAtTop || !expandedSearch) {
-      setPreventScroll(true);
-      setIsModalDragging(true);
-      setModalDragStartY(touchY);
-      setModalDragStartHeight(currentHeight);
-      setModalLastTouchY(touchY);
-      setModalLastTouchTime(Date.now());
-      setModalVelocity(0);
-
-      const now = performance.now();
-      modalGestureRef.current = {
-        active: true,
-        moved: false,
-        startY: touchY,
-        startHeight: currentHeight,
-        lastY: touchY,
-        lastTime: now,
-        velocity: 0,
-        height: currentHeight
-      };
-
-      setScrollStartY(touchY);
-      setScrollStartScrollTop(modalContent.scrollTop);
-    } else {
-      setPreventScroll(false);
-    }
+    const now = performance.now();
+    modalGestureRef.current = { active: true, moved: false, startY: touchY, startHeight: currentHeight, lastY: touchY, lastTime: now, velocity: 0, height: currentHeight };
+    setIsModalDragging(true);
   };
 
   const handleModalTouchMove = (e) => {
-    if (!modalGestureRef.current.active) return;
-
-    const touchY = e.touches[0].clientY;
-
-    // Prevent default to stop page reload/pull-to-refresh
-    e.preventDefault();
-
     const gesture = modalGestureRef.current;
-    const currentTime = performance.now();
-    const deltaTime = currentTime - gesture.lastTime;
-
-    if (deltaTime > 0) {
-      gesture.velocity = (gesture.lastY - touchY) / deltaTime;
-    }
-
+    if (!gesture.active || !e.touches?.length) return;
+    e.preventDefault();
+    const touchY = e.touches[0].clientY;
+    const now = performance.now();
+    const deltaTime = now - gesture.lastTime;
+    if (deltaTime > 0) gesture.velocity = (gesture.lastY - touchY) / deltaTime;
     const deltaY = gesture.startY - touchY;
-    gesture.moved = gesture.moved || Math.abs(deltaY) > 4;
-    const newHeight = gesture.startHeight + deltaY;
-
-    let resistance = 1;
-    if (newHeight < 140) {
-      resistance = 0.3 + (0.7 * (newHeight / 140));
-    } else if (newHeight > window.innerHeight) {
-      resistance = 0.3 + (0.7 * (window.innerHeight / newHeight));
-    }
-
-    const clampedHeight = Math.max(80, Math.min(newHeight * resistance, window.innerHeight * 1.1));
-    gesture.height = clampedHeight;
+    if (Math.abs(deltaY) > 4) gesture.moved = true;
+    const screenHeight = window.innerHeight;
+    let nextHeight = gesture.startHeight + deltaY;
+    if (nextHeight < 140) nextHeight = 140 - (140 - nextHeight) * 0.2;
+    else if (nextHeight > screenHeight) nextHeight = screenHeight + (nextHeight - screenHeight) * 0.12;
+    gesture.height = Math.max(100, Math.min(nextHeight, screenHeight));
     gesture.lastY = touchY;
-    gesture.lastTime = currentTime;
+    gesture.lastTime = now;
     if (!modalFrameRef.current) {
       modalFrameRef.current = requestAnimationFrame(() => {
         setCurrentHeight(modalGestureRef.current.height);
@@ -430,64 +361,26 @@ const MapBeginPage = () => {
   };
 
   const handleModalTouchEnd = () => {
-    if (!modalGestureRef.current.active) return;
-    modalGestureRef.current.active = false;
-    if (modalFrameRef.current) {
-      cancelAnimationFrame(modalFrameRef.current);
-      modalFrameRef.current = null;
-    }
+    const gesture = modalGestureRef.current;
+    if (!gesture.active) return;
+    gesture.active = false;
+    if (modalFrameRef.current) { cancelAnimationFrame(modalFrameRef.current); modalFrameRef.current = null; }
     setIsModalDragging(false);
-    setPreventScroll(false);
-
     const screenHeight = window.innerHeight;
-    const snapThreshold = 50;
-    const velocityThreshold = 0.5;
-
+    const halfTarget = isQrCodeEntry && showLocationDetails ? screenHeight * 0.3 : screenHeight * 0.41;
+    const finalHeight = gesture.height;
+    const finalVelocity = gesture.velocity;
     let targetHeight;
-
-    const finalVelocity = modalGestureRef.current.velocity;
-    const finalHeight = modalGestureRef.current.height;
-    if (Math.abs(finalVelocity) > velocityThreshold) {
-      if (finalVelocity > 0) {
-        // Swiping up
-        targetHeight = window.innerHeight;
-      } else {
-        // Swiping down
-        if (finalHeight < screenHeight * 0.3) {
-          targetHeight = 140;
-        } else {
-          targetHeight = window.innerHeight * 0.41;
-        }
-      }
-    } else {
-      // No significant velocity - use position-based snapping
-      if (finalHeight < 140 + snapThreshold) {
-        targetHeight = 140;
-      } else if (finalHeight < screenHeight * 0.35) {
-        targetHeight = window.innerHeight * 0.41;
-      } else if (finalHeight < screenHeight * 0.7) {
-        targetHeight = window.innerHeight * 0.41;
-      } else {
-        targetHeight = screenHeight;
-      }
-    }
-
-    // Smooth animation to target height
+    if (Math.abs(finalVelocity) > 0.5) {
+      if (finalVelocity > 0) targetHeight = screenHeight;
+      else targetHeight = finalHeight < halfTarget * 0.8 ? 140 : halfTarget;
+    } else if (finalHeight < 200) targetHeight = 140;
+    else if (finalHeight < screenHeight * 0.7) targetHeight = halfTarget;
+    else targetHeight = screenHeight;
     setCurrentHeight(targetHeight);
-
-    // Update UI state based on final height
-    if (targetHeight <= 140) {
-      setShowRouting(false);
-      setExpandedSearch(false);
-    } else if (targetHeight <= screenHeight * 0.41) {
-      setExpandedSearch(false);
-      setShowRouting(true);
-    } else {
-      setExpandedSearch(true);
-      setShowRouting(true);
-    }
-
-    setModalVelocity(0);
+    if (targetHeight <= 140) { setShowRouting(false); setExpandedSearch(false); if (isQrCodeEntry) setIsQrCodeEntry(false); }
+    else if (targetHeight < screenHeight * 0.7) { setShowRouting(true); setExpandedSearch(false); }
+    else { setShowRouting(true); setExpandedSearch(true); }
   };
 
   useEffect(() => {
@@ -662,139 +555,13 @@ const MapBeginPage = () => {
     }
   }, [storedId, storedLat, storedLng, language]);
 
-  const handleTouchStart = (e) => {
-    const touchY = e.touches[0].clientY;
-    setIsDragging(true);
-    setDragStartY(touchY);
-    setDragStartHeight(currentHeight);
-    setLastTouchY(touchY);
-    setLastTouchTime(Date.now());
-    setVelocity(0);
-  };
-
-
-  const handleTouchMove = (e) => {
-    if (!isDragging) return;
-
-    e.preventDefault();
-
-    const touchY = e.touches[0].clientY;
-    const currentTime = Date.now();
-    const deltaTime = currentTime - lastTouchTime;
-
-    if (deltaTime > 0) {
-      const deltaY = lastTouchY - touchY;
-      const newVelocity = deltaY / deltaTime;
-      setVelocity(newVelocity);
-    }
-
-    const deltaY = dragStartY - touchY;
-    const newHeight = dragStartHeight + deltaY;
-
-    let resistance = 1;
-    if (newHeight < 140) {
-      resistance = 0.3 + (0.7 * (newHeight / 140));
-    } else if (newHeight > window.innerHeight) {
-      resistance = 0.3 + (0.7 * (window.innerHeight / newHeight));
-    }
-
-    const clampedHeight = Math.max(80, Math.min(newHeight * resistance, window.innerHeight * 1.1));
-    setCurrentHeight(clampedHeight);
-
-    setLastTouchY(touchY);
-    setLastTouchTime(currentTime);
-  };
-
-  useEffect(() => {
-    const handleTouchMove = (e) => {
-      if (preventScroll || isModalDragging) {
-        e.preventDefault();
-      }
-    };
-
-    const handleScroll = (e) => {
-      if (preventScroll || isModalDragging) {
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
-      }
-    };
-
-    if (preventScroll || isModalDragging) {
-      document.addEventListener('touchmove', handleTouchMove, { passive: false });
-      document.addEventListener('scroll', handleScroll, { passive: false });
-    }
-
-    return () => {
-      document.removeEventListener('touchmove', handleTouchMove);
-      document.removeEventListener('scroll', handleScroll);
-    };
-  }, [preventScroll, isModalDragging]);
-
   useEffect(() => {
     const handleResize = () => {
-      if (expandedSearch) {
-        setCurrentHeight(window.innerHeight);
-      }
+      if (expandedSearch) setCurrentHeight(window.innerHeight);
     };
-
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [expandedSearch]);
-
-  const handleTouchEnd = () => {
-    if (!isDragging) return;
-    setIsDragging(false);
-
-    const screenHeight = window.innerHeight;
-    const snapThreshold = 50;
-    const velocityThreshold = 0.5;
-
-    let targetHeight;
-
-    if (Math.abs(velocity) > velocityThreshold) {
-
-      if (velocity > 0) {
-
-        targetHeight = window.innerHeight;
-      } else {
-
-        if (currentHeight < screenHeight * 0.3) {
-          targetHeight = 140;
-        } else {
-          targetHeight = window.innerHeight * 0.41;
-        }
-      }
-    } else {
-      // No significant velocity - use position-based snapping
-      if (currentHeight < 140 + snapThreshold) {
-        targetHeight = 140;
-      } else if (currentHeight < screenHeight * 0.35) {
-        targetHeight = window.innerHeight * 0.41;
-      } else if (currentHeight < screenHeight * 0.7) {
-        targetHeight = window.innerHeight * 0.41;
-      } else {
-        targetHeight = screenHeight;
-      }
-    }
-
-    // Smooth animation to target height
-    setCurrentHeight(targetHeight);
-
-    // Update UI state based on final height
-    if (targetHeight <= 140) {
-      setShowRouting(false);
-      setExpandedSearch(false);
-    } else if (targetHeight <= screenHeight * 0.41) {
-      setExpandedSearch(false);
-      setShowRouting(true);
-    } else {
-      setExpandedSearch(true);
-      setShowRouting(true);
-    }
-
-    setVelocity(0);
-  };
 
   const handleCategoryClick = (category) => {
     const isSameCategory = selectedCategory && selectedCategory.value === category.value;
@@ -1308,8 +1075,8 @@ const MapBeginPage = () => {
 
       {/* Search Bar with Integrated Routing */}
       <div
-        className={`search-bar-container ${showRouting ? 'expanded' : ''} ${expandedSearch ? 'fully-expanded' : ''} ${isDragging || isModalDragging ? 'dragging' : ''} ${isQrCodeEntry ? 'qr-code-entry' : ''}`}
-        style={isDragging || isModalDragging || isAutoExpanding ? { height: `${currentHeight}px`, transform: 'translateY(0)' } : {}}
+        className={`search-bar-container ${showRouting ? 'expanded' : ''} ${expandedSearch ? 'fully-expanded' : ''} ${isModalDragging ? 'dragging' : ''} ${isQrCodeEntry ? 'qr-code-entry' : ''}`}
+        style={(showRouting || isModalDragging || isAutoExpanding) ? { height: `${currentHeight}px`, transform: 'translateY(0)' } : {}}
       >
         <div className="search-bar-pinned-wrapper">
           <div
@@ -1360,12 +1127,7 @@ const MapBeginPage = () => {
             </svg>
           </form>
         </div>
-        <div
-          className="modal-content-wrapper"
-          onTouchStart={handleModalTouchStart}
-          onTouchMove={handleModalTouchMove}
-          onTouchEnd={handleModalTouchEnd}
-        >
+        <div className="modal-content-wrapper">
 
           {/* Search Modal */}
           {showSearchModal && (
@@ -1572,7 +1334,7 @@ const MapBeginPage = () => {
                 <div className="events-modal-header">
                   <h3>{intl.formatMessage({ id: 'shrineEventsTitle' })}</h3>
                   <button className="close-modal-btn" onClick={closeEventsModal}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-x"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-x"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>
                   </button>
                 </div>
                 <div className="events-modal-content">

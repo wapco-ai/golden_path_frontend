@@ -154,6 +154,36 @@
 }
 
 
+.map-floor-static-control {
+  position: absolute;
+  right: 18px;
+  bottom: 168px;
+  width: 54px;
+  height: 54px;
+  margin: 0;
+  padding: 0;
+  z-index: 2001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000 !important;
+}
+
+.map-floor-static-control > * {
+  position: static !important;
+  inset: auto !important;
+  right: auto !important;
+  left: auto !important;
+  top: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  margin: 0 !important;
+  width: 54px !important;
+  height: 54px !important;
+  max-width: 54px !important;
+  max-height: 54px !important;
+}
+
 .map-gps-button {
   position: absolute;
   bottom: 300px;
