@@ -703,11 +703,16 @@ const RouteOverview = () => {
       : null;
 
     const resolveStepInstructionBase = (step, idx) => {
-      const stepName = step?.name || step?.title;
+      const stepName = step?.name || step?.title || (step?.type === 'stepArriveDestination'
+        ? destination?.name || intl.formatMessage({ id: 'destination' })
+        : '');
       const stepTitle = step?.title || stepName || '';
       const hasServerInstruction = typeof step?.instruction === 'string' && step.instruction.trim().length > 0;
 
       if (hasServerInstruction) return step.instruction.trim();
+      if (step?.type === 'stepArriveDestination') {
+        return intl.formatMessage({ id: step.type }, { name: stepName });
+      }
       if (stepTitle && step?.routeM !== undefined) return stepTitle.trim();
       if (!step || !step.type) {
         return intl.formatMessage(
@@ -883,7 +888,7 @@ const RouteOverview = () => {
     }
 
     return mappedSegments;
-  }, [routeCoordinates, routeGeo, routeSteps, intl]);
+  }, [routeCoordinates, routeGeo, routeSteps, destination?.name, intl]);
 
   const [viewState, setViewState] = useState({
     latitude: routeCoordinates[0]?.[1] || 0,
