@@ -118,11 +118,15 @@ export const sliceLineByFraction = (coordinates = [], fromM = 0, toM = 1) => {
 };
 
 export const normalizeRouteMSteps = (steps = []) => (Array.isArray(steps) ? steps : [])
-  .filter((step) => typeof step?.routeM === 'number' && Number.isFinite(step.routeM))
+  .filter((step, index, allSteps) => (
+    (typeof step?.routeM === 'number' && Number.isFinite(step.routeM))
+    // Older route snapshots omitted the terminal arrival's endpoint position.
+    || (index === allSteps.length - 1 && step?.type === 'stepArriveDestination' && step.routeM == null)
+  ))
   .map((step, originalIndex) => ({
     ...step,
     originalIndex,
-    routeM: clampRouteM(step.routeM)
+    routeM: clampRouteM(step.routeM ?? 1)
   }))
   .sort((a, b) => (a.routeM - b.routeM) || (a.originalIndex - b.originalIndex));
 
@@ -137,7 +141,9 @@ export const buildRouteMSegments = (steps = [], coordinates = []) => {
     const fromStep = normalizedSteps[i];
     const toStep = normalizedSteps[i + 1];
 
-    if (toStep.routeM <= fromStep.routeM) continue;
+    const isEndpointArrival = i === normalizedSteps.length - 2
+      && toStep.type === 'stepArriveDestination' && toStep.routeM === 1;
+    if (toStep.routeM < fromStep.routeM || (toStep.routeM === fromStep.routeM && !isEndpointArrival)) continue;
 
     const segmentCoordinates = sliceLineByFraction(coordinates, fromStep.routeM, toStep.routeM);
     if (segmentCoordinates.length < 2) continue;
