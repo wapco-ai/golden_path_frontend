@@ -1463,7 +1463,6 @@ const Amain = () => {
     resetMapCursor();
   }, [isTempAreaLayerActive, resetMapCursor, clearTempAreaVertexMarkers]);
   const selectedFeatureProperties = selectedEditableFeature?.features?.[0]?.properties;
-  const selectedFeatureCoordinates = selectedEditableFeature?.features?.[0]?.geometry?.coordinates;
   const selectedDoorId = selectedFeatureProperties?.door_id
     || selectedFeatureProperties?.doorId
     || selectedFeatureProperties?.doorID
@@ -13048,33 +13047,6 @@ const Amain = () => {
                               </label>
                             );
                           })}
-                          {selectedEditableFeature && (
-                            <div className="selected-feature-hint">
-                              <div className="selected-feature-row">
-                                <span className="selected-feature-label">لایه انتخابی:</span>
-                                <span className="selected-feature-value">{activeEditableLayer?.label || 'هیچ‌کدام'}</span>
-                              </div>
-                              {selectedFeatureProperties && (
-                                <div className="selected-feature-row">
-                                  <span className="selected-feature-label">مشخصات:</span>
-                                  <span className="selected-feature-value">{JSON.stringify(selectedFeatureProperties)}</span>
-                                </div>
-                              )}
-                              {selectedFeatureCoordinates && Array.isArray(selectedFeatureCoordinates) && (
-                                <div className="selected-feature-row">
-                                  <span className="selected-feature-label">مختصات:</span>
-                                  <span className="selected-feature-value">
-                                    {selectedFeatureCoordinates.map((coord, index) => (
-                                      <React.Fragment key={`coord-${index}`}>
-                                        {Number(coord).toFixed(5)}
-                                        {index < selectedFeatureCoordinates.length - 1 && ', '}
-                                      </React.Fragment>
-                                    ))}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          )}
                         </div>
                       </div>
                     )}
