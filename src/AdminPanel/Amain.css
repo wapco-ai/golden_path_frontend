@@ -11644,3 +11644,17 @@ body {
     opacity: 1;
   }
 }
+
+/* Connector stop picking: keep the cancel action aligned with the admin map controls. */
+.connector-pick-cancel-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 1000;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.connector-pick-cancel-btn:hover {
+  background: #e94b3c17;
+}

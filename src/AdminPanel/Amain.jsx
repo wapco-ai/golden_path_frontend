@@ -12506,7 +12506,7 @@ const Amain = () => {
             <div className="map-management-section">
               <div className="map-container">
                 <div id="map-container" className="map-instance"></div>
-                {connectorForm.picking && <button type="button" className="map-marker-action-btn" style={{ position: 'absolute', top: 12, left: 12, zIndex: 5 }} onClick={connectorForm.cancelPick}>لغو انتخاب توقف و بازگشت به فرم</button>}
+                {connectorForm.picking && <button type="button" className="cancel-marker-btn connector-pick-cancel-btn" onClick={connectorForm.cancelPick}>لغو انتخاب توقف و بازگشت به فرم</button>}
 
                 {mapContextMenu.isOpen && (
                   <div
