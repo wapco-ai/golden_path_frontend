@@ -405,6 +405,10 @@ const MapBeginPage = () => {
     };
 
     setSelectedLocation(locationData);
+    setShowLocationDetails(true);
+    setShowRouting(true);
+    setExpandedSearch(false);
+    setCurrentHeight(window.innerHeight * 0.41);
 
     const locationId = place.value || place.id || place.subGroupValue;
     const params = new URLSearchParams();
@@ -462,6 +466,7 @@ const MapBeginPage = () => {
       setShowLocationDetails(true);
       setShowRouting(true);
       setExpandedSearch(false);
+      setCurrentHeight(window.innerHeight * 0.41);
       return;
     }
 
@@ -517,6 +522,7 @@ const MapBeginPage = () => {
         setShowLocationDetails(true);
         setShowRouting(true);
         setExpandedSearch(false);
+        setCurrentHeight(window.innerHeight * 0.41);
       } else {
       }
     } else {
