@@ -55,5 +55,8 @@ test('route overview shows the current floor and the transfer duration in the ex
   await page.locator('.carousel-next').click();
   await expect(page.locator('.instruction-text2')).toContainText('حرکت در طبقه یک');
   await expect.poll(()=>page.evaluate(()=>sessionStorage.getItem('haramCurrentFloor'))).toBe('1');
+  await page.locator('.carousel-next').click();
+  await expect(page.locator('.instruction-text2')).toContainText('به مقصد رسیدید');
+  await expect(page.locator('.carousel-next')).toBeDisabled();
   expect(errors).toEqual([]);
 });
