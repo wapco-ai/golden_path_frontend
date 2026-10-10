@@ -1,0 +1,24 @@
+/* Only the transient map tooltip is styled; all existing map buttons retain
+   their original classes, colors, dimensions, spacing and icons. */
+.admin-map-tooltip {
+  position: fixed;
+  z-index: 20010;
+  pointer-events: none;
+  max-width: min(275px, calc(100vw - 16px));
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: #ffffff;
+  background: #1E2023;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-family: 'Vazir', Tahoma, sans-serif;
+  font-size: 12px;
+  line-height: 1.7;
+  font-weight: normal;
+  text-align: center;
+  white-space: normal;
+  transform: translate(-50%, -100%);
+}
+
+.admin-map-tooltip[data-placement='below'] {
+  transform: translate(-50%, 0);
+}
