@@ -109,7 +109,7 @@ export default function AdminMapTooltip({ containerRef }) {
     container.addEventListener('focusin', onFocusIn);
     container.addEventListener('focusout', onFocusOut);
     container.addEventListener('pointerdown', dismiss);
-    container.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', onKeyDown);
     window.addEventListener('scroll', dismiss, true);
     window.addEventListener('resize', dismiss);
     return () => {
@@ -118,7 +118,7 @@ export default function AdminMapTooltip({ containerRef }) {
       container.removeEventListener('focusin', onFocusIn);
       container.removeEventListener('focusout', onFocusOut);
       container.removeEventListener('pointerdown', dismiss);
-      container.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('scroll', dismiss, true);
       window.removeEventListener('resize', dismiss);
       cancelPending();
