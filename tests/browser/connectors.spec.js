@@ -158,3 +158,48 @@ test('a conflicting shared connector cannot replace the chosen point, while its 
   await expect(selected.getByRole('button',{name:'تغییر نقطه روی نقشه',exact:true})).toHaveCount(0);
   expect(writes).toHaveLength(0); expect(errors).toEqual([]);
 });
+
+
+test('admin map tooltips work on icon hover, keyboard focus and Escape without changing toolbar layout',async ({page})=>{
+  const {writes,errors}=await setup(page);
+  await page.getByRole('button',{name:'لغو و بازگشت',exact:true}).click();
+
+  const map=page.locator('.map-management-section');
+  const tooltip=page.getByRole('tooltip');
+  const zoomIn=map.locator('.zoom-in');
+  await expect(zoomIn).toHaveAttribute('aria-label','بزرگ‌نمایی نقشه');
+  await zoomIn.hover();
+  await expect(tooltip).toHaveText('بزرگ‌نمایی نقشه');
+  await expect(zoomIn).toHaveAttribute('aria-describedby',/\S+/);
+
+  // Tooltip is portaled to the document, so zoom-controls overflow never clips it.
+  const tipBounds=await tooltip.boundingBox();
+  const screen=page.viewportSize();
+  expect(tipBounds.x).toBeGreaterThanOrEqual(0);
+  expect(tipBounds.y).toBeGreaterThanOrEqual(0);
+  expect(tipBounds.x+tipBounds.width).toBeLessThanOrEqual(screen.width+1);
+
+  await page.keyboard.press('Escape');
+  await expect(tooltip).toHaveCount(0);
+  await expect(zoomIn).not.toHaveAttribute('aria-describedby',/\S+/);
+
+  const group=map.locator('.area-mange');
+  await group.focus();
+  await expect(tooltip).toHaveText('مدیریت و ویرایش محدوده‌ها');
+  await page.keyboard.press('Enter');
+  await expect(map.locator('.sub-buttons2')).toBeVisible();
+  await map.locator('.sub-buttons2 .edit-area').hover();
+  await expect(tooltip).toHaveText('ویرایش اطلاعات محدوده انتخاب‌شده');
+
+  const layerMenu=map.locator('.map-type-display').first();
+  await layerMenu.focus();
+  await expect(tooltip).toHaveText('نمایش یا پنهان کردن فهرست لایه‌های نقشه');
+  await page.keyboard.press('Space');
+  await expect(layerMenu).toHaveAttribute('aria-expanded','true');
+  await expect(map.locator('.layers-dropdown')).toBeVisible();
+
+  // Every tooltip is a detached overlay; it never replaces the original buttons.
+  expect(await map.locator('[data-map-tooltip]').count()).toBeGreaterThan(15);
+  expect(writes).toHaveLength(0);
+  expect(errors).toEqual([]);
+});
