@@ -12585,7 +12585,7 @@ const Amain = () => {
                 <div className="map-control-top-left">
                   <div className="action-buttons-group">
                     <div className={`action-button btn-upload ${openSubMenu === 0 ? 'selected' : ''}`}
-                      data-map-tooltip="ابزار ورود داده‌های نقشه" aria-label="ابزار ورود داده‌های نقشه" role="button" tabIndex={0} onKeyDown={activateAdminMapControlByKeyboard}
+                      data-map-tooltip="ابزار ورود داده‌های نقشه" aria-label="ابزار ورود داده‌های نقشه" role="button" tabIndex={0} aria-pressed={openSubMenu === 0} onKeyDown={activateAdminMapControlByKeyboard}
                       onClick={() => setOpenSubMenu(openSubMenu === 0 ? null : 0)}>
                       <span>
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -12595,7 +12595,7 @@ const Amain = () => {
                     </div>
                     <div className="date-separator3"></div>
                     <div className={`action-button btn-download ${openSubMenu === 5 ? 'selected' : ''}`}
-                      data-map-tooltip="ابزار خروجی‌گیری از نقشه" aria-label="ابزار خروجی‌گیری از نقشه" role="button" tabIndex={0} onKeyDown={activateAdminMapControlByKeyboard}
+                      data-map-tooltip="ابزار خروجی‌گیری از نقشه" aria-label="ابزار خروجی‌گیری از نقشه" role="button" tabIndex={0} aria-pressed={openSubMenu === 5} onKeyDown={activateAdminMapControlByKeyboard}
                       onClick={() => setOpenSubMenu(openSubMenu === 5 ? null : 5)}>
                       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path fillRule="evenodd" clipRule="evenodd" d="M9.99935 1.04169C10.1818 1.04169 10.3551 1.12141 10.4739 1.25994L12.9739 4.17661C13.1985 4.43869 13.1682 4.83325 12.9061 5.05789C12.644 5.28253 12.2495 5.25218 12.0248 4.9901L10.6244 3.35622L10.6243 12.5C10.6243 12.8452 10.3445 13.125 9.99935 13.125C9.65417 13.125 9.37435 12.8452 9.37435 12.5L9.37435 3.35622L7.97389 4.9901C7.74925 5.25218 7.35468 5.28253 7.09261 5.05789C6.83053 4.83325 6.80018 4.43869 7.02481 4.17661L9.52481 1.25994C9.64355 1.12141 9.8169 1.04169 9.99935 1.04169ZM5.8292 6.87666C6.17438 6.87474 6.45575 7.153 6.45767 7.49817C6.4596 7.84334 6.18133 8.12472 5.83616 8.12664C4.92491 8.13171 4.27901 8.15538 3.78881 8.24542C3.31646 8.33218 3.04307 8.4715 2.84019 8.67437C2.60956 8.90501 2.45918 9.22882 2.37697 9.8403C2.29234 10.4698 2.29102 11.304 2.29102 12.5002V13.3335C2.29102 14.5297 2.29234 15.364 2.37697 15.9934C2.45918 16.6049 2.60956 16.9287 2.84019 17.1594C3.07083 17.39 3.39464 17.5404 4.00612 17.6226C4.63558 17.7072 5.46984 17.7085 6.66602 17.7085H13.3327C14.5289 17.7085 15.3631 17.7072 15.9926 17.6226C16.6041 17.5404 16.9279 17.39 17.1585 17.1594C17.3891 16.9287 17.5395 16.6049 17.6217 15.9934C17.7064 15.364 17.7077 14.5297 17.7077 13.3335V12.5002C17.7077 11.304 17.7064 10.4698 17.6217 9.8403C17.5395 9.22882 17.3891 8.90501 17.1585 8.67437C16.9556 8.4715 16.6822 8.33218 16.2099 8.24542C15.7197 8.15538 15.0738 8.13171 14.1625 8.12664C13.8174 8.12472 13.5391 7.84334 13.541 7.49817C13.5429 7.153 13.8243 6.87474 14.1695 6.87666C15.0708 6.88167 15.8219 6.90324 16.4357 7.01599C17.0674 7.13202 17.6049 7.35305 18.0424 7.79049C18.544 8.29209 18.7597 8.92365 18.8606 9.67374C18.9577 10.3962 18.9577 11.3148 18.9577 12.4545V13.3793C18.9577 14.5189 18.9577 15.4375 18.8606 16.16C18.7597 16.9101 18.544 17.5416 18.0424 18.0432C17.5408 18.5448 16.9092 18.7606 16.1591 18.8614C15.4367 18.9586 14.5181 18.9585 13.3784 18.9585H6.62029C5.48063 18.9585 4.56203 18.9586 3.83956 18.8614C3.08947 18.7606 2.4579 18.5448 1.95631 18.0432C1.45471 17.5416 1.23897 16.9101 1.13812 16.16C1.04099 15.4375 1.041 14.5189 1.04102 13.3793V12.4545C1.041 11.3148 1.04099 10.3962 1.13812 9.67374C1.23897 8.92365 1.45471 8.29209 1.95631 7.79049C2.39375 7.35305 2.93131 7.13202 3.56298 7.01599C4.17678 6.90324 4.92793 6.88167 5.8292 6.87666Z" fill={openSubMenu === 5 ? "white" : "#1E2023"} />
@@ -12607,7 +12607,7 @@ const Amain = () => {
 
                     {/* Button 1 */}
                     <div className={`action-button temp-area-manage ${openSubMenu === 1 ? 'selected' : ''}`}
-                      data-map-tooltip="مدیریت محدوده‌های موقت" aria-label="مدیریت محدوده‌های موقت" role="button" tabIndex={0} onKeyDown={activateAdminMapControlByKeyboard}
+                      data-map-tooltip="مدیریت محدوده‌های موقت" aria-label="مدیریت محدوده‌های موقت" role="button" tabIndex={0} aria-expanded={openSubMenu === 1} aria-controls="admin-map-temp-area-tools" onKeyDown={activateAdminMapControlByKeyboard}
                       onClick={() => {
                         setOpenSubMenu(openSubMenu === 1 ? null : 1);
                         // Reset location marker mode when other buttons are clicked
@@ -12635,7 +12635,7 @@ const Amain = () => {
                       </svg>
                     </div>
                     {openSubMenu === 1 && (
-                      <div className="sub-buttons1">
+                      <div className="sub-buttons1" id="admin-map-temp-area-tools">
                         <button
                           className={`sub-btn move-temp-area ${isTempAreaMoveMode ? 'active' : ''}`}
                       data-map-tooltip="جابجایی محدوده موقت انتخاب‌شده" aria-label="جابجایی محدوده موقت انتخاب‌شده"
@@ -12673,7 +12673,7 @@ const Amain = () => {
                             <div className="temp-area-vertex-actions">
                               <button
                                 className="sub-btn temp-area-save with-label"
-                      data-map-tooltip="ذخیره تغییرات رئوس محدوده موقت" aria-label="ذخیره تغییرات رئوس محدوده موقت"
+                      data-map-tooltip="ذخیره تغییرات رئوس محدوده موقت"
                                 onClick={handleSaveTempAreaVertexEdit}
                                 disabled={!isTempAreaGeometryDirty || isSavingTempAreaGeometry}
                               >
@@ -12686,7 +12686,7 @@ const Amain = () => {
                               </button>
                               <button
                                 className="sub-btn temp-area-cancel with-label"
-                      data-map-tooltip="لغو تغییرات رئوس محدوده موقت" aria-label="لغو تغییرات رئوس محدوده موقت"
+                      data-map-tooltip="لغو تغییرات رئوس محدوده موقت"
                                 onClick={handleCancelTempAreaVertexEdit}
                                 disabled={isSavingTempAreaGeometry}
                               >
@@ -12827,7 +12827,7 @@ const Amain = () => {
 
                     {/* Button 2 */}
                     <div className={`action-button area-mange ${openSubMenu === 2 ? 'selected' : ''}`}
-                      data-map-tooltip="مدیریت و ویرایش محدوده‌ها" aria-label="مدیریت و ویرایش محدوده‌ها" role="button" tabIndex={0} onKeyDown={activateAdminMapControlByKeyboard}
+                      data-map-tooltip="مدیریت و ویرایش محدوده‌ها" aria-label="مدیریت و ویرایش محدوده‌ها" role="button" tabIndex={0} aria-expanded={openSubMenu === 2} aria-controls="admin-map-area-tools" onKeyDown={activateAdminMapControlByKeyboard}
                       onClick={() => {
                         setOpenSubMenu(openSubMenu === 2 ? null : 2);
                         // Reset location marker mode when other buttons are clicked
@@ -12838,7 +12838,7 @@ const Amain = () => {
                       </svg>
                     </div>
                     {openSubMenu === 2 && (
-                      <div className="sub-buttons2">
+                      <div className="sub-buttons2" id="admin-map-area-tools">
                         <button
                           className={`sub-btn move-area ${isAreaEditMode ? 'active' : ''}`}
                       data-map-tooltip="ویرایش هندسه محدوده انتخاب‌شده" aria-label="ویرایش هندسه محدوده انتخاب‌شده"
@@ -12851,7 +12851,7 @@ const Amain = () => {
                           <div className="area-edit-actions">
                             <button
                               className="sub-btn area-save with-label"
-                      data-map-tooltip="ذخیره تغییرات هندسه محدوده" aria-label="ذخیره تغییرات هندسه محدوده"
+                      data-map-tooltip="ذخیره تغییرات هندسه محدوده"
                               onClick={handleSaveAreaGeometry}
                               disabled={isSavingAreaGeometry}
                             >
@@ -12863,7 +12863,7 @@ const Amain = () => {
                             </button>
                             <button
                               className="sub-btn area-cancel with-label"
-                      data-map-tooltip="لغو ویرایش هندسه محدوده" aria-label="لغو ویرایش هندسه محدوده"
+                      data-map-tooltip="لغو ویرایش هندسه محدوده"
                               onClick={handleCancelAreaGeometry}
                               disabled={isSavingAreaGeometry}
                             >
@@ -12897,7 +12897,7 @@ const Amain = () => {
 
                     {/* Button 3 */}
                     <div className={`action-button van-manage ${openSubMenu === 3 ? 'selected' : ''}`}
-                      data-map-tooltip="مدیریت مسیرها و گره‌های ون برقی" aria-label="مدیریت مسیرها و گره‌های ون برقی" role="button" tabIndex={0} onKeyDown={activateAdminMapControlByKeyboard}
+                      data-map-tooltip="مدیریت مسیرها و گره‌های ون برقی" aria-label="مدیریت مسیرها و گره‌های ون برقی" role="button" tabIndex={0} aria-expanded={openSubMenu === 3} aria-controls="admin-map-van-tools" onKeyDown={activateAdminMapControlByKeyboard}
                       onClick={() => {
                         setOpenSubMenu(openSubMenu === 3 ? null : 3);
                         // Reset location marker mode when other buttons are clicked
@@ -12908,7 +12908,7 @@ const Amain = () => {
                       </svg>
                     </div>
                     {openSubMenu === 3 && (
-                      <div className="sub-buttons3">
+                      <div className="sub-buttons3" id="admin-map-van-tools">
                         <button
                           className={`sub-btn van-create ${isVanDrawingMode ? 'active' : ''}`}
                       data-map-tooltip="شروع یا پایان ترسیم مسیر ون برقی" aria-label="شروع یا پایان ترسیم مسیر ون برقی"
@@ -12938,7 +12938,7 @@ const Amain = () => {
 
                     {/* Button 4 - Location Marker */}
                     <div className={`action-button manage-door-point ${isLocationMarkerMode ? 'selected' : ''}`}
-                      data-map-tooltip="مدیریت درب‌ها و نقاط دسترسی" aria-label="مدیریت درب‌ها و نقاط دسترسی" role="button" tabIndex={0} onKeyDown={activateAdminMapControlByKeyboard}
+                      data-map-tooltip="مدیریت درب‌ها و نقاط دسترسی" aria-label="مدیریت درب‌ها و نقاط دسترسی" role="button" tabIndex={0} aria-expanded={openSubMenu === 4 && isDoorAccessLayerActive} aria-controls="admin-map-door-tools" onKeyDown={activateAdminMapControlByKeyboard}
                       aria-disabled={!isMapLayerAvailable(DOOR_ACCESS_LAYER_ID) || !canUserEditLayer(editableLayerOptions.find((layer) => layer.id === DOOR_ACCESS_LAYER_ID))}
                       onClick={() => {
                         handleLocationMarkerSelect();
@@ -12949,7 +12949,7 @@ const Amain = () => {
                       </svg>
                     </div>
                     {openSubMenu === 4 && isDoorAccessLayerActive && (
-                      <div className="sub-buttons4">
+                      <div className="sub-buttons4" id="admin-map-door-tools">
                         {showDoorTools && (
                           <>
                             <button className="sub-btn move-door-point"
@@ -12977,7 +12977,7 @@ const Amain = () => {
                         <div className="bulk-door-actions">
                           <button
                             className={`sub-btn with-label ${isDoorBulkSelectMode ? 'active' : ''}`}
-                      data-map-tooltip="انتخاب گروهی درب‌ها روی نقشه" aria-label="انتخاب گروهی درب‌ها روی نقشه"
+                      data-map-tooltip="انتخاب گروهی درب‌ها روی نقشه"
                             onClick={handleToggleDoorBulkSelectMode}
                             disabled={isBulkDoorStatusLoading}
                           >
@@ -13012,7 +13012,7 @@ const Amain = () => {
 
                   {isMapFullscreen && (
                     <button className="exit-fullscreen-btn"
-                      data-map-tooltip="خروج از حالت تمام‌صفحه" aria-label="خروج از حالت تمام‌صفحه" onClick={handleExitFullscreenMap}>
+                      data-map-tooltip="خروج از حالت تمام‌صفحه" onClick={handleExitFullscreenMap}>
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path fillRule="evenodd" clipRule="evenodd" d="M13.4697 5.46967C13.7626 5.17678 14.2374 5.17678 14.5303 5.46967L20.5303 11.4697C20.8232 11.7626 20.8232 12.2374 20.5303 12.5303L14.5303 18.5303C14.2374 18.8232 13.7626 18.8232 13.4697 18.5303C13.1768 18.2374 13.1768 17.7626 13.4697 17.4697L18.1893 12.75H4C3.58579 12.75 3.25 12.4142 3.25 12C3.25 11.5858 3.58579 11.25 4 11.25H18.1893L13.4697 6.53033C13.1768 6.23744 13.1768 5.76256 13.4697 5.46967Z" fill="white" />
                       </svg>
@@ -13020,7 +13020,7 @@ const Amain = () => {
                     </button>
                   )}
                   <div className="map-type-selector">
-                    <div className="map-type-display" data-map-tooltip="نمایش یا پنهان کردن فهرست لایه‌های نقشه" role="button" tabIndex={0} aria-label="نمایش یا پنهان کردن فهرست لایه‌های نقشه" aria-expanded={isLayerListOpen} onKeyDown={activateAdminMapControlByKeyboard} onClick={() => { setIsLayerListOpen(!isLayerListOpen); setIsMapFloorOpen(false); setIsMapLanguageOpen(false); }}>
+                    <div className="map-type-display" data-map-tooltip="نمایش یا پنهان کردن فهرست لایه‌های نقشه" role="button" tabIndex={0} aria-expanded={isLayerListOpen} onKeyDown={activateAdminMapControlByKeyboard} onClick={() => { setIsLayerListOpen(!isLayerListOpen); setIsMapFloorOpen(false); setIsMapLanguageOpen(false); }}>
                       <span className="stgi">لایه‌های نقشه
                         <div className="date-separator2"></div>
                       </span>
@@ -13097,7 +13097,7 @@ const Amain = () => {
                   </div>
 
                   <div className="map-type-selector">
-                    <div className="map-type-display" data-map-tooltip="انتخاب زبان نمایش نقشه" role="button" tabIndex={0} aria-label="انتخاب زبان نمایش نقشه" aria-expanded={isMapLanguageOpen} onKeyDown={activateAdminMapControlByKeyboard} onClick={() => { setIsMapLanguageOpen(!isMapLanguageOpen); setIsMapFloorOpen(false); setIsLayerListOpen(false); }}>
+                    <div className="map-type-display" data-map-tooltip="انتخاب زبان نمایش نقشه" role="button" tabIndex={0} aria-expanded={isMapLanguageOpen} onKeyDown={activateAdminMapControlByKeyboard} onClick={() => { setIsMapLanguageOpen(!isMapLanguageOpen); setIsMapFloorOpen(false); setIsLayerListOpen(false); }}>
                       <span className="stgi">زبان نقشه
                         <div className="date-separator2"></div>
                       </span>
@@ -13126,7 +13126,7 @@ const Amain = () => {
                   </div>
 
                   <div className="map-type-selector">
-                    <div className="map-type-display" data-map-tooltip="انتخاب طبقه نقشه" role="button" tabIndex={0} aria-label="انتخاب طبقه نقشه" aria-expanded={isMapFloorOpen} onKeyDown={activateAdminMapControlByKeyboard} onClick={() => { setIsMapFloorOpen(!isMapFloorOpen); setIsLayerListOpen(false); setIsMapLanguageOpen(false); }}>
+                    <div className="map-type-display" data-map-tooltip="انتخاب طبقه نقشه" role="button" tabIndex={0} aria-expanded={isMapFloorOpen} onKeyDown={activateAdminMapControlByKeyboard} onClick={() => { setIsMapFloorOpen(!isMapFloorOpen); setIsLayerListOpen(false); setIsMapLanguageOpen(false); }}>
                       <span className="stgi">طبقه نقشه
                         <div className="date-separator2"></div>
                       </span>
@@ -13203,7 +13203,7 @@ const Amain = () => {
                   ) : (
                     !isMapFullscreen && (
                       <button className="zoom-map-button"
-                      data-map-tooltip="نمایش تمام‌صفحه نقشه" aria-label="نمایش تمام‌صفحه نقشه" onClick={handleFullscreenMap}>
+                      data-map-tooltip="نمایش تمام‌صفحه نقشه" onClick={handleFullscreenMap}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path fillRule="evenodd" clipRule="evenodd" d="M11.9426 1.25H12.0574C14.3658 1.24999 16.1748 1.24998 17.5863 1.43975C19.031 1.63399 20.1711 2.03933 21.0659 2.93414C21.9607 3.82895 22.366 4.96897 22.5603 6.41371C22.75 7.82519 22.75 9.63423 22.75 11.9426V12.0574C22.75 14.3658 22.75 16.1748 22.5603 17.5863C22.366 19.031 21.9607 20.1711 21.0659 21.0659C20.1711 21.9607 19.031 22.366 17.5863 22.5603C16.1748 22.75 14.3658 22.75 12.0574 22.75H11.9426C9.63423 22.75 7.82519 22.75 6.41371 22.5603C4.96897 22.366 3.82895 21.9607 2.93414 21.0659C2.03933 20.1711 1.63399 19.031 1.43975 17.5863C1.24998 16.1748 1.24999 14.3658 1.25 12.0574V11.9426C1.24999 9.63423 1.24998 7.82519 1.43975 6.41371C1.63399 4.96897 2.03933 3.82895 2.93414 2.93414C3.82895 2.03933 4.96897 1.63399 6.41371 1.43975C7.82519 1.24998 9.63423 1.24999 11.9426 1.25ZM6.61358 2.92637C5.33517 3.09825 4.56445 3.42514 3.9948 3.9948C3.42514 4.56445 3.09825 5.33517 2.92637 6.61358C2.75159 7.91356 2.75 9.62177 2.75 12C2.75 14.3782 2.75159 16.0864 2.92637 17.3864C3.09825 18.6648 3.42514 19.4355 3.9948 20.0052C4.56445 20.5749 5.33517 20.9018 6.61358 21.0736C7.91356 21.2484 9.62177 21.25 12 21.25C14.3782 21.25 16.0864 21.2484 17.3864 21.0736C18.6648 20.9018 19.4355 20.5749 20.0052 20.0052C20.5749 19.4355 20.9018 18.6648 21.0736 17.3864C21.2484 16.0864 21.25 14.3782 21.25 12C21.25 9.62177 21.2484 7.91356 21.0736 6.61358C20.9018 5.33517 20.5749 4.56445 20.0052 3.9948C19.4355 3.42514 18.6648 3.09825 17.3864 2.92637C16.0864 2.75159 14.3782 2.75 12 2.75C9.62177 2.75 7.91356 2.75159 6.61358 2.92637ZM10.7474 5.99364C10.7509 6.40784 10.4179 6.74646 10.0038 6.74997C9.14788 6.75723 8.55011 6.7855 8.10037 6.8736C7.67158 6.95759 7.43423 7.08568 7.25996 7.25996C7.08568 7.43423 6.95759 7.67158 6.8736 8.10037C6.7855 8.55011 6.75723 9.14788 6.74997 10.0038C6.74646 10.4179 6.40784 10.7509 5.99364 10.7474C5.57944 10.7439 5.24652 10.4052 5.25003 9.99103C5.25724 9.14035 5.28357 8.41444 5.40157 7.81203C5.52367 7.18869 5.75316 6.64543 6.1993 6.1993C6.64543 5.75316 7.18869 5.52367 7.81203 5.40157C8.41444 5.28357 9.14035 5.25724 9.99103 5.25003C10.4052 5.24652 10.7439 5.57944 10.7474 5.99364ZM13.2502 5.99364C13.2537 5.57944 13.5923 5.24652 14.0065 5.25003C14.8572 5.25724 15.5831 5.28357 16.1855 5.40157C16.8089 5.52367 17.3521 5.75316 17.7983 6.1993C18.2444 6.64543 18.4739 7.18869 18.596 7.81203C18.714 8.41444 18.7403 9.14035 18.7475 9.99103C18.751 10.4052 18.4181 10.7439 18.0039 10.7474C17.5897 10.7509 17.2511 10.4179 17.2476 10.0038C17.2403 9.14788 17.2121 8.55011 17.124 8.10037C17.04 7.67158 16.9119 7.43423 16.7376 7.25996C16.5633 7.08568 16.326 6.95759 15.8972 6.8736C15.4475 6.7855 14.8497 6.75723 13.9938 6.74997C13.5796 6.74646 13.2467 6.40784 13.2502 5.99364ZM5.99364 13.2502C6.40784 13.2467 6.74646 13.5796 6.74997 13.9938C6.75723 14.8497 6.7855 15.4475 6.8736 15.8972C6.95759 16.326 7.08568 16.5633 7.25996 16.7376C7.43423 16.9119 7.67158 17.04 8.10037 17.124C8.55011 17.2121 9.14788 17.2403 10.0038 17.2476C10.4179 17.2511 10.7509 17.5897 10.7474 18.0039C10.7439 18.4181 10.4052 18.751 9.99103 18.7475C9.14035 18.7403 8.41444 18.714 7.81203 18.596C7.18869 18.4739 6.64543 18.2444 6.1993 17.7983C5.75316 17.3521 5.52367 16.8089 5.40157 16.1855C5.28357 15.5831 5.25724 14.8572 5.25003 14.0065C5.24652 13.5923 5.57944 13.2537 5.99364 13.2502ZM18.0039 13.2502C18.4181 13.2537 18.751 13.5923 18.7475 14.0065C18.7403 14.8572 18.714 15.5831 18.596 16.1855C18.4739 16.8089 18.2444 17.3521 17.7983 17.7983C17.3521 18.2444 16.8089 18.4739 16.1855 18.596C15.5831 18.714 14.8572 18.7403 14.0065 18.7475C13.5923 18.751 13.2537 18.4181 13.2502 18.0039C13.2467 17.5897 13.5796 17.2511 13.9938 17.2476C14.8497 17.2403 15.4475 17.2121 15.8972 17.124C16.326 17.04 16.5633 16.9119 16.7376 16.7376C16.9119 16.5633 17.04 16.326 17.124 15.8972C17.2121 15.4475 17.2403 14.8497 17.2476 13.9938C17.2511 13.5796 17.5897 13.2467 18.0039 13.2502Z" fill="white" />
                         </svg>
