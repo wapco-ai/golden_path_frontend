@@ -186,7 +186,11 @@ test('admin map tooltips work on icon hover, keyboard focus and Escape without c
   const group=map.locator('.area-mange');
   await group.focus();
   await expect(tooltip).toHaveText('مدیریت و ویرایش محدوده‌ها');
+  await group.hover();
+  await page.mouse.move(650, 380);
+  await expect(tooltip).toHaveText('مدیریت و ویرایش محدوده‌ها');
   await page.keyboard.press('Enter');
+  await expect(group).toHaveAttribute('aria-expanded','true');
   await expect(map.locator('.sub-buttons2')).toBeVisible();
   await map.locator('.sub-buttons2 .edit-area').hover();
   await expect(tooltip).toHaveText('ویرایش اطلاعات محدوده انتخاب‌شده');
@@ -194,9 +198,18 @@ test('admin map tooltips work on icon hover, keyboard focus and Escape without c
   const layerMenu=map.locator('.map-type-display').first();
   await layerMenu.focus();
   await expect(tooltip).toHaveText('نمایش یا پنهان کردن فهرست لایه‌های نقشه');
+  await expect(layerMenu).not.toHaveAttribute('aria-label',/./);
   await page.keyboard.press('Space');
   await expect(layerMenu).toHaveAttribute('aria-expanded','true');
   await expect(map.locator('.layers-dropdown')).toBeVisible();
+
+
+  // A disabled native button still explains its purpose on hover.
+  await map.locator('.temp-area-manage').click();
+  const disabledMove=map.locator('.sub-buttons1 .move-temp-area');
+  await expect(disabledMove).toBeDisabled();
+  await disabledMove.hover();
+  await expect(tooltip).toHaveText('جابجایی محدوده موقت انتخاب‌شده');
 
   // Every tooltip is a detached overlay; it never replaces the original buttons.
   expect(await map.locator('[data-map-tooltip]').count()).toBeGreaterThan(15);
