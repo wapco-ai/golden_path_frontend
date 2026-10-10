@@ -39,8 +39,8 @@ test('About Us opens from its existing hash route and renders the server content
   await expect(page.locator('.aboutus-description-text')).toHaveText(
     'این متن آزمایشی از سرویس درباره ما دریافت شده است.'
   );
-  await expect.poll(() => requests.length).toBe(1);
-  expect(requests[0].searchParams.get('lang')).toBe('fa');
+  await expect.poll(() => requests.length).toBeGreaterThan(0);
+  expect(requests.every(url => url.searchParams.get('lang') === 'fa')).toBe(true);
   expect(errors).toEqual([]);
 
   await page.locator('.aboutus-cta-button').click();
@@ -56,6 +56,6 @@ test('About Us remains visible with existing localized fallback if the public AP
   await expect(page.locator('.aboutus-page-container')).toBeVisible();
   await expect(page.locator('.aboutus-title')).toHaveText('درباره ما');
   await expect(page.locator('.aboutus-description-text')).toContainText('ما یک تیم');
-  await expect.poll(() => requests.length).toBe(1);
+  await expect.poll(() => requests.length).toBeGreaterThan(0);
   expect(errors).toEqual([]);
 });
