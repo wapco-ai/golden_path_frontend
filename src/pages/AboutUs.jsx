@@ -13,22 +13,9 @@ function AboutUs() {
   const [aboutContent, setAboutContent] = useState(null);
 
   useEffect(() => {
-
-    if (location.pathname.includes('/edit-cultural') || 
-        location.pathname.includes('edit-cultural-info') ||
-        isEditingCultural) {
-      
-      window.scrollTo(0, 0);
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-      
-
-      document.body.style.overflow = 'hidden';
-      setTimeout(() => {
-        document.body.style.overflow = 'auto';
-      }, 10);
-    }
-  }, [location.pathname, isEditingCultural]);
+    // Keep the existing scroll-to-top behavior without depending on unrelated editor state.
+    window.scrollTo(0, 0);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
