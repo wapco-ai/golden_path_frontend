@@ -90,7 +90,7 @@ export default function AdminMapTooltip({ containerRef }) {
     };
     const onPointerOut = (event) => {
       const control = findControl(event.target);
-      if (control === activeRef.current && !control.contains(event.relatedTarget)) dismiss();
+      if (control && control === activeRef.current && !control.contains(event.relatedTarget)) dismiss();
     };
     const onFocusIn = (event) => {
       const control = findControl(event.target);
@@ -98,7 +98,7 @@ export default function AdminMapTooltip({ containerRef }) {
     };
     const onFocusOut = (event) => {
       const control = findControl(event.target);
-      if (control === activeRef.current && !control.contains(event.relatedTarget)) dismiss();
+      if (control && control === activeRef.current && !control.contains(event.relatedTarget)) dismiss();
     };
     const onKeyDown = (event) => {
       if (event.key === 'Escape') dismiss();
