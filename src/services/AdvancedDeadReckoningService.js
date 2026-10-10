@@ -7,13 +7,18 @@ class AdvancedDeadReckoningService {
     this.geoPath = [];
     this.listeners = new Set();
     this._lastMagnitude = 0;
-
     this._lastStepAt = 0;
     this._stepArmed = true;
     this._smoothedMagnitude = null;
+    this._gravityBaseline = null;
+    this._motionMode = null;
+    this._sensorRequestId = 0;
     this.stepLengthMeters = 0.38;
-    this.stepThresholdHigh = 12.2;
-    this.stepThresholdLow = 10.8;
+    // Thresholds are relative to gravity, not total acceleration (~9.81 m/s²).
+    this.stepThresholdHigh = 0.95;
+    this.stepThresholdLow = 0.2;
+    this.linearStepThresholdHigh = 1.1;
+    this.linearStepThresholdLow = 0.4;
     this.minStepIntervalMs = 380;
 
     this.motionHandler = this._handleMotion.bind(this);
@@ -71,6 +76,8 @@ class AdvancedDeadReckoningService {
   }
 
   async start(initialPosition) {
+    this._stopSensors();
+    const requestId = ++this._sensorRequestId;
     this.geoPosition = { ...initialPosition };
     this.geoPath = [this.geoPosition];
     this.stepCount = 0;
@@ -79,13 +86,16 @@ class AdvancedDeadReckoningService {
     this._lastStepAt = 0;
     this._stepArmed = true;
     this._smoothedMagnitude = null;
+    this._gravityBaseline = null;
+    this._motionMode = null;
 
     this.isActive = true;
-    await this._startSensors();
-    this._emit('serviceStateChanged');
+    await this._startSensors(requestId);
+    if (requestId === this._sensorRequestId) this._emit('serviceStateChanged');
   }
 
   stop() {
+    ++this._sensorRequestId;
     this._stopSensors();
     this.isActive = false;
     this._emit('serviceStateChanged');
@@ -93,6 +103,11 @@ class AdvancedDeadReckoningService {
 
   reset(position) {
     this.stepCount = 0;
+    this._lastStepAt = 0;
+    this._stepArmed = true;
+    this._smoothedMagnitude = null;
+    this._gravityBaseline = null;
+    this._motionMode = null;
     if (position) {
       this.geoPosition = { ...position };
       this.geoPath = [this.geoPosition];
@@ -102,33 +117,46 @@ class AdvancedDeadReckoningService {
     this._emit('serviceStateChanged');
   }
 
-  async _startSensors() {
+  async _startSensors(requestId) {
     if (typeof window === 'undefined') return;
-    if (typeof DeviceMotionEvent === 'undefined' || typeof DeviceOrientationEvent === 'undefined') {
+    if (typeof DeviceMotionEvent === 'undefined') {
+      this.isActive = false;
       this._emit('sensorsUnsupported');
       return;
     }
-    try {
-      if (typeof DeviceMotionEvent.requestPermission === 'function') {
-        const res = await DeviceMotionEvent.requestPermission();
-        if (res !== 'granted') {
-          this._emit('permissionNeeded');
-          return;
-        }
+
+    // Both requests must start synchronously within the same user gesture on iOS.
+    const requestPermission = (EventType) => {
+      if (!EventType || typeof EventType.requestPermission !== 'function') {
+        return Promise.resolve('granted');
       }
-      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-        const res = await DeviceOrientationEvent.requestPermission();
-        if (res !== 'granted') {
-          this._emit('permissionNeeded');
-          return;
-        }
+      try {
+        return Promise.resolve(EventType.requestPermission());
+      } catch (error) {
+        return Promise.reject(error);
       }
-    } catch (e) {
-      console.warn('Sensor permission error', e);
+    };
+    const hasOrientation = typeof DeviceOrientationEvent !== 'undefined';
+    const motionPermission = requestPermission(DeviceMotionEvent);
+    const orientationPermission = requestPermission(hasOrientation ? DeviceOrientationEvent : null);
+    const [motionResult, orientationResult] = await Promise.allSettled([
+      motionPermission, orientationPermission
+    ]);
+
+    // A stopped or superseded session must never attach new listeners.
+    if (!this.isActive || requestId !== this._sensorRequestId) return;
+    if (motionResult.status !== 'fulfilled' || motionResult.value !== 'granted') {
+      this.isActive = false;
+      this._emit('permissionNeeded');
+      return;
     }
+
     window.addEventListener('devicemotion', this.motionHandler);
-    window.addEventListener('deviceorientationabsolute', this.orientationHandler);
-    window.addEventListener('deviceorientation', this.orientationHandler);
+    // Compass permission must not prevent step tracking.
+    if (hasOrientation && orientationResult.status === 'fulfilled' && orientationResult.value === 'granted') {
+      window.addEventListener('deviceorientationabsolute', this.orientationHandler);
+      window.addEventListener('deviceorientation', this.orientationHandler);
+    }
   }
 
   _stopSensors() {
@@ -141,42 +169,45 @@ class AdvancedDeadReckoningService {
   _handleMotion(e) {
     if (!this.isActive) return;
 
-    const acc = e.accelerationIncludingGravity || e.acceleration;
-    if (!acc) return;
+    const magnitudeOf = (acc) => acc
+      && [acc.x, acc.y, acc.z].every(v => typeof v === 'number' && Number.isFinite(v))
+      ? Math.hypot(acc.x, acc.y, acc.z)
+      : null;
+    const withGravity = magnitudeOf(e.accelerationIncludingGravity);
+    const linear = magnitudeOf(e.acceleration);
+    if (withGravity === null && linear === null) return;
 
-    const x = Number(acc.x);
-    const y = Number(acc.y);
-    const z = Number(acc.z);
-
-    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) {
-      return;
-    }
-
-    const rawMagnitude = Math.sqrt(x ** 2 + y ** 2 + z ** 2);
-
-    // Low-pass smoothing برای حذف پرش‌های ریز سنسور
-    this._smoothedMagnitude =
-      this._smoothedMagnitude == null
-        ? rawMagnitude
-        : this._smoothedMagnitude * 0.75 + rawMagnitude * 0.25;
-
-    const magnitude = this._smoothedMagnitude;
-    const now = e.timeStamp || Date.now();
-
-    // Hysteresis:
-    // تا وقتی مقدار دوباره پایین نیامده، آماده ثبت قدم بعدی نشود
-    if (magnitude < this.stepThresholdLow) {
+    const mode = withGravity !== null ? 'gravity' : 'linear';
+    if (mode !== this._motionMode) {
+      this._motionMode = mode;
+      this._gravityBaseline = null;
+      this._smoothedMagnitude = null;
       this._stepArmed = true;
     }
 
+    const rawMagnitude = withGravity ?? linear;
+    if (mode === 'gravity') {
+      // Slowly track the gravity baseline; short walking peaks must not be smoothed away.
+      this._gravityBaseline = this._gravityBaseline === null
+        ? rawMagnitude
+        : this._gravityBaseline * 0.98 + rawMagnitude * 0.02;
+    }
+    const motionMagnitude = mode === 'gravity'
+      ? rawMagnitude - this._gravityBaseline
+      : rawMagnitude;
+    this._smoothedMagnitude = this._smoothedMagnitude === null
+      ? motionMagnitude
+      : this._smoothedMagnitude * 0.45 + motionMagnitude * 0.55;
+
+    const magnitude = this._smoothedMagnitude;
+    const low = mode === 'gravity' ? this.stepThresholdLow : this.linearStepThresholdLow;
+    const high = mode === 'gravity' ? this.stepThresholdHigh : this.linearStepThresholdHigh;
+    const now = Number.isFinite(e.timeStamp) ? e.timeStamp : Date.now();
+
+    if (magnitude < low) this._stepArmed = true;
     const enoughTimePassed =
       !this._lastStepAt || now - this._lastStepAt >= this.minStepIntervalMs;
-
-    if (
-      this._stepArmed &&
-      enoughTimePassed &&
-      magnitude > this.stepThresholdHigh
-    ) {
+    if (this._stepArmed && enoughTimePassed && magnitude > high) {
       this._stepArmed = false;
       this._lastStepAt = now;
       this.stepCount += 1;
