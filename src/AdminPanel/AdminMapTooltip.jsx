@@ -15,6 +15,9 @@ export default function AdminMapTooltip({ containerRef }) {
   const [tooltip, setTooltip] = useState(null);
   const timerRef = useRef(null);
   const activeRef = useRef(null);
+  const hoveredRef = useRef(null);
+  const focusedRef = useRef(null);
+  const dismissedByEscapeRef = useRef(null);
   const previousDescriptionRef = useRef(null);
 
   useEffect(() => {
@@ -66,7 +69,7 @@ export default function AdminMapTooltip({ containerRef }) {
       setTooltip({ text, left, top: below ? bounds.bottom + 8 : bounds.top - 8, below });
     };
     const activate = (control, immediate = false) => {
-      if (!control || control.matches(':disabled') || control.getAttribute('aria-disabled') === 'true') return;
+      if (!control) return;
       if (activeRef.current === control) {
         if (immediate) {
           cancelPending();
@@ -83,32 +86,62 @@ export default function AdminMapTooltip({ containerRef }) {
       else timerRef.current = window.setTimeout(() => display(control), HOVER_DELAY_MS);
     };
 
+    // Hover and keyboard focus are independent: losing one does not hide
+    // a tooltip while the trigger still has the other.
     const onPointerOver = (event) => {
       if (event.pointerType !== 'mouse' && event.pointerType !== 'pen') return;
       const control = findControl(event.target);
-      if (control) activate(control);
+      if (!control) return;
+      if (dismissedByEscapeRef.current === control && hoveredRef.current === control) return;
+      if (hoveredRef.current !== control) {
+        hoveredRef.current = control;
+        dismissedByEscapeRef.current = null;
+      }
+      activate(control, focusedRef.current === control);
     };
     const onPointerOut = (event) => {
       const control = findControl(event.target);
-      if (control && control === activeRef.current && !control.contains(event.relatedTarget)) dismiss();
+      if (!control || hoveredRef.current !== control || control.contains(event.relatedTarget)) return;
+      hoveredRef.current = null;
+      const focused = focusedRef.current;
+      if (focused?.isConnected && dismissedByEscapeRef.current !== focused) {
+        activate(focused, true);
+      } else {
+        dismiss();
+      }
     };
     const onFocusIn = (event) => {
       const control = findControl(event.target);
-      if (control) activate(control, true);
+      if (!control) return;
+      focusedRef.current = control;
+      dismissedByEscapeRef.current = null;
+      activate(control, true);
     };
     const onFocusOut = (event) => {
       const control = findControl(event.target);
-      if (control && control === activeRef.current && !control.contains(event.relatedTarget)) dismiss();
+      if (!control || focusedRef.current !== control || control.contains(event.relatedTarget)) return;
+      focusedRef.current = null;
+      dismissedByEscapeRef.current = null;
+      if (hoveredRef.current?.isConnected) activate(hoveredRef.current, true);
+      else dismiss();
+    };
+    const onPointerDown = (event) => {
+      const control = findControl(event.target);
+      if (control && (focusedRef.current === control || control.contains(document.activeElement))) return;
+      dismiss();
     };
     const onKeyDown = (event) => {
-      if (event.key === 'Escape') dismiss();
+      if (event.key === 'Escape') {
+        dismissedByEscapeRef.current = activeRef.current;
+        dismiss();
+      }
     };
 
     container.addEventListener('pointerover', onPointerOver);
     container.addEventListener('pointerout', onPointerOut);
     container.addEventListener('focusin', onFocusIn);
     container.addEventListener('focusout', onFocusOut);
-    container.addEventListener('pointerdown', dismiss);
+    container.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('scroll', dismiss, true);
     window.addEventListener('resize', dismiss);
@@ -117,12 +150,15 @@ export default function AdminMapTooltip({ containerRef }) {
       container.removeEventListener('pointerout', onPointerOut);
       container.removeEventListener('focusin', onFocusIn);
       container.removeEventListener('focusout', onFocusOut);
-      container.removeEventListener('pointerdown', dismiss);
+      container.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('scroll', dismiss, true);
       window.removeEventListener('resize', dismiss);
       cancelPending();
       restoreDescription();
+      hoveredRef.current = null;
+      focusedRef.current = null;
+      dismissedByEscapeRef.current = null;
     };
   }, [containerRef, tooltipId]);
 
