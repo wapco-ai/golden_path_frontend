@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { routeOnFloor, routeCoordinates, multifloorSteps, activeRouteCoordinates } from '../src/utils/multifloorRoute.js';
-import { connectorError, connectorPayload, emptyConnector, newStop, floorValue, floorLabel, isSelectedStop } from '../src/utils/connectorForm.js';
+import { connectorError, connectorPayload, emptyConnector, newStop, floorValue, floorLabel, isSelectedStop, usesSharedConnectorEditor } from '../src/utils/connectorForm.js';
 import { getNavigationProgress } from '../src/utils/rngNavigation.js';
 import { requestRouting } from '../src/services/routingService.js';
 import { analyzeRoute } from '../src/utils/routeAnalysis.js';
@@ -58,6 +58,30 @@ test('form rejects incomplete, duplicate and unresolved stops', () => {
   assert.ok(connectorError(c,'stair',['wheelchair']));
   assert.ok(connectorError(c,'escalator',['walk']));
 });
+test('reclassifying an existing shared stair keeps all its floor stops, but ordinary connections stay single-floor', () => {
+  assert.equal(usesSharedConnectorEditor('stair', 9), true);
+  assert.equal(usesSharedConnectorEditor('connection', 9), true);
+  assert.equal(usesSharedConnectorEditor('connection', null), false);
+  assert.equal(usesSharedConnectorEditor('connection', undefined), false);
+  assert.equal(usesSharedConnectorEditor('door', 9), false);
+
+  const existing = {id:9,version:5,direction:'both',wait_seconds:0,stops:[
+    {floor:-1,door_id:10,access_id:101,area_id:201,travel_seconds:19,reverse_seconds:null},
+    {floor:0,door_id:11,access_id:102,area_id:202,travel_seconds:25,reverse_seconds:null},
+    {floor:1,door_id:12,access_id:103,area_id:203,travel_seconds:0.1,reverse_seconds:null}
+  ]};
+  assert.equal(connectorError(existing,'connection',['walk']),'');
+  const info={basic_info:{title:{fa:'نقطه اتصال'}},operational:{transport_modes:['walk']}};
+  const payload=connectorPayload(existing,'connection',info);
+  assert.equal(payload.kind,'connection');
+  assert.equal(payload.version,5);
+  assert.deepEqual(payload.stops.map(s=>s.floor),[-1,0,1]);
+  assert.deepEqual(payload.stops.map(s=>s.access_id),[101,102,103]);
+  assert.deepEqual(payload.stops.map(s=>s.travel_seconds),[19,25,0.1]);
+  assert.deepEqual(payload.info.operational.transport_modes,['walk']);
+  assert.ok(connectorError(existing,'connection',['van']));
+});
+
 test('API payload preserves shared identity, order, zero floor and optional reverse time', () => {
   const payload=connectorPayload({id:8,version:4,direction:'both',wait_seconds:20,stops:[
     {floor:0,access_id:7,area_id:1,travel_seconds:'8',reverse_seconds:null,areas:[]},

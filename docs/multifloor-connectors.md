@@ -26,6 +26,8 @@ available when the selected point has multiple candidate areas. Choosing a share
 connector with a different point already on this floor leaves the draft intact.
 The stop section uses the modal's existing typography, colors and input styling.
 
+An existing multi-floor stair/ramp/escalator/elevator group may be reclassified to the ordinary-looking **نقطه اتصال** option without detaching any of its floor stops. The selected group's ID keeps the shared stop editor visible through steps two and three; saving updates all its stops as one group through `/api/v1/admin/connectors/{id}`. A newly created نقطه اتصال with **no shared group ID** remains an ordinary same-floor access point. Existing walk-only permissions are retained when reclassifying stairs; the type change alone never grants wheelchair access. Backend schema migration `20261010_220000_multifloor_generic_connection.up.sql` and updated API must be live before the frontend change.
+
 Elevators connect all usable served floors. Waiting time applies once per boarding.
 Stairs, ramps and escalators connect consecutive stops in the displayed physical
 order. Reverse travel time defaults to forward time and can be overridden.

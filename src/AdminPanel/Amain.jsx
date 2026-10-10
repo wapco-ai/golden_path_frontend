@@ -70,7 +70,7 @@ import {
 } from '../services/adminDashboardService';
 import ConnectorStops from './ConnectorStops';
 import useConnectorForm from './useConnectorForm';
-import { CONNECTOR_KINDS, connectorError, connectorPayload, floorLabel, floorValue } from '../utils/connectorForm';
+import { usesSharedConnectorEditor, connectorError, connectorPayload, floorLabel, floorValue } from '../utils/connectorForm';
 import { createDoorWithInfo, saveConnector } from '../services/adminConnectorsService';
 import { requestRouting } from '../services/routingService';
 
@@ -1632,7 +1632,7 @@ const Amain = () => {
   const [placeSubcategory, setPlaceSubcategory] = useState('');
   const [placeFunction, setPlaceFunction] = useState('');
   const connectorForm = useConnectorForm({ map, mapFloor, setMapFloor, setModalOpen: setIsAddPlaceModalOpen, fillInfo: fillDoorInfoForm });
-  const isVerticalConnector = isDoorAccessLayerActive && CONNECTOR_KINDS.includes(placeFunction);
+  const isVerticalConnector = isDoorAccessLayerActive && usesSharedConnectorEditor(placeFunction, connectorForm.value.id);
   const [groupOptions, setGroupOptions] = useState([]);
   const [subGroupOptions, setSubGroupOptions] = useState([]);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
