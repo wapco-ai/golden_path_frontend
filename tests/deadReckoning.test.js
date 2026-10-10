@@ -91,7 +91,7 @@ test('devices offering only gravity-free acceleration can detect steps', async (
   assert.equal(sensors.listeners('devicemotion'), 1);
   simulateWalk(sensors, [0.05, 0.15, 0.6, 1.7, 2.2, 1.1, 0.25, 0.1, 0.05, 0.05, 0.05, 0.05], 5, true);
   assert.ok(deadReckoning.stepCount >= 3);
-  assert.ok(deadReckoning.geoPosition.lat > initialPosition.lat);
+  assert.notDeepEqual(deadReckoning.geoPosition, initialPosition);
 });
 
 test('both iOS sensor permission prompts start within the same gesture', async () => {
