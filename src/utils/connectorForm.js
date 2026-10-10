@@ -1,4 +1,8 @@
 export const CONNECTOR_KINDS = ['elevator', 'stair', 'ramp', 'escalator'];
+// A regular 'connection' is single-floor; an existing shared 'connection' keeps all floor stops.
+export const usesSharedConnectorEditor = (kind, connectorId) =>
+  CONNECTOR_KINDS.includes(kind) ||
+  (kind === 'connection' && connectorId !== null && connectorId !== undefined && connectorId !== '');
 export const emptyConnector = () => ({ id: null, direction: 'both', wait_seconds: 30, stops: [] });
 export const floorLabel = (floor) => Number(floor) === 0 ? 'همکف' : Number(floor) === -1 ? 'منفی ۱' : `طبقه ${floor}`;
 export const floorValue = (label) => label === 'همکف' ? 0 : label === 'منفی ۱' ? -1 : Number(String(label).replace('طبقه ', ''));
