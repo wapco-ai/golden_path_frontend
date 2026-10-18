@@ -49,12 +49,12 @@ import { deleteArea, getAreaInfo, listAreas, moveArea, updateAreaInfo } from '..
 import { convertLngLatToUtm32640 } from '../utils/utm';
 import { formatCulturalCreatedAt } from '../utils/culturalItemDate.js';
 import { resolveMediaUrl, localizeMediaText } from '../utils/locationMedia.js';
-import { CULTURAL_UPLOAD_RULES, validateCulturalUpload, culturalMediaKind, splitCulturalMedia, culturalFileMetadata, buildCulturalAttachmentPayload, selectCulturalPrimaryImage, markCulturalPrimaryImage, findExistingCulturalPrimary } from '../utils/culturalMediaUpload.js';
+import { CULTURAL_UPLOAD_RULES, validateCulturalUpload, culturalUploadMime, culturalMediaKind, splitCulturalMedia, culturalFileMetadata, buildCulturalAttachmentPayload, selectCulturalPrimaryImage, markCulturalPrimaryImage, findExistingCulturalPrimary } from '../utils/culturalMediaUpload.js';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import appConfig from '../config/appConfig';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { getLanguageName } from '../utils/languageNames';
-import { deleteFile, uploadFile } from '../services/fileService';
+import { uploadFile } from '../services/fileService';
 import { createVanEdge, createVanNode, deleteVanNode } from '../services/adminVanService';
 import {
   createTempBlockArea,
@@ -2136,12 +2136,7 @@ const Amain = () => {
     culturalPreviewUrlsRef.current.add(url);
     const info = {
       file, url, fileType, name: file.name, size: file.size,
-      type: file.type && file.type !== 'application/octet-stream'
-        ? file.type
-        : fileType === 'video' ? 'video/mp4'
-          : fileType === 'image'
-            ? ({ jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' }[file.name.split('.').pop().toLowerCase()])
-            : file.type || 'application/octet-stream'
+      type: culturalUploadMime(file, fileType)
     };
     if (fileType === 'image') {
       setPendingImageFile(info);
@@ -4932,7 +4927,7 @@ const Amain = () => {
     }
   };
 
-  const handleRemoveFile = async (fileId, fileType) => {
+  const handleRemoveFile = (fileId, fileType) => {
     let fileToRemove = null;
 
     if (fileType === 'image') {
@@ -4958,17 +4953,9 @@ const Amain = () => {
     }
 
     releaseCulturalPreview(fileToRemove);
-    const remotePath = fileToRemove?.path || fileToRemove?.url;
-    const shouldDeleteRemote = fileToRemove && !fileToRemove.file && remotePath;
-
-    if (shouldDeleteRemote) {
-      try {
-        await deleteFile(remotePath);
-      } catch (error) {
-        console.error('حذف فایل از سرور با خطا مواجه شد', error);
-        toast.error('حذف فایل از سرور ناموفق بود');
-      }
-    }
+    // The form edits references only. Existing files may be shared by other
+    // translations/items; removing one here must remain reversible until save.
+    // Physical cleanup needs a separate reference-aware storage process.
   };
 
   const renderCulturalPrayerJalaliCalendarDays = () => {

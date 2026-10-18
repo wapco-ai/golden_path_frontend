@@ -18,7 +18,8 @@ export const CULTURAL_UPLOAD_RULES = {
     help: 'فرمت مجاز: MP4؛ حداکثر حجم هر ویدیو: ۵۰ مگابایت'
   },
   audio: {
-    accept: 'audio/*',
+    accept: 'audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.opus',
+    extensions: ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'opus'],
     maxBytes: 50 * MiB,
     help: 'فرمت‌های صوتی؛ حداکثر حجم هر فایل: ۵۰ مگابایت'
   },
@@ -38,7 +39,7 @@ export function validateCulturalUpload(file, kind) {
   const mime = String(file.type || '').toLowerCase();
   const genericMime = !mime || mime === 'application/octet-stream';
   const validFormat = kind === 'audio'
-    ? mime.startsWith('audio/')
+    ? mime.startsWith('audio/') || (genericMime && rule.extensions.includes(extension))
     : rule.extensions.includes(extension) && (
       !rule.mimes || genericMime || rule.mimes.includes(mime)
     );
@@ -46,6 +47,18 @@ export function validateCulturalUpload(file, kind) {
   if (!Number.isFinite(file.size) || file.size <= 0) return `${name}: فایل خالی یا نامعتبر است`;
   if (file.size > rule.maxBytes) return `${name}: حجم فایل بیش از حد مجاز است. ${rule.help}`;
   return null;
+}
+
+export function culturalUploadMime(file, kind) {
+  const mime = String(file?.type || '').toLowerCase();
+  if (mime && mime !== 'application/octet-stream') return mime;
+  const extension = String(file?.name || '').split('.').pop().toLowerCase();
+  const mimes = {
+    image: { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' },
+    video: { mp4: 'video/mp4' },
+    audio: { mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', m4a: 'audio/mp4', aac: 'audio/aac', flac: 'audio/flac', opus: 'audio/ogg' }
+  };
+  return mimes[kind]?.[extension] || mime || 'application/octet-stream';
 }
 
 export function culturalMediaKind(file) {

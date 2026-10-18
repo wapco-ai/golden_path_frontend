@@ -4,6 +4,7 @@ import { normalizeCulturalItem } from '../src/services/culturalItemMapper.js';
 import {
   CULTURAL_UPLOAD_RULES,
   validateCulturalUpload,
+  culturalUploadMime,
   culturalMediaKind,
   splitCulturalMedia,
   culturalFileMetadata,
@@ -37,7 +38,7 @@ test('accepts only MP4 videos with the same 50 MiB ceiling as the server', () =>
 });
 
 test('preserves existing audio and document formats with a 50 MiB limit', () => {
-  assert.equal(CULTURAL_UPLOAD_RULES.audio.accept, 'audio/*');
+  assert.match(CULTURAL_UPLOAD_RULES.audio.accept, /audio\/\*/);
   for (const mime of ['audio/mpeg', 'audio/wav', 'audio/ogg']) {
     assert.equal(validateCulturalUpload(file('audio', mime, 50 * MiB), 'audio'), null);
     assert.match(validateCulturalUpload(file('audio', mime, 50 * MiB + 1), 'audio'), /حجم/);
@@ -139,4 +140,21 @@ test('a primary inferred from a path-only legacy image matches the original atta
   assert.equal(saved[0].path, 'uploads/contents/7/images/a.png');
   assert.equal(saved[0].metadata.custom, 'retained');
   assert.equal(findExistingCulturalPrimary(primary, [{ ...original, url: '/storage/uploads/contents/7/images/a.png' }]).path, original.path);
+});
+
+test('accepts recognized audio extensions with missing/generic MIME and keeps audio previews in the audio bucket', () => {
+  const formats = { mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', m4a: 'audio/mp4', aac: 'audio/aac', flac: 'audio/flac', opus: 'audio/ogg' };
+  for (const [extension, expectedMime] of Object.entries(formats)) {
+    for (const missingMime of ['', 'application/octet-stream']) {
+      const audio = file(`recording.${extension.toUpperCase()}`, missingMime, 50 * MiB);
+      assert.equal(validateCulturalUpload(audio, 'audio'), null);
+      assert.equal(culturalUploadMime(audio, 'audio'), expectedMime);
+      assert.equal(culturalMediaKind({ ...audio, type: culturalUploadMime(audio, 'audio') }), 'audio');
+      assert.match(validateCulturalUpload({ ...audio, size: 50 * MiB + 1 }, 'audio'), /حجم/);
+    }
+  }
+  for (const [name, mime] of [['fake.mp3', 'video/mp4'], ['unknown.exe', ''], ['archive.zip', 'application/octet-stream']]) {
+    assert.match(validateCulturalUpload(file(name, mime), 'audio'), /فرمت/);
+  }
+  assert.equal(validateCulturalUpload(file('supported-custom.audio', 'audio/x-custom'), 'audio'), null);
 });

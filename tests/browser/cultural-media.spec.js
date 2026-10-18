@@ -12,7 +12,7 @@ const media = [
 ];
 
 async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.png' } = {}) {
-  const writes = [], uploads = [], errors = [], dialogs = [];
+  const writes = [], uploads = [], deletes = [], errors = [], dialogs = [];
   let item = {
     poiId: 7, title: 'مکان فرهنگی آزمایشی', description: 'شرح مکان فرهنگی',
     titles: { fa: 'مکان فرهنگی آزمایشی', en: '', ar: '', ur: '' },
@@ -48,20 +48,22 @@ async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.
       const multipart = request.postDataBuffer().toString('latin1'); uploads.push(multipart);
       const filename = multipart.match(/filename="([^"]+)"/)?.[1] || 'new.mp4';
       json = { path: `uploads/contents/7/videos/${filename}`, url: `/storage/${filename}`, mime: 'video/mp4', bucket: 'videos' };
+    } else if (path.endsWith('/files') && request.method() === 'DELETE') {
+      deletes.push(url.searchParams.get('path')); json = { success: true };
     } else if (path.endsWith('/landmark-places')) json = { places: { landmarkPlaces: [{
       id: '7', title: 'مکان فرهنگی آزمایشی', coordinates: [36.2853, 59.6134], floor: 0,
-      image: '/storage/cover.png', content: { body: 'شرح مکان فرهنگی', media: mediaItems }
+      image: primaryImage, content: { body: 'شرح مکان فرهنگی', media: mediaItems }
     }] } };
     await route.fulfill({ json });
   });
-  await page.route('**/storage/**', route => {
+  await page.context().route('**/storage/**', route => {
     const path = new URL(route.request().url()).pathname;
-    return route.fulfill({ status: 200, contentType: path.endsWith('.mp4') ? 'video/mp4' : path.endsWith('.png') ? 'image/png' : 'application/octet-stream', body: path.endsWith('.mp4') ? mp4 : png });
+    return route.fulfill({ status: 200, contentType: path.endsWith('.mp4') ? 'video/mp4' : path.endsWith('.png') ? 'image/png' : path.endsWith('.txt') ? 'text/plain' : 'application/octet-stream', body: path.endsWith('.mp4') ? mp4 : path.endsWith('.txt') ? 'Cultural guide' : png });
   });
   await page.route('**/map-styles/**/style*.json', route => route.fulfill({ json: { version: 8, sources: {}, layers: [{ id: 'background', type: 'background' }] } }));
   await page.route('**/tiles/**', route => route.fulfill({ status: 204 }));
   await page.route('**/tms/**', route => route.fulfill({ status: 204 }));
-  return { writes, uploads, errors, dialogs };
+  return { writes, uploads, deletes, errors, dialogs };
 }
 
 async function openEdit(page) {
@@ -180,6 +182,34 @@ test('a newly selected primary photo is saved as the only primary and no video b
   expect(errors).toEqual([]);
 });
 
+test('removing a stored video and canceling edit preserves its file and the unchanged item', async ({ page }) => {
+  const { writes, deletes, errors } = await setup(page); await openEdit(page);
+  await page.getByTestId('cultural-video-section-edit').getByRole('button').click();
+  await expect(page.getByTestId('cultural-video-section-edit').locator('video')).toHaveCount(0);
+  await page.locator('.cancel-edit-btn').click();
+  await expect(page.locator('.edit-cultural-page')).toHaveCount(0);
+  await page.locator('.edit-cultural-btn').first().click();
+  await expect(page.getByTestId('cultural-video-section-edit').locator('video')).toHaveCount(1);
+  expect(writes).toEqual([]); expect(deletes).toEqual([]); expect(errors).toEqual([]);
+});
+
+test('saving a removed video updates only media references and leaves a shared stored file intact', async ({ page }) => {
+  const { writes, deletes, errors } = await setup(page); await openEdit(page);
+  await page.getByTestId('cultural-video-section-edit').getByRole('button').click();
+  await page.getByRole('button', { name: 'ثبت تغییرات', exact: true }).click();
+  await expect.poll(() => writes.length).toBe(1);
+  expect(writes[0].translations.fa.media.some(file => file.type === 'video')).toBe(false);
+  expect(writes[0].translations.fa.media).toHaveLength(3);
+  expect(deletes).toEqual([]); expect(errors).toEqual([]);
+});
+
+test('an audio file with generic browser MIME reaches the existing details modal', async ({ page }) => {
+  const { dialogs, uploads, errors } = await setup(page); await openEdit(page);
+  await page.locator('.edit-file-subsection input[accept^="audio/*"]').setInputFiles({ name: 'local.mp3', mimeType: 'application/octet-stream', buffer: Buffer.from('ID3') });
+  await expect(page.getByPlaceholder('عنوان فایل را وارد کنید')).toHaveValue('local');
+  expect(dialogs).toEqual([]); expect(uploads).toEqual([]); expect(errors).toEqual([]);
+});
+
 test('the create wizard exposes distinct image and video requirements in its existing final step', async ({ page }, testInfo) => {
   const { errors } = await setup(page);
   await page.goto('/#/admin');
@@ -206,5 +236,33 @@ test('public cultural media uses a direct video URL and never renders the film a
   await page.locator('.content-item').filter({ hasText: 'فیلم فرهنگی' }).locator('.video-thumbnail-link').click();
   await expect(page.locator('.video-player source')).toHaveAttribute('src', /\/storage\/film\.mp4$/);
   await expect(page.locator('.video-player source')).toHaveAttribute('type', 'video/mp4');
+  expect(errors).toEqual([]);
+});
+
+test('a legacy bare base64 photo remains visible in the public gallery and the cultural editor', async ({ page }) => {
+  const { errors } = await setup(page, { mediaItems: [fixture.png], primaryImage: null });
+  await page.goto('/#/location?id=7');
+  const photo = page.locator('.carousel-slide img').first();
+  await expect(photo).toHaveAttribute('src', /^data:image\/png;base64,/);
+  await expect.poll(() => photo.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
+  await openEdit(page);
+  await expect(page.locator('.profile-image-item-edit img').first()).toHaveAttribute('src', /^data:image\/png;base64,/);
+  expect(errors).toEqual([]);
+});
+
+test('a document card opens its file with Enter and Space using the keyboard', async ({ page }) => {
+  const document = { type: 'file', mime: 'text/plain', url: '/storage/guide.txt', title: 'راهنمای فرهنگی' };
+  const { errors } = await setup(page, { mediaItems: [media[0], document] });
+  await page.goto('/#/location?id=7');
+  const card = page.getByRole('button', { name: 'راهنمای فرهنگی', exact: true });
+  await expect(card).toHaveAttribute('tabindex', '0');
+  for (const key of ['Enter', 'Space']) {
+    await card.focus();
+    const popupPromise = page.waitForEvent('popup');
+    await card.press(key);
+    const popup = await popupPromise;
+    await expect(popup).toHaveURL(/\/storage\/guide\.txt$/);
+    await popup.close();
+  }
   expect(errors).toEqual([]);
 });

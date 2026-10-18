@@ -156,3 +156,34 @@ test('shows uploaded title and description translations saved in attachment meta
   assert.equal(localizeMediaText(content.title, 'de'), 'عنوان فارسی');
   assert.deepEqual(content.metadata, metadata);
 });
+
+test('preserves a legacy bare base64 image as the only primary and public gallery image', () => {
+  // A complete valid one-pixel PNG, matching historical media.fa string storage.
+  const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jAf8AAAAASUVORK5CYII=';
+  const expected = `data:image/png;base64,${png}`;
+  const item = normalizeCulturalItem({ media: { fa: [png] } });
+  assert.equal(item.primaryImage, expected);
+  assert.deepEqual(normalizePlaceMedia({ content: { media: [png] } }, options), { images: [expected], contents: [] });
+  assert.equal(getMediaKind(png), 'image');
+  assert.equal(getMediaMime(png), 'image/png');
+  assert.equal(resolveMediaUrl(png), expected);
+  assert.equal(getMediaKind('VGhpcyBpcyBub3QgYW4gaW1hZ2U='), null);
+  assert.deepEqual(normalizePlaceMedia({ content: { media: ['VGhpcyBpcyBub3QgYW4gaW1hZ2U='] } }, options).images, []);
+  assert.deepEqual(normalizePlaceMedia({ content: { media: [{ type: 'video', url: png }] } }, options).images, []);
+  assert.equal(normalizeCulturalItem({ media: { fa: [{ type: 'video', url: png }] } }).primaryImage, null);
+});
+
+test('recognizes only known raw image signatures without overriding an explicit video kind', () => {
+  const signatures = [
+    ['image/jpeg', Buffer.from([255, 216, 255, 224, 0, 16, 74, 70, 73, 70, 0, 1]).toString('base64')],
+    ['image/gif', Buffer.from('GIF89a\x01\x00\x01\x00\x00\x00').toString('base64')],
+    ['image/webp', Buffer.from('RIFF\x04\x00\x00\x00WEBPVP8 ').toString('base64')],
+    ['image/bmp', Buffer.from('BM\x36\x00\x00\x00\x00\x00\x00\x00\x36\x00\x00\x00').toString('base64')]
+  ];
+  for (const [mime, encoded] of signatures) {
+    assert.equal(getMediaMime(encoded), mime);
+    assert.equal(resolveMediaUrl(encoded), `data:${mime};base64,${encoded}`);
+    assert.equal(getMediaKind({ type: 'video', url: encoded }, 'image'), 'video');
+    assert.equal(resolveMediaUrl({ type: 'video', url: encoded }), null);
+  }
+});

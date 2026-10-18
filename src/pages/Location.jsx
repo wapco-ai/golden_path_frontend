@@ -1083,7 +1083,19 @@ const Location = () => {
                     </div>
                   )}
                   {(content.type === 'pdf' || content.type === 'document') && (
-                    <div className="pdf-thumbnail" onClick={() => handlePdfClick(content)}>
+                    <div
+                      className="pdf-thumbnail"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={localizeMediaText(content.title, language) || 'PDF document'}
+                      onClick={() => handlePdfClick(content)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          handlePdfClick(content);
+                        }
+                      }}
+                    >
                       {content.thumbnail ? (
                         <img
                           src={content.thumbnail}

@@ -17,6 +17,25 @@ const mediaValue = (media) => {
   return typeof value === 'string' ? value : '';
 };
 
+const rawImageMime = (value) => {
+  if (typeof value !== 'string') return '';
+  const normalized = value.replace(/\s+/g, '');
+  if (normalized.length < 12 || normalized.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(normalized)) return '';
+  let header;
+  try {
+    // Only inspect the signature; legacy images can contain several megabytes.
+    header = atob(normalized.slice(0, 32));
+  } catch {
+    return '';
+  }
+  if (header.startsWith('\x89PNG\r\n\x1a\n')) return 'image/png';
+  if (header.startsWith('\xff\xd8\xff')) return 'image/jpeg';
+  if (header.startsWith('GIF87a') || header.startsWith('GIF89a')) return 'image/gif';
+  if (header.startsWith('RIFF') && header.slice(8, 12) === 'WEBP') return 'image/webp';
+  if (header.length >= 14 && header.startsWith('BM')) return 'image/bmp';
+  return '';
+};
+
 const mediaSignals = (media) => {
   const declarations = (typeof media === 'object'
     ? [media?.mime, media?.mimeType, media?.type, media?.fileType, media?.isVideo && 'video'] : [])
@@ -29,6 +48,8 @@ const mediaSignals = (media) => {
   const sourceMimes = sources.filter(value => typeof value === 'string').flatMap(value => {
     const mime = value.match(/^data:([^;,]+)/i)?.[1]?.toLowerCase();
     if (mime) return [mime];
+    const rawMime = rawImageMime(value);
+    if (rawMime) return [rawMime];
     const extension = value.split(/[?#]/)[0].match(/\.([a-z\d]+)$/i)?.[1]?.toLowerCase();
     return EXTENSION_MIMES[extension] ? [EXTENSION_MIMES[extension]] : [];
   });
@@ -85,6 +106,10 @@ export const resolveMediaUrl = (media, { apiBaseUrl = '', fileMap = {}, defaultM
   if (typeof value !== 'string' || !value.trim()) return null;
   value = value.trim();
 
+  const rawMime = rawImageMime(value);
+  if (rawMime) {
+    return getMediaKind(media) === 'image' ? `data:${rawMime};base64,${value.replace(/\s+/g, '')}` : null;
+  }
   // File URLs may come from the API, but executable URL schemes are never media.
   if (/^data:/i.test(value)) return getMediaKind(value) ? value : null;
   if (/^(?:https?:|blob:)/i.test(value)) {
