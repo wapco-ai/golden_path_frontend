@@ -35,9 +35,18 @@ export const updateAdminSupportStatus = async (id, { status }) => {
   return response.data;
 };
 
+export const deleteAdminSupportFeedback = async (id) => {
+  const response = await http.delete(`${ADMIN_SUPPORT_FEEDBACKS_URL}/${id}`, {
+    timeout: REQUEST_TIMEOUT_MS
+  });
+
+  return response.data;
+};
+
 const adminSupportApi = {
   list: listAdminSupportFeedbacks,
-  updateStatus: updateAdminSupportStatus
+  updateStatus: updateAdminSupportStatus,
+  remove: deleteAdminSupportFeedback
 };
 
 export default adminSupportApi;
