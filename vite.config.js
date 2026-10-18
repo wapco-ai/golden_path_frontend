@@ -66,6 +66,12 @@ export default defineConfig({
             method: 'GET'
           },
           {
+            // A login must never reuse another user's cached /auth/me profile.
+            urlPattern: ({ url }) => url.pathname.startsWith('/api/v1/auth/'),
+            handler: 'NetworkOnly',
+            method: 'GET'
+          },
+          {
             // A stale image-selection response must not be replayed during navigation.
             // Keep this before the generic API NetworkFirst rule below.
             urlPattern: ({ url }) => url.pathname === '/api/v1/landmark-view-image'
@@ -110,4 +116,4 @@ export default defineConfig({
       }  
     })  
   ]  
-});  
+});

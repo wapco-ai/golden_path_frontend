@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
 import apiUser from '../api/apiUser';
@@ -7,6 +7,15 @@ import mapApiError from '../services/apiErrorMapper';
 import { resolvePostLoginDestination } from '../utils/authNavigation';
 import logo from '../assets/images/logo.png';
 import '../styles/Login.css';
+
+const normalizeDigits = (value) => value
+  .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+  .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+  .replace(/\D/g, '');
+
+const getOtpLength = (value) => Number.isInteger(value) && value >= 4 && value <= 8 ? value : 6;
+const getRetryAfter = (value, fallback = 50) =>
+  Number.isInteger(value) && value >= 0 && value <= 3600 ? value : fallback;
 
 const LoginPage = () => {
   const intl = useIntl();
@@ -19,13 +28,21 @@ const LoginPage = () => {
   const [showError, setShowError] = useState(false);
   const [showCodeError, setShowCodeError] = useState(false);
   const [countdown, setCountdown] = useState(50);
+  const [resendAt, setResendAt] = useState(0);
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const pendingRequest = useRef(null);
+  const attemptId = useRef(0);
+
+  useEffect(() => () => {
+    attemptId.current += 1;
+    pendingRequest.current?.abort();
+  }, []);
 
   const isValidIranianPhone = (phone) => /^09[0-9]{9}$/.test(phone);
 
   const handlePhoneChange = (e) => {
-    const input = e.target.value.replace(/\D/g, '');
+    const input = normalizeDigits(e.target.value);
     if (input.length <= 11) {
       setPhone(input);
       setShowError(false);
@@ -33,31 +50,34 @@ const LoginPage = () => {
   };
 
   const handleCodeChange = (e, index) => {
-    const value = e.target.value.replace(/\D/g, '');
+    if (pendingRequest.current) return;
+    const value = normalizeDigits(e.target.value);
     const newCode = [...verificationCode];
 
     if (value.length <= 1) {
       newCode[index] = value;
       setVerificationCode(newCode);
+      setShowCodeError(false);
+      setSubmitError('');
 
-      if (value && index < 5) {
-        document.getElementById(`code-input-${index + 1}`).focus();
+      if (value && index < verificationCode.length - 1) {
+        document.getElementById(`code-input-${index + 1}`)?.focus();
       } else if (e.nativeEvent.inputType === 'deleteContentBackward' && !value && index > 0) {
-        document.getElementById(`code-input-${index - 1}`).focus();
+        document.getElementById(`code-input-${index - 1}`)?.focus();
       }
     }
   };
 
   const handleKeyDown = (e, index) => {
     if (e.key === 'ArrowLeft' && index > 0) {
-      document.getElementById(`code-input-${index - 1}`).focus();
-    } else if (e.key === 'ArrowRight' && index < 5) {
-      document.getElementById(`code-input-${index + 1}`).focus();
+      document.getElementById(`code-input-${index - 1}`)?.focus();
+    } else if (e.key === 'ArrowRight' && index < verificationCode.length - 1) {
+      document.getElementById(`code-input-${index + 1}`)?.focus();
     }
   };
 
-  const handleSubmitPhone = async (e) => {
-    e.preventDefault();
+  const requestOtp = async () => {
+    if (pendingRequest.current) return;
     if (!isValidIranianPhone(phone)) {
       setShowError(true);
       return;
@@ -66,66 +86,87 @@ const LoginPage = () => {
     setIsSubmitting(true);
     setSubmitError('');
     setShowCodeError(false);
+    const controller = new AbortController();
+    const currentAttempt = ++attemptId.current;
+    pendingRequest.current = controller;
 
     try {
-      await apiUser.post('/api/v1/auth/otp/request', { phone });
-    } catch (err) {
-      const mapped = mapApiError(err);
-      setSubmitError(mapped.message);
-      setIsSubmitting(false);
-      return;
-    }
+      const { data } = await apiUser.post('/api/v1/auth/otp/request', { phone }, {
+        signal: controller.signal,
+        skipUserAuth: true
+      });
+      if (currentAttempt !== attemptId.current || controller.signal.aborted) return;
 
-    const persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
-    const formatted = phone.split('').map(d => persianDigits[parseInt(d)]).join('');
-    setFormattedPhone(formatted);
+      const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
+      setFormattedPhone(phone.split('').map((digit) => persianDigits[Number(digit)]).join(''));
+      setVerificationCode(Array(getOtpLength(data?.otpLength)).fill(''));
+      setShowVerification(true);
+      setResendAt(Date.now() + getRetryAfter(data?.retryAfter) * 1000);
+    } catch (err) {
+      if (currentAttempt !== attemptId.current || controller.signal.aborted) return;
+      setSubmitError(mapApiError(err).message);
+      const retryAfter = getRetryAfter(err?.response?.data?.retryAfter, 0);
+      if (retryAfter > 0) setResendAt(Date.now() + retryAfter * 1000);
+    } finally {
+      if (currentAttempt === attemptId.current) {
+        pendingRequest.current = null;
+        setIsSubmitting(false);
+      }
+    }
+  };
+
+  const handleSubmitPhone = (e) => {
+    e.preventDefault();
+    requestOtp();
+  };
+
+  const editPhone = () => {
+    attemptId.current += 1;
+    pendingRequest.current?.abort();
+    pendingRequest.current = null;
+    setIsSubmitting(false);
+    setShowVerification(false);
     setVerificationCode(['', '', '', '', '', '']);
     setShowCodeError(false);
-    setShowVerification(true);
-    setCountdown(50);
-    setIsSubmitting(false);
+    setSubmitError('');
   };
 
   useEffect(() => {
     if (!showVerification) return undefined;
 
-    setCountdown(50);
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    const updateCountdown = () => setCountdown(Math.max(0, Math.ceil((resendAt - Date.now()) / 1000)));
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(timer);
-  }, [showVerification]);
+  }, [showVerification, resendAt]);
 
   useEffect(() => {
     const code = verificationCode.join('');
 
-    if (code.length !== 6) {
-      setShowCodeError(false);
-      return;
-    }
+    if (!showVerification || code.length !== verificationCode.length || pendingRequest.current) return;
 
     const runOtpSuccessFlow = async () => {
+      const controller = new AbortController();
+      const currentAttempt = ++attemptId.current;
+      pendingRequest.current = controller;
       setIsSubmitting(true);
       setSubmitError('');
       try {
-        const verifyResponse = await apiUser.post('/api/v1/auth/otp/verify', { phone, otp: code });
-        const { accessToken, refreshToken, expiresIn, user } = verifyResponse.data || {};
-        setSession({
-          accessToken,
-          refreshToken,
-          user: user || null,
-          expiresIn,
-          profileCompleted: user?.profileCompleted
+        const verifyResponse = await apiUser.post('/api/v1/auth/otp/verify', { phone, otp: code }, {
+          signal: controller.signal,
+          skipUserAuth: true
         });
+        if (currentAttempt !== attemptId.current || controller.signal.aborted) return;
+        const { accessToken, refreshToken, expiresIn, user } = verifyResponse.data || {};
+        if (!accessToken || !refreshToken) throw new Error('Invalid login response');
 
-        const meData = await apiUser.get('/api/v1/auth/me').then((res) => res.data);
+        const meData = await apiUser.get('/api/v1/auth/me', {
+          signal: controller.signal,
+          skipUserAuth: true,
+          headers: { Authorization: `Bearer ${accessToken}` }
+        }).then((res) => res.data);
+        if (currentAttempt !== attemptId.current || controller.signal.aborted) return;
         setSession({
           accessToken,
           refreshToken,
@@ -146,16 +187,20 @@ const LoginPage = () => {
         });
         navigate(destination, { replace: true });
       } catch (err) {
+        if (currentAttempt !== attemptId.current || controller.signal.aborted) return;
         setShowCodeError(true);
         const mapped = mapApiError(err);
         setSubmitError(mapped.message);
       } finally {
-        setIsSubmitting(false);
+        if (currentAttempt === attemptId.current) {
+          pendingRequest.current = null;
+          setIsSubmitting(false);
+        }
       }
     };
 
     runOtpSuccessFlow();
-  }, [verificationCode, navigate, phone, setSession]);
+  }, [verificationCode, showVerification, navigate, phone, setSession]);
 
   return (
     <div className="login-page">
@@ -222,7 +267,7 @@ const LoginPage = () => {
                 <button
                   type="button"
                   className="edit-button"
-                  onClick={() => setShowVerification(false)}
+                  onClick={editPhone}
                 >
                   <FormattedMessage id="edit" />
                 </button>
@@ -246,6 +291,7 @@ const LoginPage = () => {
                   inputMode="numeric"
                   pattern="[0-9]*"
                   maxLength="1"
+                  readOnly={isSubmitting}
                   value={digit}
                   onChange={(e) => handleCodeChange(e, index)}
                   onKeyDown={(e) => handleKeyDown(e, index)}
@@ -274,19 +320,7 @@ const LoginPage = () => {
                 <button
                   type="button"
                   className="resend-button"
-                  onClick={async () => {
-                    setIsSubmitting(true);
-                    setSubmitError('');
-                    try {
-                      await apiUser.post('/api/v1/auth/otp/request', { phone });
-                      setCountdown(50);
-                    } catch (err) {
-                      const mapped = mapApiError(err);
-                      setSubmitError(mapped.message);
-                    } finally {
-                      setIsSubmitting(false);
-                    }
-                  }}
+                  onClick={requestOtp}
                   disabled={isSubmitting}
                 >
                   <FormattedMessage id="resendCodeButton" />
@@ -311,13 +345,14 @@ const LoginPage = () => {
                   dir="ltr"
                   className={`phone-input ${showError ? 'error' : ''}`}
                   maxLength="11"
+                  readOnly={isSubmitting}
                 />
               </div>
             </div>
             <button
               type="submit"
               className={`login-button ${isValidIranianPhone(phone) ? 'active' : ''}`}
-              disabled={!isValidIranianPhone(phone)}
+              disabled={!isValidIranianPhone(phone) || isSubmitting}
             >
               <FormattedMessage id="loginButton" />
             </button>

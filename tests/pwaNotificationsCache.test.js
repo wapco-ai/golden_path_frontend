@@ -26,7 +26,7 @@ const contentTypes = {
   '.ttf': 'font/ttf'
 };
 
-test('production service worker never replays cached admin notifications and keeps other API caching',
+test('production service worker never replays cached auth profiles or admin notifications and keeps public API caching',
   { timeout: 60000 }, async (t) => {
     const swFile = resolve(distDirectory, 'sw.js');
     await assert.doesNotReject(stat(swFile),
@@ -47,7 +47,10 @@ test('production service worker never replays cached admin notifications and kee
       version: 'after-acknowledgement'
     };
     const genericResponse = { data: ['unchanged generic API cache'], revision: 1 };
+    const staleProfile = { id: 41, phone: '09120000041', fullName: 'Previous user' };
+    const freshProfile = { id: 42, phone: '09120000042', fullName: 'Current user' };
     const notificationRequests = [];
+    const profileRequests = [];
     let genericRequestCount = 0;
     const server = createServer(async (request, response) => {
       const url = new URL(request.url, 'http://localhost');
@@ -59,6 +62,12 @@ test('production service worker never replays cached admin notifications and kee
         notificationRequests.push({ search: url.search, authorization: request.headers.authorization });
         response.writeHead(200, { 'Content-Type': contentTypes['.json'], 'Cache-Control': 'no-store' });
         response.end(JSON.stringify(freshNotifications));
+        return;
+      }
+      if (url.pathname === '/api/v1/auth/me') {
+        profileRequests.push(request.headers.authorization);
+        response.writeHead(200, { 'Content-Type': contentTypes['.json'] });
+        response.end(JSON.stringify(freshProfile));
         return;
       }
       if (url.pathname === '/api/v1/pwa-cache-control') {
@@ -106,6 +115,8 @@ test('production service worker never replays cached admin notifications and kee
     const notificationUrl = `${origin}${notificationPath}${notificationQuery}`;
     const uncachedNotificationUrl = `${origin}${notificationPath}?limit=5&unreadOnly=true&includeMeta=true`;
     const genericUrl = `${origin}/api/v1/pwa-cache-control`;
+    const profileUrl = `${origin}/api/v1/auth/me`;
+    const uncachedProfileUrl = `${profileUrl}?login-check=1`;
 
     browser = await chromium.launch({
       ...(process.env.GP_TEST_CHROMIUM ? { executablePath: process.env.GP_TEST_CHROMIUM } : {}),
@@ -135,6 +146,11 @@ test('production service worker never replays cached admin notifications and kee
       await cache.put(new Request(url, { headers: { Authorization: 'Bearer previous-admin-token' } }),
         new Response(JSON.stringify(stale), { headers: { 'Content-Type': 'application/json' } }));
     }, { url: notificationUrl, stale: staleNotifications });
+    await page.evaluate(async ({ url, stale }) => {
+      const cache = await caches.open('api-cache');
+      await cache.put(new Request(url, { headers: { Authorization: 'Bearer previous-user-token' } }),
+        new Response(JSON.stringify(stale), { headers: { 'Content-Type': 'application/json' } }));
+    }, { url: profileUrl, stale: staleProfile });
 
     await context.setOffline(true);
     const offlineNotifications = await page.evaluate(async (url) => {
@@ -148,6 +164,17 @@ test('production service worker never replays cached admin notifications and kee
     assert.deepEqual(offlineNotifications, { fulfilled: false, errorName: 'TypeError' },
       'Offline notifications must fail, even if api-cache holds a stale response for another administrator.');
     assert.equal(notificationRequests.length, 0, 'Offline requests must not reach the HTTP server.');
+    const offlineProfile = await page.evaluate(async (url) => {
+      try {
+        const response = await fetch(url, { headers: { Authorization: 'Bearer new-user-token' } });
+        return { fulfilled: true, body: await response.json() };
+      } catch (error) {
+        return { fulfilled: false, errorName: error.name };
+      }
+    }, profileUrl);
+    assert.deepEqual(offlineProfile, { fulfilled: false, errorName: 'TypeError' },
+      'A new login must fail instead of accepting the previous user profile from api-cache.');
+    assert.equal(profileRequests.length, 0);
 
     await context.setOffline(false);
     const onlineNotifications = await page.evaluate(async (urls) => Promise.all(urls.map(async (url) => {
@@ -161,6 +188,12 @@ test('production service worker never replays cached admin notifications and kee
     assert.equal(notificationRequests.length, 2);
     assert.ok(notificationRequests.every(({ authorization }) => authorization === 'Bearer current-admin-token'));
     assert.ok(notificationRequests.some(({ search }) => search === notificationQuery));
+    const onlineProfiles = await page.evaluate(async (urls) => Promise.all(urls.map(async (url) => {
+      const response = await fetch(url, { headers: { Authorization: 'Bearer new-user-token' } });
+      return response.json();
+    })), [profileUrl, uncachedProfileUrl]);
+    assert.deepEqual(onlineProfiles, [freshProfile, freshProfile]);
+    assert.deepEqual(profileRequests, ['Bearer new-user-token', 'Bearer new-user-token']);
 
     assert.deepEqual(await page.evaluate(async (url) => (await fetch(url)).json(), genericUrl), genericResponse);
     await page.waitForFunction(async (url) => Boolean(await (await caches.open('api-cache')).match(url)), genericUrl);
@@ -178,4 +211,12 @@ test('production service worker never replays cached admin notifications and kee
       'NetworkOnly must not overwrite the previously cached notification response.');
     assert.equal(notificationCache.newEntry, false,
       'Successful online notification requests must not populate api-cache.');
+    const profileCache = await page.evaluate(async ({ existingUrl, newUrl }) => {
+      const cache = await caches.open('api-cache');
+      const existing = await cache.match(existingUrl);
+      return { existing: existing ? await existing.json() : null, newEntry: Boolean(await cache.match(newUrl)) };
+    }, { existingUrl: profileUrl, newUrl: uncachedProfileUrl });
+    assert.deepEqual(profileCache.existing, staleProfile);
+    assert.equal(profileCache.newEntry, false,
+      'Successful authentication reads must not populate api-cache.');
   });
