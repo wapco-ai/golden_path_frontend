@@ -160,13 +160,15 @@ test('shows uploaded title and description translations saved in attachment meta
 test('preserves a legacy bare base64 image as the only primary and public gallery image', () => {
   // A complete valid one-pixel PNG, matching historical media.fa string storage.
   const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jAf8AAAAASUVORK5CYII=';
-  const expected = `data:image/png;base64,${png}`;
-  const item = normalizeCulturalItem({ media: { fa: [png] } });
-  assert.equal(item.primaryImage, expected);
-  assert.deepEqual(normalizePlaceMedia({ content: { media: [png] } }, options), { images: [expected], contents: [] });
-  assert.equal(getMediaKind(png), 'image');
-  assert.equal(getMediaMime(png), 'image/png');
-  assert.equal(resolveMediaUrl(png), expected);
+  for (const encoded of [png, png.replace(/=+$/, '')]) {
+    const expected = `data:image/png;base64,${encoded}`;
+    const item = normalizeCulturalItem({ media: { fa: [encoded] } });
+    assert.equal(item.primaryImage, expected);
+    assert.deepEqual(normalizePlaceMedia({ content: { media: [encoded] } }, options), { images: [expected], contents: [] });
+    assert.equal(getMediaKind(encoded), 'image');
+    assert.equal(getMediaMime(encoded), 'image/png');
+    assert.equal(resolveMediaUrl(encoded), expected);
+  }
   assert.equal(getMediaKind('VGhpcyBpcyBub3QgYW4gaW1hZ2U='), null);
   assert.deepEqual(normalizePlaceMedia({ content: { media: ['VGhpcyBpcyBub3QgYW4gaW1hZ2U='] } }, options).images, []);
   assert.deepEqual(normalizePlaceMedia({ content: { media: [{ type: 'video', url: png }] } }, options).images, []);

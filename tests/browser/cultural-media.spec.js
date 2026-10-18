@@ -240,7 +240,7 @@ test('public cultural media uses a direct video URL and never renders the film a
 });
 
 test('a legacy bare base64 photo remains visible in the public gallery and the cultural editor', async ({ page }) => {
-  const { errors } = await setup(page, { mediaItems: [fixture.png], primaryImage: null });
+  const { errors } = await setup(page, { mediaItems: [fixture.png.replace(/=+$/, '')], primaryImage: null });
   await page.goto('/#/location?id=7');
   const photo = page.locator('.carousel-slide img').first();
   await expect(photo).toHaveAttribute('src', /^data:image\/png;base64,/);

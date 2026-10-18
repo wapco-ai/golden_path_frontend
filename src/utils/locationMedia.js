@@ -20,7 +20,7 @@ const mediaValue = (media) => {
 const rawImageMime = (value) => {
   if (typeof value !== 'string') return '';
   const normalized = value.replace(/\s+/g, '');
-  if (normalized.length < 12 || normalized.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(normalized)) return '';
+  if (normalized.length < 12 || normalized.length % 4 === 1 || !/^[A-Za-z0-9+/]+={0,2}$/.test(normalized)) return '';
   let header;
   try {
     // Only inspect the signature; legacy images can contain several megabytes.
