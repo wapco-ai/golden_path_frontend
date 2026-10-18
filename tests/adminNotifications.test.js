@@ -116,16 +116,16 @@ test('covers exact 12, 24 and 48 hour boundaries and keeps at-now and future not
   assert.equal(groups.reduce((count, group) => count + group.count, 0), boundaryItems.length);
 });
 
-test('groups only unread records by type and period with exact member IDs in newest-first order', () => {
+test('groups only unread records in the original type order with member IDs newest first', () => {
   const groups = buildNotificationGroups([
     item('old-comment', 30), item('read-feedback', 1, { type: 'feedback', read: true }),
     item('new-feedback', 2, { type: 'support_message' }), item('new-user', 1, { type: 'new_user' }),
     item('comment-2', 4), item('comment-1', 3), item('yesterday-user', 14, { type: 'user' })
   ], { now });
   assert.deepEqual(groups.map(({ type, period, ids }) => [type, period, ids]), [
-    ['user', 'last12Hours', ['new-user']],
-    ['feedback', 'last12Hours', ['new-feedback']],
     ['comment', 'last12Hours', ['comment-1', 'comment-2']],
+    ['feedback', 'last12Hours', ['new-feedback']],
+    ['user', 'last12Hours', ['new-user']],
     ['user', '12to24Hours', ['yesterday-user']],
     ['comment', '24to48Hours', ['old-comment']]
   ]);
@@ -145,6 +145,30 @@ test('uses Tehran Jalali date boundaries and sorts older date groups by actual t
     ['20 مهر 1405', ['oldest']]
   ]);
   assert.ok(groups.every(({ period }) => period === 'older'));
+});
+
+test('orders older days chronologically before applying comment, feedback, user within each day', () => {
+  const source = [
+    item('old-user', 1, { type: 'user', createdAt: '2026-10-14T14:00:00Z' }),
+    item('new-user', 1, { type: 'user', createdAt: '2026-10-15T14:00:00Z' }),
+    item('old-comment', 1, { type: 'comment', createdAt: '2026-10-14T12:00:00Z' }),
+    item('new-comment', 1, { type: 'comment', createdAt: '2026-10-15T12:00:00Z' }),
+    item('old-feedback', 1, { type: 'feedback', createdAt: '2026-10-14T13:00:00Z' }),
+    item('new-feedback', 1, { type: 'feedback', createdAt: '2026-10-15T13:00:00Z' })
+  ];
+  const normalized = normalizeDashboardNotifications(source);
+  assert.deepEqual(normalized.items.map(({ id }) => id), [
+    'new-user', 'new-feedback', 'new-comment', 'old-user', 'old-feedback', 'old-comment'
+  ]);
+  const groups = buildNotificationGroups(normalized.items, { now });
+  assert.deepEqual(groups.map(({ timeText, type, ids }) => [timeText, type, ids]), [
+    ['23 مهر 1405', 'comment', ['new-comment']],
+    ['23 مهر 1405', 'feedback', ['new-feedback']],
+    ['23 مهر 1405', 'user', ['new-user']],
+    ['22 مهر 1405', 'comment', ['old-comment']],
+    ['22 مهر 1405', 'feedback', ['old-feedback']],
+    ['22 مهر 1405', 'user', ['old-user']]
+  ]);
 });
 
 test('parsing and Tehran grouping do not depend on the host time zone', () => {

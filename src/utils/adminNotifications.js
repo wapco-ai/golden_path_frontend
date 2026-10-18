@@ -1,4 +1,6 @@
 const HOUR_MS = 60 * 60 * 1000;
+const PERIOD_ORDER = ['last12Hours', '12to24Hours', '24to48Hours', 'older'];
+const TYPE_ORDER = ['comment', 'feedback', 'user'];
 
 const notificationTypes = {
   new_comment: { type: 'comment', apiType: 'new_comment' },
@@ -108,6 +110,7 @@ export const buildNotificationGroups = (items, { now = Date.now() } = {}) => {
   const nowMilliseconds = new Date(now).getTime();
   if (!Number.isFinite(nowMilliseconds)) return [];
   const groups = new Map();
+  const olderDateTimestamps = new Map();
 
   for (const item of normalizeDashboardNotifications(items).items) {
     if (item.read) continue;
@@ -129,6 +132,7 @@ export const buildNotificationGroups = (items, { now = Date.now() } = {}) => {
     } else {
       period = 'older';
       timeText = formatTehranJalaliDate(milliseconds);
+      if (!olderDateTimestamps.has(timeText)) olderDateTimestamps.set(timeText, milliseconds);
     }
 
     const key = `${period}:${timeText}:${item.type}`;
@@ -139,8 +143,7 @@ export const buildNotificationGroups = (items, { now = Date.now() } = {}) => {
         unreadCount: 0,
         timeText,
         period,
-        ids: [],
-        newestAt: milliseconds
+        ids: []
       });
     }
     const group = groups.get(key);
@@ -149,9 +152,14 @@ export const buildNotificationGroups = (items, { now = Date.now() } = {}) => {
     group.ids.push(item.id);
   }
 
-  return [...groups.values()]
-    .sort((a, b) => b.newestAt - a.newestAt)
-    .map(({ type, count, unreadCount, timeText, period, ids }) => ({
-      type, count, unreadCount, timeText, period, ids
-    }));
+  return [...groups.values()].sort((a, b) => {
+    const periodOrder = PERIOD_ORDER.indexOf(a.period) - PERIOD_ORDER.indexOf(b.period);
+    if (periodOrder) return periodOrder;
+    const dateOrder = a.period === 'older'
+      ? olderDateTimestamps.get(b.timeText) - olderDateTimestamps.get(a.timeText)
+      : 0;
+    // Preserve the existing visual type order within each period or older day;
+    // only the date groups and their member IDs use timestamp order.
+    return dateOrder || TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type);
+  });
 };

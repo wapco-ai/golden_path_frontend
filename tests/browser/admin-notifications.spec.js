@@ -64,7 +64,7 @@ async function setup(page, { events = standardEvents() } = {}) {
   await page.route('**/tiles/**', route => route.fulfill({ status: 204 }));
   await page.route('**/tms/**', route => route.fulfill({ status: 204 }));
   await page.goto('/#/admin');
-  await expect(page.locator('.notification-badge')).toHaveText(String(events.length));
+  await expect(page.locator('.notification-badge')).toHaveText(events.length > 99 ? '99+' : String(events.length));
   return { state, requests, writes, errors, readsFor };
 }
 
@@ -103,6 +103,26 @@ test('global badge exceeds the fetched page and read-all works for old notificat
   await expect(page.getByText('هیچ اعلانی وجود ندارد', { exact: true })).toBeVisible();
   await expect(badge(page)).toHaveCount(0);
   expect(readsFor(101).size).toBe(25); expect(writes[0].all).toBe(true); expect(errors).toEqual([]);
+});
+
+test('large global unread counts stay inside the existing badge on desktop and mobile', async ({ page }) => {
+  const events = Array.from({ length: 250 }, (_, index) => event('new_user', index + 1));
+  const { errors } = await setup(page, { events });
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(badge(page)).toHaveText('99+');
+    await expect(badge(page)).toHaveAccessibleName('250 اعلان خوانده‌نشده');
+    await expect(badge(page)).toHaveAttribute('title', '250 اعلان خوانده‌نشده');
+    const dimensions = await badge(page).evaluate(node => {
+      const range = document.createRange(); range.selectNodeContents(node);
+      const text = range.getBoundingClientRect(), box = node.getBoundingClientRect();
+      return { width: box.width, height: box.height, textLeft: text.left, textRight: text.right, left: box.left, right: box.right };
+    });
+    expect(dimensions.width).toBe(18); expect(dimensions.height).toBe(18);
+    expect(dimensions.textLeft).toBeGreaterThanOrEqual(dimensions.left);
+    expect(dimensions.textRight).toBeLessThanOrEqual(dimensions.right);
+  }
+  await open(page); await expect(markAll(page)).toBeVisible(); expect(errors).toEqual([]);
 });
 
 test('clicking a group acknowledges exactly its members and persists through reload', async ({ page }) => {

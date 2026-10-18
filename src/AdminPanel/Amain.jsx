@@ -10890,7 +10890,13 @@ const Amain = () => {
             </svg>
             <span>اعلان ها</span>
             {unreadNotificationsCount > 0 && (
-              <div className="notification-badge">{unreadNotificationsCount}</div>
+              <div
+                className="notification-badge"
+                role="status"
+                aria-label={`${unreadNotificationsCount} اعلان خوانده‌نشده`}
+                title={`${unreadNotificationsCount} اعلان خوانده‌نشده`}
+                style={unreadNotificationsCount > 99 ? { fontSize: '8px', direction: 'ltr' } : undefined}
+              >{unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}</div>
             )}
           </div>
         </div>
