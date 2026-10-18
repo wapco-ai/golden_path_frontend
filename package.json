@@ -13,7 +13,7 @@
 		"predeploy": "npm run build",
 		"deploy": "gh-pages -d dist",
 		"generate-pwa-assets": "pwa-assets-generator",
-		"test": "node tests/routeAnalysis.test.js && node --test tests/deadReckoning.test.js tests/rngNavigation.test.js tests/routeArrival.test.js tests/rngAppearance.test.js tests/guidanceCoverage.test.js tests/profilePersistence.test.js tests/culturalItems.test.js tests/adminCategoryApi.test.js tests/signedUserDates.test.js tests/adminNotifications.test.js tests/culturalMediaUpload.test.js tests/locationMedia.test.js tests/locationShare.test.js tests/routeHistory.test.js tests/savedDestinations.test.js && node --test tests/multifloor.test.js tests/publicFloors.test.js",
+		"test": "node tests/routeAnalysis.test.js && node --test tests/deadReckoning.test.js tests/rngNavigation.test.js tests/routeArrival.test.js tests/rngAppearance.test.js tests/guidanceCoverage.test.js tests/profilePersistence.test.js tests/culturalItems.test.js tests/adminCategoryApi.test.js tests/signedUserDates.test.js tests/adminNotifications.test.js tests/adminRecentUsers.test.js tests/culturalMediaUpload.test.js tests/locationMedia.test.js tests/locationShare.test.js tests/routeHistory.test.js tests/savedDestinations.test.js && node --test tests/multifloor.test.js tests/publicFloors.test.js",
 		"test:browser": "playwright test",
 		"test:pwa-cache": "node --test tests/pwaNotificationsCache.test.js"
 	},
