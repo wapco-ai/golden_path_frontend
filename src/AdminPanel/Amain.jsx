@@ -10351,8 +10351,9 @@ const Amain = () => {
         const formData = new FormData();
         formData.append('icon', editCategoryData.icon);
         formData.append('payload', JSON.stringify(payload));
+        formData.append('_method', 'PUT');
         response = await adminFetch(`${API_BASE}/categories/${editingCategoryId}`, {
-          method: 'PUT',
+          method: 'POST',
           body: formData
         });
       } else {
