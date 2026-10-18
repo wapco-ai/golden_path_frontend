@@ -16,6 +16,8 @@ import { fetchLandmarkPlaces } from '../services/landmarkService';
 import { submitUserFeedback } from '../services/userFeedbackService';
 import { useLocation } from 'react-router-dom';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
+import appConfig from '../config/appConfig.js';
+import { localizeMediaText, normalizePlaceMedia, resolveMediaUrl } from '../utils/locationMedia.js';
 
 // Import video files
 import v1 from '/assets/videos/vid1.mp4';
@@ -40,15 +42,7 @@ const fileMap = {
   'pdf1': pdf1,
 };
 
-// Helper function to get file URL
-const getFileUrl = (fileKey) => {
-  return fileMap[fileKey] || '';
-};
-
-// // Helper function to get thumbnail URL
-// const getThumbnailUrl = (thumbnailKey) => {
-//   return fileMap[thumbnailKey] || '/images/default-thumbnail.jpg';
-// };
+const mediaOptions = { apiBaseUrl: appConfig.apiBaseUrl, fileMap };
 
 // Get subgroup label based on currently loaded geoData
 const getLocalizedSubgroupLabel = (geoData, value, fallback) => {
@@ -191,51 +185,6 @@ const Location = () => {
     return null;
   };
 
-  const buildMediaUrl = (media, defaultMime = 'image/jpeg') => {
-    if (!media) return null;
-
-    if (typeof media === 'string') {
-      const trimmed = media.trim();
-      return trimmed ? trimmed : null;
-    }
-
-    if (typeof media === 'object') {
-      if (media.url) return media.url;
-      if (media.data) {
-        return `data:${media.mime || defaultMime};base64,${media.data}`;
-      }
-    }
-
-    return null;
-  };
-
-  const normalizeImages = (place) => {
-    if (!place) return [];
-
-    const normalized = [];
-
-    if (Array.isArray(place.images)) normalized.push(...place.images);
-    if (Array.isArray(place.image)) normalized.push(...place.image);
-    if (Array.isArray(place.img)) normalized.push(...place.img);
-
-    if (typeof place.images === 'string' && place.images.trim()) normalized.push(place.images);
-    if (typeof place.image === 'string' && place.image.trim()) normalized.push(place.image);
-    if (typeof place.img === 'string' && place.img.trim()) normalized.push(place.img);
-
-    const contentMedia = Array.isArray(place?.content?.media)
-      ? place.content.media
-      : Array.isArray(place?.media)
-        ? place.media
-        : [];
-
-    contentMedia.forEach((mediaItem) => {
-      const url = buildMediaUrl(mediaItem);
-      if (url) normalized.push(url);
-    });
-
-    return normalized.filter(Boolean);
-  };
-
   const normalizeAbout = (place) => {
     const contentBody = extractContentBody(place);
 
@@ -260,14 +209,15 @@ const Location = () => {
 
   const normalizePlaceData = (place) => {
     if (!place) return null;
+    const media = normalizePlaceMedia(place, mediaOptions);
 
     return {
       ...place,
-      images: normalizeImages(place),
+      images: media.images,
       about: normalizeAbout(place),
       location: place.location || place.address || place.label || '',
       openingHours: place.openingHours ?? place.open_hours ?? place.hours ?? '',
-      contents: Array.isArray(place.contents) ? place.contents : [],
+      contents: media.contents,
       comments: Array.isArray(place.comments) ? place.comments : [],
       views: place.views ?? place.view ?? 0,
       averageRating: place.averageRating ?? place.rate ?? place.rating ?? 0
@@ -774,13 +724,14 @@ const Location = () => {
 
   // Video and PDF handlers
   const handleVideoClick = (videoContent) => {
-    const videoUrl = getFileUrl(videoContent.fileKey);
+    const videoUrl = resolveMediaUrl(videoContent, mediaOptions);
     if (!videoUrl) {
       toast.error(intl.formatMessage({ id: 'videoLoadError' }));
       return;
     }
 
     // Show modal immediately with loading state
+    stopAboutSpeech();
     setSelectedVideo({
       ...videoContent,
       mediaUrl: videoUrl
@@ -798,58 +749,20 @@ const Location = () => {
     setIsVideoFullscreen(!isVideoFullscreen);
   };
 
-  const handlePdfClick = async (pdfContent) => {
-    const pdfUrl = getFileUrl(pdfContent.fileKey);
+  const handlePdfClick = (pdfContent) => {
+    const pdfUrl = resolveMediaUrl(pdfContent, mediaOptions);
     if (!pdfUrl) {
       return;
     }
 
-    try {
-      // First, check if the PDF exists and is accessible
-      const response = await fetch(pdfUrl, { method: 'HEAD' });
-
-      if (response.ok) {
-        // Open PDF in new tab with proper handling
-        const pdfWindow = window.open('', '_blank');
-
-        // Create a proper PDF viewer page
-        const pdfHtml = `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>${pdfContent.title?.[language] || 'PDF Document'}</title>
-            <style>
-              body { margin: 0; padding: 20px; background: #f5f5f5; }
-              .container { max-width: 100%; height: 100vh; }
-              embed { width: 100%; height: 100%; border: none; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <embed src="${pdfUrl}" type="application/pdf">
-            </div>
-          </body>
-          </html>
-        `;
-
-        pdfWindow.document.write(pdfHtml);
-        pdfWindow.document.close();
-      } else {
-        throw new Error('PDF not found');
-      }
-    } catch (error) {
-      console.error('Error opening PDF:', error);
-
-      // Fallback: direct link opening
-      const link = document.createElement('a');
-      link.href = pdfUrl;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
+    // Use the browser's document viewer without interpolating uploaded metadata into HTML.
+    const link = document.createElement('a');
+    link.href = pdfUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
   // Load geojson data
@@ -1124,7 +1037,20 @@ const Location = () => {
               <div key={content.id} className="content-item">
                 <div className="content-media">
                   {content.type === 'audio' && (
-                    <div className="audio-thumbnail" style={{ backgroundImage: `url(${content.thumbnail})` }}>
+                    <div
+                      className="audio-thumbnail"
+                      style={{ backgroundImage: content.thumbnail ? `url(${content.thumbnail})` : undefined }}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={localizeMediaText(content.title, language)}
+                      onClick={() => handleVideoClick(content)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          handleVideoClick(content);
+                        }
+                      }}
+                    >
                       <div className="play-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <circle cx="12" cy="12" r="10"></circle>
@@ -1137,11 +1063,14 @@ const Location = () => {
                     <div className="video-thumbnail-container">
                       <button
                         className="video-thumbnail-link"
+                        type="button"
+                        data-testid="cultural-public-video"
+                        aria-label={localizeMediaText(content.title, language)}
                         onClick={() => handleVideoClick(content)}
                       >
                         <div
                           className="video-thumbnail"
-                          style={{ backgroundImage: `url(${content.thumbnail})` }}
+                          style={{ backgroundImage: content.thumbnail ? `url(${content.thumbnail})` : undefined }}
                         >
                           <div className="play-icon">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1153,12 +1082,12 @@ const Location = () => {
                       </button>
                     </div>
                   )}
-                  {content.type === 'pdf' && (
+                  {(content.type === 'pdf' || content.type === 'document') && (
                     <div className="pdf-thumbnail" onClick={() => handlePdfClick(content)}>
                       {content.thumbnail ? (
                         <img
                           src={content.thumbnail}
-                          alt={content.title[language] || 'PDF document'}
+                          alt={localizeMediaText(content.title, language) || 'PDF document'}
                           onError={(e) => {
                             // Fallback if thumbnail fails to load
                             e.target.style.display = 'none';
@@ -1179,8 +1108,8 @@ const Location = () => {
                   )}
                 </div>
                 <div className="content-info">
-                  <h4>{content.title[language]}</h4>
-                  <p>{content.description[language]}</p>
+                  <h4>{localizeMediaText(content.title, language)}</h4>
+                  <p>{localizeMediaText(content.description, language)}</p>
                 </div>
               </div>
             ))}
@@ -1420,6 +1349,9 @@ const Location = () => {
           <div className="video-modal-overlay" onClick={handleVideoClose}></div>
           <div className={`video-modal ${isVideoFullscreen ? 'fullscreen' : ''}`}>
             <div className="video-container">
+              {selectedVideo.type === 'audio' ? (
+                <audio controls autoPlay src={selectedVideo.mediaUrl} />
+              ) : (
               <video
                 controls
                 autoPlay
@@ -1444,10 +1376,11 @@ const Location = () => {
                   // handleVideoClose();
                 }}
               >
-                <source src={selectedVideo.mediaUrl} type="video/mp4" />
+                <source src={selectedVideo.mediaUrl} type={selectedVideo.mime || 'video/mp4'} />
                 <div className="video-loading-spinner"></div>
                 Your browser does not support the video tag.
               </video>
+              )}
             </div>
           </div>
         </>
