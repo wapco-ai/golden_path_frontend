@@ -1,0 +1,76 @@
+/* Typed dates and calendar controls stay inside the existing signed-user filter. */
+.usersigned-page input.date-start,
+.usersigned-page input.date-end {
+  border: 0;
+  outline: 0;
+  padding: 0;
+  min-width: 0;
+  width: 0;
+  height: 20px;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  text-align: center;
+  direction: ltr;
+  cursor: text;
+}
+
+.usersigned-page input.date-start::placeholder,
+.usersigned-page input.date-end::placeholder {
+  color: #1E2023;
+  opacity: 1;
+}
+
+.usersigned-page .signed-calendar-fields {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.usersigned-page .signed-calendar-fields select,
+.usersigned-page .signed-calendar-fields input,
+.usersigned-page .signed-year-nav {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  padding: 2px;
+}
+
+.usersigned-page .signed-calendar-fields select {
+  width: 90px;
+}
+
+.usersigned-page .signed-calendar-fields input {
+  width: 48px;
+  text-align: center;
+  direction: ltr;
+}
+
+.usersigned-page .signed-year-nav {
+  cursor: pointer;
+}
+
+.usersigned-page button.calendar-day {
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+}
+
+.usersigned-page button.calendar-day:not(.selected):not(.in-range) {
+  background: transparent;
+}
+
+.usersigned-page button.calendar-day:not(.selected):not(.in-range):hover {
+  background: #f0f0f0;
+}
+
+.usersigned-page input.date-start:focus-visible,
+.usersigned-page input.date-end:focus-visible,
+.usersigned-page .signed-calendar-fields :focus-visible,
+.usersigned-page button.calendar-day:focus-visible {
+  outline: 1px solid #0F71EF;
+  outline-offset: 2px;
+}

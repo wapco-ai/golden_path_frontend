@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { toast } from 'react-toastify';
 import '../AdminPanel/Amain.css';
+import './Usersigned.css';
+import { normalizeDateDigits, parseJalaliInput, formatJalaliInput, jalaliToGregorianDay, compareJalaliDates, validateJalaliRange, currentTehranJalali, jalaliMonthLength, jalaliMonthStart } from '../utils/signedUserDates.js';
 import {
   fetchSignedUser,
   fetchSignedUsers,
@@ -13,6 +15,7 @@ const formatJalaliDateTime = (value) => {
   if (Number.isNaN(date.getTime())) return '—';
 
   return new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+    timeZone: 'Asia/Tehran',
     year: 'numeric',
     month: 'long',
     day: '2-digit',
@@ -58,59 +61,80 @@ function Usersigned() {
   const [detailUserId, setDetailUserId] = useState(null);
   const [updatingMap, setUpdatingMap] = useState({});
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const [startDateInput, setStartDateInput] = useState('');
+  const [endDateInput, setEndDateInput] = useState('');
+  const [appliedDates, setAppliedDates] = useState({ startDate: null, endDate: null });
   const [showStartCalendar, setShowStartCalendar] = useState(false);
   const [showEndCalendar, setShowEndCalendar] = useState(false);
-  const [calendarDate, setCalendarDate] = useState({ year: 1403, month: 7 });
-
+  const [calendarDate, setCalendarDate] = useState(() => currentTehranJalali());
+  const [calendarYearInput, setCalendarYearInput] = useState(() => String(currentTehranJalali().year));
   const calendarRef = useRef(null);
   const startDateRef = useRef(null);
   const endDateRef = useRef(null);
+  const listRequestRef = useRef(0);
+  const detailRequestRef = useRef(0);
+  const updatingUsersRef = useRef(new Set());
+  const mutationVersionRef = useRef(0);
+  const latestUserMutationsRef = useRef(new Map());
+  const { startDate, endDate } = useMemo(
+    () => validateJalaliRange(startDateInput, endDateInput),
+    [startDateInput, endDateInput]
+  );
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearch(search.trim());
+      const nextSearch = search.trim();
+      if (nextSearch !== debouncedSearch) {
+        setDebouncedSearch(nextSearch);
+        setPage(1);
+      }
     }, 400);
-
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, debouncedSearch]);
 
   const fetchUsers = useCallback(async () => {
+    const requestId = ++listRequestRef.current;
+    const readMutationVersion = mutationVersionRef.current;
     setLoading(true);
     setError('');
-
     try {
       const response = await fetchSignedUsers({
         page,
         pageSize,
-        search: debouncedSearch
+        search: debouncedSearch,
+        ...appliedDates
       });
-
-      setRows(response?.data || []);
+      if (requestId !== listRequestRef.current) return false;
+      const responseRows = Array.isArray(response?.data) ? response.data : [];
+      setRows(responseRows.map((user) => {
+        const mutation = latestUserMutationsRef.current.get(String(user.id));
+        return mutation?.version > readMutationVersion ? { ...user, ...mutation.user } : user;
+      }));
       const nextMeta = response?.meta || { current_page: page, per_page: pageSize, last_page: 1, total: 0 };
       setMeta(nextMeta);
-      if (nextMeta?.current_page && nextMeta.current_page !== page) {
-        setPage(nextMeta.current_page);
+      if (nextMeta.current_page && Number(nextMeta.current_page) !== page) {
+        setPage(Number(nextMeta.current_page));
       }
+      return true;
     } catch (err) {
+      if (requestId !== listRequestRef.current) return false;
       const message = getErrorMessage(err);
       setError(message);
       toast.error(message);
+      return false;
     } finally {
-      setLoading(false);
+      if (requestId === listRequestRef.current) setLoading(false);
     }
-  }, [debouncedSearch, page, pageSize]);
+  }, [debouncedSearch, page, pageSize, appliedDates]);
 
   useEffect(() => {
     fetchUsers();
+    return () => { listRequestRef.current += 1; };
   }, [fetchUsers]);
 
-  const handleSearchChange = (event) => {
-    setSearch(event.target.value);
-    setPage(1);
-  };
+  useEffect(() => () => { detailRequestRef.current += 1; }, []);
+
+  const handleSearchChange = (event) => setSearch(event.target.value);
 
   const handlePageChange = (nextPage) => {
     if (nextPage < 1 || nextPage > (meta?.last_page || 1)) return;
@@ -118,58 +142,59 @@ function Usersigned() {
   };
 
   const handleDetailsClick = async (userId) => {
+    if (updatingUsersRef.current.has(userId)) return;
+    const requestId = ++detailRequestRef.current;
+    const readMutationVersion = mutationVersionRef.current;
     setDetailOpen(true);
     setDetailLoading(true);
     setDetailError('');
     setSelectedUser(null);
     setDetailUserId(userId);
-
     try {
       const response = await fetchSignedUser(userId);
-      setSelectedUser(response?.data || response);
+      if (requestId === detailRequestRef.current) {
+        const user = response?.data || response;
+        const mutation = latestUserMutationsRef.current.get(String(userId));
+        setSelectedUser(mutation?.version > readMutationVersion ? { ...user, ...mutation.user } : user);
+      }
     } catch (err) {
+      if (requestId !== detailRequestRef.current) return;
       const message = getErrorMessage(err);
       setDetailError(message);
       toast.error(message);
     } finally {
-      setDetailLoading(false);
+      if (requestId === detailRequestRef.current) setDetailLoading(false);
     }
   };
 
   const handleCloseDetails = () => {
+    detailRequestRef.current += 1;
     setDetailOpen(false);
     setSelectedUser(null);
+    setDetailLoading(false);
     setDetailError('');
     setDetailUserId(null);
   };
 
   const handleToggleStatus = async (user) => {
-    const currentStatus = getStatusValue(user);
-    const nextStatus = currentStatus === 'active' ? 'inactive' : 'active';
-
+    if (updatingUsersRef.current.has(user.id)) return;
+    const nextStatus = getStatusValue(user) === 'active' ? 'inactive' : 'active';
+    updatingUsersRef.current.add(user.id);
     setUpdatingMap((prev) => ({ ...prev, [user.id]: true }));
-    setRows((prev) =>
-      prev.map((item) =>
-        item.id === user.id
-          ? { ...item, status: nextStatus, isActive: nextStatus === 'active' }
-          : item
-      )
-    );
-
     try {
-      await updateSignedUserStatus(user.id, nextStatus);
+      const response = await updateSignedUserStatus(user.id, nextStatus);
+      const updatedUser = response?.data || response;
+      latestUserMutationsRef.current.set(String(user.id), {
+        version: ++mutationVersionRef.current,
+        user: updatedUser
+      });
+      setRows((prev) => prev.map((item) => item.id === user.id ? { ...item, ...updatedUser } : item));
+      setSelectedUser((prev) => prev?.id === user.id ? { ...prev, ...updatedUser } : prev);
       toast.success('وضعیت کاربر به روز شد.');
     } catch (err) {
-      const message = getErrorMessage(err);
-      toast.error(message);
-      setRows((prev) =>
-        prev.map((item) =>
-          item.id === user.id
-            ? { ...item, status: currentStatus, isActive: currentStatus === 'active' }
-            : item
-        )
-      );
+      toast.error(getErrorMessage(err));
     } finally {
+      updatingUsersRef.current.delete(user.id);
       setUpdatingMap((prev) => {
         const next = { ...prev };
         delete next[user.id];
@@ -182,244 +207,126 @@ function Usersigned() {
     'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
     'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
   ];
-
-
   const jalaliWeekdays = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
 
-  const parseJalaliDate = (dateStr) => {
-    if (!dateStr || dateStr === '—') return null;
-
-    try {
-
-      const cleaned = dateStr.replace('، ساعت', '');
-      const parts = cleaned.split(' ');
-
-      if (parts.length < 3) return null;
-
-      const day = parseInt(parts[0], 10);
-      const monthName = parts[1];
-      const year = parseInt(parts[2], 10);
-
-      const monthIndex = jalaliMonths.indexOf(monthName) + 1;
-      if (monthIndex === 0) return null;
-
-      return { year, month: monthIndex, day };
-    } catch (error) {
-      console.error('Error parsing date:', error);
-      return null;
-    }
-  };
-
-  const handlePrevMonth = () => {
-    setCalendarDate(prev => {
-      let newMonth = prev.month - 1;
-      let newYear = prev.year;
-      if (newMonth < 1) {
-        newMonth = 12;
-        newYear--;
-      }
-      return { ...prev, month: newMonth, year: newYear };
-    });
-  };
-
-  const handleNextMonth = () => {
-    setCalendarDate(prev => {
-      let newMonth = prev.month + 1;
-      let newYear = prev.year;
-      if (newMonth > 12) {
-        newMonth = 1;
-        newYear++;
-      }
-      return { ...prev, month: newMonth, year: newYear };
-    });
-  };
-
-  // Date selection
-  const handleDaySelect = (day) => {
-    const selectedDate = {
-      year: calendarDate.year,
-      month: calendarDate.month,
-      day
-    };
-
-    if (showStartCalendar) {
-      setStartDate(selectedDate);
-      setShowStartCalendar(false);
-      // Auto-show end calendar after start date is selected
-      setTimeout(() => setShowEndCalendar(true), 100);
-    } else if (showEndCalendar && startDate) {
-      setEndDate(selectedDate);
-      setShowEndCalendar(false);
-      // Trigger filtering
-      fetchUsersWithFilter(startDate, selectedDate);
-    }
-  };
-
-  // Calendar display handlers
-  const handleStartDateClick = () => {
-    setShowStartCalendar(!showStartCalendar);
+  const closeCalendars = () => {
+    setShowStartCalendar(false);
     setShowEndCalendar(false);
   };
 
-  const handleEndDateClick = () => {
-    if (!startDate) {
-      toast.error('لطفا ابتدا تاریخ شروع را انتخاب کنید');
+  const setCalendarView = (date) => {
+    setCalendarDate({ year: date.year, month: date.month });
+    setCalendarYearInput(String(date.year));
+  };
+
+  const openCalendar = (kind) => {
+    const selected = parseJalaliInput(kind === 'start' ? startDateInput : endDateInput);
+    setCalendarView(selected || currentTehranJalali());
+    setShowStartCalendar(kind === 'start');
+    setShowEndCalendar(kind === 'end');
+  };
+
+  const applyDateRange = (startInput = startDateInput, endInput = endDateInput) => {
+    const range = validateJalaliRange(startInput, endInput);
+    if (range.error) {
+      toast.error(range.error);
+      return false;
+    }
+    setStartDateInput(formatJalaliInput(range.startDate));
+    setEndDateInput(formatJalaliInput(range.endDate));
+    setAppliedDates({
+      startDate: jalaliToGregorianDay(range.startDate),
+      endDate: jalaliToGregorianDay(range.endDate)
+    });
+    setPage(1);
+    closeCalendars();
+    return true;
+  };
+
+  const handleDateKeyDown = (event, kind) => {
+    if (event.key === 'Escape') {
+      closeCalendars();
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      applyDateRange(kind === 'start' ? event.currentTarget.value : startDateInput,
+        kind === 'end' ? event.currentTarget.value : endDateInput);
+    }
+  };
+
+  const handleMonthMove = (offset) => {
+    const monthIndex = Math.max(12, Math.min(3177 * 12 + 11, calendarDate.year * 12 + calendarDate.month - 1 + offset));
+    setCalendarView({ year: Math.floor(monthIndex / 12), month: monthIndex % 12 + 1 });
+  };
+
+  const handleYearCommit = () => {
+    const value = normalizeDateDigits(calendarYearInput).trim();
+    if (!/^\d{1,4}$/.test(value) || Number(value) < 1 || Number(value) > 3177) {
+      toast.error('سال وارد شده معتبر نیست.');
+      setCalendarYearInput(String(calendarDate.year));
       return;
     }
-    setShowEndCalendar(!showEndCalendar);
-    setShowStartCalendar(false);
+    setCalendarView({ year: Number(value), month: calendarDate.month });
   };
 
-  // Function to filter users by date range
-  const fetchUsersWithFilter = async (start, end) => {
-    setLoading(true);
-    try {
-      // Get all users first
-      const response = await fetchSignedUsers({
-        page: 1,
-        pageSize: 1000, // Get all users for filtering
-        search: debouncedSearch
-      });
+  const handleYearMove = (offset) => {
+    setCalendarView({ year: Math.max(1, Math.min(3177, calendarDate.year + offset)), month: calendarDate.month });
+  };
 
-      const allUsers = response?.data || [];
-
-      // Filter by date range on client side
-      const filtered = allUsers.filter(user => {
-        const registerDate = parseJalaliDate(formatJalaliDateTime(user.createdAt));
-        if (!registerDate) return false;
-
-        const isAfterStart = !start || compareJalaliDates(registerDate, start) >= 0;
-        const isBeforeEnd = !end || compareJalaliDates(registerDate, end) <= 0;
-
-        return isAfterStart && isBeforeEnd;
-      });
-
-      setRows(filtered);
-      setMeta({
-        current_page: 1,
-        per_page: pageSize,
-        last_page: Math.ceil(filtered.length / pageSize),
-        total: filtered.length
-      });
-      setPage(1);
-
-    } catch (err) {
-      const message = getErrorMessage(err);
-      setError(message);
-      toast.error(message);
-    } finally {
-      setLoading(false);
+  const handleDaySelect = (day) => {
+    const selectedDate = { ...calendarDate, day };
+    if (showStartCalendar) {
+      setStartDateInput(formatJalaliInput(selectedDate));
+      setShowStartCalendar(false);
+      setShowEndCalendar(true);
+      setCalendarView(parseJalaliInput(endDateInput) || selectedDate);
+    } else {
+      const input = formatJalaliInput(selectedDate);
+      setEndDateInput(input);
+      applyDateRange(startDateInput, input);
     }
   };
 
-  // Remove date filter
-  const handleRemoveDateFilter = () => {
-    setStartDate(null);
-    setEndDate(null);
-    setShowStartCalendar(false);
-    setShowEndCalendar(false);
-    // Reload original data
-    fetchUsers();
-    toast.info('فیلتر تاریخ حذف شد');
-  };
-
-  // Clear all filters
   const handleClearAllFilters = () => {
-    setStartDate(null);
-    setEndDate(null);
-    setShowStartCalendar(false);
-    setShowEndCalendar(false);
+    setStartDateInput('');
+    setEndDateInput('');
+    setAppliedDates({ startDate: null, endDate: null });
+    closeCalendars();
     setSearch('');
     setDebouncedSearch('');
     setPage(1);
-    fetchUsers();
     toast.info('همه فیلترها پاک شدند');
   };
 
-  // Render calendar days
   const renderCalendarDays = () => {
     const { year, month } = calendarDate;
-    const firstDay = jalaliMonthStart(year, month);
-    const daysInMonth = jalaliMonthLength(year, month);
     const days = [];
-
-    // Empty cells for days before start of month
-    for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} className="calendar-day empty"></div>);
+    for (let i = 0; i < jalaliMonthStart(year, month); i++) {
+      days.push(<div key={`empty-${i}`} className="calendar-day empty" />);
     }
-
-    // Days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      const isSelected =
-        (startDate && startDate.year === year && startDate.month === month && startDate.day === day) ||
-        (endDate && endDate.year === year && endDate.month === month && endDate.day === day);
-
-      const isInRange = startDate && endDate && compareJalaliDates(
-        { year, month, day },
-        startDate
-      ) >= 0 && compareJalaliDates(
-        { year, month, day },
-        endDate
-      ) <= 0;
-
-      const classes = [
-        'calendar-day',
-        isSelected ? 'selected' : '',
-        isInRange && !isSelected ? 'in-range' : ''
-      ].filter(Boolean).join(' ');
-
+    for (let day = 1; day <= jalaliMonthLength(year, month); day++) {
+      const date = { year, month, day };
+      const isSelected = [startDate, endDate].some((selected) => selected && compareJalaliDates(selected, date) === 0);
+      const isInRange = startDate && endDate && compareJalaliDates(date, startDate) >= 0 && compareJalaliDates(date, endDate) <= 0;
+      const classes = ['calendar-day', isSelected ? 'selected' : '', isInRange && !isSelected ? 'in-range' : ''].filter(Boolean).join(' ');
       days.push(
-        <div
-          key={`day-${day}`}
-          className={classes}
-          onClick={() => handleDaySelect(day)}
-        >
+        <button type="button" key={`day-${day}`} className={classes} aria-label={formatJalaliInput(date)} onClick={() => handleDaySelect(day)}>
           {day}
-        </div>
+        </button>
       );
     }
-
     return days;
   };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (calendarRef.current &&
-        !calendarRef.current.contains(event.target) &&
-        !startDateRef.current?.contains(event.target) &&
-        !endDateRef.current?.contains(event.target)) {
+      if (calendarRef.current && !calendarRef.current.contains(event.target)) {
         setShowStartCalendar(false);
         setShowEndCalendar(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-
-  const compareJalaliDates = (date1, date2) => {
-    if (!date1 || !date2) return 0;
-
-    if (date1.year !== date2.year) return date1.year - date2.year;
-    if (date1.month !== date2.month) return date1.month - date2.month;
-    return date1.day - date2.day;
-  };
-
-
-  const jalaliMonthStart = (year, month) => {
-    const mod = (year - (month < 7 ? 474 : 473)) % 2820;
-    return (mod + 38) * 682 % 2816 < 682 ? 1 : 0;
-  };
-
-  const jalaliMonthLength = (year, month) => {
-    if (month < 7) return 31;
-    if (month < 12) return 30;
-
-    const mod = year % 33;
-    const isLeap = [1, 5, 9, 13, 17, 22, 26, 30].includes(mod);
-    return isLeap ? 30 : 29;
-  };
 
   const handleExportToExcel = async () => {
     try {
@@ -437,7 +344,7 @@ function Usersigned() {
       const XLSX = window.XLSX;
 
 
-      const dataToExport = rows.length > 0 ? rows : filteredUsers || [];
+      const dataToExport = rows;
       const data = dataToExport.map(user => [
         user.name || '—',
         user.mobile || '—',
@@ -565,14 +472,14 @@ function Usersigned() {
     }
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
     setIsRefreshing(true);
-
-    setTimeout(() => {
-
+    try {
+      if (await fetchUsers()) toast.success('جدول به روز رسانی شد');
+    } finally {
       setIsRefreshing(false);
-      toast.success('جدول به روز رسانی شد');
-    }, 1000);
+    }
   };
 
   const totalPages = meta?.last_page || 1;
@@ -628,33 +535,44 @@ function Usersigned() {
               <label className="filter-label">انتخاب تاریخ</label>
               <div className="date-input-with-separator" ref={calendarRef}>
                 <div className="dtg">
-                  <span
+                  <input
                     ref={startDateRef}
+                    type="text"
+                    inputMode="numeric"
                     className="date-start"
-                    onClick={handleStartDateClick}
-                    style={{
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {startDate ? `${startDate.day} ${jalaliMonths[startDate.month - 1]} ${startDate.year}` : 'تاریخ شروع'}
-                  </span>
+                    aria-label="تاریخ شروع"
+                    placeholder="تاریخ شروع"
+                    title="تاریخ شمسی مانند ۱۴۰۵/۰۷/۲۶؛ Enter برای اعمال"
+                    value={startDateInput}
+                    onChange={(event) => setStartDateInput(event.target.value)}
+                    onFocus={() => openCalendar('start')}
+                    onClick={() => openCalendar('start')}
+                    onKeyDown={(event) => handleDateKeyDown(event, 'start')}
+                    aria-haspopup="dialog"
+                    aria-expanded={showStartCalendar}
+                  />
                   <div className="date-separator-usersigned"></div>
-                  <span
+                  <input
                     ref={endDateRef}
+                    type="text"
+                    inputMode="numeric"
                     className="date-end"
-                    onClick={handleEndDateClick}
-                    style={{
-                      cursor: startDate ? 'pointer' : 'not-allowed',
-                      opacity: startDate ? 1 : 0.5
-                    }}
-                  >
-                    {endDate ? `${endDate.day} ${jalaliMonths[endDate.month - 1]} ${endDate.year}` : 'تاریخ پایان'}
-                  </span>
+                    aria-label="تاریخ پایان"
+                    placeholder="تاریخ پایان"
+                    title="تاریخ شمسی مانند ۱۴۰۵/۰۷/۲۶؛ Enter برای اعمال"
+                    value={endDateInput}
+                    onChange={(event) => setEndDateInput(event.target.value)}
+                    onFocus={() => openCalendar('end')}
+                    onClick={() => openCalendar('end')}
+                    onKeyDown={(event) => handleDateKeyDown(event, 'end')}
+                    aria-haspopup="dialog"
+                    aria-expanded={showEndCalendar}
+                  />
                 </div>
 
                 {/* Calendar Popup */}
                 {(showStartCalendar || showEndCalendar) && (
-                  <div className="calendar-popup" style={{
+                  <div className="calendar-popup" role="dialog" aria-label="انتخاب تاریخ شمسی" onKeyDown={(event) => { if (event.key === 'Escape') closeCalendars(); }} style={{
                     position: 'absolute',
                     top: '100%',
                     left: '0',
@@ -673,7 +591,7 @@ function Usersigned() {
                       alignItems: 'center',
                       marginBottom: '15px'
                     }}>
-                      <button onClick={handlePrevMonth} className="calendar-nav-btn" style={{
+                      <button type="button" onClick={() => handleMonthMove(-1)} aria-label="ماه قبل" className="calendar-nav-btn" style={{
                         background: 'none',
                         border: 'none',
                         fontSize: '20px',
@@ -682,13 +600,27 @@ function Usersigned() {
                       }}>
                         ‹
                       </button>
-                      <span className="calendar-title" style={{
-                        fontWeight: 'bold',
-                        fontSize: '16px',
-                      }}>
-                        {jalaliMonths[calendarDate.month - 1]} {calendarDate.year}
-                      </span>
-                      <button onClick={handleNextMonth} className="calendar-nav-btn" style={{
+                      <div className="calendar-title signed-calendar-fields">
+                        <select aria-label="ماه" value={calendarDate.month} onChange={(event) => setCalendarView({ year: calendarDate.year, month: Number(event.target.value) })}>
+                          {jalaliMonths.map((month, index) => <option key={month} value={index + 1}>{month}</option>)}
+                        </select>
+                        <button type="button" className="signed-year-nav" aria-label="سال قبل" onClick={() => handleYearMove(-1)}>−</button>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          aria-label="سال"
+                          value={calendarYearInput}
+                          onChange={(event) => setCalendarYearInput(event.target.value)}
+                          onBlur={handleYearCommit}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') { event.preventDefault(); handleYearCommit(); }
+                            if (event.key === 'ArrowUp') { event.preventDefault(); handleYearMove(1); }
+                            if (event.key === 'ArrowDown') { event.preventDefault(); handleYearMove(-1); }
+                          }}
+                        />
+                        <button type="button" className="signed-year-nav" aria-label="سال بعد" onClick={() => handleYearMove(1)}>+</button>
+                      </div>
+                      <button type="button" onClick={() => handleMonthMove(1)} aria-label="ماه بعد" className="calendar-nav-btn" style={{
                         background: 'none',
                         border: 'none',
                         fontSize: '20px',
@@ -844,7 +776,7 @@ function Usersigned() {
                     <td>{formatJalaliDateTime(user.createdAt)}</td>
                     <td>
                       <div className="action-buttons" style={{ display: 'flex', gap: '8px' }}>
-                        <button className="details-btn" onClick={() => handleDetailsClick(user.id)}>
+                        <button className="details-btn" disabled={!!updatingMap[user.id]} onClick={() => handleDetailsClick(user.id)}>
                           جزئیات
                         </button>
                         <button
@@ -1025,6 +957,10 @@ function Usersigned() {
                   <div className="detail-item">
                     <span className="detail-label">تاریخ ثبت نام:</span>
                     <span className="detail-value">{formatJalaliDateTime(selectedUser.createdAt)}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">آخرین فعال‌سازی دستی:</span>
+                    <span className="detail-value">{formatJalaliDateTime(selectedUser.lastManualActivationAt)}</span>
                   </div>
                   <div className="detail-item">
                     <span className="detail-label">آخرین ورود:</span>
