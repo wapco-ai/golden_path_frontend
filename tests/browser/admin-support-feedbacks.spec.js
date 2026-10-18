@@ -202,3 +202,48 @@ test('a failed refresh after successful deletion keeps the deleted row removed a
   await expect(row(page)).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+test('a slow post-delete refresh cannot lock another message or unlock its pending deletion', async ({ page }) => {
+  const { records, writes, errors } = await setup(page, { count: 3 });
+  let releaseOldList, releaseSecondDelete, oldListStarted = false, secondDeleteStarted = false;
+  const oldListGate = new Promise(resolve => { releaseOldList = resolve; });
+  const secondDeleteGate = new Promise(resolve => { releaseSecondDelete = resolve; });
+  await page.route('**/api/v1/admin/support-feedbacks**', async route => {
+    const request = route.request(), path = new URL(request.url()).pathname;
+    if (request.method() === 'DELETE' && path.endsWith('/2')) {
+      secondDeleteStarted = true;
+      await secondDeleteGate;
+      return route.fallback();
+    }
+    if (request.method() === 'GET' && path.endsWith('/admin/support-feedbacks') && !oldListStarted) {
+      const snapshot = JSON.parse(JSON.stringify(records));
+      oldListStarted = true;
+      await oldListGate;
+      return route.fulfill({ json: { data: snapshot, pagination: { currentPage: 1, perPage: 20, lastPage: 1, total: snapshot.length } } });
+    }
+    return route.fallback();
+  });
+  try {
+    await openDetails(page); await confirmDelete(page);
+    await expect.poll(() => oldListStarted).toBe(true);
+    await page.locator('#feedback-search-input').fill('پایش');
+    await expect(row(page, 2)).toBeVisible();
+    await openDetails(page, 2);
+    await expect(deleteButton(page)).toBeEnabled();
+    await expect(page.locator('#close-feedback-details-modal')).toBeEnabled();
+    await expect(page.locator('#close-feedback-modal-btn')).toBeEnabled();
+    await confirmDelete(page);
+    await expect.poll(() => secondDeleteStarted).toBe(true);
+    await expect(deleteButton(page)).toBeDisabled();
+    const oldResponse = page.waitForResponse(response => response.request().method() === 'GET' && response.url().includes('/admin/support-feedbacks?') && !new URL(response.url()).searchParams.has('q'));
+    releaseOldList(); await oldResponse;
+    await page.waitForTimeout(150);
+    await expect(deleteButton(page)).toBeDisabled();
+    await expect(page.locator('#close-feedback-modal-btn')).toBeDisabled();
+    releaseSecondDelete();
+    await expect(details(page)).toHaveCount(0);
+    await expect(row(page, 1)).toHaveCount(0); await expect(row(page, 2)).toHaveCount(0);
+    await expect(row(page, 3)).toBeVisible();
+    expect(deletes(writes)).toHaveLength(2); expect(errors).toEqual([]);
+  } finally { releaseOldList(); releaseSecondDelete(); }
+});

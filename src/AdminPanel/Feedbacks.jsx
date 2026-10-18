@@ -204,6 +204,7 @@ const Feedbacks = () => {
     deletingFeedbackId.current = id;
     setIsDeleting(true);
     let alreadyDeleted = false;
+    let shouldReload = false;
     try {
       try {
         await adminSupportApi.remove(id);
@@ -222,12 +223,16 @@ const Feedbacks = () => {
       } else {
         toast.success('بازخورد با موفقیت حذف شد');
       }
-      await loadFeedbacks({ page: latestQuery.current.page });
+      shouldReload = true;
     } catch (error) {
       toast.error('خطا در حذف بازخورد');
     } finally {
       deletingFeedbackId.current = null;
       setIsDeleting(false);
+    }
+
+    if (shouldReload) {
+      await loadFeedbacks({ page: latestQuery.current.page });
     }
   };
 
