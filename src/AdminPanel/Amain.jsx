@@ -48,6 +48,7 @@ import { bulkOpenCloseDoors, deleteDoor, getDoorInfo, moveDoor, pollDoorGraphSta
 import { deleteArea, getAreaInfo, listAreas, moveArea, updateAreaInfo } from '../services/adminAreasService';
 import { convertLngLatToUtm32640 } from '../utils/utm';
 import { formatCulturalCreatedAt } from '../utils/culturalItemDate.js';
+import { createCategoryApiError } from '../utils/categoryApiError.js';
 import { resolveMediaUrl, localizeMediaText } from '../utils/locationMedia.js';
 import { CULTURAL_UPLOAD_RULES, validateCulturalUpload, culturalUploadMime, culturalMediaKind, splitCulturalMedia, culturalFileMetadata, buildCulturalAttachmentPayload, selectCulturalPrimaryImage, markCulturalPrimaryImage, findExistingCulturalPrimary } from '../utils/culturalMediaUpload.js';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
@@ -10249,7 +10250,7 @@ const Amain = () => {
       }
 
       if (!response.ok) {
-        throw new Error('Failed to create category');
+        throw await createCategoryApiError(response, 'خطا در ایجاد دسته بندی');
       }
 
       setIsCreateCategoryModalOpen(false);
@@ -10258,7 +10259,7 @@ const Amain = () => {
       fetchCategories();
     } catch (error) {
       console.error('Failed to create category', error);
-      alert('خطا در ایجاد دسته بندی');
+      alert(getApiErrorMessage(error, 'خطا در ایجاد دسته بندی'));
     }
   };
 
@@ -10350,8 +10351,9 @@ const Amain = () => {
         const formData = new FormData();
         formData.append('icon', editCategoryData.icon);
         formData.append('payload', JSON.stringify(payload));
+        formData.append('_method', 'PUT');
         response = await adminFetch(`${API_BASE}/categories/${editingCategoryId}`, {
-          method: 'PUT',
+          method: 'POST',
           body: formData
         });
       } else {
@@ -10365,7 +10367,7 @@ const Amain = () => {
       }
 
       if (!response.ok) {
-        throw new Error('Failed to update category');
+        throw await createCategoryApiError(response, 'خطا در ویرایش دسته بندی');
       }
 
       setIsEditCategoryModalOpen(false);
@@ -10386,7 +10388,7 @@ const Amain = () => {
       fetchCategories();
     } catch (error) {
       console.error('Failed to update category', error);
-      alert('خطا در ویرایش دسته بندی');
+      alert(getApiErrorMessage(error, 'خطا در ویرایش دسته بندی'));
     }
   };
 
@@ -10404,14 +10406,14 @@ const Amain = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to add subcategory');
+        throw await createCategoryApiError(response, 'خطا در افزودن زیرگروه');
       }
 
       await fetchCategorySubcategories(editingCategoryId);
       alert('زیرگروه با موفقیت اضافه شد');
     } catch (error) {
       console.error('Failed to add subcategory', error);
-      alert('خطا در افزودن زیرگروه');
+      alert(getApiErrorMessage(error, 'خطا در افزودن زیرگروه'));
     }
   };
 
@@ -10432,13 +10434,13 @@ const Amain = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to add subcategory');
+        throw await createCategoryApiError(response, 'خطا در افزودن زیرگروه');
       }
 
       await fetchCategorySubcategories(parentId);
     } catch (error) {
       console.error('Failed to add subcategory', error);
-      alert('خطا در افزودن زیرگروه');
+      alert(getApiErrorMessage(error, 'خطا در افزودن زیرگروه'));
     }
   };
 
@@ -10456,13 +10458,13 @@ const Amain = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update subcategory');
+        throw await createCategoryApiError(response, 'خطا در ویرایش زیرگروه');
       }
 
       await fetchCategorySubcategories(subcategory.parentId);
     } catch (error) {
       console.error('Failed to update subcategory', error);
-      alert('خطا در ویرایش زیرگروه');
+      alert(getApiErrorMessage(error, 'خطا در ویرایش زیرگروه'));
     }
   };
 
@@ -12198,7 +12200,7 @@ const Amain = () => {
                                 )}
                               </div>
                             </td>
-                            <td>{category.createdAt}</td>
+                            <td>{formatCulturalCreatedAt(category.createdAt ?? category.created_at)}</td>
                             <td>
                               <div className="subcategory-count-cell">
                                 {category.numSubcategories}
@@ -12251,7 +12253,7 @@ const Amain = () => {
                               </td>
                               <td></td>
                               <td></td>
-                              <td>{subcategory.createdAt}</td>
+                              <td>{formatCulturalCreatedAt(subcategory.createdAt ?? subcategory.created_at)}</td>
                               <td></td>
                               <td>
                               </td>
@@ -17590,7 +17592,7 @@ const Amain = () => {
                             <span>{subcategory.title}</span>
                           </div>
                         </td>
-                        <td>{subcategory.createdAt}</td>
+                        <td>{formatCulturalCreatedAt(subcategory.createdAt ?? subcategory.created_at)}</td>
                         <td>
                           <div className="subcategory-actions">
                             <button
