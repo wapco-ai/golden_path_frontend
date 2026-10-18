@@ -89,4 +89,3 @@ export const normalizeCulturalItem = (item) => {
     primaryImage: resolvedPrimaryImage ?? item.primaryImage ?? null
   };
 };
-
