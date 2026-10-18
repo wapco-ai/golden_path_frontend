@@ -50,6 +50,7 @@ import { convertLngLatToUtm32640 } from '../utils/utm';
 import { formatCulturalCreatedAt } from '../utils/culturalItemDate.js';
 import { createCategoryApiError } from '../utils/categoryApiError.js';
 import { normalizeDashboardNotifications, buildNotificationGroups } from '../utils/adminNotifications.js';
+import { normalizeRecentUser } from '../utils/adminRecentUsers.js';
 import { resolveMediaUrl, localizeMediaText } from '../utils/locationMedia.js';
 import { CULTURAL_UPLOAD_RULES, validateCulturalUpload, culturalUploadMime, culturalMediaKind, splitCulturalMedia, culturalFileMetadata, buildCulturalAttachmentPayload, selectCulturalPrimaryImage, markCulturalPrimaryImage, findExistingCulturalPrimary } from '../utils/culturalMediaUpload.js';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
@@ -371,17 +372,6 @@ const formatNumberFa = (value) => {
   }
 
   return numericValue.toLocaleString('fa-IR');
-};
-
-const formatDateTimeString = (value) => {
-  if (!value) return '';
-
-  const parsed = new Date(value);
-  if (!Number.isNaN(parsed.getTime())) {
-    return parsed.toLocaleString('fa-IR');
-  }
-
-  return value;
 };
 
 const GENDER_OPTIONS = [
@@ -3088,14 +3078,7 @@ const Amain = () => {
       const data = await fetchDashboardRecentUsers({ page, pageSize, search });
       const normalizedUsers = Array.isArray(data?.data) ? data.data : [];
 
-      setUsers(normalizedUsers.map((user, index) => ({
-        id: user?.id ?? index,
-        fullName: user?.name || user?.fullName || user?.email || '---',
-        phone: user?.phone || '-',
-        registerDate: formatDateTimeString(user?.joinDate) || '',
-        gender: user?.gender || '-',
-        successCount: Number(user?.successCount) || 0
-      })));
+      setUsers(normalizedUsers.map(normalizeRecentUser));
 
       if (data?.pagination) {
         const { page: respPage, pageSize: respPageSize, total, pages } = data.pagination;
@@ -3113,9 +3096,11 @@ const Amain = () => {
           pages: Math.max(1, Math.ceil(normalizedUsers.length / (pageSize || 1)))
         });
       }
+      return true;
     } catch (error) {
       console.error('خطا در دریافت کاربران اخیر', error);
       toast.error('خطا در دریافت کاربران اخیر');
+      return false;
     } finally {
       setIsLoadingRecentUsers(false);
     }
@@ -3827,8 +3812,8 @@ const Amain = () => {
     setIsRefreshingMainTable(true);
 
     try {
-      await loadRecentUsers({ page: currentPage, pageSize: itemsPerPage, search: searchTerm });
-      toast.success('جدول به روز رسانی شد');
+      const refreshed = await loadRecentUsers({ page: currentPage, pageSize: itemsPerPage, search: searchTerm });
+      if (refreshed) toast.success('جدول به روز رسانی شد');
     } catch (error) {
       console.error('به‌روزرسانی جدول ناموفق بود', error);
       toast.error('به‌روزرسانی جدول ناموفق بود');
@@ -5801,13 +5786,7 @@ const Amain = () => {
   }, [activeEditableLayerId, editableLayerOptions, canUserEditLayer]);
 
   const handleDetailsClick = (user) => {
-    setSelectedUser({
-      ...user,
-      birthDate: '۱۳۷۵/۵/۲۰',
-      email: 'user.email@example.com',
-      province: 'خراسان رضوی',
-      city: 'مشهد'
-    });
+    setSelectedUser(user);
     setShowUserModal(true);
   };
 
@@ -7366,10 +7345,10 @@ const Amain = () => {
 
       const data = allUsers.map(user => [
         user.fullName,
-        `+۹۸ ${user.phone.replace('۹۸+', '').trim()}`,
-        user.registerDate,
+        user.phone,
+        user.registerDate || 'ثبت نشده',
         user.gender,
-        `${Math.floor(Math.random() * 5) + 1} بار`
+        user.successCount === null ? 'ثبت نشده' : `${user.successCount} بار`
       ]);
 
       // Create worksheet
@@ -13262,11 +13241,11 @@ const Amain = () => {
                             </div>
                           </td>
                           <td>{user.phone}</td>
-                          <td>{user.registerDate}</td>
+                          <td>{user.registerDate || 'ثبت نشده'}</td>
                           <td>{user.gender}</td>
                           <td>
                             <span className="success-count-userssigned">
-                              {user.successCount} بار
+                              {user.successCount === null ? 'ثبت نشده' : `${user.successCount} بار`}
                             </span>
                           </td>
                           <td>
@@ -17563,7 +17542,7 @@ const Amain = () => {
                 <div className="user-basic-info">
                   <h4>{selectedUser.fullName}</h4>
                   <span className="detail-label">تاریخ ثبت نام: </span>
-                  <span className="detail-value">{selectedUser.registerDate}</span>
+                  <span className="detail-value">{selectedUser.registerDate || 'ثبت نشده'}</span>
                 </div>
               </div>
 
@@ -17576,7 +17555,7 @@ const Amain = () => {
 
                 <div className="detail-item">
                   <span className="detail-label">آخرین ورود:</span>
-                  <span className="detail-value">{selectedUser.lastLogin}</span>
+                  <span className="detail-value">{selectedUser.lastLogin || 'ثبت نشده'}</span>
                 </div>
 
                 <div className="detail-item">
@@ -17587,7 +17566,7 @@ const Amain = () => {
                 <div className="detail-item">
                   <span className="detail-label">مسیریابی موفق:</span>
                   <span className="detail-value success-badge">
-                    {selectedUser.successCount} بار
+                    {selectedUser.successCount === null ? 'ثبت نشده' : `${selectedUser.successCount} بار`}
                   </span>
                 </div>
 
@@ -17624,11 +17603,11 @@ const Amain = () => {
                 <div className="info-cards">
                   <div className="info-card">
                     <span className="info-label">تعداد مسیرهای ذخیره شده:</span>
-                    <span className="info-value3">{Math.floor(Math.random() * 10) + 1}</span>
+                    <span className="info-value3">{selectedUser.savedRoutesCount ?? 'ثبت نشده'}</span>
                   </div>
                   <div className="info-card">
                     <span className="info-label">تعداد بازدید از مکان‌ها:</span>
-                    <span className="info-value3">{Math.floor(Math.random() * 50) + 10}</span>
+                    <span className="info-value3">{selectedUser.placeVisitsCount ?? 'ثبت نشده'}</span>
                   </div>
                 </div>
               </div>

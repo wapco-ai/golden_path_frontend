@@ -76,25 +76,34 @@ Below are the suggested endpoints/payloads for each dashboard block. Field names
 - **Response:**
   ```json
   {
-    "items": [
+    "data": [
       {
         "id": 1,
-        "fullName": "سیدمحمدحسین میرشفیعی",
-        "phone": "+98 9193937869",
-        "registerDate": "2024-08-08",
+        "name": "کاربر نمونه",
+        "email": "user@example.test",
+        "mobile": "09120000001",
+        "phone": "09120000001",
+        "joinDate": "2026-10-18T12:00:00.000000Z",
+        "birthDate": "1990-01-01",
         "gender": "male",
-        "successCount": 8
+        "province": "فارس",
+        "city": "شیراز",
+        "lastLoginAt": "2026-10-18T10:00:00.000000Z",
+        "successCount": 8,
+        "savedRoutesCount": null,
+        "placeVisitsCount": null
       }
     ],
-    "page": 1,
-    "pageSize": 10,
-    "total": 120
+    "pagination": { "page": 1, "pageSize": 10, "total": 120, "pages": 12 }
   }
   ```
 - **Notes:**
-  - UI search box filters by `fullName` client-side; backend should support `search` to avoid returning large datasets.
-  - `successCount` represents completed/successful navigations per user (displayed as "X بار").
-  - `registerDate` can be ISO; frontend handles formatting to Jalaali.
+  - Search and pagination use the server. `successCount` counts successful route requests for this user; malformed route metadata is ignored safely.
+  - `joinDate` is the naive-UTC registration timestamp serialized as explicit UTC ISO, or null. `lastLoginAt` is the actual persisted login instant or null. Both display in Tehran time.
+  - `birthDate` is the stored Gregorian calendar date or null. It displays as a Jalali date without browser-timezone shifts.
+  - Province/city come from stored profile address strings; full address and security fields are excluded. The popup receives the actual row data, with no injected profile placeholders.
+  - The server does not measure saved-route or confirmed place-visit totals, so both counts are null and use the existing missing-value display. Real zero values remain zero.
+  - The current-page Excel action uses the same unmodified phone and real success count as the table. No schema migration is needed; deploy backend before frontend.
 
 ## Authentication
 All endpoints should honor existing admin auth (Bearer token) used elsewhere under `/api/v1/admin`. No change to auth scheme is required.
