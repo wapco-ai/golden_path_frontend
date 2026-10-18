@@ -48,11 +48,13 @@ import { bulkOpenCloseDoors, deleteDoor, getDoorInfo, moveDoor, pollDoorGraphSta
 import { deleteArea, getAreaInfo, listAreas, moveArea, updateAreaInfo } from '../services/adminAreasService';
 import { convertLngLatToUtm32640 } from '../utils/utm';
 import { formatCulturalCreatedAt } from '../utils/culturalItemDate.js';
+import { resolveMediaUrl, localizeMediaText } from '../utils/locationMedia.js';
+import { CULTURAL_UPLOAD_RULES, validateCulturalUpload, culturalUploadMime, culturalMediaKind, splitCulturalMedia, culturalFileMetadata, buildCulturalAttachmentPayload, selectCulturalPrimaryImage, markCulturalPrimaryImage, findExistingCulturalPrimary } from '../utils/culturalMediaUpload.js';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import appConfig from '../config/appConfig';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { getLanguageName } from '../utils/languageNames';
-import { deleteFile, uploadFile } from '../services/fileService';
+import { uploadFile } from '../services/fileService';
 import { createVanEdge, createVanNode, deleteVanNode } from '../services/adminVanService';
 import {
   createTempBlockArea,
@@ -75,6 +77,44 @@ import useConnectorForm from './useConnectorForm';
 import { usesSharedConnectorEditor, connectorError, connectorPayload, floorLabel, floorValue } from '../utils/connectorForm';
 import { createDoorWithInfo, saveConnector } from '../services/adminConnectorsService';
 import { requestRouting } from '../services/routingService';
+
+const culturalFileLabel = (file) => [file?.title, file?.metadata?.title, file?.name]
+  .map((value) => localizeMediaText(value, 'fa')).find(Boolean) || 'فایل ویدیویی';
+
+const CulturalUploadHint = ({ kind }) => (
+  <p className="cultural-upload-hint">{CULTURAL_UPLOAD_RULES[kind].help}</p>
+);
+
+const CulturalVideoUploadSection = ({ editing = false, files, onUpload, onRemove }) => (
+  <div className={`cultural-video-upload ${editing ? 'edit-file-subsection' : 'file-upload-section'}`} data-testid={`cultural-video-section-${editing ? 'edit' : 'create'}`}>
+    <div className={editing ? 'edit-section-header' : 'file-section-header'}>
+      <span className={editing ? 'edit-section-title' : 'file-section-title'}>فایل‌های ویدیویی</span>
+      <label className={editing ? 'add-file-btn-small' : 'add-file-btn'}>
+        <input type="file" accept={CULTURAL_UPLOAD_RULES.video.accept} multiple onChange={(event) => onUpload(event, 'video')} className="file-input-hidden" data-testid={`cultural-video-input-${editing ? 'edit' : 'create'}`} />
+        افزودن فایل ویدیویی
+        {editing && <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M5 10h10M10 5v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>}
+      </label>
+    </div>
+    <CulturalUploadHint kind="video" />
+    {files.length > 0 && (
+      <div className={editing ? 'audio-files-list-edit' : 'audio-files-list'}>
+        {files.map((video) => (
+          <div key={video.id} className={`${editing ? 'audio-file-item-edit' : 'audio-file-item'} cultural-video-item`}>
+            <div className="cultural-video-info">
+              <span className={editing ? 'audio-file-name-edit' : 'audio-file-name'}>{culturalFileLabel(video)}</span>
+              <video controls preload="metadata" className="cultural-video-preview" aria-label={culturalFileLabel(video)}>
+                <source src={video.url} type={video.mime || video.type} />
+              </video>
+            </div>
+            <button type="button" className="remove-audio-btn" aria-label={`حذف ${video.name}`} onClick={() => onRemove(video.id, 'video')}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA4335" strokeWidth="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </button>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+);
 
 // Enables existing icon-only map controls to work with the keyboard.
 const activateAdminMapControlByKeyboard = (event) => {
@@ -1884,6 +1924,7 @@ const Amain = () => {
   const [culturalPrayerAfterMinutes, setCulturalPrayerAfterMinutes] = useState('');
   const [culturalPrayerTimeRestrictionsList, setCulturalPrayerTimeRestrictionsList] = useState([]);
   const [profileImages, setProfileImages] = useState([]);
+  const [videoFiles, setVideoFiles] = useState([]);
   const [audioFiles, setAudioFiles] = useState([]);
   const [textFiles, setTextFiles] = useState([]);
   const [primaryImage, setPrimaryImage] = useState(null);
@@ -1910,6 +1951,28 @@ const Amain = () => {
   });
 
   const [pendingFileInfo, setPendingFileInfo] = useState(null);
+  const culturalUploadQueueRef = useRef([]);
+  const culturalPreviewUrlsRef = useRef(new Set());
+
+  const releaseCulturalPreview = (file) => {
+    if (culturalPreviewUrlsRef.current.delete(file?.url)) URL.revokeObjectURL(file.url);
+  };
+
+  const resetCulturalUploads = () => {
+    culturalUploadQueueRef.current = [];
+    culturalPreviewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    culturalPreviewUrlsRef.current.clear();
+    setPendingImageFile(null);
+    setPendingFileInfo(null);
+    setShowOrientationModal(false);
+    setIsFileUploadModalOpen(false);
+    setSelectedOrientation('');
+  };
+
+  useEffect(() => () => {
+    culturalPreviewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    culturalPreviewUrlsRef.current.clear();
+  }, []);
   const [fileUploadTitle, setFileUploadTitle] = useState('');
   const [fileUploadDescription, setFileUploadDescription] = useState('');
   const [isFileLanguageModalOpen, setIsFileLanguageModalOpen] = useState(false);
@@ -1935,7 +1998,9 @@ const Amain = () => {
     if (typeof media === 'object') {
       if (media.url) return media.url;
       if (media.path) return media.path;
+      if (media.src) return media.src;
       if (media.data) {
+        if (typeof media.data === 'string' && /^data:/i.test(media.data)) return media.data;
         return `data:${media.mime || defaultMime};base64,${media.data}`;
       }
     }
@@ -1945,109 +2010,45 @@ const Amain = () => {
 
   const isImageUrl = (url = '') => /\.(avif|bmp|gif|ico|jpe?g|png|svg|webp)(\?|#|$)/i.test(url);
 
-  const normalizeMediaAttachment = (file, defaultMime = 'application/octet-stream') => {
-    if (!file) return null;
-
-    const mimeType = file.mime
-      || (file.type?.includes('/') ? file.type : null)
-      || (file.type === 'image' ? 'image/jpeg' : null)
-      || (file.type === 'video' ? 'video/mp4' : null)
-      || (file.type === 'audio' ? 'audio/mpeg' : null)
-      || defaultMime;
-
-    const resolvedUrl = buildMediaUrl(file, mimeType) || file.url || '';
-    const shouldCoerceToImage = typeof resolvedUrl === 'string' && isImageUrl(resolvedUrl)
-      && !String(mimeType).startsWith('image/');
-    const normalizedMime = shouldCoerceToImage ? 'image/jpeg' : mimeType;
-
+  const normalizeMediaAttachment = (attachment, defaultMime = 'application/octet-stream') => {
+    if (!attachment) return null;
+    const file = typeof attachment === 'string' ? { url: attachment } : attachment;
+    const resolvedUrl = resolveMediaUrl(buildMediaUrl(file, file.mime || defaultMime), { apiBaseUrl: appConfig.apiBaseUrl }) || '';
+    const kind = culturalMediaKind({ ...file, url: resolvedUrl });
+    const declaredMime = file.mime || (file.type?.includes('/') ? file.type : null);
+    const dataMime = resolvedUrl.match(/^data:([^;]+);/)?.[1];
+    const kindMime = { image: 'image/jpeg', video: 'video/mp4', audio: 'audio/mpeg' }[kind];
+    const mimeType = kindMime && declaredMime && !declaredMime.startsWith(`${kind}/`)
+      ? kindMime
+      : declaredMime && declaredMime !== 'application/octet-stream'
+        ? declaredMime
+        : dataMime || kindMime || defaultMime;
+    const metadata = file.metadata || file.metaData || null;
     return {
-      id: file.id || `attachment-${Math.random().toString(36).slice(2)}`,
-      name: file.name || 'فایل پیوست',
-      orientation: file.orientation ?? null,
       ...file,
-      type: normalizedMime,
-      mime: normalizedMime,
+      id: file.id || file.path || resolvedUrl || `attachment-${Math.random().toString(36).slice(2)}`,
+      path: file.path || file.url || file.src || undefined,
+      name: file.name || 'فایل پیوست',
+      title: file.title ?? metadata?.title,
+      description: file.description ?? metadata?.description,
+      languageTitles: file.languageTitles ?? metadata?.languageTitles,
+      languageDescriptions: file.languageDescriptions ?? metadata?.languageDescriptions,
+      orientation: file.orientation ?? null,
+      metadata,
+      type: mimeType,
+      mime: mimeType,
       url: resolvedUrl
     };
   };
 
-
-  const getMediaIdentityKey = (file) => {
-    if (!file) return '';
-
-    const url = typeof file.url === 'string' ? file.url.trim() : '';
-    const path = typeof file.path === 'string' ? file.path.trim() : '';
-
-    if (url) return url;
-    if (path) return path;
-
-    return String(file.id || '').trim();
-  };
-
   const normalizePrimaryMedia = (primaryMedia, existingImages = []) => {
-    if (!primaryMedia) {
-      return { primary: null, images: existingImages };
+    if (!primaryMedia || culturalMediaKind(primaryMedia) !== 'image') {
+      return { primary: existingImages[0] || null, images: existingImages };
     }
-
-    if (typeof primaryMedia === 'object') {
-      const normalizedPrimary = {
-        id: primaryMedia.id || 'existing-primary-image',
-        name: primaryMedia.name || 'تصویر اصلی',
-        type: primaryMedia.type || 'image/*',
-        url: primaryMedia.url || primaryMedia,
-        isPrimary: primaryMedia.isPrimary ?? true,
-        orientation: primaryMedia.orientation ?? null
-      };
-
-      const primaryKey = getMediaIdentityKey(normalizedPrimary);
-      const images = existingImages.some((img) => {
-        const imageKey = getMediaIdentityKey(img);
-        return imageKey && primaryKey && imageKey === primaryKey;
-      })
-        ? existingImages
-        : [normalizedPrimary, ...existingImages];
-
-      return { primary: normalizedPrimary, images };
-    }
-
-    const dataUrlMatch = typeof primaryMedia === 'string'
-      ? primaryMedia.match(/^data:([^;]+);/)
-      : null;
-
-    const derivedType = dataUrlMatch?.[1] || 'image/*';
-
-    const normalizedPrimary = {
-      id: 'existing-primary-image',
-      name: 'تصویر اصلی',
-      type: derivedType,
-      url: primaryMedia,
-      isPrimary: true
-    };
-
-    const primaryKey = getMediaIdentityKey(normalizedPrimary);
-    const images = existingImages.some((img) => {
-      const imageKey = getMediaIdentityKey(img);
-      return imageKey && primaryKey && imageKey === primaryKey;
-    })
-      ? existingImages
-      : [normalizedPrimary, ...existingImages];
-
-    return { primary: normalizedPrimary, images };
-  };
-
-  const normalizeImageAttachments = (files = []) => {
-    if (!Array.isArray(files)) return [];
-
-    return files
-      .map(file => normalizeMediaAttachment(file))
-      .filter((file) => file
-        && typeof file.url === 'string'
-        && file.url.trim()
-        && (
-          (typeof file.type === 'string' && file.type.startsWith('image'))
-          || (typeof file.mime === 'string' && file.mime.startsWith('image'))
-          || file.fileType === 'image'
-        ));
+    const existing = findExistingCulturalPrimary(primaryMedia, existingImages);
+    if (existing) return { primary: existing, images: existingImages };
+    const primary = { ...primaryMedia, isPrimary: true };
+    return { primary, images: [primary, ...existingImages] };
   };
 
   const normalizeLanguageMedia = (media = {}, language = 'fa') => {
@@ -2055,9 +2056,9 @@ const Amain = () => {
     const languageMedia = Array.isArray(media?.[language]) ? media[language] : [];
 
     return languageMedia
-      .map((file, idx) => normalizeMediaAttachment({
+      .map((file, idx) => normalizeMediaAttachment(typeof file === 'string' ? file : {
         ...file,
-        id: file?.id || file?.path || file?.url || `media-${language}-${idx}`
+        id: file?.id || file?.path || file?.url || file?.src || `media-${language}-${idx}`
       }, file?.mime || file?.type || 'application/octet-stream'))
       .filter((file) => {
         if (!file?.url) return false;
@@ -2127,90 +2128,52 @@ const Amain = () => {
   };
 
 
-  const handleFileUploadWithModal = (event, fileType) => {
-    const files = Array.from(event.target.files);
-
-    if (files.length === 0) return;
-
-    // Process the first file (you can extend to multiple later)
-    const file = files[0];
-
-    // Check file size
-    const maxSize = 100 * 1024 * 1024; // 100MB
-    if (file.size > maxSize) {
-      alert(`حجم فایل نباید بیشتر از ۱۰۰ مگابایت باشد`);
-      event.target.value = '';
+  const openNextCulturalUpload = () => {
+    const next = culturalUploadQueueRef.current.shift();
+    if (!next) return;
+    const { file, fileType } = next;
+    const url = URL.createObjectURL(file);
+    culturalPreviewUrlsRef.current.add(url);
+    const info = {
+      file, url, fileType, name: file.name, size: file.size,
+      type: culturalUploadMime(file, fileType)
+    };
+    if (fileType === 'image') {
+      setPendingImageFile(info);
+      setSelectedOrientation('');
+      setShowOrientationModal(true);
       return;
     }
+    setPendingFileInfo(info);
+    setFileUploadTitle(file.name.replace(/\.[^/.]+$/, ''));
+    setFileUploadDescription('');
+    setFileLanguageTitles({ english: '', arabic: '', urdu: '' });
+    setFileLanguageDescriptions({ english: '', arabic: '', urdu: '' });
+    setIsFileUploadModalOpen(true);
+  };
 
-    // Determine the actual file type
-    let actualFileType = fileType;
-    if (file.type.startsWith('video/')) {
-      actualFileType = 'video';
-    } else if (file.type.startsWith('audio/')) {
-      actualFileType = 'audio';
-    } else if (file.type.startsWith('image/')) {
-      actualFileType = 'image';
-    } else if (file.type === 'application/pdf' || file.type.startsWith('text/')) {
-      actualFileType = 'text';
-    }
+  const cancelCulturalUpload = (pendingFile) => {
+    releaseCulturalPreview(pendingFile);
+    culturalUploadQueueRef.current = [];
+    setPendingImageFile(null);
+    setPendingFileInfo(null);
+    setShowOrientationModal(false);
+    setIsFileUploadModalOpen(false);
+    setSelectedOrientation('');
+  };
 
-    // For images, show orientation modal
-    if (actualFileType === 'image') {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPendingImageFile({
-          file,
-          url: e.target.result,
-          type: file.type,
-          name: file.name,
-          size: file.size
-        });
-        setShowOrientationModal(true);
-      };
-      reader.readAsDataURL(file);
-    }
-    // For other file types (video, audio, text), show title/description modal
-    else {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPendingFileInfo({
-          file,
-          url: e.target.result,
-          type: file.type,
-          name: file.name,
-          size: file.size,
-          fileType: actualFileType // Use the actual file type
-        });
-        setIsFileUploadModalOpen(true);
-
-        // Set default title from filename (without extension)
-        const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
-        setFileUploadTitle(fileNameWithoutExt);
-        setFileUploadDescription('');
-        setFileLanguageTitles({
-          english: '',
-          arabic: '',
-          urdu: ''
-        });
-        setFileLanguageDescriptions({
-          english: '',
-          arabic: '',
-          urdu: ''
-        });
-      };
-
-      // Read the file based on type
-      if (actualFileType === 'video' || actualFileType === 'audio') {
-        reader.readAsDataURL(file);
-      } else {
-        // For text/PDF files
-        reader.readAsDataURL(file);
-      }
-    }
-
-    // Reset file input
+  const handleFileUploadWithModal = (event, fileType) => {
+    const files = Array.from(event.target.files || []);
     event.target.value = '';
+    if (!files.length) return;
+    const errors = files.map((file) => validateCulturalUpload(file, fileType)).filter(Boolean);
+    if (errors.length) {
+      alert(errors.join('\n'));
+      return;
+    }
+    // Keep every selected file; each one uses the existing details/orientation modal.
+    culturalUploadQueueRef.current.push(...files.map((file) => ({ file, fileType })));
+    if (!pendingImageFile && !pendingFileInfo) openNextCulturalUpload();
   };
 
   const handleNotificationClick = () => {
@@ -2229,18 +2192,6 @@ const Amain = () => {
 
   const handleDeleteNotification = (id) => {
     setNotifications(prev => prev.filter(notif => notif.id !== id));
-  };
-
-  // Helper function to detect file type from MIME type
-  const detectFileType = (file) => {
-    if (file.type.startsWith('image/')) return 'image';
-    if (file.type.startsWith('video/')) return 'video';
-    if (file.type.startsWith('audio/')) return 'audio';
-    if (file.type === 'application/pdf' || file.type.startsWith('text/') ||
-      file.type.includes('document') || file.type.includes('sheet')) {
-      return 'text';
-    }
-    return 'text'; // Default
   };
 
   // Helper function to get file category label
@@ -2297,11 +2248,14 @@ const Amain = () => {
           path: file.path || file.url || '',
           url: file.url || file.path || '',
           mime: file.mime || file.type,
-          metadata: file.metadata || file.metaData || null,
+          metadata: culturalFileMetadata(file),
           bucket: file.bucket || resolveFileBucket(file)
         });
         continue;
       }
+
+      const validationError = validateCulturalUpload(file.file, culturalMediaKind(file));
+      if (validationError) throw new Error(validationError);
 
       const response = await uploadFile({
         file: file.file,
@@ -2312,43 +2266,22 @@ const Amain = () => {
       });
 
       uploadedFiles.push({
-        id: file.id,
-        name: file.name,
+        ...file,
+        file: undefined,
         orientation: file.orientation ?? null,
         mime: response?.mime || file.mime || file.type,
         path: response?.path || '',
         url: response?.url || response?.path || '',
-        metadata: response?.metadata || response?.metaData || null,
+        metadata: culturalFileMetadata(file, response?.metadata || response?.metaData),
         bucket: response?.bucket || resolveFileBucket(file),
-        isPrimary: file.isPrimary || file.id === primaryImage?.id
+        isPrimary: culturalMediaKind(file) === 'image' && (file.isPrimary || file.id === primaryImage?.id)
       });
     }
 
-    return uploadedFiles;
+    return markCulturalPrimaryImage(uploadedFiles, primaryImage?.id);
   };
 
-  const buildAttachmentPayload = (files = []) => {
-    const seenPaths = new Set();
-
-    return files
-      .filter((file) => file?.path || file?.url)
-      .map((file) => ({
-        type: resolveAttachmentType(file?.mime || file?.type || ''),
-        mime: file?.mime || file?.type || 'application/octet-stream',
-        path: file?.path || file?.url || '',
-        url: file?.url || file?.path || '',
-        metadata: file?.metadata || file?.metaData || null,
-        bucket: file?.bucket,
-        orientation: file?.orientation ?? null,
-        name: file?.name
-      }))
-      .filter((attachment) => {
-        const key = attachment.path || attachment.url;
-        if (seenPaths.has(key)) return false;
-        seenPaths.add(key);
-        return true;
-      });
-  };
+  const buildAttachmentPayload = buildCulturalAttachmentPayload;
 
   const buildCulturalTranslationsPayload = (attachments = []) => {
     const mediaPayload = attachments
@@ -2364,6 +2297,9 @@ const Amain = () => {
           bucket: file?.bucket,
           metadata: file?.metadata || null,
           name: file?.name,
+          isPrimary: file?.type === 'image' && file?.isPrimary === true,
+          title: file?.title,
+          description: file?.description,
           orientation: file?.orientation ?? null
         };
       })
@@ -2611,13 +2547,8 @@ const Amain = () => {
         }
         break;
       case 'video':
-        // Videos go to profileImages
-        newFile.isPrimary = profileImages.length === 0 && !primaryImage;
-        newFile.isVideo = true;
-        setProfileImages(prev => [...prev, newFile]);
-        if (profileImages.length === 0 && !primaryImage) {
-          setPrimaryImage(newFile);
-        }
+        newFile.isPrimary = false;
+        setVideoFiles(prev => [...prev, newFile]);
         break;
       case 'audio':
         setAudioFiles(prev => [...prev, newFile]);
@@ -2628,17 +2559,6 @@ const Amain = () => {
       default:
         // For unknown types, add to text files
         setTextFiles(prev => [...prev, newFile]);
-    }
-
-    // Check if there are more files to process
-    const nextFileInput = document.querySelector('.file-input-hidden[data-file-index]');
-    if (nextFileInput && pendingFileInfo.index !== null &&
-      pendingFileInfo.index + 1 < pendingFileInfo.totalFiles) {
-      // There are more files, trigger next file
-      const nextIndex = pendingFileInfo.index + 1;
-      // You would need to store all files and process them sequentially
-      // For now, we'll just close and let user select next file
-      alert(`فایل ${pendingFileInfo.name} آپلود شد. لطفا فایل بعدی را انتخاب کنید.`);
     }
 
     // Close modal and reset
@@ -2657,6 +2577,7 @@ const Amain = () => {
       urdu: ''
     });
     setSelectedOrientation('');
+    openNextCulturalUpload();
   };
 
   const openFileLanguageModal = () => {
@@ -3806,21 +3727,7 @@ const Amain = () => {
         return true;
       });
 
-      const imageAttachments = dedupedAttachments.filter((file) =>
-        file?.url
-        && typeof file.url === 'string'
-        && file.url.trim()
-        && (
-          (file.type && file.type.startsWith('image')) || (file.mime && file.mime.startsWith('image'))
-        )
-      );
-      const audioAttachments = dedupedAttachments.filter((file) =>
-        (file.type && file.type.startsWith('audio')) || (file.mime && file.mime.startsWith('audio'))
-      );
-      const textAttachments = dedupedAttachments.filter((file) =>
-        !((file.type && (file.type.startsWith('image') || file.type.startsWith('audio') || file.type.startsWith('video')))
-          || (file.mime && (file.mime.startsWith('image') || file.mime.startsWith('audio') || file.mime.startsWith('video'))))
-      );
+      const { images: imageAttachments, videos: videoAttachments, audio: audioAttachments, documents: textAttachments } = splitCulturalMedia(dedupedAttachments);
 
       const normalizedPrimaryCandidate = itemToEdit.primaryImage
         ? normalizeMediaAttachment(itemToEdit.primaryImage)
@@ -3839,7 +3746,9 @@ const Amain = () => {
 
       const { primary, images } = normalizePrimaryMedia(normalizedPrimary, imageAttachments);
 
+      resetCulturalUploads();
       setProfileImages(images);
+      setVideoFiles(videoAttachments);
       setAudioFiles(audioAttachments);
       setTextFiles(textAttachments);
       setPrimaryImage(primary || images[0] || null);
@@ -3906,14 +3815,13 @@ const Amain = () => {
     try {
       const uploadedFiles = await uploadCulturalFiles([
         ...profileImages,
+        ...videoFiles,
         ...audioFiles,
         ...textFiles
       ], editingCulturalId);
 
       const attachments = buildAttachmentPayload(uploadedFiles);
-      const resolvedPrimary = uploadedFiles.find((file) => file.id === primaryImage?.id)
-        || uploadedFiles.find((file) => file.isPrimary)
-        || null;
+      const resolvedPrimary = selectCulturalPrimaryImage(uploadedFiles, primaryImage?.id);
 
       const selectedSubGroup = culturalSubGroupOptions.find(
         (subGroup) => String(subGroup.value) === String(culturalPlaceSubcategory)
@@ -4183,7 +4091,9 @@ const Amain = () => {
     setIsLoadingCulturalGroups(false);
     setIsLoadingCulturalSubGroups(false);
 
+    resetCulturalUploads();
     setProfileImages([]);
+    setVideoFiles([]);
     setAudioFiles([]);
     setTextFiles([]);
     setPrimaryImage(null);
@@ -4350,7 +4260,9 @@ const Amain = () => {
     setIsLoadingCulturalGroups(false);
     setIsLoadingCulturalSubGroups(false);
 
+    resetCulturalUploads();
     setProfileImages([]);
+    setVideoFiles([]);
     setAudioFiles([]);
     setTextFiles([]);
     setPrimaryImage(null);
@@ -4950,75 +4862,6 @@ const Amain = () => {
     });
   };
 
-  const handleFileUpload = (event, fileType) => {
-    const files = Array.from(event.target.files);
-
-    files.forEach(file => {
-      // Check file type
-      if (file.type.startsWith('image/')) {
-        // For images - show orientation modal
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          // Store the image data temporarily
-          setPendingImageFile({
-            file,
-            url: e.target.result,
-            type: file.type,
-            name: file.name,
-            size: file.size
-          });
-          // Show orientation modal for images only
-          setShowOrientationModal(true);
-        };
-        reader.readAsDataURL(file);
-      }
-      else if (file.type.startsWith('video/')) {
-        // For videos - upload directly without orientation modal
-        const newFile = {
-          id: Date.now() + Math.random(),
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          url: URL.createObjectURL(file),
-          isPrimary: profileImages.length === 0 && !primaryImage,
-          orientation: null // No orientation for videos
-        };
-
-        setProfileImages(prev => [...prev, newFile]);
-
-        // Set as primary if it's the first media file
-        if (profileImages.length === 0 && !primaryImage) {
-          setPrimaryImage(newFile);
-        }
-      }
-      else if (file.type.startsWith('audio/')) {
-        // For audio files
-        const audioUrl = URL.createObjectURL(file);
-        setAudioFiles(prev => [...prev, {
-          id: Date.now() + Math.random(),
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          url: audioUrl
-        }]);
-      }
-      else if (file.type === 'application/pdf') {
-        // For PDF files
-        const pdfUrl = URL.createObjectURL(file);
-        setTextFiles(prev => [...prev, {
-          id: Date.now() + Math.random(),
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          url: pdfUrl
-        }]);
-      }
-    });
-
-    // Reset file input
-    event.target.value = '';
-  };
-
   const handleOrientationSelect = (orientation) => {
     if (!pendingImageFile) return;
 
@@ -5044,6 +4887,7 @@ const Amain = () => {
     setPendingImageFile(null);
     setSelectedOrientation('');
     setShowOrientationModal(false);
+    openNextCulturalUpload();
   };
 
   // Function to skip orientation selection
@@ -5072,17 +4916,18 @@ const Amain = () => {
     setPendingImageFile(null);
     setSelectedOrientation('');
     setShowOrientationModal(false);
+    openNextCulturalUpload();
   };
 
   // Set primary image handler
   const handleSetPrimaryImage = (imageId) => {
     const image = profileImages.find(img => img.id === imageId);
-    if (image) {
+    if (image && culturalMediaKind(image) === 'image') {
       setPrimaryImage(image);
     }
   };
 
-  const handleRemoveFile = async (fileId, fileType) => {
+  const handleRemoveFile = (fileId, fileType) => {
     let fileToRemove = null;
 
     if (fileType === 'image') {
@@ -5096,31 +4941,21 @@ const Amain = () => {
           setPrimaryImage(remainingImages.length > 0 ? remainingImages[0] : null);
         }
       }
+    } else if (fileType === 'video') {
+      fileToRemove = videoFiles.find(video => video.id === fileId);
+      setVideoFiles(prev => prev.filter(video => video.id !== fileId));
     } else if (fileType === 'audio') {
       fileToRemove = audioFiles.find(audio => audio.id === fileId);
-      if (fileToRemove && fileToRemove.url) {
-        URL.revokeObjectURL(fileToRemove.url);
-      }
       setAudioFiles(prev => prev.filter(audio => audio.id !== fileId));
     } else if (fileType === 'text') {
       fileToRemove = textFiles.find(text => text.id === fileId);
-      if (fileToRemove && fileToRemove.url) {
-        URL.revokeObjectURL(fileToRemove.url);
-      }
       setTextFiles(prev => prev.filter(text => text.id !== fileId));
     }
 
-    const remotePath = fileToRemove?.path || fileToRemove?.url;
-    const shouldDeleteRemote = fileToRemove && !fileToRemove.file && remotePath;
-
-    if (shouldDeleteRemote) {
-      try {
-        await deleteFile(remotePath);
-      } catch (error) {
-        console.error('حذف فایل از سرور با خطا مواجه شد', error);
-        toast.error('حذف فایل از سرور ناموفق بود');
-      }
-    }
+    releaseCulturalPreview(fileToRemove);
+    // The form edits references only. Existing files may be shared by other
+    // translations/items; removing one here must remain reversible until save.
+    // Physical cleanup needs a separate reference-aware storage process.
   };
 
   const renderCulturalPrayerJalaliCalendarDays = () => {
@@ -5429,6 +5264,7 @@ const Amain = () => {
       // مرحله ۲: حالا فایل‌ها را با entity_id عددی آپلود کن
       const filesToUpload = [
         ...profileImages,
+        ...videoFiles,
         ...audioFiles,
         ...textFiles
       ];
@@ -5436,10 +5272,12 @@ const Amain = () => {
       if (filesToUpload.length > 0) {
         const uploadedFiles = await uploadCulturalFiles(filesToUpload, createdPoiId);
         const attachments = buildAttachmentPayload(uploadedFiles);
+        const resolvedPrimary = selectCulturalPrimaryImage(uploadedFiles, primaryImage?.id);
 
         // مرحله ۳: آیتم را با media نهایی آپدیت کن
         await updateCulturalItem(createdPoiId, {
           poi_id: createdPoiId,
+          primaryImage: resolvedPrimary?.path || resolvedPrimary?.url || null,
           translations: buildCulturalTranslationsPayload(attachments),
           addressInShrine: placeAddress,
           grouping: {
@@ -11732,12 +11570,12 @@ const Amain = () => {
                 {/* Left Section */}
                 <div className="edit-left-section">
 
-                  {/* Profile Images and Videos Section */}
+                  {/* Profile Images Section */}
                   <div className="edit-media-section">
                     <div className="edit-section-header">
-                      <span className="edit-section-title">تصاویر و ویدئوهای پروفایل اطلاعات فرهنگی</span>
+                      <span className="edit-section-title">تصاویر پروفایل اطلاعات فرهنگی</span>
                       <label className="add-file-btn12">
-                        <input type="file" accept="image/*,video/*" multiple onChange={(e) => handleFileUploadWithModal(e, 'image')} className="file-input-hidden" />
+                        <input type="file" accept={CULTURAL_UPLOAD_RULES.image.accept} multiple onChange={(e) => handleFileUploadWithModal(e, 'image')} className="file-input-hidden" data-testid="cultural-image-input-edit" />
                         افزودن فایل
                         <svg width="25" height="25" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path d="M22.2824 0H18.8284C17.8063 0 17.0544 0.42296 16.7137 1.17489C16.5257 1.51561 16.4435 1.91507 16.4435 2.38502V5.8392C16.4435 7.33131 17.3363 8.22422 18.8284 8.22422H22.2824C22.7523 8.22422 23.1517 8.14198 23.4924 7.954C24.2443 7.61328 24.6672 6.86135 24.6672 5.8392V2.38502C24.6672 0.892916 23.7744 0 22.2824 0ZM23.3867 4.61731C23.2692 4.7348 23.093 4.81705 22.905 4.82879H21.2485V5.42799L21.2603 6.46189C21.2485 6.66162 21.178 6.82611 21.037 6.96709C20.9196 7.08458 20.7433 7.16682 20.5554 7.16682C20.1677 7.16682 19.8505 6.8496 19.8505 6.46189V4.81705L18.2057 4.82879C18.0177 4.82571 17.8384 4.74885 17.7065 4.61477C17.5747 4.4807 17.5008 4.30017 17.5008 4.11211C17.5008 3.7244 17.818 3.40718 18.2057 3.40718L19.2396 3.41893H19.8505V1.77408C19.8505 1.38637 20.1677 1.0574 20.5554 1.0574C20.9431 1.0574 21.2603 1.38637 21.2603 1.77408L21.2485 2.60825V3.40718H22.905C23.2927 3.40718 23.6099 3.7244 23.6099 4.11211C23.5979 4.3017 23.5188 4.48081 23.3867 4.61731ZM8.22089 11.0216C8.96245 11.0216 9.67365 10.727 10.198 10.2026C10.7224 9.67824 11.017 8.96701 11.017 8.2254C11.017 7.48379 10.7224 6.77256 10.198 6.24816C9.67365 5.72376 8.96245 5.42916 8.22089 5.42916C7.47932 5.42916 6.76812 5.72376 6.24376 6.24816C5.71939 6.77256 5.4248 7.48379 5.4248 8.2254C5.4248 8.96701 5.71939 9.67824 6.24376 10.2026C6.76812 10.727 7.47932 11.0216 8.22089 11.0216Z" fill="#0F71EF" />
@@ -11746,16 +11584,13 @@ const Amain = () => {
                       </label>
                     </div>
 
+                    <CulturalUploadHint kind="image" />
                     {primaryImage && (
                       <div className="primary-image-section-edit">
                         <div className="primary-image-label">تصویر اصلی</div>
                         <div className="primary-image-container-edit">
                           {primaryImage.type.startsWith('image/') ? (
                             <img src={primaryImage.url} alt={primaryImage.name} className="primary-image-edit" />
-                          ) : primaryImage.type.startsWith('video/') ? (
-                            <video controls className="primary-image-edit">
-                              <source src={primaryImage.url} type={primaryImage.type} />
-                            </video>
                           ) : null}
                           <button className="remove-file-btn-edit" onClick={() => handleRemoveFile(primaryImage.id, 'image')}>
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -11791,10 +11626,6 @@ const Amain = () => {
                                   </svg>
                                 </button>
                               </div>
-                            ) : file.type.startsWith('video/') ? (
-                              <video controls className="media-preview-edit">
-                                <source src={file.url} type={file.type} />
-                              </video>
                             ) : null}
                             <div className="profile-image-actions-edit">
                               {file.type.startsWith('image/') && file.id !== primaryImage?.id && (
@@ -11809,13 +11640,14 @@ const Amain = () => {
                     )}
                   </div>
 
-                  {/* Text and Audio Files Section */}
+                  {/* Video, Audio and Text Files Section */}
                   <div className="edit-files-section">
+                    <CulturalVideoUploadSection editing files={videoFiles} onUpload={handleFileUploadWithModal} onRemove={handleRemoveFile} />
                     <div className="edit-file-subsection">
                       <div className="edit-section-header">
                         <span className="edit-section-title">فایل‌های صوتی</span>
                         <label className="add-file-btn-small">
-                          <input type="file" accept="audio/*" multiple onChange={(e) => handleFileUploadWithModal(e, 'audio')} className="file-input-hidden" />
+                          <input type="file" accept={CULTURAL_UPLOAD_RULES.audio.accept} multiple onChange={(e) => handleFileUploadWithModal(e, 'audio')} className="file-input-hidden" />
                           افزودن فایل صوتی
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#1E2023" />
@@ -11823,6 +11655,7 @@ const Amain = () => {
                           </svg>
                         </label>
                       </div>
+                      <CulturalUploadHint kind="audio" />
                       {audioFiles.length > 0 && (
                         <div className="audio-files-list-edit">
                           {audioFiles.map((audio) => (
@@ -11854,7 +11687,7 @@ const Amain = () => {
                       <div className="edit-section-header">
                         <span className="edit-section-title">فایل‌های متنی</span>
                         <label className="add-file-btn-small">
-                          <input type="file" accept=".pdf,.txt,.doc,.docx,.xls,.xlsx" multiple onChange={(e) => handleFileUploadWithModal(e, 'text')} className="file-input-hidden" />
+                          <input type="file" accept={CULTURAL_UPLOAD_RULES.text.accept} multiple onChange={(e) => handleFileUploadWithModal(e, 'text')} className="file-input-hidden" />
                           افزودن فایل متنی
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M15 10.625H5C4.65833 10.625 4.375 10.3417 4.375 10C4.375 9.65833 4.65833 9.375 5 9.375H15C15.3417 9.375 15.625 9.65833 15.625 10C15.625 10.3417 15.3417 10.625 15 10.625Z" fill="#1E2023" />
@@ -11862,6 +11695,7 @@ const Amain = () => {
                           </svg>
                         </label>
                       </div>
+                      <CulturalUploadHint kind="text" />
                       {textFiles.length > 0 && (
                         <div className="text-files-list-edit">
                           {textFiles.map((textFile) => (
@@ -16129,13 +15963,14 @@ const Amain = () => {
                   </div>
 
                   <div className="form-section">
-                    {/* Profile Images and Videos Section */}
+                    {/* Profile Images Section */}
                     <div className="file-upload-section">
                       <div className="file-section-header">
                         <label className="add-file-btn">
                           <input
                             type="file"
-                            accept="image/*,video/*"
+                            accept={CULTURAL_UPLOAD_RULES.image.accept}
+                            data-testid="cultural-image-input-create"
                             multiple
                             onChange={(e) => handleFileUploadWithModal(e, 'image')} // Changed to handleFileUploadWithModal
                             className="file-input-hidden"
@@ -16148,6 +15983,8 @@ const Amain = () => {
                         </label>
                       </div>
 
+                      <CulturalUploadHint kind="image" />
+
                       {/* Primary Image Display */}
                       {primaryImage && (
                         <div className="primary-image-section">
@@ -16159,10 +15996,6 @@ const Amain = () => {
                                 alt={primaryImage.name}
                                 className="primary-image"
                               />
-                            ) : primaryImage.type.startsWith('video/') ? (
-                              <video controls className="primary-image">
-                                <source src={primaryImage.url} type={primaryImage.type} />
-                              </video>
                             ) : null}
                             <button
                               className="remove-file-btn"
@@ -16213,10 +16046,6 @@ const Amain = () => {
                                     </div>
                                   )}
                                 </div>
-                              ) : file.type.startsWith('video/') ? (
-                                <video className="media-preview">
-                                  <source src={file.url} type={file.type} />
-                                </video>
                               ) : null}
 
                               <div className="profile-image-actions">
@@ -16256,6 +16085,8 @@ const Amain = () => {
                       )}
                     </div>
 
+                    <CulturalVideoUploadSection files={videoFiles} onUpload={handleFileUploadWithModal} onRemove={handleRemoveFile} />
+
                     {/* Audio Files Section */}
                     <div className="file-upload-section">
                       <div className="file-section-header">
@@ -16263,7 +16094,7 @@ const Amain = () => {
                         <label className="add-file-btn">
                           <input
                             type="file"
-                            accept="audio/*"
+                            accept={CULTURAL_UPLOAD_RULES.audio.accept}
                             multiple
                             onChange={(e) => handleFileUploadWithModal(e, 'audio')} // Changed to handleFileUploadWithModal
                             className="file-input-hidden"
@@ -16271,6 +16102,8 @@ const Amain = () => {
                           افزودن فایل صوتی
                         </label>
                       </div>
+
+                      <CulturalUploadHint kind="audio" />
 
                       {/* Audio Files List */}
                       {audioFiles.length > 0 && (
@@ -16309,7 +16142,7 @@ const Amain = () => {
                         <label className="add-file-btn">
                           <input
                             type="file"
-                            accept=".pdf,.txt,.doc,.docx,.xls,.xlsx"
+                            accept={CULTURAL_UPLOAD_RULES.text.accept}
                             multiple
                             onChange={(e) => handleFileUploadWithModal(e, 'text')} // Changed to handleFileUploadWithModal
                             className="file-input-hidden"
@@ -16317,6 +16150,8 @@ const Amain = () => {
                           افزودن فایل متنی
                         </label>
                       </div>
+
+                      <CulturalUploadHint kind="text" />
 
                       {/* Text Files List */}
                       {textFiles.length > 0 && (
@@ -16762,9 +16597,7 @@ const Amain = () => {
               <button
                 className="cancel-btn"
                 onClick={() => {
-                  setShowOrientationModal(false);
-                  setPendingImageFile(null);
-                  setSelectedOrientation('');
+                  cancelCulturalUpload(pendingImageFile);
                 }}
               >
                 انصراف
@@ -16848,8 +16681,7 @@ const Amain = () => {
               <button
                 className="cancel-btn5"
                 onClick={() => {
-                  setIsFileUploadModalOpen(false);
-                  setPendingFileInfo(null);
+                  cancelCulturalUpload(pendingFileInfo);
                 }}
               >
                 انصراف
