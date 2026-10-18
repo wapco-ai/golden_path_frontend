@@ -934,6 +934,9 @@ const Amain = () => {
   const adminFetch = useCallback(
     (url, options = {}) => {
       const headers = new Headers(options.headers || {});
+      if (!headers.has('Accept')) {
+        headers.set('Accept', 'application/json');
+      }
       const token = resolveAdminToken();
       if (token && !headers.has('Authorization')) {
         headers.set('Authorization', `Bearer ${token}`);

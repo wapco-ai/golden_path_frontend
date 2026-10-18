@@ -6,7 +6,7 @@ const createdAt = '2026-10-18T21:00:00Z';
 const dateLabel = '۱۴۰۵/۰۷/۲۷'; // Tehran has already crossed midnight.
 
 async function setup(page) {
-  const writes = [], errors = [], alerts = [], prompts = [];
+  const writes = [], errors = [], alerts = [], prompts = [], redirects = [];
   const categories = [
     { id: 11, title: 'دسته فرهنگی', description: 'توضیحات قبلی', createdAt, status: 'active', numSubcategories: 1,
       subcategories: [{ id: 12, parentId: 11, title: 'زیرگروه فرهنگی', createdAt, status: 'active' }] },
@@ -33,7 +33,7 @@ async function setup(page) {
     else if (path.endsWith('/categories') && method === 'GET') json = { items: categories, total: 11, page: 1, pageSize: 7 };
     else if (/\/categories\/11\/subcategories$/.test(path) && method === 'GET') json = { items: categories[0].subcategories };
     else if (method === 'POST' && path.endsWith('/categories')) {
-      const body = request.postDataJSON(); writes.push({ method, path, body });
+      const body = request.postDataJSON(); writes.push({ method, path, body, headers: request.headers() });
       if (body.title === 'دسته صفحه بعد' || body.subcategories?.length > 1) {
         status = 422;
         const message = body.subcategories?.length > 1 ? duplicateChild : duplicate;
@@ -43,7 +43,7 @@ async function setup(page) {
         categories.unshift(json); status = 201;
       }
     } else if (method === 'PUT' && path.endsWith('/categories/11')) {
-      const body = request.postDataJSON(); writes.push({ method, path, body });
+      const body = request.postDataJSON(); writes.push({ method, path, body, headers: request.headers() });
       if (body.title === 'دسته قدیمی') {
         status = 422; json = { message: duplicate, errors: { title: [duplicate] } };
       } else {
@@ -51,11 +51,19 @@ async function setup(page) {
         json = categories.find(category => category.id === 11);
       }
     } else if ((method === 'POST' && path.endsWith('/categories/11/subcategories')) || (method === 'PUT' && path.endsWith('/subcategories/12'))) {
-      writes.push({ method, path, body: request.postDataJSON() });
+      writes.push({ method, path, body: request.postDataJSON(), headers: request.headers() });
       status = 422; json = { message: 'The given data was invalid.', errors: { title: [duplicateChild] } };
+    }
+    // Model Laravel's original content negotiation instead of always returning
+    // JSON: a fetch accepting */* redirects to the frontend on validation errors.
+    if (status === 422 && !request.headers().accept?.includes('application/json')) {
+      redirects.push(path);
+      await route.fulfill({ status: 302, headers: { location: new URL('/category-validation-redirect', page.url()).href }, body: '' });
+      return;
     }
     await route.fulfill({ status, json });
   });
+  await page.route('**/category-validation-redirect', route => route.fulfill({ contentType: 'text/html', body: '<html>Validation redirect</html>' }));
   await page.route('**/map-styles/**/style*.json', route => route.fulfill({ json: { version: 8, sources: {}, layers: [{ id: 'background', type: 'background' }] } }));
   await page.route('**/tiles/**', route => route.fulfill({ status: 204 }));
   await page.route('**/tms/**', route => route.fulfill({ status: 204 }));
@@ -63,7 +71,7 @@ async function setup(page) {
   await page.getByText('مدیریت امکانات', { exact: true }).click();
   await page.getByText('مدیریت دسته بندی‌ها', { exact: true }).click();
   await expect(page.locator('.categories-table')).toBeVisible();
-  return { writes, errors, alerts, prompts };
+  return { writes, errors, alerts, prompts, redirects };
 }
 
 const categoryRow = (page, title = 'دسته فرهنگی') => page.locator('.categories-table tbody > tr').filter({ has: page.getByText(title, { exact: true }) });
@@ -88,13 +96,16 @@ test('the subcategory management modal displays its stored creation date', async
 });
 
 test('a duplicate category on another page shows the server title error and keeps the form for a corrected retry', async ({ page }) => {
-  const { writes, alerts, errors } = await setup(page);
+  const { writes, alerts, errors, redirects } = await setup(page);
   await page.getByRole('button', { name: 'ایجاد دسته بندی جدید', exact: true }).click();
   const modal = page.locator('.create-category-modal');
   const title = modal.getByPlaceholder('عنوان دسته بندی را بنویسید (فارسی)');
   await title.fill('دسته صفحه بعد'); await modal.locator('textarea').fill('توضیحات محفوظ');
   await modal.getByRole('button', { name: 'تایید و ایجاد', exact: true }).click();
   await expect.poll(() => alerts).toContain(duplicate);
+  expect(writes[0].headers.accept).toBe('application/json');
+  expect(writes[0].headers.authorization).toBe('Bearer browser-fixture-only');
+  expect(redirects).toEqual([]);
   await expect(title).toHaveValue('دسته صفحه بعد');
   await expect(modal.locator('textarea')).toHaveValue('توضیحات محفوظ');
   await title.fill('دسته تازه');
@@ -105,7 +116,7 @@ test('a duplicate category on another page shows the server title error and keep
 });
 
 test('duplicate rename stays open while saving the category under its own name preserves its creation date', async ({ page }) => {
-  const { writes, alerts, errors } = await setup(page);
+  const { writes, alerts, errors, redirects } = await setup(page);
   await categoryRow(page).getByRole('button', { name: 'ویرایش', exact: true }).click();
   const modal = page.locator('.edit-category-modal');
   const title = modal.getByPlaceholder('عنوان دسته بندی (فارسی)');
@@ -119,6 +130,8 @@ test('duplicate rename stays open while saving the category under its own name p
   await expect(categoryRow(page).locator('td').nth(3)).toHaveText(dateLabel);
   await expect(categoryRow(page)).toContainText('توضیحات ویرایش شده');
   expect(writes).toHaveLength(2); expect(errors).toEqual([]);
+  expect(writes.every(write => write.headers.accept === 'application/json')).toBe(true);
+  expect(redirects).toEqual([]);
 });
 
 test('duplicate subcategories in a new category show their specific validation error without clearing the batch', async ({ page }) => {
@@ -137,7 +150,7 @@ test('duplicate subcategories in a new category show their specific validation e
 });
 
 test('adding or renaming a subcategory displays the server duplicate error in the existing dialog flow', async ({ page }) => {
-  const { writes, alerts, prompts, errors } = await setup(page);
+  const { writes, alerts, prompts, errors, redirects } = await setup(page);
   await categoryRow(page).getByRole('button', { name: 'ویرایش', exact: true }).click();
   prompts.push('زیرگروه فرهنگی');
   await page.locator('.edit-category-modal .add-subgroup-btn-small').click();
@@ -149,4 +162,6 @@ test('adding or renaming a subcategory displays the server duplicate error in th
   await expect.poll(() => alerts.length).toBe(2);
   expect(alerts[1]).toBe(duplicateChild);
   expect(writes).toHaveLength(2); expect(errors).toEqual([]);
+  expect(writes.every(write => write.headers.accept === 'application/json')).toBe(true);
+  expect(redirects).toEqual([]);
 });
