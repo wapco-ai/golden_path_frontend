@@ -47,6 +47,7 @@ import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../ut
 import { bulkOpenCloseDoors, deleteDoor, getDoorInfo, moveDoor, pollDoorGraphStatus, updateDoorInfo } from '../services/adminDoorsService';
 import { deleteArea, getAreaInfo, listAreas, moveArea, updateAreaInfo } from '../services/adminAreasService';
 import { convertLngLatToUtm32640 } from '../utils/utm';
+import { formatCulturalCreatedAt } from '../utils/culturalItemDate.js';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import appConfig from '../config/appConfig';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
@@ -12088,7 +12089,7 @@ const Amain = () => {
                             </div>
                           </td>
                           <td>{item.addressInShrine || '-'}</td>
-                          <td>{item.createdAt || '-'}</td>
+                          <td>{formatCulturalCreatedAt(item.createdAt)}</td>
                           <td className="cultural-description-cell">
                             {item.description ? (
                               <div className="truncated-description">
