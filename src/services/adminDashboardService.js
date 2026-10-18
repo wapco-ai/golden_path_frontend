@@ -17,8 +17,18 @@ export const fetchDashboardCommentStats = async ({ range = 'week' } = {}) => {
   return response.data;
 };
 
-export const fetchDashboardNotifications = async ({ limit = 10, unreadOnly = false } = {}) => {
-  const response = await http.get(`${DASHBOARD_BASE_URL}/notifications`, { params: { limit, unreadOnly } });
+export const fetchDashboardNotifications = async ({ limit = 10, unreadOnly = false, includeMeta = false } = {}) => {
+  const response = await http.get(`${DASHBOARD_BASE_URL}/notifications`, { params: { limit, unreadOnly, includeMeta } });
+  return response.data;
+};
+
+export const markDashboardNotificationsRead = async (ids) => {
+  const response = await http.post(`${DASHBOARD_BASE_URL}/notifications/read`, { ids });
+  return response.data;
+};
+
+export const markAllDashboardNotificationsRead = async () => {
+  const response = await http.post(`${DASHBOARD_BASE_URL}/notifications/read-all`);
   return response.data;
 };
 
@@ -32,6 +42,8 @@ const adminDashboardService = {
   fetchDashboardUserVisits,
   fetchDashboardCommentStats,
   fetchDashboardNotifications,
+  markDashboardNotificationsRead,
+  markAllDashboardNotificationsRead,
   fetchDashboardRecentUsers
 };
 

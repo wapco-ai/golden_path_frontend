@@ -63,32 +63,12 @@ Below are the suggested endpoints/payloads for each dashboard block. Field names
   - UI also computes `unknown = total - approved - rejected`; ensure totals are consistent.
 
 ### 4) Notifications List
-- **Purpose:** Replace hard-coded notification cards and support the in-UI actions (badge count, mark-as-read, delete).
-- **Endpoint (list):** `GET /api/v1/admin/dashboard/notifications?limit=10&unreadOnly=false`
-- **Response:**
-  ```json
-  {
-    "items": [
-      {
-        "id": 1,
-        "title": "دیدگاه جدید",
-        "message": "کاربر \"سیدمحمدحسین میرشفیعی\" دیدگاه جدیدی ثبت کرده است",
-        "time": "2024-09-01T09:20:00Z",
-        "type": "comment",
-        "read": false
-      }
-    ],
-    "unreadCount": 3
-  }
-  ```
-- **Notes:**
-  - `type` currently used values: `comment`, `user`, `feedback`.
-  - Provide `unreadCount` for badge support; the UI currently derives it from items but can display a server value.
-  - `time` should be an ISO date; the UI shows relative strings (e.g., "۱۰ دقیقه پیش") and can format the ISO value.
-  - The popup supports three actions that should be wired to backend endpoints:
-    - **Mark all as read:** `POST /api/v1/admin/dashboard/notifications/read-all`
-    - **Mark one as read:** `PATCH /api/v1/admin/dashboard/notifications/{id}/read`
-    - **Delete one notification:** `DELETE /api/v1/admin/dashboard/notifications/{id}`
+- **Endpoint:** `GET /api/v1/admin/dashboard/notifications?limit=10&unreadOnly=true&includeMeta=true`.
+- The current response is `{ "items": [], "unreadCount": 0 }` when `includeMeta=true`; the default remains a bare array for compatibility.
+- IDs are stable `new_user:ID`, `new_comment:ID` or `support_message:ID` strings, dates are UTC ISO 8601, and read state is stored separately for each authenticated admin.
+- The badge uses the global unread count before the display limit. The existing popup displays unread groups and reloads each time it opens.
+- `POST /api/v1/admin/dashboard/notifications/read` accepts explicit group IDs; `POST /api/v1/admin/dashboard/notifications/read-all` marks all records in one server statement snapshot. These operations never delete the underlying source records.
+- See [notification_payload.md](notification_payload.md) for the implemented contract, read-all semantics and deployment dependency.
 
 ### 5) Latest Registered Users Table
 - **Purpose:** Replace the mock user list and support search/pagination.
