@@ -6,6 +6,10 @@ import appConfig from '../../config/appConfig';
 export const USER_ACCESS_TOKEN_KEY = 'gp_user_access_token';
 export const USER_REFRESH_TOKEN_KEY = 'gp_user_refresh_token';
 
+export const isSameUserSession = (first, second) => Boolean(first && second)
+  && Number.isInteger(first.sessionGeneration)
+  && first.sessionGeneration === second.sessionGeneration;
+
 const userAuthClient = axios.create({
   baseURL: `${appConfig.apiBaseUrl}/api/v1/auth`,
   headers: {
@@ -49,13 +53,18 @@ export const useUserAuthStore = create(
       expiresIn: null,
       profileCompleted: null,
       isLoading: false,
+      // Runtime identity survives token rotation but changes on a new login/logout.
+      sessionGeneration: 0,
 
-      setSession: ({ accessToken, refreshToken, user, expiresIn, profileCompleted }) => {
+      setSession: ({ accessToken, refreshToken, user, expiresIn, profileCompleted }, { fromRefresh = false } = {}) => {
+        const currentSession = get();
+        const credentialsChanged = accessToken !== currentSession.accessToken || refreshToken !== currentSession.refreshToken;
         set({
           accessToken,
           refreshToken,
           user: user || null,
           expiresIn: expiresIn || null,
+          sessionGeneration: currentSession.sessionGeneration + (credentialsChanged && !fromRefresh ? 1 : 0),
           profileCompleted:
             typeof profileCompleted === 'boolean'
               ? profileCompleted
@@ -66,15 +75,19 @@ export const useUserAuthStore = create(
 
       clearSession: () => {
         clearUserStorage();
-        set({ accessToken: null, refreshToken: null, user: null, expiresIn: null, profileCompleted: null });
+        set({ accessToken: null, refreshToken: null, user: null, expiresIn: null, profileCompleted: null, sessionGeneration: get().sessionGeneration + 1 });
       },
 
       refreshSession: async () => {
-        const refreshToken = get().refreshToken || localStorage.getItem(USER_REFRESH_TOKEN_KEY);
+        const currentSession = get();
+        const refreshToken = currentSession.refreshToken || localStorage.getItem(USER_REFRESH_TOKEN_KEY);
         if (!refreshToken) {
           throw new Error('User refresh token missing');
         }
         const response = await userAuthClient.post('/refresh', { refreshToken });
+        if (!isSameUserSession(currentSession, get()) || currentSession.refreshToken !== get().refreshToken) {
+          throw new Error('User session changed during refresh');
+        }
         const { accessToken, refreshToken: newRefresh, user, expiresIn } = response.data || {};
         const nextRefreshToken = newRefresh || refreshToken;
         get().setSession({
@@ -82,12 +95,13 @@ export const useUserAuthStore = create(
           refreshToken: nextRefreshToken,
           user: user || get().user,
           expiresIn
-        });
+        }, { fromRefresh: true });
         return response.data;
       },
 
       fetchMe: async () => {
-        const token = get().accessToken || sessionStorage.getItem(USER_ACCESS_TOKEN_KEY);
+        const currentSession = get();
+        const token = currentSession.accessToken || sessionStorage.getItem(USER_ACCESS_TOKEN_KEY);
         if (!token) {
           throw new Error('User access token missing');
         }
@@ -98,9 +112,10 @@ export const useUserAuthStore = create(
           }
         });
 
+        if (!isSameUserSession(currentSession, get())) throw new Error('User session changed during profile lookup');
         const meData = response?.data || {};
         get().setSession({
-          accessToken: token,
+          accessToken: get().accessToken || token,
           refreshToken: get().refreshToken || localStorage.getItem(USER_REFRESH_TOKEN_KEY),
           user: meData,
           profileCompleted: typeof meData.profileCompleted === 'boolean' ? meData.profileCompleted : null
