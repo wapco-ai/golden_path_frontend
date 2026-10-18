@@ -32,3 +32,5 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Admin connector forms in desktop and mobile browser
         run: npm run test:browser
+      - name: Installed PWA notification cache isolation
+        run: npm run test:pwa-cache

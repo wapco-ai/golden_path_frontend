@@ -59,6 +59,13 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // Set to 5 MiB for example
         runtimeCaching: [
           {
+            // Read state and unread counts are per admin and must never be
+            // restored from an older response in the generic API cache.
+            urlPattern: ({ url }) => url.pathname === '/api/v1/admin/dashboard/notifications',
+            handler: 'NetworkOnly',
+            method: 'GET'
+          },
+          {
             // A stale image-selection response must not be replayed during navigation.
             // Keep this before the generic API NetworkFirst rule below.
             urlPattern: ({ url }) => url.pathname === '/api/v1/landmark-view-image'

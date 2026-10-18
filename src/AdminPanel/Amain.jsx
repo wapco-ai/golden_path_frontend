@@ -49,6 +49,7 @@ import { deleteArea, getAreaInfo, listAreas, moveArea, updateAreaInfo } from '..
 import { convertLngLatToUtm32640 } from '../utils/utm';
 import { formatCulturalCreatedAt } from '../utils/culturalItemDate.js';
 import { createCategoryApiError } from '../utils/categoryApiError.js';
+import { normalizeDashboardNotifications, buildNotificationGroups } from '../utils/adminNotifications.js';
 import { resolveMediaUrl, localizeMediaText } from '../utils/locationMedia.js';
 import { CULTURAL_UPLOAD_RULES, validateCulturalUpload, culturalUploadMime, culturalMediaKind, splitCulturalMedia, culturalFileMetadata, buildCulturalAttachmentPayload, selectCulturalPrimaryImage, markCulturalPrimaryImage, findExistingCulturalPrimary } from '../utils/culturalMediaUpload.js';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
@@ -70,6 +71,8 @@ import {
   fetchDashboardUserVisits,
   fetchDashboardCommentStats,
   fetchDashboardNotifications,
+  markDashboardNotificationsRead,
+  markAllDashboardNotificationsRead,
   fetchDashboardRecentUsers
 } from '../services/adminDashboardService';
 import ConnectorStops from './ConnectorStops';
@@ -868,6 +871,7 @@ const Amain = () => {
     accessToken
   } = useAdminAuthStore();
   const API_BASE = `${appConfig.apiBaseUrl}/api/v1/admin`;
+  const notificationAccountKey = `${adminProfile?.id ?? adminProfile?.adminId ?? adminProfile?.username ?? adminProfile?.email ?? 'admin'}:${accessToken || (typeof window !== 'undefined' ? window.sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY) : '') || ''}`;
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [dashboardSummary, setDashboardSummary] = useState({
@@ -886,6 +890,12 @@ const Amain = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
+  const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
+  const [isAcknowledgingNotifications, setIsAcknowledgingNotifications] = useState(false);
+  const notificationAccountRef = useRef(notificationAccountKey);
+  notificationAccountRef.current = notificationAccountKey;
+  const notificationScopeRef = useRef(null);
+  const notificationPopupOpenRef = useRef(false);
 
   const [map, setMap] = useState(null);
   const [mapLayerAvailabilityVersion, setMapLayerAvailabilityVersion] = useState(0);
@@ -1299,11 +1309,8 @@ const Amain = () => {
   const tempAreaDraftGeometryRef = useRef(null);
   const tempAreaPreviousCursorRef = useRef(null);
   const prevFloorLangRef = useRef({ floor: null, lang: null });
-  const unreadNotifications = useMemo(
-    () => notifications.filter(notif => !notif.read),
-    [notifications]
-  );
-  const unreadNotificationsCount = unreadNotifications.length;
+  const unreadNotificationsCount = notificationScopeRef.current?.accountKey === notificationAccountKey
+    ? notificationUnreadCount : 0;
 
   const setMapCursorForTempAreaDrawing = useCallback(() => {
     if (!map?.getCanvas) return;
@@ -2181,22 +2188,63 @@ const Amain = () => {
   };
 
   const handleNotificationClick = () => {
-    setShowNotifications(prev => !prev);
+    const nextOpen = !notificationPopupOpenRef.current;
+    notificationPopupOpenRef.current = nextOpen;
+    setShowNotifications(nextOpen);
+    if (nextOpen) loadNotifications();
   };
 
-  const handleMarkAllAsRead = () => {
-    setNotifications(prev => prev.map(notif => ({ ...notif, read: true })));
+  const acknowledgeNotifications = async (ids, markAll = false) => {
+    const scope = notificationScopeRef.current;
+    if (!scope?.active || scope.accountKey !== notificationAccountRef.current || scope.mutation) return;
+    const visibleIds = markAll
+      ? notifications.filter((item) => !item.read).map((item) => item.id)
+      : ids || [];
+    const requestedIds = [...new Set(visibleIds.map(String))];
+    if (!markAll && !requestedIds.length) return;
+    const operation = {};
+    scope.mutation = operation;
+    // Every GET already in flight predates this acknowledgement.
+    scope.requestId += 1;
+    setIsLoadingNotifications(false);
+    setIsAcknowledgingNotifications(true);
+    const isCurrent = () => scope.active && notificationScopeRef.current === scope
+      && scope.accountKey === notificationAccountRef.current;
+    let acknowledged = false;
+    try {
+      const data = markAll
+        ? await markAllDashboardNotificationsRead()
+        : await markDashboardNotificationsRead(requestedIds);
+      if (!isCurrent()) return;
+      if (data?.success === false) throw new Error(data?.message || 'ثبت خواندن اعلان‌ها ناموفق بود');
+      // A GET opened while POST was pending must not restore its old snapshot.
+      scope.requestId += 1;
+      const requested = new Set(requestedIds);
+      // Read-all covers the server snapshot, while a GET during the POST may
+      // already have supplied newer unread events. Retain those until refresh.
+      setNotifications((previous) => previous.filter((item) => !requested.has(String(item.id))));
+      if (Number.isInteger(data?.unreadCount) && data.unreadCount >= 0) {
+        setNotificationUnreadCount(data.unreadCount);
+      }
+      acknowledged = true;
+    } catch (error) {
+      if (isCurrent()) toast.error(getApiErrorMessage(error, 'ثبت خواندن اعلان‌ها ناموفق بود'));
+    } finally {
+      // Release the POST guard before starting the refresh; a slow GET must not
+      // prevent a later acknowledgement from reaching the server.
+      if (scope.mutation === operation) {
+        scope.mutation = null;
+        if (isCurrent()) setIsAcknowledgingNotifications(false);
+      }
+    }
+    if (isCurrent() && (acknowledged || scope.refreshRequested)) {
+      scope.refreshRequested = false;
+      await loadNotifications();
+    }
   };
 
-  const handleMarkAsRead = (id) => {
-    setNotifications(prev => prev.map(notif =>
-      notif.id === id ? { ...notif, read: true } : notif
-    ));
-  };
-
-  const handleDeleteNotification = (id) => {
-    setNotifications(prev => prev.filter(notif => notif.id !== id));
-  };
+  const handleMarkAllAsRead = () => acknowledgeNotifications([], true);
+  const handleMarkAsRead = (ids) => acknowledgeNotifications(ids);
 
   // Helper function to get file category label
   const getFileCategory = (mimeType) => {
@@ -3003,58 +3051,32 @@ const Amain = () => {
   }, [pieChartTimeFilter]);
 
   const loadNotifications = useCallback(async () => {
+    const scope = notificationScopeRef.current;
+    if (!scope?.active || scope.accountKey !== notificationAccountKey) return false;
+    // Wait for an acknowledgement to settle before reading a newer snapshot;
+    // otherwise a delayed POST count could overwrite a later GET's metadata.
+    if (scope.mutation) {
+      scope.refreshRequested = true;
+      return false;
+    }
+    const requestId = ++scope.requestId;
+    const isCurrent = () => scope.active && notificationScopeRef.current === scope
+      && scope.accountKey === notificationAccountRef.current && scope.requestId === requestId;
     setIsLoadingNotifications(true);
     try {
-      const data = await fetchDashboardNotifications({ limit: 10, unreadOnly: false });
-      const now = new Date();
-      const normalized = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.data)
-          ? data.data
-          : [];
-
-      const normalizeCreatedAt = (value) => {
-        if (typeof value === 'string' && value.includes(' ') && !value.includes('T')) {
-          const candidate = value.replace(' ', 'T');
-          const parsed = new Date(candidate);
-          if (!Number.isNaN(parsed.getTime())) {
-            return parsed.toISOString();
-          }
-        }
-
-        return value;
-      };
-
-      setNotifications(normalized.map((item, index) => {
-        const type = item?.type === 'new_comment'
-          ? 'comment'
-          : item?.type === 'new_user'
-            ? 'user'
-            : 'feedback';
-
-        const createdAtValue = normalizeCreatedAt(item?.createdAt);
-        const parsedDate = new Date(createdAtValue || Date.now());
-        const validDate = Number.isNaN(parsedDate.getTime()) ? now : parsedDate;
-        const safeDate = validDate > now ? now : validDate;
-        const createdAtText = formatDateTimeString(safeDate);
-
-        return {
-          id: item?.id ?? `${item?.type || 'notif'}-${item?.entityId || index}-${item?.createdAt || index}`,
-          title: item?.title || 'اعلان',
-          message: item?.message || '',
-          createdAt: safeDate.toISOString(),
-          time: createdAtText,
-          read: Boolean(item?.read),
-          type
-        };
-      }));
+      const data = await fetchDashboardNotifications({ limit: 10, unreadOnly: true, includeMeta: true });
+      if (!isCurrent()) return false;
+      const normalized = normalizeDashboardNotifications(data);
+      setNotifications(normalized.items);
+      setNotificationUnreadCount(normalized.unreadCount);
+      return true;
     } catch (error) {
-      console.error('خطا در دریافت اعلان‌ها', error);
-      toast.error('خطا در دریافت اعلان‌ها');
+      if (isCurrent()) toast.error(getApiErrorMessage(error, 'خطا در دریافت اعلان‌ها'));
+      return false;
     } finally {
-      setIsLoadingNotifications(false);
+      if (isCurrent()) setIsLoadingNotifications(false);
     }
-  }, []);
+  }, [notificationAccountKey]);
 
   const loadRecentUsers = useCallback(async ({
     page = 1,
@@ -3104,8 +3126,20 @@ const Amain = () => {
   }, [loadDashboardSummary]);
 
   useEffect(() => {
+    const scope = { accountKey: notificationAccountKey, active: true, requestId: 0, mutation: null, refreshRequested: false };
+    notificationScopeRef.current = scope;
+    notificationPopupOpenRef.current = false;
+    setShowNotifications(false);
+    setNotifications([]);
+    setNotificationUnreadCount(0);
+    setIsLoadingNotifications(false);
+    setIsAcknowledgingNotifications(false);
     loadNotifications();
-  }, [loadNotifications]);
+    return () => {
+      scope.active = false;
+      scope.requestId += 1;
+    };
+  }, [notificationAccountKey, loadNotifications]);
 
   useEffect(() => {
     loadUserVisits(barChartTimeFilter);
@@ -3902,145 +3936,8 @@ const Amain = () => {
   };
 
 
-  const categorizeNotificationsByPeriod = (notifications) => {
-    const now = new Date();
-    const twelveHoursAgo = new Date(now.getTime() - (12 * 60 * 60 * 1000));
-    const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
-    const fortyEightHoursAgo = new Date(now.getTime() - (48 * 60 * 60 * 1000));
-
-    // Create period buckets
-    const periods = [
-      {
-        label: 'last12Hours',
-        start: twelveHoursAgo,
-        end: now,
-        displayText: '12 ساعت گذشته'
-      },
-      {
-        label: '12to24Hours',
-        start: twentyFourHoursAgo,
-        end: twelveHoursAgo,
-        displayText: 'دیروز'
-      },
-      {
-        label: '24to48Hours',
-        start: fortyEightHoursAgo,
-        end: twentyFourHoursAgo,
-        displayText: 'پریروز'
-      }
-    ];
-
-    // Categorize notifications by type and period
-    const categorized = {};
-
-    // Initialize structure
-    periods.forEach(period => {
-      categorized[period.label] = {
-        displayText: period.displayText,
-        comments: [],
-        feedbacks: [],
-        users: []
-      };
-    });
-
-    // Categorize each notification
-    notifications.forEach(notification => {
-      const parsedDate = new Date(notification?.createdAt || Date.now());
-      const validDate = Number.isNaN(parsedDate.getTime()) ? now : parsedDate;
-      const notificationDate = validDate > now ? now : validDate;
-
-      // Find which period this notification belongs to
-      let targetPeriod = null;
-      for (const period of periods) {
-        if (notificationDate >= period.start && notificationDate < period.end) {
-          targetPeriod = period.label;
-          break;
-        }
-      }
-
-      // If notification is older than 48 hours, use actual date
-      if (!targetPeriod && notificationDate < fortyEightHoursAgo) {
-        targetPeriod = 'older';
-        if (!categorized.older) {
-          categorized.older = {};
-        }
-        const dateKey = formatJalaliDate(notificationDate);
-        if (!categorized.older[dateKey]) {
-          categorized.older[dateKey] = {
-            displayText: dateKey,
-            comments: [],
-            feedbacks: [],
-            users: []
-          };
-        }
-      }
-
-      // Categorize by type
-      if (targetPeriod) {
-        const periodData = targetPeriod === 'older'
-          ? categorized.older[formatJalaliDate(notificationDate)]
-          : categorized[targetPeriod];
-
-        if (notification.type === 'comment') {
-          periodData.comments.push(notification);
-        } else if (notification.type === 'feedback') {
-          periodData.feedbacks.push(notification);
-        } else if (notification.type === 'user') {
-          periodData.users.push(notification);
-        }
-      }
-    });
-
-    return categorized;
-  };
-
-
-  const categorizedData = categorizeNotificationsByPeriod(notifications);
-
-  const getNotificationDisplayData = (categorizedData) => {
-    const displayData = [];
-
-
-    Object.entries(categorizedData).forEach(([periodKey, periodData]) => {
-      if (typeof periodData === 'object' && !Array.isArray(periodData)) {
-
-        const buildDisplayItem = (type, items, displayText, period) => {
-          const totalCount = items.length;
-
-          if (totalCount === 0) return;
-
-          const unreadCount = items.filter(item => !item.read).length;
-
-          displayData.push({
-            type,
-            count: totalCount,
-            unreadCount,
-            timeText: displayText,
-            period
-          });
-        };
-
-        if (periodKey === 'older') {
-          Object.entries(periodData).forEach(([dateKey, dateData]) => {
-            buildDisplayItem('comment', dateData.comments, `${dateData.displayText}`, 'older');
-            buildDisplayItem('feedback', dateData.feedbacks, `${dateData.displayText}`, 'older');
-            buildDisplayItem('user', dateData.users, `${dateData.displayText}`, 'older');
-          });
-        } else {
-          // For regular time periods
-          buildDisplayItem('comment', periodData.comments, periodData.displayText, periodKey);
-          buildDisplayItem('feedback', periodData.feedbacks, periodData.displayText, periodKey);
-          buildDisplayItem('user', periodData.users, periodData.displayText, periodKey);
-        }
-      }
-    });
-
-    return displayData;
-  };
-
-  const categorizedDisplayData = getNotificationDisplayData(categorizedData);
-  const hasUnreadInLast12Hours = categorizedDisplayData.some(
-    (item) => item.period === 'last12Hours' && item.unreadCount > 0
+  const categorizedDisplayData = buildNotificationGroups(
+    notificationScopeRef.current?.accountKey === notificationAccountKey ? notifications : []
   );
 
   const exitEditMode = () => {
@@ -4575,6 +4472,7 @@ const Amain = () => {
       if (showNotifications &&
         !event.target.closest('.notifications-btn') &&
         !event.target.closest('.notifications-popup')) {
+        notificationPopupOpenRef.current = false;
         setShowNotifications(false);
       }
     };
@@ -10992,7 +10890,13 @@ const Amain = () => {
             </svg>
             <span>اعلان ها</span>
             {unreadNotificationsCount > 0 && (
-              <div className="notification-badge">{unreadNotificationsCount}</div>
+              <div
+                className="notification-badge"
+                role="status"
+                aria-label={`${unreadNotificationsCount} اعلان خوانده‌نشده`}
+                title={`${unreadNotificationsCount} اعلان خوانده‌نشده`}
+                style={unreadNotificationsCount > 99 ? { fontSize: '8px', direction: 'ltr' } : undefined}
+              >{unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}</div>
             )}
           </div>
         </div>
@@ -17849,10 +17753,11 @@ const Amain = () => {
           <div className="notifications-header">
             <h3>اعلان‌ها</h3>
             <div className="notifications-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              {hasUnreadInLast12Hours && (
+              {unreadNotificationsCount > 0 && (
                 <button
                   className="mark-all-read-btn"
                   onClick={handleMarkAllAsRead}
+                  disabled={isAcknowledgingNotifications}
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M13.3334 4L6.00008 11.3333L2.66675 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -17863,7 +17768,7 @@ const Amain = () => {
             </div>
           </div>
 
-          <div className="notifications-list">
+          <div className="notifications-list" aria-busy={isLoadingNotifications || isAcknowledgingNotifications}>
             {categorizedDisplayData.length === 0 ? (
               <div className="empty-notifications" style={{ padding: '40px 20px', textAlign: 'center', color: '#9CA3AF' }}>
                 <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -17872,30 +17777,12 @@ const Amain = () => {
                 <p style={{ marginTop: '12px', fontSize: '14px' }}>هیچ اعلانی وجود ندارد</p>
               </div>
             ) : (
-              categorizedDisplayData.map((item, index) => (
+              categorizedDisplayData.map((item) => (
                 <div
-                  key={index}
+                  key={`${item.period}:${item.type}:${item.timeText}`}
                   className={`notification-item ${item.unreadCount > 0 ? 'unread' : ''}`}
-                  onClick={() => {
-                    const periodKey = item.period;
-                    const type = item.type;
-
-                    if (periodKey === 'older') {
-                      Object.entries(categorizedData.older || {}).forEach(([dateKey, dateData]) => {
-                        if (dateData.displayText === item.timeText) {
-                          const notificationsToMark = dateData[`${type}s`] || [];
-                          notificationsToMark.forEach(notif => {
-                            if (!notif.read) handleMarkAsRead(notif.id);
-                          });
-                        }
-                      });
-                    } else if (categorizedData[periodKey]) {
-                      const notificationsToMark = categorizedData[periodKey][`${type}s`] || [];
-                      notificationsToMark.forEach(notif => {
-                        if (!notif.read) handleMarkAsRead(notif.id);
-                      });
-                    }
-                  }}
+                  onClick={() => handleMarkAsRead(item.ids)}
+                  aria-disabled={isAcknowledgingNotifications}
                   style={{ cursor: 'pointer' }}
                 >
                   <div className="notification-icon" style={{ flexShrink: 0, marginTop: '2px' }}>
