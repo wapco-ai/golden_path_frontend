@@ -1,5 +1,5 @@
 // src/pages/Feedbacks.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import '../AdminPanel/Amain.css';
 import adminSupportApi from '../services/adminSupportApi';
@@ -17,15 +17,22 @@ const Feedbacks = () => {
   // Modal state
   const [selectedFeedback, setSelectedFeedback] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const deletingFeedbackId = useRef(null);
+  const deletedFeedbackIds = useRef(new Set());
+  const listRequestId = useRef(0);
+  const latestQuery = useRef(null);
+  latestQuery.current = {
+    q: searchTerm || undefined,
+    status: statusFilter === 'all' ? undefined : statusFilter === 'read' ? 'seen' : statusFilter,
+    limit: itemsPerPage,
+    page: currentPage
+  };
   const STATUS_OPTIONS = [
     { value: 'all', label: 'همه وضعیت‌ها' },
     { value: 'new', label: 'جدید' },
     { value: 'read', label: 'خوانده شده' }
   ];
-
-  useEffect(() => {
-    loadFeedbacks();
-  }, []);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -96,38 +103,48 @@ const Feedbacks = () => {
   };
 
   const loadFeedbacks = async ({ page = currentPage } = {}) => {
+    const requestId = ++listRequestId.current;
+    const query = { ...latestQuery.current, page };
     setIsLoading(true);
     try {
-      const statusParam = statusFilter === 'read' ? 'seen' : statusFilter;
-      const response = await adminSupportApi.list({
-        q: searchTerm || undefined,
-        status: statusParam !== 'all' ? statusParam : undefined,
-        limit: itemsPerPage,
-        page
-      });
+      let response = await adminSupportApi.list(query);
+      if (requestId !== listRequestId.current) return;
 
-      const mapped = (response?.data || []).map((item) => ({
-        id: item.id,
-        sender: item.user?.name || 'کاربر مهمان',
-        title: item.subject,
-        feedback: item.message,
-        status: item.status === 'new' ? 'new' : 'read',
-        createdAt: item.createdAt
-      }));
+      // A deletion can remove the final item on the final page. Fetch the actual
+      // last page instead of leaving the list empty or resetting filters.
+      let lastPage = Math.max(1, response?.pagination?.lastPage || 1);
+      while (query.page > lastPage) {
+        query.page = lastPage;
+        response = await adminSupportApi.list(query);
+        if (requestId !== listRequestId.current) return;
+        lastPage = Math.max(1, response?.pagination?.lastPage || 1);
+      }
+
+      const mapped = (response?.data || [])
+        .filter((item) => !deletedFeedbackIds.current.has(item.id))
+        .map((item) => ({
+          id: item.id,
+          sender: item.user?.name || 'کاربر مهمان',
+          title: item.subject,
+          feedback: item.message,
+          status: item.status === 'new' ? 'new' : 'read',
+          createdAt: item.createdAt
+        }));
 
       setFeedbacks(mapped);
-      setCurrentPage(response?.pagination?.currentPage || page);
-      setItemsPerPage(response?.pagination?.perPage || itemsPerPage);
-      setTotalPages(response?.pagination?.lastPage || 1);
+      setCurrentPage(response?.pagination?.currentPage || query.page);
+      setItemsPerPage(response?.pagination?.perPage || query.limit);
+      setTotalPages(lastPage);
     } catch (error) {
-      toast.error('خطا در دریافت بازخوردها');
+      if (requestId === listRequestId.current) toast.error('خطا در دریافت بازخوردها');
     } finally {
-      setIsLoading(false);
+      if (requestId === listRequestId.current) setIsLoading(false);
     }
   };
 
   useEffect(() => {
     loadFeedbacks({ page: currentPage });
+    return () => { listRequestId.current += 1; };
   }, [currentPage, itemsPerPage, searchTerm, statusFilter]);
 
   const handleSearchChange = (value) => {
@@ -141,6 +158,7 @@ const Feedbacks = () => {
   };
 
   const markAsRead = async (id) => {
+    if (deletingFeedbackId.current === id || deletedFeedbackIds.current.has(id)) return;
     const now = new Date();
     const previous = feedbacks.find((feedback) => feedback.id === id);
     if (!previous || previous.status !== 'new') return;
@@ -169,10 +187,52 @@ const Feedbacks = () => {
     try {
       await adminSupportApi.updateStatus(id, { status: 'seen' });
     } catch (error) {
+      if (deletedFeedbackIds.current.has(id)) return;
       setFeedbacks((prev) =>
         prev.map((feedback) => (feedback.id === id ? previous : feedback))
       );
-      toast.error('خطا در به روزرسانی وضعیت');
+      setSelectedFeedback((current) => current?.id === id ? previous : current);
+      if (deletingFeedbackId.current !== id) toast.error('خطا در به روزرسانی وضعیت');
+    }
+  };
+
+  const handleDeleteFeedback = async () => {
+    if (!selectedFeedback || deletingFeedbackId.current !== null) return;
+    const id = selectedFeedback.id;
+    if (!window.confirm('آیا از حذف این بازخورد مطمئن هستید؟')) return;
+
+    deletingFeedbackId.current = id;
+    setIsDeleting(true);
+    let alreadyDeleted = false;
+    let shouldReload = false;
+    try {
+      try {
+        await adminSupportApi.remove(id);
+      } catch (error) {
+        if (error?.response?.status !== 404) throw error;
+        alreadyDeleted = true;
+      }
+
+      deletedFeedbackIds.current.add(id);
+      listRequestId.current += 1;
+      setFeedbacks((current) => current.filter((feedback) => feedback.id !== id));
+      setIsDetailsModalOpen(false);
+      setSelectedFeedback(null);
+      if (alreadyDeleted) {
+        toast.info('این بازخورد قبلاً حذف شده است');
+      } else {
+        toast.success('بازخورد با موفقیت حذف شد');
+      }
+      shouldReload = true;
+    } catch (error) {
+      toast.error('خطا در حذف بازخورد');
+    } finally {
+      deletingFeedbackId.current = null;
+      setIsDeleting(false);
+    }
+
+    if (shouldReload) {
+      await loadFeedbacks({ page: latestQuery.current.page });
     }
   };
 
@@ -483,6 +543,7 @@ const Feedbacks = () => {
               <button
                 className="close-btn"
                 onClick={() => setIsDetailsModalOpen(false)}
+                disabled={isDeleting}
                 id="close-feedback-details-modal"
               >
                 ×
@@ -508,8 +569,17 @@ const Feedbacks = () => {
             </div>
             <div className="modal-footer-feedback">
               <button
+                className="action-btn confirm-reject-btn"
+                onClick={handleDeleteFeedback}
+                disabled={isDeleting}
+                id="delete-feedback-btn"
+              >
+                {isDeleting ? 'در حال حذف...' : 'حذف بازخورد'}
+              </button>
+              <button
                 className="action-btn close-feedback-btn"
                 onClick={() => setIsDetailsModalOpen(false)}
+                disabled={isDeleting}
                 id="close-feedback-modal-btn"
               >
                 بستن
