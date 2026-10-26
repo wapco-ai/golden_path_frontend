@@ -23,6 +23,38 @@ import mode2 from '../assets/images/mode2.png';
 import mode3 from '../assets/images/mode3.png';
 
 const MapBeginPage = () => {
+  // Size the landmark bottom sheet from the currently visible viewport.
+  // visualViewport is important on iOS/Android when browser bars or the keyboard change height.
+  const getVisibleViewportHeight = () =>
+    typeof window !== 'undefined'
+      ? (window.visualViewport?.height || window.innerHeight)
+      : 700;
+
+  const getLandmarkSheetHeight = () => {
+    const viewportHeight = getVisibleViewportHeight();
+    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 390;
+    const isLandscape = viewportWidth > viewportHeight;
+
+    // Choose the sheet ratio by the actual viewport instead of forcing one value
+    // on every phone. Narrow/short screens use less height; wider phones can use more.
+    let ratio;
+    if (isLandscape || viewportHeight <= 520) {
+      ratio = 0.50;
+    } else if (viewportHeight <= 700 || viewportWidth <= 360) {
+      ratio = 0.41;
+    } else if (viewportWidth <= 390) {
+      ratio = 0.42;
+    } else if (viewportWidth <= 430) {
+      ratio = 0.44;
+    } else {
+      ratio = 0.42;
+    }
+
+    // Keep a usable minimum while preventing the panel from swallowing the map.
+    const minHeight = Math.min(220, viewportHeight * 0.38);
+    const maxHeight = viewportHeight * (isLandscape || viewportHeight <= 520 ? 0.60 : 0.56);
+    return Math.round(Math.min(maxHeight, Math.max(minHeight, viewportHeight * ratio)));
+  };
   const navigate = useNavigate();
   const location = useLocation();
   const intl = useIntl();
@@ -182,7 +214,7 @@ const MapBeginPage = () => {
     } else if (showRouting) {
       if (expandedSearch) {
         setExpandedSearch(false);
-        setCurrentHeight(window.innerHeight * 0.41);
+        setCurrentHeight(getLandmarkSheetHeight());
       } else {
         setCurrentHeight(140);
         setShowRouting(false);
@@ -191,7 +223,7 @@ const MapBeginPage = () => {
     } else {
       setShowRouting(true);
       if (showLocationDetails) {
-        setCurrentHeight(window.innerHeight * 0.41);
+        setCurrentHeight(getLandmarkSheetHeight());
         setExpandedSearch(false);
       } else {
         setCurrentHeight(window.innerHeight);
@@ -367,7 +399,7 @@ const MapBeginPage = () => {
     if (modalFrameRef.current) { cancelAnimationFrame(modalFrameRef.current); modalFrameRef.current = null; }
     setIsModalDragging(false);
     const screenHeight = window.innerHeight;
-    const halfTarget = isQrCodeEntry && showLocationDetails ? screenHeight * 0.3 : screenHeight * 0.41;
+    const halfTarget = isQrCodeEntry && showLocationDetails ? getVisibleViewportHeight() * 0.3 : getLandmarkSheetHeight();
     const finalHeight = gesture.height;
     const finalVelocity = gesture.velocity;
     let targetHeight;
@@ -408,7 +440,7 @@ const MapBeginPage = () => {
     setShowLocationDetails(true);
     setShowRouting(true);
     setExpandedSearch(false);
-    setCurrentHeight(window.innerHeight * 0.41);
+    setCurrentHeight(getLandmarkSheetHeight());
 
     const locationId = place.value || place.id || place.subGroupValue;
     const params = new URLSearchParams();
@@ -466,7 +498,7 @@ const MapBeginPage = () => {
       setShowLocationDetails(true);
       setShowRouting(true);
       setExpandedSearch(false);
-      setCurrentHeight(window.innerHeight * 0.41);
+      setCurrentHeight(getLandmarkSheetHeight());
       return;
     }
 
@@ -522,7 +554,7 @@ const MapBeginPage = () => {
         setShowLocationDetails(true);
         setShowRouting(true);
         setExpandedSearch(false);
-        setCurrentHeight(window.innerHeight * 0.41);
+        setCurrentHeight(getLandmarkSheetHeight());
       } else {
       }
     } else {
@@ -563,11 +595,20 @@ const MapBeginPage = () => {
 
   useEffect(() => {
     const handleResize = () => {
-      if (expandedSearch) setCurrentHeight(window.innerHeight);
+      if (expandedSearch) {
+        setCurrentHeight(getVisibleViewportHeight());
+      } else if (showRouting && showLocationDetails && !isModalDragging) {
+        setCurrentHeight(getLandmarkSheetHeight());
+      }
     };
+
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [expandedSearch]);
+    window.visualViewport?.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.visualViewport?.removeEventListener('resize', handleResize);
+    };
+  }, [expandedSearch, showRouting, showLocationDetails, isModalDragging]);
 
   const handleCategoryClick = (category) => {
     const isSameCategory = selectedCategory && selectedCategory.value === category.value;
@@ -790,7 +831,7 @@ const MapBeginPage = () => {
         setExpandedSearch(false);
 
         // Set height to 41vh for the modal
-        const modalHeight = window.innerHeight * 0.41;
+        const modalHeight = getLandmarkSheetHeight();
         setCurrentHeight(modalHeight);
 
         // Set flag to indicate this is a QR code entry
@@ -1005,80 +1046,91 @@ const MapBeginPage = () => {
             <path d="M2 12l2 0" />
           </svg>
         </button>
+        <button
+          className={`map-style-button-mpb ${showMapStyleMenu ? 'active' : ''}`}
+          onClick={() => setShowMapStyleMenu(!showMapStyleMenu)}
+          onBlur={() => {
+            setTimeout(() => setShowMapStyleMenu(false), 200);
+          }}
+        >
+          <div className="map-button-preview">
+            <img
+              src={selectedMapType === 'satellite' ? mode2 : selectedMapType === 'simple' ? mode3 : mode1}
+              alt={selectedMapType === 'satellite' ? 'Satellite view' : selectedMapType === 'simple' ? 'Offline OSMH view' : 'Default view'}
+              className="map-preview-thumbnail"
+            />
+          </div>
+        </button>
+        {showMapStyleMenu && (
+          <div className="map-style-menu-mpr">
+
+            <div
+              className={`map-style-option ${selectedMapType === 'satellite' ? 'active' : ''}`}
+              onClick={() => {
+                setSelectedMapType('satellite');
+                setShowMapStyleMenu(false);
+              }}
+              title={intl.formatMessage({ id: 'satelliteMap' })}
+            >
+              <div className="map-preview-container">
+                <img
+                  src={mode2}
+                  alt="Satellite map view"
+                  className="map-preview-image"
+                />
+              </div>
+            </div>
+
+            <div
+              className={`map-style-option ${selectedMapType === 'base' ? 'active' : ''}`}
+              onClick={() => {
+                setSelectedMapType('base');
+                setShowMapStyleMenu(false);
+              }}
+              title={intl.formatMessage({ id: 'baseMap' })}
+            >
+              <div className="map-preview-container">
+                <img
+                  src={mode1}
+                  alt="Default map view"
+                  className="map-preview-image"
+                />
+              </div>
+            </div>
+
+            <div
+              className={`map-style-option ${selectedMapType === 'simple' ? 'active' : ''}`}
+              onClick={() => {
+                setSelectedMapType('simple');
+                setShowMapStyleMenu(false);
+              }}
+              title={intl.formatMessage({ id: 'simpleMap' })}
+            >
+              <div className="map-preview-container">
+                <img
+                  src={mode3}
+                  alt="Simple map view"
+                  className="map-preview-image"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+        <FloorControl
+          hidden={showSearchModal}
+          otherMenuOpen={showMapStyleMenu}
+          onOpen={() => setShowMapStyleMenu(false)}
+          onChange={() => {
+            setSelectedLandmarkId(null);
+            setShowLocationDetails(false);
+          }}
+          style={{
+            position: 'absolute',
+            bottom: '160px',
+            zIndex: 1000,
+          }}
+        />
       </div>
-
-      <button
-        className={`map-style-button-mpr ${showMapStyleMenu ? 'active' : ''}`}
-        onClick={() => setShowMapStyleMenu(!showMapStyleMenu)}
-        onBlur={() => {
-          setTimeout(() => setShowMapStyleMenu(false), 200);
-        }}
-      >
-        <div className="map-button-preview">
-          <img
-            src={selectedMapType === 'satellite' ? mode2 : selectedMapType === 'simple' ? mode3 : mode1}
-            alt={selectedMapType === 'satellite' ? 'Satellite view' : selectedMapType === 'simple' ? 'Offline OSMH view' : 'Default view'}
-            className="map-preview-thumbnail"
-          />
-        </div>
-      </button>
-
-      {showMapStyleMenu && (
-        <div className="map-style-menu-mpr">
-
-          <div
-            className={`map-style-option ${selectedMapType === 'satellite' ? 'active' : ''}`}
-            onClick={() => {
-              setSelectedMapType('satellite');
-              setShowMapStyleMenu(false);
-            }}
-            title={intl.formatMessage({ id: 'satelliteMap' })}
-          >
-            <div className="map-preview-container">
-              <img
-                src={mode2}
-                alt="Satellite map view"
-                className="map-preview-image"
-              />
-            </div>
-          </div>
-
-          <div
-            className={`map-style-option ${selectedMapType === 'base' ? 'active' : ''}`}
-            onClick={() => {
-              setSelectedMapType('base');
-              setShowMapStyleMenu(false);
-            }}
-            title={intl.formatMessage({ id: 'baseMap' })}
-          >
-            <div className="map-preview-container">
-              <img
-                src={mode1}
-                alt="Default map view"
-                className="map-preview-image"
-              />
-            </div>
-          </div>
-
-          <div
-            className={`map-style-option ${selectedMapType === 'simple' ? 'active' : ''}`}
-            onClick={() => {
-              setSelectedMapType('simple');
-              setShowMapStyleMenu(false);
-            }}
-            title={intl.formatMessage({ id: 'simpleMap' })}
-          >
-            <div className="map-preview-container">
-              <img
-                src={mode3}
-                alt="Simple map view"
-                className="map-preview-image"
-              />
-            </div>
-          </div>
-        </div>
-      )}
-      <FloorControl hidden={showSearchModal} otherMenuOpen={showMapStyleMenu} onOpen={() => setShowMapStyleMenu(false)} onChange={() => { setSelectedLandmarkId(null); setShowLocationDetails(false); }}  style={{ zIndex: 1000 }}/>
 
       {/* Search Bar with Integrated Routing */}
       <div

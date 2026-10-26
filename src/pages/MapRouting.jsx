@@ -1622,7 +1622,11 @@ const MapRoutingPage = () => {
             )}
           </>
         )}
-        <FloorControl hidden={showOriginModal || showDestinationModal} otherMenuOpen={showMapStyleMenu} onOpen={() => setShowMapStyleMenu(false)} request={floorRequest} onChange={() => { setSelectedLandmarkId(null); }} />
+        <FloorControl hidden={showOriginModal || showDestinationModal} otherMenuOpen={showMapStyleMenu} onOpen={() => setShowMapStyleMenu(false)} request={floorRequest} onChange={() => { setSelectedLandmarkId(null); }} style={{
+          position: 'absolute',
+          bottom: '160px',
+          zIndex: 1000,
+        }} />
       </div>
 
       {/* Subgroups Container - Only shown when a category is selected and has image subgroups */}

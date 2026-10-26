@@ -49,6 +49,37 @@
   text-align: center;
 }
 
+/* Map Style Button */
+.map-style-button-mpr {
+  position: absolute;
+  bottom: 230px;
+  right: 18px;
+  width: 54px;
+  height: 54px;
+  background-color: white;
+  border-radius: 4px;
+  border: 3px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  cursor: pointer;
+  padding: 0;
+  overflow: hidden;
+}
+
+.map-style-button-mpr:hover {
+  background: #f8f9fa;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+}
+
+.map-style-button-mpr.active {
+  background: #f0f7ff;
+  border-color: #0F71EF;
+  box-shadow: 0 0 0 2px rgba(15, 113, 239, 0.2);
+}
+
 /* Categories Scroll */
 .map-categories-scroll {
   padding: 16px;

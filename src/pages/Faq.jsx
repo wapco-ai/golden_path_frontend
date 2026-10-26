@@ -127,14 +127,14 @@ function FAQ() {
   return (
     <div className="faq-page-container">
       {/* Header with Back Arrow */}
-      <div className="faq-header">
+      <div className="faq-header2">
         <button className="faq-back-arrow" onClick={() => navigate(-1)}>
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M3.33301 10H16.6663M16.6663 10L11.6663 5M16.6663 10L11.6663 15" stroke="#1E2023" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
 
-        <h1 className="faq-title">
+        <h1 className="faq-title2">
           <FormattedMessage id="faqTitle" />
         </h1>
       </div>

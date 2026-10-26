@@ -2144,7 +2144,7 @@ body.sidebar-open {
 }
 
 /* Map Style Button */
-.map-style-button-mpr {
+.map-style-button-mpb {
   position: fixed;
   bottom: 230px;
   right: 18px;
@@ -2163,12 +2163,12 @@ body.sidebar-open {
   overflow: hidden;
 }
 
-.map-style-button-mpr:hover {
+.map-style-button-mpb:hover {
   background: #f8f9fa;
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
 }
 
-.map-style-button-mpr.active {
+.map-style-button-mpb.active {
   background: #f0f7ff;
   border-color: #0F71EF;
   box-shadow: 0 0 0 2px rgba(15, 113, 239, 0.2);

@@ -24,7 +24,7 @@
 }
 
 /* Header */
-.faq-header {
+.faq-header2 {
   background-color: transparent;
   display: flex;
   flex-direction: row;
@@ -60,7 +60,7 @@
   transform: rotate(180deg);
 }
 
-.faq-title {
+.faq-title2 {
   color: #333;
   font-size: 1.3rem;
   font-weight: bold;
