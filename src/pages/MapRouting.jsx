@@ -43,6 +43,9 @@ const MapRoutingPage = () => {
   const [mapTapCount, setMapTapCount] = useState(0);
   const [lastTapInput, setLastTapInput] = useState(null);
 
+  // New states for recent search options menu
+  const [activeRecentMenuIndex, setActiveRecentMenuIndex] = useState(null);
+
   const storedLat = sessionStorage.getItem('qrLat');
   const storedLng = sessionStorage.getItem('qrLng');
   const storedId = sessionStorage.getItem('qrId');
@@ -198,6 +201,7 @@ const MapRoutingPage = () => {
   const setDestinationStore = useRouteStore(state => state.setDestination);
   const recentSearches = useSearchStore(state => state.recentSearches);
   const addSearch = useSearchStore(state => state.addSearch);
+  const removeSearch = useSearchStore(state => state.removeSearch);
 
   const destinationInputRef = useRef(null);
   const originInputRef = useRef(null);
@@ -2101,7 +2105,7 @@ const MapRoutingPage = () => {
                   ) : (
                     <ul className="map-destination-list">
                       {recentSearches.map((destination, index) => (
-                        <li key={`${destination.id || 'destination'}-${index}`} onClick={() => handleDestinationSelect(destination)}>
+                        <li key={`${destination.id || 'destination'}-${index}`} style={{ position: 'relative' }} onClick={() => handleDestinationSelect(destination)}>
                           <div className="map-recent-icon">
                             <svg width="15" height="15" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
                               <path fillRule="evenodd" clipRule="evenodd" d="M2.96259 2.95683C5.17657 0.745974 8.77558 0.769482 11.0031 2.997C13.2316 5.22548 13.2541 8.82663 11.0404 11.0404C8.82667 13.2541 5.22552 13.2315 2.99704 11.0031C1.67644 9.68246 1.1311 7.88082 1.36528 6.17239C1.39809 5.933 1.61875 5.76554 1.85814 5.79835C2.09753 5.83117 2.265 6.05183 2.23218 6.29122C2.03386 7.73809 2.49541 9.26398 3.61577 10.3843C5.50841 12.277 8.5555 12.2878 10.4217 10.4216C12.2878 8.55546 12.277 5.50837 10.3844 3.61573C8.49269 1.72405 5.44775 1.71226 3.58132 3.57556L4.01749 3.57775C4.25911 3.57896 4.454 3.77582 4.45279 4.01745C4.45157 4.25907 4.25471 4.45396 4.01309 4.45275L2.52816 4.44529C2.28825 4.44408 2.09406 4.2499 2.09286 4.00999L2.0854 2.52506C2.08418 2.28343 2.27907 2.08657 2.5207 2.08536C2.76232 2.08414 2.95918 2.27904 2.9604 2.52066L2.96259 2.95683ZM7.00002 4.2291C7.24164 4.2291 7.43752 4.42498 7.43752 4.66661V6.81876L8.76773 8.14897C8.93859 8.31983 8.93859 8.59684 8.76773 8.7677C8.59688 8.93855 8.31986 8.93855 8.14901 8.7677L6.56251 7.1812V4.66661C6.56251 4.42498 6.75839 4.2291 7.00002 4.2291Z" fill="#858585" />
@@ -2111,9 +2115,34 @@ const MapRoutingPage = () => {
                             <span className="map-destination-name">{destination.name}</span>
                             <span className="map-destination-location">{destination.location}<FloorTag point={destination} /></span>
                           </div>
-                          <button className="map-recent-option">
+                          <button
+                            className="map-recent-option"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveRecentMenuIndex(activeRecentMenuIndex === index ? null : index);
+                            }}
+                          >
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-dots-vertical"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M12 19m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M12 5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /></svg>
                           </button>
+                          {activeRecentMenuIndex === index && (
+                            <div className="recent-search-menu">
+                              <button
+                                className="recent-search-menu-item"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeSearch(destination);
+                                  setActiveRecentMenuIndex(null);
+                                }}
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e53935" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M3 6h18" />
+                                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                </svg>
+                                <span>{intl.formatMessage({ id: 'remove' })}</span>
+                              </button>
+                            </div>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -2234,4 +2263,4 @@ const MapRoutingPage = () => {
   );
 };
 
-export default MapRoutingPage; 
+export default MapRoutingPage;
