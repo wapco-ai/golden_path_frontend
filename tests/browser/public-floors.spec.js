@@ -63,10 +63,10 @@ for (const width of [360,430]) test(`mobile ${width}: floor control follows the 
   await page.goto('/#/mpb');
   const trigger = page.locator('.gp-floor-trigger');
   await expect(trigger).toBeVisible();
-  const a = await trigger.boundingBox(), b = await page.locator('.map-style-button-mpr').boundingBox();
+  const a = await trigger.boundingBox(), b = await page.locator('.map-style-button-mpb').boundingBox();
   expect(a.width).toBe(54); expect(a.height).toBe(54);
   expect(a.x).toBe(b.x); expect(a.y - (b.y+b.height)).toBe(14);
-  await page.locator('.map-style-button-mpr').click();
+  await page.locator('.map-style-button-mpb').click();
   await expect(page.locator('.map-style-menu-mpr')).toBeVisible();
   await trigger.click();
   await expect(page.locator('.map-style-menu-mpr')).toHaveCount(0);
