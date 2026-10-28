@@ -15,13 +15,13 @@ async function setup(page, { failStatus = false, slowSearch = false } = {}) {
   await page.clock.setFixedTime(new Date('2026-10-18T12:00:00Z'));
   await page.addInitScript(() => {
     sessionStorage.setItem('gp_admin_access_token', 'browser-fixture-only');
-    localStorage.setItem('gp_admin_auth_store', JSON.stringify({ state: { admin: { name: 'مدیر آزمایشی' }, roles: ['admin'], permissions: ['*'] }, version: 0 }));
+    localStorage.setItem('gp_admin_auth_store', JSON.stringify({ state: { admin: { name: 'مدیر آزمایشی' }, roles: ['super_dashboard_admin'], permissions: ['*'] }, version: 0 }));
     localStorage.setItem('lang-storage', JSON.stringify({ state: { language: 'fa' }, version: 1 }));
   });
   await page.route('**/api/v1/**', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname;
     let json = { data: [], total: 0 }, status = 200;
-    if (path.endsWith('/admin/auth/me')) json = { user: { name: 'مدیر آزمایشی', roles: ['admin'], permissions: ['*'] } };
+    if (path.endsWith('/admin/auth/me')) json = { user: { name: 'مدیر آزمایشی', roles: ['super_dashboard_admin'], permissions: ['*'] } };
     else if (path.endsWith('/floors')) json = [{ floor: 0, label: 'همکف' }];
     else if (path.endsWith('/groups/metadata')) json = { groups: [] };
     else if (path.endsWith('/groups/subgroups')) json = { subGroups: {} };

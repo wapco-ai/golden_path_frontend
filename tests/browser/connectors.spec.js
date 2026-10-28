@@ -19,7 +19,8 @@ async function setup(page, { verifyPendingMap = false, conflictingGroup = false,
     const req=route.request(); const url=new URL(req.url()); const path=url.pathname;
     if (['POST','PUT'].includes(req.method()) && /connectors|doors/.test(path)) writes.push({path,method:req.method(),body:req.postDataJSON()});
     let json={data:[],total:0};
-    if (path.endsWith('/floors')) json=floors;
+    if (path.endsWith('/admin/auth/me')) json={id:1,name:'مدیر آزمایشی',roles:['super_dashboard_admin'],roleTitles:[],permissions:[]};
+    else if (path.endsWith('/floors')) json=floors;
     else if (path.endsWith('/connectors/candidates')) {
       initialPoint ??= {floor:Number(url.searchParams.get('floor')),lat:Number(url.searchParams.get('lat')),lon:Number(url.searchParams.get('lon'))};
       json=ambiguousArea ? {area_id:null,areas:[{id:300,name:'فضای اول'},{id:301,name:'فضای دوم'}]} : {area_id:300+Number(url.searchParams.get('floor')),areas:[{id:300+Number(url.searchParams.get('floor')),name:'فضای تشخیص داده‌شده'}]};

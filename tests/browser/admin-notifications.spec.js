@@ -20,7 +20,7 @@ async function setup(page, { events = standardEvents() } = {}) {
   await page.addInitScript(() => {
     if (!sessionStorage.getItem('gp_admin_access_token')) {
       sessionStorage.setItem('gp_admin_access_token', 'fixture-admin-101');
-      localStorage.setItem('gp_admin_auth_store', JSON.stringify({ state: { admin: { id: 101, name: 'مدیر اول' }, roles: ['admin'], permissions: ['*'] }, version: 0 }));
+      localStorage.setItem('gp_admin_auth_store', JSON.stringify({ state: { admin: { id: 101, name: 'مدیر اول' }, roles: ['super_dashboard_admin'], permissions: ['*'] }, version: 0 }));
     }
     localStorage.setItem('lang-storage', JSON.stringify({ state: { language: 'fa' }, version: 1 }));
   });
@@ -28,7 +28,7 @@ async function setup(page, { events = standardEvents() } = {}) {
     const request = route.request(), url = new URL(request.url()), path = url.pathname;
     const admin = request.headers().authorization === 'Bearer fixture-admin-202' ? 202 : 101;
     let json = { data: [], total: 0 }, status = 200;
-    if (path.endsWith('/admin/auth/me')) json = { user: { id: admin, name: admin === 101 ? 'مدیر اول' : 'مدیر دوم', roles: ['admin'], permissions: ['*'] } };
+    if (path.endsWith('/admin/auth/me')) json = { user: { id: admin, name: admin === 101 ? 'مدیر اول' : 'مدیر دوم', roles: ['super_dashboard_admin'], permissions: ['*'] } };
     else if (path.endsWith('/floors')) json = [{ floor: 0, label: 'همکف' }];
     else if (path.endsWith('/groups/metadata')) json = { groups: [] };
     else if (path.endsWith('/groups/subgroups')) json = { subGroups: {} };
@@ -77,7 +77,7 @@ async function open(page) { await page.locator('.notifications-btn').click(); aw
 async function changeAdmin(page, id = 202) {
   await page.evaluate(async id => {
     const { useAdminAuthStore } = await import('/src/auth/admin/adminAuthStore.js');
-    useAdminAuthStore.getState().setAuth({ accessToken: `fixture-admin-${id}`, user: { id, name: 'مدیر دوم', roles: ['admin'], permissions: ['*'] } });
+    useAdminAuthStore.getState().setAuth({ accessToken: `fixture-admin-${id}`, user: { id, name: 'مدیر دوم', roles: ['super_dashboard_admin'], permissions: ['*'] } });
   }, id);
 }
 
