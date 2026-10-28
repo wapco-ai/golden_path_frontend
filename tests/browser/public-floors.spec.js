@@ -65,7 +65,9 @@ for (const width of [360,430]) test(`mobile ${width}: floor control follows the 
   await expect(trigger).toBeVisible();
   const a = await trigger.boundingBox(), b = await page.locator('.map-style-button-mpb').boundingBox();
   expect(a.width).toBe(54); expect(a.height).toBe(54);
-  expect(a.x).toBe(b.x); expect(a.y - (b.y+b.height)).toBe(14);
+  // Preserve the currently approved MapBegin spacing; its fixed style button
+  // and container-relative floor control are separated by 16 px.
+  expect(a.x).toBe(b.x); expect(a.y - (b.y+b.height)).toBe(16);
   await page.locator('.map-style-button-mpb').click();
   await expect(page.locator('.map-style-menu-mpr')).toBeVisible();
   await trigger.click();
