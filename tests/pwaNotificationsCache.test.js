@@ -151,6 +151,11 @@ test('production service worker never replays cached auth profiles or admin noti
       await cache.put(new Request(url, { headers: { Authorization: 'Bearer previous-user-token' } }),
         new Response(JSON.stringify(stale), { headers: { 'Content-Type': 'application/json' } }));
     }, { url: profileUrl, stale: staleProfile });
+    const protectedApiUrls = [`${origin}/api/v1/admin/auth/me`, `${origin}/api/v1/areas`];
+    await page.evaluate(async (urls) => {
+      const cache = await caches.open('api-cache');
+      for (const url of urls) await cache.put(url, new Response('{"previous":true}'));
+    }, protectedApiUrls);
 
     await context.setOffline(true);
     const offlineNotifications = await page.evaluate(async (url) => {
@@ -175,6 +180,15 @@ test('production service worker never replays cached auth profiles or admin noti
     assert.deepEqual(offlineProfile, { fulfilled: false, errorName: 'TypeError' },
       'A new login must fail instead of accepting the previous user profile from api-cache.');
     assert.equal(profileRequests.length, 0);
+    for (const url of protectedApiUrls) {
+      const result = await page.evaluate(async (target) => {
+        try {
+          await fetch(target, { headers: { Authorization: 'Bearer current-admin-token' } });
+          return 'fulfilled';
+        } catch { return 'network-error'; }
+      }, url);
+      assert.equal(result, 'network-error', 'Authenticated APIs must never replay a previous cache entry.');
+    }
 
     await context.setOffline(false);
     const onlineNotifications = await page.evaluate(async (urls) => Promise.all(urls.map(async (url) => {

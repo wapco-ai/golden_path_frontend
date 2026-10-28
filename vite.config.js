@@ -59,9 +59,10 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // Set to 5 MiB for example
         runtimeCaching: [
           {
-            // Read state and unread counts are per admin and must never be
-            // restored from an older response in the generic API cache.
-            urlPattern: ({ url }) => url.pathname === '/api/v1/admin/dashboard/notifications',
+            // Never cache admin or other authenticated API responses under a
+            // shared URL: a later session must not receive another user's data.
+            urlPattern: ({ url, request }) => url.pathname.startsWith('/api/v1/admin/')
+              || (url.pathname.startsWith('/api/') && request.headers.has('Authorization')),
             handler: 'NetworkOnly',
             method: 'GET'
           },

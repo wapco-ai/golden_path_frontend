@@ -6,32 +6,41 @@ import {
   useAdminAuthStore
 } from './adminAuthStore';
 
+// React Strict Mode can mount this guard twice. Share the refresh operation so
+// rotating the refresh token cannot invalidate a concurrent request.
+let sessionCheck;
+const verifyAdminSession = () => {
+  if (!sessionCheck) {
+    sessionCheck = (async () => {
+      const store = useAdminAuthStore.getState();
+      let token = store.accessToken || sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY);
+      const refresh = store.refreshToken || localStorage.getItem(ADMIN_REFRESH_TOKEN_KEY);
+      if (!token && !refresh) throw new Error('No admin session');
+      if (!token) {
+        await store.refreshSession();
+      }
+      try {
+        await store.fetchProfile();
+      } catch (error) {
+        // Expired access tokens can be renewed, but network errors and other
+        // responses must never expose a previously cached profile.
+        if (error?.response?.status !== 401 || !refresh) throw error;
+        await store.refreshSession();
+        await store.fetchProfile();
+      }
+    })().finally(() => { sessionCheck = null; });
+  }
+  return sessionCheck;
+};
+
 const AdminProtectedRoute = ({ children }) => {
   const location = useLocation();
-  const { accessToken, refreshToken, refreshSession, clearAuth } = useAdminAuthStore();
+  const { accessToken, clearAuth } = useAdminAuthStore();
   const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
-    const activeAccessToken = accessToken || sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY);
-    const activeRefreshToken = refreshToken || localStorage.getItem(ADMIN_REFRESH_TOKEN_KEY);
-
-    if (activeAccessToken) {
-      setIsCheckingSession(false);
-      return () => {
-        isMounted = false;
-      };
-    }
-
-    if (!activeRefreshToken) {
-      clearAuth();
-      setIsCheckingSession(false);
-      return () => {
-        isMounted = false;
-      };
-    }
-
-    refreshSession()
+    verifyAdminSession()
       .catch(() => {
         clearAuth();
       })
@@ -44,7 +53,7 @@ const AdminProtectedRoute = ({ children }) => {
     return () => {
       isMounted = false;
     };
-  }, [accessToken, clearAuth, refreshSession, refreshToken]);
+  }, [clearAuth]);
 
   if (isCheckingSession) {
     return null;

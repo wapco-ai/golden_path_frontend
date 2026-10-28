@@ -35,6 +35,7 @@ import {
   updateCulturalItem
 } from '../services/culturalItemsService';
 import { ADMIN_ACCESS_TOKEN_KEY, useAdminAuthStore } from '../auth/admin/adminAuthStore';
+import { canOpenAdminView, hasAdminRole, REPORT_VIEWS, FACILITY_VIEWS } from '../auth/admin/adminAccess';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import {
   DOOR_ACCESS_LAYER_ID,
@@ -855,7 +856,6 @@ const logDoorAccessPointDebugInfo = (mapInstance) => {
 const Amain = () => {
   const {
     admin: adminProfile,
-    permissions: adminPermissions,
     fetchProfile,
     logout,
     accessToken
@@ -863,7 +863,13 @@ const Amain = () => {
   const API_BASE = `${appConfig.apiBaseUrl}/api/v1/admin`;
   const notificationAccountKey = `${adminProfile?.id ?? adminProfile?.adminId ?? adminProfile?.username ?? adminProfile?.email ?? 'admin'}:${accessToken || (typeof window !== 'undefined' ? window.sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY) : '') || ''}`;
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
-  const [activeMenu, setActiveMenu] = useState('dashboard');
+  const canSeeDashboard = hasAdminRole(adminProfile, ['مدیریت گزارشات']);
+  const canManageMap = hasAdminRole(adminProfile, ['مدیریت نقشه']);
+  const canOpenView = (view) => canOpenAdminView(adminProfile, view);
+  const firstAllowedView = [...REPORT_VIEWS, ...FACILITY_VIEWS].find(canOpenView) || null;
+  const [activeMenu, setActiveMenu] = useState(() => canSeeDashboard ? 'dashboard'
+    : REPORT_VIEWS.includes(firstAllowedView) ? 'reports'
+      : firstAllowedView ? 'facmanage' : 'none');
   const [dashboardSummary, setDashboardSummary] = useState({
     totalUsers: 0,
     successfulNavigations: 0,
@@ -914,11 +920,6 @@ const Amain = () => {
   useEffect(() => {
     mapRef.current = map;
   }, [map]);
-  const userPermissions = useMemo(
-    () => adminPermissions || adminProfile?.permissions || adminProfile?.user?.permissions || [],
-    [adminPermissions, adminProfile]
-  );
-
   useEffect(() => {
     if (!adminProfile) {
       setIsLoadingProfile(true);
@@ -972,14 +973,9 @@ const Amain = () => {
   const canUserEditLayer = useCallback(
     (layer) => {
       if (!layer?.isEditable) return false;
-      if (!layer?.requiredPermission) return true;
-
-      const permissions = Array.isArray(userPermissions) ? userPermissions : [];
-      if (!permissions.length) return true;
-
-      return permissions.includes(layer.requiredPermission);
+      return canManageMap;
     },
-    [userPermissions]
+    [canManageMap]
   );
   const isMapLayerAvailable = useCallback(
     (layerId) => {
@@ -1224,7 +1220,7 @@ const Amain = () => {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const calendarRef = useRef(null);
   const [breadcrumbPath, setBreadcrumbPath] = useState(['منوی اصلی', 'داشبورد', 'آمار کلی استارتاپ من']);
-  const [currentReportView, setCurrentReportView] = useState(null);
+  const [currentReportView, setCurrentReportView] = useState(() => canSeeDashboard ? null : firstAllowedView);
   const [pieChartTimeFilter, setPieChartTimeFilter] = useState('ماه اخیر');
   const [barChartTimeFilter, setBarChartTimeFilter] = useState('هفته اخیر');
   const [isPieChartFilterOpen, setIsPieChartFilterOpen] = useState(false);
@@ -3107,8 +3103,8 @@ const Amain = () => {
   }, [itemsPerPage]);
 
   useEffect(() => {
-    loadDashboardSummary();
-  }, [loadDashboardSummary]);
+    if (canSeeDashboard) loadDashboardSummary();
+  }, [canSeeDashboard, loadDashboardSummary]);
 
   useEffect(() => {
     const scope = { accountKey: notificationAccountKey, active: true, requestId: 0, mutation: null, refreshRequested: false };
@@ -3119,24 +3115,24 @@ const Amain = () => {
     setNotificationUnreadCount(0);
     setIsLoadingNotifications(false);
     setIsAcknowledgingNotifications(false);
-    loadNotifications();
+    if (canSeeDashboard) loadNotifications();
     return () => {
       scope.active = false;
       scope.requestId += 1;
     };
-  }, [notificationAccountKey, loadNotifications]);
+  }, [notificationAccountKey, loadNotifications, canSeeDashboard]);
 
   useEffect(() => {
-    loadUserVisits(barChartTimeFilter);
-  }, [barChartTimeFilter, loadUserVisits]);
+    if (canSeeDashboard) loadUserVisits(barChartTimeFilter);
+  }, [barChartTimeFilter, loadUserVisits, canSeeDashboard]);
 
   useEffect(() => {
-    loadCommentStats(pieChartTimeFilter);
-  }, [pieChartTimeFilter, loadCommentStats]);
+    if (canSeeDashboard) loadCommentStats(pieChartTimeFilter);
+  }, [pieChartTimeFilter, loadCommentStats, canSeeDashboard]);
 
   useEffect(() => {
-    loadRecentUsers({ page: currentPage, pageSize: itemsPerPage, search: searchTerm });
-  }, [currentPage, itemsPerPage, searchTerm, loadRecentUsers]);
+    if (canSeeDashboard) loadRecentUsers({ page: currentPage, pageSize: itemsPerPage, search: searchTerm });
+  }, [currentPage, itemsPerPage, searchTerm, loadRecentUsers, canSeeDashboard]);
 
   const loadCulturalItems = useCallback(async () => {
     setIsLoadingCultural(true);
@@ -3195,8 +3191,8 @@ const Amain = () => {
   };
 
   useEffect(() => {
-    loadCulturalItems();
-  }, [loadCulturalItems]);
+    if (canOpenAdminView(adminProfile, 'مدیریت اطلاعات فرهنگی')) loadCulturalItems();
+  }, [loadCulturalItems, adminProfile]);
 
   // Add these handler functions with other handler functions
   const handleDeleteCultural = (id) => {
@@ -3555,8 +3551,8 @@ const Amain = () => {
   }, [API_BASE, adminFetch]);
 
   useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
+    if (canOpenAdminView(adminProfile, 'مدیریت دسته بندی‌ها')) fetchCategories();
+  }, [fetchCategories, adminProfile]);
 
   const culturalGroupOptions = useMemo(
     () => dedupeByValue(
@@ -3942,6 +3938,7 @@ const Amain = () => {
   };
 
   useEffect(() => {
+    if (!canOpenAdminView(adminProfile, 'مدیریت اطلاعات فرهنگی')) return undefined;
     let isMounted = true;
     setIsLoadingCulturalGroups(true);
     fetchCulturalCategories()
@@ -3957,7 +3954,7 @@ const Amain = () => {
     return () => {
       isMounted = false;
     };
-  }, [fetchCulturalCategories]);
+  }, [fetchCulturalCategories, adminProfile]);
 
   const resetEditFormWithoutMapCleanup = () => {
     setCulturalTitle('');
@@ -5214,6 +5211,7 @@ const Amain = () => {
   };
 
   const handleSubmenuClick = (viewName) => {
+    if (!canOpenView(viewName)) return;
     setCurrentReportView(viewName);
 
     // Reset edit mode when clicking any submenu
@@ -8991,6 +8989,8 @@ const Amain = () => {
   }, [activeMenu, currentReportView, isEditingCultural]);
 
   const handleMenuClick = (menuName, breadcrumbLabel) => {
+    if (menuName === 'dashboard' && !canSeeDashboard) return;
+    if (menuName === 'mapmanage' && !canManageMap) return;
     if (menuName !== 'reports') {
       setCurrentReportView(null);
     }
@@ -10862,7 +10862,7 @@ const Amain = () => {
               className="search-box5-input"
             />
           </form> */}
-          <div className="notifications-btn" onClick={handleNotificationClick}>
+          <div className="notifications-btn" style={{ display: canSeeDashboard ? undefined : 'none' }} onClick={handleNotificationClick}>
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path fillRule="evenodd" clipRule="evenodd" d="M14.8549 2.09564C13.8149 2.09564 12.9719 2.93869 12.9719 3.97865C12.9719 5.01861 13.8149 5.86166 14.8549 5.86166C15.8948 5.86166 16.7379 5.01861 16.7379 3.97865C16.7379 2.93869 15.8948 2.09564 14.8549 2.09564ZM11.7165 3.97865C11.7165 2.24539 13.1216 0.840302 14.8549 0.840302C16.5881 0.840302 17.9932 2.24539 17.9932 3.97865C17.9932 5.71192 16.5881 7.117 14.8549 7.117C13.1216 7.117 11.7165 5.71192 11.7165 3.97865ZM7.27561 2.51409L9.8335 2.51409C10.1802 2.51409 10.4612 2.79511 10.4612 3.14176C10.4612 3.48841 10.1802 3.76943 9.8335 3.76943H7.32282C5.72701 3.76943 4.5933 3.77076 3.73326 3.88639C2.89127 3.99959 2.40616 4.21189 2.05198 4.56607C1.6978 4.92025 1.48551 5.40535 1.3723 6.24734C1.25667 7.10739 1.25534 8.2411 1.25534 9.83691C1.25534 11.4327 1.25667 12.5664 1.3723 13.4265C1.48551 14.2685 1.6978 14.7536 2.05198 15.1077C2.40616 15.4619 2.89127 15.6742 3.73326 15.7874C4.5933 15.9031 5.72701 15.9044 7.32282 15.9044H10.6704C12.2662 15.9044 13.3999 15.9031 14.26 15.7874C15.1019 15.6742 15.587 15.4619 15.9412 15.1077C16.2954 14.7536 16.5077 14.2685 16.6209 13.4265C16.7365 12.5664 16.7379 11.4327 16.7379 9.83691C16.7379 9.5248 16.7401 9.2968 16.7421 9.10081C16.7452 8.78343 16.7475 8.54995 16.7381 8.17907C16.7293 7.83253 17.0031 7.54446 17.3496 7.53565C17.6961 7.52684 17.9842 7.80063 17.993 8.14717C18.0029 8.53724 18.0004 8.80349 17.9972 9.13998C17.9953 9.33576 17.9932 9.55533 17.9932 9.83691V9.88412C17.9932 11.4221 17.9932 12.6403 17.8651 13.5937C17.7331 14.5749 17.4552 15.3691 16.8289 15.9954C16.2026 16.6217 15.4084 16.8996 14.4272 17.0316C13.4738 17.1597 12.2556 17.1597 10.7176 17.1597H7.27561C5.7376 17.1597 4.51939 17.1597 3.56598 17.0316C2.58479 16.8996 1.79062 16.6217 1.16432 15.9954C0.538022 15.3691 0.260076 14.5749 0.128158 13.5937C-2.35736e-05 12.6403 -1.29997e-05 11.4221 2.69156e-07 9.88412V9.78969C-1.29997e-05 8.25168 -2.35736e-05 7.03347 0.128158 6.08007C0.260076 5.09888 0.538022 4.30471 1.16432 3.67841C1.79062 3.05211 2.58479 2.77416 3.56598 2.64225C4.51939 2.51406 5.7376 2.51407 7.27561 2.51409ZM3.49306 6.08751C3.71498 5.8212 4.11076 5.78522 4.37707 6.00714L6.18384 7.51278C6.96462 8.16344 7.50671 8.61372 7.96437 8.90806C8.40738 9.19299 8.70782 9.28864 8.99661 9.28864C9.2854 9.28864 9.58583 9.19299 10.0288 8.90806C10.4865 8.61372 11.0286 8.16344 11.8094 7.51278C12.0757 7.29086 12.4715 7.32684 12.6934 7.59314C12.9153 7.85945 12.8793 8.25524 12.613 8.47716L12.5816 8.50337C11.8398 9.12155 11.2386 9.62259 10.7079 9.96388C10.1551 10.3194 9.61681 10.544 8.99661 10.544C8.3764 10.544 7.83807 10.3194 7.28531 9.96388C6.75467 9.6226 6.15344 9.12156 5.41166 8.50339L3.57342 6.97152C3.30711 6.7496 3.27113 6.35381 3.49306 6.08751Z" fill="#0F71EF" />
               <path d="M11.7165 3.97865C11.7165 2.24539 13.1216 0.840302 14.8549 0.840302C16.5881 0.840302 17.9932 2.24539 17.9932 3.97865C17.9932 5.71192 16.5881 7.117 14.8549 7.117C13.1216 7.117 11.7165 5.71192 11.7165 3.97865Z" fill="#03234D" />
@@ -10895,6 +10895,7 @@ const Amain = () => {
             <div
               id="dashboard-menu-item-m"
               className={`menu-item-m ${activeMenu === 'dashboard' ? 'active' : ''}`}
+              style={{ display: canSeeDashboard ? undefined : 'none' }}
               onClick={() => handleMenuClick('dashboard', 'داشبورد')}
             >
               <span className="menu-icon">
@@ -10908,7 +10909,7 @@ const Amain = () => {
               <span> داشبورد  </span>
             </div>
 
-            <div className="menu-item-m with-submenu">
+            <div className="menu-item-m with-submenu" style={{ display: REPORT_VIEWS.some(canOpenView) ? undefined : 'none' }}>
 
               <div
                 className={`menu-item-m ${activeMenu === 'reports' ? 'active' : ''}`}
@@ -10935,6 +10936,7 @@ const Amain = () => {
                 <div className="submenu-items">
                   <div
                     className={`submenu-item ${currentReportView === 'کاربران ثبت نام کرده' ? 'active' : ''}`}
+                    style={{ display: canOpenView('کاربران ثبت نام کرده') ? undefined : 'none' }}
                     onClick={() => handleSubmenuClick('کاربران ثبت نام کرده')}
                   >
                     <div className="submenu-branch"></div>
@@ -10942,6 +10944,7 @@ const Amain = () => {
                   </div>
                   <div
                     className={`submenu-item ${currentReportView === 'دیدگاه ها' ? 'active' : ''}`}
+                    style={{ display: canOpenView('دیدگاه ها') ? undefined : 'none' }}
                     onClick={() => handleSubmenuClick('دیدگاه ها')}
                   >
                     <div className="submenu-branch"></div>
@@ -10949,6 +10952,7 @@ const Amain = () => {
                   </div>
                   <div
                     className={`submenu-item ${currentReportView === 'لاگ های مسیریابی کاربران' ? 'active' : ''}`}
+                    style={{ display: canOpenView('لاگ های مسیریابی کاربران') ? undefined : 'none' }}
                     onClick={() => handleSubmenuClick('لاگ های مسیریابی کاربران')}
                   >
                     <div className="submenu-branch"></div>
@@ -10956,6 +10960,7 @@ const Amain = () => {
                   </div>
                   <div
                     className={`submenu-item ${currentReportView === 'بازخورد ها' ? 'active' : ''}`}
+                    style={{ display: canOpenView('بازخورد ها') ? undefined : 'none' }}
                     onClick={() => handleSubmenuClick('بازخورد ها')}
                   >
                     <div className="submenu-branch"></div>
@@ -10967,6 +10972,7 @@ const Amain = () => {
 
             <div
               className={`menu-item-m ${activeMenu === 'mapmanage' ? 'active' : ''}`}
+              style={{ display: canManageMap ? undefined : 'none' }}
               onClick={() => handleMenuClick('mapmanage', 'مدیریت نقشه')}
             >
               <span className="menu-icon">
@@ -11022,6 +11028,7 @@ const Amain = () => {
 
             <div
               className={`menu-item-m ${activeMenu === 'facmanage' ? 'active' : ''}`}
+              style={{ display: FACILITY_VIEWS.some(canOpenView) ? undefined : 'none' }}
               onClick={() => {
                 togglefacManagement();
                 handleMenuClick;
@@ -11039,10 +11046,11 @@ const Amain = () => {
                 <path fillRule="evenodd" clipRule="evenodd" d="M2.95363 5.98434C3.13334 5.77467 3.44899 5.75039 3.65866 5.9301L7.99993 9.65119L12.3412 5.9301C12.5509 5.75039 12.8665 5.77467 13.0462 5.98434C13.2259 6.194 13.2017 6.50965 12.992 6.68936L8.32532 10.6894C8.13808 10.8499 7.86178 10.8499 7.67453 10.6894L3.00787 6.68936C2.7982 6.50965 2.77392 6.194 2.95363 5.98434Z" fill="#858585" />
               </svg>
             </div>
-            {facManagementOpen && (
+            {facManagementOpen && FACILITY_VIEWS.some(canOpenView) && (
               <div className="submenu-items">
                 <div
                   className={`submenu-item ${currentReportView === 'مدیریت دسته بندی‌ها' ? 'active' : ''}`}
+                  style={{ display: canOpenView('مدیریت دسته بندی‌ها') ? undefined : 'none' }}
                   onClick={() => handleSubmenuClick('مدیریت دسته بندی‌ها')}
                 >
                   <div className="submenu-branch"></div>
@@ -11050,6 +11058,7 @@ const Amain = () => {
                 </div>
                 <div
                   className={`submenu-item ${currentReportView === 'مدیریت صفحات' ? 'active' : ''}`}
+                  style={{ display: canOpenView('مدیریت صفحات') ? undefined : 'none' }}
                   onClick={() => handleSubmenuClick('مدیریت صفحات')}
                 >
                   <div className="submenu-branch"></div>
@@ -11057,6 +11066,7 @@ const Amain = () => {
                 </div>
                 <div
                   className={`submenu-item ${currentReportView === 'مدیریت اطلاعات فرهنگی' ? 'active' : ''}`}
+                  style={{ display: canOpenView('مدیریت اطلاعات فرهنگی') ? undefined : 'none' }}
                   onClick={() => handleSubmenuClick('مدیریت اطلاعات فرهنگی')}
                 >
                   <div className="submenu-branch"></div>
@@ -11064,6 +11074,7 @@ const Amain = () => {
                 </div>
                 <div
                   className={`submenu-item ${currentReportView === 'مدیریت ادمین‌ها' ? 'active' : ''}`}
+                  style={{ display: canOpenView('مدیریت ادمین‌ها') ? undefined : 'none' }}
                   onClick={() => handleSubmenuClick('مدیریت ادمین‌ها')}
                 >
                   <div className="submenu-branch"></div>
@@ -11071,6 +11082,7 @@ const Amain = () => {
                 </div>
                 <div
                   className={`submenu-item ${currentReportView === 'مدیریت نقاط راهنما' ? 'active' : ''}`}
+                  style={{ display: canOpenView('مدیریت نقاط راهنما') ? undefined : 'none' }}
                   onClick={() => handleSubmenuClick('مدیریت نقاط راهنما')}
                 >
                   <div className="submenu-branch"></div>
@@ -11232,7 +11244,7 @@ const Amain = () => {
 
 
 
-          {currentReportView === 'مدیریت صفحات' ? (
+          {(currentReportView && !canOpenView(currentReportView)) || (activeMenu === 'mapmanage' && !canManageMap) || (!currentReportView && activeMenu === 'dashboard' && !canSeeDashboard) || activeMenu === 'none' ? null : currentReportView === 'مدیریت صفحات' ? (
             <PagesManage />
           ) : isEditingCultural && editingCulturalData ? (
             /* Edit Cultural Information Page */
