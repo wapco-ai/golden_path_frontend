@@ -52,6 +52,7 @@ export const useAdminAuthStore = create(
       refreshToken: null,
       admin: null,
       roles: [],
+      roleTitles: [],
       permissions: [],
       expiresIn: null,
       isLoading: false,
@@ -72,6 +73,7 @@ export const useAdminAuthStore = create(
           refreshToken: refreshToken || null,
           admin: user || null,
           roles: user?.roles || [],
+          roleTitles: user?.roleTitles || [],
           permissions: user?.permissions || [],
           expiresIn: expiresIn || null
         });
@@ -85,6 +87,7 @@ export const useAdminAuthStore = create(
           refreshToken: null,
           admin: null,
           roles: [],
+          roleTitles: [],
           permissions: [],
           expiresIn: null
         });
@@ -120,6 +123,7 @@ export const useAdminAuthStore = create(
         set({
           admin: user,
           roles: user?.roles || [],
+          roleTitles: user?.roleTitles || [],
           permissions: user?.permissions || []
         });
         return user;
@@ -146,9 +150,6 @@ export const useAdminAuthStore = create(
       storage: createJSONStorage(safeStorage),
       partialize: (state) => ({
         refreshToken: state.refreshToken,
-        admin: state.admin,
-        roles: state.roles,
-        permissions: state.permissions,
         expiresIn: state.expiresIn
       }),
       onRehydrateStorage: () => (state) => {
@@ -157,12 +158,13 @@ export const useAdminAuthStore = create(
 
         state.accessToken = activeAccessToken;
 
-        if (!activeAccessToken) {
-          state.admin = null;
-          state.roles = [];
-          state.permissions = [];
-          state.expiresIn = null;
-        }
+        // Older persisted stores can contain another session's profile. Always
+        // resolve permissions from /me before displaying the admin panel.
+        state.admin = null;
+        state.roles = [];
+        state.roleTitles = [];
+        state.permissions = [];
+        if (!activeAccessToken) state.expiresIn = null;
       }
     }
   )
