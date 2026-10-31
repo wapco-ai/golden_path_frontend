@@ -104,3 +104,55 @@ test('failed activation keeps the edit form and displays the server field error'
   await expect(page.locator('#edit-admin-modal')).toBeVisible();
   await expect(page.getByText('برای فعال‌سازی این حساب، رمز عبور جدید وارد کنید.', { exact: true })).toBeVisible();
 });
+
+const allRoleTitles = [
+  'ادمین کل داشبورد', 'مدیریت کاربران', 'مدیریت نقشه', 'مدیریت دسته بندی',
+  'مدیریت اطلاعات فرهنگی', 'مدیریت ادمین ها', 'مدیریت گزارشات', 'مدیریت صفحات',
+  'مدیریت بازخورد ها', 'مدیریت دیدگاه ها', 'مدیریت لاگ های مسیریابی',
+  'مدیریت کاربران ثبت نام کرده',
+];
+
+for (const viewport of [{ width: 1440, height: 900 }, { width: 900, height: 480 }, { width: 360, height: 640 }]) {
+  test(`details with every role remain closable at ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
+    const { admins } = await setup(page);
+    admins[0].roles = allRoleTitles;
+    admins[0].email = `${'long-email-'.repeat(8)}@example.test`;
+    await page.locator('#details-btn-41').click();
+    await page.setViewportSize(viewport);
+    const dialog = page.getByRole('dialog', { name: 'جزئیات ادمین', exact: true });
+    const headerClose = page.locator('#close-details-modal');
+    const footerClose = page.locator('#close-details-btn');
+    const body = dialog.locator('.modal-body-admin-details');
+    const insideViewport = locator => locator.evaluate(element => {
+      const bounds = element.getBoundingClientRect();
+      return bounds.top >= 0 && bounds.left >= 0
+        && bounds.bottom <= window.innerHeight && bounds.right <= window.innerWidth;
+    });
+    await expect.poll(() => insideViewport(dialog)).toBe(true);
+    await expect.poll(() => insideViewport(headerClose)).toBe(true);
+    await expect.poll(() => insideViewport(footerClose)).toBe(true);
+    expect(await body.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    if (viewport.width > 540) {
+      const [first, second] = await Promise.all([dialog.locator('.role-item').nth(0).boundingBox(), dialog.locator('.role-item').nth(1).boundingBox()]);
+      expect(Math.abs(first.y - second.y)).toBeLessThan(2);
+      expect(Math.abs(first.x - second.x)).toBeGreaterThan(100);
+    }
+    await page.screenshot({ path: testInfo.outputPath('admin-details.png') });
+    await body.evaluate(element => { element.scrollTop = element.scrollHeight; });
+    await expect(dialog.locator('.role-item').last()).toBeInViewport();
+    expect(await insideViewport(headerClose)).toBe(true);
+    expect(await insideViewport(footerClose)).toBe(true);
+    await footerClose.click();
+    await expect(dialog).toHaveCount(0);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.locator('#details-btn-41').click();
+    await page.setViewportSize(viewport);
+    await headerClose.click();
+    await expect(dialog).toHaveCount(0);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.locator('#details-btn-41').click();
+    await page.setViewportSize(viewport);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+  });
+}
