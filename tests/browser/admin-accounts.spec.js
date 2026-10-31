@@ -152,6 +152,8 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 900, height: 480 
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.locator('#details-btn-41').click();
     await page.setViewportSize(viewport);
+    await expect(dialog).toBeVisible();
+    await expect(headerClose).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
   });

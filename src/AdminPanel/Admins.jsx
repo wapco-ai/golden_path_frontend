@@ -69,15 +69,6 @@ const Admins = () => {
     loadAdmins();
   }, [currentPage, itemsPerPage, searchTerm]);
 
-  useEffect(() => {
-    if (!isDetailsModalOpen) return;
-    const handleEscape = (event) => {
-      if (event.key === 'Escape') setIsDetailsModalOpen(false);
-    };
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [isDetailsModalOpen]);
-
   const loadAdmins = async (options = {}) => {
     setIsLoading(true);
     try {
@@ -702,7 +693,18 @@ const Admins = () => {
       {/* Admin Details Modal */}
       {isDetailsModalOpen && selectedAdmin && (
         <div className="modal-overlay" id="admin-details-modal">
-          <div className="admin-details-modal" role="dialog" aria-modal="true" aria-labelledby="admin-details-title">
+          <div
+            className="admin-details-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-details-title"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                event.stopPropagation();
+                setIsDetailsModalOpen(false);
+              }
+            }}
+          >
             <div className="modal-header-admin-details">
               <h3 id="admin-details-title">جزئیات ادمین</h3>
               <button
