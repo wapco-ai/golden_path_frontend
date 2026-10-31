@@ -6,6 +6,9 @@ import appConfig from '../../config/appConfig';
 export const ADMIN_ACCESS_TOKEN_KEY = 'gp_admin_access_token';
 export const ADMIN_REFRESH_TOKEN_KEY = 'gp_admin_refresh_token';
 
+let profileRequestVersion = 0;
+let authSessionVersion = 0;
+
 const getSessionAccessToken = () => {
   if (typeof window === 'undefined') return null;
   return sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY);
@@ -68,6 +71,8 @@ export const useAdminAuthStore = create(
       },
 
       setAuth: ({ accessToken, refreshToken, user, expiresIn }) => {
+        profileRequestVersion += 1;
+        authSessionVersion += 1;
         set({
           accessToken: accessToken || null,
           refreshToken: refreshToken || null,
@@ -81,6 +86,8 @@ export const useAdminAuthStore = create(
       },
 
       clearAuth: () => {
+        profileRequestVersion += 1;
+        authSessionVersion += 1;
         clearTokenStorage();
         set({
           accessToken: null,
@@ -101,11 +108,19 @@ export const useAdminAuthStore = create(
       },
 
       refreshSession: async () => {
+        const sessionVersion = authSessionVersion;
         const refreshToken = get().refreshToken || localStorage.getItem(ADMIN_REFRESH_TOKEN_KEY);
         if (!refreshToken) {
           throw new Error('Refresh token موجود نیست');
         }
-        const response = await authClient.post('/refresh', { refreshToken }, { headers: { Authorization: undefined } });
+        let response;
+        try {
+          response = await authClient.post('/refresh', { refreshToken }, { headers: { Authorization: undefined } });
+        } catch (error) {
+          if (sessionVersion !== authSessionVersion) return null;
+          throw error;
+        }
+        if (sessionVersion !== authSessionVersion) return null;
         const { accessToken, refreshToken: newRefresh, user, expiresIn } = response.data || {};
         get().setAuth({ accessToken, refreshToken: newRefresh || refreshToken, user: user || get().admin, expiresIn });
         return response.data;
@@ -114,12 +129,25 @@ export const useAdminAuthStore = create(
       fetchProfile: async () => {
         const accessToken = get().accessToken || sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY);
         if (!accessToken) return null;
-        const response = await authClient.get('/me', {
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
-        });
+        const requestVersion = ++profileRequestVersion;
+        let response;
+        try {
+          response = await authClient.get('/me', {
+            headers: {
+              Authorization: `Bearer ${accessToken}`
+            }
+          });
+        } catch (error) {
+          if (requestVersion !== profileRequestVersion) return get().admin;
+          throw error;
+        }
         const user = response.data?.user || response.data?.admin || response.data;
+        // A slower /me request from before a role edit or account switch must
+        // never restore the older grants after a newer profile was accepted.
+        if (requestVersion !== profileRequestVersion
+          || accessToken !== (get().accessToken || sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY))) {
+          return get().admin;
+        }
         set({
           admin: user,
           roles: user?.roles || [],
