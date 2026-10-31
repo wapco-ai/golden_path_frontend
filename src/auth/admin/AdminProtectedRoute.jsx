@@ -35,7 +35,7 @@ const verifyAdminSession = () => {
 
 const AdminProtectedRoute = ({ children }) => {
   const location = useLocation();
-  const { accessToken, clearAuth } = useAdminAuthStore();
+  const { accessToken, admin, clearAuth } = useAdminAuthStore();
   const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   useEffect(() => {
@@ -55,6 +55,31 @@ const AdminProtectedRoute = ({ children }) => {
     };
   }, [clearAuth]);
 
+  useEffect(() => {
+    if (isCheckingSession) return undefined;
+    let checking = false;
+    const refreshAccess = async () => {
+      if (checking || document.visibilityState === 'hidden') return;
+      checking = true;
+      try {
+        await verifyAdminSession();
+      } catch (error) {
+        if ([401, 403, 423].includes(error?.response?.status)) clearAuth();
+      } finally {
+        checking = false;
+      }
+    };
+    // Another administrator may change this account while the panel is open.
+    window.addEventListener('focus', refreshAccess);
+    document.addEventListener('visibilitychange', refreshAccess);
+    const interval = window.setInterval(refreshAccess, 30000);
+    return () => {
+      window.removeEventListener('focus', refreshAccess);
+      document.removeEventListener('visibilitychange', refreshAccess);
+      window.clearInterval(interval);
+    };
+  }, [isCheckingSession, clearAuth]);
+
   if (isCheckingSession) {
     return null;
   }
@@ -65,7 +90,13 @@ const AdminProtectedRoute = ({ children }) => {
     return <Navigate to="/admin/login" replace state={{ from: location }} />;
   }
 
-  return children || <Outlet />;
+  // Discard open editors and cached section data when their grants change.
+  const accessScope = JSON.stringify([
+    admin?.id ?? admin?.username ?? admin?.email,
+    [...(admin?.roles || [])].sort(),
+    [...(admin?.roleTitles || [])].sort()
+  ]);
+  return <React.Fragment key={accessScope}>{children || <Outlet />}</React.Fragment>;
 };
 
 export default AdminProtectedRoute;

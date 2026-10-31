@@ -863,7 +863,7 @@ const Amain = () => {
   const API_BASE = `${appConfig.apiBaseUrl}/api/v1/admin`;
   const notificationAccountKey = `${adminProfile?.id ?? adminProfile?.adminId ?? adminProfile?.username ?? adminProfile?.email ?? 'admin'}:${accessToken || (typeof window !== 'undefined' ? window.sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY) : '') || ''}`;
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
-  const canSeeDashboard = hasAdminRole(adminProfile, ['مدیریت گزارشات']);
+  const canSeeDashboard = hasAdminRole(adminProfile, ['ادمین کل داشبورد', 'مدیریت گزارشات']);
   const canManageMap = hasAdminRole(adminProfile, ['مدیریت نقشه']);
   const canOpenView = (view) => canOpenAdminView(adminProfile, view);
   const firstAllowedView = [...REPORT_VIEWS, ...FACILITY_VIEWS].find(canOpenView) || null;
@@ -13157,7 +13157,7 @@ const Amain = () => {
           )}
 
           {/* User Search and Table */}
-          {currentReportView !== 'مدیریت اطلاعات فرهنگی' &&
+          {canSeeDashboard && currentReportView !== 'مدیریت اطلاعات فرهنگی' &&
             currentReportView !== 'مدیریت دسته بندی‌ها' &&
             currentReportView !== 'مدیریت صفحات' &&
             currentReportView !== 'دیدگاه ها' &&

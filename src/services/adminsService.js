@@ -1,4 +1,5 @@
 import http from '../api/http';
+import { useAdminAuthStore } from '../auth/admin/adminAuthStore';
 
 const ADMIN_ADMINS_BASE_URL = '/api/v1/admin/admins';
 
@@ -28,12 +29,17 @@ export const createAdmin = async (payload) => {
 
 export const updateAdmin = async (id, payload) => {
   const response = await http.patch(`${ADMIN_ADMINS_BASE_URL}/${id}`, payload);
+  const store = useAdminAuthStore.getState();
+  if (store.admin?.id != null && String(store.admin.id) === String(id)) {
+    // Apply an edited account's permissions immediately in its current session.
+    // If the fresh profile cannot be verified, discard the old permissions.
+    await store.fetchProfile().catch(() => store.clearAuth());
+  }
   return response.data;
 };
 
 export const updateAdminRoles = async (id, roles) => {
-  const response = await http.patch(`${ADMIN_ADMINS_BASE_URL}/${id}`, { roles });
-  return response.data;
+  return updateAdmin(id, { roles });
 };
 
 export const deleteAdmin = async (id) => {

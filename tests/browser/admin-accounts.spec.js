@@ -12,7 +12,7 @@ async function setup(page, { legacy = false, rejectUpdate = false } = {}) {
     const request = route.request(), path = new URL(request.url()).pathname, method = request.method();
     let json = { data: [], items: [], total: 0 }, status = 200;
     if (path.endsWith('/admin/auth/me')) {
-      json = { id: 1, name: 'مدیر کل', roles: ['super_dashboard_admin'], roleTitles: ['ادمین کل داشبورد'], permissions: [] };
+      json = { id: 1, name: 'مدیر کل', roles: ['super_dashboard_admin', 'manage_admins', 'manage_map'], roleTitles: ['ادمین کل داشبورد', 'مدیریت ادمین ها', 'مدیریت نقشه'], permissions: [] };
     } else if (path.endsWith('/floors')) json = [{ floor: 0, label: 'همکف' }];
     else if (path.endsWith('/admin/admins') && method === 'GET') json = { items: admins, meta: { totalItems: admins.length } };
     else if (path.endsWith('/admin/admins') && method === 'POST') {

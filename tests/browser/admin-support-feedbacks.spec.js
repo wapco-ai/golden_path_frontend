@@ -11,13 +11,13 @@ async function setup(page, { count = 21, deleteStatus = 200, deleteGate, readGat
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(() => {
     sessionStorage.setItem('gp_admin_access_token', 'browser-fixture-only');
-    localStorage.setItem('gp_admin_auth_store', JSON.stringify({ state: { admin: { name: 'مدیر آزمایشی' }, roles: ['super_dashboard_admin'], permissions: ['*'] }, version: 0 }));
+    localStorage.setItem('gp_admin_auth_store', JSON.stringify({ state: { admin: { name: 'مدیر آزمایشی' }, roles: ['super_dashboard_admin', 'manage_support_feedbacks'], permissions: ['*'] }, version: 0 }));
     localStorage.setItem('lang-storage', JSON.stringify({ state: { language: 'fa' }, version: 1 }));
   });
   await page.route('**/api/v1/**', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname;
     let json = { data: [], total: 0 }, status = 200;
-    if (path.endsWith('/admin/auth/me')) json = { user: { name: 'مدیر آزمایشی', roles: ['super_dashboard_admin'], permissions: ['*'] } };
+    if (path.endsWith('/admin/auth/me')) json = { user: { name: 'مدیر آزمایشی', roles: ['super_dashboard_admin', 'manage_support_feedbacks'], permissions: ['*'] } };
     else if (path.endsWith('/floors')) json = [{ floor: 0, label: 'همکف' }];
     else if (path.endsWith('/groups/metadata')) json = { groups: [] };
     else if (path.endsWith('/groups/subgroups')) json = { subGroups: {} };

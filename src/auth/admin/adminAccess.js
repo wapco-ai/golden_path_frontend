@@ -1,5 +1,20 @@
 // These titles are the role identifiers used by the admin management form
 // and returned by the backend's authenticated profile endpoint.
+export const ADMIN_ROLE_CODES = Object.freeze({
+  'ادمین کل داشبورد': 'super_dashboard_admin',
+  'مدیریت کاربران': 'manage_users',
+  'مدیریت نقشه': 'manage_map',
+  'مدیریت دسته بندی': 'manage_categories',
+  'مدیریت اطلاعات فرهنگی': 'manage_cultural_items',
+  'مدیریت ادمین ها': 'manage_admins',
+  'مدیریت گزارشات': 'manage_reports',
+  'مدیریت صفحات': 'manage_pages',
+  'مدیریت بازخورد ها': 'manage_support_feedbacks',
+  'مدیریت دیدگاه ها': 'manage_comments',
+  'مدیریت لاگ های مسیریابی': 'manage_routing_logs',
+  'مدیریت کاربران ثبت نام کرده': 'manage_registered_users'
+});
+
 export const VIEW_ROLES = Object.freeze({
   'کاربران ثبت نام کرده': ['مدیریت کاربران ثبت نام کرده', 'مدیریت کاربران'],
   'دیدگاه ها': ['مدیریت دیدگاه ها'],
@@ -24,8 +39,9 @@ export function hasAdminRole(profile, requiredTitles) {
   if (!profile || !Array.isArray(requiredTitles) || requiredTitles.length === 0) return false;
   const titles = Array.isArray(profile.roleTitles) ? profile.roleTitles : [];
   const codes = Array.isArray(profile.roles) ? profile.roles : [];
-  return codes.includes('super_dashboard_admin') || titles.includes('ادمین کل داشبورد')
-    || requiredTitles.some((title) => titles.includes(title));
+  // Dashboard access is a separate grant, not an override for unchecked sections.
+  return requiredTitles.some((title) => titles.includes(title)
+    || (ADMIN_ROLE_CODES[title] && codes.includes(ADMIN_ROLE_CODES[title])));
 }
 
 export function canOpenAdminView(profile, view) {
