@@ -12,7 +12,8 @@ import '../AdminPanel/Amain.css';
 
 const Admins = () => {
   const getServerErrorMessage = (error, fallbackMessage) =>
-    error?.response?.data?.message || error?.message || fallbackMessage;
+    Object.values(error?.response?.data?.errors || {}).flat()[0]
+    || error?.response?.data?.message || error?.message || fallbackMessage;
 
   // All available roles
   const allRoles = [
@@ -59,6 +60,7 @@ const Admins = () => {
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [editAdminEmail, setEditAdminEmail] = useState('');
   const [editAdminPassword, setEditAdminPassword] = useState('');
+  const [editAdminStatus, setEditAdminStatus] = useState('active');
   const [isSaving, setIsSaving] = useState(false);
 
 
@@ -192,6 +194,7 @@ const Admins = () => {
     setSelectedRoles([...admin.roles]); // Clone roles array
     setEditAdminEmail(admin.email || '');
     setEditAdminPassword('');
+    setEditAdminStatus(admin.status === 'active' ? 'active' : 'inactive');
     setIsEditModalOpen(true);
   };
 
@@ -237,6 +240,12 @@ const Admins = () => {
       return;
     }
 
+    if (editAdminStatus === 'active' && selectedAdmin.status !== 'active'
+      && selectedAdmin.requiresPasswordReset && !editAdminPassword.trim()) {
+      toast.error('برای فعال‌سازی این حساب، رمز عبور جدید وارد کنید');
+      return;
+    }
+
     setIsSaving(true);
 
     // Simulate API call
@@ -249,24 +258,14 @@ const Admins = () => {
       if (editAdminPassword.trim()) {
         payload.password = editAdminPassword;
       }
+      if (editAdminStatus !== selectedAdmin.status) {
+        payload.status = editAdminStatus;
+      }
 
-      await updateAdmin(selectedAdmin.id, payload);
-      const updatedAdmins = admins.map(admin => {
-        if (admin.id === selectedAdmin.id) {
-          return {
-            ...admin,
-            roles: [...selectedRoles],
-            email: editAdminEmail.trim()
-          };
-        }
-        return admin;
-      });
-      setAdmins(updatedAdmins);
-      setSelectedAdmin({
-        ...selectedAdmin,
-        roles: [...selectedRoles],
-        email: editAdminEmail.trim()
-      });
+      const response = await updateAdmin(selectedAdmin.id, payload);
+      const updatedAdmin = response?.data || response;
+      setAdmins(admins.map(admin => admin.id === selectedAdmin.id ? updatedAdmin : admin));
+      setSelectedAdmin(updatedAdmin);
       setIsSaving(false);
       setIsEditModalOpen(false);
       setEditAdminPassword('');
@@ -634,15 +633,28 @@ const Admins = () => {
                   />
                 </div>
                 <div className="info-field">
-                  <label>رمز عبور جدید</label>
+                  <label htmlFor="edit-admin-password">رمز عبور جدید</label>
                   <input
                     type="password"
                     className="form-input-add-admin"
                     value={editAdminPassword}
                     onChange={(event) => setEditAdminPassword(event.target.value)}
                     id="edit-admin-password"
-                    placeholder="در صورت نیاز تغییر دهید"
+                    placeholder={selectedAdmin.requiresPasswordReset && editAdminStatus === 'active'
+                      ? 'برای فعال‌سازی این حساب الزامی است' : 'در صورت نیاز تغییر دهید'}
                   />
+                </div>
+                <div className="info-field">
+                  <label htmlFor="edit-admin-status">وضعیت حساب</label>
+                  <select
+                    className="form-input-add-admin"
+                    id="edit-admin-status"
+                    value={editAdminStatus}
+                    onChange={(event) => setEditAdminStatus(event.target.value)}
+                  >
+                    <option value="active">فعال</option>
+                    <option value="inactive">غیرفعال</option>
+                  </select>
                 </div>
               </div>
 
@@ -702,15 +714,19 @@ const Admins = () => {
                   <span className="info-value">{selectedAdmin.username}</span>
                 </div>
                 <div className="info-row">
+                  <span className="info-label">ایمیل:</span>
+                  <span className="info-value">{selectedAdmin.email || '-'}</span>
+                </div>
+                <div className="info-row">
                   <span className="info-label">تاریخ ایجاد:</span>
                   <span className="info-value">{selectedAdmin.createdAt}</span>
                 </div>
-                {/* <div className="info-row">
+                <div className="info-row">
                   <span className="info-label">وضعیت:</span>
                   <span className={`status-badge ${selectedAdmin.status}`}>
                     {selectedAdmin.status === 'active' ? 'فعال' : 'غیرفعال'}
                   </span>
-                </div> */}
+                </div>
               </div>
 
               <div className="admin-roles-section">
@@ -760,7 +776,7 @@ const Admins = () => {
                 <span>({selectedAdmin.username})</span>
               </div>
               <div className="delete-warning">
-                این عمل قابل بازگشت نیست و تمام دسترسی‌های این ادمین حذف خواهد شد.
+                حساب غیرفعال و نقش‌ها و اطلاعات ورود آن حذف می‌شود. برای فعال‌سازی مجدد باید نقش و رمز عبور را دوباره ثبت کنید.
               </div>
             </div>
             <div className="modal-footer-delete-admin">
