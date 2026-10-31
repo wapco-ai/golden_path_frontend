@@ -9,6 +9,7 @@ import {
   updateAdmin
 } from '../services/adminsService';
 import '../AdminPanel/Amain.css';
+import './adminDetails.css';
 
 const Admins = () => {
   const getServerErrorMessage = (error, fallbackMessage) =>
@@ -692,13 +693,27 @@ const Admins = () => {
       {/* Admin Details Modal */}
       {isDetailsModalOpen && selectedAdmin && (
         <div className="modal-overlay" id="admin-details-modal">
-          <div className="admin-details-modal">
+          <div
+            className="admin-details-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-details-title"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                event.stopPropagation();
+                setIsDetailsModalOpen(false);
+              }
+            }}
+          >
             <div className="modal-header-admin-details">
-              <h3>جزئیات ادمین</h3>
+              <h3 id="admin-details-title">جزئیات ادمین</h3>
               <button
                 className="close-btn"
                 onClick={() => setIsDetailsModalOpen(false)}
                 id="close-details-modal"
+                type="button"
+                aria-label="بستن جزئیات ادمین"
+                autoFocus
               >
                 ×
               </button>
