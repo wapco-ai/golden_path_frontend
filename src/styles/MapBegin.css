@@ -2145,7 +2145,7 @@ body.sidebar-open {
 
 /* Map Style Button */
 .map-style-button-mpb {
-  position: fixed;
+  position: absolute;
   bottom: 230px;
   right: 18px;
   width: 54px;
