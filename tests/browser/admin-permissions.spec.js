@@ -108,7 +108,7 @@ test('guidance-only access opens its form without granting map access', async ({
   await expect(page.getByText('مدیریت نقشه', { exact: true })).toBeHidden();
   await expect(page.locator('#dashboard-menu-item-m')).toBeHidden();
   await page.getByText('مدیریت امکانات', { exact: true }).click();
-  await page.getByText('مدیریت نقاط راهنما', { exact: true }).click();
+  await page.locator('#amain-sidebar').getByText('مدیریت نقاط راهنما', { exact: true }).click();
   await expect(page.getByRole('heading', { name: 'مدیریت نقاط راهنما', exact: true })).toBeVisible();
 });
 
