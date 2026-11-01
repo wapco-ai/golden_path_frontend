@@ -46,7 +46,7 @@ test('dashboard role alone does not grant map or facility management', async ({ 
 });
 
 test('the screenshot selection hides revoked sections without losing selected registered-users access', async ({ page }) => {
-  const roleTitles = Object.keys(ADMIN_ROLE_CODES).filter(title => !['مدیریت کاربران', 'مدیریت نقشه', 'مدیریت دسته بندی'].includes(title));
+  const roleTitles = Object.keys(ADMIN_ROLE_CODES).filter(title => !['مدیریت کاربران', 'مدیریت نقشه', 'مدیریت دسته بندی', 'مدیریت نقاط راهنما'].includes(title));
   await openPanel(page, roleTitles, roleTitles.map(title => ADMIN_ROLE_CODES[title]));
   await expect(page.getByText('مدیریت نقشه', { exact: true })).toBeHidden();
   await page.getByText('مدیریت امکانات', { exact: true }).click();
@@ -78,7 +78,7 @@ test('saving own role revocations refreshes the menu without logging out or relo
   await page.getByText('مدیریت ادمین‌ها', { exact: true }).click();
   await page.locator('#edit-btn21-2').click();
   const modal = page.locator('#edit-admin-modal');
-  for (const title of ['مدیریت کاربران', 'مدیریت نقشه', 'مدیریت دسته بندی']) {
+  for (const title of ['مدیریت کاربران', 'مدیریت نقشه', 'مدیریت دسته بندی', 'مدیریت نقاط راهنما']) {
     await modal.getByRole('checkbox', { name: title, exact: true }).uncheck();
   }
   await page.locator('#save-admin-btn').click();
@@ -101,6 +101,22 @@ test('an open editor is discarded when fresh permissions revoke its section', as
   await expect(page.locator('#add-admin-modal-unique')).toHaveCount(0);
   await expect(page.getByText('مدیریت امکانات', { exact: true })).toBeHidden();
   await expect(page.locator('#dashboard-menu-item-m')).toBeVisible();
+});
+
+test('guidance-only access opens its form without granting map access', async ({ page }) => {
+  await openPanel(page, [], ['manage_guidance_points']);
+  await expect(page.getByText('مدیریت نقشه', { exact: true })).toBeHidden();
+  await expect(page.locator('#dashboard-menu-item-m')).toBeHidden();
+  await page.getByText('مدیریت امکانات', { exact: true }).click();
+  await page.getByText('مدیریت نقاط راهنما', { exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'مدیریت نقاط راهنما', exact: true })).toBeVisible();
+});
+
+test('map-only access does not grant the guidance form', async ({ page }) => {
+  await openPanel(page, ['مدیریت نقشه'], ['manage_map']);
+  await expect(page.getByText('مدیریت نقشه', { exact: true })).toBeVisible();
+  await expect(page.getByText('مدیریت امکانات', { exact: true })).toBeHidden();
+  await expect(page.getByText('مدیریت نقاط راهنما', { exact: true })).toHaveCount(0);
 });
 
 test('a late profile response cannot restore privileges revoked by a newer profile', async ({ page }) => {

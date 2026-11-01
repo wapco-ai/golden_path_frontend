@@ -12,8 +12,11 @@ export const ADMIN_ROLE_CODES = Object.freeze({
   'مدیریت بازخورد ها': 'manage_support_feedbacks',
   'مدیریت دیدگاه ها': 'manage_comments',
   'مدیریت لاگ های مسیریابی': 'manage_routing_logs',
-  'مدیریت کاربران ثبت نام کرده': 'manage_registered_users'
+  'مدیریت کاربران ثبت نام کرده': 'manage_registered_users',
+  'مدیریت نقاط راهنما': 'manage_guidance_points'
 });
+
+export const ADMIN_ROLE_TITLES = Object.freeze(Object.keys(ADMIN_ROLE_CODES));
 
 export const VIEW_ROLES = Object.freeze({
   'کاربران ثبت نام کرده': ['مدیریت کاربران ثبت نام کرده', 'مدیریت کاربران'],
@@ -24,7 +27,7 @@ export const VIEW_ROLES = Object.freeze({
   'مدیریت صفحات': ['مدیریت صفحات'],
   'مدیریت اطلاعات فرهنگی': ['مدیریت اطلاعات فرهنگی'],
   'مدیریت ادمین‌ها': ['مدیریت ادمین ها'],
-  'مدیریت نقاط راهنما': ['مدیریت نقشه']
+  'مدیریت نقاط راهنما': ['مدیریت نقاط راهنما']
 });
 
 export const REPORT_VIEWS = Object.freeze([
