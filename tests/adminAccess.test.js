@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ADMIN_ROLE_CODES, canOpenAdminView, hasAdminRole, VIEW_ROLES } from '../src/auth/admin/adminAccess.js';
+import { ADMIN_ROLE_CODES, ADMIN_ROLE_TITLES, canOpenAdminView, hasAdminRole, VIEW_ROLES } from '../src/auth/admin/adminAccess.js';
 
 test('admin sections require a matching role from the live profile', () => {
   const mapAdmin = { roleTitles: ['مدیریت نقشه'], roles: ['manage_map'] };
-  assert.equal(canOpenAdminView(mapAdmin, 'مدیریت نقاط راهنما'), true);
-  for (const view of Object.keys(VIEW_ROLES).filter((view) => view !== 'مدیریت نقاط راهنما')) {
+  assert.equal(canOpenAdminView(mapAdmin, 'مدیریت نقاط راهنما'), false);
+  for (const view of Object.keys(VIEW_ROLES)) {
     assert.equal(canOpenAdminView(mapAdmin, view), false, view);
   }
   assert.equal(hasAdminRole(mapAdmin, ['مدیریت گزارشات']), false);
@@ -31,7 +31,7 @@ test('each canonical role code grants exactly its matching title', () => {
 });
 
 test('screenshot role selection removes map and category access but retains registered-users access', () => {
-  const titles = Object.keys(ADMIN_ROLE_CODES).filter(title => !['مدیریت کاربران', 'مدیریت نقشه', 'مدیریت دسته بندی'].includes(title));
+  const titles = Object.keys(ADMIN_ROLE_CODES).filter(title => !['مدیریت کاربران', 'مدیریت نقشه', 'مدیریت دسته بندی', 'مدیریت نقاط راهنما'].includes(title));
   for (const profile of [{ roleTitles: titles }, { roles: titles.map(title => ADMIN_ROLE_CODES[title]) }]) {
     assert.equal(hasAdminRole(profile, ['مدیریت نقشه']), false);
     assert.equal(hasAdminRole(profile, ['مدیریت کاربران']), false);
@@ -41,4 +41,21 @@ test('screenshot role selection removes map and category access but retains regi
     assert.equal(canOpenAdminView(profile, 'مدیریت ادمین‌ها'), true);
   }
   assert.equal(canOpenAdminView({ roleTitles: ['مدیریت کاربران'] }, 'کاربران ثبت نام کرده'), true);
+});
+
+test('every form role is present in the shared editor catalog', () => {
+  assert.equal(ADMIN_ROLE_TITLES.length, 13);
+  for (const titles of Object.values(VIEW_ROLES)) {
+    for (const title of titles) assert.ok(ADMIN_ROLE_TITLES.includes(title), title);
+  }
+});
+
+test('guidance access is independent of map access for both profile formats', () => {
+  for (const profile of [{ roles: ['manage_guidance_points'] }, { roleTitles: ['مدیریت نقاط راهنما'] }]) {
+    assert.equal(canOpenAdminView(profile, 'مدیریت نقاط راهنما'), true);
+    assert.equal(hasAdminRole(profile, ['مدیریت نقشه']), false);
+    for (const view of Object.keys(VIEW_ROLES).filter(view => view !== 'مدیریت نقاط راهنما')) {
+      assert.equal(canOpenAdminView(profile, view), false, view);
+    }
+  }
 });

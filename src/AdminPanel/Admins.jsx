@@ -10,6 +10,7 @@ import {
 } from '../services/adminsService';
 import '../AdminPanel/Amain.css';
 import './adminDetails.css';
+import { ADMIN_ROLE_TITLES } from '../auth/admin/adminAccess';
 
 const Admins = () => {
   const getServerErrorMessage = (error, fallbackMessage) =>
@@ -17,20 +18,7 @@ const Admins = () => {
     || error?.response?.data?.message || error?.message || fallbackMessage;
 
   // All available roles
-  const allRoles = [
-    'ادمین کل داشبورد',
-    'مدیریت کاربران',
-    'مدیریت نقشه',
-    'مدیریت دسته بندی',
-    'مدیریت اطلاعات فرهنگی',
-    'مدیریت ادمین ها',
-    'مدیریت گزارشات',
-    'مدیریت صفحات',
-    'مدیریت بازخورد ها',
-    'مدیریت دیدگاه ها',
-    'مدیریت لاگ های مسیریابی',
-    'مدیریت کاربران ثبت نام کرده'
-  ];
+  const allRoles = ADMIN_ROLE_TITLES;
 
   // State management
   const [admins, setAdmins] = useState([]);

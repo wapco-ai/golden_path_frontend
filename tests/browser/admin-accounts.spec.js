@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { ADMIN_ROLE_TITLES } from '../../src/auth/admin/adminAccess.js';
 
 async function setup(page, { legacy = false, rejectUpdate = false } = {}) {
   const writes = [];
@@ -105,12 +106,33 @@ test('failed activation keeps the edit form and displays the server field error'
   await expect(page.getByText('برای فعال‌سازی این حساب، رمز عبور جدید وارد کنید.', { exact: true })).toBeVisible();
 });
 
-const allRoleTitles = [
-  'ادمین کل داشبورد', 'مدیریت کاربران', 'مدیریت نقشه', 'مدیریت دسته بندی',
-  'مدیریت اطلاعات فرهنگی', 'مدیریت ادمین ها', 'مدیریت گزارشات', 'مدیریت صفحات',
-  'مدیریت بازخورد ها', 'مدیریت دیدگاه ها', 'مدیریت لاگ های مسیریابی',
-  'مدیریت کاربران ثبت نام کرده',
-];
+const allRoleTitles = ADMIN_ROLE_TITLES;
+
+test('add and edit forms expose every role and save guidance separately from map', async ({ page }) => {
+  const { writes } = await setup(page);
+  await page.getByRole('button', { name: 'افزودن ادمین', exact: true }).click();
+  const add = page.locator('#add-admin-modal-unique');
+  await expect(add.getByRole('checkbox')).toHaveCount(ADMIN_ROLE_TITLES.length);
+  for (const title of ADMIN_ROLE_TITLES) await expect(add.getByRole('checkbox', { name: title, exact: true })).toHaveCount(1);
+  await page.locator('#add-admin-firstname').fill('مدیر');
+  await page.locator('#add-admin-lastname').fill('راهنما');
+  await page.locator('#add-admin-username').fill('guidance-admin');
+  await page.locator('#add-admin-email').fill('guidance@example.test');
+  await page.locator('#add-admin-password').fill('initial-pass-123');
+  await add.getByRole('checkbox', { name: 'مدیریت نقاط راهنما', exact: true }).check();
+  await page.locator('#add-admin-submit-btn').click();
+  await expect(add).toHaveCount(0);
+  expect(writes[0].body.roles).toEqual(['مدیریت نقاط راهنما']);
+  await page.locator('#edit-btn21-41').click();
+  const edit = page.locator('#edit-admin-modal');
+  await expect(edit.getByRole('checkbox')).toHaveCount(ADMIN_ROLE_TITLES.length);
+  for (const title of ADMIN_ROLE_TITLES) await expect(edit.getByRole('checkbox', { name: title, exact: true })).toHaveCount(1);
+  await edit.getByRole('checkbox', { name: 'مدیریت نقشه', exact: true }).uncheck();
+  await edit.getByRole('checkbox', { name: 'مدیریت نقاط راهنما', exact: true }).check();
+  await page.locator('#save-admin-btn').click();
+  await expect(edit).toHaveCount(0);
+  expect(writes[1].body.roles).toEqual(['مدیریت نقاط راهنما']);
+});
 
 for (const viewport of [{ width: 1440, height: 900 }, { width: 900, height: 480 }, { width: 360, height: 640 }]) {
   test(`details with every role remain closable at ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
