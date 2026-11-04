@@ -24,7 +24,7 @@ async function setup(page, options = {}) {
   // Tests exercise only the local application's public contract; no employer call is made.
   await page.route('**/*', async (route) => {
     const url = new URL(route.request().url());
-    if (url.hostname === '127.0.0.1' && url.port === '5173') return route.continue();
+    if (url.hostname === '127.0.0.1' && ['5173', '5179'].includes(url.port)) return route.continue();
     if (url.hostname === 'fonts.googleapis.com') return route.fulfill({ contentType: 'text/css', body: '' });
     if (url.hostname !== 'localhost' || url.port !== '8080') {
       calls.external.push(url.origin);
@@ -42,7 +42,7 @@ async function setup(page, options = {}) {
       if (options.verify) return options.verify(route, calls.verify.length);
       return route.fulfill({ json: session });
     }
-    if (url.pathname.endsWith('/auth/me')) {
+    if (url.pathname.endsWith('/auth/me') || url.pathname.endsWith('/users/me')) {
       calls.me.push(record);
       if (options.me) return options.me(route);
       return route.fulfill({ json: user });
