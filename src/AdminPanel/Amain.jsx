@@ -34,8 +34,9 @@ import {
   fetchCulturalItems,
   updateCulturalItem
 } from '../services/culturalItemsService';
-import { ADMIN_ACCESS_TOKEN_KEY, useAdminAuthStore } from '../auth/admin/adminAuthStore';
-import { changeAdminPassword } from '../services/adminAuthService';
+import { ADMIN_ACCESS_TOKEN_KEY, getAdminSessionVersion, useAdminAuthStore } from '../auth/admin/adminAuthStore';
+import { changeAdminPassword, uploadAdminAvatar, deleteAdminAvatar } from '../services/adminAuthService';
+import { resolveAvatarUrl } from '../services/userProfileMapper';
 import { canOpenAdminView, hasAdminRole, REPORT_VIEWS, FACILITY_VIEWS } from '../auth/admin/adminAccess';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import {
@@ -1819,10 +1820,25 @@ const Amain = () => {
   const editMapRetryRef = useRef(0);
   const editMapResizeObserverRef = useRef(null);
   const [titleForModal, setTitleForModal] = useState('');
-  const [adminAvatar, setAdminAvatar] = useState(null);
+  const avatarUrl = resolveAvatarUrl(adminProfile?.avatarUrl || adminProfile?.avatar);
+  const [failedAvatar, setFailedAvatar] = useState(null);
+  const adminAvatar = failedAvatar === avatarUrl ? null : avatarUrl;
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const avatarFileRef = useRef(null);
+  const avatarBusyRef = useRef(null);
+  const avatarSessionKey = `${getAdminSessionVersion()}:${adminProfile?.id ?? ''}`;
+  const avatarScopeRef = useRef(avatarSessionKey);
+  avatarScopeRef.current = avatarSessionKey;
+  useEffect(() => {
+    avatarFileRef.current = null;
+    avatarBusyRef.current = null;
+    setAvatarPreview(null);
+    setIsAvatarModalOpen(false);
+    setIsUploadingAvatar(false);
+    setFailedAvatar(null);
+  }, [avatarSessionKey]);
   const [isRefreshingMainTable, setIsRefreshingMainTable] = useState(false);
 
   const [culturalPlaceCategory, setCulturalPlaceCategory] = useState('');
@@ -2686,11 +2702,16 @@ const Amain = () => {
   }, []);
 
   const handleAvatarClick = () => {
+    if (avatarBusyRef.current) return;
+    avatarFileRef.current = null;
+    setAvatarPreview(null);
     setIsAvatarModalOpen(true);
   };
 
   const handleAvatarFileSelect = (event) => {
+    if (avatarBusyRef.current) return;
     const file = event.target.files[0];
+    event.target.value = '';
     if (file) {
       // Validate file type
       const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp'];
@@ -2706,33 +2727,47 @@ const Amain = () => {
       }
 
       // Create preview
+      const scope = avatarScopeRef.current;
+      avatarFileRef.current = file;
+      setAvatarPreview(null);
       const reader = new FileReader();
       reader.onloadend = () => {
-        setAvatarPreview(reader.result);
+        if (avatarScopeRef.current === scope && avatarFileRef.current === file) {
+          setAvatarPreview(reader.result);
+        }
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSaveAvatar = () => {
-    if (!avatarPreview) {
+  const handleSaveAvatar = async () => {
+    if (avatarBusyRef.current) return;
+    const file = avatarFileRef.current;
+    if (!file || !avatarPreview) {
       alert('لطفا تصویری انتخاب کنید');
       return;
     }
 
+    const operation = { scope: avatarScopeRef.current };
+    avatarBusyRef.current = operation;
     setIsUploadingAvatar(true);
-
-    // In a real application, you would upload to your server here
-    // For now, we'll just save it locally in state
-    setTimeout(() => {
-      setAdminAvatar(avatarPreview);
+    try {
+      await uploadAdminAvatar(file);
+      if (avatarScopeRef.current !== operation.scope) return;
+      avatarFileRef.current = null;
       setAvatarPreview(null);
       setIsAvatarModalOpen(false);
-      setIsUploadingAvatar(false);
-
-      // Show success message
       alert('تصویر پروفایل با موفقیت آپلود شد');
-    }, 1000);
+    } catch (error) {
+      if (avatarScopeRef.current === operation.scope) {
+        alert(error?.response?.data?.errors?.file?.[0] || error?.response?.data?.message || 'ذخیره تصویر پروفایل انجام نشد. دوباره تلاش کنید.');
+      }
+    } finally {
+      if (avatarBusyRef.current === operation) {
+        avatarBusyRef.current = null;
+        setIsUploadingAvatar(false);
+      }
+    }
   };
 
   const handleSettingsClick = () => {
@@ -2862,11 +2897,28 @@ const Amain = () => {
     }
   };
 
-  const handleRemoveAvatar = () => {
-    setAdminAvatar(null);
-    setAvatarPreview(null);
-    setIsAvatarModalOpen(false);
-    alert('تصویر پروفایل حذف شد');
+  const handleRemoveAvatar = async () => {
+    if (avatarBusyRef.current) return;
+    const operation = { scope: avatarScopeRef.current };
+    avatarBusyRef.current = operation;
+    setIsUploadingAvatar(true);
+    try {
+      if (avatarUrl) await deleteAdminAvatar();
+      if (avatarScopeRef.current !== operation.scope) return;
+      avatarFileRef.current = null;
+      setAvatarPreview(null);
+      setIsAvatarModalOpen(false);
+      alert('تصویر پروفایل حذف شد');
+    } catch (error) {
+      if (avatarScopeRef.current === operation.scope) {
+        alert(error?.response?.data?.message || 'حذف تصویر پروفایل انجام نشد. دوباره تلاش کنید.');
+      }
+    } finally {
+      if (avatarBusyRef.current === operation) {
+        avatarBusyRef.current = null;
+        setIsUploadingAvatar(false);
+      }
+    }
   };
   const [barData, setBarData] = useState([]);
 
@@ -10840,6 +10892,7 @@ const Amain = () => {
                   src={adminAvatar}
                   alt="Admin Avatar"
                   className="admin-avatar-img"
+                  onError={() => setFailedAvatar(avatarUrl)}
                 />
               ) : (
                 <div className="default-avatar">
@@ -16409,15 +16462,17 @@ const Amain = () => {
                     accept="image/jpeg,image/png,image/jpg,image/gif,image/webp"
                     onChange={handleAvatarFileSelect}
                     className="hidden-file-input"
+                    disabled={isUploadingAvatar}
                   />
                   <label htmlFor="avatar-upload" className="upload-btn">
                     {avatarPreview ? 'تغییر تصویر' : 'انتخاب تصویر'}
                   </label>
 
-                  {(avatarPreview || adminAvatar) && (
+                  {(avatarPreview || avatarUrl) && (
                     <button
                       className="remove-btn"
                       onClick={handleRemoveAvatar}
+                      disabled={isUploadingAvatar}
                     >
                       حذف تصویر
                     </button>

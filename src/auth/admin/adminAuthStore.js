@@ -8,6 +8,10 @@ export const ADMIN_REFRESH_TOKEN_KEY = 'gp_admin_refresh_token';
 
 let profileRequestVersion = 0;
 let authSessionVersion = 0;
+let adminSessionVersion = 0;
+let avatarRevision = 0;
+
+export const getAdminSessionVersion = () => adminSessionVersion;
 
 const getSessionAccessToken = () => {
   if (typeof window === 'undefined') return null;
@@ -70,9 +74,10 @@ export const useAdminAuthStore = create(
         return roles.includes(roleCode);
       },
 
-      setAuth: ({ accessToken, refreshToken, user, expiresIn }) => {
+      setAuth: ({ accessToken, refreshToken, user, expiresIn, preserveSession = false }) => {
         profileRequestVersion += 1;
         authSessionVersion += 1;
+        if (!preserveSession) adminSessionVersion += 1;
         set({
           accessToken: accessToken || null,
           refreshToken: refreshToken || null,
@@ -88,6 +93,7 @@ export const useAdminAuthStore = create(
       clearAuth: () => {
         profileRequestVersion += 1;
         authSessionVersion += 1;
+        adminSessionVersion += 1;
         clearTokenStorage();
         set({
           accessToken: null,
@@ -122,7 +128,7 @@ export const useAdminAuthStore = create(
         }
         if (sessionVersion !== authSessionVersion) return null;
         const { accessToken, refreshToken: newRefresh, user, expiresIn } = response.data || {};
-        get().setAuth({ accessToken, refreshToken: newRefresh || refreshToken, user: user || get().admin, expiresIn });
+        get().setAuth({ accessToken, refreshToken: newRefresh || refreshToken, user: user || get().admin, expiresIn, preserveSession: true });
         return response.data;
       },
 
@@ -130,6 +136,7 @@ export const useAdminAuthStore = create(
         const accessToken = get().accessToken || sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY);
         if (!accessToken) return null;
         const requestVersion = ++profileRequestVersion;
+        const requestedAvatarRevision = avatarRevision;
         let response;
         try {
           response = await authClient.get('/me', {
@@ -141,12 +148,16 @@ export const useAdminAuthStore = create(
           if (requestVersion !== profileRequestVersion) return get().admin;
           throw error;
         }
-        const user = response.data?.user || response.data?.admin || response.data;
+        let user = response.data?.user || response.data?.admin || response.data;
         // A slower /me request from before a role edit or account switch must
         // never restore the older grants after a newer profile was accepted.
         if (requestVersion !== profileRequestVersion
           || accessToken !== (get().accessToken || sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY))) {
           return get().admin;
+        }
+        if (requestedAvatarRevision !== avatarRevision) {
+          const currentAvatar = get().admin?.avatarUrl ?? get().admin?.avatar ?? null;
+          user = { ...user, avatarUrl: currentAvatar, avatar: currentAvatar };
         }
         set({
           admin: user,
@@ -155,6 +166,13 @@ export const useAdminAuthStore = create(
           permissions: user?.permissions || []
         });
         return user;
+      },
+
+      setAvatar: (avatarUrl, expectedSessionVersion, expectedAdminId) => {
+        if (expectedSessionVersion !== adminSessionVersion || get().admin?.id !== expectedAdminId) return false;
+        avatarRevision += 1;
+        set((state) => ({ admin: { ...state.admin, avatarUrl, avatar: avatarUrl } }));
+        return true;
       },
 
       logout: async () => {
