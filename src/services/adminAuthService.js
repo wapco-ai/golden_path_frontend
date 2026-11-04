@@ -1,5 +1,7 @@
 import appConfig from '../config/appConfig.js';
 import apiAdmin from '../api/apiAdmin';
+import { getAdminSessionVersion, useAdminAuthStore } from '../auth/admin/adminAuthStore';
+import { resolveAvatarUrl } from './userProfileMapper';
 
 export const ADMIN_ACCESS_TOKEN_KEY = 'gp_admin_access';
 export const ADMIN_REFRESH_TOKEN_KEY = 'gp_admin_refresh';
@@ -136,3 +138,27 @@ export const changeAdminPassword = async ({ currentPassword, newPassword, confir
     password_confirmation: confirmPassword
   });
 };
+
+const persistAdminAvatar = async (file, remove = false) => {
+  const sessionVersion = getAdminSessionVersion();
+  const adminId = useAdminAuthStore.getState().admin?.id;
+  if (adminId === undefined || adminId === null) throw new Error('Admin session unavailable');
+  const config = { _adminSessionVersion: sessionVersion };
+  let response;
+  if (remove) {
+    response = await apiAdmin.delete('/api/v1/admin/auth/avatar', config);
+  } else {
+    const data = new FormData();
+    data.append('file', file);
+    response = await apiAdmin.post('/api/v1/admin/auth/avatar', data, config);
+  }
+  const url = remove ? null : resolveAvatarUrl(response.data?.url);
+  if (!remove && !url) throw new Error('Invalid avatar URL');
+  if (!useAdminAuthStore.getState().setAvatar(url, sessionVersion, adminId)) {
+    throw new Error('Admin session changed');
+  }
+  return url;
+};
+
+export const uploadAdminAvatar = (file) => persistAdminAvatar(file);
+export const deleteAdminAvatar = () => persistAdminAvatar(null, true);

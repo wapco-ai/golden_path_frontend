@@ -1,6 +1,9 @@
 import axios from 'axios';
 import appConfig from '../config/appConfig';
-import { useAdminAuthStore } from '../auth/admin/adminAuthStore';
+import { getAdminSessionVersion, useAdminAuthStore } from '../auth/admin/adminAuthStore';
+
+const isCurrentRequestSession = (config) => config?._adminSessionVersion === undefined
+  || config._adminSessionVersion === getAdminSessionVersion();
 
 const apiAdmin = axios.create({
   baseURL: appConfig.apiBaseUrl,
@@ -11,6 +14,7 @@ const apiAdmin = axios.create({
 });
 
 apiAdmin.interceptors.request.use((config) => {
+  if (!isCurrentRequestSession(config)) throw new axios.CanceledError('Admin session changed');
   const { accessToken } = useAdminAuthStore.getState();
   if (accessToken && !config?.headers?.Authorization) {
     config.headers.Authorization = `Bearer ${accessToken}`;
@@ -32,6 +36,7 @@ apiAdmin.interceptors.response.use(
   async (error) => {
     const status = error?.response?.status;
     const originalRequest = error?.config || {};
+    if (!isCurrentRequestSession(originalRequest)) return Promise.reject(error);
 
     if (status !== 401 || originalRequest._adminRetry) {
       return Promise.reject(error);

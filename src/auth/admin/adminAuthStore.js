@@ -8,6 +8,9 @@ export const ADMIN_REFRESH_TOKEN_KEY = 'gp_admin_refresh_token';
 
 let profileRequestVersion = 0;
 let authSessionVersion = 0;
+let adminSessionVersion = 0;
+
+export const getAdminSessionVersion = () => adminSessionVersion;
 
 const getSessionAccessToken = () => {
   if (typeof window === 'undefined') return null;
@@ -70,9 +73,10 @@ export const useAdminAuthStore = create(
         return roles.includes(roleCode);
       },
 
-      setAuth: ({ accessToken, refreshToken, user, expiresIn }) => {
+      setAuth: ({ accessToken, refreshToken, user, expiresIn, preserveSession = false }) => {
         profileRequestVersion += 1;
         authSessionVersion += 1;
+        if (!preserveSession) adminSessionVersion += 1;
         set({
           accessToken: accessToken || null,
           refreshToken: refreshToken || null,
@@ -88,6 +92,7 @@ export const useAdminAuthStore = create(
       clearAuth: () => {
         profileRequestVersion += 1;
         authSessionVersion += 1;
+        adminSessionVersion += 1;
         clearTokenStorage();
         set({
           accessToken: null,
@@ -122,7 +127,7 @@ export const useAdminAuthStore = create(
         }
         if (sessionVersion !== authSessionVersion) return null;
         const { accessToken, refreshToken: newRefresh, user, expiresIn } = response.data || {};
-        get().setAuth({ accessToken, refreshToken: newRefresh || refreshToken, user: user || get().admin, expiresIn });
+        get().setAuth({ accessToken, refreshToken: newRefresh || refreshToken, user: user || get().admin, expiresIn, preserveSession: true });
         return response.data;
       },
 
@@ -155,6 +160,13 @@ export const useAdminAuthStore = create(
           permissions: user?.permissions || []
         });
         return user;
+      },
+
+      setAvatar: (avatarUrl, expectedSessionVersion, expectedAdminId) => {
+        if (expectedSessionVersion !== adminSessionVersion || get().admin?.id !== expectedAdminId) return false;
+        profileRequestVersion += 1;
+        set((state) => ({ admin: { ...state.admin, avatarUrl, avatar: avatarUrl } }));
+        return true;
       },
 
       logout: async () => {
