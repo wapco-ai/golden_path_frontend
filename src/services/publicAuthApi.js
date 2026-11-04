@@ -1,5 +1,6 @@
 import apiUser from '../api/apiUser';
-import { normalizeUserProfile } from './userProfileMapper';
+import { isSameUserSession, useUserAuthStore } from '../auth/user/userAuthStore';
+import { normalizeUserProfile, resolveAvatarUrl } from './userProfileMapper';
 
 export const authRefresh = (refreshToken) =>
   apiUser.post('/api/v1/auth/refresh', { refreshToken }).then((res) => ({
@@ -23,9 +24,17 @@ export const updateUserMe = (payload) =>
   apiUser.patch('/api/v1/users/me', payload).then((res) => normalizeUserProfile(res.data));
 
 export const uploadUserAvatar = (file) => {
+  const session = useUserAuthStore.getState();
   const formData = new FormData();
   formData.append('file', file);
-  return apiUser.post('/api/v1/files/avatar', formData).then((res) => res.data);
+  return apiUser.post('/api/v1/files/avatar', formData, { _userSession: session }).then((res) => {
+    const current = useUserAuthStore.getState();
+    if (!isSameUserSession(session, current)) throw new Error('User session changed during avatar upload');
+    const url = resolveAvatarUrl(res.data?.url);
+    if (!url) throw new Error('Invalid avatar URL');
+    useUserAuthStore.setState({ user: { ...current.user, avatar: url, avatarUrl: url } });
+    return url;
+  });
 };
 
 export default {

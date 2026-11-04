@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -6,8 +6,8 @@ import logo from '../assets/images/logo.png';
 import packageInfo from '../../package.json';
 import '../styles/Profile.css';
 import { createContext, useContext } from 'react';
-import { useUserAuthStore, USER_REFRESH_TOKEN_KEY } from '../auth/user/userAuthStore';
-import { authLogout, getUserMe } from '../services/publicAuthApi';
+import { useUserAuthStore, isSameUserSession, USER_REFRESH_TOKEN_KEY } from '../auth/user/userAuthStore';
+import { authLogout, getUserMe, uploadUserAvatar } from '../services/publicAuthApi';
 import mapApiError from '../services/apiErrorMapper';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -30,7 +30,9 @@ function Profile() {
     city: '',
     avatar: null
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const fileInputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [profileError, setProfileError] = useState('');
 
   // Load user data from localStorage on component mount
@@ -41,10 +43,13 @@ function Profile() {
     }
     localStorage.setItem('appVersion', appVersion);
 
+    const session = useUserAuthStore.getState();
     const loadProfile = async () => {
       setIsLoading(true);
       try {
         const profile = await getUserMe();
+        if (!isSameUserSession(session, useUserAuthStore.getState())) return;
+        useUserAuthStore.setState({ user: profile });
         setUserData({
           firstName: profile.firstName || '',
           lastName: profile.lastName || '',
@@ -55,6 +60,7 @@ function Profile() {
           avatar: profile.avatar || null
         });
       } catch (err) {
+        if (!isSameUserSession(session, useUserAuthStore.getState())) return;
         const mapped = mapApiError(err);
         setProfileError(mapped.message);
         if (err?.response?.status === 401) {
@@ -70,6 +76,18 @@ function Profile() {
 
     loadProfile();
   }, [appVersion, intl, clearSession, navigate]);
+
+  const handleAvatarChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || uploading || isLoading) return;
+    setUploading(true);
+    try {
+      const url = await uploadUserAvatar(file);
+      setUserData((current) => ({ ...current, avatar: url }));
+    } catch (err) { toast.error(mapApiError(err).message); }
+    finally { setUploading(false); }
+  };
 
   // Format phone number for display
   const formatPhoneNumber = (phone) => {
@@ -151,9 +169,10 @@ function Profile() {
             </div>
           )}
           <div className="profile-avatar-container">
-            <div className="profile-avatar">
+            <div className="profile-avatar" role="button" tabIndex={0} aria-label="تغییر تصویر پروفایل" aria-disabled={uploading || isLoading} onClick={() => !uploading && !isLoading && fileInputRef.current?.click()} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (!uploading && !isLoading) fileInputRef.current?.click(); } }}>
+              <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleAvatarChange} />
               {userData.avatar ? (
-                <img src={userData.avatar} alt="Profile" className="profile-avatar-image" />
+                <img src={userData.avatar} alt="Profile" className="profile-avatar-image" onError={() => setUserData((current) => ({ ...current, avatar: null }))} />
               ) : (
                 <svg width="55" height="56" viewBox="0 0 55 56" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <g clipPath="url(#clip0_224_9691)">

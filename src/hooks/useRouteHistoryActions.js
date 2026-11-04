@@ -59,9 +59,10 @@ const persistSessionRoute = ({ origin, destination, route, transportMode, gender
   });
 };
 
-export const useRouteHistoryActions = ({ navigate, locale = 'fa-IR' }) => {
+export const useRouteHistoryActions = ({ navigate, locale = 'fa-IR', onRepeatError }) => {
   const [history, setHistory] = useState([]);
-  const busyRouteId = useRef(null);
+  const [isRepeating, setIsRepeating] = useState(false);
+  const repeatInFlight = useRef(false);
 
   const {
     setOrigin,
@@ -121,9 +122,10 @@ export const useRouteHistoryActions = ({ navigate, locale = 'fa-IR' }) => {
   }, [applyRoute, navigate]);
 
   const repeatRoute = useCallback(async (item) => {
-    if (!item?.origin || !item?.destination || busyRouteId.current !== null) return;
+    if (!item?.origin || !item?.destination || repeatInFlight.current) return;
 
-    busyRouteId.current = item.id;
+    repeatInFlight.current = true;
+    setIsRepeating(true);
     try {
       const transportMode = historyModeToTransportMode(item.mode);
       const result = await requestRouting({
@@ -141,10 +143,12 @@ export const useRouteHistoryActions = ({ navigate, locale = 'fa-IR' }) => {
       }
     } catch (error) {
       console.error('Failed to repeat route', error);
+      onRepeatError?.(error);
     } finally {
-      busyRouteId.current = null;
+      repeatInFlight.current = false;
+      setIsRepeating(false);
     }
-  }, [applyRoute, locale, navigate]);
+  }, [applyRoute, locale, navigate, onRepeatError]);
 
   const displayRoutes = useMemo(() => history.map((item) => {
     const formatted = formatTimestamp(item.timestamp, locale);
@@ -162,6 +166,7 @@ export const useRouteHistoryActions = ({ navigate, locale = 'fa-IR' }) => {
 
   return {
     displayRoutes,
+    isRepeating,
     repeatRoute,
     showPreviousRoute
   };

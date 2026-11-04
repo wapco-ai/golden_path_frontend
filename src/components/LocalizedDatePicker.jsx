@@ -49,7 +49,11 @@ function LocalizedDatePicker({
   disabled = false,
   error,
   helperText,
-  inputClassName = 'form-input'
+  inputClassName = 'form-input',
+  id,
+  inputRef,
+  openOnFocus = true,
+  describedBy
 }) {
   const { calendar, locale, direction } = CALENDAR_BY_LANG[lang] || CALENDAR_BY_LANG.en;
   const helperId = useId();
@@ -88,14 +92,17 @@ function LocalizedDatePicker({
         maxDate={pickerMaxDate}
         render={(inputValue, openCalendar) => (
           <input
+            id={id}
+            ref={inputRef}
             className={`${inputClassName} ${error ? 'error' : ''}`}
             value={inputValue || ''}
             readOnly
             inputMode="none"
             disabled={disabled}
             aria-invalid={error || undefined}
-            aria-describedby={helperText ? helperId : undefined}
-            onFocus={() => openCalendar?.()}
+            aria-describedby={[describedBy, helperText ? helperId : null].filter(Boolean).join(' ') || undefined}
+            onFocus={() => { if (openOnFocus) openCalendar?.(); }}
+            onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openCalendar?.(); } }}
             onClick={() => openCalendar?.()}
           />
         )}

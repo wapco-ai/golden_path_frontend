@@ -58,10 +58,30 @@ const getBearing = (a, b) => {
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 };
 
+// Use the outgoing route tangent at the marker; at the route end use the
+// incoming tangent. Repeated coordinates carry no direction and are skipped.
+const bearingAtRouteM = (coordinates, routeM) => {
+  if (routeM === null) return null;
+  const forward = sliceLineByFraction(coordinates, routeM, 1);
+  for (let i = 1; i < forward.length; i += 1) {
+    const heading = getBearing(forward[0], forward[i]);
+    if (heading !== null) return heading;
+  }
+  const backward = sliceLineByFraction(coordinates, 0, routeM);
+  for (let i = backward.length - 2; i >= 0; i -= 1) {
+    const heading = getBearing(backward[i], backward.at(-1));
+    if (heading !== null) return heading;
+  }
+  return null;
+};
+
 export const getStepPreview = (step, routeCoordinates = [], stepIndex = 0) => {
   if (step?.type === 'stepChangeFloor') {
     const point = step.coordinates?.[0];
-    return { geo: asGeo(point), heading: Number.isFinite(step.heading) ? step.heading : null,
+    const routeEnd = routeCoordinates.at(-1);
+    const heading = isCoordinate(point) && isCoordinate(routeEnd) && haversineMeters(point, routeEnd) <= 3
+      ? bearingAtRouteM(routeCoordinates, 1) : null;
+    return { geo: asGeo(point), heading: heading ?? (Number.isFinite(step.heading) ? step.heading : null),
       routeM: null, coordinates: isCoordinate(point) ? [point, point] : [] };
   }
   const fromM = fraction(step?.fromM);
@@ -75,15 +95,30 @@ export const getStepPreview = (step, routeCoordinates = [], stepIndex = 0) => {
   if (!coordinates.length && stepIndex === 0 && routeCoordinates.every(isCoordinate)) {
     coordinates = routeCoordinates.slice(0, 2);
   }
-  let heading = getBearing(coordinates[0], coordinates.at(-1));
+  const explicitStart = fraction(step?.fromM) ?? fraction(step?.routeM);
+  const projectedStart = explicitStart === null
+    ? projectPointOnRoute(coordinates[0], routeCoordinates) : null;
+  const previewM = step?.previewAt === 'end' ? toM
+    : explicitStart ?? (projectedStart?.lateralDistanceM <= 3 ? projectedStart.routeM : null);
+  const marker = previewM !== null
+    ? sliceLineByFraction(routeCoordinates, previewM, previewM)[0]
+    : null;
+  const point = marker || (step?.previewAt === 'end' ? coordinates.at(-1) : coordinates[0]);
+  let heading = bearingAtRouteM(routeCoordinates, previewM);
   if (heading === null) {
-    for (let i = 1; i < coordinates.length && heading === null; i += 1) {
-      heading = getBearing(coordinates[0], coordinates[i]);
+    if (step?.previewAt === 'end') {
+      for (let i = coordinates.length - 2; i >= 0 && heading === null; i -= 1) {
+        heading = getBearing(coordinates[i], point);
+      }
+    } else {
+      for (let i = 1; i < coordinates.length && heading === null; i += 1) {
+        heading = getBearing(point, coordinates[i]);
+      }
     }
   }
   if (heading === null && Number.isFinite(step?.heading)) heading = ((step.heading % 360) + 360) % 360;
-  const geo = asGeo(coordinates[0]);
-  return { geo, heading, routeM: getStepStartRouteM(step, routeCoordinates), coordinates };
+  const geo = asGeo(point);
+  return { geo, heading, routeM: previewM, coordinates };
 };
 
 export const getLiveNavigationGeo = ({ isDrActive, drPosition, userLocation }) => {
@@ -97,8 +132,9 @@ export const resolveNavigationFrame = ({
   isDemoMode = false, hasArrived = false, isDrActive = false,
   drPosition, userLocation, userHeading, sessionFloor = 0
 }) => {
-  const preview = getStepPreview(step, routeCoordinates, stepIndex);
   const live = isRoutingActive && !isDemoMode;
+  const preview = getStepPreview(live && step?.previewAt === 'end'
+    ? { ...step, previewAt: 'start' } : step, routeCoordinates, stepIndex);
   const liveGeo = getLiveNavigationGeo({ isDrActive, drPosition, userLocation });
   const geo = hasArrived ? asGeo(routeCoordinates.at(-1))
     : live ? (liveGeo || preview.geo) : preview.geo;
@@ -107,11 +143,14 @@ export const resolveNavigationFrame = ({
     .find((value) => value !== null && value !== undefined && value !== '' && Number.isInteger(Number(value)));
   return {
     geo,
-    heading: preview.heading ?? (Number.isFinite(userHeading) ? ((userHeading % 360) + 360) % 360 : null),
+    heading: preview.heading ?? (live && Number.isFinite(userHeading) ? ((userHeading % 360) + 360) % 360 : null),
     floor: floor === undefined ? 0 : Number(floor),
     mode: isDemoMode ? 'demo' : hasArrived ? 'arrived' : live ? 'live' : 'preview',
-    routeM: hasArrived ? 1 : live && projection && projection.lateralDistanceM <= 10
-      ? Math.max(preview.routeM ?? 0, projection.routeM) : (preview.routeM ?? 0)
+    routeM: hasArrived ? 1 : live
+      ? (projection && projection.lateralDistanceM <= 10
+        ? Math.max(getStepStartRouteM(step, routeCoordinates) ?? 0, projection.routeM)
+        : (getStepStartRouteM(step, routeCoordinates) ?? 0))
+      : (preview.routeM ?? 0)
   };
 };
 

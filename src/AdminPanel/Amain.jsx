@@ -35,6 +35,7 @@ import {
   updateCulturalItem
 } from '../services/culturalItemsService';
 import { ADMIN_ACCESS_TOKEN_KEY, useAdminAuthStore } from '../auth/admin/adminAuthStore';
+import { changeAdminPassword } from '../services/adminAuthService';
 import { canOpenAdminView, hasAdminRole, REPORT_VIEWS, FACILITY_VIEWS } from '../auth/admin/adminAccess';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import {
@@ -1726,6 +1727,7 @@ const Amain = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const changingPasswordRef = useRef(false);
 
   const [supportName, setSupportName] = useState('');
   const [supportEmail, setSupportEmail] = useState('');
@@ -2765,6 +2767,7 @@ const Amain = () => {
   };
 
   const handleChangePassword = async () => {
+    if (changingPasswordRef.current) return;
 
     if (!currentPassword) {
       alert('لطفا رمز عبور فعلی را وارد کنید');
@@ -2786,18 +2789,27 @@ const Amain = () => {
       return;
     }
 
+    changingPasswordRef.current = true;
+    setIsChangingPassword(true);
     try {
-      setIsChangingPassword(true);
-
-      // Here you would make an API call to change password
-      // For now, simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      toast.success('رمز عبور با موفقیت تغییر یافت');
+      await changeAdminPassword({ currentPassword, newPassword, confirmPassword });
       handleCloseChangePasswordModal();
+      useAdminAuthStore.getState().clearAuth();
+      toast.success('رمز عبور با موفقیت تغییر یافت. لطفاً دوباره وارد شوید.');
     } catch (error) {
-      toast.error('خطا در تغییر رمز عبور');
+      const status = error?.response?.status;
+      const errors = error?.response?.data?.errors;
+      if (status === 422 && errors?.current_password) {
+        toast.error('رمز عبور فعلی اشتباه است.');
+      } else if (status === 422) {
+        toast.error('اطلاعات رمز عبور معتبر نیست؛ رمز جدید و تأیید آن را بررسی کنید.');
+      } else if (!error?.response) {
+        toast.error('ارتباط با سرور برقرار نشد؛ وضعیت تغییر رمز را با ورود بررسی کنید.');
+      } else {
+        toast.error('تغییر رمز عبور انجام نشد؛ دوباره تلاش کنید.');
+      }
     } finally {
+      changingPasswordRef.current = false;
       setIsChangingPassword(false);
     }
   };

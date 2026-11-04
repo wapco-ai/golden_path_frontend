@@ -67,7 +67,7 @@ const Alogin = () => {
     setIsSubmitting(true);
 
     try {
-      await login({ usernameOrEmail: username.trim(), password: password.trim() });
+      await login({ usernameOrEmail: username.trim(), password });
       toast.success('با موفقیت وارد شدید');
       navigate('/admin');
     } catch (error) {

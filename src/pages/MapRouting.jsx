@@ -20,7 +20,7 @@ import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/grou
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { fetchAreaDoors } from '../services/areaDoorsService';
 import { getSessionFloor } from '../utils/sessionFloor';
-import { fetchLandmarkPlaces } from '../services/landmarkService';
+import { fetchLandmarkPlaces, localizedPlaceAddress } from '../services/landmarkService';
 import mode1 from '../assets/images/mode1.png';
 import mode2 from '../assets/images/mode2.png';
 import mode3 from '../assets/images/mode3.png';
@@ -57,10 +57,8 @@ const MapRoutingPage = () => {
   const [isSelectingFromMap, setIsSelectingFromMap] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
   const [mapSelectedLocation, setMapSelectedLocation] = useState(null);
-  const [selectedPlace, setSelectedPlace] = useState(null);
   const [showRouteInfoModal, setShowRouteInfoModal] = useState(false);
   const [selectedOption, setSelectedOption] = useState(null);
-  const [selectedSubgroup, setSelectedSubgroup] = useState(null);
   const [groups, setGroups] = useState([]);
   const [subGroups, setSubGroups] = useState({});
   const [areaDoorsData, setAreaDoorsData] = useState(null);
@@ -202,6 +200,7 @@ const MapRoutingPage = () => {
   const recentSearches = useSearchStore(state => state.recentSearches);
   const addSearch = useSearchStore(state => state.addSearch);
   const removeSearch = useSearchStore(state => state.removeSearch);
+  const updateRecentAddress = useSearchStore(state => state.updateRecentAddress);
 
   const destinationInputRef = useRef(null);
   const originInputRef = useRef(null);
@@ -413,15 +412,7 @@ const MapRoutingPage = () => {
         ...normalizedSubGroups
       }));
 
-      const localized = (normalizedSubGroups[category.value] || []).map((sg) => ({
-        ...sg,
-        label: getLocalizedSubgroupLabel(geoData, sg.value, sg.label),
-        description: getLocalizedSubgroupDescription(
-          geoData,
-          sg.value,
-          sg.description || intl.formatMessage({ id: 'subgroupDefaultDesc' })
-        )
-      }));
+      const localized = normalizedSubGroups[category.value] || [];
 
       setModalFilteredSubGroups(localized);
     } catch (err) {
@@ -511,55 +502,58 @@ const MapRoutingPage = () => {
     navigate(-1);
   };
 
-  const getLocalizedValue = (value) => {
-    if (!value) return value;
-    if (typeof value === 'object' && !Array.isArray(value)) {
-      return value[language] || value.fa || Object.values(value).find(Boolean) || '';
-    }
-    return value;
+  const getRecentAddress = (entry) => {
+    if (entry.address && typeof entry.address === 'object') return localizedPlaceAddress(entry.address, language);
+    if (entry.addressLanguage && entry.addressLanguage !== language) return '';
+    return entry.location || '';
   };
 
-  const getSubgroupByValue = (value) => {
-    if (!value) return null;
-    const target = value.toString();
-    return Object.values(subGroups)
-      .flat()
-      .find((item) => item?.value?.toString?.() === target);
+  const displaySearchAddress = (name, address) => {
+    const normalize = (text) => typeof text === 'string'
+      ? text.normalize('NFKC').replace(/[يك]/g, (letter) => ({ 'ي': 'ی', 'ك': 'ک' }[letter]))
+        .replace(/[\s\u200c]+/g, ' ').trim().toLowerCase()
+      : '';
+    return normalize(address) && normalize(address) !== normalize(name) ? address : '';
   };
 
-  // Get subgroup label based on currently loaded geoData or subgroup metadata
-  const getLocalizedSubgroupLabel = (geoData, value, fallback) => {
-    const subgroup = getSubgroupByValue(value);
-    if (geoData) {
-      const feature = geoData.features.find(
-        f => f.properties?.subGroupValue === value
-      );
-      if (feature?.properties?.subGroup) return feature.properties.subGroup;
-    }
-    if (subgroup?.label) return getLocalizedValue(subgroup.label);
-    return getLocalizedValue(fallback);
+  const renderSearchLocation = (destination, address) => {
+    const displayAddress = displaySearchAddress(destination.name, address);
+    return <>{displayAddress}<FloorTag point={destination} separator={Boolean(displayAddress)} /></>;
   };
 
   const filteredDestinations = searchQuery.trim().length >= 2
     ? landmarkSearchResults.map((place) => {
       const coords = extractLandmarkCoordinates(place);
-      const fallbackLocation = place.subGroup || place.address || '';
-      const localizedLocation = getLocalizedSubgroupLabel(
-        geoData,
-        place.subGroupValue,
-        fallbackLocation
-      );
+      const poiId = place.id ?? place.poi_id ?? place.poiId ?? null;
       return {
-        id: place.id || place.value || place.subGroupValue,
-        name: place.title || place.name || place.subGroup || '',
-        location: localizedLocation,
+        id: poiId,
+        poiId,
+        name: place.title || place.name || '',
+        location: localizedPlaceAddress(place.address, language),
         floor: getPointFloor(place),
         coordinates: coords ? [coords.lat, coords.lng] : null,
         address: place.address,
+        addressLanguage: language,
         description: place.description || place?.content?.body || ''
       };
     })
     : recentSearches;
+
+  useEffect(() => {
+    let active = true;
+    const pending = recentSearches.filter((entry) => entry.poiId != null
+      && /^\d+$/.test(String(entry.poiId)) && entry.addressLanguage !== language);
+    pending.forEach(async (entry) => {
+      try {
+        const response = await fetchLandmarkPlaces({ language, poiId: entry.poiId, limit: 1 });
+        const place = response?.places?.landmarkPlaces?.find((item) => String(item.id) === String(entry.poiId));
+        if (active && place) updateRecentAddress(entry.poiId, place.address ?? '', language);
+      } catch (error) {
+        console.error('Failed to refresh recent place address', error);
+      }
+    });
+    return () => { active = false; };
+  }, [recentSearches, language, updateRecentAddress]);
 
   // FIXED: Remove the auto-navigation useEffect that was causing the issue
   useEffect(() => {
@@ -616,7 +610,6 @@ const MapRoutingPage = () => {
   }, [userLocation, intl]);
 
   const handleSubgroupSelect = async (subgroup) => {
-    setSelectedSubgroup(subgroup);
     setActiveInput('destination');
     setShowDestinationModal(false);
 
@@ -662,18 +655,13 @@ const MapRoutingPage = () => {
       }
     }
 
-    const localizedSubgroupLocation = getLocalizedSubgroupLabel(
-      geoData,
-      subgroup.value,
-      subgroup.location || subgroup.label
-    );
     const destination = {
       id: subgroup.value,
       floor: getPointFloor(subgroup),
       name: subgroup.label,
-      location: modalSelectedCategory ?
-        intl.formatMessage({ id: modalSelectedCategory.label }) :
-        localizedSubgroupLocation,
+      location: localizedPlaceAddress(subgroup.address, language),
+      address: subgroup.address,
+      addressLanguage: language,
       coordinates: coordinates
     };
 
@@ -935,18 +923,13 @@ const MapRoutingPage = () => {
       }
     }
 
-    const localizedSubgroupLocation = getLocalizedSubgroupLabel(
-      geoData,
-      subgroup.value,
-      subgroup.location || subgroup.label
-    );
     const destination = {
       id: subgroup.value,
       floor: getPointFloor(subgroup),
       name: subgroup.label,
-      location: mapSelectedCategory ?
-        intl.formatMessage({ id: mapSelectedCategory.label }) :
-        localizedSubgroupLocation,
+      location: localizedPlaceAddress(subgroup.address, language),
+      address: subgroup.address,
+      addressLanguage: language,
       coordinates: coordinates,
       fromMapSelection: false
     };
@@ -956,18 +939,6 @@ const MapRoutingPage = () => {
     handleDestinationSelect(destination, { forceDestination: true });
 
     handleClearCategorySelection();
-  };
-
-  const getLocalizedSubgroupDescription = (geoData, value, fallback) => {
-    const subgroup = getSubgroupByValue(value);
-    if (subgroup?.description) return subgroup.description;
-    if (geoData) {
-      const feature = geoData.features.find(
-        f => f.properties?.subGroupValue === value
-      );
-      if (feature?.properties?.description) return feature.properties.description;
-    }
-    return getLocalizedValue(fallback);
   };
 
   const handleSwapLocations = () => {
@@ -2007,17 +1978,7 @@ const MapRoutingPage = () => {
                           onClick={() => {
                             handleSubgroupSelectWithModal(subgroup);
 
-                            if (selectedOption === 'route') {
-                              const destination = {
-                                id: selectedSubgroup.value,
-                                name: selectedSubgroup.label,
-                                coordinates: selectedPlace.coordinates,
-                                location: intl.formatMessage({ id: modalSelectedCategory.label })
-                              };
-
-                              handleDestinationSelect(destination);
-                              setShowRouteInfoModal(false);
-                            }
+                            if (selectedOption === 'route') setShowRouteInfoModal(false);
                           }}
                           style={{
                             backgroundImage: subgroup.img ? `url(${Array.isArray(subgroup.img) ? subgroup.img[0] : subgroup.img})` : 'none',
@@ -2113,7 +2074,7 @@ const MapRoutingPage = () => {
                           </div>
                           <div className="map-destination-info">
                             <span className="map-destination-name">{destination.name}</span>
-                            <span className="map-destination-location">{destination.location}<FloorTag point={destination} /></span>
+                            <span className="map-destination-location">{renderSearchLocation(destination, getRecentAddress(destination))}</span>
                           </div>
                           <button
                             className="map-recent-option"
@@ -2161,7 +2122,7 @@ const MapRoutingPage = () => {
                       </div>
                       <div className="map-destination-info">
                         <span className="map-destination-name">{destination.name}</span>
-                        <span className="map-destination-location">{destination.location}<FloorTag point={destination} /></span>
+                        <span className="map-destination-location">{renderSearchLocation(destination, destination.location)}</span>
                       </div>
                     </li>
                   ))}

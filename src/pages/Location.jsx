@@ -1,3 +1,4 @@
+import { resolveAvatarUrl } from '../services/userProfileMapper';
 import { getPointFloor } from '../utils/floors';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation as useReactLocation } from 'react-router-dom';
@@ -224,20 +225,8 @@ const Location = () => {
     };
   };
 
-  useEffect(() => {
-    const savedAvatar = localStorage.getItem('userAvatar');
-    if (savedAvatar) {
-      setUserAvatar(savedAvatar);
-    }
-
-    const savedProfile = localStorage.getItem('userProfile');
-    if (savedProfile) {
-      const profileData = JSON.parse(savedProfile);
-      if (profileData.avatar) {
-        setUserAvatar(profileData.avatar);
-      }
-    }
-  }, []);
+  const accountAvatar = useUserAuthStore((state) => state.user?.avatarUrl || state.user?.avatar);
+  useEffect(() => { setUserAvatar(resolveAvatarUrl(accountAvatar)); }, [accountAvatar]);
 
   const findMatchingLocation = (places, requestedId) => {
     if (!requestedId || !Array.isArray(places)) return null;

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { buildRouteMSegments, sliceLineByFraction } from '../src/utils/routeSegments.js';
+import { buildRouteMSegments, getLineDistanceMeters, haversineMeters, sliceLineByFraction } from '../src/utils/routeSegments.js';
 import {
   getStepStartRouteM, getNavigationProgress, getStepPreview,
   nextDemoStep, resolveNavigationFrame
@@ -104,6 +104,33 @@ test('navigation calculations do not modify the route or its geometry', () => {
 test('degenerate step heading is not fabricated as north', () => {
   const step = { coordinates: [[59, 36], [59, 36]] };
   assert.equal(getStepPreview(step, route).heading, null);
+});
+
+test('endpoint instruction uses its event position and local outgoing tangent', () => {
+  const curved = [[59.61, 36.28], [59.611, 36.28], [59.611, 36.28], [59.611, 36.282]];
+  const boundary = 0.1;
+  const step = { fromM: 0, toM: boundary, previewAt: 'end' };
+  const result = getStepPreview(step, curved);
+  const expected = sliceLineByFraction(curved, boundary, boundary)[0];
+  assert.deepEqual(result.geo, { lng: expected[0], lat: expected[1] });
+  assert.equal(result.routeM, boundary);
+  assert.ok(Math.abs(result.heading - 90) < 1);
+  const bendM = haversineMeters(curved[0], curved[1]) / getLineDistanceMeters(curved);
+  const bend = getStepPreview({ fromM: 0, toM: bendM, previewAt: 'end' }, curved);
+  assert.ok(bend.heading < 1 || bend.heading > 359);
+  const last = getStepPreview({ fromM: boundary, toM: 1, previewAt: 'end' }, curved);
+  assert.deepEqual(last.geo, { lng: 59.611, lat: 36.282 });
+  assert.ok(last.heading < 1 || last.heading > 359);
+});
+
+test('endpoint previews do not move live progress or react to sensor headings', () => {
+  const step = { ...steps[0], previewAt: 'end' };
+  const preview = frame({ step, userHeading: 120 });
+  assert.equal(preview.routeM, step.toM);
+  const live = frame({ step, isRoutingActive: true, isDrActive: true, drPosition: pointAt(0.1) });
+  assert.ok(Math.abs(live.routeM - 0.1) < 0.001);
+  const transfer = { type: 'stepChangeFloor', coordinates: [[59.61, 36.28], [59.61, 36.28]] };
+  assert.equal(frame({ step: transfer, userHeading: 123 }).heading, null);
 });
 
 const input = { geo: { lat: 36.28, lng: 59.61 }, heading: 90, floor: 0, source: 'guidance_points' };

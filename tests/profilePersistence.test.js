@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
-import { normalizeUserProfile } from '../src/services/userProfileMapper.js';
+import { normalizeUserProfile, resolveAvatarUrl } from '../src/services/userProfileMapper.js';
 import {
   DEFAULT_MAP_PATH,
   PROFILE_ORIGIN_KEY,
@@ -38,7 +38,7 @@ test('keeps multi-part first and last names without guessing boundaries', () => 
   assert.equal(profile.phoneNumber, '09121234567');
   assert.equal(profile.province, 'خراسان رضوی');
   assert.equal(profile.city, 'مشهد');
-  assert.equal(profile.avatar, '/storage/avatars/profile.jpg');
+  assert.equal(profile.avatar, 'http://localhost:8080/storage/avatars/profile.jpg');
 });
 
 test('legacy fullName fallback never splits an ambiguous name', () => {
@@ -56,7 +56,7 @@ test('pinfo submits canonical names, keeps OTP phone read-only, and persists ava
   assert.match(source, /firstName,\s*\n\s*lastName,\s*\n\s*fullName,/);
   assert.doesNotMatch(source, /payload\.phone\s*=/);
   assert.match(source, /value=\{userData\.phoneNumber\}[\s\S]*?readOnly/);
-  assert.match(source, /await uploadUserAvatar\(avatarFile\)/);
+  assert.match(source, /await uploadUserAvatar\(file\)/);
   assert.doesNotMatch(source, /&& userData\.province\s*\n\s*&& userData\.city/);
 });
 
@@ -126,4 +126,11 @@ test('stale profile origins cannot create profile or external redirect loops', (
     assert.equal(destination, DEFAULT_MAP_PATH);
     assert.equal(storage.getItem(PROFILE_ORIGIN_KEY), null);
   }
+});
+
+test('avatar URLs resolve against the API and keep external URLs', () => {
+  assert.equal(resolveAvatarUrl('/storage/avatars/a.png'), 'http://localhost:8080/storage/avatars/a.png');
+  assert.equal(resolveAvatarUrl('http://old-host/storage/avatars/a.png'), 'http://localhost:8080/storage/avatars/a.png');
+  assert.equal(resolveAvatarUrl('https://cdn.example.com/a.png'), 'https://cdn.example.com/a.png');
+  assert.equal(resolveAvatarUrl('javascript:alert(1)'), null);
 });

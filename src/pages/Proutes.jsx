@@ -1,15 +1,17 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
+import { toast } from 'react-toastify';
 import { useRouteHistoryActions } from '../hooks/useRouteHistoryActions';
 import '../styles/Proutes.css';
 
 function Proutes() {
   const navigate = useNavigate();
   const intl = useIntl();
-  const { displayRoutes, repeatRoute, showPreviousRoute } = useRouteHistoryActions({
+  const { displayRoutes, isRepeating, repeatRoute, showPreviousRoute } = useRouteHistoryActions({
     navigate,
-    locale: intl.locale
+    locale: intl.locale,
+    onRepeatError: () => toast.error(intl.formatMessage({ id: 'repeatRouteError' }))
   });
 
   return (
@@ -132,7 +134,7 @@ function Proutes() {
                     </div>
                   </div>
                   <div className="btn-container3">
-                    <button className="repeat-route-btn" onClick={() => repeatRoute(route)}>
+                    <button className="repeat-route-btn" disabled={isRepeating} onClick={() => repeatRoute(route)}>
 
                       <FormattedMessage id="repeatRoute" />
                     </button>

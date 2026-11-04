@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
-import { useUserAuthStore } from '../auth/user/userAuthStore';
+import { useUserAuthStore, isSameUserSession } from '../auth/user/userAuthStore';
 import { authMe, getUserMe, updateUserMe, uploadUserAvatar } from '../services/publicAuthApi';
 import mapApiError from '../services/apiErrorMapper';
 import '../styles/ProfileInfo.css';
@@ -14,7 +14,9 @@ function ProfileInfo() {
   const intl = useIntl();
   const language = useLangStore((state) => state.language);
   const fileInputRef = useRef(null);
-  const { setSession, accessToken, refreshToken } = useUserAuthStore();
+  const fieldRefs = useRef({});
+  const [serverErrors, setServerErrors] = useState({});
+  const { setSession } = useUserAuthStore();
 
   // User data state - load from localStorage on component mount
   const [userData, setUserData] = useState({
@@ -30,7 +32,8 @@ function ProfileInfo() {
   });
 
   const [avatar, setAvatar] = useState(null);
-  const [avatarFile, setAvatarFile] = useState(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
   // Add message state
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,33 +41,13 @@ function ProfileInfo() {
   // Track which required fields have been touched/submitted with errors
   const [showFieldErrors, setShowFieldErrors] = useState(false);
 
-  // Load user data from localStorage when component mounts
   useEffect(() => {
-    const savedProfile = localStorage.getItem('userProfile');
-    if (savedProfile) {
-      const profileData = JSON.parse(savedProfile);
-      setUserData(prevData => ({
-        ...prevData,
-        ...profileData
-      }));
-
-      // Load avatar if exists
-      if (profileData.avatar) {
-        setAvatar(profileData.avatar);
-      }
-    }
-
-    // Also check for separate avatar storage
-    const savedAvatar = localStorage.getItem('userAvatar');
-    if (savedAvatar) {
-      setAvatar((currentAvatar) => currentAvatar || savedAvatar);
-    }
-  }, []);
-
-  useEffect(() => {
+    const session = useUserAuthStore.getState();
     const loadProfile = async () => {
       try {
         const profile = await getUserMe();
+        if (!isSameUserSession(session, useUserAuthStore.getState())) return;
+        useUserAuthStore.setState({ user: profile });
         const profileProvince = profile?.address?.province || profile?.province || '';
         const profileCity = profile?.address?.city || profile?.city || '';
         const matchedProvince = provinces.find((province) => province.name === profileProvince);
@@ -86,16 +69,12 @@ function ProfileInfo() {
           birthDate: (profile?.birthDate || '').split('T')[0] || prevData.birthDate
         }));
 
-        const profileAvatar = profile?.avatarUrl || profile?.avatar;
-        if (profileAvatar) {
-          setAvatar(profileAvatar);
-          localStorage.setItem('userAvatar', profileAvatar);
-          sessionStorage.setItem('userAvatar', profileAvatar);
-        }
+        setAvatar(profile?.avatarUrl || null);
       } catch (err) {
+        if (!isSameUserSession(session, useUserAuthStore.getState())) return;
         const mapped = mapApiError(err);
         setMessage({ type: 'error', text: mapped.message });
-      }
+      } finally { setLoadingProfile(false); }
     };
 
     loadProfile();
@@ -103,7 +82,7 @@ function ProfileInfo() {
 
   // Clear message after 3 seconds
   useEffect(() => {
-    if (message.text) {
+    if (message.text && message.type === 'success') {
       const timer = setTimeout(() => {
         setMessage({ type: '', text: '' });
       }, 3000);
@@ -132,20 +111,35 @@ function ProfileInfo() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setAvatarFile(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setAvatar(e.target.result);
-      };
-      reader.readAsDataURL(file);
-    }
+  const handleFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || uploadingAvatar || loadingProfile || isSubmitting) return;
+    setUploadingAvatar(true);
+    try { setAvatar(await uploadUserAvatar(file)); }
+    catch (err) { setMessage({ type: 'error', text: mapApiError(err).message }); }
+    finally { setUploadingAvatar(false); }
   };
 
   // Handle input changes
   const handleInputChange = (field, value) => {
+    setServerErrors((previous) => {
+      if (!previous[field]) return previous;
+      const trimmed = typeof value === 'string' ? value.trim() : '';
+      const correctable = {
+        firstName: () => trimmed.length > 0 && trimmed.length <= 100,
+        lastName: () => trimmed.length > 0 && trimmed.length <= 100,
+        email: () => !trimmed || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed),
+        nationalId: () => !trimmed || (trimmed.length >= 8 && trimmed.length <= 20),
+        birthDate: () => /^\d{4}-\d{2}-\d{2}$/.test(trimmed),
+        province: () => trimmed.length <= 100,
+        city: () => trimmed.length <= 100
+      };
+      if (!correctable[field]?.()) return previous;
+      const next = { ...previous };
+      delete next[field];
+      return next;
+    });
     setUserData(prev => ({
       ...prev,
       [field]: value
@@ -183,39 +177,52 @@ function ProfileInfo() {
 
   // ---- Required-field validation helpers ----
 
-  // All required fields: firstName, lastName, birthDate, and (email OR nationalId)
-  const hasContactInfo = Boolean(userData.email || userData.nationalId);
-
+  const hasContactInfo = Boolean(userData.email.trim() || userData.nationalId.trim());
   const isFirstNameMissing = !userData.firstName.trim();
   const isLastNameMissing = !userData.lastName.trim();
   const isBirthDateMissing = !userData.birthDate;
   const isContactInfoMissing = !hasContactInfo;
+  const hasMissingRequiredFields = isFirstNameMissing || isLastNameMissing || isBirthDateMissing || isContactInfoMissing;
+  const isFormValid = !isSubmitting && !uploadingAvatar && !loadingProfile;
 
-  const hasMissingRequiredFields =
-    isFirstNameMissing || isLastNameMissing || isBirthDateMissing || isContactInfoMissing;
+  const localErrors = showFieldErrors ? {
+    firstName: isFirstNameMissing ? 'profileFirstRequired' : null,
+    lastName: isLastNameMissing ? 'profileLastRequired' : null,
+    birthDate: isBirthDateMissing ? 'profileBirthRequired' : null,
+    email: isContactInfoMissing ? 'emailOrNationalIdRequired' : null,
+    nationalId: isContactInfoMissing ? 'emailOrNationalIdRequired' : null
+  } : {};
+  const fieldError = (field) => serverErrors[field] || localErrors[field];
+  const errorText = (field) => fieldError(field) ? intl.formatMessage({ id: fieldError(field) }) : '';
+  const fieldProps = (field) => ({
+    id: `profile-${field}`,
+    ref: (element) => { fieldRefs.current[field] = element; },
+    'aria-invalid': fieldError(field) ? true : undefined,
+    'aria-describedby': fieldError(field) ? `profile-${field}-error` : undefined
+  });
+  const fieldMessage = (field) => fieldError(field) && (
+    <div className="profile-field-error" id={`profile-${field}-error`}>{errorText(field)}</div>
+  );
+  const focusField = (field) => {
+    requestAnimationFrame(() => {
+      const input = fieldRefs.current[field];
+      if (!input || input.disabled) return;
+      input.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      input.focus({ preventScroll: true });
+    });
+  };
 
-  // Should we visually mark this field as errored?
-  const fieldHasError = (isMissing) => showFieldErrors && isMissing;
-
-  // Form is "valid" if nothing required is missing and not submitting.
-  const isFormValid = !hasMissingRequiredFields && !isSubmitting;
-
-  // Handle form submission
   const handleSubmit = async () => {
-    // Mark that the user attempted to submit, so errors show up
     setShowFieldErrors(true);
     setMessage({ type: '', text: '' });
-
-    // If any required fields are missing, show the fill-all-fields message and stop.
     if (hasMissingRequiredFields) {
-      setMessage({
-        type: 'error',
-        text: intl.formatMessage({ id: 'fillAllFields' })
-      });
+      const firstMissing = isFirstNameMissing ? 'firstName' : isLastNameMissing ? 'lastName'
+        : isContactInfoMissing ? 'email' : 'birthDate';
+      focusField(firstMissing);
       return;
     }
-
     setIsSubmitting(true);
+    const session = useUserAuthStore.getState();
 
     const firstName = userData.firstName.trim();
     const lastName = userData.lastName.trim();
@@ -232,50 +239,30 @@ function ProfileInfo() {
       }
     };
 
-    if (userData.email) {
-      payload.email = userData.email;
+    if (userData.email.trim()) {
+      payload.email = userData.email.trim();
     }
 
-    if (userData.nationalId) {
-      payload.nationalId = userData.nationalId;
+    if (userData.nationalId.trim()) {
+      payload.nationalId = userData.nationalId.trim();
     }
 
+    let saved = false;
     try {
       await updateUserMe(payload);
-
-      if (avatarFile) {
-        await uploadUserAvatar(avatarFile);
-      }
+      saved = true;
 
       const meData = await authMe();
+      const current = useUserAuthStore.getState();
+      if (!isSameUserSession(session, current)) return;
       setSession({
-        accessToken,
-        refreshToken,
+        accessToken: current.accessToken,
+        refreshToken: current.refreshToken,
         user: meData,
         profileCompleted: meData?.profileCompleted ?? true
       });
 
-      const cachedProfile = {
-        firstName: meData?.firstName || firstName,
-        lastName: meData?.lastName || lastName,
-        username: meData?.username || '',
-        phoneNumber: meData?.phone || meData?.phoneNumber || userData.phoneNumber,
-        province: meData?.address?.province || meData?.province || userData.province,
-        city: meData?.address?.city || meData?.city || userData.city,
-        email: meData?.email || '',
-        nationalId: meData?.nationalId || '',
-        birthDate: meData?.birthDate || userData.birthDate,
-        avatar: meData?.avatarUrl || meData?.avatar || null
-      };
-      localStorage.setItem('userProfile', JSON.stringify(cachedProfile));
-
-      const savedAvatar = meData?.avatarUrl || meData?.avatar;
-      if (savedAvatar) {
-        setAvatar(savedAvatar);
-        setAvatarFile(null);
-        localStorage.setItem('userAvatar', savedAvatar);
-        sessionStorage.setItem('userAvatar', savedAvatar);
-      }
+      setAvatar(meData?.avatarUrl || null);
 
       setMessage({
         type: 'success',
@@ -284,6 +271,7 @@ function ProfileInfo() {
 
       // Reset error highlight state on success
       setShowFieldErrors(false);
+      setServerErrors({});
 
       const profileCompleted = typeof meData?.profileCompleted === 'boolean'
         ? meData.profileCompleted
@@ -295,12 +283,39 @@ function ProfileInfo() {
         }, 800);
       }
     } catch (err) {
+      if (!isSameUserSession(session, useUserAuthStore.getState())) return;
       const mapped = mapApiError(err);
-      const fieldMessage = mapped.fieldMessages?.[0];
-      setMessage({
-        type: 'error',
-        text: fieldMessage || mapped.message
-      });
+      if (!saved && err?.response?.status === 422) {
+        const fields = {
+          firstName: ['firstName', 'profileFirstInvalid'], first_name: ['firstName', 'profileFirstInvalid'],
+          fullName: ['firstName', 'profileFirstInvalid'], lastName: ['lastName', 'profileLastInvalid'],
+          last_name: ['lastName', 'profileLastInvalid'], email: ['email', 'profileEmailInvalid'],
+          nationalId: ['nationalId', 'profileNationalIdInvalid'], national_id: ['nationalId', 'profileNationalIdInvalid'],
+          birthDate: ['birthDate', 'profileBirthInvalid'], birth_date: ['birthDate', 'profileBirthInvalid'],
+          'address.province': ['province', 'profileProvinceInvalid'], 'address.city': ['city', 'profileCityInvalid']
+        };
+        const nextErrors = {};
+        let hasUnknown = false;
+        Object.keys(mapped.fieldErrors).forEach((key) => {
+          const match = fields[key];
+          if (match) {
+            const messages = mapped.fieldErrors[key].join(' ');
+            let messageId = match[1];
+            if (key === 'email' && /taken|already|قبلاً|قبلا/i.test(messages)) messageId = 'profileEmailTaken';
+            if (match[0] === 'nationalId' && /at least 8|حداقل ۸|حداقل 8/i.test(messages)) messageId = 'profileNationalIdShort';
+            if (match[0] === 'nationalId' && /greater than 20|more than 20|حداکثر ۲۰|حداکثر 20/i.test(messages)) messageId = 'profileNationalIdLong';
+            nextErrors[match[0]] = messageId;
+          }
+          else hasUnknown = true;
+        });
+        setServerErrors(nextErrors);
+        const first = ['firstName', 'lastName', 'email', 'nationalId', 'birthDate', 'province', 'city']
+          .find((field) => nextErrors[field] && !fieldRefs.current[field]?.disabled);
+        if (first) focusField(first);
+        if (hasUnknown || !first) setMessage({ type: 'error', id: 'profileValidationInvalid' });
+      } else {
+        setMessage({ type: 'error', id: saved ? 'profileRefreshFailed' : 'profileSaveFailed' });
+      }
       if (err?.response?.status === 401) {
         navigate('/login');
       }
@@ -329,9 +344,9 @@ function ProfileInfo() {
   return (
     <div className="profile-info-container">
       {/* Message Notification */}
-      {message.text && (
-        <div className={`message-notification ${message.type}`}>
-          {message.text}
+      {(message.text || message.id) && (
+        <div className={`message-notification ${message.type}`} role={message.type === 'error' ? 'alert' : 'status'}>
+          {message.id ? intl.formatMessage({ id: message.id }) : message.text}
         </div>
       )}
 
@@ -359,9 +374,9 @@ function ProfileInfo() {
 
       {/* Profile Avatar Section */}
       <div className="profile-avatar-section">
-        <div className="avatar-container" onClick={handleAvatarClick}>
+        <div className="avatar-container" role="button" tabIndex={0} aria-label="تغییر تصویر پروفایل" aria-disabled={uploadingAvatar || loadingProfile || isSubmitting} onClick={() => !uploadingAvatar && !loadingProfile && !isSubmitting && handleAvatarClick()} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (!uploadingAvatar && !loadingProfile && !isSubmitting) handleAvatarClick(); } }}>
           {avatar ? (
-            <img src={avatar} alt="Profile Avatar" className="profile-avatar-image" />
+            <img src={avatar} alt="Profile Avatar" className="profile-avatar-image" onError={() => setAvatar(null)} />
           ) : (
             <div className="profile-avatar-default">
               <svg width="55" height="56" viewBox="0 0 55 56" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -431,43 +446,47 @@ function ProfileInfo() {
         {/* First Name Field */}
         <div className="form-field">
           <div className="field-label-container">
-            <label className="field-label">
+            <label className="field-label" htmlFor="profile-firstName">
               <FormattedMessage id="firstName" />
               <span className="required-star">*</span>
             </label>
           </div>
           <div
-            className={`input-container ${userData.firstName ? 'filled' : ''} ${fieldHasError(isFirstNameMissing) ? 'field-error' : ''}`}
+            className={`input-container ${userData.firstName ? 'filled' : ''} ${fieldError('firstName') ? 'field-error' : ''}`}
           >
             <input
               type="text"
               placeholder={intl.formatMessage({ id: 'enterFirstName' })}
+              {...fieldProps('firstName')}
               value={userData.firstName}
               onChange={(e) => handleInputChange('firstName', e.target.value)}
               className="form-input"
             />
           </div>
+          {fieldMessage('firstName')}
         </div>
 
         {/* Last Name Field */}
         <div className="form-field">
           <div className="field-label-container">
-            <label className="field-label">
+            <label className="field-label" htmlFor="profile-lastName">
               <FormattedMessage id="lastName" />
               <span className="required-star">*</span>
             </label>
           </div>
           <div
-            className={`input-container ${userData.lastName ? 'filled' : ''} ${fieldHasError(isLastNameMissing) ? 'field-error' : ''}`}
+            className={`input-container ${userData.lastName ? 'filled' : ''} ${fieldError('lastName') ? 'field-error' : ''}`}
           >
             <input
               type="text"
               placeholder={intl.formatMessage({ id: 'enterLastName' })}
+              {...fieldProps('lastName')}
               value={userData.lastName}
               onChange={(e) => handleInputChange('lastName', e.target.value)}
               className="form-input"
             />
           </div>
+          {fieldMessage('lastName')}
         </div>
 
         {/* Phone Number Field */}
@@ -499,75 +518,84 @@ function ProfileInfo() {
         {/* Email Field */}
         <div className="form-field">
           <div className="field-label-container">
-            <label className="field-label">
+            <label className="field-label" htmlFor="profile-email">
               <FormattedMessage id="email" />
             </label>
           </div>
-          <div className={`input-container ${userData.email ? 'filled' : ''} ${fieldHasError(isContactInfoMissing && !userData.email && !userData.nationalId) ? 'field-error' : ''}`}>
+          <div className={`input-container ${userData.email ? 'filled' : ''} ${fieldError('email') ? 'field-error' : ''}`}>
             <input
               type="email"
               placeholder={intl.formatMessage({ id: 'enterEmail' })}
+              {...fieldProps('email')}
               value={userData.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
               className="form-input"
               dir="auto"
             />
           </div>
+          {fieldMessage('email')}
         </div>
 
         {/* National ID Field */}
         <div className="form-field">
           <div className="field-label-container">
-            <label className="field-label">
+            <label className="field-label" htmlFor="profile-nationalId">
               <FormattedMessage id="nationalId" />
               <span className="required-star">*</span>
             </label>
           </div>
           <div
-            className={`input-container ${userData.nationalId ? 'filled' : ''} ${fieldHasError(isContactInfoMissing) ? 'field-error' : ''}`}
+            className={`input-container ${userData.nationalId ? 'filled' : ''} ${fieldError('nationalId') ? 'field-error' : ''}`}
           >
             <input
               type="text"
               placeholder={intl.formatMessage({ id: 'enterNationalId' })}
+              {...fieldProps('nationalId')}
               value={userData.nationalId}
               onChange={(e) => handleInputChange('nationalId', e.target.value)}
               className="form-input"
               dir="auto"
             />
           </div>
+          {fieldMessage('nationalId')}
         </div>
 
         {/* Birth Date Field */}
         <div className="form-field">
           <div className="field-label-container">
-            <label className="field-label">
+            <label className="field-label" htmlFor="profile-birthDate">
               <FormattedMessage id="birthDate" />
               <span className="required-star">*</span>
             </label>
           </div>
-          <div className={`input-container ${userData.birthDate ? 'filled' : ''} ${fieldHasError(isBirthDateMissing) ? 'field-error' : ''}`}>
+          <div className={`input-container ${userData.birthDate ? 'filled' : ''} ${fieldError('birthDate') ? 'field-error' : ''}`}>
             <LocalizedDatePicker
               value={userData.birthDate}
               onChange={(isoDate) => handleInputChange('birthDate', isoDate)}
               lang={language}
-              className="form-input"
-              helperText={!userData.birthDate ? '' : ''}
-              error={!userData.birthDate && isSubmitting}
+              id="profile-birthDate"
+              inputRef={(element) => { fieldRefs.current.birthDate = element; }}
+              inputClassName="form-input"
+              openOnFocus={false}
+              describedBy={fieldError('birthDate') ? 'profile-birthDate-error' : undefined}
+              error={Boolean(fieldError('birthDate'))}
             />
           </div>
+          {fieldMessage('birthDate')}
         </div>
 
         {/* Province Field */}
         <div className="form-field">
           <div className="field-label-container">
-            <label className="field-label">
+            <label className="field-label" htmlFor="profile-province">
               <FormattedMessage id="province" />
             </label>
           </div>
-          <div className={`input-container dropdown-container ${userData.province ? 'filled' : ''}`}>
+          <div className={`input-container dropdown-container ${userData.province ? 'filled' : ''} ${fieldError('province') ? 'field-error' : ''}`}>
             <input
               type="text"
               placeholder={intl.formatMessage({ id: 'selectProvince' })}
+              {...fieldProps('province')}
               value={userData.province}
               onChange={(e) => handleInputChange('province', e.target.value)}
               onFocus={() => setShowProvinceDropdown(true)}
@@ -596,19 +624,21 @@ function ProfileInfo() {
               </div>
             )}
           </div>
+          {fieldMessage('province')}
         </div>
 
         {/* City Field */}
         <div className="form-field">
           <div className="field-label-container">
-            <label className="field-label">
+            <label className="field-label" htmlFor="profile-city">
               <FormattedMessage id="city" />
             </label>
           </div>
-          <div className={`input-container dropdown-container ${userData.city ? 'filled' : ''}`}>
+          <div className={`input-container dropdown-container ${userData.city ? 'filled' : ''} ${fieldError('city') ? 'field-error' : ''}`}>
             <input
               type="text"
               placeholder={intl.formatMessage({ id: 'selectCity' })}
+              {...fieldProps('city')}
               value={userData.city}
               onChange={(e) => handleInputChange('city', e.target.value)}
               onFocus={() => userData.province && setShowCityDropdown(true)}
@@ -639,6 +669,7 @@ function ProfileInfo() {
               </div>
             )}
           </div>
+          {fieldMessage('city')}
         </div>
       </div>
 
@@ -647,7 +678,7 @@ function ProfileInfo() {
         <button
           className={`submit-button ${isFormValid ? 'active' : ''}`}
           onClick={handleSubmit}
-          disabled={isSubmitting}
+          disabled={isSubmitting || uploadingAvatar || loadingProfile}
         >
           <FormattedMessage id="confirmAndSave" />
         </button>

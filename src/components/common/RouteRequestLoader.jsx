@@ -86,7 +86,7 @@ const RouteRequestLoader = () => {
     };
   }, []);
 
-  if (!isVisible || location.pathname !== '/fs') {
+  if (!isVisible || !['/fs', '/proutes'].includes(location.pathname)) {
     return null;
   }
 

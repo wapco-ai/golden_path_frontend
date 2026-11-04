@@ -73,6 +73,15 @@ const resolveMediaValue = (media, defaultMime = 'image/jpeg') => {
   return trimmed;
 };
 
+// The API may return either an already localized string or a language map.
+export const localizedPlaceAddress = (address, language) => {
+  if (typeof address === 'string') return address.trim();
+  if (address && typeof address === 'object' && !Array.isArray(address)) {
+    return typeof address[language] === 'string' ? address[language].trim() : '';
+  }
+  return '';
+};
+
 const normalizeLandmarkPlace = (place = {}) => {
   const primaryImage = resolveMediaValue(place.image);
   const fallbackImage = resolveMediaValue(place.images);

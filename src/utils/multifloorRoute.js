@@ -1,4 +1,4 @@
-import { getLineDistanceMeters, sliceLineByFraction } from './routeSegments.js';
+import { getLineDistanceMeters, haversineMeters, sliceLineByFraction } from './routeSegments.js';
 import { normalizeFloor } from './floors.js';
 
 export const isMultifloor = geo => geo?.properties?.multifloor === true;
@@ -23,9 +23,24 @@ export const routeCoordinatesOnFloor = (geo, floor, originFloor) => {
   return visible?.type === 'FeatureCollection'
     ? visible.features.flatMap(feature => routeCoordinates(feature)) : routeCoordinates(visible);
 };
-export const activeRouteCoordinates = (geo, step) => isMultifloor(geo)
-  ? geo.properties.segments?.find(s => s.id === step?.segmentId)?.geometry?.coordinates || step?.coordinates || []
-  : routeCoordinates(geo);
+export const activeRouteCoordinates = (geo, step) => {
+  if (!isMultifloor(geo)) return routeCoordinates(geo);
+  const segments = geo.properties.segments || [];
+  const index = segments.findIndex(s => s.id === step?.segmentId);
+  const coordinates = segments[index]?.geometry?.coordinates;
+  if (coordinates?.length) return coordinates;
+  if (step?.type === 'stepChangeFloor' && index >= 0) {
+    const point = step.coordinates?.[0];
+    for (let i = index - 1; i >= 0; i -= 1) {
+      const previous = segments[i];
+      if (previous.kind !== 'walk' || Number(previous.floor) !== Number(step.floor)) continue;
+      const line = previous.geometry?.coordinates;
+      if (Array.isArray(point) && line?.length >= 2 && haversineMeters(point, line.at(-1)) <= 3) return line;
+      break;
+    }
+  }
+  return step?.coordinates || [];
+};
 
 // routeM belongs to one walk segment, never to the concatenation of floors.
 export function multifloorSteps(geo, steps, translate = s => s.instruction || s.title || '') {

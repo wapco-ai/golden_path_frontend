@@ -1,0 +1,250 @@
+{
+  "status": "OK",
+  "source": "computed",
+  "mode": "walk",
+  "gender": "both",
+  "floor": 0,
+  "distanceMeters": 154.81248502326494,
+  "estimatedMinutes": 2.150173403100902,
+  "geo": {
+    "type": "Feature",
+    "geometry": {
+      "type": "LineString",
+      "coordinates": [
+        [
+          59.615,
+          36.287
+        ],
+        [
+          59.615611014,
+          36.287312393
+        ],
+        [
+          59.615617762,
+          36.287331453
+        ],
+        [
+          59.615702249,
+          36.287393428
+        ],
+        [
+          59.615845016,
+          36.287499929
+        ],
+        [
+          59.615856847,
+          36.287521196
+        ],
+        [
+          59.615836098,
+          36.287569673
+        ],
+        [
+          59.6158731,
+          36.2876969
+        ],
+        [
+          59.615890518,
+          36.287747457
+        ],
+        [
+          59.615997343,
+          36.287856973
+        ],
+        [
+          59.615997786,
+          36.287901809
+        ],
+        [
+          59.616,
+          36.288
+        ]
+      ]
+    },
+    "properties": {
+      "multifloor": false
+    }
+  },
+  "steps": [
+    {
+      "type": "stepStart",
+      "coord": {
+        "lat": 36.287000000000006,
+        "lon": 59.61500000000001
+      },
+      "title": "شروع حرکت",
+      "routeM": 0,
+      "services": {
+        "walking": true,
+        "wheelchair": false,
+        "electricVan": false
+      },
+      "stepOrder": 1,
+      "floor": 0,
+      "segmentId": 0
+    },
+    {
+      "type": "stepPassDoor",
+      "coord": {
+        "lat": 36.287331453006054,
+        "lon": 59.615617761597356
+      },
+      "title": "عبور از درب 1354",
+      "doorId": 1354,
+      "edgeId": 201679,
+      "routeM": 0.4336804553920572,
+      "source": "door_access_points",
+      "accessId": 48300,
+      "services": {
+        "walking": true,
+        "wheelchair": true,
+        "electricVan": false
+      },
+      "toAreaId": 1367,
+      "stepOrder": 2,
+      "fromAreaId": 1324,
+      "toAreaName": "area 1367",
+      "fromAreaName": "رواق امام خميني",
+      "floor": 0,
+      "segmentId": 0
+    },
+    {
+      "type": "stepPassDoor",
+      "coord": {
+        "lat": 36.28739342792104,
+        "lon": 59.615702248953845
+      },
+      "title": "عبور از درب 866",
+      "doorId": 866,
+      "edgeId": 201240,
+      "routeM": 0.4998570232233625,
+      "source": "door_access_points",
+      "accessId": 47851,
+      "services": {
+        "walking": true,
+        "wheelchair": true,
+        "electricVan": false
+      },
+      "toAreaId": 1473,
+      "stepOrder": 3,
+      "fromAreaId": 1367,
+      "toAreaName": "دارالزهد",
+      "fromAreaName": "area 1367",
+      "floor": 0,
+      "segmentId": 0
+    },
+    {
+      "type": "stepPassDoor",
+      "coord": {
+        "lat": 36.287499928643676,
+        "lon": 59.61584501601375
+      },
+      "title": "عبور از درب 1561",
+      "doorId": 1561,
+      "edgeId": 201841,
+      "routeM": 0.6125411401885397,
+      "source": "door_access_points",
+      "accessId": 48464,
+      "services": {
+        "walking": true,
+        "wheelchair": true,
+        "electricVan": false
+      },
+      "toAreaId": 5452,
+      "stepOrder": 4,
+      "fromAreaId": 1473,
+      "toAreaName": "area 5452",
+      "fromAreaName": "دارالزهد",
+      "floor": 0,
+      "segmentId": 0
+    },
+    {
+      "type": "stepPassDoor",
+      "coord": {
+        "lat": 36.28756967313314,
+        "lon": 59.61583609846164
+      },
+      "title": "عبور از درب 847",
+      "doorId": 847,
+      "edgeId": 201225,
+      "routeM": 0.6660482433255905,
+      "source": "door_access_points",
+      "accessId": 47836,
+      "services": {
+        "walking": true,
+        "wheelchair": true,
+        "electricVan": false
+      },
+      "toAreaId": 5455,
+      "stepOrder": 5,
+      "fromAreaId": 5452,
+      "toAreaName": "دارالذکر",
+      "fromAreaName": "area 5452",
+      "floor": 0,
+      "segmentId": 0
+    },
+    {
+      "type": "stepPassDoor",
+      "coord": {
+        "lat": 36.28769689979322,
+        "lon": 59.615873099553944
+      },
+      "title": "عبور از درب 834",
+      "doorId": 834,
+      "edgeId": 201213,
+      "routeM": 0.759759881601062,
+      "source": "door_access_points",
+      "accessId": 47824,
+      "services": {
+        "walking": true,
+        "wheelchair": true,
+        "electricVan": false
+      },
+      "toAreaId": 5454,
+      "stepOrder": 6,
+      "fromAreaId": 5455,
+      "toAreaName": "دارالسرور",
+      "fromAreaName": "دارالذکر",
+      "floor": 0,
+      "segmentId": 0
+    },
+    {
+      "type": "stepPassDoor",
+      "coord": {
+        "lat": 36.28790180911882,
+        "lon": 59.615997785782476
+      },
+      "title": "عبور از درب 740",
+      "doorId": 740,
+      "edgeId": 201134,
+      "routeM": 0.9295886206516665,
+      "source": "door_access_points",
+      "accessId": 47744,
+      "services": {
+        "walking": true,
+        "wheelchair": true,
+        "electricVan": false
+      },
+      "toAreaId": 5274,
+      "stepOrder": 7,
+      "fromAreaId": 5275,
+      "toAreaName": "گنبد اللهورديخان",
+      "fromAreaName": "دارالسعادي",
+      "floor": 0,
+      "segmentId": 0
+    },
+    {
+      "type": "stepArriveDestination",
+      "title": "",
+      "coord": {
+        "lat": 36.288,
+        "lon": 59.616
+      },
+      "floor": 0,
+      "segmentId": 0,
+      "routeM": 1,
+      "stepOrder": 8
+    }
+  ],
+  "alternatives": []
+}

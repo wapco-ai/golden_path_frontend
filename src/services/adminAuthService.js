@@ -1,4 +1,5 @@
 import appConfig from '../config/appConfig.js';
+import apiAdmin from '../api/apiAdmin';
 
 export const ADMIN_ACCESS_TOKEN_KEY = 'gp_admin_access';
 export const ADMIN_REFRESH_TOKEN_KEY = 'gp_admin_refresh';
@@ -126,3 +127,12 @@ export const logoutAdmin = async ({ accessToken, refreshToken, signal }) => {
 };
 
 export default loginAdmin;
+
+// Use the active admin store and its existing access-token refresh handling.
+export const changeAdminPassword = async ({ currentPassword, newPassword, confirmPassword }) => {
+  await apiAdmin.post('/api/v1/admin/auth/change-password', {
+    current_password: currentPassword,
+    password: newPassword,
+    password_confirmation: confirmPassword
+  });
+};

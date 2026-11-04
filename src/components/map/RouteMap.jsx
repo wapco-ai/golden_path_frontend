@@ -39,6 +39,7 @@ const RouteMap = forwardRef(({
   onSelectAlternativeRoute,
   showAlternativeRoutes = false,
   navigationControlled = false,
+  isOverviewMode = false,
   progressRouteM = null,
   showDrTrace = true,
   routeFloor = 0
@@ -50,6 +51,8 @@ const RouteMap = forwardRef(({
     && userLocation.length === 2
     && Number.isFinite(userLocation[0])
     && Number.isFinite(userLocation[1]);
+  const markerLat = isValidUserLocation ? userLocation[0] : null;
+  const markerLng = isValidUserLocation ? userLocation[1] : null;
 
   const isRtl = ["fa", "ar", "ur"].includes(language);
   const baseMapStyle = voyagerBaseMapStyle;
@@ -117,9 +120,15 @@ const RouteMap = forwardRef(({
   const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
   const useDrPosition = isDrActive && !navigationControlled;
   const [heading, setHeading] = useState(userHeading ?? 0);
+  const [mapReady, setMapReady] = useState(0);
   const [terrainAvailable, setTerrainAvailable] = useState(false);
   const [traveledRouteGeo, setTraveledRouteGeo] = useState(null);
   const [remainingRouteGeo, setRemainingRouteGeo] = useState(null);
+
+  const handleMapRef = useCallback((map) => {
+    mapRef.current = map;
+    if (map) setMapReady(value => value + 1);
+  }, []);
 
   const vectorTileConfig = React.useMemo(() => {
     return createHaramVectorTileConfig(language).filter(
@@ -129,6 +138,7 @@ const RouteMap = forwardRef(({
 
   const handleMapLoad = useCallback((event) => {
     initHaramVectorLayers(event?.target || event, vectorTileConfig);
+    setMapReady(value => value + 1);
   }, [vectorTileConfig]);
 
   useEffect(() => {
@@ -188,14 +198,14 @@ const RouteMap = forwardRef(({
   }, [navigationControlled]);
 
   useEffect(() => {
-    if (!useDrPosition && Number.isFinite(userHeading)) {
+    if (!navigationControlled && !useDrPosition && Number.isFinite(userHeading)) {
       setHeading(userHeading);
       lastHeading.current = userHeading;
       if (mapRef.current) {
         mapRef.current.setBearing(userHeading);
       }
     }
-  }, [useDrPosition, userHeading]);
+  }, [navigationControlled, useDrPosition, userHeading]);
 
   // Split route into traveled and remaining parts based on currentStep
   useEffect(() => {
@@ -279,7 +289,7 @@ const RouteMap = forwardRef(({
     if (mapRef.current) {
       const timeout = setTimeout(() => {
         mapRef.current.resize();
-        if (isValidUserLocation) {
+        if (!navigationControlled && isValidUserLocation) {
           mapRef.current.flyTo({
             center: [userLocation[1], userLocation[0]],
             zoom: is3DView ? 17 : 18,
@@ -290,15 +300,15 @@ const RouteMap = forwardRef(({
 
       return () => clearTimeout(timeout);
     }
-  }, [isMapModalOpen, userLocation, is3DView]);
+  }, [isMapModalOpen, userLocation, is3DView, navigationControlled]);
 
   // Toggle 3D view effect
   useEffect(() => {
-    if (mapRef.current) {
+    if (!navigationControlled && mapRef.current) {
       mapRef.current.setPitch(is3DView ? 60 : 0);
       mapRef.current.easeTo({ zoom: is3DView ? 17 : 18 });
     }
-  }, [is3DView]);
+  }, [is3DView, navigationControlled]);
 
   // Restore pitch when the WebGL context resets
   const savedPitchRef = useRef(0);
@@ -331,7 +341,7 @@ const RouteMap = forwardRef(({
 
   // Rotate map based on user heading with smoothing to avoid sudden jumps
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (navigationControlled || !mapRef.current) return;
 
     if (lastHeading.current === null) {
       lastHeading.current = heading;
@@ -345,21 +355,21 @@ const RouteMap = forwardRef(({
 
     lastHeading.current = (lastHeading.current + diff * 0.2 + 360) % 360;
     mapRef.current.easeTo({ bearing: lastHeading.current, duration: 200 });
-  }, [heading]);
+  }, [heading, navigationControlled]);
 
   // Keep map centered on the user's location
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (navigationControlled || !mapRef.current) return;
     if (useDrPosition && drPosition) {
       mapRef.current.setCenter([drPosition.lng, drPosition.lat]);
     } else if (!useDrPosition && isValidUserLocation) {
       mapRef.current.setCenter([userLocation[1], userLocation[0]]);
     }
-  }, [drPosition, userLocation, useDrPosition, isValidUserLocation]);
+  }, [drPosition, userLocation, useDrPosition, isValidUserLocation, navigationControlled]);
 
   // Zoom to current segment when step changes
   useEffect(() => {
-    if (!mapRef.current || !routeGeo) return;
+    if (navigationControlled || !mapRef.current || !routeGeo) return;
 
     const activeSegment = routeSteps?.[currentStep];
     const segmentCoords = activeSegment?.coordinates?.length >= 2
@@ -379,11 +389,11 @@ const RouteMap = forwardRef(({
     const options = { padding: 80, duration: 700 };
     if (dist < 50) options.maxZoom = 17;
     mapRef.current.fitBounds(bounds, options);
-  }, [currentStep, routeGeo, routeSteps]);
+  }, [currentStep, routeGeo, routeSteps, navigationControlled]);
 
   // Fit map to the full route when a new route is loaded
   useEffect(() => {
-    if (mapRef.current && routeGeo) {
+    if (!navigationControlled && mapRef.current && routeGeo) {
       const coords = getRouteCoordinates(routeGeo) || [];
       if (coords.length > 0) {
         const bounds = new maplibregl.LngLatBounds(
@@ -394,7 +404,22 @@ const RouteMap = forwardRef(({
         mapRef.current.fitBounds(bounds, { padding: 80, duration: 700 });
       }
     }
-  }, [routeGeo]);
+  }, [routeGeo, navigationControlled]);
+
+  // The selected navigation frame is the sole camera authority in RNG.
+  // Stop any older transition before applying its position and bearing together.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!navigationControlled || isOverviewMode || !map || !isValidUserLocation) return;
+    map.stop();
+    map.easeTo({
+      center: [markerLng, markerLat],
+      ...(Number.isFinite(userHeading) ? { bearing: userHeading } : {}),
+      zoom: is3DView ? 17 : 18,
+      pitch: is3DView ? 60 : 0,
+      duration: 300
+    });
+  }, [navigationControlled, isOverviewMode, mapReady, mapRenderKey, currentStep, markerLat, markerLng, userHeading, is3DView, isValidUserLocation]);
 
   // Ensure the main route layers stay above alternative routes
   useEffect(() => {
@@ -450,7 +475,7 @@ const RouteMap = forwardRef(({
   return (
     <Map
       key={mapRenderKey}
-      ref={mapRef}
+      ref={handleMapRef}
       mapLib={maplibregl}
       mapStyle={mapStyle}
       styleDiffing={false}

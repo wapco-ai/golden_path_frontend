@@ -926,6 +926,8 @@ const RoutingPage = () => {
       coordinates: segment.coordinates,
       fromM: segment.fromM,
       toM: segment.toM,
+      // This instruction describes the event at the end of the segment.
+      previewAt: 'end',
       routeStep: step,
       doorId: step?.doorId ?? null,
       landmark: landmarkName,
@@ -1921,6 +1923,7 @@ const RoutingPage = () => {
             userLocation={navigationLocation}
             userHeading={effectiveHeading}
             navigationControlled={true}
+            isOverviewMode={showAllRoutesView || showAlternativeRoutes}
             progressRouteM={navigationFrame.routeM}
             showDrTrace={isRoutingActive && !isDemoMode}
             routeSteps={routeData.steps}

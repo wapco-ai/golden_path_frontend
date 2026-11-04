@@ -13,7 +13,7 @@ import { useRouteStore } from '../store/routeStore';
 import { useLangStore } from '../store/langStore';
 import '../styles/MapBegin.css';
 import appConfig from '../config/appConfig';
-import { fetchLandmarkPlaces } from '../services/landmarkService';
+import { fetchLandmarkPlaces, localizedPlaceAddress } from '../services/landmarkService';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
@@ -920,9 +920,9 @@ const MapBeginPage = () => {
   const handlePlaceNavigation = (place) => {
     const destinationData = {
       name: place.title || place.name || place.label || intl.formatMessage({ id: 'mapSelectedLocation' }),
-      location: place.address || place.subGroup || '',
+      location: localizedPlaceAddress(place.address, language),
       coordinates: place.coordinates || [place.lat, place.lng],
-      value: place.value || place.id || place.subGroupValue,
+      value: place.id ?? place.poi_id ?? place.poiId ?? null,
       floor: getPointFloor(place),
       fromLandmarkCard: true
     };
