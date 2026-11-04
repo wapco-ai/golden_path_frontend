@@ -445,3 +445,20 @@
 @media (min-width: 768px) {
   .profile-info-container { width: 100%; min-width: 0; max-width: 960px; margin-inline: auto; padding: clamp(20px, 3vw, 40px); }
 }
+
+.input-container.field-error {
+  border-color: #EA4335;
+  background-color: #fff5f5;
+}
+
+.input-container.field-error .form-input {
+  color: #721c24;
+}
+
+.input-container.field-error .form-input::placeholder {
+  color: #e9a4a8;
+}
+
+.input-container.field-error .validation-icon {
+  opacity: 0.6;
+}

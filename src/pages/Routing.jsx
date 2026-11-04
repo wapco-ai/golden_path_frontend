@@ -78,6 +78,12 @@ const RoutingPage = () => {
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [hasArrived, setHasArrived] = useState(false);
   const [failedImageUrl, setFailedImageUrl] = useState(null);
+
+  // GPS offline notice dismissal state & refs
+  const gpsNoticeRef = useRef(null);
+  const [isGpsNoticeDismissed, setIsGpsNoticeDismissed] = useState(false);
+  const [isGpsNoticeClosing, setIsGpsNoticeClosing] = useState(false);
+
   const [sessionFloor, setCurrentFloor] = useState(getSessionFloor);
   useEffect(() => subscribeToSessionFloor(setCurrentFloor), []);
   const navigate = useNavigate();
@@ -706,6 +712,7 @@ const RoutingPage = () => {
       toggleEmergencyModal();
     }, 1000);
   };
+
   useEffect(() => {
     const checkGpsStatus = () => {
       if (!navigator.geolocation) {
@@ -739,6 +746,36 @@ const RoutingPage = () => {
       });
     }
   }, [isInfoModalOpen]);
+
+  // Dismiss GPS offline notice when tapping anywhere outside of it
+  useEffect(() => {
+    if (!showGpsOffline) return;
+
+    const handleOutsideTap = (event) => {
+      // Ignore if tap landed inside the notification itself
+      if (gpsNoticeRef.current?.contains(event.target)) return;
+      setIsGpsNoticeClosing(true);
+      window.setTimeout(() => {
+        setIsGpsNoticeDismissed(true);
+        setIsGpsNoticeClosing(false);
+      }, 250);
+    };
+
+    // Use capture so it runs before child handlers (e.g. buttons, map)
+    document.addEventListener('pointerdown', handleOutsideTap, true);
+    return () => {
+      document.removeEventListener('pointerdown', handleOutsideTap, true);
+    };
+  }, [showGpsOffline]);
+
+  // Reset dismissal state when the GPS offline condition is cleared,
+  // so the notice can appear again next time GPS goes offline.
+  useEffect(() => {
+    if (!showGpsOffline) {
+      setIsGpsNoticeDismissed(false);
+      setIsGpsNoticeClosing(false);
+    }
+  }, [showGpsOffline]);
 
   // Format total time as "X <minutes> Y <seconds>"
   const formatTotalTime = (totalMinutes) => formatDurationFromSeconds(totalMinutes * 60);
@@ -1859,8 +1896,11 @@ const RoutingPage = () => {
 
       {/* Map Section */}
       <div className="map-section">
-        {showGpsOffline && (
-          <div className={`gps-offline-notification ${isInfoModalOpen ? 'hidden' : ''}`}>
+        {showGpsOffline && !isGpsNoticeDismissed && (
+          <div
+            ref={gpsNoticeRef}
+            className={`gps-offline-notification ${isInfoModalOpen ? 'hidden' : ''} ${isGpsNoticeClosing ? 'dismissing' : ''}`}
+          >
             <div className="gps-offline-content">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="icon icon-tabler icons-tabler-filled icon-tabler-alert-circle">
                 <path stroke="none" d="M0 0h24v24H0z" fill="none" />

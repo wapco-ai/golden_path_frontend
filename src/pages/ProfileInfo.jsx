@@ -35,6 +35,9 @@ function ProfileInfo() {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Track which required fields have been touched/submitted with errors
+  const [showFieldErrors, setShowFieldErrors] = useState(false);
+
   // Load user data from localStorage when component mounts
   useEffect(() => {
     const savedProfile = localStorage.getItem('userProfile');
@@ -178,20 +181,41 @@ function ProfileInfo() {
   // Phone is the OTP identity and is display-only on this form.
   const formatPhoneNumber = (phone) => phone || '';
 
+  // ---- Required-field validation helpers ----
+
+  // All required fields: firstName, lastName, birthDate, and (email OR nationalId)
+  const hasContactInfo = Boolean(userData.email || userData.nationalId);
+
+  const isFirstNameMissing = !userData.firstName.trim();
+  const isLastNameMissing = !userData.lastName.trim();
+  const isBirthDateMissing = !userData.birthDate;
+  const isContactInfoMissing = !hasContactInfo;
+
+  const hasMissingRequiredFields =
+    isFirstNameMissing || isLastNameMissing || isBirthDateMissing || isContactInfoMissing;
+
+  // Should we visually mark this field as errored?
+  const fieldHasError = (isMissing) => showFieldErrors && isMissing;
+
+  // Form is "valid" if nothing required is missing and not submitting.
+  const isFormValid = !hasMissingRequiredFields && !isSubmitting;
+
   // Handle form submission
   const handleSubmit = async () => {
-    setIsSubmitting(true);
+    // Mark that the user attempted to submit, so errors show up
+    setShowFieldErrors(true);
     setMessage({ type: '', text: '' });
 
-    const hasContactInfo = Boolean(userData.email || userData.nationalId);
-    if (!hasContactInfo) {
-      setIsSubmitting(false);
+    // If any required fields are missing, show the fill-all-fields message and stop.
+    if (hasMissingRequiredFields) {
       setMessage({
         type: 'error',
-        text: intl.formatMessage({ id: 'emailOrNationalIdRequired' })
+        text: intl.formatMessage({ id: 'fillAllFields' })
       });
       return;
     }
+
+    setIsSubmitting(true);
 
     const firstName = userData.firstName.trim();
     const lastName = userData.lastName.trim();
@@ -258,6 +282,9 @@ function ProfileInfo() {
         text: intl.formatMessage({ id: 'profileUpdatedSuccess' })
       });
 
+      // Reset error highlight state on success
+      setShowFieldErrors(false);
+
       const profileCompleted = typeof meData?.profileCompleted === 'boolean'
         ? meData.profileCompleted
         : true;
@@ -298,15 +325,6 @@ function ProfileInfo() {
     }
     return intl.formatMessage({ id: 'Username' });
   };
-
-  // Check if form is valid
-  const hasContactInfo = Boolean(userData.email || userData.nationalId);
-  const isFormValid =
-    userData.firstName.trim()
-    && userData.lastName.trim()
-    && userData.birthDate
-    && hasContactInfo
-    && !isSubmitting;
 
   return (
     <div className="profile-info-container">
@@ -418,7 +436,9 @@ function ProfileInfo() {
               <span className="required-star">*</span>
             </label>
           </div>
-          <div className={`input-container ${userData.firstName ? 'filled' : ''}`}>
+          <div
+            className={`input-container ${userData.firstName ? 'filled' : ''} ${fieldHasError(isFirstNameMissing) ? 'field-error' : ''}`}
+          >
             <input
               type="text"
               placeholder={intl.formatMessage({ id: 'enterFirstName' })}
@@ -437,7 +457,9 @@ function ProfileInfo() {
               <span className="required-star">*</span>
             </label>
           </div>
-          <div className={`input-container ${userData.lastName ? 'filled' : ''}`}>
+          <div
+            className={`input-container ${userData.lastName ? 'filled' : ''} ${fieldHasError(isLastNameMissing) ? 'field-error' : ''}`}
+          >
             <input
               type="text"
               placeholder={intl.formatMessage({ id: 'enterLastName' })}
@@ -481,7 +503,7 @@ function ProfileInfo() {
               <FormattedMessage id="email" />
             </label>
           </div>
-          <div className={`input-container ${userData.email ? 'filled' : ''}`}>
+          <div className={`input-container ${userData.email ? 'filled' : ''} ${fieldHasError(isContactInfoMissing && !userData.email && !userData.nationalId) ? 'field-error' : ''}`}>
             <input
               type="email"
               placeholder={intl.formatMessage({ id: 'enterEmail' })}
@@ -501,7 +523,9 @@ function ProfileInfo() {
               <span className="required-star">*</span>
             </label>
           </div>
-          <div className={`input-container ${userData.nationalId ? 'filled' : ''}`}>
+          <div
+            className={`input-container ${userData.nationalId ? 'filled' : ''} ${fieldHasError(isContactInfoMissing) ? 'field-error' : ''}`}
+          >
             <input
               type="text"
               placeholder={intl.formatMessage({ id: 'enterNationalId' })}
@@ -521,7 +545,7 @@ function ProfileInfo() {
               <span className="required-star">*</span>
             </label>
           </div>
-          <div className={`input-container ${userData.birthDate ? 'filled' : ''}`}>
+          <div className={`input-container ${userData.birthDate ? 'filled' : ''} ${fieldHasError(isBirthDateMissing) ? 'field-error' : ''}`}>
             <LocalizedDatePicker
               value={userData.birthDate}
               onChange={(isoDate) => handleInputChange('birthDate', isoDate)}
@@ -623,7 +647,7 @@ function ProfileInfo() {
         <button
           className={`submit-button ${isFormValid ? 'active' : ''}`}
           onClick={handleSubmit}
-          disabled={!isFormValid}
+          disabled={isSubmitting}
         >
           <FormattedMessage id="confirmAndSave" />
         </button>
