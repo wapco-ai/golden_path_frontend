@@ -9,6 +9,7 @@ export const ADMIN_REFRESH_TOKEN_KEY = 'gp_admin_refresh_token';
 let profileRequestVersion = 0;
 let authSessionVersion = 0;
 let adminSessionVersion = 0;
+let avatarRevision = 0;
 
 export const getAdminSessionVersion = () => adminSessionVersion;
 
@@ -135,6 +136,7 @@ export const useAdminAuthStore = create(
         const accessToken = get().accessToken || sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY);
         if (!accessToken) return null;
         const requestVersion = ++profileRequestVersion;
+        const requestedAvatarRevision = avatarRevision;
         let response;
         try {
           response = await authClient.get('/me', {
@@ -146,12 +148,16 @@ export const useAdminAuthStore = create(
           if (requestVersion !== profileRequestVersion) return get().admin;
           throw error;
         }
-        const user = response.data?.user || response.data?.admin || response.data;
+        let user = response.data?.user || response.data?.admin || response.data;
         // A slower /me request from before a role edit or account switch must
         // never restore the older grants after a newer profile was accepted.
         if (requestVersion !== profileRequestVersion
           || accessToken !== (get().accessToken || sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY))) {
           return get().admin;
+        }
+        if (requestedAvatarRevision !== avatarRevision) {
+          const currentAvatar = get().admin?.avatarUrl ?? get().admin?.avatar ?? null;
+          user = { ...user, avatarUrl: currentAvatar, avatar: currentAvatar };
         }
         set({
           admin: user,
@@ -164,7 +170,7 @@ export const useAdminAuthStore = create(
 
       setAvatar: (avatarUrl, expectedSessionVersion, expectedAdminId) => {
         if (expectedSessionVersion !== adminSessionVersion || get().admin?.id !== expectedAdminId) return false;
-        profileRequestVersion += 1;
+        avatarRevision += 1;
         set((state) => ({ admin: { ...state.admin, avatarUrl, avatar: avatarUrl } }));
         return true;
       },

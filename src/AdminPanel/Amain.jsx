@@ -16468,7 +16468,7 @@ const Amain = () => {
                     {avatarPreview ? 'تغییر تصویر' : 'انتخاب تصویر'}
                   </label>
 
-                  {(avatarPreview || adminAvatar) && (
+                  {(avatarPreview || avatarUrl) && (
                     <button
                       className="remove-btn"
                       onClick={handleRemoveAvatar}

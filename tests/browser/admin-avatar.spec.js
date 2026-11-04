@@ -13,6 +13,7 @@ async function setup(page) {
     avatars: new Map([[101, avatar(101, 'old')], [202, avatar(202, 'second')]]),
     uploads: [], deletes: [], dialogs: [], uploadStatus: 200, deleteStatus: 200,
     uploadGate: null, profileGate: null, heldProfiles: 0, expireUpload: false, refreshes: 0,
+    profileStatus: 200, roles: ['super_dashboard_admin'], imageStatus: 200,
   };
   page.on('dialog', async dialog => { state.dialogs.push(dialog.message()); await dialog.accept(); });
   await page.addInitScript(() => {
@@ -30,10 +31,11 @@ async function setup(page) {
     const token = request.headers().authorization || '';
     const id = token.includes('202') ? 202 : 101;
     if (path.endsWith('/admin/auth/me')) {
-      const json = { id, name: `Fixture ${id}`, roles: ['super_dashboard_admin'], roleTitles: [], permissions: [], avatarUrl: state.avatars.get(id) };
+      const json = { id, name: `Fixture ${id}`, roles: state.roles, roleTitles: [], permissions: [], avatarUrl: state.avatars.get(id) };
+      const status = state.profileStatus;
       const gate = state.profileGate; state.profileGate = null;
       if (gate) { state.heldProfiles++; await gate; }
-      return route.fulfill({ json, headers });
+      return route.fulfill({ status, json, headers });
     }
     if (path.endsWith('/admin/auth/refresh')) {
       state.refreshes++;
@@ -54,7 +56,7 @@ async function setup(page) {
       state.avatars.set(id, null);
       return route.fulfill({ json: { message: 'AVATAR_DELETED', url: null }, headers });
     }
-    if (path === '/api/v1/files') return route.fulfill({ body: png, contentType: 'image/png', headers });
+    if (path === '/api/v1/files') return route.fulfill({ status: state.imageStatus, body: state.imageStatus === 200 ? png : Buffer.from('missing image'), contentType: 'image/png', headers });
     if (path.includes('/style') && path.endsWith('.json')) return route.fulfill({ json: { version: 8, sources: {}, layers: [{ id: 'background', type: 'background' }] }, headers });
     if (path.startsWith('/tiles/') || path.startsWith('/tms/')) return route.fulfill({ status: 204, headers });
     if (path.endsWith('/floors')) return route.fulfill({ json: [{ floor: 0, label: 'همکف' }], headers });
@@ -185,4 +187,51 @@ test('a slow profile response cannot undo a completed avatar upload', async ({ p
   const response = page.waitForResponse(res => res.url().endsWith('/admin/auth/me'));
   gate.release(); await response;
   await expect(headerImage(page)).toHaveAttribute('src', absolute(saved));
+});
+
+test('avatar completion still applies grants revoked by a pending access check', async ({ page }) => {
+  const state = await setup(page);
+  state.roles = [];
+  const gate = pause(); state.profileGate = gate.promise;
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect.poll(() => state.heldProfiles).toBe(1);
+  await selectImage(page);
+  await modal(page).getByRole('button', { name: 'ذخیره تصویر', exact: true }).click();
+  await expect(modal(page)).toHaveCount(0);
+  gate.release();
+  await expect.poll(() => page.evaluate(async () => {
+    const { useAdminAuthStore } = await import('/src/auth/admin/adminAuthStore.js');
+    return useAdminAuthStore.getState().roles;
+  })).toEqual([]);
+  await expect(headerImage(page)).toHaveAttribute('src', absolute(state.avatars.get(101)));
+  await expect(page.locator('#dashboard-menu-item-m')).toBeHidden();
+});
+
+for (const status of [403, 423]) {
+  test(`avatar completion cannot suppress a pending ${status} access failure`, async ({ page }) => {
+    const state = await setup(page);
+    state.profileStatus = status;
+    const gate = pause(); state.profileGate = gate.promise;
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect.poll(() => state.heldProfiles).toBe(1);
+    await selectImage(page);
+    await modal(page).getByRole('button', { name: 'ذخیره تصویر', exact: true }).click();
+    await expect(modal(page)).toHaveCount(0);
+    gate.release();
+    await expect(page).toHaveURL(/#\/admin\/login/);
+    expect(await page.evaluate(() => sessionStorage.getItem('gp_admin_access_token'))).toBeNull();
+  });
+}
+
+test('a persisted avatar remains removable when its image fails to load', async ({ page }) => {
+  const state = await setup(page);
+  state.imageStatus = 404;
+  await page.reload();
+  await expect(page.locator('#amain-profile-menu .default-avatar')).toBeVisible();
+  await page.locator('#amain-profile-menu').click();
+  await modal(page).getByRole('button', { name: 'حذف تصویر', exact: true }).click();
+  await expect(modal(page)).toHaveCount(0);
+  expect(state.deletes).toEqual([101]);
+  await page.reload();
+  await expect(page.locator('#amain-profile-menu .default-avatar')).toBeVisible();
 });
