@@ -1,5 +1,8 @@
 import { haramVectorTileConfig } from '../config/vectorTiles';
 import { getSessionFloor, subscribeToSessionFloor } from './sessionFloor';
+import { bindAdminAreaAppearance, getAdminAppearanceFloor } from './bindAdminAreaAppearance.js';
+import { createAreaAppearanceLoader } from './adminAreaAppearance.js';
+import { listAreas } from '../services/adminAreasService.js';
 
 const resolveTileUrlResolver = (layerCfg) => {
   if (typeof layerCfg.tileUrlFactory === 'function') {
@@ -19,6 +22,8 @@ const buildSourceMeta = (vectorTileConfig) => vectorTileConfig.reduce((acc, laye
       tileUrlResolver,
       minzoom: layerCfg.minzoom,
       maxzoom: layerCfg.maxzoom,
+      promoteId: layerCfg.promoteId,
+      adminAreaAppearance: layerCfg.adminAreaAppearance === true,
       isDynamic
     };
   } else {
@@ -120,11 +125,13 @@ const ensureSourcesAndLayers = (map, vectorTileConfig, sourceMeta) => {
     return;
   }
 
-  const currentFloor = getSessionFloor();
+  // The admin panel controls its own floor/language tile URLs explicitly.
+  const adminManaged = vectorTileConfig.some(layer => layer.adminAreaAppearance);
+  const currentFloor = adminManaged ? getAdminAppearanceFloor(map) : getSessionFloor();
 
   Object.entries(sourceMeta).forEach(([sourceId, meta]) => {
     if (map.getSource(sourceId)) {
-      if (meta.isDynamic) {
+      if (meta.isDynamic && !adminManaged) {
         const source = map.getSource(sourceId);
         if (source && typeof source.setTiles === 'function') {
           source.setTiles([meta.tileUrlResolver({ floor: currentFloor })]);
@@ -137,7 +144,8 @@ const ensureSourcesAndLayers = (map, vectorTileConfig, sourceMeta) => {
       type: 'vector',
       tiles: [meta.tileUrlResolver({ floor: currentFloor })],
       minzoom: meta.minzoom,
-      maxzoom: meta.maxzoom
+      maxzoom: meta.maxzoom,
+      ...(meta.promoteId ? { promoteId: meta.promoteId } : {})
     });
   });
 
@@ -167,7 +175,8 @@ const ensureSourcesAndLayers = (map, vectorTileConfig, sourceMeta) => {
       layer.filter = layerCfg.filter;
     }
 
-    map.addLayer(layer);
+    const before = layerCfg.beforeId && map.getLayer(layerCfg.beforeId) ? layerCfg.beforeId : undefined;
+    map.addLayer(layer, before);
     const layerNameForLog = layerCfg?.sourceLayer || layerCfg?.id;
     if (layerNameForLog) {
       console.log(`Haram vector layer loaded: ${layerNameForLog}`);
@@ -218,7 +227,10 @@ export const initHaramVectorLayers = (mapOrEventTarget, vectorTileConfig = haram
     })
     .finally(() => {
       ensureSourcesAndLayers(map, vectorTileConfig, sourceMeta);
-      ensureFloorSync(map, sourceMeta);
+      if (!vectorTileConfig.some(layer => layer.adminAreaAppearance)) ensureFloorSync(map, sourceMeta);
+      Object.entries(sourceMeta).forEach(([sourceId, meta]) => {
+        if (meta.adminAreaAppearance) bindAdminAreaAppearance(map, sourceId, createAreaAppearanceLoader(listAreas));
+      });
 
       if (!map[FLAG_KEY] && typeof map.on === 'function') {
         map[FLAG_KEY] = true;

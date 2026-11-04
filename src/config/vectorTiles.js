@@ -1,3 +1,4 @@
+import { adminAreaFillPaint, adminAreaOutlinePaint } from '../utils/adminAreaAppearance.js';
 import appConfig from './appConfig';
 
 export const TILE_BASE_URL = appConfig.tileBaseUrl;
@@ -370,6 +371,8 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
   return [
     {
       id: 'areas-outline',
+      promoteId: 'id',
+      adminAreaAppearance: true,
       titleFa: 'محدوده‌ها',
       table: 'public.fn_areas_mvt',
       sourceId: 'fn_areas_mvt',
@@ -379,10 +382,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
       minzoom: 10,
       maxzoom: 22,
       visibleByDefault: true,
-      paint: {
-        'line-color': '#d1c2fa',
-        'line-width': 2
-      },
+      paint: adminAreaOutlinePaint(),
       layout: {
         'line-cap': 'round',
         'line-join': 'round'
@@ -399,63 +399,8 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
       minzoom: 12,
       maxzoom: 22,
       visibleByDefault: true,
-      paint: {
-        'fill-color': [
-          'match',
-          ['to-string', ['get', 'area_type']],
-
-          // محدوده‌های عمومی
-          'sahn', '#fff5cc',
-          'courtyard', '#fff5cc',
-          'ravaq', '#e6f2ff',
-          'ravagh', '#e6f2ff',
-          'eyvan', '#ffe6e6',
-          'masjed', '#e8e0ff',
-          'madrese', '#eef2ff',
-
-          // پله، رمپ، آسانسور
-          'stair_area', '#f97316',
-          'ramp_area', '#22c55e',
-          'elevator_area', '#0ea5e9',
-
-          // محدوده‌های اداری / خدماتی / غیرقابل عبور عمومی
-          'admin_zone', '#64748b',
-          'administrative', '#64748b',
-          'storage_area', '#78716c',
-          'warehouse_area', '#78716c',
-          'warehouse', '#78716c',
-          'facility_area', '#a855f7',
-          'technical_area', '#a855f7',
-          'service_room', '#94a3b8',
-          'functional_area', '#94a3b8',
-
-          // پیش‌فرض
-          '#dddddd'
-        ],
-        'fill-opacity': [
-          'case',
-          [
-            'in',
-            ['to-string', ['get', 'area_type']],
-            ['literal', [
-              'stair_area',
-              'ramp_area',
-              'elevator_area',
-              'admin_zone',
-              'administrative',
-              'storage_area',
-              'warehouse_area',
-              'warehouse',
-              'facility_area',
-              'technical_area',
-              'service_room',
-              'functional_area'
-            ]]
-          ],
-          0.55,
-          0.35
-        ]
-      }
+      beforeId: 'areas-outline',
+      paint: adminAreaFillPaint()
     },
     {
       id: 'areas-label',
