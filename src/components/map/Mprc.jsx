@@ -321,15 +321,15 @@ const Mprc = ({
     };
   }, [setUserLocation, intl, isTracking]);
 
-  // Update user location and optionally center map when it changes
   useEffect(() => {
     if (userLocation?.coordinates) {
       const [lat, lng] = userLocation.coordinates;
       const coords = { lat, lng };
       setUserCoords(coords);
 
-      // Only center if tracking is enabled or if we're swapping
-      if (isTracking || !destCoords) {
+      const fromMapTap = userLocation.fromMapSelection === true;
+  
+      if (!fromMapTap && (isTracking || !destCoords)) {
         setViewState(v => ({
           ...v,
           latitude: lat,

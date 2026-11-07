@@ -26,6 +26,106 @@
   /* Prevent Chrome collapsing */
 }
 
+/* Main Jalali Calendar */
+.main-jalali-calendar {
+  width: 302px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #D9D9D9;
+  border-radius: 8px;
+  direction: rtl;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  box-sizing: border-box;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.main-jalali-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 4px 14px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.main-jalali-calendar-header span {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1E2023;
+  direction: rtl;
+}
+
+.main-jalali-calendar-header button {
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  color: #0F71EF;
+  font-size: 23px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.main-jalali-calendar-header button:hover {
+  background: #F2F6FF;
+}
+
+.main-jalali-weekdays,
+.main-jalali-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  direction: rtl;
+  text-align: center;
+}
+
+.main-jalali-weekdays {
+  margin-bottom: 10px;
+}
+
+.main-jalali-weekdays div {
+  font-size: 10px;
+  font-weight: 500;
+  color: #555;
+  white-space: nowrap;
+  padding: 5px 0;
+}
+
+.main-jalali-day,
+.main-jalali-empty {
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+.main-jalali-day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #1E2023;
+  font-family: 'Vazir', Tahoma, sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.main-jalali-day:hover {
+  background: #EAF2FF;
+  color: #0F71EF;
+}
+
+.main-jalali-day.selected {
+  background: #2878B5;
+  color: #fff;
+}
+
+.main-jalali-day.today:not(.selected) {
+  border: 1px solid #0F71EF;
+  color: #0F71EF;
+}
+
 .admin-panel-isolated .admin-content-wrapper {
   display: flex !important;
   flex: 1 !important;
