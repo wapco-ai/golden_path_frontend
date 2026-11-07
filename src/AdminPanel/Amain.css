@@ -124,7 +124,7 @@
 .main-jalali-day.today:not(.selected) {
   border: 1px solid #0F71EF;
   color: #0F71EF;
-}
+}Z
 
 .admin-panel-isolated .admin-content-wrapper {
   display: flex !important;
