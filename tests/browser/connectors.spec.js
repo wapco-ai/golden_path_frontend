@@ -100,7 +100,17 @@ test('a three-floor draft survives map picking and is saved atomically in the or
     }
     await clickPortal(page);
     if (i === 1) {
-      await page.getByRole('button',{name:'انتخاب یکی از ورودی‌های روی هم'}).click();
+      const stop = page.getByTestId('connector-stop').nth(i);
+      const overlapping = stop.getByRole('button',{name:'انتخاب یکی از ورودی‌های روی هم'});
+      await expect(overlapping).toBeVisible();
+      await stop.getByRole('button',{name:'منفی ۱',exact:true}).click();
+      await page.getByRole('option',{name:'طبقه ۱',exact:true}).click();
+      await expect(overlapping).toHaveCount(0);
+      await stop.getByRole('button',{name:'طبقه ۱',exact:true}).click();
+      await page.getByRole('option',{name:'منفی ۱',exact:true}).click();
+      await stop.getByRole('button',{name:'انتخاب نقطه روی نقشه',exact:true}).click();
+      await clickPortal(page);
+      await overlapping.click();
       await page.getByRole('option',{name:'درب 209 · نقطهٔ 109'}).click();
     }
     await expect(page.getByTestId('connector-stop').nth(i).getByTestId('connector-area-value')).toBeVisible();

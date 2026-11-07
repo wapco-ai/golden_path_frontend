@@ -74,7 +74,7 @@ export default function ConnectorStops({ value, onChange, kind, floors, groups, 
           {!selected && <div className="connector-location">
             <div className="connector-field">
               <span className="connector-label">طبقه</span>
-              <Select value={String(stop.floor)} disabled={Boolean(stop.access_id)} onChange={floor => patch(i, { ...newStop(floor, kind), access_id: null, door_id: null, area_id: null, area_name: null, lat: null, lon: null, areas: [], error: '' })}
+              <Select value={String(stop.floor)} disabled={Boolean(stop.access_id)} onChange={floor => patch(i, { ...newStop(floor, kind), access_id: null, accessOptions: null, door_id: null, area_id: null, area_name: null, lat: null, lon: null, areas: [], error: '' })}
                 options={floors.filter(f => Number(f.floor) === Number(stop.floor) || !value.stops.some(s => Number(s.floor) === Number(f.floor))).map(f => ({ value: String(f.floor), label: f.label || floorLabel(f.floor) }))} placeholder="طبقه" />
             </div>
             <button type="button" className="connector-map-button" disabled={stop.resolving} onClick={() => onPick(i)}>
