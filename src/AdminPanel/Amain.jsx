@@ -1235,7 +1235,7 @@ const Amain = () => {
   
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const calendarRef = useRef(null);
-  const [breadcrumbPath, setBreadcrumbPath] = useState(['منوی اصلی', 'داشبورد', 'آمار کلی استارتاپ من']);
+  const [breadcrumbPath, setBreadcrumbPath] = useState(['منوی اصلی', 'داشبورد', ' آمار کلی']);
   const [currentReportView, setCurrentReportView] = useState(() => canSeeDashboard ? null : firstAllowedView);
   const [pieChartTimeFilter, setPieChartTimeFilter] = useState('ماه اخیر');
   const [barChartTimeFilter, setBarChartTimeFilter] = useState('هفته اخیر');
