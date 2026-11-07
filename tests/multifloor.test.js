@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { routeOnFloor, routeCoordinates, multifloorSteps, activeRouteCoordinates } from '../src/utils/multifloorRoute.js';
-import { connectorError, connectorPayload, emptyConnector, newStop, floorValue, floorLabel, isSelectedStop, usesSharedConnectorEditor } from '../src/utils/connectorForm.js';
+import { connectorAccessHits, connectorError, connectorPayload, emptyConnector, newStop, floorValue, floorLabel, isSelectedStop, usesSharedConnectorEditor } from '../src/utils/connectorForm.js';
 import { getNavigationProgress } from '../src/utils/rngNavigation.js';
 import { requestRouting } from '../src/services/routingService.js';
 import { analyzeRoute } from '../src/utils/routeAnalysis.js';
@@ -52,6 +52,8 @@ test('form rejects incomplete, duplicate and unresolved stops', () => {
   const c={...emptyConnector(),stops:[newStop(0),newStop(1)]};
   assert.match(connectorError(c,'elevator',['walk']),/نقشه/);
   c.stops=c.stops.map(s => ({...s,lat:36.3,lon:59.6,area_id:1}));
+  assert.match(connectorError(c,'elevator',['walk']),/نقطهٔ دسترسی موجود/);
+  c.stops=c.stops.map((s, i) => ({...s, access_id: i + 1}));
   assert.equal(connectorError(c,'elevator',['walk']),'');
   assert.ok(connectorError({...c,stops:[c.stops[0],c.stops[0]]},'elevator',['walk']));
   assert.ok(connectorError({...c,stops:[c.stops[0],{...c.stops[1],area_id:null}]},'elevator',['walk']));
@@ -85,13 +87,16 @@ test('reclassifying an existing shared stair keeps all its floor stops, but ordi
 test('API payload preserves shared identity, order, zero floor and optional reverse time', () => {
   const payload=connectorPayload({id:8,version:4,direction:'both',wait_seconds:20,stops:[
     {floor:0,access_id:7,area_id:1,travel_seconds:'8',reverse_seconds:null,areas:[]},
-    {floor:1,lat:36.3,lon:59.6,area_id:2,travel_seconds:8,reverse_seconds:10}
+    {floor:1,access_id:8,lat:36.3,lon:59.6,area_id:2,travel_seconds:8,reverse_seconds:10}
   ]},'elevator',{basic_info:{title:{fa:'آسانسور'}}});
   assert.equal(payload.version,4);
   assert.equal(payload.stops[0].floor,0);
   assert.equal(payload.stops[0].access_id,7);
   assert.equal(payload.stops[0].reverse_seconds,null);
   assert.equal(payload.stops[1].reverse_seconds,10);
+  assert.equal(payload.stops[1].access_id,8);
+  assert.equal('lat' in payload.stops[1],false);
+  assert.equal('lon' in payload.stops[1],false);
   assert.equal('areas' in payload.stops[0],false);
 });
 test('existing and additional floor labels round trip without becoming ground floor', () => {
@@ -104,9 +109,15 @@ test('the selected portal stays fixed by identity across reordering and coincide
   assert.deepEqual([stops[1],stops[2],stops[0]].map(s=>isSelectedStop(s,point)),[true,false,false]);
   assert.equal(isSelectedStop({...point,door_id:99,access_id:99},point),false);
   const draft={floor:0,lat:36.3,lon:59.6};
-  assert.equal(isSelectedStop(stops[1],draft),true);
+  assert.equal(isSelectedStop(stops[1],draft),false);
   assert.equal(isSelectedStop({...draft,floor:1},draft),false);
   assert.equal(isSelectedStop(newStop(0),draft),false);
+});
+test('map picking accepts only actual access points on the selected floor and deduplicates tiles', () => {
+  const hit = (id, floor) => ({ properties: { access_id: id, floor }, geometry: { type: 'Point', coordinates: [59.6, 36.3] } });
+  assert.deepEqual(connectorAccessHits([], 0), []);
+  assert.deepEqual(connectorAccessHits([hit(7, -1), hit(null, 0), hit(8, null)], 0), []);
+  assert.deepEqual(connectorAccessHits([hit(7, -1), hit(8, 0), hit(8, 0), hit(9, '0')], 0).map(p => p.access_id), [8, 9]);
 });
 test('routing request and response preserve floor and transfer metadata', async t => {
   let body;

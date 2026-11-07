@@ -4,10 +4,17 @@ const floors = [-1,0,1].map(floor => ({floor,label:floor === 0 ? 'همکف' : fl
 const shared = { id:7,version:3,kind:'elevator',direction:'both',wait_seconds:20,
   info:{basic_info:{title:{fa:'آسانسور مشترک'},description:'توضیح مشترک'},operational:{place_function:'elevator',status:'active',transport_modes:['walk','wheelchair'],gender_access:['both']}},
   stops: floors.map(({floor},i) => ({floor,access_id:100+i,door_id:200+i,area_id:300+i,area_name:`فضای ${floor}`,travel_seconds:8,reverse_seconds:null,lat:36.287,lon:59.615})) };
+const center = [59.6161, 36.2888];
+const portal = (floor, access_id, door_id) => ({ type:'Feature', geometry:{ type:'Point', coordinates:center }, properties:{ floor, access_id, door_id, id:access_id, is_open:true } });
+
+async function clickPortal(page) {
+  const map = page.locator('#map-container');
+  const box = await map.boundingBox();
+  await map.click({ position:{ x:box.width/2, y:box.height/2 } });
+}
 
 async function setup(page, { verifyPendingMap = false, conflictingGroup = false, ambiguousArea = false } = {}) {
-  const writes=[]; const errors=[];
-  let initialPoint;
+  const writes=[]; const errors=[]; const candidateLookups=[];
   let releaseStyle;
   const styleReady = verifyPendingMap ? new Promise(resolve => { releaseStyle = resolve; }) : Promise.resolve();
   page.on('pageerror',e => errors.push(e.message));
@@ -22,10 +29,11 @@ async function setup(page, { verifyPendingMap = false, conflictingGroup = false,
     if (path.endsWith('/admin/auth/me')) json={id:1,name:'مدیر آزمایشی',roles:['super_dashboard_admin', 'manage_map'],roleTitles:[],permissions:[]};
     else if (path.endsWith('/floors')) json=floors;
     else if (path.endsWith('/connectors/candidates')) {
-      initialPoint ??= {floor:Number(url.searchParams.get('floor')),lat:Number(url.searchParams.get('lat')),lon:Number(url.searchParams.get('lon'))};
+      candidateLookups.push(Object.fromEntries(url.searchParams));
       json=ambiguousArea ? {area_id:null,areas:[{id:300,name:'فضای اول'},{id:301,name:'فضای دوم'}]} : {area_id:300+Number(url.searchParams.get('floor')),areas:[{id:300+Number(url.searchParams.get('floor')),name:'فضای تشخیص داده‌شده'}]};
     }
-    else if (path.endsWith('/connectors/7') && req.method()==='GET') json={...shared,stops:shared.stops.map(s=>({...s,lat:initialPoint.lat,lon:initialPoint.lon+(conflictingGroup ? 0.001 : 0)}))};
+    else if (path.endsWith('/connectors/7') && req.method()==='GET') json=shared;
+    else if (path.endsWith('/doors/299/info')) json={...shared.info, point:{ floor:0, door_id:299, access_id:199, lon:center[0], lat:center[1] }};
     else if (path.endsWith('/connectors') && req.method()==='GET') json=[{id:7,title:'آسانسور مشترک',kind:'elevator'}];
     else if (/connectors(?:\/7)?$/.test(path) && req.method()!=='GET') json={...req.postDataJSON(),id:7,version:4,stops:req.postDataJSON().stops.map((s,i)=>({...s,door_id:200+i,access_id:100+i}))};
     else if (path.endsWith('/graph-status')) json={graph:{status:'ready'}};
@@ -33,7 +41,10 @@ async function setup(page, { verifyPendingMap = false, conflictingGroup = false,
   });
   await page.route('**/map-styles/**/style*.json',async route=>{
     await styleReady;
-    await route.fulfill({json:{version:8,glyphs:'http://localhost:8080/glyphs/{fontstack}/{range}.pbf',sources:{},layers:[{id:'background',type:'background',paint:{'background-color':'#f8f5f0'}}]}});
+    const features=conflictingGroup ? [portal(0,199,299)] : [portal(0,101,201),portal(-1,100,200),portal(-1,109,209),portal(1,102,202)];
+    await route.fulfill({json:{version:8,glyphs:'http://localhost:8080/glyphs/{fontstack}/{range}.pbf',
+      sources:{door_access_points:{type:'geojson',data:{type:'FeatureCollection',features}}},
+      layers:[{id:'background',type:'background',paint:{'background-color':'#f8f5f0'}},{id:'doors-access-point',type:'circle',source:'door_access_points',paint:{'circle-radius':10}}]}});
   });
   await page.route('**/tiles/**',route=>route.fulfill({status:204}));
   await page.goto('/#/admin');
@@ -47,9 +58,15 @@ async function setup(page, { verifyPendingMap = false, conflictingGroup = false,
   }
   await expect(page.locator('.manage-door-point')).toHaveAttribute('aria-disabled','false');
   await page.locator('.manage-door-point').click();
-  await page.getByText('افزودن مکان روی نشانگر تنظیم شده',{exact:true}).click();
+  if (conflictingGroup) {
+    await page.locator('.location-marker-controls .cancel-marker-btn').click();
+    await clickPortal(page);
+    await page.getByRole('button',{name:'ویرایش اطلاعات درب انتخاب‌شده'}).click();
+  } else {
+    await page.getByText('افزودن مکان روی نشانگر تنظیم شده',{exact:true}).click();
+  }
   await expect(page.locator('.add-place-modal')).toBeVisible();
-  return {writes,errors,get initialPoint() { return initialPoint; }};
+  return {writes,errors,candidateLookups};
 }
 
 async function chooseType(page, name='آسانسور') {
@@ -60,7 +77,7 @@ async function chooseType(page, name='آسانسور') {
 }
 
 test('a three-floor draft survives map picking and is saved atomically in the original wizard',async ({page},testInfo)=>{
-  const {writes,errors}=await setup(page);
+  const {writes,errors,candidateLookups}=await setup(page);
   await expect(page.locator('.step-circle')).toHaveCount(3);
   await page.locator('.step-content .add-place-combo-trigger').click();
   await expect(page.getByRole('option',{name:'پله',exact:true})).toBeVisible();
@@ -71,23 +88,38 @@ test('a three-floor draft survives map picking and is saved atomically in the or
   await page.locator('.step2-content').getByText('فعال',{exact:true}).click();
   await page.locator('.step2-content').getByText('به صورت پیاده',{exact:true}).click();
   await page.locator('.step2-content').getByText('مسیر مناسب خانوادگی',{exact:true}).click();
-  for (let i=1;i<=2;i++) {
-    await page.getByRole('button',{name:'افزودن توقف در طبقه دیگر',exact:true}).click();
+  for (let i=0;i<=2;i++) {
+    if (i) await page.getByRole('button',{name:'افزودن توقف در طبقه دیگر',exact:true}).click();
     await page.getByTestId('connector-stop').nth(i).getByRole('button',{name:'انتخاب نقطه روی نقشه',exact:true}).click();
     await expect(page.locator('.add-place-modal')).toHaveCount(0);
-    await page.locator('#map-container').click({position:{x:500+i*20,y:350}});
+    if (i === 0) {
+      await page.locator('#map-container').click({position:{x:250,y:250}});
+      await expect(page.getByText('یکی از ورودی‌های مشخص‌شدهٔ همین طبقه را انتخاب کنید.',{exact:true})).toBeVisible();
+      await expect(page.locator('.add-place-modal')).toHaveCount(0);
+      expect(candidateLookups).toHaveLength(0);
+    }
+    await clickPortal(page);
+    if (i === 1) {
+      const stop = page.getByTestId('connector-stop').nth(i);
+      const overlapping = stop.getByRole('button',{name:'انتخاب یکی از ورودی‌های روی هم'});
+      await expect(overlapping).toBeVisible();
+      await stop.getByRole('button',{name:'منفی ۱',exact:true}).click();
+      await page.getByRole('option',{name:'طبقه ۱',exact:true}).click();
+      await expect(overlapping).toHaveCount(0);
+      await stop.getByRole('button',{name:'طبقه ۱',exact:true}).click();
+      await page.getByRole('option',{name:'منفی ۱',exact:true}).click();
+      await stop.getByRole('button',{name:'انتخاب نقطه روی نقشه',exact:true}).click();
+      await clickPortal(page);
+      await overlapping.click();
+      await page.getByRole('option',{name:'درب 209 · نقطهٔ 109'}).click();
+    }
     await expect(page.getByTestId('connector-stop').nth(i).getByTestId('connector-area-value')).toBeVisible();
   }
   expect(writes).toHaveLength(0);
   await expect(page.getByTestId('connector-stop')).toHaveCount(3);
-  const selected=page.locator('[data-testid="connector-stop"][data-selected-point="true"]');
-  await expect(selected).toHaveCount(1);
-  await expect(selected.getByRole('button',{name:'تغییر نقطه روی نقشه',exact:true})).toHaveCount(0);
-  await expect(selected.getByRole('button',{name:'حذف توقف',exact:true})).toHaveCount(0);
-  await selected.getByRole('button',{name:'انتقال به بعد در ترتیب توقف‌ها',exact:true}).click();
-  await expect(page.getByTestId('connector-stop').nth(1)).toHaveAttribute('data-selected-point','true');
-  await selected.getByRole('button',{name:'انتقال به قبل در ترتیب توقف‌ها',exact:true}).click();
-  await expect(page.getByTestId('connector-stop').first()).toHaveAttribute('data-selected-point','true');
+  await page.getByTestId('connector-stop').first().getByRole('button',{name:'انتقال به بعد در ترتیب توقف‌ها',exact:true}).click();
+  await expect(page.getByTestId('connector-stop').nth(1)).toContainText('همکف');
+  await page.getByTestId('connector-stop').nth(1).getByRole('button',{name:'انتقال به قبل در ترتیب توقف‌ها',exact:true}).click();
   await page.locator('.connector-intro').scrollIntoViewIfNeeded();
   expect(await page.locator('.add-place-modal .modal-content').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
   expect(await page.locator('.connector-map-button').first().evaluate(el=>getComputedStyle(el).fontFamily)).toContain('Vazir');
@@ -98,6 +130,8 @@ test('a three-floor draft survives map picking and is saved atomically in the or
   await expect(page.locator('.add-place-modal')).toHaveCount(0);
   expect(writes).toHaveLength(1);
   expect(writes[0].body.stops.map(s=>s.floor)).toEqual([0,-1,1]);
+  expect(writes[0].body.stops.map(s=>s.access_id)).toEqual([101,109,102]);
+  expect(writes[0].body.stops.every(s=>!('lat' in s) && !('lon' in s))).toBe(true);
   expect(writes[0].body.info.basic_info.title.fa).toBe('اتصال آزمایشی');
   expect(errors).toEqual([]);
 });
@@ -107,22 +141,20 @@ test('loading an existing shared elevator edits all stops and retains its versio
   await page.getByRole('button',{name:'اتصال جدید؛ یا انتخاب اتصال موجود',exact:true}).click();
   await page.getByRole('option',{name:'آسانسور مشترک',exact:true}).click();
   await expect(page.getByTestId('connector-stop')).toHaveCount(3);
-  await expect(page.getByTestId('connector-stop').nth(1)).toHaveAttribute('data-selected-point','true');
-  await expect(page.getByTestId('connector-stop').nth(1).getByRole('button',{name:'تغییر نقطه روی نقشه',exact:true})).toHaveCount(0);
-  await expect(page.getByTestId('connector-stop').nth(1).getByRole('button',{name:'حذف توقف',exact:true})).toHaveCount(0);
   await expect(page.getByTestId('connector-stop').first().getByRole('button',{name:'تغییر نقطه روی نقشه',exact:true})).toBeVisible();
   await page.getByTestId('connector-stop').first().getByRole('button',{name:'تغییر نقطه روی نقشه',exact:true}).click();
-  await page.locator('#map-container').click({position:{x:520,y:350}});
+  await clickPortal(page);
+  await page.getByRole('button',{name:'انتخاب یکی از ورودی‌های روی هم'}).click();
+  await page.getByRole('option',{name:'درب 209 · نقطهٔ 109'}).click();
   await expect(page.getByTestId('connector-stop').first().getByTestId('connector-area-value')).toHaveText('فضای تشخیص داده‌شده');
-  await expect(page.getByTestId('connector-stop').nth(1)).toHaveAttribute('data-selected-point','true');
   await page.getByRole('button',{name:'تایید اطلاعات و مرحله بعد',exact:true}).click();
   await page.getByRole('button',{name:'تایید اطلاعات و ثبت این مکان',exact:false}).click();
   await expect(page.locator('.add-place-modal')).toHaveCount(0);
   expect(writes).toHaveLength(1); expect(writes[0].method).toBe('PUT');
   expect(writes[0].body.version).toBe(3);
-  expect(writes[0].body.stops.map(s=>s.access_id)).toEqual([undefined,101,102]);
+  expect(writes[0].body.stops.map(s=>s.access_id)).toEqual([109,101,102]);
   expect(writes[0].body.stops[0].floor).toBe(-1);
-  expect(Number.isFinite(writes[0].body.stops[0].lat)).toBe(true);
+  expect(writes[0].body.stops[0]).not.toHaveProperty('lat');
   expect(errors).toEqual([]);
 });
 
@@ -146,7 +178,7 @@ test('canceling map selection preserves the form and canceling the wizard writes
 
 test('a conflicting shared connector cannot replace the chosen point, while its ambiguous area remains editable',async ({page})=>{
   const {writes,errors}=await setup(page,{conflictingGroup:true,ambiguousArea:true});
-  await chooseType(page);
+  await page.locator('.add-place-modal .step-circle').nth(1).click();
   const selected=page.locator('[data-testid="connector-stop"][data-selected-point="true"]');
   await selected.getByRole('button',{name:'فضای قابل‌تردد کنار نقطه',exact:true}).click();
   await page.getByRole('option',{name:'فضای دوم',exact:true}).click();

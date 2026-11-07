@@ -14155,7 +14155,8 @@ const Amain = () => {
 
                     {isVerticalConnector && <ConnectorStops value={connectorForm.value} onChange={connectorForm.setValue}
                       kind={placeFunction} floors={connectorForm.floors} groups={connectorForm.groups}
-                      selectedPoint={connectorForm.point} onJoin={connectorForm.join} onPick={connectorForm.pick} Select={AddPlaceSelect} />}
+                      selectedPoint={connectorForm.point} onJoin={connectorForm.join} onPick={connectorForm.pick}
+                      onSelectAccess={connectorForm.selectAccess} Select={AddPlaceSelect} />}
                     {!isAreaLayerActive && !isVerticalConnector && (
                       <div className="form-group routing-direction-section">
                         <label className="form-label">جهت عبور</label>
