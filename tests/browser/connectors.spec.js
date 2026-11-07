@@ -168,7 +168,7 @@ test('canceling map selection preserves the form and canceling the wizard writes
 
 test('a conflicting shared connector cannot replace the chosen point, while its ambiguous area remains editable',async ({page})=>{
   const {writes,errors}=await setup(page,{conflictingGroup:true,ambiguousArea:true});
-  await chooseType(page);
+  await page.locator('.add-place-modal .step-circle').nth(1).click();
   const selected=page.locator('[data-testid="connector-stop"][data-selected-point="true"]');
   await selected.getByRole('button',{name:'فضای قابل‌تردد کنار نقطه',exact:true}).click();
   await page.getByRole('option',{name:'فضای دوم',exact:true}).click();
