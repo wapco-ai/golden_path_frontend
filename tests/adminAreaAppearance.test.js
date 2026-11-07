@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { createPropertyExpression, latest } from '@maplibre/maplibre-gl-style-spec';
-import { adminAreaFillPaint, adminAreaOutlinePaint, getAreaAppearance, createAreaAppearanceLoader } from '../src/utils/adminAreaAppearance.js';
+import { adminAreaFillPaint, adminAreaOutlinePaint, getAreaAppearance, getAreaPublicAccess, createAreaAppearanceLoader } from '../src/utils/adminAreaAppearance.js';
 import { bindAdminAreaAppearance, getAdminAppearanceFloor } from '../src/utils/bindAdminAreaAppearance.js';
 
 const evaluate = (property, state, properties = { area_type: 'riwaq', is_closed: false }) => {
@@ -32,6 +32,15 @@ test('private areas share a gray fill regardless of technical type; roof changes
   assert.ok(evaluate('fill-opacity', { areaCovered: true }) > evaluate('fill-opacity', { areaCovered: false }));
   assert.notDeepEqual(evaluate('fill-color', {}), evaluate('fill-color', { areaPublic: true }));
   for (const property of Object.keys(adminAreaOutlinePaint())) evaluate(property, {});
+});
+
+test('the editor reads saved ownership independently of area closure and imported ownership', () => {
+  const area = { meta: { is_closed: true }, attrs_raw: {
+    access_policy: { public_access: true }, source_properties: { owner: 'خصوصی' }
+  } };
+  assert.equal(getAreaPublicAccess(area), true);
+  assert.equal(getAreaAppearance(area).areaPublic, false);
+  assert.equal(getAreaPublicAccess({ attrs: {} }), null);
 });
 
 test('metadata includes every page, keeps floors separate, and refreshes after editing', async () => {
