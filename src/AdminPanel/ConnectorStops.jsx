@@ -21,7 +21,7 @@ function SecondsInput({ id, label, value, onChange, min = 1 }) {
   </div>;
 }
 
-export default function ConnectorStops({ value, onChange, kind, floors, groups, onJoin, onPick, selectedPoint, Select }) {
+export default function ConnectorStops({ value, onChange, kind, floors, groups, onJoin, onPick, onSelectAccess, selectedPoint, Select }) {
   const patch = (i, changes) => onChange({ ...value, stops: value.stops.map((s, n) => n === i ? { ...s, ...changes } : s) });
   const move = (i, offset) => {
     const stops = [...value.stops];
@@ -34,7 +34,7 @@ export default function ConnectorStops({ value, onChange, kind, floors, groups, 
   return <section className="form-group connector-editor" data-testid="connector-stops" aria-labelledby="connector-heading">
     <div className="connector-intro">
       <h4 id="connector-heading">توقف‌های اتصال</h4>
-      <p className="connector-help">{value.id ? 'اطلاعات این اتصال برای همهٔ توقف‌های آن مشترک است.' : 'نقطهٔ انتخاب‌شده ثابت است؛ توقف‌های طبقات دیگر را به آن اضافه کنید.'}</p>
+      <p className="connector-help">{value.id ? 'اطلاعات این اتصال برای همهٔ توقف‌های آن مشترک است.' : 'برای هر طبقه، یک ورودی موجود روی نقشه انتخاب کنید.'}</p>
     </div>
     {!value.id && <Select value="" onChange={onJoin} placeholder="اتصال جدید؛ یا انتخاب اتصال موجود" options={groups.filter(g => g.kind === kind).map(g => ({ value: String(g.id), label: g.title || `اتصال ${g.id}` }))} />}
 
@@ -81,6 +81,10 @@ export default function ConnectorStops({ value, onChange, kind, floors, groups, 
               <Icon name="pin" />{stop.access_id || stop.lat != null ? 'تغییر نقطه روی نقشه' : 'انتخاب نقطه روی نقشه'}
             </button>
           </div>}
+
+          {stop.accessOptions?.length > 1 && <Select value="" placeholder="انتخاب یکی از ورودی‌های روی هم"
+            onChange={id => onSelectAccess(i, stop.floor, stop.accessOptions.find(a => a.access_id === Number(id)))}
+            options={stop.accessOptions.map(a => ({ value: String(a.access_id), label: a.door_id ? `درب ${a.door_id} · نقطهٔ ${a.access_id}` : `نقطهٔ ${a.access_id}` }))} />}
 
           <div className="connector-stop-fields">
             <div className="connector-field">
