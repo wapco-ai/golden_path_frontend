@@ -3329,6 +3329,28 @@ body {
 }
 
 /* Location Type Grid Styles */
+.location-type-heading:has(.area-access-control) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.area-access-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #858585;
+}
+
+.area-access-control .form-input {
+  width: auto;
+  min-width: 7rem;
+  padding: 6px 10px;
+}
+
 .location-type-grid {
   display: flex;
   gap: 32px;
