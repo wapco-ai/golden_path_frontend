@@ -13,6 +13,7 @@ import { useRouteStore } from '../store/routeStore';
 import { useLangStore } from '../store/langStore';
 import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
 import { analyzeRoute } from '../utils/routeAnalysis';
+import { getPointFloor, localRouteFallbackFloor } from '../utils/floors';
 import useLocaleDigits from '../utils/useLocaleDigits';
 import { toast } from 'react-toastify';
 import ttsService from '../services/ttsService';
@@ -439,14 +440,23 @@ const RoutingPage = () => {
           return true;
         }
       } catch (err) {
-        if (err?.name !== 'AbortError') {
-          console.warn('routing service failed', err);
-          if (err.status || Number(orig?.floor ?? getSessionFloor()) !== Number(dest?.floor ?? getSessionFloor())) { persistRouteData(null, [], []); toast.error(intl.formatMessage({ id: 'noRouteFound' })); return false; }
+        if (err?.name === 'AbortError') return false;
+        console.warn('routing service failed', err);
+        if (err.status) {
+          persistRouteData(null, [], []);
+          toast.error(intl.formatMessage({ id: 'noRouteFound' }));
+          return false;
         }
       }
 
+      const fallbackFloor = localRouteFallbackFloor(orig, dest);
+      if (fallbackFloor === null) {
+        persistRouteData(null, [], []);
+        toast.error(intl.formatMessage({ id: 'noRouteFound' }));
+        return false;
+      }
       try {
-        const geoData = await loadGeoJsonData({ language, signal: controller?.signal });
+        const geoData = await loadGeoJsonData({ floor: fallbackFloor, signal: controller?.signal });
         const analysis = analyzeRoute(orig, dest, geoData, transportMode, gender);
         if (!analysis) {
           toast.error(intl.formatMessage({ id: 'noRouteFound' }));
@@ -941,14 +951,15 @@ const RoutingPage = () => {
 
   // One navigation frame feeds the image and map in both open/closed panel states.
   // Demo/preview uses the selected segment; live navigation uses actual DR/GPS.
+  const routeOriginFloor = getPointFloor(origin, sessionFloor);
   const navigationFrame = useMemo(() => resolveNavigationFrame({
     step: routeData?.steps?.[currentStep],
     stepIndex: currentStep,
     routeCoordinates: activeRouteCoordinates(routeGeo, routeData?.steps?.[currentStep]),
     isRoutingActive, isDemoMode, hasArrived, isDrActive,
-    drPosition, userLocation, userHeading, sessionFloor
+    drPosition, userLocation, userHeading, sessionFloor: routeOriginFloor
   }), [routeData?.steps, currentStep, routeGeo, isRoutingActive, isDemoMode,
-    hasArrived, isDrActive, drPosition, userLocation, userHeading, sessionFloor]);
+    hasArrived, isDrActive, drPosition, userLocation, userHeading, routeOriginFloor]);
   useEffect(() => {
     if (isMultifloor(routeGeo) && (!isRoutingActive || isDemoMode)) setSessionFloor(navigationFrame.floor);
   }, [routeGeo, navigationFrame.floor, isRoutingActive, isDemoMode]);

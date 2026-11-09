@@ -6,6 +6,7 @@ import { useIntl } from 'react-intl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
+import usePublicFloorMap from '../../hooks/usePublicFloorMap';
 import { MBTILES_SATELLITE_STYLE, OSM_BASIC_STYLE_URL } from '../../services/mbtilesMapStyle';
 import { useLangStore } from '../../store/langStore';
 import { loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
@@ -124,12 +125,15 @@ const Mprc = ({
   const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
   const isSatellite = selectedMapType === 'satellite';
   const isOfflineOsmh = selectedMapType === 'simple';
-  const mapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : isOfflineOsmh ? OSM_BASIC_STYLE_URL : offlineMapStyle;
-  const mapRenderKey = isSatellite
+  const regularMapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : isOfflineOsmh ? OSM_BASIC_STYLE_URL : offlineMapStyle;
+  const regularMapKey = isSatellite
     ? 'mbtiles-satellite'
     : isOfflineOsmh
       ? 'mbtiles-offline-osmh'
       : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
+  const { mapStyle, mapRenderKey, isEngineeringMap, onMapError } = usePublicFloorMap(
+    mapFloor, language, regularMapStyle, regularMapKey, isSatellite ? undefined : handleMapError
+  );
   const vectorTileConfig = useMemo(() => {
     return createHaramVectorTileConfig(language).filter(
       (layerCfg) => !HIDDEN_VECTOR_LAYER_IDS.has(layerCfg.id)
@@ -178,9 +182,9 @@ const Mprc = ({
 
   const handleMapLoad = useCallback((event) => {
     const map = event?.target || event;
-    initHaramVectorLayers(map, vectorTileConfig);
+    if (!isEngineeringMap) initHaramVectorLayers(map, vectorTileConfig);
     fitAreaDoors(map);
-  }, [fitAreaDoors, vectorTileConfig]);
+  }, [fitAreaDoors, isEngineeringMap, vectorTileConfig]);
 
   const extractPlaceCoordinates = useCallback((place = {}) => {
     const lat =
@@ -401,7 +405,7 @@ const Mprc = ({
     if (isSelectingLocation) {
       const { lng, lat } = e.lngLat;
       const c = { lat, lng };
-      setSelectedCoords(c);
+      setSelectedCoords({ ...c, floor: mapFloor });
 
       let closestFeature = null;
       if (pointFeatures.length) {
@@ -697,7 +701,7 @@ const Mprc = ({
   }, [language, shouldLoadGeoJson, mapFloor]);
 
   useEffect(() => {
-    if (userCoords && destCoords && pointIsOnFloor(userLocation, mapFloor) && pointIsOnFloor(selectedDestination, mapFloor) && doorConnectionNodes.length) {
+    if (!isEngineeringMap && userCoords && destCoords && pointIsOnFloor(userLocation, mapFloor) && pointIsOnFloor(selectedDestination, mapFloor) && doorConnectionNodes.length) {
       const points = doorConnectionNodes;
       const nearest = (coords) => {
         let best = null;
@@ -725,7 +729,7 @@ const Mprc = ({
     } else {
       setRouteCoords(null);
     }
-  }, [userCoords, destCoords, doorConnectionNodes, mapFloor, userLocation, selectedDestination]);
+  }, [isEngineeringMap, userCoords, destCoords, doorConnectionNodes, mapFloor, userLocation, selectedDestination]);
 
   return (
     <Map
@@ -739,7 +743,7 @@ const Mprc = ({
       onMove={onMove}
       onLoad={handleMapLoad}
       onClick={handleClick}
-      onError={isSatellite ? undefined : handleMapError}
+      onError={onMapError}
       interactive={true}
     >
       {/* User location marker */}
@@ -762,7 +766,7 @@ const Mprc = ({
       )}
 
       {/* Temporary selection marker when choosing location */}
-      {selectedCoords && isSelectingLocation && (
+      {selectedCoords && isSelectingLocation && pointIsOnFloor(selectedCoords, mapFloor) && (
         <Marker longitude={selectedCoords.lng} latitude={selectedCoords.lat} anchor="bottom">
           <div className="map-marker-selecting">
             <div className="map-marker-selecting-inner" />
@@ -771,7 +775,7 @@ const Mprc = ({
       )}
 
       {/* Route line */}
-      {routeCoords && (
+      {!isEngineeringMap && routeCoords && (
         <Source id="route" type="geojson" data={{ type: 'Feature', geometry: { type: 'LineString', coordinates: routeCoords } }}>
           <Layer id="route-line" type="line" paint={{ 'line-color': '#4285F4', 'line-width': 4, 'line-opacity': 0.7 }} />
         </Source>

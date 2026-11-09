@@ -2,7 +2,7 @@ import FloorControl from '../components/map/FloorControl';
 import FloorTag from '../components/map/FloorTag';
 import useMapFloor from '../hooks/useMapFloor';
 import useEndpointFloor from '../hooks/useEndpointFloor';
-import { getPointFloor, pointIsOnFloor } from '../utils/floors';
+import { getPointFloor, localRouteFallbackFloor, pointIsOnFloor } from '../utils/floors';
 import { readQrPoint } from '../services/qrLocationService';
 import { getSessionFloor, setSessionFloor } from '../utils/sessionFloor';
 import { routeCoordinates as getRouteCoordinates, routeOnMapFloor, routeCoordinatesOnFloor } from '../utils/multifloorRoute';
@@ -14,6 +14,7 @@ import Map, { Marker, Source, Layer, Popup } from 'react-map-gl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../hooks/useOfflineMapStyle';
+import usePublicFloorMap from '../hooks/usePublicFloorMap';
 import '../styles/FinalSearch.css';
 import ModeSelector from '../components/common/ModeSelector';
 import SaveDestinationModal from '../components/common/SaveDestinationModal';
@@ -65,8 +66,10 @@ const FinalSearch = () => {
   const isRtl = ["fa", "ar", "ur"].includes(language);
   const baseMapStyle = MBTILES_SATELLITE_STYLE;
   const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
-  const mapStyle = offlineMapStyle;
-  const mapRenderKey = `${styleKey}-${isRtl ? 'rtl' : 'en'}-satellite`;
+  const regularMapKey = `${styleKey}-${isRtl ? 'rtl' : 'en'}-satellite`;
+  const { mapStyle, mapRenderKey, isEngineeringMap, onMapError } = usePublicFloorMap(
+    mapFloor, language, offlineMapStyle, regularMapKey, handleMapError
+  );
   const {
     origin: storedOrigin,
     destination: storedDestination,
@@ -139,8 +142,8 @@ const FinalSearch = () => {
   }, [language]);
 
   const handleVectorTileLoad = useCallback((event) => {
-    initHaramVectorLayers(event?.target || event, vectorTileConfig);
-  }, [vectorTileConfig]);
+    if (!isEngineeringMap) initHaramVectorLayers(event?.target || event, vectorTileConfig);
+  }, [isEngineeringMap, vectorTileConfig]);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [isRequestingRoute, setIsRequestingRoute] = useState(false);
@@ -419,9 +422,10 @@ const FinalSearch = () => {
 
       if (!isMounted) return;
       let result = null;
-      if (getPointFloor(origin) === getPointFloor(destination)) {
+      const fallbackFloor = localRouteFallbackFloor(origin, destination);
+      if (fallbackFloor !== null) {
         try {
-          const fallbackData = await loadGeoJsonData({ floor: getPointFloor(origin), signal: controller.signal });
+          const fallbackData = await loadGeoJsonData({ floor: fallbackFloor, signal: controller.signal });
           if (!isMounted) return;
           result = analyzeRoute(origin, destination, fallbackData, transportMode, selectedGender);
         } catch (error) {
@@ -865,7 +869,7 @@ const FinalSearch = () => {
           }}
           attributionControl={false}
           interactiveLayerIds={altLayerIds}
-          onError={handleMapError}
+          onError={onMapError}
           onLoad={handleVectorTileLoad}
           onClick={(e) => {
             const feature = e.features && e.features[0];

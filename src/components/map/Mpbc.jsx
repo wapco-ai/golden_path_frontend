@@ -6,6 +6,7 @@ import { useIntl } from 'react-intl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
+import usePublicFloorMap from '../../hooks/usePublicFloorMap';
 import { MBTILES_SATELLITE_STYLE, OSM_BASIC_STYLE_URL } from '../../services/mbtilesMapStyle';
 import { useLangStore } from '../../store/langStore';
 import { loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
@@ -109,12 +110,15 @@ const Mpbc = ({
   const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
   const isSatellite = selectedMapType === 'satellite';
   const isOfflineOsmh = selectedMapType === 'simple';
-  const mapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : isOfflineOsmh ? OSM_BASIC_STYLE_URL : offlineMapStyle;
-  const mapRenderKey = isSatellite
+  const regularMapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : isOfflineOsmh ? OSM_BASIC_STYLE_URL : offlineMapStyle;
+  const regularMapKey = isSatellite
     ? 'mbtiles-satellite'
     : isOfflineOsmh
       ? 'mbtiles-offline-osmh'
       : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
+  const { mapStyle, mapRenderKey, isEngineeringMap, onMapError } = usePublicFloorMap(
+    mapFloor, language, regularMapStyle, regularMapKey, isSatellite ? undefined : handleMapError
+  );
   const vectorTileConfig = useMemo(() => {
     return createHaramVectorTileConfig(language).filter(
       (layerCfg) => !HIDDEN_VECTOR_LAYER_IDS.has(layerCfg.id)
@@ -132,8 +136,8 @@ const Mpbc = ({
   }, [onZoomChange, onUserMove]);
 
   const handleMapLoad = useCallback((event) => {
-    initHaramVectorLayers(event?.target || event, vectorTileConfig);
-  }, [vectorTileConfig]);
+    if (!isEngineeringMap) initHaramVectorLayers(event?.target || event, vectorTileConfig);
+  }, [isEngineeringMap, vectorTileConfig]);
 
   const extractPlaceCoordinates = useCallback((place = {}) => {
     const lat =
@@ -707,7 +711,7 @@ const Mpbc = ({
       onMove={onMove}
       onLoad={handleMapLoad}
       onClick={handleClick}
-      onError={isSatellite ? undefined : handleMapError}
+      onError={onMapError}
       interactive={true}
     >
       {/* User location marker */}

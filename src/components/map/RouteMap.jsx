@@ -1,10 +1,12 @@
-import { routeCoordinates as getRouteCoordinates, routeOnFloor, isMultifloor } from '../../utils/multifloorRoute';
+import { routeCoordinates as getRouteCoordinates, routeCoordinatesOnFloor, routeOnFloor, routeOnMapFloor, isMultifloor } from '../../utils/multifloorRoute';
+import { normalizeFloor } from '../../utils/floors';
 // src/components/map/RouteMap.jsx
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
+import usePublicFloorMap from '../../hooks/usePublicFloorMap';
 import advancedDeadReckoningService from '../../services/AdvancedDeadReckoningService';
 import ArrowMarker from './ArrowMarker';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
@@ -56,9 +58,11 @@ const RouteMap = forwardRef(({
 
   const isRtl = ["fa", "ar", "ur"].includes(language);
   const baseMapStyle = voyagerBaseMapStyle;
-  const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
-  const mapStyle = MBTILES_SATELLITE_STYLE;
-  const mapRenderKey = `mbtiles-satellite-${styleKey}-${isRtl ? 'rtl' : 'en'}`;
+  const { handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
+  const regularMapKey = `mbtiles-satellite-${styleKey}-${isRtl ? 'rtl' : 'en'}`;
+  const { mapStyle, mapRenderKey, isEngineeringMap, onMapError } = usePublicFloorMap(
+    routeFloor, language, MBTILES_SATELLITE_STYLE, regularMapKey, handleMapError
+  );
 
   const center = isValidUserLocation
     ? userLocation
@@ -116,7 +120,8 @@ const RouteMap = forwardRef(({
   };
 
   const [drPosition, setDrPosition] = useState(null);
-  const [drGeoPath, setDrGeoPath] = useState([]);
+  const [drTrace, setDrTrace] = useState({ floor: routeFloor, path: [] });
+  const traceCursor = useRef({ floor: routeFloor, start: 0, length: 0, active: false });
   const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
   const useDrPosition = isDrActive && !navigationControlled;
   const [heading, setHeading] = useState(userHeading ?? 0);
@@ -137,9 +142,9 @@ const RouteMap = forwardRef(({
   }, [language]);
 
   const handleMapLoad = useCallback((event) => {
-    initHaramVectorLayers(event?.target || event, vectorTileConfig);
+    if (!isEngineeringMap) initHaramVectorLayers(event?.target || event, vectorTileConfig);
     setMapReady(value => value + 1);
-  }, [vectorTileConfig]);
+  }, [isEngineeringMap, vectorTileConfig]);
 
   useEffect(() => {
     let cancelled = false;
@@ -189,13 +194,20 @@ const RouteMap = forwardRef(({
     const remove = advancedDeadReckoningService.addListener(data => {
       setIsDrActive(data.isActive);
       if (data.geoPosition) setDrPosition(data.geoPosition);
-      if (data.geoPath) setDrGeoPath(data.geoPath);
+      if (data.geoPath) {
+        const { length } = data.geoPath;
+        const cursor = traceCursor.current;
+        const restarted = (data.isActive && !cursor.active) || length < cursor.length;
+        const start = restarted ? 0 : cursor.floor === routeFloor ? cursor.start : cursor.length;
+        traceCursor.current = { floor: routeFloor, start, length, active: data.isActive };
+        setDrTrace({ floor: routeFloor, path: data.geoPath.slice(start) });
+      }
       if (!navigationControlled && data.heading !== undefined && data.heading !== null) {
         setHeading(data.heading);
       }
     });
     return remove;
-  }, [navigationControlled]);
+  }, [navigationControlled, routeFloor]);
 
   useEffect(() => {
     if (!navigationControlled && !useDrPosition && Number.isFinite(userHeading)) {
@@ -217,7 +229,7 @@ const RouteMap = forwardRef(({
 
     if (isMultifloor(routeGeo)) {
       const active = routeSteps[currentStep];
-      const floor = active?.floor ?? routeFloor;
+      const floor = routeFloor;
       const previous = routeOnFloor(routeGeo, floor, s => s.id < active?.segmentId);
       const remaining = routeOnFloor(routeGeo, floor, s => s.id >= (active?.segmentId ?? 0));
       if (active?.type !== 'stepChangeFloor') {
@@ -394,7 +406,7 @@ const RouteMap = forwardRef(({
   // Fit map to the full route when a new route is loaded
   useEffect(() => {
     if (!navigationControlled && mapRef.current && routeGeo) {
-      const coords = getRouteCoordinates(routeGeo) || [];
+      const coords = routeCoordinatesOnFloor(routeGeo, routeFloor, routeFloor);
       if (coords.length > 0) {
         const bounds = new maplibregl.LngLatBounds(
           [coords[0][0], coords[0][1]],
@@ -404,7 +416,7 @@ const RouteMap = forwardRef(({
         mapRef.current.fitBounds(bounds, { padding: 80, duration: 700 });
       }
     }
-  }, [routeGeo, navigationControlled]);
+  }, [routeGeo, routeFloor, navigationControlled]);
 
   // The selected navigation frame is the sole camera authority in RNG.
   // Stop any older transition before applying its position and bearing together.
@@ -440,7 +452,7 @@ const RouteMap = forwardRef(({
   // Expose a method to parent components for fitting bounds
   const fitRouteBounds = () => {
     if (mapRef.current && routeGeo) {
-      const coords = getRouteCoordinates(routeGeo) || [];
+      const coords = routeCoordinatesOnFloor(routeGeo, routeFloor, routeFloor);
       if (coords.length > 0) {
         const bounds = new maplibregl.LngLatBounds(
           [coords[0][0], coords[0][1]],
@@ -504,8 +516,8 @@ const RouteMap = forwardRef(({
         pitch: 0
       }}
       attributionControl={false}
-      terrain={is3DView && terrainAvailable ? { source: 'terrain', exaggeration: 1.5 } : undefined}
-      onError={handleMapError}
+      terrain={!isEngineeringMap && is3DView && terrainAvailable ? { source: 'terrain', exaggeration: 1.5 } : undefined}
+      onError={onMapError}
     >
       {/* User location marker */}
       {!useDrPosition && isValidUserLocation && (
@@ -520,7 +532,7 @@ const RouteMap = forwardRef(({
         </Marker>
       )}
 
-      {showDrTrace && isDrActive && drGeoPath.length > 1 && (
+      {showDrTrace && isDrActive && drTrace.floor === routeFloor && drTrace.path.length > 1 && (
         <Source
           id="dr-path"
           type="geojson"
@@ -528,7 +540,7 @@ const RouteMap = forwardRef(({
             type: 'Feature',
             geometry: {
               type: 'LineString',
-              coordinates: drGeoPath.map(p => [p.lng, p.lat])
+              coordinates: drTrace.path.map(p => [p.lng, p.lat])
             }
           }}
         >
@@ -538,7 +550,10 @@ const RouteMap = forwardRef(({
 
       {/* Destination marker */}
       {routeSteps && routeSteps.length > 0 && (() => {
-        const destinationCoordinate = getStepCoordinate(routeSteps[routeSteps.length - 1]);
+        const destinationStep = routeSteps.at(-1);
+        const destinationFloor = normalizeFloor(destinationStep.floor);
+        if (destinationFloor !== null && destinationFloor !== normalizeFloor(routeFloor)) return null;
+        const destinationCoordinate = getStepCoordinate(destinationStep);
         if (!destinationCoordinate) return null;
 
         return (
@@ -552,7 +567,7 @@ const RouteMap = forwardRef(({
         );
       })()}
 
-      {is3DView && routeSteps && routeSteps.filter(s => !isMultifloor(routeGeo) || Number(s.floor) === Number(routeSteps?.[currentStep]?.floor ?? routeFloor)).map((step) => {
+      {is3DView && routeSteps && routeSteps.filter(s => !isMultifloor(routeGeo) || normalizeFloor(s.floor) === normalizeFloor(routeFloor)).map((step) => {
         const landmarkLabel = getStepLandmark(step);
         if (!landmarkLabel) return null;
         const coord = getStepCoordinate(step);
@@ -575,7 +590,7 @@ const RouteMap = forwardRef(({
 
       {!isDrActive && showAlternativeRoutes &&
         alternativeRoutes.map((alt, idx) => (
-          <Source key={idx} id={`alt-route-${idx}`} type="geojson" data={routeOnFloor(alt.geo, routeSteps?.[currentStep]?.floor ?? routeFloor)}>
+          <Source key={idx} id={`alt-route-${idx}`} type="geojson" data={routeOnMapFloor(alt.geo, routeFloor, routeFloor)}>
             <Layer
               id={`alt-route-border-${idx}`}
               type="line"

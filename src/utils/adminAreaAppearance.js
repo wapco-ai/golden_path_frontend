@@ -1,16 +1,22 @@
-// Admin-only appearance. These values describe the map; routing stays server-side.
+// Engineering map appearance. These values describe the map; routing stays server-side.
 export const PRIVATE_AREA_COLOR = '#7b8490';
 const UNKNOWN_AREA_COLOR = '#c3cbd5';
 
-const restricted = () => ['any',
-  ['==', ['feature-state', 'areaPublic'], false],
-  ['==', ['get', 'is_closed'], true]
+const adminAreaState = {
+  areaPublic: ['feature-state', 'areaPublic'],
+  areaCovered: ['feature-state', 'areaCovered'],
+  isClosed: ['get', 'is_closed']
+};
+
+const restricted = (areaPublic, isClosed) => ['any',
+  ['==', areaPublic, false],
+  ['==', isClosed, true]
 ];
 
-export const adminAreaFillPaint = () => ({
+export const adminAreaFillPaint = ({ areaPublic, areaCovered, isClosed } = adminAreaState) => ({
   'fill-color': ['case',
-    restricted(), PRIVATE_AREA_COLOR,
-    ['!=', ['feature-state', 'areaPublic'], true], UNKNOWN_AREA_COLOR,
+    restricted(areaPublic, isClosed), PRIVATE_AREA_COLOR,
+    ['!=', areaPublic, true], UNKNOWN_AREA_COLOR,
     ['match', ['to-string', ['get', 'area_type']],
       ['courtyard', 'sahn'], '#e5c275',
       ['riwaq', 'ravaq', 'ravagh'], '#85b9db',
@@ -29,17 +35,17 @@ export const adminAreaFillPaint = () => ({
     ]
   ],
   'fill-opacity': ['case',
-    ['==', ['feature-state', 'areaCovered'], true], 0.76,
-    ['==', ['feature-state', 'areaCovered'], false], 0.42,
+    ['==', areaCovered, true], 0.76,
+    ['==', areaCovered, false], 0.42,
     0.55
   ]
 });
 
-export const adminAreaOutlinePaint = () => ({
+export const adminAreaOutlinePaint = ({ areaPublic, areaCovered, isClosed } = adminAreaState) => ({
   'line-color': ['case',
-    restricted(), '#596471',
-    ['!=', ['feature-state', 'areaPublic'], true], '#8996a5',
-    ['==', ['feature-state', 'areaCovered'], true], '#587c94',
+    restricted(areaPublic, isClosed), '#596471',
+    ['!=', areaPublic, true], '#8996a5',
+    ['==', areaCovered, true], '#587c94',
     '#7d9277'
   ],
   'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.7, 16, 1.2, 19, 1.8, 22, 2.3],

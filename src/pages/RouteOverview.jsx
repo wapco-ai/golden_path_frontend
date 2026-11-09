@@ -1,5 +1,6 @@
 import FloorControl from '../components/map/FloorControl';
-import { routeCoordinates as getRouteCoordinates, routeOnFloor, isMultifloor, multifloorSteps } from '../utils/multifloorRoute';
+import { routeCoordinates as getRouteCoordinates, routeCoordinatesOnFloor, routeOnFloor, isMultifloor, multifloorSteps } from '../utils/multifloorRoute';
+import { getPointFloor, localRouteFallbackFloor } from '../utils/floors';
 import { getSessionFloor, setSessionFloor } from '../utils/sessionFloor';
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -10,6 +11,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../styles/RouteOverview.css';
 import useOfflineMapStyle from '../hooks/useOfflineMapStyle';
+import usePublicFloorMap from '../hooks/usePublicFloorMap';
 import { useRouteStore } from '../store/routeStore';
 import useLocaleDigits from '../utils/useLocaleDigits';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
@@ -52,8 +54,8 @@ const RouteOverview = () => {
     return sessionStorage.getItem('selectedMapType') || 'satellite';
   });
   const isSatellite = selectedMapType === 'satellite';
-  const mapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : offlineMapStyle;
-  const mapRenderKey = isSatellite ? 'mbtiles-satellite' : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
+  const regularMapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : offlineMapStyle;
+  const regularMapKey = isSatellite ? 'mbtiles-satellite' : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
 
   const mapRef = useRef(null);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -74,11 +76,6 @@ const RouteOverview = () => {
       (layerCfg) => !HIDDEN_VECTOR_LAYER_IDS.has(layerCfg.id)
     );
   }, [language]);
-
-  const handleMapLoad = useCallback((event) => {
-    initHaramVectorLayers(event?.target || event, vectorTileConfig);
-    setMapLoaded(true);
-  }, [vectorTileConfig]);
 
   const toRad = deg => (deg * Math.PI) / 180;
   const toDeg = rad => (rad * 180) / Math.PI;
@@ -177,10 +174,6 @@ const RouteOverview = () => {
   }, [origin, routeGeo]);
   const initialRouteFlyDone = useRef(false);
   const hasHydratedRouteRef = useRef(false);
-
-  useEffect(() => {
-    setMapLoaded(false);
-  }, [mapRenderKey]);
 
   const getSubgroupImages = (subgroup) => {
     const imageSource = subgroup?.img;
@@ -506,8 +499,10 @@ const RouteOverview = () => {
         }
       }
 
+      const fallbackFloor = localRouteFallbackFloor(origin, destination);
+      if (fallbackFloor === null || controller.signal.aborted) return;
       try {
-        const geoData = await loadGeoJsonData({ language, signal: controller.signal });
+        const geoData = await loadGeoJsonData({ floor: fallbackFloor, signal: controller.signal });
         const analysis = analyzeRoute(origin, destination, geoData, transportMode, gender);
 
         if (analysis?.geo && analysis?.steps) {
@@ -542,7 +537,12 @@ const RouteOverview = () => {
   // Function to render image markers for subgroups or nearby landmarks along the route
   // Function to render limited subgroup markers along the route
   const renderImageMarkers = () => {
+    const routeCoordinates = visibleRouteCoordinates;
     if (!routeCoordinates || routeCoordinates.length === 0) return null;
+    const canShowOnFloor = (point) => {
+      const floor = getPointFloor(point);
+      return floor === null ? !isEngineeringMap && !isMultifloor(routeGeo) : floor === activeRouteFloor;
+    };
 
     // Get a limited selection of subgroups (max 2 per group)
     const getLimitedSubgroups = () => {
@@ -555,7 +555,7 @@ const RouteOverview = () => {
       groupOrder.forEach((groupValue) => {
         const groupSubGroups = subGroups?.[groupValue];
         if (groupSubGroups && groupSubGroups.length > 0) {
-          const selected = groupSubGroups.slice(0, 2);
+          const selected = groupSubGroups.filter(canShowOnFloor).slice(0, 2);
           limitedSubgroups.push(...selected);
         }
       });
@@ -571,6 +571,7 @@ const RouteOverview = () => {
     // Prioritize landmarks that are close to the route
     if (nearbyLandmarks.length > 0) {
       nearbyLandmarks.forEach((item) => {
+        if (!canShowOnFloor(item.place)) return;
         markerPositions.push({
           coord: item.coord,
           landmark: item.place
@@ -974,7 +975,7 @@ const RouteOverview = () => {
 
         return [nextLongitude, nextLatitude];
       });
-      if (mapRef.current) {
+      if (mapLoaded && mapRef.current) {
         const bounds = coords.reduce((acc, point) => {
           if (!Array.isArray(point) || point.length < 2) return acc;
           if (!acc) return new maplibregl.LngLatBounds(point, point);
@@ -1000,17 +1001,34 @@ const RouteOverview = () => {
         }
       }
     }
-  }, [currentSlide, formatDigits, formatSegmentTime, intl, routeData]);
+  }, [currentSlide, formatDigits, formatSegmentTime, intl, mapLoaded, routeData]);
+
+  const originFloor = getPointFloor(origin, getSessionFloor());
+  const activeRouteFloor = getPointFloor(routeData[currentSlide], originFloor);
+  const visibleRouteCoordinates = useMemo(
+    () => routeCoordinatesOnFloor(routeGeo, activeRouteFloor, originFloor),
+    [routeGeo, activeRouteFloor, originFloor]
+  );
+  const { mapStyle, mapRenderKey, isEngineeringMap, onMapError } = usePublicFloorMap(
+    activeRouteFloor, language, regularMapStyle, regularMapKey, handleMapError
+  );
+  const handleMapLoad = useCallback((event) => {
+    if (!isEngineeringMap) initHaramVectorLayers(event?.target || event, vectorTileConfig);
+    setMapLoaded(true);
+  }, [isEngineeringMap, vectorTileConfig]);
+  useEffect(() => {
+    setMapLoaded(false);
+  }, [mapRenderKey]);
 
   useEffect(() => {
     if (initialRouteFlyDone.current) return;
     if (!mapLoaded) return;
-    if (!mapRef.current || !Array.isArray(routeCoordinates) || routeCoordinates.length < 2) return;
+    if (!mapRef.current || visibleRouteCoordinates.length < 2) return;
 
     const mapInstance = mapRef.current.getMap ? mapRef.current.getMap() : mapRef.current;
     if (!mapInstance?.fitBounds) return;
 
-    const bounds = routeCoordinates.reduce((acc, coord) => {
+    const bounds = visibleRouteCoordinates.reduce((acc, coord) => {
       if (!Array.isArray(coord) || coord.length < 2) return acc;
       if (!acc) return new maplibregl.LngLatBounds(coord, coord);
       acc.extend(coord);
@@ -1021,7 +1039,7 @@ const RouteOverview = () => {
       mapInstance.fitBounds(bounds, { padding: 80, duration: 800 });
       initialRouteFlyDone.current = true;
     }
-  }, [mapLoaded, routeCoordinates]);
+  }, [mapLoaded, visibleRouteCoordinates]);
 
   // Clear popup when no route data is available
   useEffect(() => {
@@ -1030,9 +1048,10 @@ const RouteOverview = () => {
     }
   }, [routeCoordinates]);
 
-  const activeRouteFloor = routeData[currentSlide]?.floor ?? origin?.floor ?? getSessionFloor();
   useEffect(() => { setSessionFloor(activeRouteFloor); }, [activeRouteFloor]);
   const allGeo = routeOnFloor(routeGeo, activeRouteFloor);
+  const originMarkerFloor = getPointFloor(routeGeo?.properties?.nearbyOrigin, getPointFloor(origin, routeData[0]?.floor));
+  const destinationMarkerFloor = getPointFloor(destination, routeData.at(-1)?.floor);
 
   const nextSlide = () => {
     if (currentSlide < routeData.length - 1) {
@@ -1133,9 +1152,9 @@ const RouteOverview = () => {
           attributionControl={false}
           style={{ width: '100%', height: '100%' }}
           onLoad={handleMapLoad}
-          onError={handleMapError}
+          onError={onMapError}
         >
-          {originMarkerCoord && (
+          {originMarkerCoord && (originMarkerFloor === null || originMarkerFloor === activeRouteFloor) && (
             <Marker
               longitude={originMarkerCoord[0]}
               latitude={originMarkerCoord[1]}
@@ -1145,6 +1164,7 @@ const RouteOverview = () => {
             </Marker>
           )}
           {routeCoordinates.length > 1 &&
+            (destinationMarkerFloor === null || destinationMarkerFloor === activeRouteFloor) &&
             Array.isArray(routeCoordinates[routeCoordinates.length - 1]) && (
               <Marker
                 longitude={routeCoordinates[routeCoordinates.length - 1][0]}

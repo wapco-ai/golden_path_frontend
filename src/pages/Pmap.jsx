@@ -15,6 +15,7 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import '../styles/Pmap.css';
 import useOfflineMapStyle from '../hooks/useOfflineMapStyle';
+import usePublicFloorMap from '../hooks/usePublicFloorMap';
 import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import { fetchGroupMetadata } from '../services/groupService';
@@ -73,7 +74,10 @@ const Pmap = () => {
   const mapFloor = useMapFloor();
   const { floorRequest, askFloor, clearFloorRequest } = useEndpointFloor();
   const language = useLangStore(state => state.language);
-  const { mapStyle, handleMapError, styleKey } = useOfflineMapStyle();
+  const { mapStyle: regularMapStyle, handleMapError, styleKey } = useOfflineMapStyle();
+  const { mapStyle, mapRenderKey, isEngineeringMap, onMapError } = usePublicFloorMap(
+    mapFloor, language, regularMapStyle, styleKey, handleMapError
+  );
   const { accessToken, user } = useUserAuthStore();
 
   const [groups, setGroups] = useState([]);
@@ -419,8 +423,8 @@ const Pmap = () => {
 
   const handleMapLoad = useCallback((event) => {
     setMapLoaded(true);
-    initHaramVectorLayers(event?.target || event);
-  }, []);
+    if (!isEngineeringMap) initHaramVectorLayers(event?.target || event);
+  }, [isEngineeringMap]);
 
   const pointFeatures = geoData
     ? geoData.features.filter(f => f.geometry.type === 'Point')
@@ -439,7 +443,7 @@ const Pmap = () => {
       {/* Map Container */}
       <div className="pmap-container">
         <Map
-          key={styleKey}
+          key={mapRenderKey}
           mapLib={maplibregl}
           mapStyle={mapStyle}
           styleDiffing={false}
@@ -448,7 +452,7 @@ const Pmap = () => {
           onMove={onMove}
           onClick={handleMapClick}
           onLoad={handleMapLoad}
-          onError={handleMapError}
+          onError={onMapError}
           interactive={true}
         >
           {/* Selected place marker */}

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getPointFloor, normalizeFloor, normalizeFloorCatalog, pointIsOnFloor } from '../src/utils/floors.js';
+import { getPointFloor, localRouteFallbackFloor, normalizeFloor, normalizeFloorCatalog, pointIsOnFloor } from '../src/utils/floors.js';
 import { canUserSelectMapFloor, manualFloorPaths } from '../src/utils/floorControlPolicy.js';
 import { normalizeSubGroupMetadata } from '../src/utils/groupMetadata.js';
 import { useRouteStore } from '../src/store/routeStore.js';
@@ -32,6 +32,15 @@ test('public catalog is deduplicated and ordered by floor sort order', () => {
   const floors = normalizeFloorCatalog([{floor:0,sort_order:0},{floor:'-1',sort_order:-1},{floor:2,sort_order:2},{floor:0},{floor:null}]);
   assert.deepEqual(floors.map(item => item.floor), [2,0,-1]);
   assert.throws(() => normalizeFloorCatalog({ floors: [] }));
+});
+
+test('the legacy local fallback requires matching explicit floors outside basement -1', () => {
+  assert.equal(localRouteFallbackFloor({ floor: 0 }, { floor: '0' }), 0);
+  assert.equal(localRouteFallbackFloor({ geo: { floor: 1 } }, { floor: 1 }), 1);
+  assert.equal(localRouteFallbackFloor({ floor: -1 }, { floor: -1 }), null);
+  assert.equal(localRouteFallbackFloor({ floor: -1 }, { floor: 0 }), null);
+  assert.equal(localRouteFallbackFloor({ floor: 0 }, { floor: -1 }), null);
+  assert.equal(localRouteFallbackFloor({}, {}), null);
 });
 
 test('browsing and destination selection never change a saved origin floor', () => {
