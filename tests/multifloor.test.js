@@ -82,6 +82,11 @@ test('stairs within a floor require a mapped area and two distinct access points
   assert.equal(payload.version, 2);
   assert.deepEqual(payload.stops.map(stop => [stop.floor, stop.access_id, stop.travel_seconds, stop.reverse_seconds]), [[-1, 7, 18, 12], [-1, 8, 30, null]]);
   assert.equal('wait_seconds' in payload, false);
+  const automaticTime = { ...stair, stops: [{ ...stops[0], travel_seconds: null, reverse_seconds: '' }, stops[1]] };
+  assert.equal(connectorError(automaticTime, kind, ['walk']), '');
+  assert.equal(connectorPayload(automaticTime, kind, {}).stops[0].travel_seconds, null);
+  assert.equal(connectorPayload(automaticTime, kind, {}).stops[0].reverse_seconds, null);
+  assert.ok(connectorError({ ...stair, stops: [{ ...stops[0], travel_seconds: '0' }, stops[1]] }, kind, ['walk']));
 });
 test('reclassifying an existing shared stair keeps all its floor stops, but ordinary connections stay single-floor', () => {
   assert.equal(usesSharedConnectorEditor('stair', 9), true);

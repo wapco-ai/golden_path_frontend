@@ -13,7 +13,7 @@ async function clickPortal(page) {
   await map.click({ position:{ x:box.width/2, y:box.height/2 } });
 }
 
-async function setup(page, { verifyPendingMap = false, conflictingGroup = false, ambiguousArea = false, sameFloorStair = false } = {}) {
+async function setup(page, { verifyPendingMap = false, conflictingGroup = false, ambiguousArea = false, sameFloorStair = false, savedStair = null } = {}) {
   const writes=[]; const errors=[]; const candidateLookups=[]; const stairAreaLookups=[];
   let releaseStyle;
   const styleReady = verifyPendingMap ? new Promise(resolve => { releaseStyle = resolve; }) : Promise.resolve();
@@ -24,7 +24,7 @@ async function setup(page, { verifyPendingMap = false, conflictingGroup = false,
   });
   await page.route('**/api/v1/**',async route => {
     const req=route.request(); const url=new URL(req.url()); const path=url.pathname;
-    if (['POST','PUT'].includes(req.method()) && /connectors|doors|same-floor-stairs/.test(path)) writes.push({path,method:req.method(),body:req.postDataJSON()});
+    if (['POST','PUT','PATCH'].includes(req.method()) && /connectors|doors|same-floor-stairs/.test(path)) writes.push({path,method:req.method(),body:req.postDataJSON()});
     let json={data:[],total:0};
     if (path.endsWith('/admin/auth/me')) json={id:1,name:'مدیر آزمایشی',roles:['super_dashboard_admin', 'manage_map'],roleTitles:[],permissions:[]};
     else if (path.endsWith('/floors')) json=floors;
@@ -43,8 +43,9 @@ async function setup(page, { verifyPendingMap = false, conflictingGroup = false,
         : [{ id: 1100794, floor: 0, name: 'راه پله دارالحجه' }] };
     }
     else if (path.endsWith('/same-floor-stairs')) json=req.method()==='GET'
-      ? {data:[]}
+      ? {data:savedStair ? [savedStair] : []}
       : {data:{...req.postDataJSON(),id:9,version:1}};
+    else if (path.endsWith('/same-floor-stairs/9/deactivate') && req.method()==='PATCH') json={data:{...savedStair,is_active:false,version:4}};
     else if (path.endsWith('/connectors/7') && req.method()==='GET') json=shared;
     else if (path.endsWith('/doors/299/info')) json={...shared.info, point:{ floor:0, door_id:299, access_id:199, lon:center[0], lat:center[1] }};
     else if (path.endsWith('/connectors') && req.method()==='GET') json=[{id:7,title:'آسانسور مشترک',kind:'elevator'}];
@@ -133,6 +134,10 @@ test('a stair within one floor looks up its area after both landings and saves t
   await page.getByLabel('زمان عبور از بالا به پایین').fill('12');
   await page.getByRole('button', { name: 'تایید اطلاعات و مرحله بعد', exact: true }).click();
   await expect(page.locator('.step3-content')).toContainText('محدودیت‌های زمانی و نماز از محدودهٔ پله و دو ورودی آن خوانده می‌شوند.');
+  const restrictionButtons = page.locator('.step3-content').getByRole('button', { name: 'افزودن محدودیت', exact: true });
+  await expect(restrictionButtons).toHaveCount(2);
+  await expect(restrictionButtons.first()).toBeDisabled();
+  await expect(restrictionButtons.last()).toBeDisabled();
   expect(writes).toHaveLength(0);
   await page.getByRole('button', { name: 'تایید اطلاعات و ثبت این مکان', exact: false }).click();
   await expect(page.locator('.add-place-modal')).toHaveCount(0);
@@ -147,6 +152,33 @@ test('a stair within one floor looks up its area after both landings and saves t
     info: { operational: { transport_modes: ['walk'] } }
   } });
   expect(writes[0].body.info).not.toHaveProperty('time_restrictions');
+  expect(errors).toEqual([]);
+});
+
+test('an existing stair with a missing landing can be deactivated without saving its other fields', async ({ page }) => {
+  const savedStair = {
+    id: 9, version: 3, kind: 'same_floor_stair', floor: 0, is_active: true, direction: 'both', stair_area_id: 1100794,
+    info: {
+      basic_info: { title: { fa: 'پلهٔ ثبت‌شده' } },
+      operational: { place_function: 'same_floor_stair', status: 'active', transport_modes: ['walk'], gender_access: ['both'] }
+    },
+    stops: [
+      { floor: 0, access_id: 101, area_id: 301, travel_seconds: null, reverse_seconds: null },
+      { floor: 0, access_id: null, area_id: 309, travel_seconds: null, reverse_seconds: null }
+    ]
+  };
+  const { writes, errors, stairAreaLookups } = await setup(page, { sameFloorStair: true, savedStair });
+  await chooseType(page, 'پلهٔ داخل طبقه');
+  await page.getByRole('button', { name: 'اتصال جدید؛ یا انتخاب اتصال موجود', exact: true }).click();
+  await page.getByRole('option', { name: 'پلهٔ ثبت‌شده', exact: true }).click();
+  await expect(page.getByLabel('زمان عبور از پایین به بالا')).toHaveValue('');
+  await page.locator('.step2-content').getByText('غیر فعال', { exact: true }).click();
+  await page.getByRole('button', { name: 'تایید اطلاعات و مرحله بعد', exact: true }).click();
+  await expect(page.locator('.step3-content')).toContainText('با تأیید این مرحله فقط وضعیت پله غیرفعال می‌شود.');
+  await page.getByRole('button', { name: 'تایید غیرفعال‌کردن پله', exact: true }).click();
+  await expect(page.locator('.add-place-modal')).toHaveCount(0);
+  expect(writes).toEqual([{ path: '/api/v1/admin/same-floor-stairs/9/deactivate', method: 'PATCH', body: { version: 3 } }]);
+  expect(stairAreaLookups).toEqual([]);
   expect(errors).toEqual([]);
 });
 

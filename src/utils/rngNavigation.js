@@ -98,7 +98,9 @@ export const getStepPreview = (step, routeCoordinates = [], stepIndex = 0) => {
   const explicitStart = fraction(step?.fromM) ?? fraction(step?.routeM);
   const projectedStart = explicitStart === null
     ? projectPointOnRoute(coordinates[0], routeCoordinates) : null;
-  const previewM = step?.previewAt === 'end' ? toM
+  // A stair instruction stays active through the exit but is previewed at the entrance.
+  const stairEntrance = step?.type === 'stepUseStairs' ? fraction(step.routeStep?.routeM) : null;
+  const previewM = step?.previewAt === 'end' ? stairEntrance ?? toM
     : explicitStart ?? (projectedStart?.lateralDistanceM <= 3 ? projectedStart.routeM : null);
   const marker = previewM !== null
     ? sliceLineByFraction(routeCoordinates, previewM, previewM)[0]

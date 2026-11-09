@@ -42,6 +42,8 @@ export function stairAreaCandidateParams(stops) {
   return { floor, start_access_id, end_access_id, start_area_id, end_area_id };
 }
 
+const optionalSeconds = value => value == null || value === '' ? null : Number(value);
+
 export function connectorError(connector, kind, modes, stairCandidates) {
   const sameFloor = kind === SAME_FLOOR_STAIR_KIND;
   const floors = new Set(connector.stops.map(s => Number(s.floor)));
@@ -60,23 +62,28 @@ export function connectorError(connector, kind, modes, stairCandidates) {
   if (sameFloor && (!Number.isSafeInteger(Number(connector.stair_area_id)) || Number(connector.stair_area_id) < 1)) {
     return stairCandidates?.message || 'محدودهٔ سازگار با دو سر پله را انتخاب کنید.';
   }
-  if (connector.stops.some(s => !(Number(s.travel_seconds) > 0) || (s.reverse_seconds != null && !(Number(s.reverse_seconds) > 0)))) return 'زمان عبور باید بیشتر از صفر باشد.';
+  if (connector.stops.some(stop => {
+    const travel = sameFloor ? optionalSeconds(stop.travel_seconds) : Number(stop.travel_seconds);
+    const reverse = sameFloor ? optionalSeconds(stop.reverse_seconds) : stop.reverse_seconds;
+    return (travel !== null && !(travel > 0)) || (reverse != null && !(Number(reverse) > 0));
+  })) return 'زمان عبور باید بیشتر از صفر باشد.';
   if (['stair', 'escalator'].includes(kind) && modes.includes('wheelchair')) return 'پله و پله‌برقی برای ویلچر قابل استفاده نیستند.';
   if (kind === 'escalator' && connector.direction === 'both') return 'جهت حرکت پله‌برقی را مشخص کنید.';
   return '';
 }
 
 export function connectorPayload(connector, kind, info) {
+  const sameFloor = kind === SAME_FLOOR_STAIR_KIND;
   return {
     kind, version: connector.version, direction: connector.direction,
-    ...(kind === SAME_FLOOR_STAIR_KIND
+    ...(sameFloor
       ? { stair_area_id: Number(connector.stair_area_id) }
       : { wait_seconds: Number(connector.wait_seconds) }),
     info,
     stops: connector.stops.map(s => ({
       floor: Number(s.floor), access_id: Number(s.access_id),
-      area_id: Number(s.area_id), travel_seconds: Number(s.travel_seconds),
-      reverse_seconds: s.reverse_seconds == null ? null : Number(s.reverse_seconds)
+      area_id: Number(s.area_id), travel_seconds: sameFloor ? optionalSeconds(s.travel_seconds) : Number(s.travel_seconds),
+      reverse_seconds: sameFloor ? optionalSeconds(s.reverse_seconds) : s.reverse_seconds == null ? null : Number(s.reverse_seconds)
     }))
   };
 }

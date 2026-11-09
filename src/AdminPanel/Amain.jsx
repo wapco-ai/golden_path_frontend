@@ -83,7 +83,7 @@ import ConnectorStops from './ConnectorStops';
 import AdminMapTooltip from './AdminMapTooltip';
 import useConnectorForm from './useConnectorForm';
 import { usesSharedConnectorEditor, connectorError, connectorPayload, floorLabel, floorValue, SAME_FLOOR_STAIR_KIND } from '../utils/connectorForm';
-import { createDoorWithInfo, saveConnector, saveSameFloorStair } from '../services/adminConnectorsService';
+import { createDoorWithInfo, deactivateSameFloorStair, saveConnector, saveSameFloorStair } from '../services/adminConnectorsService';
 import { requestRouting } from '../services/routingService';
 
 const culturalFileLabel = (file) => [file?.title, file?.metadata?.title, file?.name]
@@ -1822,6 +1822,8 @@ const Amain = () => {
   const [isCulturalQrLoading, setIsCulturalQrLoading] = useState(false);
   const [locationRoofType, setLocationRoofType] = useState('');
   const [locationStatus, setLocationStatus] = useState('');
+  const isDeactivatingSameFloorStair = isSameFloorStair && Boolean(connectorForm.value.id)
+    && connectorForm.value.info?.operational?.status === 'active' && locationStatus === 'غیر فعال';
   const [culturalFloor, setCulturalFloor] = useState(0);
   const [isAddCulturalModalOpen, setIsAddCulturalModalOpen] = useState(false);
   const [culturalStep, setCulturalStep] = useState(1);
@@ -9361,6 +9363,10 @@ const Amain = () => {
         alert('لطفا تمام فیلدهای ضروری را پر کنید');
       }
     } else if (currentStep === 2) {
+      if (isDeactivatingSameFloorStair) {
+        setCurrentStep(3);
+        return;
+      }
       const invalidConnector = isSharedConnector ? connectorError(connectorForm.value, placeFunction, selectedTransport, connectorForm.stairCandidates) : '';
       if (invalidConnector) { toast.error(invalidConnector); return; }
       if (selectedTransport.length === 0) {
@@ -9388,14 +9394,19 @@ const Amain = () => {
       let payload;
 
       try {
-        payload = buildDoorInfoPayload();
+        if (!isDeactivatingSameFloorStair) payload = buildDoorInfoPayload();
       } catch (error) {
         toast.error(error?.message || 'تاریخ محدودیت‌های زمانی به درستی انتخاب نشده است');
         return;
       }
 
       try {
-        if (isAreaLayerActive) {
+        if (isDeactivatingSameFloorStair) {
+          setIsSavingDoorInfo(true);
+          await deactivateSameFloorStair(connectorForm.value.id, connectorForm.value.version);
+          refreshLayerTiles('routing_edges_static-ground', { force: true });
+          toast.success('پلهٔ داخل طبقه غیرفعال شد');
+        } else if (isAreaLayerActive) {
           setIsSavingAreaInfo(true);
           const response = await updateAreaInfo(targetAreaId, payload);
           if ('public_access' in payload) {
@@ -13873,7 +13884,7 @@ const Amain = () => {
                 <span className="step-title">
                   {currentStep === 1 && 'اطلاعات اولیه و کلی مکان'}
                   {currentStep === 2 && 'اطلاعات و جزئیات تکمیلی مکان'}
-                  {currentStep === 3 && (isSameFloorStair ? 'ثبت پلهٔ داخل طبقه' : 'افزودن محدودیت های زمانی')}
+                  {currentStep === 3 && (isDeactivatingSameFloorStair ? 'غیرفعال‌کردن پلهٔ داخل طبقه' : isSameFloorStair ? 'ثبت پلهٔ داخل طبقه' : 'افزودن محدودیت های زمانی')}
                 </span>
               </div>
               <div className="step-progress">
@@ -14250,17 +14261,14 @@ const Amain = () => {
                 </div>
               )}
 
-              {currentStep === 3 && isSameFloorStair && (
+              {currentStep === 3 && (
                 <div className="step-content step3-content">
                   <div className="step-intro3">
-                    <h3>محدودیت‌های زمانی و نماز از محدودهٔ پله و دو ورودی آن خوانده می‌شوند.</h3>
-                  </div>
-                </div>
-              )}
-              {currentStep === 3 && !isSameFloorStair && (
-                <div className="step-content step3-content">
-                  <div className="step-intro3">
-                    <h3>فرم و فرایند ایجاد و افزودن یک نقطه و مکان جدید</h3>
+                    <h3>{isDeactivatingSameFloorStair
+                      ? 'با تأیید این مرحله فقط وضعیت پله غیرفعال می‌شود.'
+                      : isSameFloorStair
+                        ? 'محدودیت‌های زمانی و نماز از محدودهٔ پله و دو ورودی آن خوانده می‌شوند.'
+                        : 'فرم و فرایند ایجاد و افزودن یک نقطه و مکان جدید'}</h3>
                   </div>
 
                   <div className="form-section">
@@ -14270,6 +14278,7 @@ const Amain = () => {
                         <span className="restriction-title">محدودیت بر اساس روز، ساعت و جنسیت</span>
                         <button
                           className="add-restriction-btn"
+                          disabled={isSameFloorStair}
                           onClick={() => setIsDateFilterOpen(!isDateFilterOpen)}
                         >
                           افزودن محدودیت
@@ -14281,7 +14290,7 @@ const Amain = () => {
                       </div>
 
                       {/* Display existing restrictions */}
-                      {timeRestrictions.length > 0 && (
+                      {!isSameFloorStair && timeRestrictions.length > 0 && (
                         <div className="restrictions-display">
                           {timeRestrictions.map((restriction, index) => (
                             <div key={index} className="restriction-display-item">
@@ -14314,7 +14323,7 @@ const Amain = () => {
                       )}
 
                       {/* Date Filter Popup */}
-                      {isDateFilterOpen && !restrictionFormOpen && (
+                      {!isSameFloorStair && isDateFilterOpen && !restrictionFormOpen && (
                         <div className={`date-filter-popup ${selectedDateFilter.includes('انتخاب از تقویم') ? 'calendar-selectable' : ''}`}>
                           <div className="date-filter-content">
                             {/* Filter by Date Section */}
@@ -14413,7 +14422,7 @@ const Amain = () => {
                       )}
 
                       {/* Restriction Form (shown after selection) */}
-                      {restrictionFormOpen && selectedRestrictionType && (
+                      {!isSameFloorStair && restrictionFormOpen && selectedRestrictionType && (
                         <div className="restriction-form-container">
                           {/* Black header with title and close button */}
                           <div className="restriction-form-header">
@@ -14565,6 +14574,7 @@ const Amain = () => {
                         <span className="restriction-title">محدودیت بر اساس اوقات شرعی (برای همه روزها)</span>
                         <button
                           className="add-restriction-btn"
+                          disabled={isSameFloorStair}
                           onClick={() => {
                             // open prayer calendar popup (independent)
                             setIsPrayerDateFilterOpen(prev => !prev);
@@ -14580,7 +14590,7 @@ const Amain = () => {
                           </svg>
                         </button>
                       </div>
-                      {prayerRestrictionFormOpen && (
+                      {!isSameFloorStair && prayerRestrictionFormOpen && (
                         <div className="prayer-form">
                           <div className="prayer-form-grid">
                             <div className="form-column">
@@ -14674,7 +14684,7 @@ const Amain = () => {
                           </div>
                         </div>
                       )}
-                      {isPrayerDateFilterOpen && !prayerRestrictionFormOpen && (
+                      {!isSameFloorStair && isPrayerDateFilterOpen && !prayerRestrictionFormOpen && (
                         <div className="prayer-date-filter-popup">
                           <div className="date-filter-content">
                             {/* Filter by Date Section (same options as first calendar) */}
@@ -14775,7 +14785,7 @@ const Amain = () => {
                         </div>
                       )}
                     </div>
-                    {prayerTimeRestrictionsList.length > 0 && (
+                    {!isSameFloorStair && prayerTimeRestrictionsList.length > 0 && (
                       <div className="prayer-restrictions-list">
                         {prayerTimeRestrictionsList.map((item, idx) => (
                           <div key={item.id} className="prayer-restriction-row">
@@ -14822,8 +14832,8 @@ const Amain = () => {
                     ? 'در حال ذخیره اطلاعات...'
                     : isLoadingPlaceInfo
                       ? 'در حال بارگذاری اطلاعات...'
-                      : currentStep === 3
-                        ? 'تایید اطلاعات و ثبت این مکان '
+                       : currentStep === 3
+                         ? (isDeactivatingSameFloorStair ? 'تایید غیرفعال‌کردن پله' : 'تایید اطلاعات و ثبت این مکان ')
                         : 'تایید اطلاعات و مرحله بعد'}
                 </button>
               )}

@@ -16,6 +16,9 @@ export const listSameFloorStairAreas = async (params, signal) => (
 export const saveSameFloorStair = async (payload, id) => (
   id ? await apiAdmin.put(`${sameFloorStairsBase}/${id}`, payload) : await apiAdmin.post(sameFloorStairsBase, payload)
 ).data.data;
+export const deactivateSameFloorStair = async (id, version) => (
+  await apiAdmin.patch(`${sameFloorStairsBase}/${id}/deactivate`, { version })
+).data.data;
 export const resolveConnectorArea = async (point) => (
   await apiAdmin.get(`${base}/candidates`, { params: point })
 ).data;

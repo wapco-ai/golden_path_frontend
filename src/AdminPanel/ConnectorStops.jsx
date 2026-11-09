@@ -12,11 +12,11 @@ function Icon({ name }) {
   </svg>;
 }
 
-function SecondsInput({ id, label, value, onChange, min = 1 }) {
+function SecondsInput({ id, label, value, onChange, min = 1, placeholder }) {
   return <div className="connector-field">
     <label className="connector-label" htmlFor={id}>{label}</label>
     <div className="connector-seconds">
-      <input id={id} className="form-input" type="number" inputMode="numeric" min={min} max="3600" value={value} onChange={e => onChange(e.target.value)} aria-describedby={`${id}-unit`} />
+      <input id={id} className="form-input" type="number" inputMode="numeric" min={min} max="3600" value={value ?? ''} placeholder={placeholder} onChange={e => onChange(e.target.value)} aria-describedby={`${id}-unit`} />
       <span id={`${id}-unit`}>ثانیه</span>
     </div>
   </div>;
@@ -109,12 +109,13 @@ export default function ConnectorStops({ value, onChange, kind, floors, groups, 
             {i < value.stops.length - 1 && <SecondsInput id={`stop-time-${i}`}
               label={reverseOnly ? 'زمان عبور از بالا به پایین' : sameFloor ? 'زمان عبور از پایین به بالا' : 'زمان عبور تا توقف بعدی'}
               value={reverseOnly ? stop.reverse_seconds ?? stop.travel_seconds : stop.travel_seconds}
+              placeholder={sameFloor ? 'محاسبهٔ خودکار' : undefined}
               onChange={seconds => patch(i, reverseOnly ? { reverse_seconds: seconds } : { travel_seconds: seconds })} />}
           </div>
 
           {i < value.stops.length - 1 && value.direction === 'both' && <div className="connector-return">
-            <label className="connector-checkbox"><input type="checkbox" checked={stop.reverse_seconds != null} onChange={e => patch(i, { reverse_seconds: e.target.checked ? stop.travel_seconds : null })} />زمان برگشت متفاوت است</label>
-            {stop.reverse_seconds != null && <SecondsInput id={`stop-return-${i}`} label={sameFloor ? 'زمان عبور از بالا به پایین' : `زمان برگشت از توقف ${digits.format(i + 2)}`} value={stop.reverse_seconds} onChange={reverse_seconds => patch(i, { reverse_seconds })} />}
+            <label className="connector-checkbox"><input type="checkbox" checked={stop.reverse_seconds != null} onChange={e => patch(i, { reverse_seconds: e.target.checked ? stop.travel_seconds ?? '' : null })} />زمان برگشت متفاوت است</label>
+            {stop.reverse_seconds != null && <SecondsInput id={`stop-return-${i}`} label={sameFloor ? 'زمان عبور از بالا به پایین' : `زمان برگشت از توقف ${digits.format(i + 2)}`} value={stop.reverse_seconds} placeholder={sameFloor ? 'محاسبهٔ خودکار' : undefined} onChange={reverse_seconds => patch(i, { reverse_seconds })} />}
           </div>}
         </section>;
       })}
