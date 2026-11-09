@@ -3,7 +3,7 @@
 Requires backend PR https://github.com/wapco-ai/golden_path_backend/pull/9.
 Apply its versioned database changes and deploy that API before this frontend.
 The database floor catalog must contain each real floor before its map geometry
-is imported. Small elevation differences inside one floor are not modeled.
+is imported. A stair between two landings on one floor uses **پلهٔ داخل طبقه**.
 
 The map manager keeps its existing three-step modal and styles. The connection
 type list now includes stairs and ramps. Step two edits one shared connector and
@@ -17,6 +17,13 @@ any floor. Shared edits carry the server version, so an outdated form cannot
 overwrite a newer change. Adding a point no longer creates an active door before
 the modal is complete. Final save commits all stops and their metadata together.
 Canceling a new form writes nothing.
+
+For **پلهٔ داخل طبقه**, select two distinct existing access points in
+lower-to-upper order and identify their access spaces. A single compatible stair
+area is selected automatically. If multiple areas match, choose from those
+matches. Create missing access points using the door workflow first. Existing
+stairs can be opened from the connection list on their floor. The stair supports
+walking only and inherits time and prayer rules from its area and access points.
 
 The point used to open the form is marked as the selected point. Its location and
 floor stay fixed and it cannot be deleted from that form. This follows the point's

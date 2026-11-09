@@ -133,6 +133,32 @@ test('endpoint previews do not move live progress or react to sensor headings', 
   assert.equal(frame({ step: transfer, userHeading: 123 }).heading, null);
 });
 
+test('same-floor stair previews and guidance use the entrance while live navigation follows the full segment', () => {
+  const stair = { type: 'stepUseStairs', routeM: 0.2, endRouteM: 0.5, floor: -1 };
+  const [segment, arrival] = buildRouteMSegments([
+    { type: 'stepStart', routeM: 0 },
+    stair,
+    { type: 'stepArriveDestination', routeM: 1 }
+  ], route);
+  const step = { ...segment, routeStep: segment.step, previewAt: 'end' };
+
+  const preview = frame({ step });
+  assert.deepEqual(preview.geo, pointAt(stair.routeM));
+  assert.equal(preview.routeM, stair.routeM);
+  assert.equal(preview.floor, -1);
+  assert.ok(Math.abs(preview.heading - 90) < 1);
+  assert.deepEqual(frame({ step, isRoutingActive: true, isDemoMode: true }).geo, preview.geo);
+  assert.deepEqual(getStepPreview(step, route).coordinates.at(-1),
+    sliceLineByFraction(route, stair.endRouteM, stair.endRouteM)[0]);
+
+  const livePosition = pointAt(0.4);
+  const live = frame({ step, isRoutingActive: true, isDrActive: true, drPosition: livePosition });
+  assert.deepEqual(live.geo, livePosition);
+  assert.ok(Math.abs(live.routeM - 0.4) < 0.001);
+  assert.equal(getNavigationProgress(livePosition, [step, arrival], 0, route).nextStep, 0);
+  assert.equal(getNavigationProgress(pointAt(stair.endRouteM), [step, arrival], 0, route).nextStep, 1);
+});
+
 const input = { geo: { lat: 36.28, lng: 59.61 }, heading: 90, floor: 0, source: 'guidance_points' };
 
 test('image service requests guidance-only and normalizes the image URL', async (t) => {

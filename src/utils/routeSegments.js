@@ -130,6 +130,10 @@ export const normalizeRouteMSteps = (steps = []) => (Array.isArray(steps) ? step
   }))
   .sort((a, b) => (a.routeM - b.routeM) || (a.originalIndex - b.originalIndex));
 
+const stepEndFraction = (step) => step.type === 'stepUseStairs' && Number.isFinite(step.endRouteM)
+  ? Math.max(step.routeM, clampRouteM(step.endRouteM))
+  : step.routeM;
+
 export const buildRouteMSegments = (steps = [], coordinates = []) => {
   const normalizedSteps = normalizeRouteMSteps(steps);
 
@@ -140,17 +144,19 @@ export const buildRouteMSegments = (steps = [], coordinates = []) => {
   for (let i = 0; i < normalizedSteps.length - 1; i += 1) {
     const fromStep = normalizedSteps[i];
     const toStep = normalizedSteps[i + 1];
+    const fromM = stepEndFraction(fromStep);
+    const toM = stepEndFraction(toStep);
 
     const isEndpointArrival = i === normalizedSteps.length - 2
-      && toStep.type === 'stepArriveDestination' && toStep.routeM === 1;
-    if (toStep.routeM < fromStep.routeM || (toStep.routeM === fromStep.routeM && !isEndpointArrival)) continue;
+      && toStep.type === 'stepArriveDestination' && toM === 1;
+    if (toM < fromM || (toM === fromM && !isEndpointArrival)) continue;
 
-    const segmentCoordinates = sliceLineByFraction(coordinates, fromStep.routeM, toStep.routeM);
+    const segmentCoordinates = sliceLineByFraction(coordinates, fromM, toM);
     if (segmentCoordinates.length < 2) continue;
 
     segments.push({
-      fromM: fromStep.routeM,
-      toM: toStep.routeM,
+      fromM,
+      toM,
       fromStep,
       step: toStep,
       coordinates: segmentCoordinates,

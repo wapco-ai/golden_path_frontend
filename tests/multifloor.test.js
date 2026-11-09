@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { routeOnFloor, routeCoordinates, multifloorSteps, activeRouteCoordinates } from '../src/utils/multifloorRoute.js';
-import { connectorAccessHits, connectorError, connectorPayload, emptyConnector, newStop, floorValue, floorLabel, isSelectedStop, usesSharedConnectorEditor } from '../src/utils/connectorForm.js';
+import { connectorAccessHits, connectorError, connectorPayload, emptyConnector, newStop, floorValue, floorLabel, isSelectedStop, usesSharedConnectorEditor, SAME_FLOOR_STAIR_KIND, stairAreaCandidateParams } from '../src/utils/connectorForm.js';
 import { getNavigationProgress } from '../src/utils/rngNavigation.js';
 import { requestRouting } from '../src/services/routingService.js';
 import { analyzeRoute } from '../src/utils/routeAnalysis.js';
@@ -59,6 +59,34 @@ test('form rejects incomplete, duplicate and unresolved stops', () => {
   assert.ok(connectorError({...c,stops:[c.stops[0],{...c.stops[1],area_id:null}]},'elevator',['walk']));
   assert.ok(connectorError(c,'stair',['wheelchair']));
   assert.ok(connectorError(c,'escalator',['walk']));
+});
+test('stairs within a floor require a mapped area and two distinct access points on the same floor', () => {
+  const kind = SAME_FLOOR_STAIR_KIND;
+  const stops = [
+    { ...newStop(-1, kind), access_id: 7, area_id: 11, travel_seconds: 18, reverse_seconds: 12 },
+    { ...newStop(-1, kind), access_id: 8, area_id: 12 }
+  ];
+  const stair = { ...emptyConnector(), stair_area_id: 1100794, version: 2, stops };
+  assert.deepEqual(stairAreaCandidateParams(stops), { floor: -1, start_access_id: 7, end_access_id: 8, start_area_id: 11, end_area_id: 12 });
+  assert.equal(stairAreaCandidateParams([stops[0], { ...stops[1], area_id: null }]), null);
+  assert.equal(stairAreaCandidateParams([stops[0], { ...stops[1], resolving: true }]), null);
+  assert.equal(stairAreaCandidateParams([stops[0], { ...stops[1], access_id: 7 }]), null);
+  assert.equal(connectorError(stair, kind, ['walk']), '');
+  assert.ok(connectorError(stair, 'stair', ['walk']));
+  assert.ok(connectorError(stair, kind, ['wheelchair']));
+  assert.ok(connectorError({ ...stair, stair_area_id: null }, kind, ['walk']));
+  assert.ok(connectorError({ ...stair, stops: [stops[0], { ...stops[1], floor: 0 }] }, kind, ['walk']));
+  assert.ok(connectorError({ ...stair, stops: [stops[0], { ...stops[1], access_id: 7 }] }, kind, ['walk']));
+  const payload = connectorPayload(stair, kind, {});
+  assert.equal(payload.stair_area_id, 1100794);
+  assert.equal(payload.version, 2);
+  assert.deepEqual(payload.stops.map(stop => [stop.floor, stop.access_id, stop.travel_seconds, stop.reverse_seconds]), [[-1, 7, 18, 12], [-1, 8, 30, null]]);
+  assert.equal('wait_seconds' in payload, false);
+  const automaticTime = { ...stair, stops: [{ ...stops[0], travel_seconds: null, reverse_seconds: '' }, stops[1]] };
+  assert.equal(connectorError(automaticTime, kind, ['walk']), '');
+  assert.equal(connectorPayload(automaticTime, kind, {}).stops[0].travel_seconds, null);
+  assert.equal(connectorPayload(automaticTime, kind, {}).stops[0].reverse_seconds, null);
+  assert.ok(connectorError({ ...stair, stops: [{ ...stops[0], travel_seconds: '0' }, stops[1]] }, kind, ['walk']));
 });
 test('reclassifying an existing shared stair keeps all its floor stops, but ordinary connections stay single-floor', () => {
   assert.equal(usesSharedConnectorEditor('stair', 9), true);

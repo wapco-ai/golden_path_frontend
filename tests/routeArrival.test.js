@@ -9,6 +9,7 @@ import {
   sliceLineByFraction
 } from '../src/utils/routeSegments.js';
 import { withDoorStepInstructions } from '../src/utils/routeStepInstructions.js';
+import { getNavigationProgress } from '../src/utils/rngNavigation.js';
 
 const coordinates = [[59.615, 36.287], [59.6151, 36.287], [59.6151, 36.2872]];
 const steps = [
@@ -16,6 +17,25 @@ const steps = [
   { type: 'stepPassDoor', routeM: 0.4, doorId: 7, floor: 0, segmentId: 0 },
   { type: 'stepArriveDestination', floor: 0, segmentId: 0 }
 ];
+
+test('same-floor stair guidance continues through its exit and advances without floor confirmation', () => {
+  const line = [[59.615, 36.287], [59.6152, 36.287]];
+  const stair = {
+    type: 'stepUseStairs', floor: -1, routeM: 0.3, endRouteM: 0.6, stairDirection: 'up',
+    instruction: 'از پله‌ها بالا بروید.'
+  };
+  const arrival = { ...steps[2], floor: -1 };
+  const segments = buildRouteMSegments([{ ...steps[0], floor: -1 }, stair, arrival], line);
+  assert.deepEqual(segments.map(s => [s.type, s.fromM, s.toM]), [
+    ['stepUseStairs', 0, 0.6], ['stepArriveDestination', 0.6, 1]
+  ]);
+  assert.equal(segments[0].step.instruction, stair.instruction);
+  assert.equal(segments[0].step.routeM, 0.3);
+
+  const displayed = segments.map(s => ({ ...s, routeStep: s.step }));
+  assert.equal(getNavigationProgress({ lng: 59.61506, lat: 36.287 }, displayed, 0, line).nextStep, 0);
+  assert.equal(getNavigationProgress({ lng: 59.61512, lat: 36.287 }, displayed, 0, line).nextStep, 1);
+});
 
 test('door instructions use the next named area and keep the original route events', () => {
   const messages = JSON.parse(readFileSync(new URL('../src/locales/fa.json', import.meta.url), 'utf8'));
