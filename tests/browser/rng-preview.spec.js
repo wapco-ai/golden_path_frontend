@@ -144,6 +144,31 @@ test('repeated vertices on a bend preserve the local heading and endpoint', asyn
   expect(fourth.bearing).toBeLessThan(25);
 });
 
+test('same-area repetitions are skipped while the turn and arrival stay visible', async ({ page }) => {
+  const line = [[59.615, 36.287], [59.616, 36.287], [59.616, 36.288]];
+  const firstLeg = haversineMeters(line[0], line[1]);
+  const corner = firstLeg / (firstLeg + haversineMeters(line[1], line[2]));
+  const at = (type, routeM, extra = {}) => {
+    const [lon, lat] = sliceLineByFraction(line, routeM, routeM)[0];
+    return { type, routeM, floor: 0, segmentId: 0, coord: { lat, lon }, ...extra };
+  };
+  const door = (routeM, fromAreaId, toAreaId) => at('stepPassDoor', routeM, {
+    fromAreaId, toAreaId, toAreaName: 'صحن پیامبر اعظم'
+  });
+  await setup(page, {
+    geo: { type: 'Feature', geometry: { type: 'LineString', coordinates: line }, properties: { floor: 0 } },
+    steps: [at('stepStart', 0), door(0.12, 10, 11), door(0.23, 11, 12),
+      door(corner, 12, 13), door(0.7, 13, 14),
+      at('stepArriveDestination', 1, { instruction: 'به مقصد رسیدید.' })]
+  }, false);
+  const instruction = page.locator('.instruction-text');
+  await expect(instruction).toHaveText('به صحن پیامبر اعظم بروید.');
+  await page.locator('.direction-icon-rng').click();
+  await expect(instruction).toHaveText('به چپ بپیچید.');
+  await page.locator('.direction-icon-rng').click();
+  await expect(instruction).toHaveText('به مقصد رسیدید.');
+});
+
 test('floor transfer, arrival and wrap keep their own positions and floors', async ({ page }) => {
   const a = [[59.615, 36.287], [59.6151, 36.287]];
   const b = [[59.6151, 36.287], [59.6151, 36.2871]];

@@ -694,7 +694,7 @@ const RouteOverview = () => {
     });
   };
   const routeData = useMemo(() => {
-    const displaySteps = withDoorStepInstructions(routeSteps, intl);
+    const displaySteps = withDoorStepInstructions(routeSteps, intl, routeGeo);
     const multi = multifloorSteps(routeGeo, displaySteps, (s, i) => intl.formatMessage({ id: s.type }, { name: s.name, title: s.title, num: i + 1 }));
     if (multi) return multi.map(s => ({ ...s, distance: s.distanceMeters, stepType: s.type, stepTitle: s.title, stepName: s.name, doorNames: s.type === 'stepPassDoor' ? [s.name] : [] }));
     if (!routeCoordinates || routeCoordinates.length < 2) return [];
@@ -935,6 +935,8 @@ const RouteOverview = () => {
       const [lng2, lat2] = coords[coords.length - 1];
       if (currentSlide === routeData.length - 1) {
         setDirectionArrow('arrived');
+      } else if (segObj.step?.maneuver || segObj.maneuver) {
+        setDirectionArrow(segObj.step?.maneuver || segObj.maneuver);
       } else {
         const nextCoords = routeData[currentSlide + 1]?.coordinates;
         const b1 = bearing(coords[0], coords[coords.length - 1]);
