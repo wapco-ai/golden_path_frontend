@@ -1191,21 +1191,21 @@ const MapRoutingPage = () => {
   }, [language]);
 
   useEffect(() => {
-    if (areaDoorsStatus === 'error' && tempDestination && lastAreaDoorsCoords) {
+    if (areaDoorsStatus && areaDoorsStatus !== 'loading' && !mapEntryDoors.length && tempDestination && lastAreaDoorsCoords) {
       const destinationWithCoords = {
         ...tempDestination,
         coordinates: tempDestination.coordinates || lastAreaDoorsCoords
       };
 
       setSelectedDestination(destinationWithCoords);
-      addSearch(destinationWithCoords);
+      if (!tempDestination.fromMapSelection) addSearch(destinationWithCoords);
       sessionStorage.setItem('currentDestination', JSON.stringify(destinationWithCoords));
 
       setShowEntryModal(false);
       setTempDestination(null);
       setSelectedEntry(null);
     }
-  }, [areaDoorsStatus, tempDestination, lastAreaDoorsCoords, addSearch]);
+  }, [areaDoorsStatus, mapEntryDoors.length, tempDestination, lastAreaDoorsCoords, addSearch]);
 
   const handleDoorSelect = (door) => {
     const entryNumber = door?.doorNo || door?.doorId || null;

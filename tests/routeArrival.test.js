@@ -1,11 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createIntl } from 'react-intl';
 import {
   buildRouteMSegments,
   getLineDistanceMeters,
   normalizeRouteMSteps,
   sliceLineByFraction
 } from '../src/utils/routeSegments.js';
+import { withDoorStepInstructions } from '../src/utils/routeStepInstructions.js';
 
 const coordinates = [[59.615, 36.287], [59.6151, 36.287], [59.6151, 36.2872]];
 const steps = [
@@ -13,6 +16,31 @@ const steps = [
   { type: 'stepPassDoor', routeM: 0.4, doorId: 7, floor: 0, segmentId: 0 },
   { type: 'stepArriveDestination', floor: 0, segmentId: 0 }
 ];
+
+test('door instructions use the next named area and keep the original route events', () => {
+  const messages = JSON.parse(readFileSync(new URL('../src/locales/fa.json', import.meta.url), 'utf8'));
+  const intl = createIntl({ locale: 'fa', messages });
+  const door = {
+    ...steps[1], doorId: 2000909, name: 'عبور از درب 2000909',
+    toAreaName: 'راهرو غربی بین صحن پیامبر اعظم و قدس',
+    instruction: 'از عبور از درب 2000909 عبور کنید و به راهرو غربی بین صحن پیامبر اعظم و قدس بروید'
+  };
+  const arrival = { ...steps[2], instruction: 'به نزدیک‌ترین نقطهٔ قابل‌دسترسی رسیدید.' };
+  const display = withDoorStepInstructions([steps[0], door, arrival], intl);
+  assert.deepEqual(display[1], { ...door, instruction: 'وارد راهروی غربی بین صحن پیامبر اعظم و قدس شوید.' });
+  assert.equal(display[0], steps[0]);
+  assert.equal(display[2], arrival);
+  assert.match(door.instruction, /2000909/);
+
+  const [named, unknown, sameArea] = withDoorStepInstructions([
+    { ...door, name: 'عبور از باب‌الرضا', toAreaName: 'صحن جامع رضوی' },
+    { ...door, name: 'درب ۲۰۰۰۹۰۹', toAreaName: 'area 123' },
+    { ...door, fromAreaId: 1, toAreaId: 1 }
+  ], intl);
+  assert.equal(named.instruction, 'از باب‌الرضا وارد صحن جامع رضوی شوید.');
+  assert.equal(unknown.instruction, 'مسیر را ادامه دهید.');
+  assert.equal(sameArea.instruction, 'مسیر را ادامه دهید.');
+});
 
 for (const [label, arrival] of [
   ['missing', steps.at(-1)],
