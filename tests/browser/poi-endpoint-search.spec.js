@@ -83,7 +83,7 @@ for (const width of [360, 1280]) {
 }
 
 test('contentless POI search retains the independent negative origin and positive destination floors', async ({ page }) => {
-  const { errors, areaRequests } = await setup(page);
+  const { errors, searches, areaRequests } = await setup(page);
   const routeRequests = [];
   await page.route('**/api/v1/routing/route', route => {
     routeRequests.push(route.request().postDataJSON());
@@ -95,17 +95,146 @@ test('contentless POI search retains the independent negative origin and positiv
   await expect(page.locator('.map-destination-list li')).toHaveCount(3);
   await page.locator('.map-destination-list li').first().click();
   await expect(page.locator('.map-current-location input')).toHaveValue(/منفی/);
+  expect(searches.at(-1).include_exact_areas).toBeUndefined();
   await page.locator('.map-destination-input-wrapper').click();
   await expect(page.locator('.gp-floor-trigger')).toBeHidden();
   await page.locator('.map-search-modal input').fill('رواق آزمایشی');
   await expect(page.locator('.map-destination-list li')).toHaveCount(3);
   await page.locator('.map-destination-list li').last().click();
-  await expect.poll(() => areaRequests.at(-1)?.floor).toBe('1');
+  expect(searches.at(-1).include_exact_areas).toBe('1');
+  await expect(page.locator('.map-entry-location-name')).toHaveCount(0);
   await expect.poll(() => routeRequests.at(-1)).toMatchObject({ origin: { floor: -1 }, destination: { floor: 1 } });
+  expect(areaRequests).toEqual([]);
   expect(errors).toEqual([]);
 });
 
-test('MPR previews accessible points near both endpoints when there is no entry to select', async ({ page }) => {
+for (const selectArea of [false, true]) {
+  test(`an exact area search uses ${selectArea ? 'only the selected area doors' : 'the selected internal POI point'}`, async ({ page }) => {
+    const { errors } = await setup(page);
+    const area = { id: 'area-45', kind: 'area', areaId: 45, title: 'صحن آزمایشی', floor: 1, coordinates: [36.288, 59.616] };
+    const poi = { id: '502', title: 'کفشداری صحن آزمایشی', subGroup: 'sahn', floor: 1, coordinates: [36.287, 59.615] };
+    const origin = { id: '501', title: 'مبدأ آزمایشی', floor: 0, coordinates: [36.286, 59.614] };
+    const door = { doorNo: 1, accessId: 94, otherAreaName: 'راهرو', coord4326: [59.6165, 36.2875] };
+    const areaRequests = [];
+    const routeRequests = [];
+    await page.route('**/api/v1/landmark-places**', route => {
+      const { searchParams } = new URL(route.request().url());
+      const query = searchParams.get('search');
+      const places = query === origin.title ? [origin]
+        : query === area.title && searchParams.get('include_exact_areas') === '1' ? [area, poi] : [];
+      return route.fulfill({ json: { places: { landmarkPlaces: places } } });
+    });
+    await page.route('**/api/v1/area-doors?*', route => {
+      areaRequests.push(Object.fromEntries(new URL(route.request().url()).searchParams));
+      return route.fulfill({ json: { status: 'ok', data: { area: { id: area.areaId, floor: area.floor }, doors: [door] } } });
+    });
+    await page.route('**/api/v1/routing/route', route => {
+      routeRequests.push(route.request().postDataJSON());
+      return route.fulfill({ status: 404, json: { status: 'NO_PATH' } });
+    });
+
+    await page.goto('/#/mpr');
+    await page.locator('.map-current-location').click();
+    await page.locator('.map-search-modal input').fill(origin.title);
+    await page.getByText(origin.title, { exact: true }).click();
+    await page.locator('.map-destination-input-wrapper').click();
+    await page.locator('.map-search-modal input').fill(area.title);
+    const target = selectArea ? area : poi;
+    await page.getByText(target.title, { exact: true }).click();
+    if (selectArea) {
+      await expect(page.locator('.map-entry-item')).toHaveCount(1);
+      await expect(page.locator('.map-entry-item')).toContainText('راهرو');
+      expect(areaRequests).toEqual([{ area_id: '45', floor: '1', lang: 'fa' }]);
+      expect(routeRequests).toEqual([]);
+      await expect(page.locator('.gp-floor-trigger')).toContainText('۱');
+      const marker = page.locator('.map-door-marker');
+      await expect(marker).toHaveCount(1);
+      await expect(marker).toContainText('1');
+      await expect(marker).toHaveAccessibleName(/راهرو/);
+      await marker.click();
+      await expect(page.locator('.map-entry-item')).toHaveClass(/selected/);
+      await page.locator('.map-confirm-entry-button').click();
+    }
+    await expect(page.locator('.map-entry-location-name')).toHaveCount(0);
+    await expect(page.locator('.map-door-marker')).toHaveCount(0);
+    const [lat, lon] = selectArea ? [...door.coord4326].reverse() : poi.coordinates;
+    await expect.poll(() => routeRequests.length, { timeout: 30000 }).toBeGreaterThan(0);
+    expect(routeRequests.at(-1).destination).toMatchObject({ name: target.title, lat, lon, floor: 1 });
+    expect(areaRequests).toHaveLength(selectArea ? 1 : 0);
+    expect(errors).toEqual([]);
+  });
+}
+
+test('a grouped destination shows one row and requests the group entrances by its stable identity', async ({ page }) => {
+  const { errors } = await setup(page);
+  const title = 'رواق امام خمینی';
+  const area = { id: 'area-group-imam-khomeini-riwaq', kind: 'area', areaGroupId: 'imam-khomeini-riwaq', title, floor: 0, coordinates: [36.2869, 59.6152] };
+  const doors = [
+    { doorNo: 1, accessId: 50600, otherAreaName: 'بست شیخ بهایی', coord4326: [59.61498, 36.2868] },
+    { doorNo: 2, accessId: 50601, otherAreaName: 'صحن بعثت', coord4326: [59.61525, 36.2869] },
+  ];
+  const areaRequests = [];
+  await page.route('**/api/v1/landmark-places**', route => {
+    const { searchParams } = new URL(route.request().url());
+    const places = searchParams.get('search') === title && searchParams.get('include_exact_areas') === '1' ? [area] : [];
+    return route.fulfill({ json: { places: { landmarkPlaces: places } } });
+  });
+  await page.route('**/api/v1/area-doors?*', route => {
+    areaRequests.push(Object.fromEntries(new URL(route.request().url()).searchParams));
+    return route.fulfill({ json: { status: 'ok', data: { area: { id: area.id, areaGroupId: area.areaGroupId, floor: 0 }, doors } } });
+  });
+
+  await page.goto('/#/mpr');
+  await page.locator('.map-destination-input-wrapper').click();
+  await page.locator('.map-search-modal input').fill(title);
+  const results = page.locator('.map-destination-list li');
+  await expect(results).toHaveCount(1);
+  await results.first().click();
+  const entries = page.locator('.map-entry-item');
+  const markers = page.locator('.map-door-marker');
+  await expect(entries).toHaveCount(2);
+  await expect(markers).toHaveCount(2);
+  expect(areaRequests).toEqual([{ area_group_id: area.areaGroupId, floor: '0', lang: 'fa' }]);
+  await expect(entries.nth(1)).toContainText('صحن بعثت');
+  await entries.nth(1).click();
+  await expect(markers.nth(1)).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('.map-confirm-entry-button').click();
+  await expect(page.locator('.map-entry-location-name')).toHaveCount(0);
+  const selected = await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentDestination')));
+  expect(selected).toMatchObject({ areaGroupId: area.areaGroupId, floor: 0, coordinates: [36.2869, 59.61525] });
+  expect(errors).toEqual([]);
+});
+
+test('an area with no registered entrances keeps the message visible and allows returning to search', async ({ page }) => {
+  const { errors } = await setup(page);
+  const title = 'صحن جمهوری';
+  const area = { id: 'area-1001379', kind: 'area', areaId: 1001379, title, floor: 0, coordinates: [36.286, 59.614] };
+  await page.route('**/api/v1/landmark-places**', route => {
+    const { searchParams } = new URL(route.request().url());
+    const places = searchParams.get('search') === title ? [area] : [];
+    return route.fulfill({ json: { places: { landmarkPlaces: places } } });
+  });
+  await page.route('**/api/v1/area-doors?*', route => route.fulfill({
+    json: { status: 'ok', data: { area: { id: area.areaId, floor: area.floor }, doors: [] } }
+  }));
+
+  await page.goto('/#/mpr');
+  await page.locator('.map-destination-input-wrapper').click();
+  await page.locator('.map-search-modal input').fill(title);
+  await page.getByText(title, { exact: true }).click();
+  await expect(page.locator('.map-entry-location-name')).toHaveText(title);
+  await expect(page.locator('.map-entry-message')).toContainText(/ورودی.*ثبت/);
+  await expect(page.locator('.map-entry-item')).toHaveCount(0);
+  await expect(page.locator('.map-door-marker')).toHaveCount(0);
+  await expect(page.locator('.map-confirm-entry-button')).toBeDisabled();
+  await page.locator('.map-entry-modal').getByRole('button', { name: /بازگشت/ }).click();
+  await expect(page.locator('.map-search-modal')).toBeVisible();
+  await expect(page.locator('.map-entry-location-name')).toHaveCount(0);
+  expect(await page.evaluate(() => sessionStorage.getItem('currentDestination'))).toBeNull();
+  expect(errors).toEqual([]);
+});
+
+test('MPR previews accessible points near both requested POI endpoints', async ({ page }) => {
   const { errors } = await setup(page);
   const origin = [36.287920367423624, 59.611761238159666];
   const nearbyOrigin = [36.287941, 59.611782];
@@ -118,7 +247,6 @@ test('MPR previews accessible points near both endpoints when there is no entry 
       : search === 'سقف کاذب' ? [{ id: '85', title: 'سقف کاذب', floor: 0, coordinates: requested }] : [];
     return route.fulfill({ json: { places: { landmarkPlaces: places } } });
   });
-  await page.route('**/api/v1/area-doors?*', route => route.fulfill({ json: { status: 'ok', data: { doors: [] } } }));
   await page.route('**/api/v1/routing/route', route => {
     expect(route.request().postDataJSON()).toMatchObject({
       allowNearbyDestination: true,
@@ -175,10 +303,7 @@ test('MPB text results also hide the map floor picker without requiring POI imag
 
 for (const target of ['origin', 'destination']) {
   test(`${target} search keeps each address with its own POI across ordering and language`, async ({ page }) => {
-    const { errors } = await setup(page);
-    await page.route('**/api/v1/area-doors?*', route => route.fulfill({ json: {
-      status: 'ok', data: { doors: [{ doorNo: '7', coordinates: [36.288, 59.616], floor: 1 }] }
-    } }));
+    const { errors, areaRequests } = await setup(page);
     let reversed = false;
     await page.route('**/api/v1/landmark-places**', (route) => {
       const url = new URL(route.request().url());
@@ -214,7 +339,8 @@ for (const target of ['origin', 'destination']) {
     await expect(rowB.locator('.map-destination-location')).toContainText('Address B');
     await rowB.click();
     if (target === 'origin') await expect(page.locator('.map-current-location input')).toHaveValue(/مکان ب/);
-    else await expect(page.locator('.map-entry-location-name')).toContainText('مکان ب');
+    else await expect(page.locator('.map-destination-input-wrapper input')).toHaveValue(/مکان ب/);
+    expect(areaRequests).toEqual([]);
     expect(errors).toEqual([]);
   });
 }
@@ -235,6 +361,39 @@ test('legacy recent searches retain entries and recover only their own saved add
   expect(saved.state.recentSearches).toHaveLength(2);
   expect(saved.state.recentSearches[0].coordinates).toEqual([36.287, 59.615]);
   expect(JSON.stringify(saved)).not.toContain('عنوان اشتباه مشترک');
+});
+
+test('reusing a legacy POI selection restores its original coordinates', async ({ page }) => {
+  const { areaRequests } = await setup(page);
+  const place = { id: '275', title: 'وضوخانه برادران', floor: 0, coordinates: [36.286403424, 59.615193275] };
+  const oldDoor = { doorNo: 1, accessId: 51077, coord4326: [59.615085741, 36.286440840] };
+  await page.addInitScript(({ place, oldDoor }) => {
+    localStorage.setItem('recent-search-storage', JSON.stringify({ version: 2, state: { recentSearches: [{
+      id: place.id, poiId: place.id, name: place.title, floor: place.floor,
+      addressLanguage: 'fa', coordinates: [...oldDoor.coord4326].reverse(), entry: 1, door: oldDoor
+    }] } }));
+  }, { place, oldDoor });
+  const lookups = [];
+  await page.route('**/api/v1/landmark-places**', route => {
+    const { searchParams } = new URL(route.request().url());
+    const poiId = searchParams.get('poi_id');
+    if (poiId) lookups.push(poiId);
+    return route.fulfill({ json: { places: { landmarkPlaces: poiId === place.id ? [place] : [] } } });
+  });
+  await page.goto('/#/mpr');
+  await page.locator('.map-destination-input-wrapper').click();
+  await page.getByText(place.title, { exact: true }).click();
+  await expect(page.locator('.map-destination-input-wrapper input')).toHaveValue(/وضوخانه برادران/);
+  const stored = await page.evaluate(() => ({
+    selected: JSON.parse(sessionStorage.getItem('currentDestination')),
+    recent: JSON.parse(localStorage.getItem('recent-search-storage')).state.recentSearches
+  }));
+  expect(lookups).toEqual([place.id]);
+  expect(areaRequests).toEqual([]);
+  expect(stored.selected.coordinates).toEqual(place.coordinates);
+  expect(stored.selected).not.toHaveProperty('door');
+  expect(stored.recent).toHaveLength(1);
+  expect(stored.recent[0].coordinates).toEqual(place.coordinates);
 });
 
 test('recent POI addresses refresh in the selected language by entity ID', async ({ page }) => {

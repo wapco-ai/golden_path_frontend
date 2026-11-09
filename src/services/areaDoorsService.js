@@ -1,10 +1,16 @@
 import appConfig from '../config/appConfig.js';
 
-export const fetchAreaDoors = async ({ lat, lon, floor, lang, signal }) => {
+export const fetchAreaDoors = async ({ areaGroupId, areaId, lat, lon, floor, lang, signal }) => {
   const url = new URL(`${appConfig.apiBaseUrl}/api/v1/area-doors`);
 
-  url.searchParams.set('lat', lat);
-  url.searchParams.set('lon', lon);
+  if (areaGroupId != null) {
+    url.searchParams.set('area_group_id', areaGroupId);
+  } else if (areaId != null) {
+    url.searchParams.set('area_id', areaId);
+  } else {
+    url.searchParams.set('lat', lat);
+    url.searchParams.set('lon', lon);
+  }
   url.searchParams.set('floor', floor);
 
   if (lang) {
