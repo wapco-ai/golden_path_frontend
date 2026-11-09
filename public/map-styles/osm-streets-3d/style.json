@@ -8,7 +8,7 @@
       "type": "vector"
     },
     "maptiler_planet_v4": {
-      "url": "map-styles/osm-streets-3d/tiles.json",
+      "url": "/map-styles/osm-streets-3d/tiles.json",
       "type": "vector"
     }
   },
@@ -27128,8 +27128,8 @@
       "spaceColor": "#031F30"
     }
   },
-  "sprite": "http://localhost:5173/map-styles/osm-streets-3d/sprite",
-  "glyphs": "http://localhost:8080/fonts/{fontstack}/{range}.pbf",
+  "sprite": "/map-styles/osm-streets-3d/sprite",
+  "glyphs": "/fonts/{fontstack}/{range}.pbf",
   "bearing": 0,
   "pitch": 0,
   "center": [

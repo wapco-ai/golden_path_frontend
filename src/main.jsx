@@ -1,6 +1,7 @@
 // main.jsx  
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import maplibregl from 'maplibre-gl';
 import App from './App.jsx';
 import IntlProviderWrapper from './IntlProviderWrapper.jsx';
 import './index.css';
@@ -8,6 +9,7 @@ import { useGPSStore } from './store/gpsStore.js';
 import { DEFAULT_TILE_FLOOR } from './config/vectorTiles.js';
 import { initializeSessionFloor } from './utils/sessionFloor.js';
 import { captureQrLocation } from './services/qrLocationService.js';
+import { registerLegacyMapStyles } from './services/legacyMapStyles.js';
 // main.jsx
 // import maplibregl from 'maplibre-gl';
 // import 'maplibre-gl/dist/maplibre-gl.css';
@@ -27,6 +29,7 @@ function ensureRtlOnce() {
 }
 
 
+registerLegacyMapStyles(maplibregl);
 initializeSessionFloor(DEFAULT_TILE_FLOOR);
 
 // Check URL parameters for QR code location (works with ? before or after #)

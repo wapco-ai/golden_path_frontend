@@ -19,7 +19,7 @@
   "scheme": "xyz",
   "tilejson": "2.1.0",
   "tiles": [
-    "http://localhost:8088/services/mashhad/tiles/{z}/{x}/{y}.pbf"
+    "/tms/services/mashhad/tiles/{z}/{x}/{y}.pbf"
   ],
   "tilesize": 512,
   "type": "baselayer",

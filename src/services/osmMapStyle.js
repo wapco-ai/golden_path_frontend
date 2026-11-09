@@ -3,6 +3,7 @@
 export const BASE_RASTER_SOURCE_ID = 'carto-voyager-base';
 
 export const CARTO_VOYAGER_STYLE_URL = '/map-styles/osm-voyager/style.json';
+export const voyagerStyleUrl = isRtl => isRtl ? CARTO_VOYAGER_STYLE_URL : '/map-styles/osm-voyager/style-en.json';
 
 export const offlineFallbackStyle = {
   version: 8,
@@ -12,7 +13,9 @@ export const offlineFallbackStyle = {
     [BASE_RASTER_SOURCE_ID]: {
       type: 'raster',
       tileSize: 256,
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      minzoom: 9,
+      maxzoom: 19,
+      tiles: ['/tms/services/osmh/tiles/{z}/{x}/{y}.png'],
       attribution: '© OpenStreetMap contributors'
     }
   },

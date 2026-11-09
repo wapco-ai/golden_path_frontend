@@ -3,6 +3,7 @@ import Map, { Marker, Source, Layer } from 'react-map-gl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
+import { mapAssetRequest } from '../../services/legacyMapStyles';
 import useLocaleDigits from '../../utils/useLocaleDigits';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
 import { useLangStore } from '../../store/langStore';
@@ -70,6 +71,7 @@ const Routing = ({ userLocation, routeSteps, currentStep }) => {
         key={mapRenderKey}
         mapLib={maplibregl}
         mapStyle={mapStyle}
+        transformRequest={mapAssetRequest}
         styleDiffing={false}
         style={{ width: '100%', height: '100%' }}
         viewState={viewState}

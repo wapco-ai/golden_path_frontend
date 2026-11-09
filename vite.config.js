@@ -15,7 +15,13 @@ export default defineConfig({
     }
   },
   server: {
-    host: '0.0.0.0'
+    host: '0.0.0.0',
+    proxy: {
+      '/api': 'http://localhost:8080',
+      '/tiles': 'http://localhost:8080',
+      '/tms': 'http://localhost:8080',
+      '/fonts': 'http://localhost:8080'
+    }
   },
   preview: {
     port: 80,

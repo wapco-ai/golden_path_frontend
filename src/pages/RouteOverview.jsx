@@ -11,12 +11,14 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../styles/RouteOverview.css';
 import useOfflineMapStyle from '../hooks/useOfflineMapStyle';
+import { mapAssetRequest } from '../services/legacyMapStyles';
 import usePublicFloorMap from '../hooks/usePublicFloorMap';
 import { useRouteStore } from '../store/routeStore';
 import useLocaleDigits from '../utils/useLocaleDigits';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import { useLangStore } from '../store/langStore';
-import { MBTILES_SATELLITE_STYLE } from '../services/mbtilesMapStyle';
+import { MBTILES_SATELLITE_STYLE, OSM_BASIC_STYLE_URL } from '../services/mbtilesMapStyle';
+import { voyagerStyleUrl } from '../services/osmMapStyle';
 import { createHaramVectorTileConfig } from '../config/vectorTiles';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { fetchLandmarkPlaces } from '../services/landmarkService';
@@ -45,8 +47,6 @@ const RouteOverview = () => {
   const language = useLangStore(state => state.language);
   const formatDigits = useLocaleDigits();
   const isRtl = ["fa", "ar", "ur"].includes(language);
-  const baseMapStyle = isRtl ? "./rtl/style.json" : "./rtl/style-en.json";
-  const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
   const [selectedMapType] = useState(() => {
     if (typeof window === 'undefined') {
       return 'satellite';
@@ -54,7 +54,9 @@ const RouteOverview = () => {
     return sessionStorage.getItem('selectedMapType') || 'satellite';
   });
   const isSatellite = selectedMapType === 'satellite';
-  const regularMapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : offlineMapStyle;
+  const selectedStyle = isSatellite ? MBTILES_SATELLITE_STYLE
+    : selectedMapType === 'simple' ? OSM_BASIC_STYLE_URL : voyagerStyleUrl(isRtl);
+  const { mapStyle: regularMapStyle, handleMapError, styleKey } = useOfflineMapStyle(selectedStyle);
   const regularMapKey = isSatellite ? 'mbtiles-satellite' : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
 
   const mapRef = useRef(null);
@@ -1147,6 +1149,7 @@ const RouteOverview = () => {
           ref={mapRef}
           mapLib={maplibregl}
           mapStyle={mapStyle}
+          transformRequest={mapAssetRequest}
           styleDiffing={false}
           initialViewState={viewState}
           attributionControl={false}

@@ -6,6 +6,7 @@ import { useIntl } from 'react-intl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
+import { mapAssetRequest } from '../../services/legacyMapStyles';
 import usePublicFloorMap from '../../hooks/usePublicFloorMap';
 import { MBTILES_SATELLITE_STYLE, OSM_BASIC_STYLE_URL } from '../../services/mbtilesMapStyle';
 import { useLangStore } from '../../store/langStore';
@@ -122,14 +123,14 @@ const Mprc = ({
   const language = useLangStore((state) => state.language);
   const isRtl = ["fa", "ar", "ur"].includes(language);
   const baseMapStyle = isRtl ? "./map-styles/osm-voyager/style.json" : "./map-styles/osm-voyager/style-en.json";
-  const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
   const isSatellite = selectedMapType === 'satellite';
   const isOfflineOsmh = selectedMapType === 'simple';
-  const regularMapStyle = isSatellite ? MBTILES_SATELLITE_STYLE : isOfflineOsmh ? OSM_BASIC_STYLE_URL : offlineMapStyle;
+  const selectedStyle = isSatellite ? MBTILES_SATELLITE_STYLE : isOfflineOsmh ? OSM_BASIC_STYLE_URL : baseMapStyle;
+  const { mapStyle: regularMapStyle, handleMapError, styleKey } = useOfflineMapStyle(selectedStyle);
   const regularMapKey = isSatellite
     ? 'mbtiles-satellite'
     : isOfflineOsmh
-      ? 'mbtiles-offline-osmh'
+      ? `mbtiles-offline-osmh-${styleKey}`
       : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
   const { mapStyle, mapRenderKey, isEngineeringMap, onMapError } = usePublicFloorMap(
     mapFloor, language, regularMapStyle, regularMapKey, isSatellite ? undefined : handleMapError
@@ -737,6 +738,7 @@ const Mprc = ({
       ref={mapRef}
       mapLib={maplibregl}
       mapStyle={mapStyle}
+      transformRequest={mapAssetRequest}
       styleDiffing={false}
       style={{ width: '100%', height: '100%' }}
       {...viewState}

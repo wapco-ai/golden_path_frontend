@@ -15,6 +15,7 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import '../styles/Pmap.css';
 import useOfflineMapStyle from '../hooks/useOfflineMapStyle';
+import { mapAssetRequest } from '../services/legacyMapStyles';
 import usePublicFloorMap from '../hooks/usePublicFloorMap';
 import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
@@ -446,6 +447,7 @@ const Pmap = () => {
           key={mapRenderKey}
           mapLib={maplibregl}
           mapStyle={mapStyle}
+          transformRequest={mapAssetRequest}
           styleDiffing={false}
           style={{ width: '100%', height: '100%' }}
           {...viewState}

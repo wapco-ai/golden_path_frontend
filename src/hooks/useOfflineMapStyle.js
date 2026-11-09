@@ -22,13 +22,12 @@ const extractSourceId = (event) => {
 const extractResourceUrl = (event) =>
   event?.error?.resource?.url || event?.error?.url || event?.url || null;
 
-const BASEMAP_RESOURCE_HINTS = ['tile.openstreetmap.org', 'basemaps.cartocdn.com', 'cartocdn.com'];
-const BASEMAP_SOURCE_IDS = [BASE_RASTER_SOURCE_ID, 'basemap', 'basemap_tiles', 'voyager'];
+const BASEMAP_SOURCE_IDS = [BASE_RASTER_SOURCE_ID, 'carto', 'openmaptiles', 'maptiler_planet_v4'];
 
 const shouldTriggerFallback = (event) => {
   const resourceUrl = extractResourceUrl(event);
   if (resourceUrl) {
-    return BASEMAP_RESOURCE_HINTS.some((hint) => resourceUrl.includes(hint));
+    return /\/tms\/services\/mashhad\/tiles\/|\/map-styles\/[^/]+\/(?:tiles|style(?:-en)?)\.json(?:\?|$)/.test(resourceUrl);
   }
 
   const sourceId = extractSourceId(event);
