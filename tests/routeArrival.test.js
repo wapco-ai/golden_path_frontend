@@ -33,13 +33,58 @@ test('door instructions use the next named area and keep the original route even
   assert.match(door.instruction, /2000909/);
 
   const [named, unknown, sameArea] = withDoorStepInstructions([
-    { ...door, name: 'عبور از باب‌الرضا', toAreaName: 'صحن جامع رضوی' },
+    { ...door, name: 'عبور از اتصال باب‌الرضا', toAreaName: 'صحن جامع رضوی' },
     { ...door, name: 'درب ۲۰۰۰۹۰۹', toAreaName: 'area 123' },
     { ...door, fromAreaId: 1, toAreaId: 1 }
   ], intl);
-  assert.equal(named.instruction, 'از باب‌الرضا وارد صحن جامع رضوی شوید.');
+  assert.equal(named.instruction, 'از باب‌الرضا به صحن جامع رضوی بروید.');
   assert.equal(unknown.instruction, 'مسیر را ادامه دهید.');
-  assert.equal(sameArea.instruction, 'مسیر را ادامه دهید.');
+  assert.equal(sameArea.instruction, 'در راهروی غربی بین صحن پیامبر اعظم و قدس ادامه دهید.');
+});
+
+test('repeat steps in the same area are removed only on straight stretches', () => {
+  const messages = JSON.parse(readFileSync(new URL('../src/locales/fa.json', import.meta.url), 'utf8'));
+  const intl = createIntl({ locale: 'fa', messages });
+  const line = [[59.61, 36.28], [59.611, 36.28], [59.611, 36.281]];
+  const geo = { geometry: { type: 'LineString', coordinates: line } };
+  const corner = getLineDistanceMeters(line.slice(0, 2)) / getLineDistanceMeters(line);
+  const door = { ...steps[1], fromAreaId: 10, toAreaId: 11, toAreaName: 'صحن پیامبر اعظم' };
+  const inside = { ...door, fromAreaId: 11 };
+  const arrival = { ...steps[2], routeM: 1, instruction: 'به نزدیکی مقصد رسیدید.' };
+  const input = [steps[0], { ...door, routeM: 0.1 }, { ...inside, toAreaId: 12, routeM: 0.2 },
+    { ...inside, fromAreaId: 12, routeM: corner }, { ...inside, routeM: 0.65 },
+    { ...inside, routeM: 0.7, landmark: 'آبنما' }, arrival];
+  const before = structuredClone(input);
+  const display = withDoorStepInstructions(input, intl, geo);
+
+  assert.deepEqual(display.map(s => s.routeM), [0, 0.1, corner, 0.7, 1]);
+  assert.equal(display[1].instruction, 'به صحن پیامبر اعظم بروید.');
+  assert.equal(display[2].instruction, 'به چپ بپیچید.');
+  assert.equal(display[2].maneuver, 'left');
+  assert.equal(display[3].landmark, 'آبنما');
+  assert.equal(display.at(-1), arrival);
+  const segments = buildRouteMSegments(display, line);
+  assert.deepEqual(segments.at(-1).coordinates.at(-1), line.at(-1));
+  assert.ok(Math.abs(segments.reduce((sum, s) => sum + getLineDistanceMeters(s.coordinates), 0)
+    - getLineDistanceMeters(line)) < 0.01);
+  assert.deepEqual(input, before);
+});
+
+test('an entrance, a different area, and a floor transfer remain distinct', () => {
+  const messages = JSON.parse(readFileSync(new URL('../src/locales/fa.json', import.meta.url), 'utf8'));
+  const intl = createIntl({ locale: 'fa', messages });
+  const line = [[59.61, 36.28], [59.612, 36.28]];
+  const geo = { geometry: { type: 'LineString', coordinates: line } };
+  const door = { ...steps[1], fromAreaId: 10, toAreaId: 11, toAreaName: 'رواق آزمایشی' };
+  const transfer = { type: 'stepChangeFloor', floor: 0, toFloor: 1, instruction: 'با آسانسور به طبقهٔ یک بروید.' };
+  const input = [{ ...door, routeM: 0.2 }, { ...door, routeM: 0.3, name: 'درگاه شمالی' },
+    { ...door, routeM: 0.4, fromAreaId: 12 }, transfer, { ...door, floor: 1, routeM: 0.5 }];
+  const display = withDoorStepInstructions(input, intl, geo);
+  assert.equal(display.length, input.length);
+  assert.equal(display[1].instruction, 'از درگاه شمالی عبور کنید.');
+  assert.equal(display[2].instruction, 'وارد رواق آزمایشی شوید.');
+  assert.equal(display[3], transfer);
+  assert.equal(display[4].instruction, 'وارد رواق آزمایشی شوید.');
 });
 
 for (const [label, arrival] of [

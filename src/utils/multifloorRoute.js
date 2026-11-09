@@ -59,6 +59,6 @@ export function multifloorSteps(geo, steps, translate = s => s.instruction || s.
     const durationSeconds = step.type === 'stepChangeFloor' ? Number(step.duration_s || 0)
       : isWalk ? Number(segment.duration_s) * Math.max(0, toM - fromM) : 0;
     return { ...step, id: index + 1, coordinates: points, fromM, toM, durationSeconds, distanceMeters,
-      instruction: step.instruction || translate(step, index), direction: step.type === 'stepArriveDestination' ? 'arrived' : 'straight' };
+      instruction: step.instruction || translate(step, index), direction: step.maneuver || (step.type === 'stepArriveDestination' ? 'arrived' : 'straight') };
   });
 }
