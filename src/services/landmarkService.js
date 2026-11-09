@@ -146,7 +146,7 @@ export const fetchLandmarkPlaces = async ({
     return cachedEntry.data;
   }
 
-  const inflightRequest = inflightRequests.get(requestKey);
+  const inflightRequest = !signal && inflightRequests.get(requestKey);
   if (inflightRequest) {
     return inflightRequest;
   }
@@ -177,12 +177,12 @@ export const fetchLandmarkPlaces = async ({
     return normalizedData;
   })();
 
-  inflightRequests.set(requestKey, requestPromise);
+  if (!signal) inflightRequests.set(requestKey, requestPromise);
 
   try {
     return await requestPromise;
   } finally {
-    inflightRequests.delete(requestKey);
+    if (!signal && inflightRequests.get(requestKey) === requestPromise) inflightRequests.delete(requestKey);
   }
 };
 

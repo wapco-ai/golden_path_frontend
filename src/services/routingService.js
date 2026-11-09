@@ -1,3 +1,4 @@
+import { userRequest } from '../api/userRequest.js';
 import { getPointFloor, normalizeFloor } from '../utils/floors.js';
 import appConfig from '../config/appConfig.js';
 import {
@@ -270,21 +271,13 @@ export const requestRouting = async ({ origin, destination, mode, gender, lang, 
   beginRoutingRequest();
 
   try {
-    const body = buildRequestBody({ origin, destination, mode, gender, lang, maxAlternatives, floor, allowNearbyDestination });
+    const body = { ...buildRequestBody({ origin, destination, mode, gender, lang, maxAlternatives, floor, allowNearbyDestination }), authStrict: true };
     const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
-    const accessToken = typeof sessionStorage !== 'undefined'
-      ? sessionStorage.getItem('gp_user_access_token')
-      : null;
-
-    if (accessToken) {
-      headers.Authorization = `Bearer ${accessToken}`;
-    }
-
-    const response = await fetch(appConfig.routingRouteUrl, {
+    const response = await userRequest(appConfig.routingRouteUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
-      signal
+      signal, timeout: 30000
     });
 
     if (!response.ok) {

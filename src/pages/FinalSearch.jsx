@@ -2,7 +2,7 @@ import FloorControl from '../components/map/FloorControl';
 import FloorTag from '../components/map/FloorTag';
 import useMapFloor from '../hooks/useMapFloor';
 import useEndpointFloor from '../hooks/useEndpointFloor';
-import { getPointFloor, localRouteFallbackFloor, pointIsOnFloor } from '../utils/floors';
+import { getPointFloor, pointIsOnFloor } from '../utils/floors';
 import { readQrPoint } from '../services/qrLocationService';
 import { getSessionFloor, setSessionFloor } from '../utils/sessionFloor';
 import { routeCoordinates as getRouteCoordinates, routeOnMapFloor, routeCoordinatesOnFloor } from '../utils/multifloorRoute';
@@ -20,8 +20,6 @@ import ModeSelector from '../components/common/ModeSelector';
 import SaveDestinationModal from '../components/common/SaveDestinationModal';
 import { useRouteStore } from '../store/routeStore';
 import { useLangStore } from '../store/langStore';
-import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
-import { analyzeRoute } from '../utils/routeAnalysis';
 import useLocaleDigits from '../utils/useLocaleDigits';
 import { toast } from 'react-toastify';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
@@ -415,32 +413,15 @@ const FinalSearch = () => {
       } catch (err) {
         if (err?.name === 'AbortError') return;
         console.warn('routing service failed', err);
-        if (err.status) { clearPersistedRouteData(); setLastFailedKey(attemptKey); toast.error(intl.formatMessage({ id: 'noRouteFound' })); return; }
+        if (err.status) { clearPersistedRouteData(); setLastFailedKey(attemptKey); toast.error(intl.formatMessage({ id: err.status >= 500 ? 'generalErrorMessage' : 'noRouteFound' })); return; }
       } finally {
         if (isMounted) setIsRequestingRoute(false);
       }
 
       if (!isMounted) return;
-      let result = null;
-      const fallbackFloor = localRouteFallbackFloor(origin, destination);
-      if (fallbackFloor !== null) {
-        try {
-          const fallbackData = await loadGeoJsonData({ floor: fallbackFloor, signal: controller.signal });
-          if (!isMounted) return;
-          result = analyzeRoute(origin, destination, fallbackData, transportMode, selectedGender);
-        } catch (error) {
-          if (error?.name === 'AbortError' || !isMounted) return;
-        }
-      }
-      if (!result) {
-        toast.error(intl.formatMessage({ id: 'noRouteFound' }));
-        clearPersistedRouteData();
-        setLastFailedKey(attemptKey);
-        return;
-      }
-      const { geo, steps, alternatives, sahns } = result;
-      persistRouteData(geo, steps, alternatives, sahns);
-      setLastFailedKey(null);
+      clearPersistedRouteData();
+      setLastFailedKey(attemptKey);
+      toast.error(intl.formatMessage({ id: 'generalErrorMessage' }));
     };
 
     runRouting();

@@ -1,3 +1,4 @@
+import apiUser from '../src/api/apiUser.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { routeOnFloor, routeCoordinates, multifloorSteps, activeRouteCoordinates } from '../src/utils/multifloorRoute.js';
@@ -149,10 +150,12 @@ test('map picking accepts only actual access points on the selected floor and de
 });
 test('routing request and response preserve floor and transfer metadata', async t => {
   let body;
-  t.mock.method(globalThis,'fetch',async (_url,options) => {
-    body=JSON.parse(options.body);
-    return {ok:true,json:async () => ({geo,steps:[{type:'stepChangeFloor',coord:{lat:36.3,lon:59.6},endCoord:{lat:36.3,lon:59.6001},fromFloor:-1,toFloor:1,floor:-1,segmentId:1,duration_s:36}],estimatedMinutes:56/60,distanceMeters:20})};
-  });
+  const originalAdapter = apiUser.defaults.adapter;
+  t.after(() => { apiUser.defaults.adapter = originalAdapter; });
+  apiUser.defaults.adapter = async config => {
+    body=JSON.parse(config.data);
+    return {status:200,config,data:{geo,steps:[{type:'stepChangeFloor',coord:{lat:36.3,lon:59.6},endCoord:{lat:36.3,lon:59.6001},fromFloor:-1,toFloor:1,floor:-1,segmentId:1,duration_s:36}],estimatedMinutes:56/60,distanceMeters:20}};
+  };
   const r=await requestRouting({origin:{coordinates:[36.3,59.6],floor:-1},destination:{coordinates:[36.3,59.6],floor:1}});
   assert.equal(body.origin.floor,-1); assert.equal(body.destination.floor,1);
   assert.equal(r.steps[0].toFloor,1); assert.equal(r.steps[0].segmentId,1);

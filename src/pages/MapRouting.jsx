@@ -1232,6 +1232,7 @@ const MapRoutingPage = () => {
 
   const handleCurrentLocationSelect = () => {
     cancelEndpointSelection();
+    for (const key of ['qrLat', 'qrLng', 'qrId', 'qrFloor', 'qrName']) sessionStorage.removeItem(key);
     // Wait for fresh coordinates before the completed-endpoints effect can route.
     setUserLocation(previous => previous?.source === 'gps' ? { ...previous, coordinates: null } : null);
     setIsTracking(true);

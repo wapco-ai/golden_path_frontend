@@ -1,7 +1,8 @@
 import appConfig from '../config/appConfig.js';
 import { normalizeRouteSnapshot } from './routingService.js';
 
-const ACCESS_TOKEN_KEY = 'gp_user_access_token';
+import { userRequest } from '../api/userRequest.js';
+import { useUserAuthStore } from '../auth/user/userAuthStore.js';
 
 export const historyModeToTransportMode = (mode) => {
   if (mode === 'wheelchair') return 'wheelchair';
@@ -16,19 +17,16 @@ export const historyModeMessageId = (mode) => {
 };
 
 export const fetchRouteHistory = async ({ limit = 20, signal } = {}) => {
-  const token = typeof sessionStorage !== 'undefined'
-    ? sessionStorage.getItem(ACCESS_TOKEN_KEY)
-    : null;
+  const token = useUserAuthStore.getState().accessToken;
 
   if (!token) {
     return [];
   }
 
-  const response = await fetch(`${appConfig.apiBaseUrl}/api/v1/users/me/route-history?limit=${encodeURIComponent(limit)}`, {
+  const response = await userRequest(`${appConfig.apiBaseUrl}/api/v1/users/me/route-history?limit=${encodeURIComponent(limit)}`, {
     method: 'GET',
     headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${token}`
+      Accept: 'application/json'
     },
     signal
   });

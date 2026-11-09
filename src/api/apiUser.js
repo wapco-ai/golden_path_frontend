@@ -1,9 +1,10 @@
 import axios from 'axios';
-import appConfig from '../config/appConfig';
-import { isSameUserSession, useUserAuthStore } from '../auth/user/userAuthStore';
+import appConfig from '../config/appConfig.js';
+import { isSameUserSession, useUserAuthStore } from '../auth/user/userAuthStore.js';
 
 const apiUser = axios.create({
   baseURL: appConfig.apiBaseUrl,
+  timeout: 15000,
   headers: {
     Accept: 'application/json'
   }
@@ -39,7 +40,13 @@ const retryForCurrentSession = (request, currentSession) => {
 };
 
 apiUser.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (!response.config.skipUserAuth && response.config._userSession
+      && !isSameUserSession(response.config._userSession, useUserAuthStore.getState())) {
+      return Promise.reject(new Error('User session changed during request'));
+    }
+    return response;
+  },
   async (error) => {
     const status = error?.response?.status;
     const originalRequest = error?.config || {};

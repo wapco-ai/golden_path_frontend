@@ -1,3 +1,5 @@
+import { submitEmergency } from '../services/emergencyService';
+import { validGps, isFresh } from '../utils/locationQuality.js';
 import FloorControl from '../components/map/FloorControl';
 import { routeCoordinates as getRouteCoordinates, isMultifloor, multifloorSteps, activeRouteCoordinates } from '../utils/multifloorRoute';
 import { withDoorStepInstructions } from '../utils/routeStepInstructions';
@@ -11,9 +13,7 @@ import advancedDeadReckoningService from '../services/AdvancedDeadReckoningServi
 import '../styles/Routing.css';
 import { useRouteStore } from '../store/routeStore';
 import { useLangStore } from '../store/langStore';
-import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
-import { analyzeRoute } from '../utils/routeAnalysis';
-import { getPointFloor, localRouteFallbackFloor } from '../utils/floors';
+import { getPointFloor } from '../utils/floors';
 import useLocaleDigits from '../utils/useLocaleDigits';
 import { toast } from 'react-toastify';
 import ttsService from '../services/ttsService';
@@ -62,6 +62,14 @@ const RoutingPage = () => {
   const [showSoundModal, setShowSoundModal] = useState(false);
   const [selectedEmergency, setSelectedEmergency] = useState(null);
   const [emergencyDescription, setEmergencyDescription] = useState('');
+  const userSessionGeneration = useUserAuthStore(state => state.sessionGeneration);
+  const emergencyInFlight = useRef(false);
+  const emergencyRequest = useRef(null);
+  const mountedRef = useRef(true);
+  const [gpsTimestamp, setGpsTimestamp] = useState(null);
+  const [drTimestamp, setDrTimestamp] = useState(null);
+  const [positionClock, setPositionClock] = useState(Date.now());
+  const gpsFixRef = useRef(null);
   const [selectedSoundOption, setSelectedSoundOption] = useState('on');
   const [isRoutingActive, setIsRoutingActive] = useState(false);
   const [isClosingEmergency, setIsClosingEmergency] = useState(false);
@@ -230,7 +238,6 @@ const RoutingPage = () => {
   });
 
   const initialRouteCoordRef = useRef(null);
-  const PRECISE_GPS_ACCURACY_THRESHOLD = 25;
 
   const getRouteStartLocation = useCallback((geo = routeGeo) => {
     const startCoord = getRouteCoordinates(geo)?.[0];
@@ -304,13 +311,29 @@ const RoutingPage = () => {
   useEffect(() => {
     const remove = advancedDeadReckoningService.addListener(data => {
       setIsDrActive(data.isActive);
+      setDrTimestamp(data.positionTimestamp);
       if (data.geoPosition) setDrPosition(data.geoPosition);
       if (data.geoPath) setDrGeoPath(data.geoPath);
       if (Number.isFinite(data.heading)) {
         setUserHeading(data.heading);
       }
     });
-    return remove;
+    mountedRef.current = true;
+    const timer = setInterval(() => setPositionClock(Date.now()), 1000);
+    const onVisibility = () => {
+      if (document.hidden) {
+        advancedDeadReckoningService.stop();
+        setDrTimestamp(null);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      mountedRef.current = false;
+      remove();
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+      advancedDeadReckoningService.stop();
+    };
   }, []);
 
   useEffect(() => {
@@ -444,33 +467,13 @@ const RoutingPage = () => {
         console.warn('routing service failed', err);
         if (err.status) {
           persistRouteData(null, [], []);
-          toast.error(intl.formatMessage({ id: 'noRouteFound' }));
+          toast.error(intl.formatMessage({ id: err.status >= 500 ? 'generalErrorMessage' : 'noRouteFound' }));
           return false;
         }
       }
 
-      const fallbackFloor = localRouteFallbackFloor(orig, dest);
-      if (fallbackFloor === null) {
-        persistRouteData(null, [], []);
-        toast.error(intl.formatMessage({ id: 'noRouteFound' }));
-        return false;
-      }
-      try {
-        const geoData = await loadGeoJsonData({ floor: fallbackFloor, signal: controller?.signal });
-        const analysis = analyzeRoute(orig, dest, geoData, transportMode, gender);
-        if (!analysis) {
-          toast.error(intl.formatMessage({ id: 'noRouteFound' }));
-          persistRouteData(null, [], []);
-          return false;
-        }
-        const { geo, steps, alternatives, sahns } = analysis;
-        persistRouteData(geo, steps, alternatives, sahns);
-        return true;
-      } catch (err) {
-        if (err?.name !== 'AbortError') {
-          console.error('failed to rebuild route', err);
-        }
-      }
+      persistRouteData(null, [], []);
+      toast.error(intl.formatMessage({ id: 'generalErrorMessage' }));
       return false;
     })();
 
@@ -698,7 +701,8 @@ const RoutingPage = () => {
     }));
   }, [routeGeo, routeSteps.length, transportMode, intl]);
 
-  const handleEmergencySubmit = () => {
+  const handleEmergencySubmit = async () => {
+    if (emergencyInFlight.current) return;
     if (!selectedEmergency) {
       toast.error(intl.formatMessage({ id: 'emergencySelectType' }));
       return;
@@ -708,22 +712,36 @@ const RoutingPage = () => {
       toast.error(intl.formatMessage({ id: 'emergencyEnterDetails' }));
       return;
     }
-    const emergencyData = {
-      type: selectedEmergency,
-      description: emergencyDescription,
-      location: userLocation,
-      timestamp: new Date().toISOString()
-    };
-
-    console.log('Emergency data:', emergencyData); // For debugging
-
-    // Simulate API call
-    setTimeout(() => {
+    const draftKey = JSON.stringify([userSessionGeneration, selectedEmergency, emergencyDescription.trim()]);
+    if (emergencyRequest.current?.draftKey !== draftKey) {
+      const geo = getLiveNavigationGeo({ isDrActive, drPosition, userLocation: gpsFixRef.current
+        ? [gpsFixRef.current.lat, gpsFixRef.current.lng] : userLocation,
+        drTimestamp, gpsTimestamp, now: Date.now() });
+      const fromDr = isDrActive && isFresh(drTimestamp)
+        && (!isFresh(gpsTimestamp) || drTimestamp > gpsTimestamp);
+      emergencyRequest.current = { draftKey, payload: {
+        requestId: crypto.randomUUID(), type: selectedEmergency,
+        description: emergencyDescription.trim(),
+        location: geo ? { ...geo, source: fromDr ? 'dead_reckoning' : 'gps',
+          accuracy: fromDr ? null : gpsFixRef.current?.accuracy,
+          timestamp: fromDr ? drTimestamp : gpsTimestamp, floor: getSessionFloor() } : null
+      } };
+    }
+    emergencyInFlight.current = true;
+    try {
+      await submitEmergency(emergencyRequest.current.payload);
+      emergencyRequest.current = null;
+      if (!mountedRef.current) return;
       toast.success(intl.formatMessage({ id: 'emergencySubmissionSuccess' }));
       setSelectedEmergency(null);
       setEmergencyDescription('');
-      toggleEmergencyModal();
-    }, 1000);
+      setShowEmergencyModal(false);
+    } catch (error) {
+      if (error?.response?.status === 422) emergencyRequest.current = null;
+      if (mountedRef.current) toast.error(intl.formatMessage({ id: 'emergencySubmissionError' }));
+    } finally {
+      emergencyInFlight.current = false;
+    }
   };
 
   useEffect(() => {
@@ -957,9 +975,10 @@ const RoutingPage = () => {
     stepIndex: currentStep,
     routeCoordinates: activeRouteCoordinates(routeGeo, routeData?.steps?.[currentStep]),
     isRoutingActive, isDemoMode, hasArrived, isDrActive,
-    drPosition, userLocation, userHeading, sessionFloor: routeOriginFloor
+    drTimestamp, gpsTimestamp, now: positionClock, drPosition, userLocation: gpsFixRef.current
+      ? [gpsFixRef.current.lat, gpsFixRef.current.lng] : userLocation, userHeading, sessionFloor: routeOriginFloor
   }), [routeData?.steps, currentStep, routeGeo, isRoutingActive, isDemoMode,
-    hasArrived, isDrActive, drPosition, userLocation, userHeading, routeOriginFloor]);
+    hasArrived, isDrActive, drPosition, userLocation, userHeading, routeOriginFloor, drTimestamp, gpsTimestamp, positionClock]);
   useEffect(() => {
     if (isMultifloor(routeGeo) && (!isRoutingActive || isDemoMode)) setSessionFloor(navigationFrame.floor);
   }, [routeGeo, navigationFrame.floor, isRoutingActive, isDemoMode]);
@@ -984,7 +1003,7 @@ const RoutingPage = () => {
       return;
     }
 
-    if (!isDrActive && !hasPreciseGps) {
+    if (!isDrActive && !hasPreciseGps && !gpsFixRef.current) {
       updateUserLocationToRouteStart();
     }
 
@@ -1248,64 +1267,32 @@ const RoutingPage = () => {
     return () => clearInterval(timer);
   }, [routeData]);
 
-  // Get user's current location only if no QR coordinates provided
+  // QR is an initial anchor, never a reason to suppress subsequent live GPS.
   useEffect(() => {
-    if (!storedLat || !storedLng) {
-      if (navigator.geolocation) {
-        const options = {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        };
-
-        const success = (position) => {
-          if (sessionStorage.getItem('qrLat') && sessionStorage.getItem('qrLng')) {
-            return;
-          }
-
-          const accuracy = position.coords.accuracy;
-          const hasValidAccuracy = Number.isFinite(accuracy) && accuracy <= PRECISE_GPS_ACCURACY_THRESHOLD;
-
-          if (hasValidAccuracy) {
-            setHasPreciseGps(true);
-            setUserLocation([position.coords.latitude, position.coords.longitude]);
-            if (Number.isFinite(position.coords.heading)) {
-              setUserHeading(position.coords.heading);
-            }
-          } else {
-            setHasPreciseGps(false);
-            const snappedToRoute = updateUserLocationToRouteStart();
-            if (!snappedToRoute) {
-              setUserLocation([36.2880, 59.6157]);
-            }
-          }
-
-          advancedDeadReckoningService.processGpsData(
-            { lat: position.coords.latitude, lng: position.coords.longitude },
-            accuracy
-          );
-        };
-
-        const error = (err) => {
-          console.warn(`ERROR(${err.code}): ${err.message}`);
-          setHasPreciseGps(false);
-          const snappedToRoute = updateUserLocationToRouteStart();
-          if (!snappedToRoute) {
-            setUserLocation([36.2880, 59.6157]);
-          }
-        };
-
-        const watchId = navigator.geolocation.watchPosition(success, error, options);
-
-        return () => navigator.geolocation.clearWatch(watchId);
-      }
-    }
-  }, [PRECISE_GPS_ACCURACY_THRESHOLD, storedLat, storedLng, updateUserLocationToRouteStart]);
+    if (!navigator.geolocation) return;
+    const watchId = navigator.geolocation.watchPosition((position) => {
+      const geo = { lat: position.coords.latitude, lng: position.coords.longitude };
+      const { accuracy, heading } = position.coords;
+      if (!validGps(geo, accuracy, position.timestamp)) return;
+      if (gpsFixRef.current && position.timestamp < gpsFixRef.current.timestamp) return;
+      gpsFixRef.current = { ...geo, accuracy, timestamp: position.timestamp };
+      setGpsTimestamp(position.timestamp);
+      setHasPreciseGps(true);
+      setUserLocation([geo.lat, geo.lng]);
+      if (Number.isFinite(heading)) setUserHeading(heading);
+      advancedDeadReckoningService.processGpsData(geo, accuracy, position.timestamp);
+    }, () => {
+      // Keep the last valid marker; its timestamp controls whether it can advance a route.
+      setHasPreciseGps(false);
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, []);
 
   // fromM is the real segment boundary, including unequal two-step routes.
   useEffect(() => {
     if (!isRoutingActive || isDemoMode) return;
-    const geo = getLiveNavigationGeo({ isDrActive, drPosition, userLocation });
+    const geo = getLiveNavigationGeo({ isDrActive, drPosition, userLocation: gpsFixRef.current
+      ? [gpsFixRef.current.lat, gpsFixRef.current.lng] : userLocation, drTimestamp, gpsTimestamp, now: positionClock });
     const progress = getNavigationProgress(
       geo, routeData?.steps, currentStep, activeRouteCoordinates(routeGeo, routeData?.steps?.[currentStep])
     );
@@ -1317,7 +1304,7 @@ const RoutingPage = () => {
       advancedDeadReckoningService.stop();
     }
   }, [routeData?.steps, routeGeo, isRoutingActive, isDemoMode, currentStep,
-    isDrActive, drPosition, userLocation]);
+    isDrActive, drPosition, userLocation, drTimestamp, gpsTimestamp, positionClock]);
 
   const toggleMapModal = () => {
     setIsMapModalOpen(!isMapModalOpen);
@@ -1386,6 +1373,7 @@ const RoutingPage = () => {
   };
 
   const toggleEmergencyModal = () => {
+    if (emergencyInFlight.current) return;
     if (showEmergencyModal) {
       // Clear form when closing modal without submission
       setSelectedEmergency(null);
@@ -1451,7 +1439,8 @@ const RoutingPage = () => {
     setUserLocation([lat, lng]);
     setDrPosition({ lat, lng });
     setIsRoutingActive(true);
-    advancedDeadReckoningService.start({ lat, lng }).catch((error) => {
+    advancedDeadReckoningService.start(isFresh(gpsFixRef.current?.timestamp)
+      ? { lat: gpsFixRef.current.lat, lng: gpsFixRef.current.lng } : { lat, lng }).catch((error) => {
       console.warn('Unable to start navigation sensors', error);
       advancedDeadReckoningService.stop();
       setIsRoutingActive(false);
@@ -1478,6 +1467,7 @@ const RoutingPage = () => {
   };
 
   const handleEmergencySelect = (type) => {
+    if (emergencyInFlight.current) return;
     setSelectedEmergency(type);
   };
 
@@ -1723,7 +1713,7 @@ const RoutingPage = () => {
                 placeholder={intl.formatMessage({ id: 'emergencyPlaceholder' })}
                 className="emergency-textarea"
                 value={emergencyDescription}
-                onChange={(e) => setEmergencyDescription(e.target.value)}
+                onChange={(e) => { if (!emergencyInFlight.current) setEmergencyDescription(e.target.value); }}
               />
             </div>
 

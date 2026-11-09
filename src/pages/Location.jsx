@@ -605,7 +605,7 @@ const Location = () => {
 
       const savedComment = buildDisplayComment(response, pendingComment);
 
-      setComments(prev => {
+      if (response?.status === 'approved') setComments(prev => {
         const updated = [savedComment, ...prev];
         const average = updated.length
           ? updated.reduce((sum, item) => sum + (item.rating || 0), 0) / updated.length
@@ -615,7 +615,6 @@ const Location = () => {
       });
 
       setComment('');
-      setViews(prev => prev + 1);
       setRating(0);
       setHoverRating(0);
       setShowCommentModal(false);

@@ -1,3 +1,4 @@
+import { isFresh } from './locationQuality.js';
 import { haversineMeters, sliceLineByFraction } from './routeSegments.js';
 
 const fraction = (value) => value !== null && value !== undefined && value !== ''
@@ -123,23 +124,31 @@ export const getStepPreview = (step, routeCoordinates = [], stepIndex = 0) => {
   return { geo, heading, routeM: previewM, coordinates };
 };
 
-export const getLiveNavigationGeo = ({ isDrActive, drPosition, userLocation }) => {
-  if (isDrActive && isNavigationGeo(drPosition)) return { lat: drPosition.lat, lng: drPosition.lng };
-  if (Array.isArray(userLocation)) return asGeo([userLocation[1], userLocation[0]]);
+export const getLiveNavigationGeo = ({ isDrActive, drPosition, userLocation, drTimestamp, gpsTimestamp, now = Date.now() }) => {
+  if (isDrActive && (drTimestamp === undefined || isFresh(drTimestamp, now))
+    && (drTimestamp === undefined || !isFresh(gpsTimestamp, now) || drTimestamp > gpsTimestamp)
+    && isNavigationGeo(drPosition)) return { lat: drPosition.lat, lng: drPosition.lng };
+  if ((gpsTimestamp === undefined || isFresh(gpsTimestamp, now)) && Array.isArray(userLocation)) return asGeo([userLocation[1], userLocation[0]]);
   return null;
 };
 
 export const resolveNavigationFrame = ({
   step, stepIndex = 0, routeCoordinates = [], isRoutingActive = false,
   isDemoMode = false, hasArrived = false, isDrActive = false,
-  drPosition, userLocation, userHeading, sessionFloor = 0
+  drPosition, userLocation, userHeading, sessionFloor = 0, drTimestamp, gpsTimestamp, now
 }) => {
   const live = isRoutingActive && !isDemoMode;
   const preview = getStepPreview(live && step?.previewAt === 'end'
     ? { ...step, previewAt: 'start' } : step, routeCoordinates, stepIndex);
-  const liveGeo = getLiveNavigationGeo({ isDrActive, drPosition, userLocation });
+  const liveGeo = getLiveNavigationGeo({ isDrActive, drPosition, userLocation, drTimestamp, gpsTimestamp, now });
+  // Keep the last measured marker visible when a signal expires. Only liveGeo
+  // can be used by navigation progress or emergency reporting.
+  const lastKnownGeo = Number.isFinite(drTimestamp) && isNavigationGeo(drPosition)
+    && (!Number.isFinite(gpsTimestamp) || drTimestamp > gpsTimestamp)
+    ? drPosition : Number.isFinite(gpsTimestamp) && Array.isArray(userLocation)
+      ? asGeo([userLocation[1], userLocation[0]]) : null;
   const geo = hasArrived ? asGeo(routeCoordinates.at(-1))
-    : live ? (liveGeo || preview.geo) : preview.geo;
+    : live ? (liveGeo || lastKnownGeo || preview.geo) : preview.geo;
   const projection = isNavigationGeo(geo) ? projectPointOnRoute([geo.lng, geo.lat], routeCoordinates) : null;
   const floor = [step?.floor, step?.routeStep?.floor, sessionFloor]
     .find((value) => value !== null && value !== undefined && value !== '' && Number.isInteger(Number(value)));

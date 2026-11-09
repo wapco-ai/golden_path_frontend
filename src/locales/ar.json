@@ -127,7 +127,7 @@
   "drAngularSpeed": "السرعة الزاوية:",
   "drEstimatedStride": "طول الخطوة المقدر:",
   "emergencyTitle": "طلب طوارئ الحرم",
-  "emergencySubtitle": "يرجى اختيار نوع الطلب وكتابة وصف عنه. سيصل الخدم إلى موقعك بأسرع وقت.",
+  "emergencySubtitle": "يرجى اختيار نوع الطلب وكتابة وصف عنه. سيُسجّل الطلب لمراجعته من قِبل الدعم.",
   "emergencyFire": "بلاغ حريق",
   "emergencyTheft": "بلاغ سرقة",
   "emergencyMedical": "طلب خدمات طبية",

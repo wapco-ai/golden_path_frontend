@@ -1,35 +1,7 @@
-import appConfig from '../config/appConfig';
-import { USER_ACCESS_TOKEN_KEY, useUserAuthStore } from '../auth/user/userAuthStore';
-import { convertLngLatToUtm32640 } from '../utils/utm';
-import { getSessionFloor } from '../utils/sessionFloor';
-
-const resolveAuthToken = () => {
-  const storeToken = useUserAuthStore.getState().accessToken;
-  if (storeToken) return storeToken;
-
-  if (typeof window !== 'undefined') {
-    const sessionToken = window.sessionStorage?.getItem?.(USER_ACCESS_TOKEN_KEY);
-    if (sessionToken) return sessionToken;
-
-    const localToken = window.localStorage?.getItem?.(USER_ACCESS_TOKEN_KEY);
-    if (localToken) return localToken;
-  }
-
-  return null;
-};
-
-const buildAuthHeaders = () => {
-  const headers = {
-    Accept: 'application/json'
-  };
-
-  const token = resolveAuthToken();
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
-  return headers;
-};
+import { userRequest } from '../api/userRequest.js';
+import appConfig from '../config/appConfig.js';
+import { convertLngLatToUtm32640 } from '../utils/utm.js';
+import { getSessionFloor } from '../utils/sessionFloor.js';
 
 const normalizeCoordinates = ({ x, y, coordinates }) => {
   const hasXY = Number.isFinite(x) && Number.isFinite(y);
@@ -103,11 +75,11 @@ export const createDestination = async ({
   }
 
   const headers = {
-    ...buildAuthHeaders(),
+
     'Content-Type': 'application/json'
   };
 
-  const response = await fetch(appConfig.destinationsUrl, {
+  const response = await userRequest(appConfig.destinationsUrl, {
     method: 'POST',
     headers,
     body: JSON.stringify(payload)
@@ -135,9 +107,9 @@ export const listDestinations = async ({
 
   const requestUrl = `${appConfig.destinationsUrl}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
 
-  const response = await fetch(requestUrl, {
+  const response = await userRequest(requestUrl, {
     method: 'GET',
-    headers: buildAuthHeaders(),
+
     signal
   });
 
@@ -175,10 +147,10 @@ export const updateDestination = async (destinationId, {
   if (typeof address === 'string') payload.address = address;
   if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) payload.metadata = metadata;
 
-  const response = await fetch(`${appConfig.destinationsUrl}/${destinationId}`, {
+  const response = await userRequest(`${appConfig.destinationsUrl}/${destinationId}`, {
     method: 'PUT',
     headers: {
-      ...buildAuthHeaders(),
+
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(payload)
@@ -193,9 +165,8 @@ export const deleteDestination = async (destinationId) => {
     throw new Error('شناسه مقصد معتبر نیست');
   }
 
-  const response = await fetch(`${appConfig.destinationsUrl}/${destinationId}`, {
-    method: 'DELETE',
-    headers: buildAuthHeaders()
+  const response = await userRequest(`${appConfig.destinationsUrl}/${destinationId}`, {
+    method: 'DELETE'
   });
 
   return parseResponse(response, 'Failed to delete destination');

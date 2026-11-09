@@ -19,7 +19,7 @@ export const sendSupportFeedback = async ({ subject, message }) => {
 };
 
 export const getMyFeedbacks = async ({ limit = 20, page = 1 } = {}) => {
-  const response = await apiUser.get('/support/feedbacks/me', {
+  const response = await apiUser.get('/api/v1/support/feedbacks/me', {
     timeout: REQUEST_TIMEOUT_MS,
     params: {
       limit,

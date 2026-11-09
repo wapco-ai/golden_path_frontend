@@ -1,8 +1,15 @@
+import { validGeo, validGps, isFresh, HEADING_MAX_AGE } from '../utils/locationQuality.js';
+
 class AdvancedDeadReckoningService {
   constructor() {
     this.isActive = false;
     this.stepCount = 0;
-    this.heading = 0; // degrees
+    this.heading = null;
+    this._headingAt = null;
+    this.positionTimestamp = null;
+    this._lastGpsAt = null;
+    this._lastMotionAt = null;
+    this._sensorTimer = null;
     this.geoPosition = null;
     this.geoPath = [];
     this.listeners = new Set();
@@ -43,6 +50,7 @@ class AdvancedDeadReckoningService {
   _extractHeading(e) {
     // iOS Safari reports compass heading directly (clockwise from magnetic north).
     if (typeof e.webkitCompassHeading === 'number' && Number.isFinite(e.webkitCompassHeading)) {
+      if (Number.isFinite(e.webkitCompassAccuracy) && (e.webkitCompassAccuracy < 0 || e.webkitCompassAccuracy > 30)) return null;
       return this._normalizeHeading(e.webkitCompassHeading);
     }
 
@@ -70,13 +78,20 @@ class AdvancedDeadReckoningService {
       stepCount: this.stepCount,
       geoPosition: this.geoPosition,
       geoPath: this.geoPath.slice(),
-      heading: this.heading
+      positionTimestamp: this.positionTimestamp,
+      heading: isFresh(this._headingAt, Date.now(), HEADING_MAX_AGE) ? this.heading : null
     };
     this.listeners.forEach(cb => cb(data));
   }
 
   async start(initialPosition) {
+    if (!validGeo(initialPosition)) throw new Error('Invalid initial position');
     this._stopSensors();
+    this.heading = null;
+    this._headingAt = null;
+    this.positionTimestamp = null;
+    this._lastGpsAt = null;
+    this._lastMotionAt = null;
     const requestId = ++this._sensorRequestId;
     this.geoPosition = { ...initialPosition };
     this.geoPath = [this.geoPosition];
@@ -102,6 +117,10 @@ class AdvancedDeadReckoningService {
   }
 
   reset(position) {
+    this.heading = null;
+    this._headingAt = null;
+    this.positionTimestamp = null;
+    this._lastGpsAt = null;
     this.stepCount = 0;
     this._lastStepAt = 0;
     this._stepArmed = true;
@@ -118,7 +137,7 @@ class AdvancedDeadReckoningService {
   }
 
   async _startSensors(requestId) {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') { this.isActive = false; return; }
     if (typeof DeviceMotionEvent === 'undefined') {
       this.isActive = false;
       this._emit('sensorsUnsupported');
@@ -152,6 +171,14 @@ class AdvancedDeadReckoningService {
     }
 
     window.addEventListener('devicemotion', this.motionHandler);
+    const startedAt = Date.now();
+    this._sensorTimer = setInterval(() => {
+      if (Date.now() - (this._lastMotionAt ?? startedAt) >= 5000) {
+        this.stop();
+        this._emit('sensorsUnsupported');
+      }
+    }, 5000);
+    this._sensorTimer?.unref?.();
     // Compass permission must not prevent step tracking.
     if (hasOrientation && orientationResult.status === 'fulfilled' && orientationResult.value === 'granted') {
       window.addEventListener('deviceorientationabsolute', this.orientationHandler);
@@ -160,6 +187,8 @@ class AdvancedDeadReckoningService {
   }
 
   _stopSensors() {
+    clearInterval(this._sensorTimer);
+    this._sensorTimer = null;
     if (typeof window === 'undefined') return;
     window.removeEventListener('devicemotion', this.motionHandler);
     window.removeEventListener('deviceorientationabsolute', this.orientationHandler);
@@ -176,6 +205,7 @@ class AdvancedDeadReckoningService {
     const withGravity = magnitudeOf(e.accelerationIncludingGravity);
     const linear = magnitudeOf(e.acceleration);
     if (withGravity === null && linear === null) return;
+    this._lastMotionAt = Date.now();
 
     const mode = withGravity !== null ? 'gravity' : 'linear';
     if (mode !== this._motionMode) {
@@ -222,12 +252,16 @@ class AdvancedDeadReckoningService {
     const nextHeading = this._extractHeading(e);
     if (nextHeading !== null) {
       this.heading = nextHeading;
+      this._headingAt = Date.now();
       this._emit('orientationChanged');
     }
   }
 
   _processStep() {
-    if (!this.geoPosition) return;
+    if (!validGeo(this.geoPosition) || !isFresh(this._headingAt, Date.now(), HEADING_MAX_AGE)) {
+      this._emit('stepDetected');
+      return;
+    }
     const stepLength = this.stepLengthMeters; // meters
     const rad = (this.heading * Math.PI) / 180;
     const dLat = (stepLength * Math.cos(rad)) / 111111;
@@ -236,13 +270,17 @@ class AdvancedDeadReckoningService {
       lat: this.geoPosition.lat + dLat,
       lng: this.geoPosition.lng + dLng
     };
+    this.positionTimestamp = Date.now();
     this.geoPath.push({ ...this.geoPosition });
     this._emit('stepDetected');
   }
 
-  processGpsData(position, accuracy) {
+  processGpsData(position, accuracy, timestamp = Date.now()) {
     if (!this.isActive) return;
-    if (accuracy !== undefined && accuracy !== null && accuracy < 8) {
+    if (validGps(position, accuracy, timestamp)
+      && (this._lastGpsAt === null || timestamp >= this._lastGpsAt)) {
+      this._lastGpsAt = timestamp;
+      this.positionTimestamp = timestamp;
       this.geoPosition = { ...position };
       this.geoPath.push({ ...position });
       this._emit('gpsCorrection');

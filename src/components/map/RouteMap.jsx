@@ -43,7 +43,6 @@ const RouteMap = forwardRef(({
   navigationControlled = false,
   isOverviewMode = false,
   progressRouteM = null,
-  showDrTrace = true,
   routeFloor = 0
 }, ref) => {
   const mapRef = useRef(null);
@@ -120,14 +119,12 @@ const RouteMap = forwardRef(({
   };
 
   const [drPosition, setDrPosition] = useState(null);
-  const [drTrace, setDrTrace] = useState({ floor: routeFloor, path: [] });
-  const traceCursor = useRef({ floor: routeFloor, start: 0, length: 0, active: false });
   const [isDrActive, setIsDrActive] = useState(advancedDeadReckoningService.isActive);
   const useDrPosition = isDrActive && !navigationControlled;
   const [heading, setHeading] = useState(userHeading ?? 0);
   const [mapReady, setMapReady] = useState(0);
   const [terrainAvailable, setTerrainAvailable] = useState(false);
-  const [traveledRouteGeo, setTraveledRouteGeo] = useState(null);
+  const [, setTraveledRouteGeo] = useState(null);
   const [remainingRouteGeo, setRemainingRouteGeo] = useState(null);
 
   const handleMapRef = useCallback((map) => {
@@ -194,14 +191,6 @@ const RouteMap = forwardRef(({
     const remove = advancedDeadReckoningService.addListener(data => {
       setIsDrActive(data.isActive);
       if (data.geoPosition) setDrPosition(data.geoPosition);
-      if (data.geoPath) {
-        const { length } = data.geoPath;
-        const cursor = traceCursor.current;
-        const restarted = (data.isActive && !cursor.active) || length < cursor.length;
-        const start = restarted ? 0 : cursor.floor === routeFloor ? cursor.start : cursor.length;
-        traceCursor.current = { floor: routeFloor, start, length, active: data.isActive };
-        setDrTrace({ floor: routeFloor, path: data.geoPath.slice(start) });
-      }
       if (!navigationControlled && data.heading !== undefined && data.heading !== null) {
         setHeading(data.heading);
       }
@@ -532,22 +521,6 @@ const RouteMap = forwardRef(({
         </Marker>
       )}
 
-      {showDrTrace && isDrActive && drTrace.floor === routeFloor && drTrace.path.length > 1 && (
-        <Source
-          id="dr-path"
-          type="geojson"
-          data={{
-            type: 'Feature',
-            geometry: {
-              type: 'LineString',
-              coordinates: drTrace.path.map(p => [p.lng, p.lat])
-            }
-          }}
-        >
-          <Layer id="dr-line" type="line" paint={{ 'line-color': '#e53935', 'line-width': 3, 'line-opacity': 0.7 }} />
-        </Source>
-      )}
-
       {/* Destination marker */}
       {routeSteps && routeSteps.length > 0 && (() => {
         const destinationStep = routeSteps.at(-1);
@@ -612,21 +585,6 @@ const RouteMap = forwardRef(({
             />
           </Source>
         ))}
-
-      {/* Traveled route portion - RED */}
-      {traveledRouteGeo && (traveledRouteGeo.features?.length > 0 || traveledRouteGeo.geometry?.coordinates?.length >= 2) && (
-        <Source id="traveled-route" type="geojson" data={traveledRouteGeo}>
-          <Layer
-            id="traveled-route-line"
-            type="line"
-            paint={{
-              'line-color': '#e74c3c',
-              'line-width': 8
-            }}
-            layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-          />
-        </Source>
-      )}
 
       {/* Remaining route portion - Original style (white + blue dots) */}
       {remainingRouteGeo && (remainingRouteGeo.features?.length > 0 || remainingRouteGeo.geometry?.coordinates?.length >= 2) && (

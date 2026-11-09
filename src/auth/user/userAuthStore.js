@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import appConfig from '../../config/appConfig';
+import appConfig from '../../config/appConfig.js';
 
 export const USER_ACCESS_TOKEN_KEY = 'gp_user_access_token';
 export const USER_REFRESH_TOKEN_KEY = 'gp_user_refresh_token';

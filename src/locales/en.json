@@ -128,7 +128,7 @@
   "drAngularSpeed": "Angular speed:",
   "drEstimatedStride": "Estimated stride:",
   "emergencyTitle": "Shrine emergency request",
-  "emergencySubtitle": "Please select the request type and describe it. Shrine staff will reach you shortly.",
+  "emergencySubtitle": "Please select the request type and describe it. Your request will be recorded for staff review.",
   "emergencyFire": "Report fire",
   "emergencyTheft": "Report theft",
   "emergencyMedical": "Request medical services",
