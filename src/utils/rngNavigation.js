@@ -176,6 +176,11 @@ export const getNavigationProgress = (geo, steps, currentStep, routeCoordinates)
     return { ...unchanged, arrived: nearEnd && projection.lateralDistanceM <= 6
       && projection.alongDistanceM >= projection.totalDistanceM - 3 };
   }
+  const current = steps[currentStep];
+  const stairExit = fraction(current.routeStep?.endRouteM ?? current.endRouteM);
+  if (current.type === 'stepUseStairs' && stairExit !== null
+      && projection.alongDistanceM < stairExit * projection.totalDistanceM - 1) return unchanged;
+
   const next = steps[currentStep + 1];
   const boundary = getStepStartRouteM(next, routeCoordinates);
   const passed = boundary !== null

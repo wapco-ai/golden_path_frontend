@@ -82,8 +82,8 @@ import {
 import ConnectorStops from './ConnectorStops';
 import AdminMapTooltip from './AdminMapTooltip';
 import useConnectorForm from './useConnectorForm';
-import { usesSharedConnectorEditor, connectorError, connectorPayload, floorLabel, floorValue } from '../utils/connectorForm';
-import { createDoorWithInfo, saveConnector } from '../services/adminConnectorsService';
+import { usesSharedConnectorEditor, connectorError, connectorPayload, floorLabel, floorValue, SAME_FLOOR_STAIR_KIND } from '../utils/connectorForm';
+import { createDoorWithInfo, saveConnector, saveSameFloorStair } from '../services/adminConnectorsService';
 import { requestRouting } from '../services/routingService';
 
 const culturalFileLabel = (file) => [file?.title, file?.metadata?.title, file?.name]
@@ -145,6 +145,7 @@ const ADD_PLACE_FUNCTION_OPTIONS = [
   { value: 'connection', label: 'نقطه اتصال' },
   { value: 'elevator', label: 'آسانسور' },
   { value: 'stair', label: 'پله' },
+  { value: SAME_FLOOR_STAIR_KIND, label: 'پلهٔ داخل طبقه' },
   { value: 'ramp', label: 'رمپ' },
   { value: 'escalator', label: 'پله برقی' }
 ];
@@ -1698,8 +1699,10 @@ const Amain = () => {
   const [placeCategory, setPlaceCategory] = useState('');
   const [placeSubcategory, setPlaceSubcategory] = useState('');
   const [placeFunction, setPlaceFunction] = useState('');
-  const connectorForm = useConnectorForm({ map, mapFloor, setMapFloor, setModalOpen: setIsAddPlaceModalOpen, fillInfo: fillDoorInfoForm });
-  const isVerticalConnector = isDoorAccessLayerActive && usesSharedConnectorEditor(placeFunction, connectorForm.value.id);
+  const connectorForm = useConnectorForm({ map, mapFloor, setMapFloor, setModalOpen: setIsAddPlaceModalOpen, fillInfo: fillDoorInfoForm, kind: placeFunction });
+  const isSameFloorStair = isDoorAccessLayerActive && placeFunction === SAME_FLOOR_STAIR_KIND;
+  const isSharedConnector = isDoorAccessLayerActive && usesSharedConnectorEditor(placeFunction, connectorForm.value.id);
+  const canSelectSameFloorStair = isDoorAccessLayerActive && (!connectorForm.value.id || isSameFloorStair);
   const [groupOptions, setGroupOptions] = useState([]);
   const [subGroupOptions, setSubGroupOptions] = useState([]);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
@@ -9331,7 +9334,7 @@ const Amain = () => {
             is_closed: isInactive
           }
         }
-        : {
+        : isSameFloorStair ? {} : {
           routing: {
             bidirectional: routingBidirectional,
             from_area: routingBidirectional ? null : normalizeRoutingAreaId(routingFromArea),
@@ -9339,8 +9342,10 @@ const Amain = () => {
           }
         }),
 
-      time_restrictions: buildTimeRestrictionsPayload(),
-      prayer_restrictions: buildPrayerRestrictionsPayload(),
+      ...(!isSameFloorStair ? {
+        time_restrictions: buildTimeRestrictionsPayload(),
+        prayer_restrictions: buildPrayerRestrictionsPayload()
+      } : {}),
       notes: additionalNotes
     };
   };
@@ -9356,7 +9361,7 @@ const Amain = () => {
         alert('لطفا تمام فیلدهای ضروری را پر کنید');
       }
     } else if (currentStep === 2) {
-      const invalidConnector = isVerticalConnector ? connectorError(connectorForm.value, placeFunction, selectedTransport) : '';
+      const invalidConnector = isSharedConnector ? connectorError(connectorForm.value, placeFunction, selectedTransport, connectorForm.stairCandidates) : '';
       if (invalidConnector) { toast.error(invalidConnector); return; }
       if (selectedTransport.length === 0) {
         alert('لطفا حداقل یک نوع تردد را انتخاب کنید');
@@ -9375,7 +9380,7 @@ const Amain = () => {
         return;
       }
 
-      if (!isAreaLayerActive && !lastCreatedDoorId && !connectorForm.point && !isVerticalConnector) {
+      if (!isAreaLayerActive && !lastCreatedDoorId && !connectorForm.point && !isSharedConnector) {
         toast.error('شناسه درب برای ثبت اطلاعات در دسترس نیست');
         return;
       }
@@ -9400,12 +9405,19 @@ const Amain = () => {
           toast.success(response?.message || 'اطلاعات محدوده با موفقیت ثبت شد');
         } else {
           setIsSavingDoorInfo(true);
-          if (connectorForm.value.id && !isVerticalConnector) throw new Error('برای تغییر اتصال مشترک، یکی از انواع اتصال بین طبقات را انتخاب کنید.');
-          if (isVerticalConnector) {
-            const invalid = connectorError(connectorForm.value, placeFunction, selectedTransport);
+          if (connectorForm.value.id && !isSharedConnector) throw new Error('برای تغییر اتصال مشترک، یکی از انواع اتصال بین طبقات را انتخاب کنید.');
+          if (isSharedConnector) {
+            const invalid = connectorError(connectorForm.value, placeFunction, selectedTransport, connectorForm.stairCandidates);
             if (invalid) throw new Error(invalid);
-            const saved = await saveConnector(connectorPayload(connectorForm.value, placeFunction, payload), connectorForm.value.id);
-            saved.stops.forEach(stop => handleSuccessfulDoorGraphMutation({ door: { id: stop.door_id }, graph: { status: 'queued' } }, 'اطلاعات اتصال با موفقیت ثبت شد'));
+            const connector = connectorPayload(connectorForm.value, placeFunction, payload);
+            if (isSameFloorStair) {
+              await saveSameFloorStair(connector, connectorForm.value.id);
+              refreshLayerTiles('routing_edges_static-ground', { force: true });
+              toast.success('اطلاعات پلهٔ داخل طبقه ثبت شد');
+            } else {
+              const saved = await saveConnector(connector, connectorForm.value.id);
+              saved.stops.forEach(stop => handleSuccessfulDoorGraphMutation({ door: { id: stop.door_id }, graph: { status: 'queued' } }, 'اطلاعات اتصال با موفقیت ثبت شد'));
+            }
           } else {
             const draftPoint = connectorForm.point;
             const response = lastCreatedDoorId ? await updateDoorInfo(lastCreatedDoorId, payload) : await createDoorWithInfo({
@@ -9509,7 +9521,8 @@ const Amain = () => {
     setFullDescription(basicInfo?.description || '');
     setPlaceCategory(grouping?.group_id || doorInfo?.category || '');
     setPlaceSubcategory(grouping?.sub_group_id || doorInfo?.subcategory || '');
-    setPlaceFunction(operational?.place_function || doorInfo?.function || '');
+    const isSavedSameFloorStair = doorInfo?.connector?.kind === SAME_FLOOR_STAIR_KIND;
+    setPlaceFunction(isSavedSameFloorStair ? SAME_FLOOR_STAIR_KIND : operational?.place_function || doorInfo?.function || '');
     setPlaceAddress(doorInfo?.address || '');
 
     const areaClosedFlag =
@@ -9524,7 +9537,7 @@ const Amain = () => {
     );
 
     setIsPlaceCovered(typeof operational?.is_covered === 'boolean' ? operational.is_covered : null);
-    setSelectedTransport(normalizeTransportModes(operational?.transport_modes));
+    setSelectedTransport(isSavedSameFloorStair ? ['walk'] : normalizeTransportModes(operational?.transport_modes));
     setSelectedGenderAccess(Array.isArray(operational?.gender_access)
       ? operational.gender_access.map(normalizeGenderValue).filter(Boolean)
       : []);
@@ -13860,7 +13873,7 @@ const Amain = () => {
                 <span className="step-title">
                   {currentStep === 1 && 'اطلاعات اولیه و کلی مکان'}
                   {currentStep === 2 && 'اطلاعات و جزئیات تکمیلی مکان'}
-                  {currentStep === 3 && 'افزودن محدودیت های زمانی'}
+                  {currentStep === 3 && (isSameFloorStair ? 'ثبت پلهٔ داخل طبقه' : 'افزودن محدودیت های زمانی')}
                 </span>
               </div>
               <div className="step-progress">
@@ -13964,10 +13977,14 @@ const Amain = () => {
                           <div className="dropdown-field add-place-combo-field">
                             <AddPlaceSelect
                               value={placeFunction}
-                              onChange={setPlaceFunction}
-                              options={ADD_PLACE_FUNCTION_OPTIONS}
+                              onChange={kind => {
+                                connectorForm.changeKind(kind);
+                                setPlaceFunction(kind);
+                                if (kind === SAME_FLOOR_STAIR_KIND) setSelectedTransport(['walk']);
+                              }}
+                              options={ADD_PLACE_FUNCTION_OPTIONS.filter(option => canSelectSameFloorStair || option.value !== SAME_FLOOR_STAIR_KIND)}
                               placeholder="کارکرد گروه"
-                              disabled={!placeSubcategory && !isDoorAccessLayerActive}
+                              disabled={(!placeSubcategory && !isDoorAccessLayerActive) || (isSameFloorStair && Boolean(connectorForm.value.id))}
                             />
                           </div>
                         </div>
@@ -14068,7 +14085,7 @@ const Amain = () => {
                     <div className="form-group">
                       <label className="form-label">نوع تردد زائرین محترم از این مکان</label>
                       <div className="radio-options-grid2"> {/* Keep original class */}
-                        {TRANSPORT_OPTIONS.map((transport) => (
+                        {TRANSPORT_OPTIONS.filter(transport => !isSameFloorStair || transport.value === 'walk').map((transport) => (
                           <div
                             key={transport.value}
                             className={`radio-option2 ${selectedTransport.includes(transport.value) ? 'selected' : ''}`}
@@ -14153,11 +14170,12 @@ const Amain = () => {
                       </div>
                     </div>
 
-                    {isVerticalConnector && <ConnectorStops value={connectorForm.value} onChange={connectorForm.setValue}
-                      kind={placeFunction} floors={connectorForm.floors} groups={connectorForm.groups}
+                    {isSharedConnector && <ConnectorStops value={connectorForm.value} onChange={connectorForm.setValue}
+                      kind={placeFunction} floors={connectorForm.floors} groups={connectorForm.groups} stairList={connectorForm.stairList}
+                      stairCandidates={connectorForm.stairCandidates}
                       selectedPoint={connectorForm.point} onJoin={connectorForm.join} onPick={connectorForm.pick}
                       onSelectAccess={connectorForm.selectAccess} Select={AddPlaceSelect} />}
-                    {!isAreaLayerActive && !isVerticalConnector && (
+                    {!isAreaLayerActive && !isSharedConnector && (
                       <div className="form-group routing-direction-section">
                         <label className="form-label">جهت عبور</label>
                         <div className="routing-direction-switches">
@@ -14232,7 +14250,14 @@ const Amain = () => {
                 </div>
               )}
 
-              {currentStep === 3 && (
+              {currentStep === 3 && isSameFloorStair && (
+                <div className="step-content step3-content">
+                  <div className="step-intro3">
+                    <h3>محدودیت‌های زمانی و نماز از محدودهٔ پله و دو ورودی آن خوانده می‌شوند.</h3>
+                  </div>
+                </div>
+              )}
+              {currentStep === 3 && !isSameFloorStair && (
                 <div className="step-content step3-content">
                   <div className="step-intro3">
                     <h3>فرم و فرایند ایجاد و افزودن یک نقطه و مکان جدید</h3>
