@@ -271,7 +271,7 @@ export const requestRouting = async ({ origin, destination, mode, gender, lang, 
   beginRoutingRequest();
 
   try {
-    const body = buildRequestBody({ origin, destination, mode, gender, lang, maxAlternatives, floor, allowNearbyDestination });
+    const body = { ...buildRequestBody({ origin, destination, mode, gender, lang, maxAlternatives, floor, allowNearbyDestination }), authStrict: true };
     const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
     const response = await userRequest(appConfig.routingRouteUrl, {
       method: 'POST',
