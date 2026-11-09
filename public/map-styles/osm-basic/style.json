@@ -4,7 +4,7 @@
     "name": "OpenStreetMap",
     "sources": {
         "openmaptiles": {
-            "url": "map-styles/osm-basic/tiles.json",
+            "url": "/map-styles/osm-basic/tiles.json",
             "type": "vector"
         }
     },
@@ -14425,8 +14425,8 @@
             ]
         }
     },
-    "sprite": "http://localhost:5173/map-styles/osm-basic/sprite",
-    "glyphs": "http://localhost:8080/fonts/{fontstack}/{range}.pbf",
+    "sprite": "/map-styles/osm-basic/sprite",
+    "glyphs": "/fonts/{fontstack}/{range}.pbf",
     "bearing": 0,
     "pitch": 0,
     "center": [

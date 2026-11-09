@@ -1569,6 +1569,6 @@
         20037471.205137093
     ],
     "tiles": [
-        "http://localhost:8088/services/mashhad/tiles/{z}/{x}/{y}.pbf"
+        "/tms/services/mashhad/tiles/{z}/{x}/{y}.pbf"
     ]
 }
