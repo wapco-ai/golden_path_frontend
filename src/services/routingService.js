@@ -20,7 +20,7 @@ const buildCoordinatePayload = (point, fallbackFloor = null) => {
   };
 };
 
-const buildRequestBody = ({ origin, destination, mode, gender, lang, maxAlternatives, floor }) => {
+const buildRequestBody = ({ origin, destination, mode, gender, lang, maxAlternatives, floor, allowNearbyDestination }) => {
   const normalizedFloor = normalizeFloor(floor);
   const originPayload = buildCoordinatePayload(origin, normalizedFloor);
   const destinationPayload = buildCoordinatePayload(destination, normalizedFloor);
@@ -43,6 +43,7 @@ const buildRequestBody = ({ origin, destination, mode, gender, lang, maxAlternat
     gender: gender || 'both',
     lang: lang || 'fa',
     maxAlternatives: typeof maxAlternatives === 'number' ? maxAlternatives : 2,
+    ...(allowNearbyDestination ? { allowNearbyDestination: true } : {}),
     ...(normalizedFloor !== null ? { floor: normalizedFloor } : {}),
     origin: originPayload,
     destination: destinationPayload
@@ -89,23 +90,6 @@ const normalizePersianDoorName = (title = '', toAreaName = '') => {
   }
 
   return trimmedTitle;
-};
-
-const buildStepInstruction = (step, type, name, title) => {
-  if (typeof step?.instruction === 'string' && step.instruction.trim().length > 0) {
-    return step.instruction.trim();
-  }
-
-  if (type === 'stepPassDoor') {
-    const doorName = name || step?.title || '';
-    const areaName = step?.toAreaName || title || '';
-
-    if (doorName && areaName) {
-      return `از ${doorName} عبور کنید و به ${areaName} بروید`;
-    }
-  }
-
-  return '';
 };
 
 const mapSteps = (steps = []) => {
@@ -168,7 +152,7 @@ const mapSteps = (steps = []) => {
         toAreaId: step.toAreaId ?? null,
         fromAreaName: step.fromAreaName || '',
         toAreaName: step.toAreaName || '',
-        instruction: buildStepInstruction(step, type, name, title)
+        instruction: typeof step.instruction === 'string' ? step.instruction.trim() : ''
       };
     });
 };
@@ -282,11 +266,11 @@ export const normalizeRouteSnapshot = (data = {}, origin = null, destination = n
   };
 };
 
-export const requestRouting = async ({ origin, destination, mode, gender, lang, maxAlternatives, floor, signal }) => {
+export const requestRouting = async ({ origin, destination, mode, gender, lang, maxAlternatives, floor, signal, allowNearbyDestination = false }) => {
   beginRoutingRequest();
 
   try {
-    const body = buildRequestBody({ origin, destination, mode, gender, lang, maxAlternatives, floor });
+    const body = buildRequestBody({ origin, destination, mode, gender, lang, maxAlternatives, floor, allowNearbyDestination });
     const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
     const accessToken = typeof sessionStorage !== 'undefined'
       ? sessionStorage.getItem('gp_user_access_token')

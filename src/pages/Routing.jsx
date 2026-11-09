@@ -1,5 +1,6 @@
 import FloorControl from '../components/map/FloorControl';
 import { routeCoordinates as getRouteCoordinates, isMultifloor, multifloorSteps, activeRouteCoordinates } from '../utils/multifloorRoute';
+import { withDoorStepInstructions } from '../utils/routeStepInstructions';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
@@ -262,6 +263,7 @@ const RoutingPage = () => {
   }, [origin]);
 
   const getNavigationStartLocation = useCallback((geo = routeGeo) => {
+    if (geo?.properties?.nearbyOrigin) return getRouteStartLocation(geo);
     return getOriginStartLocation() || getRouteStartLocation(geo);
   }, [getOriginStartLocation, getRouteStartLocation, routeGeo]);
 
@@ -423,6 +425,7 @@ const RoutingPage = () => {
     const runBuild = (async () => {
       try {
         const result = await requestRouting({
+          allowNearbyDestination: true,
           origin: orig,
           destination: dest,
           mode: transportMode,
@@ -1003,14 +1006,15 @@ const RoutingPage = () => {
   // Build route data from stored steps
   useEffect(() => {
     if (!routeSteps || routeSteps.length === 0 || !routeGeo) return;
-    const multi = multifloorSteps(routeGeo, routeSteps, (step, idx) => intl.formatMessage({ id: step.type }, { name: step.name, title: step.title, num: idx + 1 }));
+    const instructedSteps = withDoorStepInstructions(routeSteps, intl);
+    const multi = multifloorSteps(routeGeo, instructedSteps, (step, idx) => intl.formatMessage({ id: step.type }, { name: step.name, title: step.title, num: idx + 1 }));
     if (multi) {
       const decorate = steps => steps.map(s => ({ ...s, distance: `${Math.round(s.distanceMeters)} ${intl.formatMessage({ id: 'meters' })}`, time: formatDurationFromSeconds(s.durationSeconds) }));
       const minutes = routeGeo.properties.durationSeconds / 60;
       setRouteData({ steps: decorate(multi), instructionSteps: multi, mode: transportMode,
         totalTime: formatTotalTime(minutes), arrivalTime: calculateArrivalTime(minutes),
         totalDistance: `${Math.round(routeGeo.properties.distanceMeters)} ${intl.formatMessage({ id: 'meters' })}`,
-        alternativeRoutes: alternativeRoutes.map((alt, i) => ({ ...alt, id: i + 1, steps: decorate(multifloorSteps(alt.geo, alt.steps) || []),
+        alternativeRoutes: alternativeRoutes.map((alt, i) => ({ ...alt, id: i + 1, steps: decorate(multifloorSteps(alt.geo, withDoorStepInstructions(alt.steps, intl)) || []),
           totalTime: formatTotalTime(alt.durationSeconds / 60), totalDistance: `${Math.round(alt.distanceMeters)} ${intl.formatMessage({ id: 'meters' })}` })) });
       return;
     }
@@ -1032,7 +1036,7 @@ const RoutingPage = () => {
       .filter(Boolean);
 
     const getStepCoords = (stepIndex) => {
-      const step = routeSteps[stepIndex];
+      const step = instructedSteps[stepIndex];
       if (Array.isArray(step?.coordinates?.[0])) {
         const normalizedCoordinates = normalizeStepCoordinates(step.coordinates);
         if (normalizedCoordinates.length >= 2) {
@@ -1042,7 +1046,7 @@ const RoutingPage = () => {
       return coords.slice(stepIndex, stepIndex + 2);
     };
 
-    const steps = routeSteps.map((s, idx) => {
+    const steps = instructedSteps.map((s, idx) => {
       let distance = 0;
       const stepCoords = getStepCoords(idx);
       if (Array.isArray(stepCoords?.[0]) && stepCoords.length >= 2) {
@@ -1112,11 +1116,11 @@ const RoutingPage = () => {
       console.warn('failed to read stored route summary', err);
     }
 
-    const routeMSegments = buildRouteMSegments(routeSteps, coords);
+    const routeMSegments = buildRouteMSegments(instructedSteps, coords);
     const displaySteps = routeMSegments.length
       ? routeMSegments.map((segment, idx) => buildDisplayStepFromRouteMSegment(segment, idx, routeMSegments, coords))
       : normalizeInstructionSteps(steps);
-    const routeInstructionSteps = routeMSegments.length ? normalizeRouteMSteps(routeSteps) : displaySteps;
+    const routeInstructionSteps = routeMSegments.length ? normalizeRouteMSteps(instructedSteps) : displaySteps;
     const totalMinutes = summaryMinutes || calculateTotalTime(displaySteps);
     const totalDistance = summaryDistance ||
       displaySteps.reduce((acc, st) => acc + parseInt(st.distance), 0);
@@ -1125,7 +1129,8 @@ const RoutingPage = () => {
 
     const alternativesData = (alternativeRoutes || []).map((alt, ridx) => {
       const altCoords = getRouteCoordinates(alt.geo);
-      const altSteps = alt.steps.map((st, i) => {
+      const instructedAltSteps = withDoorStepInstructions(alt.steps, intl);
+      const altSteps = instructedAltSteps.map((st, i) => {
         let dist = 0;
         const stepCoords = Array.isArray(st.coordinates?.[0]) ? st.coordinates : altCoords.slice(i, i + 2);
         if (Array.isArray(stepCoords?.[0]) && stepCoords.length >= 2) {
@@ -1171,7 +1176,7 @@ const RoutingPage = () => {
           direction
         };
       });
-      const altRouteMSegments = buildRouteMSegments(alt.steps, altCoords);
+      const altRouteMSegments = buildRouteMSegments(instructedAltSteps, altCoords);
       const displayAltSteps = altRouteMSegments.length
         ? altRouteMSegments.map((segment, idx) => buildDisplayStepFromRouteMSegment(segment, idx, altRouteMSegments, altCoords))
         : normalizeInstructionSteps(altSteps);

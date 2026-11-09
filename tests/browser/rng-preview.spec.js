@@ -85,8 +85,16 @@ async function expectFrame(page, snapshot, index) {
   const step = snapshot.steps[index + 1];
   const expected = sliceLineByFraction(snapshot.geo.geometry.coordinates, step.routeM ?? 1, step.routeM ?? 1)[0];
   await expect(page.locator('.routing-page')).toHaveAttribute('data-current-step', String(index));
-  if (step.type !== 'stepArriveDestination') await expect(page.locator('.instruction-text')).toContainText(String(step.doorId));
-  else await expect(page.locator('.instruction-text')).toContainText('رسیدن');
+  const instruction = page.locator('.instruction-text');
+  if (step.type === 'stepArriveDestination') {
+    await expect(instruction).toContainText('رسیدن');
+  } else {
+    const expectedText = /^area \d+$/.test(step.toAreaName)
+      ? 'مسیر را ادامه دهید.'
+      : `وارد ${step.toAreaName} شوید.`;
+    await expect(instruction).toContainText(expectedText);
+    await expect(instruction).not.toContainText(String(step.doorId));
+  }
   await expect.poll(async () => {
     const actual = await readMap(page);
     return !actual.moving && close(actual.marker, expected) && close(actual.center, expected)

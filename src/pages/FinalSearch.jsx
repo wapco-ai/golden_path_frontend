@@ -381,6 +381,7 @@ const FinalSearch = () => {
           gender: selectedGender,
           lang: language,
           maxAlternatives: 2,
+          allowNearbyDestination: true,
           signal: controller.signal
         });
         if (!isMounted) return;
@@ -487,11 +488,18 @@ const FinalSearch = () => {
     [storedAlternativeRoutes]
   );
 
-  const originCoords = isValidLngLat(origin.coordinates)
-    ? origin.coordinates
+  const nearbyOrigin = routeGeo?.properties?.nearbyOrigin;
+  const routeOrigin = nearbyOrigin || origin;
+  const routeOriginName = nearbyOrigin
+    ? intl.formatMessage({ id: 'nearbyOriginLabel' }, { name: origin.name })
+    : origin.name;
+  const originCoords = isValidLngLat(routeOrigin.coordinates)
+    ? routeOrigin.coordinates
     : [0, 0];
-  const destinationCoords = isValidLngLat(destination.coordinates)
-    ? destination.coordinates
+  const nearbyDestination = routeGeo?.properties?.nearbyDestination;
+  const routeDestination = nearbyDestination || destination;
+  const destinationCoords = isValidLngLat(routeDestination.coordinates)
+    ? routeDestination.coordinates
     : [0, 0];
 
   // Zoom map to route bounds when a new route is loaded
@@ -876,19 +884,19 @@ const FinalSearch = () => {
             }
           }}
         >
-          {isValidLngLat(origin.coordinates) && pointIsOnFloor(origin, mapFloor) && (
+          {isValidLngLat(routeOrigin.coordinates) && pointIsOnFloor(routeOrigin, mapFloor) && (
             <Marker
-              longitude={origin.coordinates[1]}
-              latitude={origin.coordinates[0]}
+              longitude={routeOrigin.coordinates[1]}
+              latitude={routeOrigin.coordinates[0]}
               anchor="bottom"
             >
               <div className="marker-circle"></div>
             </Marker>
           )}
-          {isValidLngLat(destination.coordinates) && pointIsOnFloor(destination, mapFloor) && (
+          {isValidLngLat(routeDestination.coordinates) && pointIsOnFloor(routeDestination, mapFloor) && (
             <Marker
-              longitude={destination.coordinates[1]}
-              latitude={destination.coordinates[0]}
+              longitude={routeDestination.coordinates[1]}
+              latitude={routeDestination.coordinates[0]}
               anchor="bottom"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="#F44336">
@@ -1015,7 +1023,7 @@ const FinalSearch = () => {
             onClick={handleOriginClick} // Add this onClick handler
           >
             <div className="location-details">
-              <div className="location-name">{origin.name}<FloorTag point={origin} /></div>
+              <div className="location-name">{routeOriginName}<FloorTag point={routeOrigin} /></div>
             </div>
             <div className={`current-location-label ${isSwapButton ? 'visible' : 'hidden'}`}>
               {/* <FormattedMessage id="mapCurrentLocationName" /> */}
@@ -1098,8 +1106,8 @@ const FinalSearch = () => {
       <div className="route-info">
         <div className="route-summary">
           <FormattedMessage
-            id="routeSummary"
-            values={{ origin: origin.name, destination: destination.name }}
+            id={nearbyDestination ? 'nearbyRouteSummary' : 'routeSummary'}
+            values={{ origin: routeOriginName, destination: destination.name }}
           />
         </div>
         <div className="info-details">

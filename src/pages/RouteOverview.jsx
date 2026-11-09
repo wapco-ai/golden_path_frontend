@@ -23,6 +23,7 @@ import { requestRouting } from '../services/routingService';
 import { loadGeoJsonData } from '../utils/loadGeoJsonData';
 import { analyzeRoute } from '../utils/routeAnalysis';
 import { buildRouteMSegments, getLineDistanceMeters } from '../utils/routeSegments';
+import { withDoorStepInstructions } from '../utils/routeStepInstructions';
 
 const HIDDEN_VECTOR_LAYER_IDS = new Set([
   'areas-outline',
@@ -150,7 +151,7 @@ const RouteOverview = () => {
   } = useRouteStore();
   const routeCoordinates = useMemo(() => getRouteCoordinates(routeGeo), [routeGeo]);
   const originMarkerCoord = useMemo(() => {
-    const coords = origin?.coordinates;
+    const coords = routeGeo?.properties?.nearbyOrigin?.coordinates ?? origin?.coordinates;
 
     if (Array.isArray(coords) && coords.length >= 2) {
       const lat = Number(coords[0]);
@@ -483,6 +484,7 @@ const RouteOverview = () => {
     const rebuildRoute = async () => {
       try {
         const result = await requestRouting({
+          allowNearbyDestination: true,
           origin,
           destination,
           mode: transportMode,
@@ -692,7 +694,8 @@ const RouteOverview = () => {
     });
   };
   const routeData = useMemo(() => {
-    const multi = multifloorSteps(routeGeo, routeSteps, (s, i) => intl.formatMessage({ id: s.type }, { name: s.name, title: s.title, num: i + 1 }));
+    const displaySteps = withDoorStepInstructions(routeSteps, intl);
+    const multi = multifloorSteps(routeGeo, displaySteps, (s, i) => intl.formatMessage({ id: s.type }, { name: s.name, title: s.title, num: i + 1 }));
     if (multi) return multi.map(s => ({ ...s, distance: s.distanceMeters, stepType: s.type, stepTitle: s.title, stepName: s.name, doorNames: s.type === 'stepPassDoor' ? [s.name] : [] }));
     if (!routeCoordinates || routeCoordinates.length < 2) return [];
 
@@ -736,7 +739,7 @@ const RouteOverview = () => {
       );
     };
 
-    const buildRouteMSyncedSegments = () => buildRouteMSegments(routeSteps, routeCoordinates)
+    const buildRouteMSyncedSegments = () => buildRouteMSegments(displaySteps, routeCoordinates)
       .map((segment, idx) => {
         const step = segment.step;
         const stepName = step?.name || step?.title;
@@ -765,7 +768,7 @@ const RouteOverview = () => {
         };
       });
 
-    const buildFallbackFromSteps = () => (routeSteps || [])
+    const buildFallbackFromSteps = () => displaySteps
       .map((step, idx) => {
         const coords = Array.isArray(step?.coordinates?.[0])
           ? step.coordinates.map(toLngLat).filter(Boolean)
@@ -798,8 +801,8 @@ const RouteOverview = () => {
       .filter(Boolean);
 
     const routeMSegments = buildRouteMSyncedSegments();
-    const segments = routeMSegments.length ? routeMSegments : routeSteps?.length ? buildFallbackFromSteps() : routeCoordinates.slice(1).map((c, idx) => {
-      const step = routeSteps?.[idx];
+    const segments = routeMSegments.length ? routeMSegments : displaySteps.length ? buildFallbackFromSteps() : routeCoordinates.slice(1).map((c, idx) => {
+      const step = displaySteps[idx];
       const stepName = step?.name || step?.title;
       const hasServerInstruction = typeof step?.instruction === 'string' && step.instruction.trim().length > 0;
       const base = resolveStepInstructionBase(step, idx);

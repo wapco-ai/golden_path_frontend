@@ -84,6 +84,11 @@ for (const width of [360, 1280]) {
 
 test('contentless POI search retains the independent negative origin and positive destination floors', async ({ page }) => {
   const { errors, areaRequests } = await setup(page);
+  const routeRequests = [];
+  await page.route('**/api/v1/routing/route', route => {
+    routeRequests.push(route.request().postDataJSON());
+    return route.fulfill({ status: 404, json: { status: 'NO_PATH' } });
+  });
   await page.goto('/#/mpr');
   await page.locator('.map-current-location').click();
   await page.locator('.map-search-modal input').fill('رواق آزمایشی');
@@ -96,7 +101,59 @@ test('contentless POI search retains the independent negative origin and positiv
   await expect(page.locator('.map-destination-list li')).toHaveCount(3);
   await page.locator('.map-destination-list li').last().click();
   await expect.poll(() => areaRequests.at(-1)?.floor).toBe('1');
-  await expect(page.locator('.map-current-location input')).toHaveValue(/منفی/);
+  await expect.poll(() => routeRequests.at(-1)).toMatchObject({ origin: { floor: -1 }, destination: { floor: 1 } });
+  expect(errors).toEqual([]);
+});
+
+test('MPR previews accessible points near both endpoints when there is no entry to select', async ({ page }) => {
+  const { errors } = await setup(page);
+  const origin = [36.287920367423624, 59.611761238159666];
+  const nearbyOrigin = [36.287941, 59.611782];
+  const requested = [36.28829999643531, 59.61205093578388];
+  const nearby = [36.288232287, 59.611934383];
+  const instruction = 'به نزدیک‌ترین نقطهٔ قابل‌دسترسی به سقف کاذب رسیدید.';
+  await page.route('**/api/v1/landmark-places**', route => {
+    const search = new URL(route.request().url()).searchParams.get('search');
+    const places = search === 'راهرو' ? [{ id: '1', title: 'راهرو', floor: 0, coordinates: origin }]
+      : search === 'سقف کاذب' ? [{ id: '85', title: 'سقف کاذب', floor: 0, coordinates: requested }] : [];
+    return route.fulfill({ json: { places: { landmarkPlaces: places } } });
+  });
+  await page.route('**/api/v1/area-doors?*', route => route.fulfill({ json: { status: 'ok', data: { doors: [] } } }));
+  await page.route('**/api/v1/routing/route', route => {
+    expect(route.request().postDataJSON()).toMatchObject({
+      allowNearbyDestination: true,
+      origin: { lat: origin[0], lon: origin[1], floor: 0 },
+      destination: { name: 'سقف کاذب', lat: requested[0], lon: requested[1], floor: 0 }
+    });
+    return route.fulfill({ json: {
+      ok: true, status: 'OK', distanceMeters: 40.5, estimatedMinutes: 0.56,
+      geo: { type: 'Feature', geometry: { type: 'LineString', coordinates: [
+        [nearbyOrigin[1], nearbyOrigin[0]], [nearby[1], nearby[0]]
+      ] }, properties: {
+        nearbyOrigin: { coordinates: nearbyOrigin, floor: 0 },
+        nearbyDestination: { coordinates: nearby, floor: 0 }
+      } },
+      steps: [{ type: 'stepArriveDestination', coord: { lat: nearby[0], lon: nearby[1] },
+        floor: 0, routeM: 1, instruction }],
+      alternatives: []
+    } });
+  });
+
+  await page.goto('/#/mpr');
+  await page.locator('.map-current-location').click();
+  await page.locator('.map-search-modal input').fill('راهرو');
+  await page.locator('.map-destination-list li').filter({ hasText: 'راهرو' }).click();
+  await page.locator('.map-destination-input-wrapper').click();
+  await page.locator('.map-search-modal input').fill('سقف کاذب');
+  await page.locator('.map-destination-list li').filter({ hasText: 'سقف کاذب' }).click();
+  await expect(page).toHaveURL(/#\/fs/);
+  await expect(page.locator('.location-input.origin-input')).toContainText('نقطهٔ قابل‌دسترسی نزدیک راهرو');
+  await expect(page.locator('.route-summary')).toContainText('از نقطهٔ قابل‌دسترسی نزدیک راهرو');
+  await expect(page.locator('.route-summary')).toContainText('تا نزدیکی سقف کاذب');
+  await page.locator('.overview-btn').click();
+  await expect(page.locator('.instruction-text2')).toContainText(instruction);
+  await page.goto('/#/rng');
+  await expect(page.locator('.instruction-text')).toContainText(instruction);
   expect(errors).toEqual([]);
 });
 
@@ -119,6 +176,9 @@ test('MPB text results also hide the map floor picker without requiring POI imag
 for (const target of ['origin', 'destination']) {
   test(`${target} search keeps each address with its own POI across ordering and language`, async ({ page }) => {
     const { errors } = await setup(page);
+    await page.route('**/api/v1/area-doors?*', route => route.fulfill({ json: {
+      status: 'ok', data: { doors: [{ doorNo: '7', coordinates: [36.288, 59.616], floor: 1 }] }
+    } }));
     let reversed = false;
     await page.route('**/api/v1/landmark-places**', (route) => {
       const url = new URL(route.request().url());
