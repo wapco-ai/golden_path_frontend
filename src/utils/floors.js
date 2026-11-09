@@ -51,3 +51,9 @@ export const normalizeFloorCatalog = (data) => {
 };
 
 export const pointIsOnFloor = (point, floor) => normalizeFloor(floor) !== null && getPointFloor(point) === normalizeFloor(floor);
+
+// Basement routes must come from the routing service's access-point graph.
+export const localRouteFallbackFloor = (origin, destination) => {
+  const floor = getPointFloor(origin);
+  return floor !== -1 && floor === getPointFloor(destination) ? floor : null;
+};
