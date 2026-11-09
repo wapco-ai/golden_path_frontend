@@ -714,7 +714,8 @@ const RoutingPage = () => {
     }
     const draftKey = JSON.stringify([userSessionGeneration, selectedEmergency, emergencyDescription.trim()]);
     if (emergencyRequest.current?.draftKey !== draftKey) {
-      const geo = getLiveNavigationGeo({ isDrActive, drPosition, userLocation,
+      const geo = getLiveNavigationGeo({ isDrActive, drPosition, userLocation: gpsFixRef.current
+        ? [gpsFixRef.current.lat, gpsFixRef.current.lng] : userLocation,
         drTimestamp, gpsTimestamp, now: Date.now() });
       const fromDr = isDrActive && isFresh(drTimestamp)
         && (!isFresh(gpsTimestamp) || drTimestamp > gpsTimestamp);
@@ -974,7 +975,8 @@ const RoutingPage = () => {
     stepIndex: currentStep,
     routeCoordinates: activeRouteCoordinates(routeGeo, routeData?.steps?.[currentStep]),
     isRoutingActive, isDemoMode, hasArrived, isDrActive,
-    drTimestamp, gpsTimestamp, now: positionClock, drPosition, userLocation, userHeading, sessionFloor: routeOriginFloor
+    drTimestamp, gpsTimestamp, now: positionClock, drPosition, userLocation: gpsFixRef.current
+      ? [gpsFixRef.current.lat, gpsFixRef.current.lng] : userLocation, userHeading, sessionFloor: routeOriginFloor
   }), [routeData?.steps, currentStep, routeGeo, isRoutingActive, isDemoMode,
     hasArrived, isDrActive, drPosition, userLocation, userHeading, routeOriginFloor, drTimestamp, gpsTimestamp, positionClock]);
   useEffect(() => {
@@ -1289,7 +1291,8 @@ const RoutingPage = () => {
   // fromM is the real segment boundary, including unequal two-step routes.
   useEffect(() => {
     if (!isRoutingActive || isDemoMode) return;
-    const geo = getLiveNavigationGeo({ isDrActive, drPosition, userLocation, drTimestamp, gpsTimestamp, now: positionClock });
+    const geo = getLiveNavigationGeo({ isDrActive, drPosition, userLocation: gpsFixRef.current
+      ? [gpsFixRef.current.lat, gpsFixRef.current.lng] : userLocation, drTimestamp, gpsTimestamp, now: positionClock });
     const progress = getNavigationProgress(
       geo, routeData?.steps, currentStep, activeRouteCoordinates(routeGeo, routeData?.steps?.[currentStep])
     );

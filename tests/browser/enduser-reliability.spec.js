@@ -79,6 +79,7 @@ test('persisted user login and QR still allow fresh 20m GPS in an emergency', as
     return route.fulfill({ status: 201, json: { id: 16, status: 'received', requestId: sent.requestId } });
   });
   await page.evaluate(() => window.__sendGps(36.289, 59.617));
+  await page.locator('.start-routing-button').click();
   await openEmergency(page);
   await page.locator('.emergency-submit-button').click();
   await expect(page.locator('.emergency-modal')).toHaveCount(0);

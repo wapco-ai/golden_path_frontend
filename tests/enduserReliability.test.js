@@ -11,6 +11,7 @@ import { getLiveNavigationGeo, resolveNavigationFrame } from '../src/utils/rngNa
 import { placesToFeatures } from '../src/utils/placeFeatures.js';
 import { readNotifications, writeNotifications } from '../src/services/userNotificationService.js';
 import { fetchLanguages } from '../src/services/languageService.js';
+import { fetchLandmarkPlaces } from '../src/services/landmarkService.js';
 
 const adapter = apiUser.defaults.adapter;
 const refresh = useUserAuthStore.getState().refreshSession;
@@ -100,4 +101,25 @@ test('language outage retains access with bundled translations', async () => {
   globalThis.fetch = async () => { throw new Error('offline'); };
   try { assert.deepEqual((await fetchLanguages()).data.map(l => l.code), ['fa', 'en', 'ar', 'ur']); }
   finally { globalThis.fetch = originalFetch; }
+});
+
+test('an aborted POI search cannot cancel the next floor search', async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = (_url, { signal }) => {
+    calls += 1;
+    if (calls === 1) return new Promise((_resolve, reject) => {
+      signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+    });
+    return Promise.resolve({ ok: true, json: async () => ({ places: { landmarkPlaces: [{ id: 99, floor: 1 }] } }) });
+  };
+  try {
+    const first = new AbortController();
+    const pending = fetchLandmarkPlaces({ search: 'distinct-abort-test', signal: first.signal });
+    first.abort();
+    const second = fetchLandmarkPlaces({ search: 'distinct-abort-test', signal: new AbortController().signal });
+    await assert.rejects(pending, { name: 'AbortError' });
+    assert.equal((await second).places.landmarkPlaces[0].id, 99);
+    assert.equal(calls, 2);
+  } finally { globalThis.fetch = originalFetch; }
 });
