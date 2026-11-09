@@ -1518,14 +1518,28 @@
 .map-door-marker {
   width: 34px;
   height: 34px;
+  padding: 0;
+  box-sizing: border-box;
   background: #fff;
   border: 3px solid #ff9800;
-  color: #ff9800;
+  color: #783e00;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+
+.map-door-marker[aria-pressed="true"] {
+  background: #146c43;
+  border-color: #146c43;
+  color: #fff;
+}
+
+.map-door-marker:focus-visible {
+  outline: 2px solid #0f71ef;
+  outline-offset: 2px;
 }
 
 .map-door-marker-number {
@@ -1536,6 +1550,10 @@
 
 .map-confirm-entry-button.active:hover {
   background: #0d66d4;
+}
+
+.map-entry-modal .footer-gradient {
+  pointer-events: none;
 }
 
 .footer-gradient {

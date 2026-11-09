@@ -1,6 +1,6 @@
 import useMapFloor from '../../hooks/useMapFloor';
 import { getPointFloor, pointIsOnFloor } from '../../utils/floors';
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
 import { useIntl } from 'react-intl';
 import maplibregl from 'maplibre-gl';
@@ -92,6 +92,10 @@ const Mprc = ({
   onUserMove,
   groups = [],
   areaDoorsData,
+  showAreaDoors = false,
+  entryPanelRef,
+  selectedEntry,
+  onDoorSelect,
   showImageMarkers = false,
   landmarkPlaces = [],
   isChoosingFromMap = false,
@@ -102,6 +106,7 @@ const Mprc = ({
 }) => {
   const intl = useIntl();
   const mapFloor = useMapFloor();
+  const mapRef = useRef(null);
   const [viewState, setViewState] = useState({
     latitude: 36.2880,  // Original shrine coordinates
     longitude: 59.6157,
@@ -131,35 +136,37 @@ const Mprc = ({
     );
   }, [language]);
 
-  const calculateViewForBounds = useCallback((bounds, options = {}) => {
-    const { minLon, maxLon, minLat, maxLat } = bounds;
-    const { width = 800, height = 600, padding = 0, maxZoom = 19 } = options;
+  const doorsOnMapFloor = useMemo(() => {
+    if (!pointIsOnFloor(areaDoorsData?.area, mapFloor) || !Array.isArray(areaDoorsData?.doors)) return [];
+    return areaDoorsData.doors.filter((door) =>
+      Array.isArray(door?.coord4326) && door.coord4326.length === 2 &&
+      door.coord4326.every(Number.isFinite));
+  }, [areaDoorsData, mapFloor]);
 
-    const latRad = (lat) => {
-      const sin = Math.sin((lat * Math.PI) / 180);
-      const clamped = Math.min(Math.max(sin, -0.9999), 0.9999);
-      return Math.log((1 + clamped) / (1 - clamped)) / 2;
-    };
+  const fitAreaDoors = useCallback((map) => {
+    if (!map || !doorsOnMapFloor.length) return;
 
-    const zoomFor = (mapPx, fraction) => Math.log(mapPx / 256 / fraction) / Math.LN2;
+    const bounds = new maplibregl.LngLatBounds();
+    doorsOnMapFloor.forEach((door) => bounds.extend(door.coord4326));
+    const mapRect = map.getContainer().getBoundingClientRect();
+    const panelHeight = showAreaDoors ? entryPanelRef?.current?.offsetHeight ?? 0 : 0;
+    const coveredHeight = Math.min(mapRect.height, Math.max(0, mapRect.bottom - (window.innerHeight - panelHeight)));
+    const padding = Math.min(32, mapRect.width / 4, (mapRect.height - coveredHeight) / 4);
+    const camera = map.cameraForBounds(bounds, {
+      padding: { top: padding, bottom: coveredHeight + padding, left: padding, right: padding },
+      maxZoom: 19
+    });
+    if (!camera) return;
 
-    const paddedWidth = Math.max(width - padding * 2, 1);
-    const paddedHeight = Math.max(height - padding * 2, 1);
-
-    const latFraction = (latRad(maxLat) - latRad(minLat)) / Math.PI;
-    const lngDiff = maxLon - minLon;
-    const lngFraction = ((lngDiff + 360) % 360) / 360;
-
-    const latZoom = latFraction > 0 ? zoomFor(paddedHeight, latFraction) : maxZoom;
-    const lngZoom = lngFraction > 0 ? zoomFor(paddedWidth, lngFraction) : maxZoom;
-    const zoom = Math.min(latZoom, lngZoom, maxZoom);
-
-    return {
-      longitude: (minLon + maxLon) / 2,
-      latitude: (minLat + maxLat) / 2,
-      zoom: Number.isFinite(zoom) ? zoom : maxZoom
-    };
-  }, []);
+    setViewState((previous) => ({
+      ...previous,
+      longitude: camera.center.lng,
+      latitude: camera.center.lat,
+      zoom: camera.zoom,
+      bearing: camera.bearing,
+      pitch: 0
+    }));
+  }, [doorsOnMapFloor, entryPanelRef, showAreaDoors]);
 
   const onMove = useCallback((evt) => {
     setViewState(evt.viewState);
@@ -170,8 +177,10 @@ const Mprc = ({
   }, [onZoomChange, onUserMove]);
 
   const handleMapLoad = useCallback((event) => {
-    initHaramVectorLayers(event?.target || event, vectorTileConfig);
-  }, [vectorTileConfig]);
+    const map = event?.target || event;
+    initHaramVectorLayers(map, vectorTileConfig);
+    fitAreaDoors(map);
+  }, [fitAreaDoors, vectorTileConfig]);
 
   const extractPlaceCoordinates = useCallback((place = {}) => {
     const lat =
@@ -385,56 +394,8 @@ const Mprc = ({
   }, [selectedDestination]);
 
   useEffect(() => {
-    if (!Array.isArray(areaDoorsData?.doors) || !areaDoorsData.doors.length) {
-      return;
-    }
-
-    const doorCoords = areaDoorsData.doors
-      .map((door) => door?.coord4326)
-      .filter((coords) => Array.isArray(coords) && coords.length >= 2)
-      .map(([lon, lat]) => ({ lon, lat }))
-      .filter(({ lon, lat }) => typeof lon === 'number' && typeof lat === 'number');
-
-    if (!doorCoords.length) {
-      return;
-    }
-
-    const minLon = Math.min(...doorCoords.map(({ lon }) => lon));
-    const maxLon = Math.max(...doorCoords.map(({ lon }) => lon));
-    const minLat = Math.min(...doorCoords.map(({ lat }) => lat));
-    const maxLat = Math.max(...doorCoords.map(({ lat }) => lat));
-
-    if (minLon === maxLon && minLat === maxLat) {
-      setViewState((prev) => ({
-        ...prev,
-        longitude: minLon,
-        latitude: minLat,
-        zoom: Math.max(prev.zoom, 19)
-      }));
-      return;
-    }
-
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const viewport = calculateViewForBounds(
-      { minLon, maxLon, minLat, maxLat },
-      {
-        width: window.innerWidth || 800,
-        height: window.innerHeight || 600,
-        padding: 80,
-        maxZoom: 19
-      }
-    );
-
-    setViewState((prev) => ({
-      ...prev,
-      longitude: viewport.longitude,
-      latitude: viewport.latitude,
-      zoom: viewport.zoom
-    }));
-  }, [areaDoorsData?.doors, calculateViewForBounds]);
+    fitAreaDoors(mapRef.current);
+  }, [fitAreaDoors]);
 
   const handleClick = (e) => {
     if (isSelectingLocation) {
@@ -769,6 +730,7 @@ const Mprc = ({
   return (
     <Map
       key={mapRenderKey}
+      ref={mapRef}
       mapLib={maplibregl}
       mapStyle={mapStyle}
       styleDiffing={false}
@@ -847,6 +809,29 @@ const Mprc = ({
             </Marker>
           );
         })}
+      {showAreaDoors && doorsOnMapFloor.map((door) => {
+        const [longitude, latitude] = door.coord4326;
+        const otherArea = door.otherAreaName || door.toAreaName;
+        const label = [`${intl.formatMessage({ id: 'entry' })} ${door.doorNo}`, otherArea].filter(Boolean).join(' · ');
+        const selected = selectedEntry === door.doorNo;
+        return (
+          <Marker
+            key={door.accessId ?? door.doorNo}
+            longitude={longitude}
+            latitude={latitude}
+            anchor="center"
+            style={selected ? { zIndex: 1 } : undefined}
+            onClick={(event) => {
+              event.originalEvent.stopPropagation();
+              onDoorSelect?.(door);
+            }}
+          >
+            <button type="button" className="map-door-marker" title={label} aria-label={label} aria-pressed={selected}>
+              <span className="map-door-marker-number">{door.doorNo}</span>
+            </button>
+          </Marker>
+        );
+      })}
     </Map>
   );
 };

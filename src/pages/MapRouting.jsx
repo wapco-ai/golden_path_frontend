@@ -19,11 +19,23 @@ import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { fetchAreaDoors } from '../services/areaDoorsService';
-import { getSessionFloor } from '../utils/sessionFloor';
+import { getSessionFloor, setSessionFloor } from '../utils/sessionFloor';
 import { fetchLandmarkPlaces, localizedPlaceAddress } from '../services/landmarkService';
 import mode1 from '../assets/images/mode1.png';
 import mode2 from '../assets/images/mode2.png';
 import mode3 from '../assets/images/mode3.png';
+
+const isAreaDestination = destination => destination.kind === 'area'
+  && (destination.areaGroupId != null || destination.areaId != null);
+
+const getEntryDestinationName = (entry, area) => {
+  if (entry.otherAreaName) return entry.otherAreaName;
+  const memberIds = area?.memberAreaIds ?? [area?.id];
+  if (entry.toAreaId != null && memberIds.some(id => String(id) === String(entry.toAreaId))) {
+    return entry.fromAreaName;
+  }
+  return entry.toAreaName;
+};
 
 const MapRoutingPage = () => {
   const navigate = useNavigate();
@@ -63,7 +75,6 @@ const MapRoutingPage = () => {
   const [subGroups, setSubGroups] = useState({});
   const [areaDoorsData, setAreaDoorsData] = useState(null);
   const [areaDoorsStatus, setAreaDoorsStatus] = useState(null);
-  const [areaDoorsMessage, setAreaDoorsMessage] = useState('');
   const [mapEntryDoors, setMapEntryDoors] = useState([]);
   const [landmarkPlaces, setLandmarkPlaces] = useState([]);
   const [showImageMarkers] = useState(true);
@@ -81,7 +92,6 @@ const MapRoutingPage = () => {
     }
     return sessionStorage.getItem('selectedMapType') || 'satellite';
   });
-  const [lastAreaDoorsCoords, setLastAreaDoorsCoords] = useState(null);
   const [isChoosingFromMap, setIsChoosingFromMap] = useState(false);
 
 
@@ -94,7 +104,7 @@ const MapRoutingPage = () => {
   const [isCategorySelected, setIsCategorySelected] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
-  const [landmarkSearchResults, setLandmarkSearchResults] = useState([]);
+  const [landmarkSearchResults, setLandmarkSearchResults] = useState(null);
 
   useQrOrigin(setUserLocation, language, intl.formatMessage({ id: 'mapCurrentLocationName' }), !location.state?.fromFinalSearch && !location.state?.showOriginModal && !location.state?.showDestinationModal && !sessionStorage.getItem('locationFromPage'));
 
@@ -205,17 +215,26 @@ const MapRoutingPage = () => {
   const destinationInputRef = useRef(null);
   const originInputRef = useRef(null);
   const modalRef = useRef(null);
+  const entryPanelRef = useRef(null);
   const searchInputRef = useRef(null);
   const swapButtonRef = useRef(null);
+  const endpointSelectionRequest = useRef(null);
+
+  const cancelEndpointSelection = useCallback(() => {
+    endpointSelectionRequest.current?.abort();
+    endpointSelectionRequest.current = null;
+  }, []);
+
+  useEffect(() => cancelEndpointSelection, [cancelEndpointSelection]);
 
   // Lazy loaded geojson data for destination search
   const [geoData, setGeoData] = useState(null);
 
   const getDoorCoordinates = (door) => {
-    if (!door?.coord4326) return null;
+    if (!Array.isArray(door?.coord4326)) return null;
     const [lon, lat] = door.coord4326;
 
-    if (typeof lat === 'number' && typeof lon === 'number') {
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
       return [lat, lon];
     }
 
@@ -431,6 +450,7 @@ const MapRoutingPage = () => {
   };
 
   const handleClearCategorySearch = () => {
+    cancelEndpointSelection();
     setModalSelectedCategory(null);
     setModalFilteredSubGroups([]);
     setSearchQuery('');
@@ -518,26 +538,38 @@ const MapRoutingPage = () => {
 
   const renderSearchLocation = (destination, address) => {
     const displayAddress = displaySearchAddress(destination.name, address);
-    return <>{displayAddress}<FloorTag point={destination} separator={Boolean(displayAddress)} /></>;
+    const isArea = activeInput === 'destination' && isAreaDestination(destination);
+    const locationLabel = isArea ? intl.formatMessage({ id: 'mapAreaResult' }) : displayAddress;
+    return <>{locationLabel}<FloorTag point={destination} separator={Boolean(locationLabel)} /></>;
   };
 
-  const filteredDestinations = searchQuery.trim().length >= 2
-    ? landmarkSearchResults.map((place) => {
-      const coords = extractLandmarkCoordinates(place);
-      const poiId = place.id ?? place.poi_id ?? place.poiId ?? null;
-      return {
-        id: poiId,
-        poiId,
-        name: place.title || place.name || '',
-        location: localizedPlaceAddress(place.address, language),
-        floor: getPointFloor(place),
-        coordinates: coords ? [coords.lat, coords.lng] : null,
-        address: place.address,
-        addressLanguage: language,
-        description: place.description || place?.content?.body || ''
-      };
-    })
-    : recentSearches;
+  const toSearchDestination = (place) => {
+    const coords = extractLandmarkCoordinates(place);
+    const id = place.id ?? place.poi_id ?? place.poiId ?? null;
+    const area = place.areaGroupId != null
+      ? { areaGroupId: place.areaGroupId, memberAreaIds: place.memberAreaIds }
+      : { areaId: place.areaId };
+    return {
+      id,
+      ...(isAreaDestination(place) ? {
+        kind: 'area', ...area, source: 'area', sourceId: place.areaGroupId ?? place.areaId
+      } : { poiId: id }),
+      name: place.title || place.name || '',
+      location: localizedPlaceAddress(place.address, language),
+      floor: getPointFloor(place),
+      coordinates: coords ? [coords.lat, coords.lng] : null,
+      address: place.address,
+      addressLanguage: language,
+      description: place.description || place?.content?.body || ''
+    };
+  };
+
+  const trimmedSearchQuery = searchQuery.trim();
+  const includeExactAreas = activeInput === 'destination';
+  const searchKey = JSON.stringify([trimmedSearchQuery, language, includeExactAreas]);
+  const filteredDestinations = landmarkSearchResults?.key === searchKey
+    ? landmarkSearchResults.places.map(toSearchDestination)
+    : [];
 
   useEffect(() => {
     let active = true;
@@ -610,6 +642,7 @@ const MapRoutingPage = () => {
   }, [userLocation, intl]);
 
   const handleSubgroupSelect = async (subgroup) => {
+    cancelEndpointSelection();
     setActiveInput('destination');
     setShowDestinationModal(false);
 
@@ -696,8 +729,10 @@ const MapRoutingPage = () => {
 
 
   const handleDestinationSelect = (destination, options = {}) => {
-    const { forceDestination = false, fromMapSelection = false } = options;
-    if (getPointFloor(destination) === null) {
+    const { forceDestination = false } = options;
+    cancelEndpointSelection();
+    const floor = getPointFloor(destination);
+    if (floor === null) {
       const target = activeInput === 'destination' || forceDestination ? 'destination' : 'origin';
       setShowDestinationModal(false);
       setShowOriginModal(false);
@@ -708,22 +743,27 @@ const MapRoutingPage = () => {
 
     setAreaDoorsData(null);
     setAreaDoorsStatus(null);
-    setAreaDoorsMessage('');
     setMapEntryDoors([]);
+    setSelectedEntry(null);
 
     const isDestinationInput = activeInput === 'destination' || forceDestination;
 
     if (isDestinationInput) {
-      setTempDestination(destination);
       setShowDestinationModal(false);
-      setShowEntryModal(true);
-
-      const [lat, lon] = destination?.coordinates || [];
-      if (typeof lat === 'number' && typeof lon === 'number') {
-        requestAreaDoors(lat, lon, getPointFloor(destination));
-      }
-      if (!destination.fromMapSelection && !fromMapSelection) {
+      if (!destination.fromMapSelection) {
         addSearch(destination);
+      }
+
+      if (isAreaDestination(destination)) {
+        setSessionFloor(floor);
+        setTempDestination(destination);
+        setShowEntryModal(true);
+        requestAreaDoors({ areaGroupId: destination.areaGroupId, areaId: destination.areaId, floor, destination });
+      } else {
+        setTempDestination(null);
+        setShowEntryModal(false);
+        setSelectedDestination(destination);
+        sessionStorage.setItem('currentDestination', JSON.stringify(destination));
       }
     } else {
       setIsTracking(false);
@@ -739,6 +779,35 @@ const MapRoutingPage = () => {
       }
     }
     setSearchQuery('');
+  };
+
+  const handleRecentSelection = async (destination) => {
+    if (destination.kind === 'area' || (destination.entry == null && destination.door == null)) {
+      handleDestinationSelect(destination);
+      return;
+    }
+
+    // Earlier versions saved the selected door in place of the original POI.
+    cancelEndpointSelection();
+    const selection = new AbortController();
+    endpointSelectionRequest.current = selection;
+    try {
+      const poiId = destination.poiId ?? destination.id;
+      if (!/^\d+$/.test(String(poiId))) throw new Error('Missing recent POI identifier');
+      const response = await fetchLandmarkPlaces({ language, poiId, limit: 1, signal: selection.signal });
+      if (selection.signal.aborted) return;
+      const place = response?.places?.landmarkPlaces?.find((item) => String(item.id) === String(poiId));
+      if (!place) throw new Error('Recent POI no longer found');
+      const restored = toSearchDestination(place);
+      removeSearch(destination);
+      handleDestinationSelect(restored);
+      if (activeInput !== 'destination') addSearch(restored);
+    } catch (error) {
+      if (!selection.signal.aborted) {
+        console.error('Failed to restore recent destination', error);
+        toast.error(intl.formatMessage({ id: 'generalErrorMessage' }));
+      }
+    }
   };
 
 
@@ -787,30 +856,39 @@ const MapRoutingPage = () => {
     setSelectedEntry(entryNumber);
   };
 
+  const handleBackFromEntry = () => {
+    cancelEndpointSelection();
+    setShowEntryModal(false);
+    setTempDestination(null);
+    setSelectedEntry(null);
+    setAreaDoorsData(null);
+    setAreaDoorsStatus(null);
+    setMapEntryDoors([]);
+    setActiveInput('destination');
+    setSearchQuery(tempDestination?.name || '');
+    setShowDestinationModal(true);
+  };
 
   const handleConfirmEntry = () => {
-    if (tempDestination && selectedEntry) {
+    if (tempDestination && selectedEntry != null) {
       const selectedDoor = mapEntryDoors.find((door) => door?.doorNo === selectedEntry);
       const doorCoordinates = getDoorCoordinates(selectedDoor);
+      if (!doorCoordinates) return;
       const finalDestination = {
         ...tempDestination,
         entry: selectedEntry,
-        ...(selectedDoor ? { door: selectedDoor } : {}),
-        ...(doorCoordinates ? { coordinates: doorCoordinates } : {})
+        door: selectedDoor,
+        coordinates: doorCoordinates
       };
 
       setSelectedDestination(finalDestination);
-
-      // Only add to recent searches if NOT from map selection
-      if (!tempDestination.fromMapSelection) {
-        addSearch(finalDestination);
-      }
 
       sessionStorage.setItem('currentDestination', JSON.stringify(finalDestination));
 
       setShowEntryModal(false);
       setTempDestination(null);
       setSelectedEntry(null);
+      setAreaDoorsData(null);
 
       setShowDestinationModal(false);
       setShowOriginModal(false);
@@ -821,6 +899,7 @@ const MapRoutingPage = () => {
   };
 
   const handleInputChange = (e) => {
+    cancelEndpointSelection();
     setSearchQuery(e.target.value);
   };
 
@@ -847,9 +926,8 @@ const MapRoutingPage = () => {
   }, [language, mapFloor]);
 
   useEffect(() => {
-    const trimmedQuery = searchQuery.trim();
-    if (trimmedQuery.length < 2) {
-      setLandmarkSearchResults([]);
+    if (trimmedSearchQuery.length < 2) {
+      setLandmarkSearchResults(null);
       return;
     }
 
@@ -864,7 +942,8 @@ const MapRoutingPage = () => {
       fetchLandmarkPlaces({
         language,
         geo,
-        search: trimmedQuery,
+        search: trimmedSearchQuery,
+        includeExactAreas,
         limit: 30,
         signal: controller.signal
       })
@@ -873,12 +952,12 @@ const MapRoutingPage = () => {
           const apiLandmarks = Array.isArray(data?.places?.landmarkPlaces)
             ? data.places.landmarkPlaces
             : [];
-          setLandmarkSearchResults(apiLandmarks);
+          setLandmarkSearchResults({ key: searchKey, places: apiLandmarks });
         })
         .catch((error) => {
           if (error?.name === 'AbortError') return;
           console.error('Failed to search landmark places', error);
-          setLandmarkSearchResults([]);
+          if (isMounted) setLandmarkSearchResults(null);
         });
     }, 350);
 
@@ -887,7 +966,7 @@ const MapRoutingPage = () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [searchQuery, language, userLocation]);
+  }, [trimmedSearchQuery, language, userLocation, includeExactAreas, searchKey]);
 
   const handleRouteFromSubgroup = (subgroup) => {
     console.log('Routing from main page subgroup:', subgroup);
@@ -1029,7 +1108,6 @@ const MapRoutingPage = () => {
       setMapSelectedSubGroups([]);
       setAreaDoorsData(null);
       setAreaDoorsStatus(null);
-      setAreaDoorsMessage('');
       setMapEntryDoors([]);
       return;
     }
@@ -1092,7 +1170,6 @@ const MapRoutingPage = () => {
     // Clear any previous area doors data
     setAreaDoorsData(null);
     setAreaDoorsStatus(null);
-    setAreaDoorsMessage('');
     setMapEntryDoors([]);
     setTempDestination(null);
   };
@@ -1102,6 +1179,8 @@ const MapRoutingPage = () => {
   };
 
   const handleInputClick = (inputType) => {
+    if (showEntryModal) return;
+    cancelEndpointSelection();
     clearFloorRequest();
     setActiveInput(inputType);
     if (inputType === 'destination') {
@@ -1152,108 +1231,81 @@ const MapRoutingPage = () => {
   }, []);
 
   const handleCurrentLocationSelect = () => {
+    cancelEndpointSelection();
     // Wait for fresh coordinates before the completed-endpoints effect can route.
     setUserLocation(previous => previous?.source === 'gps' ? { ...previous, coordinates: null } : null);
     setIsTracking(true);
     setShowOriginModal(false);
   };
 
-  const requestAreaDoors = useCallback(async (lat, lon, selectedFloor = getSessionFloor()) => {
+  const requestAreaDoors = useCallback(async ({ areaGroupId, areaId, lat, lon, floor = getSessionFloor(), destination }) => {
+    endpointSelectionRequest.current?.abort();
+    const selection = new AbortController();
+    endpointSelectionRequest.current = selection;
     setAreaDoorsStatus('loading');
-    setAreaDoorsMessage('');
     setMapEntryDoors([]);
     setAreaDoorsData(null);
-    setLastAreaDoorsCoords([lat, lon]);
 
     try {
-      const floor = selectedFloor;
-      const response = await fetchAreaDoors({ lat, lon, floor, lang: language });
-      const nextDoors = Array.isArray(response?.data?.doors) ? response.data.doors : [];
+      const response = await fetchAreaDoors({ areaGroupId, areaId, lat, lon, floor, lang: language, signal: selection.signal });
+      if (selection.signal.aborted) return;
+      const area = response?.data?.area;
+      const nextDoors = Array.isArray(response?.data?.doors)
+        ? response.data.doors.map(door => ({ ...door, otherAreaName: getEntryDestinationName(door, area) }))
+        : [];
+
+      if (destination?.areaId != null && area?.areaGroupId != null) {
+        const { areaId: legacyAreaId, ...previousDestination } = destination;
+        const canonicalDestination = {
+          ...previousDestination,
+          id: area.id,
+          name: area.name || destination.name,
+          areaGroupId: area.areaGroupId,
+          memberAreaIds: area.memberAreaIds ?? [legacyAreaId],
+          sourceId: area.areaGroupId
+        };
+        setTempDestination(canonicalDestination);
+        addSearch(canonicalDestination);
+      }
 
       setAreaDoorsStatus(response?.status || 'ok');
       setAreaDoorsData(response?.status === 'ok' || response?.status === 'area_too_small'
         ? {
-          area: response?.data?.area || null,
+          area,
           doors: nextDoors
         }
         : null);
-      setAreaDoorsMessage(response?.message || '');
       setMapEntryDoors(nextDoors);
-      return { status: response?.status || 'ok', doors: nextDoors };
     } catch (error) {
+      if (selection.signal.aborted) return;
       console.error('failed to fetch area doors', error);
       setAreaDoorsStatus('error');
       setAreaDoorsData(null);
       setMapEntryDoors([]);
-      setAreaDoorsMessage(error?.message || '');
-      return { status: 'error', doors: [] };
     }
-  }, [language]);
+  }, [addSearch, language]);
 
   useEffect(() => {
-    if (areaDoorsStatus && areaDoorsStatus !== 'loading' && !mapEntryDoors.length && tempDestination && lastAreaDoorsCoords) {
-      const destinationWithCoords = {
-        ...tempDestination,
-        coordinates: tempDestination.coordinates || lastAreaDoorsCoords
-      };
+    if (!showEntryModal && areaDoorsStatus && areaDoorsStatus !== 'loading' && !mapEntryDoors.length && tempDestination) {
+      if (tempDestination.coordinates) {
+        setSelectedDestination(tempDestination);
+        sessionStorage.setItem('currentDestination', JSON.stringify(tempDestination));
+      }
 
-      setSelectedDestination(destinationWithCoords);
-      if (!tempDestination.fromMapSelection) addSearch(destinationWithCoords);
-      sessionStorage.setItem('currentDestination', JSON.stringify(destinationWithCoords));
-
-      setShowEntryModal(false);
       setTempDestination(null);
       setSelectedEntry(null);
     }
-  }, [areaDoorsStatus, mapEntryDoors.length, tempDestination, lastAreaDoorsCoords, addSearch]);
+  }, [areaDoorsStatus, mapEntryDoors.length, showEntryModal, tempDestination]);
 
   const handleDoorSelect = (door) => {
-    const entryNumber = door?.doorNo || door?.doorId || null;
-    const doorCoordinates = getDoorCoordinates(door);
-    const fallbackDestination = tempDestination || selectedDestination || null;
-
-    if (showEntryModal && activeInput === 'destination') {
-      setSelectedEntry(entryNumber);
-      return;
-    }
-
-    if (activeInput === 'destination') {
-      if (!fallbackDestination && !tempDestination) return;
-
-      const baseCoordinates = (fallbackDestination || {}).coordinates || tempDestination?.coordinates;
-      const destinationWithDoor = {
-        ...(fallbackDestination || {}),
-        entry: entryNumber,
-        ...(door ? { door } : {}),
-        coordinates: baseCoordinates || doorCoordinates || (fallbackDestination || {}).coordinates
-      };
-
-      setSelectedDestination(destinationWithDoor);
-      addSearch(destinationWithDoor);
-      sessionStorage.setItem('currentDestination', JSON.stringify(destinationWithDoor));
-      setShowEntryModal(false);
-      setTempDestination(null);
-    } else {
-      const originWithDoor = {
-        ...(userLocation || {}),
-        entry: entryNumber,
-        ...(door ? { door } : {}),
-        ...(doorCoordinates ? { coordinates: doorCoordinates } : {})
-      };
-
-      setUserLocation(originWithDoor);
-      sessionStorage.setItem('currentOrigin', JSON.stringify(originWithDoor));
-      setShowEntryModal(false);
-      setTempDestination(null);
-    }
-
-    if (entryNumber) {
-      setSelectedEntry(entryNumber);
+    if (showEntryModal && door?.doorNo != null) {
+      handleEntrySelect(door.doorNo);
     }
   };
 
 
   const handleMapSelection = () => {
+    cancelEndpointSelection();
     clearFloorRequest();
     setIsChoosingFromMap(true);
     setIsSelectingFromMap(true);
@@ -1262,11 +1314,11 @@ const MapRoutingPage = () => {
     setShowOriginModal(false);
     setAreaDoorsData(null);
     setAreaDoorsStatus(null);
-    setAreaDoorsMessage('');
     setMapEntryDoors([]);
   };
 
   const handleMapClick = (latlng, feature) => {
+    if (showEntryModal) return;
     if (isSelectingFromMap) {
       setIsChoosingFromMap(false);
 
@@ -1298,7 +1350,6 @@ const MapRoutingPage = () => {
 
         setAreaDoorsData(null);
         setAreaDoorsStatus(null);
-        setAreaDoorsMessage('');
         setMapEntryDoors([]);
         setUserLocation(origin);
         sessionStorage.setItem('currentOrigin', JSON.stringify(origin));
@@ -1371,7 +1422,7 @@ const MapRoutingPage = () => {
       } else if (inputToFill === 'destination') {
         // For destination, also trigger area doors check
         setTempDestination(locationData);
-        requestAreaDoors(latlng.lat, latlng.lng);
+        requestAreaDoors({ lat: latlng.lat, lon: latlng.lng });
 
         setSelectedDestination(locationData);
         sessionStorage.setItem('currentDestination', JSON.stringify(locationData));
@@ -1382,6 +1433,7 @@ const MapRoutingPage = () => {
   };
 
   const handleClearSearch = () => {
+    cancelEndpointSelection();
     setSearchQuery('');
   };
 
@@ -1404,6 +1456,7 @@ const MapRoutingPage = () => {
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (modalRef.current && !modalRef.current.contains(event.target)) {
+        cancelEndpointSelection();
         setShowDestinationModal(false);
         setShowOriginModal(false);
         setSearchQuery('');
@@ -1413,7 +1466,7 @@ const MapRoutingPage = () => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [cancelEndpointSelection]);
 
   useEffect(() => {
     if ((showDestinationModal || showOriginModal) && searchInputRef.current) {
@@ -1494,11 +1547,13 @@ const MapRoutingPage = () => {
           selectedCategory={mapSelectedCategory}
           userLocation={userLocation}
           mapSelectedLocation={mapSelectedLocation}
-          isTracking={isTracking}
+          isTracking={isTracking && !showEntryModal}
           onUserMove={() => setIsTracking(false)}
           groups={groups}
           areaDoorsData={areaDoorsData}
-          areaDoorsStatus={areaDoorsStatus}
+          showAreaDoors={showEntryModal}
+          selectedEntry={selectedEntry}
+          entryPanelRef={entryPanelRef}
           onDoorSelect={handleDoorSelect}
           landmarkPlaces={landmarkPlaces}
           showImageMarkers={showImageMarkers}
@@ -1892,6 +1947,7 @@ const MapRoutingPage = () => {
                   type="button"
                   className="map-modal-back-button"
                   onClick={() => {
+                    cancelEndpointSelection();
                     activeInput === 'destination' ? setShowDestinationModal(false) : setShowOriginModal(false);
                   }}
                 >
@@ -2066,7 +2122,7 @@ const MapRoutingPage = () => {
                   ) : (
                     <ul className="map-destination-list">
                       {recentSearches.map((destination, index) => (
-                        <li key={`${destination.id || 'destination'}-${index}`} style={{ position: 'relative' }} onClick={() => handleDestinationSelect(destination)}>
+                        <li key={`${destination.id || 'destination'}-${index}`} style={{ position: 'relative' }} onClick={() => handleRecentSelection(destination)}>
                           <div className="map-recent-icon">
                             <svg width="15" height="15" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
                               <path fillRule="evenodd" clipRule="evenodd" d="M2.96259 2.95683C5.17657 0.745974 8.77558 0.769482 11.0031 2.997C13.2316 5.22548 13.2541 8.82663 11.0404 11.0404C8.82667 13.2541 5.22552 13.2315 2.99704 11.0031C1.67644 9.68246 1.1311 7.88082 1.36528 6.17239C1.39809 5.933 1.61875 5.76554 1.85814 5.79835C2.09753 5.83117 2.265 6.05183 2.23218 6.29122C2.03386 7.73809 2.49541 9.26398 3.61577 10.3843C5.50841 12.277 8.5555 12.2878 10.4217 10.4216C12.2878 8.55546 12.277 5.50837 10.3844 3.61573C8.49269 1.72405 5.44775 1.71226 3.58132 3.57556L4.01749 3.57775C4.25911 3.57896 4.454 3.77582 4.45279 4.01745C4.45157 4.25907 4.25471 4.45396 4.01309 4.45275L2.52816 4.44529C2.28825 4.44408 2.09406 4.2499 2.09286 4.00999L2.0854 2.52506C2.08418 2.28343 2.27907 2.08657 2.5207 2.08536C2.76232 2.08414 2.95918 2.27904 2.9604 2.52066L2.96259 2.95683ZM7.00002 4.2291C7.24164 4.2291 7.43752 4.42498 7.43752 4.66661V6.81876L8.76773 8.14897C8.93859 8.31983 8.93859 8.59684 8.76773 8.7677C8.59688 8.93855 8.31986 8.93855 8.14901 8.7677L6.56251 7.1812V4.66661C6.56251 4.42498 6.75839 4.2291 7.00002 4.2291Z" fill="#858585" />
@@ -2136,7 +2192,7 @@ const MapRoutingPage = () => {
       {/* Entry Selection Modal */}
       {showEntryModal && tempDestination && (
         <div className="map-entry-modal-overlay">
-          <div className="map-entry-modal">
+          <div className="map-entry-modal" ref={entryPanelRef} role="dialog" aria-label={tempDestination.name}>
 
             <div className="map-entry-search-section">
               <div className="map-entry-search-box">
@@ -2146,37 +2202,49 @@ const MapRoutingPage = () => {
                   </svg>
                 </div>
                 <span className="map-entry-location-name">{tempDestination.name}</span>
-                <div className="map-entry-search-icon">
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path fillRule="evenodd" clipRule="evenodd" d="M9.58342 2.29163C5.55634 2.29163 2.29175 5.55622 2.29175 9.58329C2.29175 13.6104 5.55634 16.875 9.58342 16.875C13.6105 16.875 16.8751 13.6104 16.8751 9.58329C16.8751 5.55622 13.6105 2.29163 9.58342 2.29163ZM1.04175 9.58329C1.04175 4.86586 4.86598 1.04163 9.58342 1.04163C14.3008 1.04163 18.1251 4.86586 18.1251 9.58329C18.1251 11.7171 17.3427 13.6681 16.0491 15.1651L18.7754 17.8914C19.0194 18.1354 19.0194 18.5312 18.7754 18.7752C18.5313 19.0193 18.1356 19.0193 17.8915 18.7752L15.1653 16.049C13.6682 17.3426 11.7172 18.125 9.58342 18.125C4.86598 18.125 1.04175 14.3007 1.04175 9.58329Z" fill="#1E2023" />
+                <button
+                  type="button"
+                  className="map-modal-back-button map-entry-back-button"
+                  aria-label={intl.formatMessage({ id: 'back' })}
+                  onClick={handleBackFromEntry}
+                >
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                    <path d="M3 10h14m-5-5 5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                </div>
+                </button>
               </div>
             </div>
 
             <div className="map-entries-section">
-              {areaDoorsStatus && areaDoorsStatus !== 'ok' && areaDoorsStatus !== 'area_too_small' && areaDoorsMessage && (
-                <div className="map-entry-message">{areaDoorsMessage}</div>
+              {!mapEntryDoors.length && (
+                <div className="map-entry-message" role="status">
+                  <FormattedMessage id={
+                    areaDoorsStatus === 'loading' ? 'loading'
+                      : areaDoorsStatus === 'error' ? 'generalErrorMessage'
+                        : 'mapNoAreaEntries'
+                  } />
+                </div>
               )}
               <div className="map-entries-grid">
                 {mapEntryDoors.map((entry) => {
-                  const entryNumber = entry?.doorNo || entry;
-                  const destinationName = entry?.otherAreaName || entry?.toAreaName;
+                  const entryNumber = entry.doorNo;
+                  const destinationName = entry.otherAreaName || entry.label
+                    || intl.formatMessage({ id: 'mapEntryUnknownDestination' });
 
                   return (
-                    <div
-                      key={entryNumber}
+                    <button
+                      type="button"
+                      key={entry.accessId ?? entryNumber}
                       className={`map-entry-item ${selectedEntry === entryNumber ? 'selected' : ''}`}
+                      aria-pressed={selectedEntry === entryNumber}
                       onClick={() => handleEntrySelect(entryNumber)}
                     >
-                      <div className="map-entry-number">
+                      <span className="map-entry-number">
                         <FormattedMessage id="entry" /> {entryNumber}
-                      </div>
-                      {destinationName && (
-                        <div className="map-entry-destination">{destinationName}</div>
-                      )}
+                      </span>
+                      <span className="map-entry-destination">{destinationName}</span>
                       {selectedEntry === entryNumber && (
-                        <div className="map-entry-selected-indicator">
+                        <span className="map-entry-selected-indicator" aria-hidden="true">
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
                             shapeRendering="geometricPrecision"
@@ -2201,9 +2269,9 @@ const MapRoutingPage = () => {
                               d="M158.04 235.26c19.67 11.33 32.46 20.75 47.71 37.55 39.53-63.63 82.44-98.89 138.24-148.93l5.45-2.11h61.06c-81.87 90.93-145.34 165.9-202.18 275.53-29.59-63.26-55.96-106.93-114.96-147.43l64.68-14.61z"
                             />
                           </svg>
-                        </div>
+                        </span>
                       )}
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -2211,8 +2279,9 @@ const MapRoutingPage = () => {
             <div className="footer-gradient"></div>
 
             <button
+              type="button"
               className={`map-confirm-entry-button ${selectedEntry ? 'active' : ''}`}
-              disabled={!selectedEntry}
+              disabled={selectedEntry == null}
               onClick={handleConfirmEntry}
             >
               <FormattedMessage id="confirmEntry" />
