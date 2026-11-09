@@ -48,6 +48,7 @@ import {
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
 import { bulkOpenCloseDoors, deleteDoor, getDoorInfo, moveDoor, pollDoorGraphStatus, updateDoorInfo } from '../services/adminDoorsService';
 import { deleteArea, getAreaInfo, listAreas, moveArea, updateAreaInfo } from '../services/adminAreasService';
+import { getAreaPublicAccess } from '../utils/adminAreaAppearance';
 import { convertLngLatToUtm32640 } from '../utils/utm';
 import { formatCulturalCreatedAt } from '../utils/culturalItemDate.js';
 import { createCategoryApiError } from '../utils/categoryApiError.js';
@@ -1028,14 +1029,14 @@ const Amain = () => {
   const selectedMapLanguage = mapLanguageOptions.find((option) => option.value === mapLanguage)
     || mapLanguageOptions[0];
   const MIN_REFRESH_INTERVAL_MS = 1200;
-  const refreshLayerTiles = useCallback((layerId) => {
+  const refreshLayerTiles = useCallback((layerId, { force = false } = {}) => {
     if (!map || !layerId) return;
 
     const now = Date.now();
     const guard = layerTileRefreshGuardRef.current;
     const last = guard.get(layerId) || 0;
 
-    if (now - last < MIN_REFRESH_INTERVAL_MS) {
+    if (!force && now - last < MIN_REFRESH_INTERVAL_MS) {
       return;
     }
     guard.set(layerId, now);
@@ -1252,6 +1253,7 @@ const Amain = () => {
   const [isLocationMarkerMode, setIsLocationMarkerMode] = useState(false);
   const [isCreatingDoor, setIsCreatingDoor] = useState(false);
   const [isPlaceCovered, setIsPlaceCovered] = useState(null);
+  const [areaAccess, setAreaAccess] = useState({ saved: '', selected: '' });
   const [isAreaEditMode, setIsAreaEditMode] = useState(false);
   const [isAreaGeometryDirty, setIsAreaGeometryDirty] = useState(false);
   const [isSavingAreaGeometry, setIsSavingAreaGeometry] = useState(false);
@@ -5392,6 +5394,7 @@ const Amain = () => {
     setLocationRoofType('');
     setLocationStatus('');
     setIsPlaceCovered(null);
+    setAreaAccess({ saved: '', selected: '' });
 
     setIsEditingDoorInfo(false);
     setLastCreatedDoorId(null);
@@ -9299,7 +9302,7 @@ const Amain = () => {
     return {
       basic_info: {
         title: {
-          fa: placeName,
+          ...(!isAreaLayerActive || placeName.trim() ? { fa: placeName } : {}),
           en: languageTitles.english,
           ar: languageTitles.arabic,
           ur: languageTitles.urdu
@@ -9316,11 +9319,14 @@ const Amain = () => {
         transport_modes: selectedTransport.map(normalizeTransportValue).filter(Boolean),
         gender_access: selectedGenderAccess.map(normalizeGenderValue).filter(Boolean),
         place_function: placeFunction || null,
-        is_covered: typeof isPlaceCovered === 'boolean' ? isPlaceCovered : null
+        ...(!isAreaLayerActive || typeof isPlaceCovered === 'boolean' ? { is_covered: isPlaceCovered } : {})
       },
 
       ...(isAreaLayerActive
         ? {
+          ...(areaAccess.selected && areaAccess.selected !== areaAccess.saved
+            ? { public_access: areaAccess.selected === 'public' }
+            : {}),
           meta: {
             is_closed: isInactive
           }
@@ -9387,6 +9393,10 @@ const Amain = () => {
         if (isAreaLayerActive) {
           setIsSavingAreaInfo(true);
           const response = await updateAreaInfo(targetAreaId, payload);
+          if ('public_access' in payload) {
+            refreshLayerTiles('areas-outline', { force: true });
+            refreshLayerTiles('routing_edges_static-ground', { force: true });
+          }
           toast.success(response?.message || 'اطلاعات محدوده با موفقیت ثبت شد');
         } else {
           setIsSavingDoorInfo(true);
@@ -9575,6 +9585,7 @@ const Amain = () => {
     setLastCreatedDoorId(null);
     setLastCreatedAccessPointId(null);
     setIsEditingDoorInfo(isEditMode);
+    setAreaAccess({ saved: '', selected: '' });
     setRoutingAreaOptions([]);
     setIsAddPlaceModalOpen(true);
     setCurrentStep(1);
@@ -9585,6 +9596,9 @@ const Amain = () => {
       setIsLoadingAreaInfo(true);
       const info = await getAreaInfo(areaId, { language });
       fillDoorInfoForm(info);
+      const publicAccess = getAreaPublicAccess(info);
+      const access = publicAccess === null ? '' : (publicAccess ? 'public' : 'private');
+      setAreaAccess({ saved: access, selected: access });
       setRoutingBidirectional(true);
       setRoutingFromArea('');
       setRoutingToArea('');
@@ -13973,7 +13987,27 @@ const Amain = () => {
                   <div className="form-section">
                     {/* Place Type Section */}
                     <div className="form-group">
-                      <label className="form-label">نوع و موقعیت این مکان </label>
+                      <div className="location-type-heading">
+                        <label className="form-label">نوع و موقعیت این مکان </label>
+                        {isAreaLayerActive && (
+                          <label className="area-access-control">
+                            <span>ماهیت محدوده</span>
+                            <select
+                              className="form-input"
+                              value={areaAccess.selected}
+                              onChange={(event) => {
+                                const selected = event.target.value;
+                                setAreaAccess((current) => ({ ...current, selected }));
+                              }}
+                              disabled={isLoadingAreaInfo || isSavingAreaInfo}
+                            >
+                              <option value="" disabled>تعیین نشده</option>
+                              <option value="public">عمومی</option>
+                              <option value="private">خصوصی</option>
+                            </select>
+                          </label>
+                        )}
+                      </div>
                       <div className="location-type-grid">
                         {/* Status */}
                         <div className="location-type-section">
@@ -14121,7 +14155,8 @@ const Amain = () => {
 
                     {isVerticalConnector && <ConnectorStops value={connectorForm.value} onChange={connectorForm.setValue}
                       kind={placeFunction} floors={connectorForm.floors} groups={connectorForm.groups}
-                      selectedPoint={connectorForm.point} onJoin={connectorForm.join} onPick={connectorForm.pick} Select={AddPlaceSelect} />}
+                      selectedPoint={connectorForm.point} onJoin={connectorForm.join} onPick={connectorForm.pick}
+                      onSelectAccess={connectorForm.selectAccess} Select={AddPlaceSelect} />}
                     {!isAreaLayerActive && !isVerticalConnector && (
                       <div className="form-group routing-direction-section">
                         <label className="form-label">جهت عبور</label>

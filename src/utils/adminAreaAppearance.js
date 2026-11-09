@@ -60,19 +60,25 @@ const bool = value => {
 };
 const text = value => String(value ?? '').replace(/ي/g, 'ی').replace(/ك/g, 'ک').trim();
 
+const publicAccessFromAttrs = attrs => {
+  const isPublic = bool(attrs.access_policy?.public_access);
+  if (isPublic !== null) return isPublic;
+
+  const source = attrs.source_properties ?? {};
+  const owner = text(source.owner ?? source.Noefaali_1 ?? attrs.owner ?? attrs.classification?.access_class);
+  return owner ? ['عمومی', 'public'].includes(owner) : null;
+};
+
+export const getAreaPublicAccess = area => publicAccessFromAttrs(objectValue(area.attrs_raw ?? area.attrs));
+
 export const getAreaAppearance = area => {
   const attrs = objectValue(area.attrs_raw ?? area.attrs);
   const operational = area.operational ?? attrs.operational ?? {};
   const source = attrs.source_properties ?? {};
-  let isPublic = bool(attrs.access_policy?.public_access);
-  if (isPublic === null) {
-    const owner = text(source.owner ?? source.Noefaali_1 ?? attrs.owner ?? attrs.classification?.access_class);
-    if (owner) isPublic = ['عمومی', 'public'].includes(owner);
-  }
-  if (bool(area.is_closed ?? area.meta?.is_closed) === true) isPublic = false;
+  const isClosed = bool(area.is_closed ?? area.meta?.is_closed) === true;
   const covered = bool(operational.is_covered);
   return {
-    areaPublic: isPublic,
+    areaPublic: isClosed ? false : publicAccessFromAttrs(attrs),
     areaCovered: covered ?? ({ 'سرپوشیده': true, 'روباز': false }[text(source.indoor)] ?? null)
   };
 };
