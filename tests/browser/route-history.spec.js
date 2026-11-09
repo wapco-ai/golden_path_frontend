@@ -11,7 +11,7 @@ const routes = [1, 2].map(id => ({
 
 async function setup(page, onRouting) {
   await page.addInitScript(() => {
-    sessionStorage.setItem('gp_user_access_token', 'test-token');
+    localStorage.setItem('gp_user_auth_store', JSON.stringify({ state: { accessToken: 'test-token', user: { id: 42 } }, version: 0 }));
     localStorage.setItem('lang-storage', JSON.stringify({ state: { language: 'fa' }, version: 1 }));
   });
   await page.route('**/api/v1/**', async route => {

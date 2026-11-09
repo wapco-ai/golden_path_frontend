@@ -1,10 +1,13 @@
+import { readNotifications, writeNotifications } from '../services/userNotificationService';
+import { useUserAuthStore } from '../auth/user/userAuthStore';
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import '../styles/Notifications.css';
 
 function Notifications() {
   const navigate = useNavigate();
+  const location = useLocation();
   const intl = useIntl();
 
   useEffect(() => {
@@ -22,59 +25,13 @@ function Notifications() {
     }, 10);
   }, [location.pathname]);
 
-  // Sample notifications data
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      type: 'appUpdate',
-      title: 'appUpdateTitle',
-      description: 'appUpdateDesc',
-      date: '۲۳ شهریور ۱۴۰۴',
-      time: '۱۰:۱۵',
-      read: false,
-      icon: '🔄'
-    },
-    {
-      id: 2,
-      type: 'review',
-      title: 'reviewTitle',
-      description: 'reviewDesc',
-      date: '۲۲ شهریور ۱۴۰۴',
-      time: '۱۶:۴۵',
-      read: true,
-      icon: '⭐'
-    },
-    {
-      id: 3,
-      type: 'gpsUpdate',
-      title: 'gpsUpdateTitle',
-      description: 'gpsUpdateDesc',
-      date: '۲۱ شهریور ۱۴۰۴',
-      time: '۱۱:۲۰',
-      read: true,
-      icon: '📍'
-    },
-    {
-      id: 4,
-      type: 'suggestion',
-      title: 'suggestionTitle',
-      description: 'suggestionDesc',
-      date: '۲۰ شهریور ۱۴۰۴',
-      time: '۰۹:۱۰',
-      read: true,
-      icon: '💡'
-    },
-    {
-      id: 5,
-      type: 'system',
-      title: 'systemTitle',
-      description: 'systemDesc',
-      date: '۱۹ شهریور ۱۴۰۴',
-      time: '۱۵:۳۰',
-      read: false,
-      icon: '⚙️'
-    }
-  ]);
+  const userId = useUserAuthStore(state => state.user?.id);
+  const [notifications, setNotifications] = useState(() => readNotifications(userId));
+  useEffect(() => { setNotifications(readNotifications(userId)); }, [userId]);
+  const saveNotifications = (next) => {
+    writeNotifications(userId, next);
+    setNotifications(next);
+  };
 
   const [showMenu, setShowMenu] = useState(false);
   const [isRTL, setIsRTL] = useState(true); // Default to RTL for Persian
@@ -82,19 +39,19 @@ function Notifications() {
   // Check language direction
   useEffect(() => {
     const currentLang = localStorage.getItem('appLang') || 'fa';
-    setIsRTL(['fa', 'ar'].includes(currentLang));
+    setIsRTL(['fa', 'ar', 'ur'].includes(currentLang));
   }, []);
 
   // Mark all as read
   const markAllAsRead = () => {
-    setNotifications(prev => prev.map(notif => ({ ...notif, read: true })));
+    saveNotifications(notifications.map(notif => ({ ...notif, read: true })));
     setShowMenu(false);
   };
 
   // Mark single as read
   const markAsRead = (id) => {
-    setNotifications(prev =>
-      prev.map(notif =>
+    saveNotifications(
+      notifications.map(notif =>
         notif.id === id ? { ...notif, read: true } : notif
       )
     );
@@ -212,8 +169,8 @@ function Notifications() {
 
                   <div className="notification-footer">
                     <div className="footer-left">
-                      <span className="notification-date">{notification.date}</span>
-                      <span className="notification-time">{notification.time}</span>
+                      <span className="notification-date">{intl.formatDate(notification.timestamp)}</span>
+                      <span className="notification-time">{intl.formatTime(notification.timestamp)}</span>
                     </div>
                     <div className="footer-right">
                       <span className="notification-type">

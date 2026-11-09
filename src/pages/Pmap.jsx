@@ -17,7 +17,8 @@ import '../styles/Pmap.css';
 import useOfflineMapStyle from '../hooks/useOfflineMapStyle';
 import { mapAssetRequest } from '../services/legacyMapStyles';
 import usePublicFloorMap from '../hooks/usePublicFloorMap';
-import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
+import { fetchLandmarkPlaces, localizedPlaceAddress } from '../services/landmarkService';
+import { placesToFeatures } from '../utils/placeFeatures';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import { fetchGroupMetadata } from '../services/groupService';
 import { normalizeGroupMetadata } from '../utils/groupMetadata';
@@ -43,7 +44,7 @@ const getCompositeIcon = (group, nodeFunction, groups = [], size = 35, opacity =
   let iconData =
     groups.find((g) => g.value === group) ||
     groups.find((g) => g.value === nodeFunction) ||
-    groups.find((g) => g.value === 'other');
+    groups.find((g) => g.value === 'other') || {};
 
   return (
     <div
@@ -120,10 +121,10 @@ const Pmap = () => {
     const controller = new AbortController();
 
     setGeoData(null);
-    loadGeoJsonData({ floor: mapFloor, signal: controller.signal })
+    fetchLandmarkPlaces({ language, search: searchQuery.trim() || undefined, limit: 200, signal: controller.signal })
       .then(data => {
         if (!isMounted) return;
-        setGeoData(data);
+        setGeoData(placesToFeatures(data?.places?.landmarkPlaces, mapFloor, p => localizedPlaceAddress(p.address, language)));
       })
       .catch(err => {
         if (err?.name === 'AbortError') return;
@@ -134,7 +135,7 @@ const Pmap = () => {
       isMounted = false;
       controller.abort();
     };
-  }, [language, mapFloor]);
+  }, [language, mapFloor, searchQuery]);
 
   useEffect(() => {
     let isMounted = true;

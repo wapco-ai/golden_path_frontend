@@ -18,8 +18,8 @@ async function setup(page, raw = realRoute, waitForMap = true) {
     sessionStorage.setItem('haramCurrentFloor', '0');
     window.__sendGps = () => {};
     Object.defineProperty(navigator, 'geolocation', { configurable: true, value: {
-      getCurrentPosition: success => success({ coords: { latitude: 36.287, longitude: 59.615, accuracy: 5 } }),
-      watchPosition: success => { window.__sendGps = (lat, lng) => success({ coords: { latitude: lat, longitude: lng, accuracy: 5, heading: 270 } }); return 1; },
+      getCurrentPosition: success => success({ timestamp: Date.now(), coords: { latitude: 36.287, longitude: 59.615, accuracy: 5 } }),
+      watchPosition: success => { window.__sendGps = (lat, lng) => success({ timestamp: Date.now(), coords: { latitude: lat, longitude: lng, accuracy: 5, heading: 270 } }); return 1; },
       clearWatch: () => {}
     } });
   }, { snapshot, origin, destination });
@@ -98,7 +98,7 @@ async function expectFrame(page, snapshot, index) {
   await expect.poll(async () => {
     const actual = await readMap(page);
     return !actual.moving && close(actual.marker, expected) && close(actual.center, expected)
-      && close(actual.traveledEnd, expected);
+      && !actual.traveledEnd;
   }, { timeout: 10000 }).toBe(true);
   const actual = await readMap(page);
   const expectedHeading = expectedBearing(snapshot.geo.geometry.coordinates, step.routeM ?? 1);

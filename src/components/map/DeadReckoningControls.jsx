@@ -1,3 +1,4 @@
+import { validGeo } from '../../utils/locationQuality';
 import React, { useEffect, useState } from 'react';
 import { useIntl } from 'react-intl';
 import useLocaleDigits from '../../utils/useLocaleDigits';
@@ -15,14 +16,15 @@ const DeadReckoningControls = ({ currentLocation }) => {
       setIsActive(data.isActive);
       if (data.stepCount != null) setStepCount(data.stepCount);
     });
-    return remove;
+    return () => { remove(); advancedDeadReckoningService.stop(); };
   }, []);
 
   const toggle = () => {
     if (isActive) {
       advancedDeadReckoningService.stop();
     } else {
-      const coords = currentLocation?.coords || { lat: 0, lng: 0 };
+      const coords = currentLocation?.coords;
+      if (!validGeo(coords)) return;
       advancedDeadReckoningService.start({ lat: coords.lat, lng: coords.lng });
     }
   };

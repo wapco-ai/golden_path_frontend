@@ -1,3 +1,6 @@
+import { useUserAuthStore } from '../auth/user/userAuthStore.js';
+import { toast } from 'react-toastify';
+import { useIntl } from 'react-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouteStore } from '../store/routeStore.js';
 import { requestRouting } from '../services/routingService.js';
@@ -60,6 +63,8 @@ const persistSessionRoute = ({ origin, destination, route, transportMode, gender
 };
 
 export const useRouteHistoryActions = ({ navigate, locale = 'fa-IR', onRepeatError }) => {
+  const intl = useIntl();
+  const sessionGeneration = useUserAuthStore(state => state.sessionGeneration);
   const [history, setHistory] = useState([]);
   const [isRepeating, setIsRepeating] = useState(false);
   const repeatInFlight = useRef(false);
@@ -77,17 +82,19 @@ export const useRouteHistoryActions = ({ navigate, locale = 'fa-IR', onRepeatErr
   useEffect(() => {
     const controller = new AbortController();
 
+    setHistory([]);
     fetchRouteHistory({ limit: 50, signal: controller.signal })
-      .then(setHistory)
+      .then(data => { if (!controller.signal.aborted) setHistory(data); })
       .catch((error) => {
-        if (error?.name !== 'AbortError') {
+        if (error?.name !== 'AbortError' && !controller.signal.aborted) {
+          toast.error(intl.formatMessage({ id: 'generalErrorMessage' }));
           console.error('Failed to load route history', error);
           setHistory([]);
         }
       });
 
     return () => controller.abort();
-  }, []);
+  }, [sessionGeneration, intl]);
 
   const applyRoute = useCallback((item, normalizedRoute) => {
     if (!item?.origin || !item?.destination || !normalizedRoute) return false;

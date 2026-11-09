@@ -16,7 +16,7 @@ test('avatar upload works on incomplete profile, survives reload, and failure pr
   });
   await page.route('**/*', async (route) => {
     const url = new URL(route.request().url());
-    if (url.hostname === '127.0.0.1' && url.port === '5173') return route.continue();
+    if (url.hostname === '127.0.0.1' && ['5173', '5179'].includes(url.port)) return route.continue();
     if (url.hostname !== 'localhost' || url.port !== '8080') return route.abort();
     if (url.pathname === '/api/v1/users/me') return route.fulfill({ json: { id: 41, profileCompleted: false, avatarUrl: avatar } });
     if (url.pathname === '/api/v1/files/avatar') {
@@ -57,7 +57,7 @@ test('late upload cannot replace another account and broken images show the fall
   });
   await page.route('**/*', async (route) => {
     const url = new URL(route.request().url());
-    if (url.hostname === '127.0.0.1' && url.port === '5173') return route.continue();
+    if (url.hostname === '127.0.0.1' && ['5173', '5179'].includes(url.port)) return route.continue();
     if (url.hostname !== 'localhost' || url.port !== '8080') return route.abort();
     if (url.pathname === '/api/v1/users/me') return route.fulfill({ json: { id: 1, avatarUrl: '/storage/avatars/missing.png' } });
     if (url.pathname === '/api/v1/files/avatar') { started(); await pending; return route.fulfill({ json: { url: '/storage/avatars/first.png' } }); }

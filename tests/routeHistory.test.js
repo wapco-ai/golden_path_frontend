@@ -1,3 +1,5 @@
+import apiUser from '../src/api/apiUser.js';
+import { useUserAuthStore } from '../src/auth/user/userAuthStore.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -28,15 +30,17 @@ test('route history mode mappings preserve existing UI message ids', () => {
 
 test('route history request uses the logged-in user bearer token', async () => {
   storage.clear();
-  sessionStorage.setItem('gp_user_access_token', 'history-token');
-  const originalFetch = globalThis.fetch;
+  useUserAuthStore.getState().setSession({ accessToken: 'history-token', user: { id: 1 } });
+  const originalAdapter = apiUser.defaults.adapter;
   let captured;
 
-  globalThis.fetch = async (url, options) => {
+  apiUser.defaults.adapter = async config => {
+    const url = config.url;
+    const options = { headers: config.headers, body: config.data };
     captured = { url, options };
     return {
-      ok: true,
-      json: async () => ({ data: [{ id: 7 }] })
+      status: 200, config,
+      data: { data: [{ id: 7 }] }
     };
   };
 
@@ -46,7 +50,7 @@ test('route history request uses the logged-in user bearer token', async () => {
     assert.match(captured.url, /\/api\/v1\/users\/me\/route-history\?limit=12$/);
     assert.equal(captured.options.headers.Authorization, 'Bearer history-token');
   } finally {
-    globalThis.fetch = originalFetch;
+    apiUser.defaults.adapter = originalAdapter;
   }
 });
 
@@ -79,16 +83,18 @@ test('stored route snapshot is normalized through the same routing mapper', () =
 
 test('routing sends bearer token and endpoint names so successful routes can be captured in history', async () => {
   storage.clear();
-  sessionStorage.setItem('gp_user_access_token', 'routing-token');
+  useUserAuthStore.getState().setSession({ accessToken: 'routing-token', user: { id: 1 } });
   sessionStorage.setItem('haramCurrentFloor', '0');
-  const originalFetch = globalThis.fetch;
+  const originalAdapter = apiUser.defaults.adapter;
   let captured;
 
-  globalThis.fetch = async (url, options) => {
+  apiUser.defaults.adapter = async config => {
+    const url = config.url;
+    const options = { headers: config.headers, body: config.data };
     captured = { url, options, body: JSON.parse(options.body) };
     return {
-      ok: true,
-      json: async () => ({
+      status: 200, config,
+      data: {
         ok: true,
         mode: 'walk',
         gender: 'both',
@@ -99,7 +105,7 @@ test('routing sends bearer token and endpoint names so successful routes can be 
         steps: [],
         distanceMeters: 100,
         estimatedMinutes: 1.5
-      })
+      }
     };
   };
 
@@ -119,6 +125,6 @@ test('routing sends bearer token and endpoint names so successful routes can be 
     assert.equal(captured.body.destination.type, 'coordinate');
     assert.equal(route.distanceMeters, 100);
   } finally {
-    globalThis.fetch = originalFetch;
+    apiUser.defaults.adapter = originalAdapter;
   }
 });

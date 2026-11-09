@@ -48,9 +48,17 @@ function Pfp() {
       setError(null);
 
       try {
-        const data = await listDestinations({ signal: controller.signal, pageSize: 50 });
+        const items = [];
+        let page = 1;
+        let lastPage = 1;
+        do {
+          const data = await listDestinations({ signal: controller.signal, pageSize: 50, page });
+          items.push(...(data.items || []));
+          lastPage = Number(data.pagination?.lastPage ?? data.pagination?.last_page ?? data.pagination?.totalPages ?? Math.ceil((data.pagination?.total ?? items.length) / (data.pagination?.page_size ?? 50)));
+          page += 1;
+        } while (page <= lastPage && !controller.signal.aborted);
         if (!isMounted) return;
-        setSavedLocations(data?.items || []);
+        setSavedLocations(items);
       } catch (err) {
         if (err?.name === 'AbortError') return;
         if (!isMounted) return;
@@ -68,7 +76,7 @@ function Pfp() {
       isMounted = false;
       controller.abort();
     };
-  }, [intl, isUserLoggedIn]);
+  }, [intl, isUserLoggedIn, user?.id]);
 
   // Keep the current card menu open while interacting with it and close it elsewhere.
   useEffect(() => {

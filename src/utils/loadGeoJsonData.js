@@ -9,7 +9,8 @@ const FALLBACK_FLOOR =
     ? Number(DEFAULT_TILE_FLOOR)
     : DEFAULT_FLOOR;
 const DEFAULT_VECTOR_TILE_ZOOM = 16;
-const FEATURE_SOURCE_LAYER = 'public.fn_areas_mvt';
+const FEATURE_SOURCE_LAYER = 'areas';
+const TILE_FUNCTION = 'public.fn_areas_mvt';
 const HARAM_BOUNDS = {
   minLng: 59.61013495098894,
   minLat: 36.28169290965149,
@@ -62,7 +63,7 @@ const buildTileUrl = ({ z, x, y, floor }) => {
   }
 
   const query = params.toString();
-  const base = `${TILE_BASE_URL}/${FEATURE_SOURCE_LAYER}/${z}/${x}/${y}.pbf`;
+  const base = `${TILE_BASE_URL}/${TILE_FUNCTION}/${z}/${x}/${y}.pbf`;
   return query ? `${base}?${query}` : base;
 };
 

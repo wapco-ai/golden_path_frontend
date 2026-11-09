@@ -73,18 +73,21 @@ function Support() {
 
   const supportPhones = supportContent?.phones?.slice(0, 3) || [];
   const supportEmails = supportContent?.emails?.slice(0, 3) || [];
-  const primaryPhone = supportPhones[0] || '+98 21 1234 5678';
-  const primaryEmail = supportEmails[0] || 'support@example.com';
+  const primaryPhone = supportPhones[0] || '';
+  const primaryEmail = supportEmails[0] || '';
 
   const handleContactClick = (type) => {
     if (type === 'support') {
+      if (!primaryEmail) return;
       window.location.href = `mailto:${primaryEmail}`;
     } else if (type === 'phone') {
       if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        if (!primaryPhone) return;
         const sanitizedPhone = primaryPhone.replace(/\s+/g, '');
         window.location.href = `tel:${sanitizedPhone}`;
       } else {
         // For desktop, copy to clipboard or show number
+        if (!primaryPhone) return;
         navigator.clipboard.writeText(primaryPhone)
           .then(() => {
             alert(intl.formatMessage({ id: 'phoneCopied' }));

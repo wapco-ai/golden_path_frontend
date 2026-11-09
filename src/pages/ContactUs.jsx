@@ -52,8 +52,8 @@ function ContactUs() {
 
   const contactPhones = contactContent?.phones?.slice(0, 3) || [];
   const contactEmails = contactContent?.emails?.slice(0, 3) || [];
-  const primaryPhone = contactPhones[0] || '+98 21 1234 5678';
-  const primaryEmail = contactEmails[0] || 'info@example.com';
+  const primaryPhone = contactPhones[0] || '';
+  const primaryEmail = contactEmails[0] || '';
   const contactAddress = contactContent?.address || intl.formatMessage({ id: 'companyAddress' });
 
   const handleAddressClick = () => {

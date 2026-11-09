@@ -91,7 +91,7 @@ test('devices offering only gravity-free acceleration can detect steps', async (
   assert.equal(sensors.listeners('devicemotion'), 1);
   simulateWalk(sensors, [0.05, 0.15, 0.6, 1.7, 2.2, 1.1, 0.25, 0.1, 0.05, 0.05, 0.05, 0.05], 5, true);
   assert.ok(deadReckoning.stepCount >= 3);
-  assert.notDeepEqual(deadReckoning.geoPosition, initialPosition);
+  assert.deepEqual(deadReckoning.geoPosition, initialPosition, 'steps without compass cannot establish a position');
 });
 
 test('both iOS sensor permission prompts start within the same gesture', async () => {
@@ -143,4 +143,62 @@ test('stopping during permission prompt never installs stale listeners', async (
   await pending;
   assert.equal(deadReckoning.isActive, false);
   assert.equal(sensors.listeners('devicemotion'), 0);
+});
+
+test('missing, stale, relative and previous-session headings cannot create a northward position', async () => {
+  const sensors = setupSensors();
+  await deadReckoning.start(initialPosition);
+  const walking = [9.8, 9.8, 10.5, 12.4, 13, 11, 9.6, 9.2, 9.7, 9.8, 9.8, 9.8];
+  sensors.emit('deviceorientation', { absolute: false, alpha: 0 });
+  simulateWalk(sensors, walking);
+  assert.deepEqual(deadReckoning.geoPosition, initialPosition);
+  assert.equal(deadReckoning.positionTimestamp, null);
+  sensors.emit('deviceorientationabsolute', { alpha: 270 });
+  deadReckoning._headingAt = Date.now() - 6000;
+  deadReckoning._processStep();
+  assert.deepEqual(deadReckoning.geoPosition, initialPosition);
+  sensors.emit('deviceorientationabsolute', { alpha: 270 });
+  await deadReckoning.start(initialPosition);
+  deadReckoning._processStep();
+  assert.equal(deadReckoning.heading, null);
+  assert.deepEqual(deadReckoning.geoPosition, initialPosition);
+});
+
+test('GPS at 8–25 m corrects DR; invalid and stale fixes cannot move it', async () => {
+  setupSensors();
+  await deadReckoning.start(initialPosition);
+  const fix = { lat: 36.289, lng: 59.617 };
+  const now = Date.now();
+  deadReckoning.processGpsData(fix, 25, now);
+  assert.deepEqual(deadReckoning.geoPosition, fix);
+  for (const [position, accuracy, timestamp] of [
+    [initialPosition, 26, now], [initialPosition, -1, now],
+    [initialPosition, 5, now - 16000], [initialPosition, 5, now + 60000],
+    [{ lat: NaN, lng: 59 }, 5, now], [{ lat: 100, lng: 59 }, 5, now]
+  ]) {
+    deadReckoning.processGpsData(position, accuracy, timestamp);
+    assert.deepEqual(deadReckoning.geoPosition, fix);
+  }
+});
+
+test('a browser exposing sensor APIs but delivering no data cannot stay falsely active', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: Date.now() });
+  const sensors = setupSensors();
+  await deadReckoning.start(initialPosition);
+  t.mock.timers.tick(5001);
+  assert.equal(deadReckoning.isActive, false);
+  assert.equal(sensors.listeners('devicemotion'), 0);
+  assert.equal(deadReckoning.positionTimestamp, null);
+});
+
+test('a recent GPS reading delivered after a step still corrects drift', async () => {
+  const sensors = setupSensors();
+  await deadReckoning.start(initialPosition);
+  sensors.emit('deviceorientationabsolute', { alpha: 270 });
+  deadReckoning._processStep();
+  const fix = { lat: 36.289, lng: 59.617 };
+  deadReckoning.processGpsData(fix, 20, Date.now() - 1000);
+  assert.deepEqual(deadReckoning.geoPosition, fix);
+  deadReckoning.processGpsData(initialPosition, 5, Date.now() - 3000);
+  assert.deepEqual(deadReckoning.geoPosition, fix, 'out-of-order GPS is ignored');
 });
