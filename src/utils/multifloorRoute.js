@@ -65,8 +65,8 @@ export function multifloorSteps(geo, steps, translate = s => s.instruction || s.
       : (step.coordinates || []).map(([lat, lon]) => [lon, lat]);
     const points = coordinates.length ? coordinates : (step.coordinates || []).map(([lat, lon]) => [lon, lat]);
     const distanceMeters = isWalk ? getLineDistanceMeters(points) : 0;
-    const durationSeconds = step.type === 'stepChangeFloor' ? Number(step.duration_s || 0)
-      : isWalk ? Number(segment.duration_s) * Math.max(0, toM - fromM) : 0;
+    const durationSeconds = step.span_duration_s ?? step.duration_s ?? (isWalk
+      ? Number(segment.duration_s) * Math.max(0, toM - fromM) : 0);
     const instruction = step.instruction || translate(step, index);
     return { ...step, id: index + 1, coordinates: points, fromM, toM, durationSeconds, distanceMeters,
       instruction: step.type === 'stepChangeFloor' && normalizeFloor(step.toFloor) === 0

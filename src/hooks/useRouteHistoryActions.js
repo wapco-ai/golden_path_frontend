@@ -1,3 +1,4 @@
+import { routeGeoWithTiming } from '../utils/routeTiming.js';
 import { useUserAuthStore } from '../auth/user/userAuthStore.js';
 import { toast } from 'react-toastify';
 import { useIntl } from 'react-intl';
@@ -104,7 +105,8 @@ export const useRouteHistoryActions = ({ navigate, locale = 'fa-IR', onRepeatErr
 
     setOrigin(item.origin);
     setDestination(item.destination);
-    setRouteGeo(normalizedRoute.geo);
+    const geo = routeGeoWithTiming(normalizedRoute);
+    setRouteGeo(geo);
     setRouteSteps(normalizedRoute.steps);
     setAlternativeRoutes(normalizedRoute.alternatives || []);
     setTransportMode(transportMode);
@@ -113,7 +115,7 @@ export const useRouteHistoryActions = ({ navigate, locale = 'fa-IR', onRepeatErr
     persistSessionRoute({
       origin: item.origin,
       destination: item.destination,
-      route: normalizedRoute,
+      route: { ...normalizedRoute, geo },
       transportMode,
       gender
     });

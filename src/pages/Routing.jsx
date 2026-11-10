@@ -1,5 +1,6 @@
 import { submitEmergency } from '../services/emergencyService';
 import { validGps, isFresh } from '../utils/locationQuality.js';
+import { formatRouteDuration, routeSpanDuration } from '../utils/routeTiming.js';
 import FloorControl from '../components/map/FloorControl';
 import { routeCoordinates as getRouteCoordinates, isMultifloor, multifloorSteps, activeRouteCoordinates } from '../utils/multifloorRoute';
 import { withDoorStepInstructions } from '../utils/routeStepInstructions';
@@ -592,20 +593,9 @@ const RoutingPage = () => {
     };
   }, [transportMode, gender, origin, destination, routeGeo, routeSteps.length, buildRouteWithFallback]);
 
-  const formatDurationFromSeconds = useCallback((durationSeconds) => {
-    const normalizedSeconds = Math.max(0, Math.round(durationSeconds || 0));
-    if (normalizedSeconds < 60) {
-      return `${normalizedSeconds} ${intl.formatMessage({ id: 'secondsUnit' })}`;
-    }
-
-    const minutes = Math.floor(normalizedSeconds / 60);
-    const seconds = normalizedSeconds % 60;
-    if (seconds === 0) {
-      return `${minutes} ${intl.formatMessage({ id: 'minutesUnit' })}`;
-    }
-
-    return `${minutes} ${intl.formatMessage({ id: 'minutesUnit' })} ${seconds} ${intl.formatMessage({ id: 'secondsUnit' })}`;
-  }, [intl]);
+  const formatDurationFromSeconds = useCallback(
+    (seconds) => formatRouteDuration(seconds, intl), [intl]
+  );
 
   const buildStepInstruction = useCallback((baseInstruction, landmarkName, roundedDistance, hasPrebuiltInstruction = false) => {
     const normalizedBase = typeof baseInstruction === 'string' ? baseInstruction.trim() : '';
@@ -626,8 +616,8 @@ const RoutingPage = () => {
     return normalizedBase ? `${normalizedBase}، ${landmarkSuffix}` : landmarkSuffix;
   }, [intl]);
 
-  // Calculate total time in minutes from all steps
-  const calculateTotalTime = useCallback((steps) => {
+  // Sum full-precision durations, with support for older preformatted steps.
+  const calculateTotalSeconds = useCallback((steps) => {
     if (!steps) return 0;
 
     const minuteUnit = intl.formatMessage({ id: 'minutesUnit' });
@@ -654,7 +644,7 @@ const RoutingPage = () => {
       return acc + stepSeconds;
     }, 0);
 
-    return totalSeconds / 60;
+    return totalSeconds;
   }, [intl]);
 
   // If no steps available but route geometry exists (e.g. when navigating
@@ -663,7 +653,7 @@ const RoutingPage = () => {
   useEffect(() => {
     if (!routeGeo || routeSteps.length) return;
 
-    let minutes;
+    let durationSeconds = routeGeo.properties?.durationSeconds;
     let dist;
     let storedMode;
 
@@ -671,7 +661,7 @@ const RoutingPage = () => {
       const stored = sessionStorage.getItem('routeSummaryData');
       if (stored) {
         const parsed = JSON.parse(stored);
-        minutes = parseInt(parsed.time, 10);
+        durationSeconds ??= parsed.durationSeconds;
         dist = parseInt(parsed.distance, 10);
         storedMode = parsed.mode;
 
@@ -680,20 +670,20 @@ const RoutingPage = () => {
       console.warn('failed to read stored route summary', err);
     }
 
-    if (!minutes || !dist) {
+    if (!dist) {
       const coords = getRouteCoordinates(routeGeo) || [];
       if (coords.length === 0) return;
       dist = coords.slice(1).reduce((acc, c, i) => {
         const prev = coords[i];
         return acc + Math.hypot(c[0] - prev[0], c[1] - prev[1]) * 100000;
       }, 0);
-      minutes = Math.max(1, Math.round(dist / 60));
     }
 
     setRouteData(prev => ({
       steps: [],
-      totalTime: formatTotalTime(minutes),
-      arrivalTime: calculateArrivalTime(minutes),
+      durationSeconds,
+      totalTime: formatDurationFromSeconds(durationSeconds),
+      arrivalTime: calculateArrivalTime(durationSeconds),
       totalDistance: `${Math.round(dist)} ${intl.formatMessage({ id: 'meters' })}`,
       alternativeRoutes: [],
       mode: storedMode || transportMode,
@@ -808,21 +798,18 @@ const RoutingPage = () => {
     }
   }, [showGpsOffline]);
 
-  // Format total time as "X <minutes> Y <seconds>"
-  const formatTotalTime = (totalMinutes) => formatDurationFromSeconds(totalMinutes * 60);
-
-  // Calculate arrival time in HH:MM format with AM/PM indicator
-  const calculateArrivalTime = (totalMinutes) => {
-    const now = new Date();
-    const arrival = new Date(now.getTime() + totalMinutes * 60000);
+  const calculateArrivalTime = (durationSeconds) => {
+    if (!Number.isFinite(durationSeconds)) return '—';
+    const arrival = new Date(Date.now() + durationSeconds * 1000);
 
     let hours = arrival.getHours();
     const minutes = arrival.getMinutes().toString().padStart(2, '0');
 
+    const seconds = arrival.getSeconds().toString().padStart(2, '0');
     hours = hours % 12;
     hours = hours ? hours : 12;
 
-    return `${hours}:${minutes}`;
+    return `${hours}:${minutes}:${seconds}`;
   };
 
   const toRad = useCallback((deg) => (deg * Math.PI) / 180, []);
@@ -919,7 +906,7 @@ const RoutingPage = () => {
     );
   }, [intl]);
 
-  const buildDisplayStepFromRouteMSegment = useCallback((segment, idx, allSegments, routeCoords) => {
+  const buildDisplayStepFromRouteMSegment = useCallback((segment, idx, allSegments, routeCoords, totalSeconds) => {
     const step = segment.step;
     const stepName = step?.name || step?.title;
     const distance = getLineDistanceMeters(segment.coordinates);
@@ -943,7 +930,7 @@ const RoutingPage = () => {
       direction = computeTurn(b1, b1);
     }
 
-    const durationSeconds = Math.max(1, Math.round(distance));
+    const durationSeconds = routeSpanDuration(segment, totalSeconds);
 
     return {
       id: idx + 1,
@@ -1020,12 +1007,13 @@ const RoutingPage = () => {
       .then(response => response.json())
       .then(data => {
         const steps = data.route.steps;
-        const totalMinutes = calculateTotalTime(steps);
-        const formattedTotalTime = formatTotalTime(totalMinutes);
-        const arrivalTime = calculateArrivalTime(totalMinutes);
+        const durationSeconds = calculateTotalSeconds(steps);
+        const formattedTotalTime = formatDurationFromSeconds(durationSeconds);
+        const arrivalTime = calculateArrivalTime(durationSeconds);
 
         setRouteData({
           ...data.route,
+          durationSeconds,
           totalTime: formattedTotalTime,
           arrivalTime: arrivalTime
         });
@@ -1040,12 +1028,13 @@ const RoutingPage = () => {
     const multi = multifloorSteps(routeGeo, instructedSteps, (step, idx) => intl.formatMessage({ id: step.type }, { name: step.name, title: step.title, num: idx + 1 }));
     if (multi) {
       const decorate = steps => steps.map(s => ({ ...s, distance: `${Math.round(s.distanceMeters)} ${intl.formatMessage({ id: 'meters' })}`, time: formatDurationFromSeconds(s.durationSeconds) }));
-      const minutes = routeGeo.properties.durationSeconds / 60;
+      const durationSeconds = routeGeo.properties.durationSeconds;
       setRouteData({ steps: decorate(multi), instructionSteps: multi, mode: transportMode,
-        totalTime: formatTotalTime(minutes), arrivalTime: calculateArrivalTime(minutes),
+        durationSeconds,
+        totalTime: formatDurationFromSeconds(durationSeconds), arrivalTime: calculateArrivalTime(durationSeconds),
         totalDistance: `${Math.round(routeGeo.properties.distanceMeters)} ${intl.formatMessage({ id: 'meters' })}`,
         alternativeRoutes: alternativeRoutes.map((alt, i) => ({ ...alt, id: i + 1, steps: decorate(multifloorSteps(alt.geo, withDoorStepInstructions(alt.steps, intl, alt.geo)) || []),
-          totalTime: formatTotalTime(alt.durationSeconds / 60), totalDistance: `${Math.round(alt.distanceMeters)} ${intl.formatMessage({ id: 'meters' })}` })) });
+          totalTime: formatDurationFromSeconds(alt.durationSeconds ?? alt.geo?.properties?.durationSeconds), totalDistance: `${Math.round(alt.distanceMeters)} ${intl.formatMessage({ id: 'meters' })}` })) });
       return;
     }
     const coords = getRouteCoordinates(routeGeo);
@@ -1107,7 +1096,7 @@ const RoutingPage = () => {
         const b2 = bearing(coords[idx + 1], coords[idx + 2]);
         direction = computeTurn(b1, b2);
       }
-      const durationSeconds = Math.max(1, Math.round(distance));
+      const durationSeconds = s.span_duration_s ?? s.duration_s;
       return {
         id: idx + 1,
         type: s.type,
@@ -1129,7 +1118,7 @@ const RoutingPage = () => {
     });
     // Use summary from session storage if available to ensure consistency with
     // the FinalSearch page calculations
-    let summaryMinutes;
+    let summarySeconds;
     let summaryDistance;
     let summaryMode;
 
@@ -1137,7 +1126,7 @@ const RoutingPage = () => {
       const stored = sessionStorage.getItem('routeSummaryData');
       if (stored) {
         const parsed = JSON.parse(stored);
-        summaryMinutes = parseInt(parsed.time, 10);
+        summarySeconds = parsed.durationSeconds;
         summaryDistance = parseInt(parsed.distance, 10);
         summaryMode = parsed.mode;
 
@@ -1148,17 +1137,19 @@ const RoutingPage = () => {
 
     const routeMSegments = buildRouteMSegments(instructedSteps, coords);
     const displaySteps = routeMSegments.length
-      ? routeMSegments.map((segment, idx) => buildDisplayStepFromRouteMSegment(segment, idx, routeMSegments, coords))
+      ? routeMSegments.map((segment, idx) => buildDisplayStepFromRouteMSegment(segment, idx, routeMSegments, coords, routeGeo.properties?.durationSeconds ?? summarySeconds))
       : normalizeInstructionSteps(steps);
     const routeInstructionSteps = routeMSegments.length ? normalizeRouteMSteps(instructedSteps) : displaySteps;
-    const totalMinutes = summaryMinutes || calculateTotalTime(displaySteps);
+    const durationSeconds = routeGeo.properties?.durationSeconds ?? summarySeconds
+      ?? (displaySteps.some(step => Number.isFinite(step.durationSeconds)) ? calculateTotalSeconds(displaySteps) : null);
     const totalDistance = summaryDistance ||
       displaySteps.reduce((acc, st) => acc + parseInt(st.distance), 0);
-    const formattedTotalTime = formatTotalTime(totalMinutes);
-    const arrivalTime = calculateArrivalTime(totalMinutes);
+    const formattedTotalTime = formatDurationFromSeconds(durationSeconds);
+    const arrivalTime = calculateArrivalTime(durationSeconds);
 
     const alternativesData = (alternativeRoutes || []).map((alt, ridx) => {
       const altCoords = getRouteCoordinates(alt.geo);
+      const altDurationSeconds = alt.durationSeconds ?? alt.geo?.properties?.durationSeconds;
       const instructedAltSteps = withDoorStepInstructions(alt.steps, intl, alt.geo);
       const altSteps = instructedAltSteps.map((st, i) => {
         let dist = 0;
@@ -1191,7 +1182,7 @@ const RoutingPage = () => {
           const b2 = bearing(altCoords[i + 1], altCoords[i + 2]);
           direction = computeTurn(b1, b2);
         }
-        const durationSeconds = Math.max(1, Math.round(dist));
+        const durationSeconds = st.span_duration_s ?? st.duration_s;
         return {
           id: i + 1,
           type: st.type,
@@ -1208,15 +1199,16 @@ const RoutingPage = () => {
       });
       const altRouteMSegments = buildRouteMSegments(instructedAltSteps, altCoords);
       const displayAltSteps = altRouteMSegments.length
-        ? altRouteMSegments.map((segment, idx) => buildDisplayStepFromRouteMSegment(segment, idx, altRouteMSegments, altCoords))
+        ? altRouteMSegments.map((segment, idx) => buildDisplayStepFromRouteMSegment(segment, idx, altRouteMSegments, altCoords, altDurationSeconds))
         : normalizeInstructionSteps(altSteps);
-      const minutes = calculateTotalTime(displayAltSteps);
+      const durationSeconds = altDurationSeconds
+        ?? (displayAltSteps.some(step => Number.isFinite(step.durationSeconds)) ? calculateTotalSeconds(displayAltSteps) : null);
       const distTot = displayAltSteps.reduce((acc, st) => acc + parseInt(st.distance), 0);
       return {
         id: ridx + 1,
         steps: displayAltSteps,
         geo: alt.geo,
-        totalTime: formatTotalTime(minutes),
+        totalTime: formatDurationFromSeconds(durationSeconds),
         totalDistance: `${distTot} ${intl.formatMessage({ id: 'meters' })}`,
         from: alt.from,
         to: alt.to,
@@ -1228,6 +1220,7 @@ const RoutingPage = () => {
     setRouteData({
       steps: displaySteps,
       instructionSteps: routeInstructionSteps,
+      durationSeconds,
       totalTime: formattedTotalTime,
       arrivalTime,
       totalDistance: `${totalDistance} ${intl.formatMessage({ id: 'meters' })}`,
@@ -1239,7 +1232,7 @@ const RoutingPage = () => {
       sessionStorage.setItem(
         'routeSummaryData',
         JSON.stringify({
-          time: totalMinutes.toString(),
+          durationSeconds,
           distance: totalDistance.toString(),
           mode: transportMode
         })
@@ -1247,25 +1240,31 @@ const RoutingPage = () => {
     } catch (err) {
       console.warn('failed to persist route summary', err);
     }
-  }, [routeSteps, routeGeo, alternativeRoutes, transportMode, resolveLandmarkName, formatDurationFromSeconds, calculateTotalTime, buildStepInstruction, normalizeInstructionSteps, buildDisplayStepFromRouteMSegment, intl, bearing, computeTurn]);
+  }, [routeSteps, routeGeo, alternativeRoutes, transportMode, resolveLandmarkName, formatDurationFromSeconds, calculateTotalSeconds, buildStepInstruction, normalizeInstructionSteps, buildDisplayStepFromRouteMSegment, intl, bearing, computeTurn]);
 
 
-  // Update arrival time every minute
+  // Use the current span and its progress for the arrival estimate.
   useEffect(() => {
     if (!routeData) return;
+    const steps = routeData.steps || [];
+    const active = steps[currentStep];
+    let remaining = routeData.durationSeconds;
+    if (isRoutingActive && active && steps.every(step => Number.isFinite(step.durationSeconds))) {
+      const { fromM, toM } = active;
+      const routeM = navigationFrame.routeM;
+      const fraction = Number.isFinite(routeM) && toM > fromM
+        ? Math.max(0, Math.min(1, (routeM - fromM) / (toM - fromM))) : 0;
+      remaining = active.durationSeconds * (1 - fraction) + calculateTotalSeconds(steps.slice(currentStep + 1));
+    }
 
-    const timer = setInterval(() => {
-      const totalMinutes = calculateTotalTime(routeData.steps);
-      const arrivalTime = calculateArrivalTime(totalMinutes);
-
-      setRouteData(prev => ({
-        ...prev,
-        arrivalTime: arrivalTime
-      }));
-    }, 60000);
-
+    const updateArrival = () => {
+      const arrivalTime = calculateArrivalTime(remaining);
+      setRouteData(prev => prev && prev.arrivalTime !== arrivalTime ? { ...prev, arrivalTime } : prev);
+    };
+    updateArrival();
+    const timer = setInterval(updateArrival, 60000);
     return () => clearInterval(timer);
-  }, [routeData]);
+  }, [routeData?.steps, routeData?.durationSeconds, currentStep, navigationFrame.routeM, isRoutingActive, calculateTotalSeconds]);
 
   // QR is an initial anchor, never a reason to suppress subsequent live GPS.
   useEffect(() => {
@@ -2092,7 +2091,7 @@ const RoutingPage = () => {
                             ? ({ fa: ' پس از رسیدن، فلش را لمس کنید.', en: ' Tap the arrow after arriving.', ar: ' اضغط السهم بعد الوصول.', ur: ' پہنچنے کے بعد تیر دبائیں۔' })[language] : ''}
                         </span>
                         <span className="step-time">
-                          ({routeData.steps[currentStep].time})
+                          ({formatDigits(routeData.steps[currentStep].time)})
                         </span>
                       </p>
                     </div>

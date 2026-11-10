@@ -1,3 +1,4 @@
+import { formatRouteDuration, routeSpanDuration } from '../utils/routeTiming.js';
 import FloorControl from '../components/map/FloorControl';
 import { routeCoordinates as getRouteCoordinates, routeCoordinatesOnFloor, routeOnFloor, isMultifloor, multifloorSteps } from '../utils/multifloorRoute';
 import { getPointFloor, localRouteFallbackFloor } from '../utils/floors';
@@ -103,23 +104,6 @@ const RouteOverview = () => {
     if (ad < 100) return diff > 0 ? 'left' : 'right';
     return diff > 0 ? 'bend-left' : 'bend-right';
   };
-
-  const formatSegmentTime = useCallback((distanceInMeters, durationSeconds = distanceInMeters) => {
-    const totalMinutes = durationSeconds / 60;
-
-    if (totalMinutes < 1) {
-      return `${formatDigits(Math.max(1, Math.round(totalMinutes * 60)))} ${intl.formatMessage({ id: 'secondsUnit' })}`;
-    }
-
-    const minutes = Math.floor(totalMinutes);
-    const seconds = Math.round((totalMinutes - minutes) * 60);
-
-    if (seconds > 0) {
-      return `${formatDigits(minutes)} ${intl.formatMessage({ id: 'minutesUnit' })} ${formatDigits(seconds)} ${intl.formatMessage({ id: 'secondsUnit' })}`;
-    }
-
-    return `${formatDigits(minutes)} ${intl.formatMessage({ id: 'minutesUnit' })}`;
-  }, [formatDigits, intl]);
 
   const toMeters = useCallback((coord1, coord2) => {
     if (!Array.isArray(coord1) || !Array.isArray(coord2)) return Infinity;
@@ -756,6 +740,7 @@ const RouteOverview = () => {
 
         return {
           id: idx + 1,
+          durationSeconds: routeSpanDuration(segment, routeGeo?.properties?.durationSeconds),
           fromM: segment.fromM,
           toM: segment.toM,
           step,
@@ -792,6 +777,7 @@ const RouteOverview = () => {
         return {
           id: idx + 1,
           coordinates: coords,
+          durationSeconds: step?.duration_s,
           instruction,
           services: step?.services || {},
           distance: dist,
@@ -857,6 +843,7 @@ const RouteOverview = () => {
           instruction: instr,
           services: seg.services,
           distance: seg.distance,
+          durationSeconds: seg.durationSeconds,
           stepType: seg.stepType,
           stepTitle: seg.stepTitle,
           stepName: seg.stepName,
@@ -923,7 +910,7 @@ const RouteOverview = () => {
       const coords = segObj.coordinates;
       const d = segObj.distance;
       setDistance(`${formatDigits(Math.round(d))} ${intl.formatMessage({ id: 'meters' })}`);
-      setTime(formatSegmentTime(d, isMultifloor(routeGeo) ? segObj.durationSeconds : undefined));
+      setTime(formatDigits(formatRouteDuration(segObj.durationSeconds, intl)));
 
       if (
         !Array.isArray(coords) ||
@@ -1003,7 +990,7 @@ const RouteOverview = () => {
         }
       }
     }
-  }, [currentSlide, formatDigits, formatSegmentTime, intl, mapLoaded, routeData]);
+  }, [currentSlide, formatDigits, intl, mapLoaded, routeData]);
 
   const originFloor = getPointFloor(origin, getSessionFloor());
   const activeRouteFloor = getPointFloor(routeData[currentSlide], originFloor);

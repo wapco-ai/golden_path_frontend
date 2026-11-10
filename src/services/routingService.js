@@ -1,3 +1,4 @@
+import { routeGeoWithTiming } from '../utils/routeTiming.js';
 import { userRequest } from '../api/userRequest.js';
 import { getPointFloor, normalizeFloor } from '../utils/floors.js';
 import appConfig from '../config/appConfig.js';
@@ -234,12 +235,8 @@ const mapRoute = (route = {}, originName = '', destinationName = '') => {
       : typeof route.distance_m === 'number'
         ? route.distance_m
         : null;
-  const durationSeconds =
-    typeof route.estimatedMinutes === 'number'
-      ? route.estimatedMinutes * 60
-      : typeof route.duration_s === 'number'
-        ? route.duration_s
-        : null;
+  const durationSeconds = route.duration_s ?? geo?.properties?.durationSeconds
+    ?? (Number.isFinite(route.estimatedMinutes) ? route.estimatedMinutes * 60 : null);
 
   return {
     geo,
@@ -288,7 +285,9 @@ export const requestRouting = async ({ origin, destination, mode, gender, lang, 
     }
 
     const data = await response.json();
-    return normalizeRouteSnapshot(data, origin, destination, body.mode, body.gender);
+    const route = normalizeRouteSnapshot(data, origin, destination, body.mode, body.gender);
+    route.geo = routeGeoWithTiming(route);
+    return route;
   } finally {
     endRoutingRequest();
   }

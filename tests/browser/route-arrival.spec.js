@@ -5,7 +5,7 @@ const coordinates = [[59.615, 36.287], [59.6151, 36.287], [59.6152, 36.287]];
 const origin = { name: 'مبدأ', floor: 0, coordinates: [36.287, 59.615] };
 const destination = { name: 'مقصد آزمایشی', floor: 0, coordinates: [36.287, 59.6152] };
 
-function routeFixture({ arrivalM, finalDoor = false, direct = false }) {
+function routeFixture({ arrivalM, finalDoor = false, direct = false, durationSeconds }) {
   const steps = [
     { type: 'stepStart', title: 'شروع حرکت', coord: { lat: 36.287, lon: 59.615 }, routeM: 0, floor: 0, segmentId: 0 },
     ...(direct ? [] : [{ type: 'stepPassDoor', title: 'درگاه آزمایشی', instruction: 'از درگاه آزمایشی عبور کنید',
@@ -15,7 +15,7 @@ function routeFixture({ arrivalM, finalDoor = false, direct = false }) {
       ...(arrivalM === undefined ? {} : { routeM: arrivalM }), floor: 0, segmentId: 0 }
   ];
   return { status: 'OK', multifloor: false, geo: { type: 'Feature',
-    geometry: { type: 'LineString', coordinates }, properties: { multifloor: false } }, steps, alternatives: [] };
+    geometry: { type: 'LineString', coordinates }, properties: { multifloor: false, durationSeconds, distanceMeters: durationSeconds == null ? undefined : 357 } }, steps, alternatives: [] };
 }
 
 async function setupRoute(page, options) {
@@ -79,3 +79,10 @@ for (const [screen, viewport] of [
     }
   });
 }
+
+test('route overview shows whole seconds from the route duration', async ({ page }) => {
+  const errors = await setupRoute(page, { stored: true, direct: true, arrivalM: 1, durationSeconds: 357 / 1.2 });
+  await page.goto('/#/rop');
+  await expect(page.locator('.time-value')).toHaveText('۴ دقیقه ۵۷ ثانیه');
+  expect(errors).toEqual([]);
+});

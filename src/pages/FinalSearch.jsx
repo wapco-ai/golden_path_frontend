@@ -1,3 +1,4 @@
+import { formatRouteDuration } from '../utils/routeTiming.js';
 import FloorControl from '../components/map/FloorControl';
 import FloorTag from '../components/map/FloorTag';
 import useMapFloor from '../hooks/useMapFloor';
@@ -125,14 +126,14 @@ const FinalSearch = () => {
     storedGender === 'family' ? 'both' : storedGender || 'both'
   );
   const [routeInfo, setRouteInfo] = useState({
-    time: '9',
-    distance: '75',
+    durationSeconds: null,
+    distance: '0',
     mode: transportMode
   });
   const [popupCoord, setPopupCoord] = useState(null);
-  const [popupMinutes, setPopupMinutes] = useState(null);
+  const [popupSeconds, setPopupSeconds] = useState(null);
   const [altPopupCoords, setAltPopupCoords] = useState([]);
-  const [altPopupMinutes, setAltPopupMinutes] = useState([]);
+  const [altPopupSeconds, setAltPopupSeconds] = useState([]);
   const vectorTileConfig = React.useMemo(() => {
     return createHaramVectorTileConfig(language).filter(
       (layerCfg) => !HIDDEN_VECTOR_LAYER_IDS.has(layerCfg.id)
@@ -166,7 +167,7 @@ const FinalSearch = () => {
   React.useEffect(() => {
     let info;
     if (routeGeo?.properties?.durationSeconds != null) {
-      info = { time: `${Math.max(1, Math.round(routeGeo.properties.durationSeconds / 60))}`,
+      info = { durationSeconds: routeGeo.properties.durationSeconds,
         distance: `${Math.round(routeGeo.properties.distanceMeters)}`, mode: transportMode };
     } else if (routeGeo) {
       const coords = getRouteCoordinates(routeGeo) || [];
@@ -175,16 +176,16 @@ const FinalSearch = () => {
         return acc + Math.hypot(c[0] - prev[0], c[1] - prev[1]) * 100000;
       }, 0);
       info = {
-        time: `${Math.max(1, Math.round(dist / 60))}`,
+        durationSeconds: null,
         distance: `${Math.round(dist)}`,
         mode: transportMode
       };
     } else if (transportMode === 'walking') {
-      info = { time: '0', distance: '0', mode: 'walking' };
+      info = { durationSeconds: null, distance: '0', mode: 'walking' };
     } else if (transportMode === 'electric-car') {
-      info = { time: '0', distance: '0', mode: 'electric-car' };
+      info = { durationSeconds: null, distance: '0', mode: 'electric-car' };
     } else if (transportMode === 'wheelchair') {
-      info = { time: '0', distance: '0', mode: 'wheelchair' };
+      info = { durationSeconds: null, distance: '0', mode: 'wheelchair' };
     }
 
     if (info) {
@@ -392,16 +393,13 @@ const FinalSearch = () => {
 
         persistRouteData(result.geo, result.steps, result.alternatives, result.sahns || []);
 
-        const minutes = result.durationSeconds
-          ? Math.max(1, Math.round(result.durationSeconds / 60))
-          : null;
         const distance = result.distanceMeters != null
           ? Math.round(result.distanceMeters)
           : null;
 
         setRouteInfo((prev) => {
           const summary = {
-            time: `${minutes ?? prev.time}`,
+            durationSeconds: result.durationSeconds,
             distance: `${distance ?? prev.distance}`,
             mode: result.mode || transportMode
           };
@@ -458,7 +456,7 @@ const FinalSearch = () => {
         from: alt.from,
         to: alt.to,
         via: alt.sahns || [],
-        totalTime: `${Math.max(1, Math.round((alt.durationSeconds ?? alt.geo?.properties?.durationSeconds ?? dist) / 60))} ${intl.formatMessage({ id: 'minutesUnit' })}`,
+        totalTime: formatRouteDuration(alt.durationSeconds ?? alt.geo?.properties?.durationSeconds, intl),
         totalDistance: `${Math.round(alt.distanceMeters ?? alt.geo?.properties?.distanceMeters ?? dist)} ${intl.formatMessage({ id: 'meters' })}`
       };
     });
@@ -506,21 +504,17 @@ const FinalSearch = () => {
   useEffect(() => {
     if (!routeGeo || !(getRouteCoordinates(routeGeo)?.length > 0)) {
       setPopupCoord(null);
-      setPopupMinutes(null);
+      setPopupSeconds(null);
     }
   }, [routeGeo]);
 
-  // Determine popup location and total minutes for main route
+  // Determine popup location and duration for main route
   useEffect(() => {
     if (!routeGeo) return;
     const coords = routeCoordinatesOnFloor(routeGeo, mapFloor, getPointFloor(origin)) || [];
-    if (coords.length === 0) { setPopupCoord(null); setPopupMinutes(null); return; }
+    if (coords.length === 0) { setPopupCoord(null); setPopupSeconds(null); return; }
 
-    const dist = coords.slice(1).reduce((acc, c, i) => {
-      const prev = coords[i];
-      return acc + Math.hypot(c[0] - prev[0], c[1] - prev[1]) * 100000;
-    }, 0);
-    setPopupMinutes(Math.max(1, Math.round((routeGeo.properties?.durationSeconds ?? dist) / 60)));
+    setPopupSeconds(routeGeo.properties?.durationSeconds ?? null);
 
     let chosen = null;
     for (let i = 0; i < coords.length; i++) {
@@ -544,30 +538,26 @@ const FinalSearch = () => {
     setPopupCoord(isValidLngLat(chosen) ? chosen : null);
   }, [routeGeo, storedAlternativeRoutes, mapFloor, origin.floor]);
 
-  // Determine popup locations and minutes for alternative routes
+  // Determine popup locations and durations for alternative routes
   useEffect(() => {
     if (!storedAlternativeRoutes || storedAlternativeRoutes.length === 0 || !routeGeo) {
       setAltPopupCoords([]);
-      setAltPopupMinutes([]);
+      setAltPopupSeconds([]);
       return;
     }
 
     const coordsArr = [];
-    const minutesArr = [];
+    const secondsArr = [];
 
     storedAlternativeRoutes.forEach((alt) => {
       const coords = routeCoordinatesOnFloor(alt.geo, mapFloor, getPointFloor(origin)) || [];
       if (coords.length === 0) {
         coordsArr.push(null);
-        minutesArr.push(null);
+        secondsArr.push(null);
         return;
       }
 
-      const dist = coords.slice(1).reduce((acc, c, i) => {
-        const prev = coords[i];
-        return acc + Math.hypot(c[0] - prev[0], c[1] - prev[1]) * 100000;
-      }, 0);
-      minutesArr.push(Math.max(1, Math.round((alt.durationSeconds ?? alt.geo?.properties?.durationSeconds ?? dist) / 60)));
+      secondsArr.push(alt.durationSeconds ?? alt.geo?.properties?.durationSeconds ?? null);
 
       let chosen = null;
       for (let i = 0; i < coords.length; i++) {
@@ -590,7 +580,7 @@ const FinalSearch = () => {
     });
 
     setAltPopupCoords(coordsArr);
-    setAltPopupMinutes(minutesArr);
+    setAltPopupSeconds(secondsArr);
   }, [storedAlternativeRoutes, routeGeo, mapFloor, origin.floor]);
 
   const swapLocations = () => {
@@ -911,7 +901,7 @@ const FinalSearch = () => {
                     layout={{ 'line-cap': 'round', 'line-join': 'round' }}
                   />
                 </Source>
-                {altPopupCoords[idx] && altPopupMinutes[idx] !== null && (
+                {altPopupCoords[idx] && altPopupSeconds[idx] !== null && (
                   <Popup
                     className="alt-popup-container"
                     longitude={altPopupCoords[idx][1]}
@@ -921,7 +911,7 @@ const FinalSearch = () => {
                     anchor="bottom"
                   >
                     <div className="time-popup alt-popup">
-                      {formatDigits(altPopupMinutes[idx])} {intl.formatMessage({ id: 'minutesUnit' })}
+                      {formatDigits(formatRouteDuration(altPopupSeconds[idx], intl))}
                     </div>
                   </Popup>
                 )}
@@ -934,7 +924,7 @@ const FinalSearch = () => {
             </Source>
           )}
 
-          {popupCoord && popupMinutes !== null && (
+          {popupCoord && popupSeconds !== null && (
             <Popup
               className="main-popup-container"
               longitude={popupCoord[1]}
@@ -944,7 +934,7 @@ const FinalSearch = () => {
               anchor="bottom"
             >
               <div className="time-popup main-popup">
-                {formatDigits(popupMinutes)} {intl.formatMessage({ id: 'minutesUnit' })}
+                {formatDigits(formatRouteDuration(popupSeconds, intl))}
               </div>
             </Popup>
           )}
@@ -1099,7 +1089,7 @@ const FinalSearch = () => {
           <div className="info-time">
             {getTransportIcon()}
             <span>
-              {formatDigits(routeInfo.time)} <FormattedMessage id="minutesUnit" />
+              {formatDigits(formatRouteDuration(routeInfo.durationSeconds, intl))}
             </span>
           </div>
           <div className="info-distance">
