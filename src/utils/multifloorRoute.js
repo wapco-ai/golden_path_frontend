@@ -42,6 +42,15 @@ export const activeRouteCoordinates = (geo, step) => {
   return step?.coordinates || [];
 };
 
+// Saved routes can still contain the old floor-zero wording.
+function formatFloorChangeInstruction(instruction) {
+  return instruction
+    .replace(/ به طبقه[ٔ‌ی]? [0۰٠] بروید\.$/u, ' به طبقه همکف بروید.')
+    .replace(/ to floor 0\.$/, ' to the ground floor.')
+    .replace(/ إلى الطابق [0٠]\.$/u, ' إلى الطابق الأرضي.')
+    .replace(/ سے منزل [0۰] پر جائیں۔$/u, ' سے گراؤنڈ فلور پر جائیں۔');
+}
+
 // routeM belongs to one walk segment, never to the concatenation of floors.
 export function multifloorSteps(geo, steps, translate = s => s.instruction || s.title || '') {
   if (!isMultifloor(geo)) return null;
@@ -58,7 +67,10 @@ export function multifloorSteps(geo, steps, translate = s => s.instruction || s.
     const distanceMeters = isWalk ? getLineDistanceMeters(points) : 0;
     const durationSeconds = step.type === 'stepChangeFloor' ? Number(step.duration_s || 0)
       : isWalk ? Number(segment.duration_s) * Math.max(0, toM - fromM) : 0;
+    const instruction = step.instruction || translate(step, index);
     return { ...step, id: index + 1, coordinates: points, fromM, toM, durationSeconds, distanceMeters,
-      instruction: step.instruction || translate(step, index), direction: step.maneuver || (step.type === 'stepArriveDestination' ? 'arrived' : 'straight') };
+      instruction: step.type === 'stepChangeFloor' && normalizeFloor(step.toFloor) === 0
+        ? formatFloorChangeInstruction(instruction) : instruction,
+      direction: step.maneuver || (step.type === 'stepArriveDestination' ? 'arrived' : 'straight') };
   });
 }
