@@ -1,6 +1,7 @@
 import SearchPlaceIcon from '../components/SearchPlaceIcon';
 import useQrOrigin from '../hooks/useQrOrigin';
 import useEndpointFloor from '../hooks/useEndpointFloor';
+import useRouteEndpointLabel, { formatEndpointLabel } from '../hooks/useRouteEndpointLabel';
 import FloorControl from '../components/map/FloorControl';
 import FloorTag from '../components/map/FloorTag';
 import useMapFloor from '../hooks/useMapFloor';
@@ -589,7 +590,11 @@ const MapRoutingPage = () => {
     return () => { active = false; };
   }, [recentSearches, language, updateRecentAddress]);
 
-  // FIXED: Remove the auto-navigation useEffect that was causing the issue
+  const { pending: originLabelPending, label: originLabel } = useRouteEndpointLabel(userLocation, language);
+  const { pending: destinationLabelPending, label: destinationLabel } = useRouteEndpointLabel(selectedDestination, language);
+  const originName = formatEndpointLabel(intl, originLabel) ?? userLocation?.name;
+  const destinationName = formatEndpointLabel(intl, destinationLabel) ?? selectedDestination?.name;
+
   useEffect(() => {
     // Only navigate when we have both locations AND no modals are open AND we're not selecting from map
     if (userLocation?.coordinates &&
@@ -608,24 +613,30 @@ const MapRoutingPage = () => {
         return;
       }
 
+      if (originLabelPending || destinationLabelPending) return;
       clearFloorRequest();
-      setOriginStore({
+      const origin = {
         ...userLocation,
-        name: userLocation.name,
+        name: originName,
         floor: getPointFloor(userLocation),
         coordinates: userLocation.coordinates
-      });
-      setDestinationStore({
+      };
+      const destination = {
         ...selectedDestination,
-        name: selectedDestination.name,
+        name: destinationName,
         floor: getPointFloor(selectedDestination),
         coordinates: selectedDestination.coordinates
-      });
+      };
+      setOriginStore(origin);
+      setDestinationStore(destination);
+      sessionStorage.setItem('currentOrigin', JSON.stringify(origin));
+      sessionStorage.setItem('currentDestination', JSON.stringify(destination));
       navigate('/fs', { replace: Boolean(location.state?.fromFinalSearch) });
     }
   }, [
     userLocation,
     selectedDestination,
+    originName, destinationName, originLabelPending, destinationLabelPending,
     navigate,
     setOriginStore,
     setDestinationStore,
@@ -1920,7 +1931,7 @@ const MapRoutingPage = () => {
                 <input
                   type="text"
                   placeholder={intl.formatMessage({ id: 'originPlaceholder' })}
-                  value={userLocation ? `${userLocation.name}${getPointFloor(userLocation) === null ? '' : ` · ${floorLabel(getPointFloor(userLocation), language)}`}` : ''}
+                  value={userLocation ? `${originName}${getPointFloor(userLocation) === null ? '' : ` · ${floorLabel(getPointFloor(userLocation), language)}`}` : ''}
                   readOnly
                 />
               </div>
@@ -1942,7 +1953,7 @@ const MapRoutingPage = () => {
                 <input
                   type="text"
                   placeholder={intl.formatMessage({ id: 'destinationPlaceholder' })}
-                  value={selectedDestination ? `${selectedDestination.name}${getPointFloor(selectedDestination) === null ? '' : ` · ${floorLabel(getPointFloor(selectedDestination), language)}`}` : ''}
+                  value={selectedDestination ? `${destinationName}${getPointFloor(selectedDestination) === null ? '' : ` · ${floorLabel(getPointFloor(selectedDestination), language)}`}` : ''}
                   readOnly
                 />
               </div>

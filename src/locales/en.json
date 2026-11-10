@@ -1,4 +1,6 @@
 {
+  "nearbyEndpointName": "Near {name}",
+  "nearbyDestinationEndpoint": "Route ends at {name}",
   "routeDoorClosed": "Door closed",
   "routeDoorUnavailable": "Door unavailable for this route",
   "routeDoorReplacementConfirm": "{reason}. Use the door to {name}, {distance} metres away?",

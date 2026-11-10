@@ -250,6 +250,19 @@
 
 .location-details {
   flex: 1;
+  min-width: 0;
+}
+
+.has-location-adjustment .location-name,
+.location-adjustment {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.location-adjustment {
+  font-size: 0.75rem;
+  color: #555;
 }
 
 .location-name {

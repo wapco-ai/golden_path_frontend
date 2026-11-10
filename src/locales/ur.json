@@ -1,4 +1,6 @@
 {
+  "nearbyEndpointName": "{name} کے قریب",
+  "nearbyDestinationEndpoint": "راستے کا اختتام: {name}",
   "routeDoorClosed": "دروازہ بند ہے",
   "routeDoorUnavailable": "دروازہ اس راستے کے لیے دستیاب نہیں",
   "routeDoorReplacementConfirm": "{reason}۔ کیا {distance} میٹر دور {name} والا دروازہ استعمال کریں؟",
