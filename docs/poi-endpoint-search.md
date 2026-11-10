@@ -8,6 +8,11 @@ image requirement; MPB's remaining image-only search filter is now removed.
 Both preserve the returned POI floor. No map-floor or featured filter is added
 to endpoint text search. Normal map landmark discovery remains unchanged.
 
+Both MPR inputs request matching areas and POIs for text search, including
+partial area names. A selected area opens the existing entrance picker on its
+floor. Confirming an entrance uses its access-point coordinates for the active
+endpoint. Going back reopens that endpoint's search.
+
 The MPR search modal remains on `/mpr`, so route allowlisting alone cannot hide
 map controls. MPR now passes `hidden={showOriginModal || showDestinationModal}`
 to FloorControl; MPB passes `hidden={showSearchModal}`. FloorControl returns null

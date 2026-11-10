@@ -26,7 +26,7 @@ import mode1 from '../assets/images/mode1.png';
 import mode2 from '../assets/images/mode2.png';
 import mode3 from '../assets/images/mode3.png';
 
-const isAreaDestination = destination => destination.kind === 'area'
+const isAreaResult = destination => destination.kind === 'area'
   && (destination.areaGroupId != null || destination.areaId != null);
 
 const getEntryDestinationName = (entry, area) => {
@@ -51,6 +51,7 @@ const MapRoutingPage = () => {
   const [showOriginModal, setShowOriginModal] = useState(false);
   const [selectedDestination, setSelectedDestination] = useState(null);
   const [showEntryModal, setShowEntryModal] = useState(false);
+  const [entryTarget, setEntryTarget] = useState('destination');
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [tempDestination, setTempDestination] = useState(null);
   const [mapTapCount, setMapTapCount] = useState(0);
@@ -539,7 +540,7 @@ const MapRoutingPage = () => {
 
   const renderSearchLocation = (destination, address) => {
     const displayAddress = displaySearchAddress(destination.name, address);
-    const isArea = activeInput === 'destination' && isAreaDestination(destination);
+    const isArea = isAreaResult(destination);
     const locationLabel = isArea ? intl.formatMessage({ id: 'mapAreaResult' }) : displayAddress;
     return <>{locationLabel}<FloorTag point={destination} separator={Boolean(locationLabel)} /></>;
   };
@@ -552,7 +553,7 @@ const MapRoutingPage = () => {
       : { areaId: place.areaId };
     return {
       id,
-      ...(isAreaDestination(place) ? {
+      ...(isAreaResult(place) ? {
         kind: 'area', ...area, source: 'area', sourceId: place.areaGroupId ?? place.areaId
       } : { poiId: id }),
       name: place.title || place.name || '',
@@ -566,8 +567,7 @@ const MapRoutingPage = () => {
   };
 
   const trimmedSearchQuery = searchQuery.trim();
-  const includeExactAreas = activeInput === 'destination';
-  const searchKey = JSON.stringify([trimmedSearchQuery, language, includeExactAreas]);
+  const searchKey = JSON.stringify([trimmedSearchQuery, language]);
   const filteredDestinations = landmarkSearchResults?.key === searchKey
     ? landmarkSearchResults.places.map(toSearchDestination)
     : [];
@@ -729,55 +729,56 @@ const MapRoutingPage = () => {
   };
 
 
+  const selectOrigin = ({ name, floor, coordinates }) => {
+    const origin = { name, floor, coordinates };
+    setIsTracking(false);
+    setUserLocation(origin);
+    setShowOriginModal(false);
+
+    if (location.state?.showOriginModal) {
+      sessionStorage.setItem('updatedOrigin', JSON.stringify(origin));
+      navigate('/fs', { replace: true });
+    }
+  };
+
   const handleDestinationSelect = (destination, options = {}) => {
     const { forceDestination = false } = options;
+    const target = activeInput === 'destination' || forceDestination ? 'destination' : 'origin';
     cancelEndpointSelection();
     const floor = getPointFloor(destination);
     if (floor === null) {
-      const target = activeInput === 'destination' || forceDestination ? 'destination' : 'origin';
       setShowDestinationModal(false);
       setShowOriginModal(false);
       askFloor(destination, target, point => handleDestinationSelect(point, options));
       return;
     }
 
-
     setAreaDoorsData(null);
     setAreaDoorsStatus(null);
     setMapEntryDoors([]);
     setSelectedEntry(null);
 
-    const isDestinationInput = activeInput === 'destination' || forceDestination;
-
-    if (isDestinationInput) {
+    if (target === 'destination') {
       setShowDestinationModal(false);
       if (!destination.fromMapSelection) {
         addSearch(destination);
       }
+    }
 
-      if (isAreaDestination(destination)) {
-        setSessionFloor(floor);
-        setTempDestination(destination);
-        setShowEntryModal(true);
-        requestAreaDoors({ areaGroupId: destination.areaGroupId, areaId: destination.areaId, floor, destination });
-      } else {
-        setTempDestination(null);
-        setShowEntryModal(false);
-        setSelectedDestination(destination);
-        sessionStorage.setItem('currentDestination', JSON.stringify(destination));
-      }
-    } else {
-      setIsTracking(false);
-      setUserLocation({ name: destination.name, floor: getPointFloor(destination), coordinates: destination.coordinates });
+    if (isAreaResult(destination)) {
       setShowOriginModal(false);
-
-      if (location.state?.showOriginModal) {
-        sessionStorage.setItem('updatedOrigin', JSON.stringify({
-          name: destination.name,
-          floor: getPointFloor(destination), coordinates: destination.coordinates
-        }));
-        navigate('/fs', { replace: true });
-      }
+      setSessionFloor(floor);
+      setTempDestination(destination);
+      setEntryTarget(target);
+      setShowEntryModal(true);
+      requestAreaDoors({ areaGroupId: destination.areaGroupId, areaId: destination.areaId, floor, destination, target });
+    } else if (target === 'destination') {
+      setTempDestination(null);
+      setShowEntryModal(false);
+      setSelectedDestination(destination);
+      sessionStorage.setItem('currentDestination', JSON.stringify(destination));
+    } else {
+      selectOrigin({ ...destination, floor });
     }
     setSearchQuery('');
   };
@@ -865,9 +866,10 @@ const MapRoutingPage = () => {
     setAreaDoorsData(null);
     setAreaDoorsStatus(null);
     setMapEntryDoors([]);
-    setActiveInput('destination');
+    setActiveInput(entryTarget);
     setSearchQuery(tempDestination?.name || '');
-    setShowDestinationModal(true);
+    setShowDestinationModal(entryTarget === 'destination');
+    setShowOriginModal(entryTarget === 'origin');
   };
 
   const handleConfirmEntry = () => {
@@ -882,9 +884,12 @@ const MapRoutingPage = () => {
         coordinates: doorCoordinates
       };
 
-      setSelectedDestination(finalDestination);
-
-      sessionStorage.setItem('currentDestination', JSON.stringify(finalDestination));
+      if (entryTarget === 'origin') {
+        selectOrigin({ ...finalDestination, floor: getPointFloor(finalDestination) });
+      } else {
+        setSelectedDestination(finalDestination);
+        sessionStorage.setItem('currentDestination', JSON.stringify(finalDestination));
+      }
 
       setShowEntryModal(false);
       setTempDestination(null);
@@ -944,7 +949,7 @@ const MapRoutingPage = () => {
         language,
         geo,
         search: trimmedSearchQuery,
-        includeExactAreas,
+        includeExactAreas: true,
         limit: 30,
         signal: controller.signal
       })
@@ -967,7 +972,7 @@ const MapRoutingPage = () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [trimmedSearchQuery, language, userLocation, includeExactAreas, searchKey]);
+  }, [trimmedSearchQuery, language, userLocation, searchKey]);
 
   const handleRouteFromSubgroup = (subgroup) => {
     console.log('Routing from main page subgroup:', subgroup);
@@ -1240,7 +1245,7 @@ const MapRoutingPage = () => {
     setShowOriginModal(false);
   };
 
-  const requestAreaDoors = useCallback(async ({ areaGroupId, areaId, lat, lon, floor = getSessionFloor(), destination }) => {
+  const requestAreaDoors = useCallback(async ({ areaGroupId, areaId, lat, lon, floor = getSessionFloor(), destination, target = 'destination' }) => {
     endpointSelectionRequest.current?.abort();
     const selection = new AbortController();
     endpointSelectionRequest.current = selection;
@@ -1267,7 +1272,7 @@ const MapRoutingPage = () => {
           sourceId: area.areaGroupId
         };
         setTempDestination(canonicalDestination);
-        addSearch(canonicalDestination);
+        if (target === 'destination') addSearch(canonicalDestination);
       }
 
       setAreaDoorsStatus(response?.status || 'ok');
@@ -1289,7 +1294,7 @@ const MapRoutingPage = () => {
 
   useEffect(() => {
     if (!showEntryModal && areaDoorsStatus && areaDoorsStatus !== 'loading' && !mapEntryDoors.length && tempDestination) {
-      if (tempDestination.coordinates) {
+      if (tempDestination.fromMapSelection && tempDestination.coordinates) {
         setSelectedDestination(tempDestination);
         sessionStorage.setItem('currentDestination', JSON.stringify(tempDestination));
       }
@@ -2126,7 +2131,7 @@ const MapRoutingPage = () => {
                       {recentSearches.map((destination, index) => (
                         <li key={`${destination.id || 'destination'}-${index}`} style={{ position: 'relative' }} onClick={() => handleRecentSelection(destination)}>
                           <div className="map-recent-icon">
-                            <SearchPlaceIcon area={isAreaDestination(destination)} />
+                            <SearchPlaceIcon area={isAreaResult(destination)} />
                           </div>
                           <div className="map-destination-info">
                             <span className="map-destination-name">{destination.name}</span>
@@ -2172,7 +2177,7 @@ const MapRoutingPage = () => {
                   {filteredDestinations.map((destination, index) => (
                     <li key={`${destination.id || 'destination'}-${index}`} onClick={() => handleDestinationSelect(destination)}>
                       <div className="map-recent-icon">
-                        <SearchPlaceIcon area={isAreaDestination(destination)} />
+                        <SearchPlaceIcon area={isAreaResult(destination)} />
                       </div>
                       <div className="map-destination-info">
                         <span className="map-destination-name">{destination.name}</span>
