@@ -8,6 +8,7 @@ import apiAdmin from '../api/apiAdmin';
 import { deleteFile } from '../services/fileService';
 import { MBTILES_SATELLITE_STYLE } from '../services/mbtilesMapStyle';
 import { DEFAULT_GUIDANCE_COVERAGE_RADIUS_M, coverageRadiusForForm, parseCoverageRadius } from '../utils/guidanceCoverage.js';
+import { floorLabel } from '../utils/connectorForm.js';
 
 // RTL plugin initialization
 function ensureRtlOnce() {
@@ -1005,6 +1006,19 @@ const Marks = () => {
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     placeholder="عنوان مکان را وارد کنید "
                   />
+                </div>
+                <div className="info-field">
+                  <label htmlFor="add-guidance-floor">طبقه</label>
+                  <select
+                    id="add-guidance-floor"
+                    name="floor"
+                    className="form-input-add-admin"
+                    value={formData.floor}
+                    onChange={(e) => setFormData({ ...formData, floor: Number(e.target.value) })}
+                  >
+                    <option value={0}>{floorLabel(0)}</option>
+                    <option value={-1}>{floorLabel(-1)}</option>
+                  </select>
                 </div>
                 <div className="info-field">
                   <label htmlFor="add-guidance-coverage-radius">شعاع پوشش (متر)</label>
