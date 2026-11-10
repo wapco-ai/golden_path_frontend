@@ -151,6 +151,46 @@ test('a new guidance point submits its photo on the selected basement floor', as
   await expect(floor).toHaveValue('0');
 });
 
+test('editing guidance loads and changes the saved floor while retaining its image', async ({ page }) => {
+  await openPanel(page, [], ['manage_guidance_points']);
+  let point = {
+    id: 17, title: 'راهنمای آزمایشی', floor: -1, latitude: 36.288, longitude: 59.6157,
+    coverage_radius_m: 35,
+    images: [{ id: 42, image_url: '/icons/pwa-192x192.png', view_orientation: 'north', azimuth_deg: 0 }]
+  };
+  const writes = [];
+  await page.route('**/api/v1/admin/guidance-points**', async route => {
+    const request = route.request();
+    if (request.method() === 'POST') {
+      const form = await new Response(request.postDataBuffer(), {
+        headers: { 'Content-Type': request.headers()['content-type'] }
+      }).formData();
+      writes.push(form);
+      point = { ...point, floor: Number(form.get('floor')) };
+      return route.fulfill({ json: { success: true, data: point } });
+    }
+    return route.fulfill({ json: { success: true, data: [point], meta: { total: 1 } } });
+  });
+  await page.getByText('مدیریت امکانات', { exact: true }).click();
+  await page.locator('#amain-sidebar').getByText('مدیریت نقاط راهنما', { exact: true }).click();
+  const edit = page.getByRole('row').filter({ hasText: point.title }).locator('.edit-btn21');
+  await edit.click();
+  const modal = page.locator('.add-admin-modal');
+  const floor = modal.getByLabel('طبقه', { exact: true });
+  await expect(floor).toHaveValue('-1');
+  await expect(modal.getByLabel('شعاع پوشش (متر)')).toHaveValue('35');
+  await floor.selectOption('0');
+  await modal.getByRole('button', { name: 'ویرایش نقطه راهنما', exact: true }).click();
+  await expect(modal).toBeHidden();
+  expect(writes).toHaveLength(1);
+  expect(writes[0].get('floor')).toBe('0');
+  expect(writes[0].get('existing_image_ids[0]')).toBe('42');
+  expect(writes[0].has('x')).toBe(false);
+  expect(writes[0].has('y')).toBe(false);
+  await edit.click();
+  await expect(floor).toHaveValue('0');
+});
+
 test('map-only access does not grant the guidance form', async ({ page }) => {
   await openPanel(page, ['مدیریت نقشه'], ['manage_map']);
   await expect(page.getByText('مدیریت نقشه', { exact: true })).toBeVisible();

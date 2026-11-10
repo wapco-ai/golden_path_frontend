@@ -443,6 +443,7 @@ const Marks = () => {
       title: mark.title,
       images: (mark.images || []).map((image, index) => normalizeGuidanceImage(image, index)),
       location: mark.location,
+      floor: mark.floor ?? 0,
       coverage_radius_m: coverageRadiusForForm(mark.coverage_radius_m)
     });
     setSelectedLocation(mark.location);
@@ -1154,6 +1155,19 @@ const Marks = () => {
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     placeholder="عنوان مکان را وارد کنید (اختیاری)"
                   />
+                </div>
+                <div className="info-field">
+                  <label htmlFor="edit-guidance-floor">طبقه</label>
+                  <select
+                    id="edit-guidance-floor"
+                    name="floor"
+                    className="form-input-add-admin"
+                    value={formData.floor}
+                    onChange={(e) => setFormData({ ...formData, floor: Number(e.target.value) })}
+                  >
+                    <option value={0}>{floorLabel(0)}</option>
+                    <option value={-1}>{floorLabel(-1)}</option>
+                  </select>
                 </div>
                 <div className="info-field">
                   <label htmlFor="edit-guidance-coverage-radius">شعاع پوشش (متر)</label>
