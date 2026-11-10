@@ -142,6 +142,21 @@ test('invalid QR and unavailable route preserve the active route and allow a ret
   await expectCameraReleased(page);
 });
 
+test('QR correction during a pause preserves the pause and resumes from the scanned floor without GPS', async ({ page }) => {
+  const button = await startRoute(page);
+  await page.getByRole('button', { name: 'توقف موقت', exact: true }).click();
+  await page.route(`**/api/v1/qrcodes/${code}?*`, route => route.fulfill({ json: anchor }));
+  await page.route('**/api/v1/routing/route', route => route.fulfill({ json: correctedRoute }));
+  await button.click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.locator('.routing-page')).toHaveAttribute('data-navigation-mode', 'paused');
+  await expect(page.locator('.instruction-text')).toContainText('حرکت از موقعیت جدید');
+  await page.getByRole('button', { name: 'ادامه مسیر', exact: true }).click();
+  await expect(page.locator('.routing-page')).toHaveAttribute('data-navigation-mode', 'live');
+  expect(await page.evaluate(() => sessionStorage.getItem('haramCurrentFloor'))).toBe('-1');
+  await expectCameraReleased(page);
+});
+
 test('cancelling a route correction ignores its pending result', async ({ page }) => {
   const button = await startRoute(page);
   await page.route(`**/api/v1/qrcodes/${code}?*`, route => route.fulfill({ json: anchor }));

@@ -21,6 +21,28 @@
   cursor: pointer;
 }
 
+.rng-pause-actions {
+  right: auto;
+  left: max(16px, env(safe-area-inset-left));
+}
+
+.rng-pause-status {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  width: max-content;
+  max-width: calc(100vw - 100px);
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: #16202a;
+  background: white;
+  box-shadow: 0 2px 10px #0004;
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.rng-pause-button:disabled { cursor: wait; }
+
 .rng-qr-hint {
   position: absolute;
   top: 50%;

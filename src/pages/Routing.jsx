@@ -9,6 +9,7 @@ import { useUserAuthStore } from '../auth/user/userAuthStore';
 import { FormattedMessage, useIntl } from 'react-intl';
 import RouteMap from '../components/map/RouteMap';
 import RngQrCorrection from '../components/map/RngQrCorrection';
+import RngPauseControl from '../components/map/RngPauseControl';
 import DeadReckoningControls from '../components/map/DeadReckoningControls';
 import advancedDeadReckoningService from '../services/AdvancedDeadReckoningService';
 import '../styles/Routing.css';
@@ -23,7 +24,8 @@ import { resolveScannedQrPoint } from '../services/qrLocationService';
 import { doorEndpoint, doorRouteErrorMessage } from '../utils/doorRouteEndpoint';
 import useGuidanceImage from '../hooks/useGuidanceImage.js';
 import { getLiveNavigationGeo, getNavigationProgress, nextDemoStep, resolveNavigationFrame } from '../utils/rngNavigation.js';
-import { rngMessages, rngQrMessages } from '../utils/rngMessages.js';
+import { rngMessages, rngQrMessages, rngPauseMessages } from '../utils/rngMessages.js';
+import { pauseRouteKey, readPausedNavigation, savePausedNavigation, getResumePosition, resumeStepAt } from '../utils/rngPause.js';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
 import {
   buildRouteMSegments,
@@ -35,6 +37,30 @@ import {
 const ROUTE_OVERVIEW_HISTORY_KEY = 'routingRouteOverviewHistory';
 
 const RoutingPage = () => {
+  const {
+    origin, destination, routeSteps, routeGeo, alternativeRoutes, transportMode, gender,
+    setOrigin, setDestination, setRouteGeo, setRouteSteps, setAlternativeRoutes
+  } = useRouteStore();
+  const pauseKey = useMemo(() => pauseRouteKey(routeGeo, destination, transportMode, gender),
+    [routeGeo, destination, transportMode, gender]);
+  const [pausedNavigation, setPausedNavigation] = useState(() => readPausedNavigation(pauseKey));
+  const pauseRef = useRef(pausedNavigation);
+  const resumeRequest = useRef(null);
+  const [isResuming, setIsResuming] = useState(false);
+  const [pendingResume, setPendingResume] = useState(null);
+  const isPaused = Boolean(pausedNavigation);
+  const updatePause = useCallback(value => {
+    pauseRef.current = value;
+    setPausedNavigation(value);
+    savePausedNavigation(value);
+  }, []);
+  const cancelResume = useCallback(() => {
+    resumeRequest.current?.abort();
+    resumeRequest.current = null;
+    setIsResuming(false);
+    setPendingResume(null);
+  }, []);
+  useEffect(() => () => resumeRequest.current?.abort(), []);
   const intl = useIntl();
   const formatDigits = useLocaleDigits();
   const location = useLocation()
@@ -44,12 +70,12 @@ const RoutingPage = () => {
   const audioUrlRef = useRef(null);
   const hasShownTtsErrorRef = useRef(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(true);
-  const [isInfoModalOpen, setIsInfoModalOpen] = useState(true);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(!pausedNavigation);
   const infoModalRef = useRef(null);
   const infoDragRef = useRef({ active: false, startY: 0, lastY: 0, lastTime: 0, velocity: 0, moved: false });
   const [isInfoModalDragging, setIsInfoModalDragging] = useState(false);
   const [routeData, setRouteData] = useState(null);
-  const [currentStep, setCurrentStep] = useState(0);
+  const [currentStep, setCurrentStep] = useState(pausedNavigation?.step ?? 0);
   const storedLat = sessionStorage.getItem('qrLat');
   const storedLng = sessionStorage.getItem('qrLng');
   const storedRouteSahns = sessionStorage.getItem('routeSahns')
@@ -76,14 +102,14 @@ const RoutingPage = () => {
   const gpsFixRef = useRef(null);
   const qrAnchorRef = useRef(null);
   const [selectedSoundOption, setSelectedSoundOption] = useState('on');
-  const [isRoutingActive, setIsRoutingActive] = useState(false);
+  const [isRoutingActive, setIsRoutingActive] = useState(Boolean(pausedNavigation));
   const [isClosingEmergency, setIsClosingEmergency] = useState(false);
   const [isClosingSound, setIsClosingSound] = useState(false);
   const [showAllRoutesView, setShowAllRoutesView] = useState(false);
   const [showAlternativeRoutes, setShowAlternativeRoutes] = useState(false);
   const [was3DViewBeforeRouteView, setWas3DViewBeforeRouteView] = useState(false);
   const [showGpsOffline, setShowGpsOffline] = useState(false);
-  const [is3DView, setIs3DView] = useState(false);
+  const [is3DView, setIs3DView] = useState(Boolean(pausedNavigation));
   const [drPosition, setDrPosition] = useState(null);
   const [drGeoPath, setDrGeoPath] = useState([]);
   const [showAlternativeRoutesOnMap, setShowAlternativeRoutesOnMap] = useState(false);
@@ -148,34 +174,31 @@ const RoutingPage = () => {
     navigate('/rop');
   }, [location.pathname, navigate]);
 
-  const {
-    origin,
-    destination,
-    routeSteps,
-    routeGeo,
-    alternativeRoutes,
-    transportMode,
-    gender,
-    setOrigin,
-    setDestination,
-    setRouteGeo,
-    setRouteSteps,
-    setAlternativeRoutes
-  } = useRouteStore();
   const language = useLangStore(state => state.language);
   const rngText = rngMessages[language] || rngMessages.fa;
   const qrText = rngQrMessages[language] || rngQrMessages.fa;
+  const pauseText = rngPauseMessages[language] || rngPauseMessages.fa;
+  useEffect(() => {
+    if (pauseRef.current && pauseRef.current.key !== pauseKey) {
+      cancelResume();
+      updatePause(null);
+      setIsRoutingActive(false);
+      advancedDeadReckoningService.stop();
+    }
+  }, [pauseKey, cancelResume, updatePause]);
   const previousRoute = useRef(routeGeo);
   useEffect(() => {
     if (previousRoute.current === routeGeo) return;
     previousRoute.current = routeGeo;
+    // Session hydration can replace the route object without changing the trip.
+    if (pauseRef.current?.key === pauseKey) return;
     qrAnchorRef.current = null;
     setCurrentStep(0);
     setIsDemoMode(false);
     setHasArrived(false);
     setIsRoutingActive(false);
     advancedDeadReckoningService.stop();
-  }, [routeGeo]);
+  }, [routeGeo, pauseKey]);
   const routingRequestRef = useRef({ key: null, promise: null });
 
   const formatViaItem = useCallback((item) => {
@@ -329,6 +352,7 @@ const RoutingPage = () => {
     const timer = setInterval(() => setPositionClock(Date.now()), 1000);
     const onVisibility = () => {
       if (document.hidden) {
+        cancelResume();
         advancedDeadReckoningService.stop();
         setDrTimestamp(null);
       }
@@ -341,7 +365,7 @@ const RoutingPage = () => {
       document.removeEventListener('visibilitychange', onVisibility);
       advancedDeadReckoningService.stop();
     };
-  }, []);
+  }, [cancelResume]);
 
   useEffect(() => {
     const audioEl = audioRef.current;
@@ -360,7 +384,7 @@ const RoutingPage = () => {
     };
 
     const steps = routeData?.steps || [];
-    if (!isRoutingActive || selectedSoundOption === 'off' || !Array.isArray(steps) || steps.length === 0) {
+    if (!isRoutingActive || isPaused || selectedSoundOption === 'off' || !Array.isArray(steps) || steps.length === 0) {
       stopPlayback();
       return;
     }
@@ -398,7 +422,7 @@ const RoutingPage = () => {
       try {
         stopPlayback();
         const audioBlob = await ttsService.fetchSpeech(textToSpeak, language ? { language } : {});
-        if (isCancelled) {
+        if (isCancelled || pauseRef.current) {
           return;
         }
         const objectUrl = URL.createObjectURL(audioBlob);
@@ -422,7 +446,7 @@ const RoutingPage = () => {
       isCancelled = true;
       audioEl.pause();
     };
-  }, [currentStep, intl, isRoutingActive, language, routeData, selectedSoundOption]);
+  }, [currentStep, intl, isRoutingActive, isPaused, language, routeData?.steps, selectedSoundOption]);
 
   useEffect(() => {
     if (isDrActive) {
@@ -441,6 +465,7 @@ const RoutingPage = () => {
   }, []);
 
   const correctRouteFromQr = async (value, signal) => {
+    cancelResume();
     const newOrigin = await resolveScannedQrPoint(value, language, signal);
     if (signal.aborted) return;
     if (!newOrigin) return 'invalid';
@@ -477,6 +502,10 @@ const RoutingPage = () => {
 
     // The route-change effect stops ordinary navigation. This replacement continues it.
     previousRoute.current = result.geo;
+    if (pauseRef.current) {
+      updatePause({ ...pauseRef.current, key: pauseRouteKey(result.geo, destination, transportMode, gender),
+        step: 0, frame: { ...pauseRef.current.frame, geo, floor: newOrigin.floor, routeM: 0, heading: null } });
+    }
     persistRouteData(result.geo, result.steps, result.alternatives, result.sahns, newOrigin);
     toast.success(qrText.updated.replace('{place}', newOrigin.name));
   };
@@ -1018,7 +1047,7 @@ const RoutingPage = () => {
   // One navigation frame feeds the image and map in both open/closed panel states.
   // Demo/preview uses the selected segment; live navigation uses actual DR/GPS.
   const routeOriginFloor = getPointFloor(origin, sessionFloor);
-  const navigationFrame = useMemo(() => resolveNavigationFrame({
+  const navigationFrame = useMemo(() => pausedNavigation?.frame || resolveNavigationFrame({
     step: routeData?.steps?.[currentStep],
     stepIndex: currentStep,
     routeCoordinates: activeRouteCoordinates(routeGeo, routeData?.steps?.[currentStep]),
@@ -1027,7 +1056,7 @@ const RoutingPage = () => {
     anchorGeo: qrAnchorRef.current?.floor === sessionFloor ? qrAnchorRef.current.geo : null,
     userLocation: gpsFixRef.current
       ? [gpsFixRef.current.lat, gpsFixRef.current.lng] : userLocation, userHeading, sessionFloor: routeOriginFloor
-  }), [routeData?.steps, currentStep, routeGeo, isRoutingActive, isDemoMode,
+  }), [pausedNavigation, routeData?.steps, currentStep, routeGeo, isRoutingActive, isDemoMode,
     hasArrived, isDrActive, drPosition, userLocation, userHeading, routeOriginFloor, sessionFloor, drTimestamp, gpsTimestamp, positionClock]);
   useEffect(() => {
     if (isMultifloor(routeGeo) && (!isRoutingActive || isDemoMode)) setSessionFloor(navigationFrame.floor);
@@ -1091,7 +1120,7 @@ const RoutingPage = () => {
     if (multi) {
       const decorate = steps => steps.map(s => ({ ...s, distance: `${Math.round(s.distanceMeters)} ${intl.formatMessage({ id: 'meters' })}`, time: formatDurationFromSeconds(s.durationSeconds) }));
       const minutes = routeGeo.properties.durationSeconds / 60;
-      setRouteData({ steps: decorate(multi), instructionSteps: multi, mode: transportMode,
+      setRouteData({ sourceGeo: routeGeo, steps: decorate(multi), instructionSteps: multi, mode: transportMode,
         totalTime: formatTotalTime(minutes), arrivalTime: calculateArrivalTime(minutes),
         totalDistance: `${Math.round(routeGeo.properties.distanceMeters)} ${intl.formatMessage({ id: 'meters' })}`,
         alternativeRoutes: alternativeRoutes.map((alt, i) => ({ ...alt, id: i + 1, steps: decorate(multifloorSteps(alt.geo, withDoorStepInstructions(alt.steps, intl, alt.geo)) || []),
@@ -1276,6 +1305,7 @@ const RoutingPage = () => {
     });
 
     setRouteData({
+      sourceGeo: routeGeo,
       steps: displaySteps,
       instructionSteps: routeInstructionSteps,
       totalTime: formattedTotalTime,
@@ -1302,10 +1332,10 @@ const RoutingPage = () => {
 
   // Update arrival time every minute
   useEffect(() => {
-    if (!routeData) return;
+    if (!routeData || isPaused) return;
 
     const timer = setInterval(() => {
-      const totalMinutes = calculateTotalTime(routeData.steps);
+      const totalMinutes = calculateTotalTime(routeData.steps.slice(isRoutingActive ? currentStep : 0));
       const arrivalTime = calculateArrivalTime(totalMinutes);
 
       setRouteData(prev => ({
@@ -1315,7 +1345,7 @@ const RoutingPage = () => {
     }, 60000);
 
     return () => clearInterval(timer);
-  }, [routeData]);
+  }, [routeData, isPaused, isRoutingActive, currentStep]);
 
   // QR is an initial anchor, never a reason to suppress subsequent live GPS.
   useEffect(() => {
@@ -1347,7 +1377,7 @@ const RoutingPage = () => {
 
   // fromM is the real segment boundary, including unequal two-step routes.
   useEffect(() => {
-    if (!isRoutingActive || isDemoMode) return;
+    if (!isRoutingActive || isDemoMode || isPaused || pauseRef.current) return;
     const geo = getLiveNavigationGeo({ isDrActive, drPosition, userLocation: gpsFixRef.current
       ? [gpsFixRef.current.lat, gpsFixRef.current.lng] : userLocation, drTimestamp, gpsTimestamp, now: positionClock });
     const progress = getNavigationProgress(
@@ -1360,7 +1390,7 @@ const RoutingPage = () => {
       setIs3DView(false);
       advancedDeadReckoningService.stop();
     }
-  }, [routeData?.steps, routeGeo, isRoutingActive, isDemoMode, currentStep,
+  }, [routeData?.steps, routeGeo, isRoutingActive, isDemoMode, isPaused, currentStep,
     isDrActive, drPosition, userLocation, drTimestamp, gpsTimestamp, positionClock]);
 
   const toggleMapModal = () => {
@@ -1479,7 +1509,99 @@ const RoutingPage = () => {
     }
   };
 
+  const pauseNavigation = () => {
+    if (!isRoutingActive || pauseRef.current) return;
+    cancelResume();
+    updatePause({ key: pauseKey, step: currentStep, frame: navigationFrame, startedAt: Date.now() });
+    audioRef.current?.pause();
+    advancedDeadReckoningService.stop();
+    setDrTimestamp(null);
+  };
+
+  const completeResume = (fix, index) => {
+    if (document.hidden) return;
+    setCurrentStep(index);
+    setHasArrived(false);
+    setUserLocation([fix.lat, fix.lng]);
+    setDrPosition({ lat: fix.lat, lng: fix.lng });
+    setDrTimestamp(null);
+    if (!fix.fromQr) {
+      gpsFixRef.current = fix;
+      setGpsTimestamp(fix.timestamp);
+      setHasPreciseGps(true);
+    }
+    setPositionClock(Date.now());
+    setRouteData(previous => ({ ...previous,
+      arrivalTime: calculateArrivalTime(calculateTotalTime(previous.steps.slice(index))) }));
+    updatePause(null);
+    setIsResuming(false);
+    resumeRequest.current = null;
+    advancedDeadReckoningService.start({ lat: fix.lat, lng: fix.lng }).catch(() => {
+      // GPS guidance can continue even when motion sensors are unavailable.
+      advancedDeadReckoningService.stop();
+    });
+  };
+
+  // Wait until display steps belong to the replacement server route before resuming.
+  useEffect(() => {
+    if (!pendingResume || routeData?.sourceGeo !== pendingResume.routeGeo) return;
+    if (!resumeRequest.current?.signal.aborted && pauseRef.current && !document.hidden) {
+      completeResume(pendingResume.fix, 0);
+    }
+    setPendingResume(null);
+  }, [pendingResume, routeData]);
+
+  const resumeNavigation = async () => {
+    const paused = pauseRef.current;
+    if (!paused || resumeRequest.current) return;
+    const controller = new AbortController();
+    resumeRequest.current = controller;
+    setIsResuming(true);
+    let replacingRoute = false;
+    try {
+      const anchor = qrAnchorRef.current;
+      const fix = anchor && anchor.timestamp >= paused.startedAt && isFresh(anchor.timestamp)
+        ? { ...anchor.geo, timestamp: anchor.timestamp, fromQr: true }
+        : await getResumePosition(controller.signal);
+      if (controller.signal.aborted || document.hidden || pauseRef.current !== paused) return;
+      const index = resumeStepAt(fix, routeData.steps, currentStep,
+        activeRouteCoordinates(routeGeo, routeData.steps[currentStep]));
+      if (index !== null) {
+        completeResume(fix, index);
+        return;
+      }
+      const newOrigin = { coordinates: [fix.lat, fix.lng], floor: paused.frame.floor };
+      const destinationFloor = getPointFloor(destination, getPointFloor(routeSteps.at(-1), routeGeo?.properties?.floor));
+      const result = await requestRouting({ origin: newOrigin, destination: { ...destination, floor: destinationFloor },
+        mode: transportMode, gender, lang: language, signal: controller.signal });
+      const active = useRouteStore.getState();
+      if (controller.signal.aborted || document.hidden || pauseRef.current !== paused
+        || active.routeGeo !== routeGeo || active.destination !== destination
+        || active.transportMode !== transportMode || active.gender !== gender) return;
+      if (!getRouteCoordinates(result.geo).length || !result.steps.length) throw new Error('route');
+      previousRoute.current = result.geo;
+      qrAnchorRef.current = null;
+      advancedDeadReckoningService.reset(fix);
+      setCurrentStep(0);
+      setSessionFloor(newOrigin.floor);
+      updatePause({ ...paused, key: pauseRouteKey(result.geo, destination, transportMode, gender), step: 0,
+        frame: { ...paused.frame, geo: fix, routeM: 0, heading: null } });
+      persistRouteData(result.geo, result.steps, result.alternatives, result.sahns, newOrigin);
+      setPendingResume({ fix, routeGeo: result.geo });
+      replacingRoute = true;
+    } catch (error) {
+      if (!controller.signal.aborted) toast.error(error.message === 'location' ? pauseText.location : pauseText.failed);
+    } finally {
+      if (!replacingRoute && resumeRequest.current === controller) {
+        resumeRequest.current = null;
+        setIsResuming(false);
+      }
+    }
+  };
+
   const toggleRouting = () => {
+    cancelResume();
+    updatePause(null);
     if (isRoutingActive) {
       setIsRoutingActive(false);
       advancedDeadReckoningService.stop();
@@ -1508,6 +1630,7 @@ const RoutingPage = () => {
 
   const handleDirectionIconClick = (event) => {
     event.stopPropagation();
+    if (pauseRef.current) return;
     const active = routeData?.steps?.[currentStep];
     if (active?.type === 'stepChangeFloor' && isRoutingActive && !isDemoMode) {
       setSessionFloor(active.toFloor);
@@ -1703,7 +1826,7 @@ const RoutingPage = () => {
   }
 
   return (
-    <div className="routing-page" data-navigation-mode={navigationFrame.mode} data-current-step={currentStep}>
+    <div className="routing-page" data-navigation-mode={isPaused ? 'paused' : navigationFrame.mode} data-current-step={currentStep}>
       {/* Separate overlay for info modal */}
       {isInfoModalOpen && isMapModalOpen && !showAllRoutesView && !showAlternativeRoutes && (
         <div
@@ -2113,6 +2236,10 @@ const RoutingPage = () => {
               {isRoutingActive && !isDemoMode && destination?.coordinates && (
                 <RngQrCorrection text={qrText} onScan={correctRouteFromQr} />
               )}
+              {isRoutingActive && !isDemoMode && (
+                <RngPauseControl paused={isPaused} busy={isResuming} text={pauseText}
+                  onClick={isPaused ? resumeNavigation : pauseNavigation} />
+              )}
               <div
                 className="info-content"
                 onPointerDown={handleInfoDragStart}
@@ -2132,8 +2259,8 @@ const RoutingPage = () => {
                         <span
                           className="direction-icon-rng"
                           role="button"
-                          tabIndex={!routeGeo || !routeData.steps.length ? -1 : 0}
-                          aria-disabled={!routeGeo || !routeData.steps.length}
+                          tabIndex={isPaused || !routeGeo || !routeData.steps.length ? -1 : 0}
+                          aria-disabled={isPaused || !routeGeo || !routeData.steps.length}
                           aria-label={routeData.steps[currentStep]?.type === 'stepChangeFloor' && isRoutingActive && !isDemoMode ? ({ fa: 'تأیید رسیدن به طبقه مقصد', en: 'Confirm arrival on destination floor', ar: 'تأكيد الوصول إلى طابق الوجهة', ur: 'منزل پر پہنچنے کی تصدیق' })[language] : rngText.next}
                           onClick={handleDirectionIconClick}
                           onPointerDown={(event) => event.stopPropagation()}
