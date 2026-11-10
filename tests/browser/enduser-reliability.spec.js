@@ -1,4 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { DEFAULT_NAVIGATION_POLICY } from '../../src/services/navigationPolicy.js';
+// These pre-existing cases cover the optional GPS policy. Haram defaults are tested separately.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(policy => localStorage.setItem('navigation-policy-v1', JSON.stringify(policy)),
+    { ...DEFAULT_NAVIGATION_POLICY, gps_enabled: true });
+});
 import { readFileSync } from 'node:fs';
 import { normalizeRouteSnapshot } from '../../src/services/routingService.js';
 

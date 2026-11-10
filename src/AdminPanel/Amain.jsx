@@ -1,3 +1,4 @@
+import NavigationSettings from './NavigationSettings.jsx';
 import { routeOnFloor, isMultifloor, routeCoordinates } from '../utils/multifloorRoute';
 // src/pages/Amain.jsx
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -18121,16 +18122,7 @@ const Amain = () => {
               <h3 className="modal-title">تنظیمات</h3>
             </div>
             <div className="settings-modal-body">
-              <div className="settings-content">
-                <p className="settings-message">
-                  بخش تنظیمات در حال توسعه می‌باشد. به زودی تنظیمات پیشرفته‌تری در این بخش ارائه خواهد شد.
-                </p>
-                <div className="settings-actions">
-                  <button className="btn-primary" onClick={handleCloseSettingsModal}>
-                    متوجه شدم
-                  </button>
-                </div>
-              </div>
+              <NavigationSettings adminFetch={adminFetch} onClose={handleCloseSettingsModal} />
             </div>
           </div>
         </div>

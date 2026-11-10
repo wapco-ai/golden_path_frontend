@@ -1,3 +1,4 @@
+import { getNavigationPolicy } from '../../services/navigationPolicy.js';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -159,7 +160,7 @@ const LocationShareOverlay = () => {
   }, [shouldRender, refreshShares]);
 
   const requestFreshLocation = useCallback(() => {
-    if (!navigator.geolocation) {
+    if (!getNavigationPolicy().gps_enabled || !navigator.geolocation) {
       toast.error(t('unavailable'));
       return;
     }

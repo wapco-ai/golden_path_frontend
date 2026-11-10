@@ -1,3 +1,4 @@
+import { getNavigationPolicy } from '../services/navigationPolicy.js';
 import SearchPlaceIcon from '../components/SearchPlaceIcon';
 import useQrOrigin from '../hooks/useQrOrigin';
 import useEndpointFloor from '../hooks/useEndpointFloor';
@@ -1227,7 +1228,7 @@ const MapRoutingPage = () => {
   useEffect(() => {
     if (!showOriginModal) return undefined;
     let active = true;
-    if (navigator.geolocation) {
+    if (getNavigationPolicy().gps_enabled && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         () => { if (active) setIsGPSEnabled(true); },
         () => { if (active) setIsGPSEnabled(false); },
@@ -1265,6 +1266,10 @@ const MapRoutingPage = () => {
   }, []);
 
   const handleCurrentLocationSelect = () => {
+    if (!getNavigationPolicy().gps_enabled) {
+      toast.info(language === 'fa' ? 'در حالت حرم، مبدأ را از نقشه یا QR انتخاب کنید.' : 'Select your starting point on the map or scan a QR.');
+      return;
+    }
     cancelEndpointSelection();
     for (const key of ['qrLat', 'qrLng', 'qrId', 'qrFloor', 'qrName']) sessionStorage.removeItem(key);
     // Wait for fresh coordinates before the completed-endpoints effect can route.

@@ -18,6 +18,7 @@ export const projectPointOnRoute = (point, coordinates = [], { minAlong = 0, max
   if (!coordinates.every(isCoordinate)) return null;
   const longitudeScale = 111320 * Math.cos(radians(point[1]));
   let best = null;
+  const candidates = [];
   let traversed = 0;
   for (let i = 0; i < coordinates.length - 1; i += 1) {
     const a = coordinates[i];
@@ -32,14 +33,17 @@ export const projectPointOnRoute = (point, coordinates = [], { minAlong = 0, max
     const t = squareLength > 0 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / squareLength)) : 0;
     const lateralDistanceM = Math.hypot(ax + t * dx, ay + t * dy);
     const alongDistanceM = traversed + t * length;
-    if (alongDistanceM >= minAlong && alongDistanceM <= maxAlong
-      && (!best || lateralDistanceM < best.lateralDistanceM)) {
-      best = { lateralDistanceM, alongDistanceM, segmentIndex: i };
+    if (alongDistanceM >= minAlong && alongDistanceM <= maxAlong) {
+      const candidate = { lateralDistanceM, alongDistanceM, segmentIndex: i,
+        geo: { lng: a[0] + t * (b[0] - a[0]), lat: a[1] + t * (b[1] - a[1]) },
+        heading: (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360 };
+      candidates.push(candidate);
+      if (!best || lateralDistanceM < best.lateralDistanceM) best = candidate;
     }
     traversed += length;
   }
   return best && traversed > 0
-    ? { ...best, routeM: best.alongDistanceM / traversed, totalDistanceM: traversed }
+    ? { ...best, routeM: best.alongDistanceM / traversed, totalDistanceM: traversed, candidates }
     : null;
 };
 
@@ -168,6 +172,7 @@ export const resolveNavigationFrame = ({
 };
 
 export const getNavigationProgress = (geo, steps, currentStep, routeCoordinates, options = {}) => {
+  const arrivalRadius = options.arrivalRadius ?? 3;
   const unchanged = { nextStep: currentStep, arrived: false };
   if (!isNavigationGeo(geo) || !Array.isArray(steps) || !steps[currentStep]) return unchanged;
   if (steps[currentStep].type === 'stepChangeFloor') return unchanged;
@@ -179,15 +184,15 @@ export const getNavigationProgress = (geo, steps, currentStep, routeCoordinates,
     const next = steps[currentStep + 1];
     const atPoint = current.segmentId != null && routeCoordinates.length >= 2
       && routeCoordinates.every(p => isCoordinate(p) && haversineMeters(routeCoordinates[0], p) < 0.01)
-      && haversineMeters(point, routeCoordinates[0]) <= 3;
+      && haversineMeters(point, routeCoordinates[0]) <= arrivalRadius;
     if (atPoint && next) return { nextStep: currentStep + 1, arrived: false };
     if (atPoint && current.type === 'stepArriveDestination') return { ...unchanged, arrived: true };
     return unchanged;
   }
   if (currentStep === steps.length - 1) {
-    const nearEnd = haversineMeters(point, routeCoordinates.at(-1)) <= 3;
+    const nearEnd = haversineMeters(point, routeCoordinates.at(-1)) <= arrivalRadius;
     return { ...unchanged, arrived: nearEnd && projection.lateralDistanceM <= 6
-      && projection.alongDistanceM >= projection.totalDistanceM - 3 };
+      && projection.alongDistanceM >= projection.totalDistanceM - arrivalRadius };
   }
   const current = steps[currentStep];
   const stairExit = fraction(current.routeStep?.endRouteM ?? current.endRouteM);

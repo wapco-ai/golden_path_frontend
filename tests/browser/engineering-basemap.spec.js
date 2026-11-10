@@ -1,4 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { DEFAULT_NAVIGATION_POLICY } from '../../src/services/navigationPolicy.js';
+// These pre-existing cases cover the optional GPS policy. Haram defaults are tested separately.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(policy => localStorage.setItem('navigation-policy-v1', JSON.stringify(policy)),
+    { ...DEFAULT_NAVIGATION_POLICY, gps_enabled: true });
+});
 
 const floors = [{ floor: 0, label: 'همکف' }, { floor: -1, label: 'منفی ۱' }];
 const a = [59.61244, 36.28708];
