@@ -148,10 +148,16 @@ const Mprc = ({
       door.coord4326.every(Number.isFinite));
   }, [areaDoorsData, mapFloor]);
 
+  const selectedArea = showAreaDoors && pointIsOnFloor(areaDoorsData?.area, mapFloor)
+    ? areaDoorsData.area : null;
+  const areaGeometry = selectedArea?.geometry;
+  const areaBounds = selectedArea?.bbox4326;
   const fitAreaDoors = useCallback((map) => {
-    if (!map || !doorsOnMapFloor.length) return;
+    if (!map) return;
+    const hasAreaBounds = Array.isArray(areaBounds) && areaBounds.length === 4 && areaBounds.every(Number.isFinite);
+    if (!hasAreaBounds && !doorsOnMapFloor.length) return;
 
-    const bounds = new maplibregl.LngLatBounds();
+    const bounds = new maplibregl.LngLatBounds(hasAreaBounds ? areaBounds : undefined);
     doorsOnMapFloor.forEach((door) => bounds.extend(door.coord4326));
     const mapRect = map.getContainer().getBoundingClientRect();
     const panelHeight = showAreaDoors ? entryPanelRef?.current?.offsetHeight ?? 0 : 0;
@@ -171,7 +177,7 @@ const Mprc = ({
       bearing: camera.bearing,
       pitch: 0
     }));
-  }, [doorsOnMapFloor, entryPanelRef, showAreaDoors]);
+  }, [areaBounds, doorsOnMapFloor, entryPanelRef, showAreaDoors]);
 
   const onMove = useCallback((evt) => {
     setViewState(evt.viewState);
@@ -774,6 +780,13 @@ const Mprc = ({
             <div className="map-marker-selecting-inner" />
           </div>
         </Marker>
+      )}
+
+      {(areaGeometry?.type === 'Polygon' || areaGeometry?.type === 'MultiPolygon') && (
+        <Source id="selected-area" type="geojson" data={areaGeometry}>
+          <Layer id="selected-area-fill" type="fill" paint={{ 'fill-color': '#2563eb', 'fill-opacity': 0.2 }} />
+          <Layer id="selected-area-outline" type="line" paint={{ 'line-color': '#1d4ed8', 'line-width': 3 }} />
+        </Source>
       )}
 
       {/* Route line */}

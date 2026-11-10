@@ -237,6 +237,8 @@
   "youAreHereQr": "در حال زیارت این مکان هستید",
   "navigateToMpr": "مسیریابی به این مکان",
   "landmarkPlaces": "مکان های شاخص",
+  "searchAreaType": "محدوده",
+  "searchPointType": "نقطهٔ شاخص",
   "walking": " دقیقه پیاده روی",
   "meter": "متر",
   "moreCulturalInfo": "اطلاعات فرهنگی بیشتر",

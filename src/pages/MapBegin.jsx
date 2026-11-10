@@ -1,3 +1,4 @@
+import SearchPlaceIcon from '../components/SearchPlaceIcon';
 import useQrOrigin from '../hooks/useQrOrigin';
 import FloorControl from '../components/map/FloorControl';
 import useMapFloor from '../hooks/useMapFloor';
@@ -1210,7 +1211,9 @@ const MapBeginPage = () => {
                         )}
                       </div>
                       <div className="search-result-info3">
-                        <h4 className="search-result-title3">{result.title || result.name}</h4>
+                        <h4 className="search-result-title3">
+                          <SearchPlaceIcon /> {result.title || result.name}
+                        </h4>
                         <div className="place-actions search-result-actions-modal">
                           <button
                             className="place-action-btn-search"
