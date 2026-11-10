@@ -153,7 +153,6 @@ test('a new guidance point submits its photo on the selected basement floor', as
 });
 
 test('editing guidance loads and changes the saved floor while retaining its image', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 740 });
   await openPanel(page, [], ['manage_guidance_points']);
   let point = {
     id: 17, title: 'راهنمای آزمایشی', floor: -1, latitude: 36.288, longitude: 59.6157,
@@ -175,8 +174,9 @@ test('editing guidance loads and changes the saved floor while retaining its ima
   });
   await page.getByText('مدیریت امکانات', { exact: true }).click();
   await page.locator('#amain-sidebar').getByText('مدیریت نقاط راهنما', { exact: true }).click();
-  const edit = page.getByRole('row').filter({ hasText: point.title }).locator('.edit-btn21');
+  const edit = page.locator('tr').filter({ hasText: point.title }).locator('.edit-btn21');
   await edit.click();
+  await page.setViewportSize({ width: 390, height: 740 });
   const modal = page.getByRole('dialog', { name: 'ویرایش نقطه راهنما' });
   const floor = modal.getByLabel('طبقه', { exact: true });
   await expect(floor).toHaveValue('-1');
@@ -192,6 +192,7 @@ test('editing guidance loads and changes the saved floor while retaining its ima
   expect(writes[0].get('existing_image_ids[0]')).toBe('42');
   expect(writes[0].has('x')).toBe(false);
   expect(writes[0].has('y')).toBe(false);
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await edit.click();
   await expect(floor).toHaveValue('0');
 });
