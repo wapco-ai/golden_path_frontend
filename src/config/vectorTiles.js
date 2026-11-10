@@ -380,7 +380,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
       tileUrlFactory: buildAreasTileUrlFactory(tileLang),
       type: 'line',
       minzoom: 10,
-      maxzoom: 22,
+      sourceMaxZoom: 22,
       visibleByDefault: true,
       paint: adminAreaOutlinePaint(),
       layout: {
@@ -397,7 +397,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
       tileUrlFactory: buildAreasTileUrlFactory(tileLang),
       type: 'fill',
       minzoom: 12,
-      maxzoom: 22,
+      sourceMaxZoom: 22,
       visibleByDefault: true,
       beforeId: 'areas-outline',
       paint: adminAreaFillPaint()
@@ -411,7 +411,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
       tileUrlFactory: buildAreasTileUrlFactory(tileLang),
       type: 'symbol',
       minzoom: 12,
-      maxzoom: 22,
+      sourceMaxZoom: 22,
       visibleByDefault: false,
       layout: {
         // اسم فیلدی که از MVT میاد را اینجا بگذار
@@ -444,7 +444,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
       tileUrlFactory: buildTempAreasTileUrlFactory(tileLang),
       type: 'line',
       minzoom: 12,
-      maxzoom: 22,
+      sourceMaxZoom: 22,
       visibleByDefault: true,
       paint: {
         'line-color': '#d3516f',
@@ -464,7 +464,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
       tileUrlFactory: buildDoorsTileUrlFactory(),
       type: 'line',
       minzoom: 12,
-      maxzoom: 22,
+      sourceMaxZoom: 22,
       visibleByDefault: true,
       paint: {
         'line-color': '#ff3b30',
@@ -480,7 +480,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
       tileUrlFactory: buildRoutingEdgesTileUrlFactory(),
       type: 'line',
       minzoom: 12,
-      maxzoom: 22,
+      sourceMaxZoom: 22,
       visibleByDefault: false,
       paint: {
         'line-color': [
@@ -513,7 +513,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
       tileUrlFactory: buildVanEdgesTileUrlFactory(),
       type: 'line',
       minzoom: 12,
-      maxzoom: 22,
+      sourceMaxZoom: 22,
       visibleByDefault: true,
       paint: {
         'line-color': '#ffddcc',
@@ -533,7 +533,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
       tileUrlFactory: buildVanNodesTileUrlFactory(),
       type: 'circle',
       minzoom: 12,
-      maxzoom: 22,
+      sourceMaxZoom: 22,
       visibleByDefault: true,
       paint: {
         'circle-color': '#190fff',
@@ -551,7 +551,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
       tileUrlFactory: buildDoorAccessPointsTileUrlFactory(),
       type: 'circle',
       minzoom: 12,
-      maxzoom: 22,
+      sourceMaxZoom: 22,
       visibleByDefault: true,
       paint: {
         // 'circle-color': '#00f449',

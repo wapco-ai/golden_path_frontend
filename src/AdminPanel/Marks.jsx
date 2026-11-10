@@ -8,6 +8,7 @@ import './Marks.css';
 import apiAdmin from '../api/apiAdmin';
 import { deleteFile } from '../services/fileService';
 import { MBTILES_SATELLITE_STYLE } from '../services/mbtilesMapStyle';
+import { ADMIN_MAP_MAX_ZOOM, extendAdminMapStyle } from '../services/legacyMapStyles';
 import { DEFAULT_GUIDANCE_COVERAGE_RADIUS_M, coverageRadiusForForm, parseCoverageRadius } from '../utils/guidanceCoverage.js';
 import { floorLabel } from '../utils/connectorForm.js';
 
@@ -241,7 +242,8 @@ const Marks = () => {
     try {
       const map = new maplibregl.Map({
         container: mapContainerRef.current,
-        style: MBTILES_SATELLITE_STYLE,
+        style: extendAdminMapStyle(MBTILES_SATELLITE_STYLE),
+        maxZoom: ADMIN_MAP_MAX_ZOOM,
         center: [lng, lat],
         zoom: 16
       });
