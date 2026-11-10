@@ -1,4 +1,6 @@
 {
+  "nearbyEndpointName": "بالقرب من {name}",
+  "nearbyDestinationEndpoint": "نهاية المسار: {name}",
   "routeDoorClosed": "الباب مغلق",
   "routeDoorUnavailable": "الباب غير متاح لهذا المسار",
   "routeDoorReplacementConfirm": "{reason}. هل تريد استخدام الباب المؤدي إلى {name} على بُعد {distance} متر؟",
