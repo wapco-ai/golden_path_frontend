@@ -1,5 +1,17 @@
 const legacyStylePath = /^\/?map-styles\/(osm-voyager|osm-basic|osm-streets-3d)\/style(?:-en)?\.json$/;
 const styleProtocol = 'goldenpath-style';
+const adminStylePrefix = '/admin';
+const previousAdminMaxZoom = 22;
+export const ADMIN_MAP_MAX_ZOOM = 24;
+
+export function extendAdminMapStyle(style) {
+  return {
+    ...style,
+    layers: style.layers.map(({ maxzoom, ...layer }) => (
+      maxzoom <= previousAdminMaxZoom ? { ...layer, maxzoom } : layer
+    ))
+  };
+}
 
 const legacyAssetPath = /^\/(?:map-styles\/(?:osm-voyager|osm-basic|osm-streets-3d)\/|fonts\/|tms\/services\/mashhad\/tiles\/)/;
 const oldTilePath = /^\/services\/mashhad\/tiles\//;
@@ -29,6 +41,13 @@ export function mapAssetRequest(url, type) {
   return { url: sameOriginUrl(url) };
 }
 
+export function adminMapAssetRequest(url, type) {
+  if (type === 'Style' && isLegacyMapStyle(url)) {
+    return { url: `${styleProtocol}://${adminStylePrefix}/${url.replace(/^\.?\//, '')}` };
+  }
+  return mapAssetRequest(url, type);
+}
+
 export async function loadLegacyMapStyle(path, signal) {
   const response = await fetch(sameOriginUrl('/' + path.replace(/^\.?\//, '')), { cache: 'no-cache', signal });
   if (!response.ok) throw Object.assign(
@@ -49,10 +68,14 @@ export async function loadLegacyMapStyle(path, signal) {
 export function registerLegacyMapStyles(maplibre) {
   maplibre.addProtocol(styleProtocol, ({ url }, callback) => {
     const controller = new AbortController();
-    loadLegacyMapStyle(url.slice(styleProtocol.length + 3), controller.signal).then(
-      style => { if (!controller.signal.aborted) callback(null, style); },
-      error => { if (!controller.signal.aborted) callback(error); }
-    );
+    const path = url.slice(styleProtocol.length + 3);
+    const admin = path.startsWith(adminStylePrefix + '/');
+    loadLegacyMapStyle(admin ? path.slice(adminStylePrefix.length) : path, controller.signal)
+      .then(style => admin ? extendAdminMapStyle(style) : style)
+      .then(
+        style => { if (!controller.signal.aborted) callback(null, style); },
+        error => { if (!controller.signal.aborted) callback(error); }
+      );
     return { cancel: () => controller.abort() };
   });
 }

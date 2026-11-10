@@ -16,19 +16,20 @@ const buildSourceMeta = (vectorTileConfig) => vectorTileConfig.reduce((acc, laye
   const existing = acc[layerCfg.sourceId];
   const isDynamic = typeof layerCfg.tileUrlFactory === 'function';
   const tileUrlResolver = resolveTileUrlResolver(layerCfg);
+  const sourceMaxZoom = layerCfg.sourceMaxZoom ?? layerCfg.maxzoom;
 
   if (!existing) {
     acc[layerCfg.sourceId] = {
       tileUrlResolver,
       minzoom: layerCfg.minzoom,
-      maxzoom: layerCfg.maxzoom,
+      maxzoom: sourceMaxZoom,
       promoteId: layerCfg.promoteId,
       adminAreaAppearance: layerCfg.adminAreaAppearance === true,
       isDynamic
     };
   } else {
     existing.minzoom = Math.min(existing.minzoom, layerCfg.minzoom);
-    existing.maxzoom = Math.max(existing.maxzoom, layerCfg.maxzoom);
+    existing.maxzoom = Math.max(existing.maxzoom, sourceMaxZoom);
 
     if (isDynamic && !existing.isDynamic) {
       existing.tileUrlResolver = tileUrlResolver;
@@ -166,7 +167,7 @@ const ensureSourcesAndLayers = (map, vectorTileConfig, sourceMeta) => {
       source: layerCfg.sourceId,
       'source-layer': layerCfg.sourceLayer,
       minzoom: layerCfg.minzoom,
-      maxzoom: layerCfg.maxzoom,
+      ...(layerCfg.maxzoom !== undefined ? { maxzoom: layerCfg.maxzoom } : {}),
       paint: layerCfg.paint || defaultPaintByType[layerCfg.type],
       layout: baseLayout
     };
