@@ -60,6 +60,39 @@ async function setup(page, { audio = true } = {}) {
 const pause = page => page.getByRole('button', { name: 'توقف موقت', exact: true });
 const resume = page => page.getByRole('button', { name: 'ادامه مسیر', exact: true });
 const state = page => page.locator('.routing-page');
+const qr = page => page.getByRole('button', { name: 'اصلاح مسیر با QR' });
+
+test('manual next without GPS keeps live navigation, QR and pause active', async ({ page }) => {
+  await setup(page);
+  const arrow = page.locator('.direction-icon-rng');
+  await expect(state(page)).toHaveAttribute('data-current-step', '0');
+  await arrow.click();
+  await expect(state(page)).toHaveAttribute('data-current-step', '1');
+  await expect(state(page)).toHaveAttribute('data-navigation-mode', 'live');
+  await expect(qr(page)).toBeVisible();
+  await expect(pause(page)).toBeVisible();
+  await expect(arrow).toBeDisabled();
+  await arrow.evaluate(element => element.click());
+  await expect(state(page)).toHaveAttribute('data-current-step', '1');
+  await expect(state(page)).toHaveAttribute('data-navigation-mode', 'live');
+  await pause(page).click();
+  await expect(state(page)).toHaveAttribute('data-navigation-mode', 'paused');
+  await expect(qr(page)).toBeVisible();
+});
+
+test('GPS advances the step without hiding the controls until arrival', async ({ page }) => {
+  await setup(page);
+  await expect(state(page)).toHaveAttribute('data-current-step', '0');
+  await page.evaluate(() => window.sendGps(36.2881, 59.615));
+  await expect(state(page)).toHaveAttribute('data-current-step', '1');
+  await expect(state(page)).toHaveAttribute('data-navigation-mode', 'live');
+  await expect(qr(page)).toBeVisible();
+  await expect(pause(page)).toBeVisible();
+  await page.evaluate(() => window.sendGps(36.289, 59.615));
+  await expect(state(page)).toHaveAttribute('data-navigation-mode', 'arrived');
+  await expect(qr(page)).toHaveCount(0);
+  await expect(pause(page)).toHaveCount(0);
+});
 
 test('pause freezes progress and audio through GPS movement, visibility changes and page reload', async ({ page }) => {
   await setup(page);

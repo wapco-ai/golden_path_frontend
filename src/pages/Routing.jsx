@@ -1628,22 +1628,28 @@ const RoutingPage = () => {
     if (!showAllRoutesView && !showAlternativeRoutes) setIs3DView(true);
   };
 
+  const liveRouting = isRoutingActive && !isDemoMode;
+  const guideStep = routeData?.steps?.[currentStep];
+  const stepCount = routeData?.steps?.length ?? 0;
+  const confirmsFloor = liveRouting && guideStep?.type === 'stepChangeFloor';
+  const directionDisabled = isPaused || !routeGeo || !guideStep
+    || (liveRouting && !confirmsFloor && currentStep >= stepCount - 1);
+
   const handleDirectionIconClick = (event) => {
     event.stopPropagation();
-    if (pauseRef.current) return;
-    const active = routeData?.steps?.[currentStep];
-    if (active?.type === 'stepChangeFloor' && isRoutingActive && !isDemoMode) {
-      setSessionFloor(active.toFloor);
-      setCurrentStep(previous => Math.min(previous + 1, routeData.steps.length - 1));
+    if (directionDisabled || pauseRef.current) return;
+    if (liveRouting) {
+      if (confirmsFloor) setSessionFloor(guideStep.toFloor);
+      const nextStep = Math.min(currentStep + 1, stepCount - 1);
+      // GPS may already have advanced this step by the time the tap is applied.
+      setCurrentStep(previous => Math.max(previous, nextStep));
       return;
     }
-    const count = routeData?.steps?.length || 0;
-    if (!count || !routeGeo) return;
     advancedDeadReckoningService.stop();
     setIsRoutingActive(false);
     setHasArrived(false);
     setIsDemoMode(true);
-    setCurrentStep((previous) => nextDemoStep(previous, count));
+    setCurrentStep(previous => nextDemoStep(previous, stepCount));
   };
 
   const handleEmergencySelect = (type) => {
@@ -2259,9 +2265,9 @@ const RoutingPage = () => {
                         <span
                           className="direction-icon-rng"
                           role="button"
-                          tabIndex={isPaused || !routeGeo || !routeData.steps.length ? -1 : 0}
-                          aria-disabled={isPaused || !routeGeo || !routeData.steps.length}
-                          aria-label={routeData.steps[currentStep]?.type === 'stepChangeFloor' && isRoutingActive && !isDemoMode ? ({ fa: 'تأیید رسیدن به طبقه مقصد', en: 'Confirm arrival on destination floor', ar: 'تأكيد الوصول إلى طابق الوجهة', ur: 'منزل پر پہنچنے کی تصدیق' })[language] : rngText.next}
+                          tabIndex={directionDisabled ? -1 : 0}
+                          aria-disabled={directionDisabled}
+                          aria-label={confirmsFloor ? ({ fa: 'تأیید رسیدن به طبقه مقصد', en: 'Confirm arrival on destination floor', ar: 'تأكيد الوصول إلى طابق الوجهة', ur: 'منزل پر پہنچنے کی تصدیق' })[language] : liveRouting ? rngText.nextLive : rngText.next}
                           onClick={handleDirectionIconClick}
                           onPointerDown={(event) => event.stopPropagation()}
                           onKeyDown={(event) => {

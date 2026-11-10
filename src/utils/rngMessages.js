@@ -1,9 +1,9 @@
 // Accessible name for the existing icon only; no added visible UI copy.
 export const rngMessages = {
-  fa: { next: 'نمایش گام بعدی در دمو' },
-  en: { next: 'Preview next demo step' },
-  ar: { next: 'معاينة الخطوة التجريبية التالية' },
-  ur: { next: 'ڈیمو کا اگلا مرحلہ دکھائیں' }
+  fa: { next: 'نمایش گام بعدی در دمو', nextLive: 'رفتن به گام بعدی' },
+  en: { next: 'Preview next demo step', nextLive: 'Go to the next step' },
+  ar: { next: 'معاينة الخطوة التجريبية التالية', nextLive: 'الانتقال إلى الخطوة التالية' },
+  ur: { next: 'ڈیمو کا اگلا مرحلہ دکھائیں', nextLive: 'اگلے مرحلے پر جائیں' }
 };
 
 export const rngPauseMessages = {
