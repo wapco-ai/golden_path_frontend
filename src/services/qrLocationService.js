@@ -2,10 +2,35 @@ import appConfig from '../config/appConfig.js';
 import { fetchLandmarkPlaces } from './landmarkService.js';
 import { getPointFloor, normalizeFloor } from '../utils/floors.js';
 import { setSessionFloor } from '../utils/sessionFloor.js';
+import { userRequest } from '../api/userRequest.js';
 
 const pending = new Map();
 const validCoordinates = (lat, lng) => lat !== null && lng !== null && String(lat).trim() !== '' && String(lng).trim() !== '' && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)) && Math.abs(Number(lat)) <= 90 && Math.abs(Number(lng)) <= 180;
 const qrKey = () => ['qrLat', 'qrLng', 'qrId'].map(key => sessionStorage.getItem(key) || '').join('|');
+
+export async function resolveScannedQrPoint(value, language, signal) {
+  let code = value.trim();
+  const codePattern = /^[a-z0-9_-]{1,120}$/i;
+  if (!codePattern.test(code)) {
+    let url;
+    try { url = new URL(code); } catch { return null; }
+    const [page, query] = url.hash.slice(1).split('?');
+    const locationLink = page === '/location' || (!page && url.pathname === '/location');
+    if (!['https:', 'http:'].includes(url.protocol) || !locationLink) return null;
+    code = new URLSearchParams(query ?? url.search).get('id') || '';
+  }
+  if (!codePattern.test(code)) return null;
+
+  const query = new URLSearchParams({ language, includeContents: 'false', includeComments: 'false' });
+  const response = await userRequest(`${appConfig.apiBaseUrl}/api/v1/qrcodes/${encodeURIComponent(code)}?${query}`, { signal });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`QR lookup failed (${response.status})`);
+
+  const { id, coordinates, floor, title } = await response.json();
+  const [lat, lng] = Array.isArray(coordinates) ? coordinates : [];
+  if (id !== code || !validCoordinates(lat ?? null, lng ?? null)) return null;
+  return { coordinates: [Number(lat), Number(lng)], floor: normalizeFloor(floor), name: title || code, source: 'qr' };
+}
 
 export function readQrPoint() {
   const lat = sessionStorage.getItem('qrLat');

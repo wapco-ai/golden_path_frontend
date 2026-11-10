@@ -1,5 +1,5 @@
 import { submitEmergency } from '../services/emergencyService';
-import { validGps, isFresh } from '../utils/locationQuality.js';
+import { GPS_MAX_ACCURACY, validGps, isFresh } from '../utils/locationQuality.js';
 import FloorControl from '../components/map/FloorControl';
 import { routeCoordinates as getRouteCoordinates, isMultifloor, multifloorSteps, activeRouteCoordinates } from '../utils/multifloorRoute';
 import { withDoorStepInstructions } from '../utils/routeStepInstructions';
@@ -8,6 +8,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
 import { FormattedMessage, useIntl } from 'react-intl';
 import RouteMap from '../components/map/RouteMap';
+import RngQrCorrection from '../components/map/RngQrCorrection';
 import DeadReckoningControls from '../components/map/DeadReckoningControls';
 import advancedDeadReckoningService from '../services/AdvancedDeadReckoningService';
 import '../styles/Routing.css';
@@ -18,14 +19,16 @@ import useLocaleDigits from '../utils/useLocaleDigits';
 import { toast } from 'react-toastify';
 import ttsService from '../services/ttsService';
 import { requestRouting } from '../services/routingService';
+import { resolveScannedQrPoint } from '../services/qrLocationService';
 import { doorEndpoint, doorRouteErrorMessage } from '../utils/doorRouteEndpoint';
 import useGuidanceImage from '../hooks/useGuidanceImage.js';
 import { getLiveNavigationGeo, getNavigationProgress, nextDemoStep, resolveNavigationFrame } from '../utils/rngNavigation.js';
-import { rngMessages } from '../utils/rngMessages.js';
+import { rngMessages, rngQrMessages } from '../utils/rngMessages.js';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
 import {
   buildRouteMSegments,
   getLineDistanceMeters,
+  haversineMeters,
   normalizeRouteMSteps
 } from '../utils/routeSegments';
 
@@ -71,6 +74,7 @@ const RoutingPage = () => {
   const [drTimestamp, setDrTimestamp] = useState(null);
   const [positionClock, setPositionClock] = useState(Date.now());
   const gpsFixRef = useRef(null);
+  const qrAnchorRef = useRef(null);
   const [selectedSoundOption, setSelectedSoundOption] = useState('on');
   const [isRoutingActive, setIsRoutingActive] = useState(false);
   const [isClosingEmergency, setIsClosingEmergency] = useState(false);
@@ -160,10 +164,12 @@ const RoutingPage = () => {
   } = useRouteStore();
   const language = useLangStore(state => state.language);
   const rngText = rngMessages[language] || rngMessages.fa;
+  const qrText = rngQrMessages[language] || rngQrMessages.fa;
   const previousRoute = useRef(routeGeo);
   useEffect(() => {
     if (previousRoute.current === routeGeo) return;
     previousRoute.current = routeGeo;
+    qrAnchorRef.current = null;
     setCurrentStep(0);
     setIsDemoMode(false);
     setHasArrived(false);
@@ -424,15 +430,56 @@ const RoutingPage = () => {
     }
   }, [isDrActive]);
 
-  const persistRouteData = useCallback((geo, steps, alternatives = [], sahns = []) => {
-    setRouteGeo(geo);
-    setRouteSteps(steps);
-    setAlternativeRoutes(alternatives);
+  const persistRouteData = useCallback((geo, steps, alternatives = [], sahns = [], newOrigin) => {
+    useRouteStore.setState({ routeGeo: geo, routeSteps: steps, alternativeRoutes: alternatives,
+      ...(newOrigin && { origin: newOrigin }) });
+    if (newOrigin) sessionStorage.setItem('origin', JSON.stringify(newOrigin));
     sessionStorage.setItem('routeGeo', JSON.stringify(geo));
     sessionStorage.setItem('routeSteps', JSON.stringify(steps));
     sessionStorage.setItem('alternativeRoutes', JSON.stringify(alternatives));
     sessionStorage.setItem('routeSahns', JSON.stringify(sahns));
-  }, [setAlternativeRoutes, setRouteGeo, setRouteSteps]);
+  }, []);
+
+  const correctRouteFromQr = async (value, signal) => {
+    const newOrigin = await resolveScannedQrPoint(value, language, signal);
+    if (signal.aborted) return;
+    if (!newOrigin) return 'invalid';
+    if (newOrigin.floor === null) return 'floor';
+
+    const destinationFloor = getPointFloor(destination, getPointFloor(routeSteps.at(-1), routeGeo?.properties?.floor));
+    let result;
+    try {
+      result = await requestRouting({ origin: newOrigin, destination: { ...destination, floor: destinationFloor },
+        mode: transportMode, gender, lang: language, signal });
+    } catch (error) {
+      if (error.doorUnavailable) return doorRouteErrorMessage(error);
+      if (error.status === 404 || error.status === 422) return 'noRoute';
+      throw error;
+    }
+    if (signal.aborted) return;
+    const active = useRouteStore.getState();
+    if (active.routeGeo !== routeGeo || active.destination !== destination
+      || active.transportMode !== transportMode || active.gender !== gender) return;
+    if (!getRouteCoordinates(result.geo).length || !result.steps.length) return 'noRoute';
+
+    const [lat, lng] = newOrigin.coordinates;
+    const geo = { lat, lng };
+    const timestamp = Date.now();
+    qrAnchorRef.current = { geo, timestamp, floor: newOrigin.floor };
+    gpsFixRef.current = null;
+    setGpsTimestamp(null);
+    setHasPreciseGps(false);
+    setUserLocation(newOrigin.coordinates);
+    setUserHeading(null);
+    setCurrentStep(0);
+    setSessionFloor(newOrigin.floor);
+    advancedDeadReckoningService.reset(geo);
+
+    // The route-change effect stops ordinary navigation. This replacement continues it.
+    previousRoute.current = result.geo;
+    persistRouteData(result.geo, result.steps, result.alternatives, result.sahns, newOrigin);
+    toast.success(qrText.updated.replace('{place}', newOrigin.name));
+  };
 
   const buildRouteWithFallback = useCallback(async (orig, dest, controller) => {
     const key = JSON.stringify([
@@ -976,10 +1023,12 @@ const RoutingPage = () => {
     stepIndex: currentStep,
     routeCoordinates: activeRouteCoordinates(routeGeo, routeData?.steps?.[currentStep]),
     isRoutingActive, isDemoMode, hasArrived, isDrActive,
-    drTimestamp, gpsTimestamp, now: positionClock, drPosition, userLocation: gpsFixRef.current
+    drTimestamp, gpsTimestamp, now: positionClock, drPosition,
+    anchorGeo: qrAnchorRef.current?.floor === sessionFloor ? qrAnchorRef.current.geo : null,
+    userLocation: gpsFixRef.current
       ? [gpsFixRef.current.lat, gpsFixRef.current.lng] : userLocation, userHeading, sessionFloor: routeOriginFloor
   }), [routeData?.steps, currentStep, routeGeo, isRoutingActive, isDemoMode,
-    hasArrived, isDrActive, drPosition, userLocation, userHeading, routeOriginFloor, drTimestamp, gpsTimestamp, positionClock]);
+    hasArrived, isDrActive, drPosition, userLocation, userHeading, routeOriginFloor, sessionFloor, drTimestamp, gpsTimestamp, positionClock]);
   useEffect(() => {
     if (isMultifloor(routeGeo) && (!isRoutingActive || isDemoMode)) setSessionFloor(navigationFrame.floor);
   }, [routeGeo, navigationFrame.floor, isRoutingActive, isDemoMode]);
@@ -1275,6 +1324,13 @@ const RoutingPage = () => {
       const geo = { lat: position.coords.latitude, lng: position.coords.longitude };
       const { accuracy, heading } = position.coords;
       if (!validGps(geo, accuracy, position.timestamp)) return;
+      const anchor = qrAnchorRef.current;
+      if (anchor && position.timestamp <= anchor.timestamp) return;
+      if (anchor && !gpsFixRef.current) {
+        const dr = advancedDeadReckoningService;
+        const reference = isFresh(dr.positionTimestamp) ? dr.geoPosition : anchor.geo;
+        if (haversineMeters([geo.lng, geo.lat], [reference.lng, reference.lat]) > GPS_MAX_ACCURACY) return;
+      }
       if (gpsFixRef.current && position.timestamp < gpsFixRef.current.timestamp) return;
       gpsFixRef.current = { ...geo, accuracy, timestamp: position.timestamp };
       setGpsTimestamp(position.timestamp);
@@ -2054,6 +2110,9 @@ const RoutingPage = () => {
               ref={infoModalRef}
               className={`info-modal ${isInfoModalOpen ? 'open' : 'closed'} ${isInfoModalDragging ? 'dragging' : ''}`}
             >
+              {isRoutingActive && !isDemoMode && destination?.coordinates && (
+                <RngQrCorrection text={qrText} onScan={correctRouteFromQr} />
+              )}
               <div
                 className="info-content"
                 onPointerDown={handleInfoDragStart}

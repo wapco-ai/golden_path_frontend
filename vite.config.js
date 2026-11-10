@@ -61,7 +61,7 @@ export default defineConfig({
         ]  
       },  
       workbox: {  
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],  
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,json,wasm}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // Set to 5 MiB for example
         runtimeCaching: [
           {
@@ -83,6 +83,11 @@ export default defineConfig({
             // Keep this before the generic API NetworkFirst rule below.
             urlPattern: ({ url }) => url.pathname === '/api/v1/landmark-view-image'
               && url.searchParams.get('source') === 'guidance_points',
+            handler: 'NetworkOnly'
+          },
+          {
+            // Route correction requires the QR's current registration and floor.
+            urlPattern: ({ url }) => url.pathname.startsWith('/api/v1/qrcodes/'),
             handler: 'NetworkOnly'
           },
           {  
