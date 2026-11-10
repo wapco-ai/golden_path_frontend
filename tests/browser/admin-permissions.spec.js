@@ -115,7 +115,9 @@ test('guidance-only access opens its form without granting map access', async ({
 
 test('a new guidance point submits its photo on the selected basement floor', async ({ page }) => {
   const fixture = JSON.parse(readFileSync(new URL('./fixtures/cultural-media.json', import.meta.url), 'utf8'));
+  const png = Buffer.from(fixture.png, 'base64');
   await openPanel(page, [], ['manage_guidance_points']);
+  await page.route('**/tms/services/gsm/tiles/**', route => route.fulfill({ contentType: 'image/png', body: png }));
   await page.route('**/api/v1/admin/guidance-points**', route => route.fulfill({
     json: { success: true, data: [], meta: { total: 0 } }
   }));
@@ -127,10 +129,10 @@ test('a new guidance point submits its photo on the selected basement floor', as
   const floor = modal.getByLabel('طبقه', { exact: true });
   await expect(floor).toHaveValue('0');
   await floor.selectOption('-1');
-  await expect(modal.locator('.maplibregl-marker')).toBeVisible();
+  await expect(modal.locator('.maplibregl-marker')).toBeVisible({ timeout: 20_000 });
   await modal.locator('.maplibregl-canvas').click({ position: { x: 90, y: 105 } });
   await modal.locator('input[type=file]').setInputFiles({
-    name: 'basement.png', mimeType: 'image/png', buffer: Buffer.from(fixture.png, 'base64')
+    name: 'basement.png', mimeType: 'image/png', buffer: png
   });
   const orientation = page.locator('.orientation-modal');
   await orientation.locator('.orientation-option').first().click();
