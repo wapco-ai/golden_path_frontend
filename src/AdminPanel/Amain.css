@@ -9739,14 +9739,6 @@ body {
   margin-bottom: 24px;
 }
 
-.Marks-admin-basic-info {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  margin-bottom: 24px;
-}
-
-
 .info-field {
   display: flex;
   flex-direction: column;
