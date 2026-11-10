@@ -38,7 +38,7 @@ import { changeAdminPassword, uploadAdminAvatar, deleteAdminAvatar } from '../se
 import { resolveAvatarUrl } from '../services/userProfileMapper';
 import { canOpenAdminView, hasAdminRole, REPORT_VIEWS, FACILITY_VIEWS } from '../auth/admin/adminAccess';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
-import { mapAssetRequest } from '../services/legacyMapStyles';
+import { ADMIN_MAP_MAX_ZOOM, adminMapAssetRequest } from '../services/legacyMapStyles';
 import {
   DOOR_ACCESS_LAYER_ID,
   DOORS_ACCESS_POINT_LAYER_NAME,
@@ -4667,7 +4667,8 @@ const Amain = () => {
     const mapInstance = new maplibregl.Map({
       container: 'edit-cultural-map-container',
       style: './map-styles/osm-voyager/style-en.json',
-      transformRequest: mapAssetRequest,
+      transformRequest: adminMapAssetRequest,
+      maxZoom: ADMIN_MAP_MAX_ZOOM,
       center: selectedLocation ?
         [selectedLocation.lng, selectedLocation.lat] :
         [59.6161, 36.2908],
@@ -5055,7 +5056,8 @@ const Amain = () => {
     const mapInstance = new maplibregl.Map({
       container: mapContainer,
       style: './map-styles/osm-voyager/style-en.json',
-      transformRequest: mapAssetRequest,
+      transformRequest: adminMapAssetRequest,
+      maxZoom: ADMIN_MAP_MAX_ZOOM,
       center: selectedLocation
         ? [selectedLocation.lng, selectedLocation.lat]
         : [59.6161, 36.2908],
@@ -5697,7 +5699,8 @@ const Amain = () => {
         const mapInstance = new maplibregl.Map({
           container: 'map-container',
           style: mapStyle,
-          transformRequest: mapAssetRequest,
+          transformRequest: adminMapAssetRequest,
+          maxZoom: ADMIN_MAP_MAX_ZOOM,
           center: [59.6161, 36.2888], // Imam Reza Shrine coordinates in Mashhad, Iran
           zoom: 16, // Increased zoom to show more detail
         });
