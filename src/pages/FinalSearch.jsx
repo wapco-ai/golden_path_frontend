@@ -2,6 +2,7 @@ import FloorControl from '../components/map/FloorControl';
 import FloorTag from '../components/map/FloorTag';
 import useMapFloor from '../hooks/useMapFloor';
 import useEndpointFloor from '../hooks/useEndpointFloor';
+import { formatEndpointLabel } from '../hooks/useRouteEndpointLabel';
 import { getPointFloor, pointIsOnFloor } from '../utils/floors';
 import { readQrPoint } from '../services/qrLocationService';
 import { getSessionFloor, setSessionFloor } from '../utils/sessionFloor';
@@ -498,13 +499,17 @@ const FinalSearch = () => {
   const nearbyOrigin = routeGeo?.properties?.nearbyOrigin;
   const routeOrigin = nearbyOrigin || origin;
   const routeOriginName = nearbyOrigin
-    ? intl.formatMessage({ id: 'nearbyOriginLabel' }, { name: origin.name })
-    : origin.name;
+    ? formatEndpointLabel(intl, nearbyOrigin.label) ?? intl.formatMessage({ id: 'nearbyOriginLabel' }, { name: origin.name })
+    : origin.door?.routingName || origin.name;
   const originCoords = isValidLngLat(routeOrigin.coordinates)
     ? routeOrigin.coordinates
     : [0, 0];
   const nearbyDestination = routeGeo?.properties?.nearbyDestination;
   const routeDestination = nearbyDestination || destination;
+  const destinationEndpointName = formatEndpointLabel(intl, nearbyDestination?.label) || destination.door?.routingName;
+  const destinationAdjustment = destinationEndpointName && destinationEndpointName !== destination.name
+    ? intl.formatMessage({ id: 'nearbyDestinationEndpoint' }, { name: destinationEndpointName })
+    : null;
   const destinationCoords = isValidLngLat(routeDestination.coordinates)
     ? routeDestination.coordinates
     : [0, 0];
@@ -1062,8 +1067,9 @@ const FinalSearch = () => {
             className="location-input destination-input"
             onClick={handleDestinationClick} // Add this onClick handler
           >
-            <div className="location-details">
-              <div className="location-name">{destination.name}<FloorTag point={destination} /></div>
+            <div className={destinationAdjustment ? 'location-details has-location-adjustment' : 'location-details'}>
+              <div className="location-name" title={destination.name}>{destination.name}<FloorTag point={destination} /></div>
+              {destinationAdjustment && <div className="location-adjustment" title={destinationAdjustment}>{destinationAdjustment}</div>}
             </div>
           </div>
         </div>

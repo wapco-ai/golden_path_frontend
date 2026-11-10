@@ -21,6 +21,6 @@ export const replaceDoorEndpoint = (point, door) => {
     ...endpoint,
     floor: door.floor,
     coordinates: door.coordinates,
-    door: { accessId: door.accessId, doorId: door.doorId, selectedAreaId: door.areaId }
+    door: { accessId: door.accessId, doorId: door.doorId, selectedAreaId: door.areaId, routingName: door.name }
   };
 };

@@ -303,6 +303,41 @@ test('an area with no registered entrances keeps the message visible and allows 
   expect(errors).toEqual([]);
 });
 
+test('map picks update both names while retaining the selected coordinates', async ({ page }) => {
+  await setup(page);
+  const lookups = [];
+  const routes = [];
+  const names = ['صحن پیامبر', 'صحن قدس', 'باب الجواد'];
+  await page.route('**/api/v1/route-endpoint-label?*', route => {
+    const point = Object.fromEntries(new URL(route.request().url()).searchParams);
+    const index = lookups.length;
+    lookups.push(point);
+    return route.fulfill({ json: { label: { id: String(index), name: names[index], nearby: false } } });
+  });
+  await page.route('**/api/v1/routing/route', route => {
+    routes.push(route.request().postDataJSON());
+    return route.fulfill({ status: 404, json: { status: 'NO_PATH' } });
+  });
+
+  await page.goto('/#/mpr');
+  async function pick(input, x) {
+    await page.locator(input).click();
+    await page.locator('.map-option-item').first().click();
+    await page.locator('.maplibregl-canvas').first().click({ position: { x, y: 260 } });
+  }
+  const origin = '.map-current-location';
+  await pick(origin, 360);
+  await expect(page.locator(`${origin} input`)).toHaveValue(/صحن پیامبر/);
+  await pick(origin, 480);
+  await expect(page.locator(`${origin} input`)).toHaveValue(/صحن قدس/);
+  await pick('.map-destination-input-wrapper', 600);
+
+  await expect.poll(() => routes.at(-1)).toMatchObject({
+    origin: { name: 'صحن قدس', lat: Number(lookups[1].lat), lon: Number(lookups[1].lon), floor: 0 },
+    destination: { name: 'باب الجواد', lat: Number(lookups[2].lat), lon: Number(lookups[2].lon), floor: 0 }
+  });
+});
+
 test('MPR previews accessible points near both requested POI endpoints', async ({ page }) => {
   const { errors } = await setup(page);
   const origin = [36.287920367423624, 59.611761238159666];
@@ -327,8 +362,8 @@ test('MPR previews accessible points near both requested POI endpoints', async (
       geo: { type: 'Feature', geometry: { type: 'LineString', coordinates: [
         [nearbyOrigin[1], nearbyOrigin[0]], [nearby[1], nearby[0]]
       ] }, properties: {
-        nearbyOrigin: { coordinates: nearbyOrigin, floor: 0 },
-        nearbyDestination: { coordinates: nearby, floor: 0 }
+        nearbyOrigin: { coordinates: nearbyOrigin, floor: 0, label: { name: 'راهروی غربی', kind: 'area', nearby: false } },
+        nearbyDestination: { coordinates: nearby, floor: 0, label: { name: 'باب الجواد', kind: 'door', nearby: false } }
       } },
       steps: [{ type: 'stepArriveDestination', coord: { lat: nearby[0], lon: nearby[1] },
         floor: 0, routeM: 1, instruction }],
@@ -344,8 +379,10 @@ test('MPR previews accessible points near both requested POI endpoints', async (
   await page.locator('.map-search-modal input').fill('سقف کاذب');
   await page.locator('.map-destination-list li').filter({ hasText: 'سقف کاذب' }).click();
   await expect(page).toHaveURL(/#\/fs/);
-  await expect(page.locator('.location-input.origin-input')).toContainText('نقطهٔ قابل‌دسترسی نزدیک راهرو');
-  await expect(page.locator('.route-summary')).toContainText('از نقطهٔ قابل‌دسترسی نزدیک راهرو');
+  await expect(page.locator('.location-input.origin-input')).toContainText('راهروی غربی');
+  await expect(page.locator('.location-input.destination-input .location-name')).toContainText('سقف کاذب');
+  await expect(page.locator('.location-input.destination-input .location-adjustment')).toHaveText('پایان مسیر: باب الجواد');
+  await expect(page.locator('.route-summary')).toContainText('از راهروی غربی');
   await expect(page.locator('.route-summary')).toContainText('تا نزدیکی سقف کاذب');
   await page.locator('.overview-btn').click();
   await expect(page.locator('.instruction-text2')).toContainText(instruction);
