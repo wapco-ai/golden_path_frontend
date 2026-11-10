@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../AdminPanel/Amain.css';
+import './Marks.css';
 import apiAdmin from '../api/apiAdmin';
 import { deleteFile } from '../services/fileService';
 import { MBTILES_SATELLITE_STYLE } from '../services/mbtilesMapStyle';
@@ -771,6 +772,14 @@ const Marks = () => {
     return text;
   };
 
+  const editingMark = isEditModalOpen && selectedMark;
+  const modalTitle = editingMark ? 'ویرایش نقطه راهنما' : 'افزودن نقطه راهنما';
+  const closeMarkModal = () => {
+    if (editingMark) setIsEditModalOpen(false);
+    else setIsAddModalOpen(false);
+    setDeletedImages([]);
+  };
+
   return (
     <div className="admins-page">
       {/* Page Header */}
@@ -983,185 +992,31 @@ const Marks = () => {
         )}
       </div>
 
-      {/* Add Mark Modal */}
-      {isAddModalOpen && (
+      {(isAddModalOpen || editingMark) && (
         <div className="modal-overlay">
-          <div className="add-admin-modal" style={{ maxWidth: '800px' }}>
-            <div className="modal-header-add-admin">
-              <h3>افزودن نقطه راهنما</h3>
-              <button
-                className="close-btn"
-                onClick={() => { setIsAddModalOpen(false); setDeletedImages([]); }}
-              >
-                ×
-              </button>
-            </div>
-            <div className="modal-body-add-admin">
-              <div className="Marks-admin-basic-info">
-                <div className="info-field">
-                  <label>عنوان</label>
-                  <input
-                    type="text"
-                    className="form-input-add-admin"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="عنوان مکان را وارد کنید "
-                  />
-                </div>
-                <div className="info-field">
-                  <label htmlFor="add-guidance-floor">طبقه</label>
-                  <select
-                    id="add-guidance-floor"
-                    name="floor"
-                    className="form-input-add-admin"
-                    value={formData.floor}
-                    onChange={(e) => setFormData({ ...formData, floor: Number(e.target.value) })}
-                  >
-                    <option value={0}>{floorLabel(0)}</option>
-                    <option value={-1}>{floorLabel(-1)}</option>
-                  </select>
-                </div>
-                <div className="info-field">
-                  <label htmlFor="add-guidance-coverage-radius">شعاع پوشش (متر)</label>
-                  <input
-                    id="add-guidance-coverage-radius"
-                    name="coverage_radius_m"
-                    type="number"
-                    inputMode="decimal"
-                    min="0.01"
-                    max="100"
-                    step="0.01"
-                    required
-                    className="form-input-add-admin"
-                    value={formData.coverage_radius_m}
-                    onChange={(e) => setFormData({ ...formData, coverage_radius_m: e.target.value })}
-                  />
-                </div>
-                <div className="info-field">
-                  <label>تصاویر (حداکثر 4 عدد)</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handleAddImageUpload}
-                    className="form-input-add-admin"
-                  />
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
-                    {formData.images.map((img, idx) => (
-                      <div key={idx} style={{ position: 'relative' }}>
-                        <img src={img.previewUrl || img.url || img.image_url} alt={`preview-${idx}`} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
-                        {
-                          <div style={{
-                            position: 'absolute',
-                            bottom: '-5px',
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            background: 'rgba(0,0,0,0.7)',
-                            color: 'white',
-                            fontSize: '10px',
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            whiteSpace: 'nowrap'
-                          }}>
-                            {`${getDirectionLabel(img.view_orientation)}${img.azimuth_deg !== null && img.azimuth_deg !== undefined ? ` - ${img.azimuth_deg}°` : ''}`}
-                          </div>
-                        }
-                        <select
-                          value={img.view_orientation || 'unknown'}
-                          onChange={(e) => updateImageOrientation(idx, e.target.value)}
-                          style={{ position: 'absolute', left: 0, top: '84px', fontSize: '11px' }}
-                        >
-                          {ORIENTATION_OPTIONS.map((option) => <option key={option} value={option}>{ORIENTATION_LABELS_FA[option]}</option>)}
-                        </select>
-                        <button
-                          onClick={() => removeImage(idx)}
-                          style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', cursor: 'pointer' }}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="info-field">
-                  <label>موقعیت روی نقشه <span style={{ color: 'red' }}>*</span></label>
-                  <div
-                    ref={mapContainerRef}
-                    style={{
-                      width: '100%',
-                      height: '250px',
-                      borderRadius: '8px',
-                      overflow: 'hidden',
-                      backgroundColor: '#f0f0f0',
-                      position: 'relative',
-                      zIndex: 1
-                    }}
-                  />
-                  <div className="map-instruction" style={{ marginTop: '10px' }}>
-                    <span>برای انتخاب موقعیت دقیق، روی نقشه کلیک کنید</span>
-                    {selectedLocation && (
-                      <div className="selected-coordinates">
-                        <span>موقعیت انتخاب شده:</span>
-                        <span className="coordinates-value">
-                          {selectedLocation.lat.toFixed(6)}°N, {selectedLocation.lng.toFixed(6)}°E
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer-add-admin">
-              <button
-                className="cancel-btn-add-admin"
-                onClick={() => { setIsAddModalOpen(false); setDeletedImages([]); }}
-                disabled={isSaving}
-              >
-                انصراف
-              </button>
-              <button
-                className="action-btn save-btn"
-                onClick={handleAddMark}
-                disabled={isSaving || !formData.location}
-              >
-                {isSaving ? 'در حال ذخیره...' : 'افزودن نقطه راهنما'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          <div className="guidance-modal" role="dialog" aria-modal="true" aria-labelledby="guidance-modal-title" dir="rtl">
+            <header className="guidance-modal__header">
+              <h3 id="guidance-modal-title">{modalTitle}</h3>
+              <button type="button" className="guidance-modal__close" aria-label="بستن" onClick={closeMarkModal} disabled={isSaving}>×</button>
+            </header>
 
-      {/* Edit Mark Modal */}
-      {isEditModalOpen && selectedMark && (
-        <div className="modal-overlay">
-          <div className="add-admin-modal" style={{ maxWidth: '800px' }}>
-            <div className="modal-header-add-admin">
-              <h3>ویرایش نقطه راهنما</h3>
-              <button
-                className="close-btn"
-                onClick={() => { setIsEditModalOpen(false); setDeletedImages([]); }}
-              >
-                ×
-              </button>
-            </div>
-            <div className="modal-body-add-admin">
-              <div className="Marks-admin-basic-info">
-                <div className="info-field">
-                  <label>عنوان</label>
+            <div className="guidance-modal__body">
+              <div className="guidance-modal__fields">
+                <div className="guidance-modal__field guidance-modal__title-field">
+                  <label htmlFor="guidance-title">عنوان</label>
                   <input
+                    id="guidance-title"
                     type="text"
-                    className="form-input-add-admin"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="عنوان مکان را وارد کنید (اختیاری)"
+                    placeholder="عنوان مکان (اختیاری)"
                   />
                 </div>
-                <div className="info-field">
-                  <label htmlFor="edit-guidance-floor">طبقه</label>
+                <div className="guidance-modal__field">
+                  <label htmlFor="guidance-floor">طبقه</label>
                   <select
-                    id="edit-guidance-floor"
+                    id="guidance-floor"
                     name="floor"
-                    className="form-input-add-admin"
                     value={formData.floor}
                     onChange={(e) => setFormData({ ...formData, floor: Number(e.target.value) })}
                   >
@@ -1169,10 +1024,10 @@ const Marks = () => {
                     <option value={-1}>{floorLabel(-1)}</option>
                   </select>
                 </div>
-                <div className="info-field">
-                  <label htmlFor="edit-guidance-coverage-radius">شعاع پوشش (متر)</label>
+                <div className="guidance-modal__field">
+                  <label htmlFor="guidance-coverage-radius">شعاع پوشش (متر)</label>
                   <input
-                    id="edit-guidance-coverage-radius"
+                    id="guidance-coverage-radius"
                     name="coverage_radius_m"
                     type="number"
                     inputMode="decimal"
@@ -1180,101 +1035,80 @@ const Marks = () => {
                     max="100"
                     step="0.01"
                     required
-                    className="form-input-add-admin"
                     value={formData.coverage_radius_m}
                     onChange={(e) => setFormData({ ...formData, coverage_radius_m: e.target.value })}
                   />
                 </div>
-                <div className="info-field">
-                  <label>تصاویر (حداکثر 4 عدد)</label>
+              </div>
+
+              <div className="guidance-modal__field">
+                <label htmlFor="guidance-images">تصاویر</label>
+                <div className="guidance-modal__upload">
                   <input
+                    id="guidance-images"
                     type="file"
                     accept="image/*"
                     multiple
-                    onChange={handleEditImageUpload}
-                    className="form-input-add-admin"
+                    onChange={editingMark ? handleEditImageUpload : handleAddImageUpload}
+                    aria-describedby="guidance-image-limit"
                   />
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
+                  <span className="guidance-modal__upload-label" aria-hidden="true">انتخاب تصویر</span>
+                  <span id="guidance-image-limit">حداکثر ۴ تصویر</span>
+                </div>
+                {formData.images.length > 0 && (
+                  <ul className="guidance-modal__images">
                     {formData.images.map((img, idx) => (
-                      <div key={idx} style={{ position: 'relative' }}>
-                        <img src={img.previewUrl || img.url || img.image_url} alt={`preview-${idx}`} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
-                        {
-                          <div style={{
-                            position: 'absolute',
-                            bottom: '-5px',
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            background: 'rgba(0,0,0,0.7)',
-                            color: 'white',
-                            fontSize: '10px',
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            whiteSpace: 'nowrap'
-                          }}>
-                            {`${getDirectionLabel(img.view_orientation)}${img.azimuth_deg !== null && img.azimuth_deg !== undefined ? ` - ${img.azimuth_deg}°` : ''}`}
-                          </div>
-                        }
-                        <select
-                          value={img.view_orientation || 'unknown'}
-                          onChange={(e) => updateImageOrientation(idx, e.target.value)}
-                          style={{ position: 'absolute', left: 0, top: '84px', fontSize: '11px' }}
-                        >
-                          {ORIENTATION_OPTIONS.map((option) => <option key={option} value={option}>{ORIENTATION_LABELS_FA[option]}</option>)}
-                        </select>
+                      <li className="guidance-modal__image" key={img.id}>
+                        <img src={img.previewUrl || img.url || img.image_url} alt={'تصویر ' + (idx + 1)} />
                         <button
+                          type="button"
+                          className="guidance-modal__remove-image"
                           onClick={() => removeImage(idx)}
-                          style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', cursor: 'pointer' }}
-                        >
-                          ×
-                        </button>
-                      </div>
+                          aria-label={'حذف تصویر ' + (idx + 1)}
+                        >×</button>
+                        <div className="guidance-modal__image-direction">
+                          <select
+                            value={img.view_orientation || 'unknown'}
+                            onChange={(e) => updateImageOrientation(idx, e.target.value)}
+                            aria-label={'جهت تصویر ' + (idx + 1)}
+                          >
+                            {ORIENTATION_OPTIONS.map((option) => <option key={option} value={option}>{ORIENTATION_LABELS_FA[option]}</option>)}
+                          </select>
+                          {img.azimuth_deg != null && <span dir="ltr">{img.azimuth_deg}°</span>}
+                        </div>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
+                )}
+              </div>
+
+              <div className="guidance-modal__field">
+                <div className="guidance-modal__map-caption">
+                  <span className="guidance-modal__label">موقعیت روی نقشه <span aria-hidden="true">*</span></span>
+                  {selectedLocation && (
+                    <span className="guidance-modal__coordinates" dir="ltr">
+                      {selectedLocation.lat.toFixed(6)}°N, {selectedLocation.lng.toFixed(6)}°E
+                    </span>
+                  )}
                 </div>
-                <div className="info-field">
-                  <label>موقعیت روی نقشه <span style={{ color: 'red' }}>*</span></label>
-                  <div
-                    ref={mapContainerRef}
-                    style={{
-                      width: '100%',
-                      height: '250px',
-                      borderRadius: '8px',
-                      overflow: 'hidden',
-                      backgroundColor: '#f0f0f0',
-                      position: 'relative',
-                      zIndex: 1
-                    }}
-                  />
-                  <div className="map-instruction" style={{ marginTop: '10px' }}>
-                    <span>برای تغییر موقعیت، روی نقشه کلیک کنید</span>
-                    {selectedLocation && (
-                      <div className="selected-coordinates">
-                        <span>موقعیت انتخاب شده:</span>
-                        <span className="coordinates-value">
-                          {selectedLocation.lat.toFixed(6)}°N, {selectedLocation.lng.toFixed(6)}°E
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <div ref={mapContainerRef} className="guidance-modal__map" />
+                <p className="guidance-modal__map-help">
+                  {editingMark ? 'برای تغییر موقعیت، روی نقشه کلیک کنید.' : 'برای انتخاب موقعیت دقیق، روی نقشه کلیک کنید.'}
+                </p>
               </div>
             </div>
-            <div className="modal-footer-add-admin">
+
+            <footer className="guidance-modal__footer">
+              <button type="button" className="guidance-modal__cancel" onClick={closeMarkModal} disabled={isSaving}>انصراف</button>
               <button
-                className="cancel-btn-add-admin"
-                onClick={() => { setIsEditModalOpen(false); setDeletedImages([]); }}
-                disabled={isSaving}
-              >
-                انصراف
-              </button>
-              <button
-                className="action-btn save-btn"
-                onClick={handleEditMark}
+                type="button"
+                className="guidance-modal__save"
+                onClick={editingMark ? handleEditMark : handleAddMark}
                 disabled={isSaving || !formData.location}
               >
-                {isSaving ? 'در حال ذخیره...' : 'ویرایش نقطه راهنما'}
+                {isSaving ? 'در حال ذخیره...' : modalTitle}
               </button>
-            </div>
+            </footer>
           </div>
         </div>
       )}

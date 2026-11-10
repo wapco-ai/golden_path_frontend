@@ -40,23 +40,19 @@ test('initial state and both new-point resets use the same default', () => {
   assert.equal((source.match(/coverage_radius_m: DEFAULT_GUIDANCE_COVERAGE_RADIUS_M/g) || []).length, 3);
 });
 
-test('add and edit each have a labeled radius field reusing the existing input style', () => {
-  for (const prefix of ['add', 'edit']) {
-    assert.ok(source.includes(`htmlFor="${prefix}-guidance-coverage-radius"`));
-    assert.ok(source.includes(`id="${prefix}-guidance-coverage-radius"`));
-  }
+test('the shared add and edit form has a labeled radius field with the validated bounds', () => {
+  assert.ok(source.includes('htmlFor="guidance-coverage-radius"'));
   const inputs = [...source.matchAll(/<input\s+[\s\S]*?\/>/g)].map(([input]) => input)
     .filter((input) => input.includes('name="coverage_radius_m"'));
-  assert.equal(inputs.length, 2);
-  for (const input of inputs) {
-    assert.match(input, /className="form-input-add-admin"/);
-    assert.match(input, /min="0.01"/);
-    assert.match(input, /max="100"/);
-    assert.match(input, /step="0.01"/);
-    assert.match(input, /value=\{formData\.coverage_radius_m\}/);
-    assert.match(input, /coverage_radius_m: e\.target\.value/);
-    assert.doesNotMatch(input, /style=/);
-  }
+  assert.equal(inputs.length, 1);
+  const [input] = inputs;
+  assert.match(input, /id="guidance-coverage-radius"/);
+  assert.match(input, /min="0.01"/);
+  assert.match(input, /max="100"/);
+  assert.match(input, /step="0.01"/);
+  assert.match(input, /value=\{formData\.coverage_radius_m\}/);
+  assert.match(input, /coverage_radius_m: e\.target\.value/);
+  assert.doesNotMatch(input, /style=/);
 });
 
 // Source-level integration guards; these do not test tile-server availability.

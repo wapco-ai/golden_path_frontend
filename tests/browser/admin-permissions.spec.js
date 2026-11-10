@@ -124,9 +124,10 @@ test('a new guidance point submits its photo on the selected basement floor', as
   await page.locator('#amain-sidebar').getByText('مدیریت نقاط راهنما', { exact: true }).click();
   const openAdd = page.getByRole('button', { name: 'اضافه کردن نقطه راهنمای جدید' });
   await openAdd.click();
-  const modal = page.locator('.add-admin-modal');
+  const modal = page.getByRole('dialog', { name: 'افزودن نقطه راهنما' });
   const floor = modal.getByLabel('طبقه', { exact: true });
   await expect(floor).toHaveValue('0');
+  await expect(modal.getByLabel('شعاع پوشش (متر)')).toHaveValue('100');
   await floor.selectOption('-1');
   await expect(modal.locator('.maplibregl-marker')).toBeVisible({ timeout: 20_000 });
   await modal.locator('.maplibregl-canvas').click({ position: { x: 90, y: 105 } });
@@ -152,6 +153,7 @@ test('a new guidance point submits its photo on the selected basement floor', as
 });
 
 test('editing guidance loads and changes the saved floor while retaining its image', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 740 });
   await openPanel(page, [], ['manage_guidance_points']);
   let point = {
     id: 17, title: 'راهنمای آزمایشی', floor: -1, latitude: 36.288, longitude: 59.6157,
@@ -175,12 +177,15 @@ test('editing guidance loads and changes the saved floor while retaining its ima
   await page.locator('#amain-sidebar').getByText('مدیریت نقاط راهنما', { exact: true }).click();
   const edit = page.getByRole('row').filter({ hasText: point.title }).locator('.edit-btn21');
   await edit.click();
-  const modal = page.locator('.add-admin-modal');
+  const modal = page.getByRole('dialog', { name: 'ویرایش نقطه راهنما' });
   const floor = modal.getByLabel('طبقه', { exact: true });
   await expect(floor).toHaveValue('-1');
   await expect(modal.getByLabel('شعاع پوشش (متر)')).toHaveValue('35');
   await floor.selectOption('0');
-  await modal.getByRole('button', { name: 'ویرایش نقطه راهنما', exact: true }).click();
+  const save = modal.getByRole('button', { name: 'ویرایش نقطه راهنما', exact: true });
+  await expect(save).toBeInViewport();
+  expect(await modal.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await save.click();
   await expect(modal).toBeHidden();
   expect(writes).toHaveLength(1);
   expect(writes[0].get('floor')).toBe('0');
