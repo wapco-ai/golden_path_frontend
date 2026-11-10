@@ -1729,6 +1729,7 @@ const Amain = () => {
   const [routingAreaOptions, setRoutingAreaOptions] = useState([]);
   const [isLoadingRoutingAreas, setIsLoadingRoutingAreas] = useState(false);
   const [timeRestrictions, setTimeRestrictions] = useState([]);
+  const savedAccessRestrictions = useRef(null);
   const [prayerTimeRestrictions, setPrayerTimeRestrictions] = useState([]);
   const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
   const [selectedDateFilter, setSelectedDateFilter] = useState([]);
@@ -5387,6 +5388,7 @@ const Amain = () => {
 
 
   const resetForm = () => {
+    savedAccessRestrictions.current = null;
     newDoorPreviewRequest.current?.abort();
     newDoorPreviewRequest.current = null;
     setIsPreviewingNewDoor(false);
@@ -9347,6 +9349,7 @@ const Amain = () => {
 
   const buildDoorInfoPayload = () => {
     const selectedSubGroup = subGroupOptions.find((subGroup) => subGroup.value === placeSubcategory);
+    const savedRestrictions = isSharedConnector ? null : savedAccessRestrictions.current;
     const normalizeRoutingAreaId = (value) => {
       if (value === null || value === undefined || value === '') return null;
       const numericValue = Number(value);
@@ -9397,8 +9400,10 @@ const Amain = () => {
         }),
 
       ...(!isSameFloorStair ? {
-        time_restrictions: buildTimeRestrictionsPayload(),
-        prayer_restrictions: buildPrayerRestrictionsPayload()
+        ...(timeRestrictions !== savedRestrictions?.time
+          ? { time_restrictions: buildTimeRestrictionsPayload() } : {}),
+        ...(prayerTimeRestrictionsList !== savedRestrictions?.prayer
+          ? { prayer_restrictions: buildPrayerRestrictionsPayload() } : {})
       } : {}),
       notes: additionalNotes
     };
@@ -9664,8 +9669,11 @@ const Amain = () => {
       setRoutingAreaOptions(routingOptions);
     }
 
-    setTimeRestrictions(mapApiTimeRestrictionsToForm(doorInfo?.time_restrictions));
-    setPrayerTimeRestrictionsList(mapApiPrayerRestrictionsToForm(doorInfo?.prayer_restrictions));
+    const time = mapApiTimeRestrictionsToForm(doorInfo?.time_restrictions);
+    const prayer = mapApiPrayerRestrictionsToForm(doorInfo?.prayer_restrictions);
+    savedAccessRestrictions.current = { time, prayer };
+    setTimeRestrictions(time);
+    setPrayerTimeRestrictionsList(prayer);
     setAdditionalNotes(doorInfo?.notes || '');
   }
 
