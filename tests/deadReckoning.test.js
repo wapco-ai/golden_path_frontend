@@ -1,3 +1,5 @@
+import { DEFAULT_NAVIGATION_POLICY, setNavigationPolicy } from '../src/services/navigationPolicy.js';
+setNavigationPolicy({ ...DEFAULT_NAVIGATION_POLICY, gps_enabled: true });
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import deadReckoning from '../src/services/AdvancedDeadReckoningService.js';

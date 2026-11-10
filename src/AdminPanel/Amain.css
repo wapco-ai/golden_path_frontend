@@ -11860,3 +11860,6 @@ body {
   margin: 0;
   padding: 8px 16px;
 }
+
+.navigation-settings-form { max-height: 65vh; overflow-y: auto; text-align: start; }
+.navigation-settings-form .form-group { display: flex; flex-direction: column; margin-bottom: 12px; }

@@ -1,3 +1,4 @@
+import { loadNavigationPolicy } from './services/navigationPolicy.js';
 // main.jsx  
 import React from 'react';
 import ReactDOM from 'react-dom/client';
@@ -67,7 +68,7 @@ if (import.meta.env.PROD) {
 
 // Resolve registered QR coordinates before any page can route from the URL.
 async function mountApp() {
-  await resolveQrPoint();
+  await Promise.all([resolveQrPoint(), loadNavigationPolicy()]);
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <IntlProviderWrapper>

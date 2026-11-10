@@ -1,3 +1,4 @@
+import { getNavigationPolicy } from '../services/navigationPolicy.js';
 import { GPS_OPTIONS, gpsMeasurement } from '../utils/locationQuality.js';
 import FloorControl from '../components/map/FloorControl';
 import FloorTag from '../components/map/FloorTag';
@@ -203,7 +204,7 @@ const FinalSearch = () => {
   // Fallback to current GPS coordinates if origin coords not provided and no QR data
   useEffect(() => {
     let active = true;
-    if (!origin.coordinates && !(qrLat && qrLng) && navigator.geolocation) {
+    if (!origin.coordinates && !(qrLat && qrLng) && getNavigationPolicy().gps_enabled && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const fix = gpsMeasurement(pos);

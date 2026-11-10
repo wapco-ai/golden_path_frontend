@@ -1,3 +1,4 @@
+import { getNavigationPolicy } from '../services/navigationPolicy.js';
 export const GPS_MAX_ACCURACY = 25;
 export const LOCATION_MAX_AGE = 15000;
 export const HEADING_MAX_AGE = 5000;
@@ -11,7 +12,7 @@ export const isFresh = (timestamp, now = Date.now(), maxAge = LOCATION_MAX_AGE) 
   Number.isFinite(timestamp) && timestamp <= now + 1000 && now - timestamp <= maxAge;
 export const validGps = (position, accuracy, timestamp, now = Date.now()) =>
   validGeo(position) && Number.isFinite(accuracy) && accuracy >= 0
-  && accuracy <= GPS_MAX_ACCURACY && isFresh(timestamp, now);
+  && accuracy <= getNavigationPolicy().gps_max_accuracy_m && isFresh(timestamp, now);
 
 // Keep quality and acquisition time with every fix, including origin selection.
 export const gpsMeasurement = (position, previous = null, now = Date.now()) => {
@@ -25,11 +26,11 @@ export const gpsMeasurement = (position, previous = null, now = Date.now()) => {
 
 // getCurrentPosition cannot be cancelled, so also retire its callback when leaving GPS mode.
 export const observeGps = (geolocation, onFix, onError) => {
-  if (!geolocation) return () => {};
+  if (!geolocation || !getNavigationPolicy().gps_enabled) return () => {};
   let active = true;
   let previous = null;
   const success = position => {
-    if (!active) return;
+    if (!active || !getNavigationPolicy().gps_enabled) return;
     const fix = gpsMeasurement(position, previous);
     if (!fix) return;
     previous = fix;
