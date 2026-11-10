@@ -542,8 +542,12 @@ const MapRoutingPage = () => {
 
   const renderSearchLocation = (destination, address) => {
     const displayAddress = displaySearchAddress(destination.name, address);
-    const isArea = isAreaResult(destination);
-    const locationLabel = isArea ? intl.formatMessage({ id: 'mapAreaResult' }) : displayAddress;
+    let locationLabel = displayAddress;
+    if (isAreaResult(destination)) {
+      locationLabel = intl.formatMessage({ id: 'mapAreaResult' });
+    } else if (destination.kind === 'cultural') {
+      locationLabel = intl.formatMessage({ id: 'culturalInfo' });
+    }
     return <>{locationLabel}<FloorTag point={destination} separator={Boolean(locationLabel)} /></>;
   };
 
@@ -555,8 +559,9 @@ const MapRoutingPage = () => {
       : { areaId: place.areaId };
     return {
       id,
+      kind: place.kind,
       ...(isAreaResult(place) ? {
-        kind: 'area', ...area, source: 'area', sourceId: place.areaGroupId ?? place.areaId
+        ...area, source: 'area', sourceId: place.areaGroupId ?? place.areaId
       } : { poiId: id }),
       name: place.title || place.name || '',
       location: localizedPlaceAddress(place.address, language),
@@ -573,6 +578,14 @@ const MapRoutingPage = () => {
   const filteredDestinations = landmarkSearchResults?.key === searchKey
     ? landmarkSearchResults.places.map(toSearchDestination)
     : [];
+
+  const handleSearchResultSelect = (destination) => {
+    if (destination.kind === 'cultural') {
+      navigate(`/location?${new URLSearchParams({ id: destination.poiId })}`);
+      return;
+    }
+    handleDestinationSelect(destination);
+  };
 
   useEffect(() => {
     let active = true;
@@ -2194,7 +2207,7 @@ const MapRoutingPage = () => {
               {searchQuery && filteredDestinations.length > 0 && (
                 <ul className="map-destination-list">
                   {filteredDestinations.map((destination, index) => (
-                    <li key={`${destination.id || 'destination'}-${index}`} onClick={() => handleDestinationSelect(destination)}>
+                    <li key={`${destination.id || 'destination'}-${index}`} onClick={() => handleSearchResultSelect(destination)}>
                       <div className="map-recent-icon">
                         <SearchPlaceIcon area={isAreaResult(destination)} />
                       </div>

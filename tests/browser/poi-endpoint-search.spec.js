@@ -108,6 +108,46 @@ test('contentless POI search retains the independent negative origin and positiv
   expect(errors).toEqual([]);
 });
 
+for (const target of ['origin', 'destination']) {
+  test(`${target} search opens the area entrances and the separate cultural details`, async ({ page }) => {
+    await setup(page);
+    const area = { id: 'area-1000998', kind: 'area', areaId: 1000998, title: 'روضه منور', floor: 0, coordinates: [36.287, 59.615] };
+    const cultural = {
+      id: '890', title: 'روضه منوره', floor: 0, coordinates: [36.287, 59.615],
+      content: { title: 'روضه منوره', body: 'متن فرهنگی آزمون' },
+    };
+    await page.route('**/api/v1/landmark-places?*', async route => {
+      const params = new URL(route.request().url()).searchParams;
+      let places = [];
+      if (params.get('search') === cultural.title && params.get('include_exact_areas') === '1') {
+        places = [area, { ...cultural, kind: 'cultural' }];
+      } else if (params.get('poi_id') === cultural.id) {
+        places = [cultural];
+      }
+      await route.fulfill({ json: { places: { landmarkPlaces: places } } });
+    });
+
+    await page.goto('/#/mpr');
+    const trigger = target === 'origin' ? '.map-current-location' : '.map-destination-input-wrapper';
+    await page.locator(trigger).click();
+    const input = page.locator('.map-search-modal input');
+    await input.fill(cultural.title);
+    const rows = page.locator('.map-destination-list li');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0)).toContainText('محدوده');
+    await expect(rows.nth(1)).toContainText('اطلاعات فرهنگی');
+
+    await rows.getByText(area.title, { exact: true }).click();
+    await expect(page.getByRole('dialog', { name: area.title, exact: true })).toBeVisible();
+    await page.locator('.map-entry-back-button').click();
+    await input.fill(cultural.title);
+    await rows.getByText(cultural.title, { exact: true }).click();
+    await expect(page).toHaveURL(/#\/location\?id=890$/);
+    await expect(page.getByRole('heading', { name: cultural.title, exact: true })).toBeVisible();
+    await expect(page.getByRole('paragraph').filter({ hasText: 'متن فرهنگی آزمون' })).toBeVisible();
+  });
+}
+
 test('partial origin search shows areas and POIs and starts at the selected access point', async ({ page }) => {
   const { errors } = await setup(page);
   const area = { id: 'area-45', kind: 'area', areaId: 45, title: 'صحن آزمایشی', floor: 1, coordinates: [36.288, 59.616] };
