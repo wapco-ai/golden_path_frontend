@@ -3329,32 +3329,60 @@ body {
 }
 
 /* Location Type Grid Styles */
-.location-type-heading:has(.area-access-control) {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
-}
-
-.area-access-control {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: #858585;
-}
-
-.area-access-control .form-input {
-  width: auto;
-  min-width: 7rem;
-  padding: 6px 10px;
-}
-
 .location-type-grid {
   display: flex;
   gap: 32px;
   margin-top: 16px;
+}
+
+.area-location-type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  row-gap: 20px;
+}
+
+.area-location-type-grid .location-type-option {
+  min-width: 0;
+}
+
+.area-routing-field {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.area-routing-field legend {
+  padding: 0;
+}
+
+.area-routing-field .location-type-option {
+  padding-inline: 10px;
+}
+
+.area-routing-field input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 0;
+  accent-color: #0F71EF;
+}
+
+.area-routing-field:disabled .location-type-option {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.area-routing-hint {
+  display: block;
+  margin-top: 6px;
+  color: #64686e;
+}
+
+@media (max-width: 700px) {
+  .area-location-type-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .location-type-section {

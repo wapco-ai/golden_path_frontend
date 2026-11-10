@@ -87,6 +87,12 @@ import { usesSharedConnectorEditor, connectorError, connectorPayload, floorLabel
 import { createDoorWithInfo, deactivateSameFloorStair, saveConnector, saveSameFloorStair } from '../services/adminConnectorsService';
 import { requestRouting } from '../services/routingService';
 
+const EMPTY_AREA_ROUTING = { saved: 'default', selected: 'default', defaultRole: null };
+const AREA_ROUTING_LABELS = {
+  routable: 'عبور از داخل مجاز',
+  doorstep_only: 'فقط تا ورودی',
+};
+
 const culturalFileLabel = (file) => [file?.title, file?.metadata?.title, file?.name]
   .map((value) => localizeMediaText(value, 'fa')).find(Boolean) || 'فایل ویدیویی';
 
@@ -1256,6 +1262,7 @@ const Amain = () => {
   const [isCreatingDoor, setIsCreatingDoor] = useState(false);
   const [isPlaceCovered, setIsPlaceCovered] = useState(null);
   const [areaAccess, setAreaAccess] = useState({ saved: '', selected: '' });
+  const [areaRouting, setAreaRouting] = useState(EMPTY_AREA_ROUTING);
   const [isAreaEditMode, setIsAreaEditMode] = useState(false);
   const [isAreaGeometryDirty, setIsAreaGeometryDirty] = useState(false);
   const [isSavingAreaGeometry, setIsSavingAreaGeometry] = useState(false);
@@ -5403,6 +5410,7 @@ const Amain = () => {
     setLocationStatus('');
     setIsPlaceCovered(null);
     setAreaAccess({ saved: '', selected: '' });
+    setAreaRouting(EMPTY_AREA_ROUTING);
 
     setIsEditingDoorInfo(false);
     setLastCreatedDoorId(null);
@@ -9336,6 +9344,7 @@ const Amain = () => {
           ...(areaAccess.selected && areaAccess.selected !== areaAccess.saved
             ? { public_access: areaAccess.selected === 'public' }
             : {}),
+          ...(areaRouting.selected !== areaRouting.saved ? { routing_role: areaRouting.selected } : {}),
           meta: {
             is_closed: isInactive
           }
@@ -9415,9 +9424,17 @@ const Amain = () => {
           const response = await updateAreaInfo(targetAreaId, payload);
           if ('public_access' in payload) {
             refreshLayerTiles('areas-outline', { force: true });
+          }
+          if ('public_access' in payload || response?.area_graph) {
             refreshLayerTiles('routing_edges_static-ground', { force: true });
           }
-          toast.success(response?.message || 'اطلاعات محدوده با موفقیت ثبت شد');
+          if (response?.area_graph?.status === 'insufficient_access_points') {
+            toast.info('تنظیم محدوده ثبت شد. برای ساخت مسیر داخلی دست‌کم دو نقطهٔ اتصال معتبر لازم است.');
+          } else {
+            toast.success(response?.area_graph?.status === 'ready'
+              ? 'تنظیم محدوده ثبت شد و گراف داخلی آماده است'
+              : response?.message || 'اطلاعات محدوده با موفقیت ثبت شد');
+          }
         } else {
           setIsSavingDoorInfo(true);
           if (connectorForm.value.id && !isSharedConnector) throw new Error('برای تغییر اتصال مشترک، یکی از انواع اتصال بین طبقات را انتخاب کنید.');
@@ -9614,6 +9631,7 @@ const Amain = () => {
     setLastCreatedAccessPointId(null);
     setIsEditingDoorInfo(isEditMode);
     setAreaAccess({ saved: '', selected: '' });
+    setAreaRouting(EMPTY_AREA_ROUTING);
     setRoutingAreaOptions([]);
     setIsAddPlaceModalOpen(true);
     setCurrentStep(1);
@@ -9627,6 +9645,9 @@ const Amain = () => {
       const publicAccess = getAreaPublicAccess(info);
       const access = publicAccess === null ? '' : (publicAccess ? 'public' : 'private');
       setAreaAccess({ saved: access, selected: access });
+      const override = info.attrs_raw?.routing_role;
+      const routingRole = Object.hasOwn(AREA_ROUTING_LABELS, override) ? override : 'default';
+      setAreaRouting({ saved: routingRole, selected: routingRole, defaultRole: info.default_routing_role });
       setRoutingBidirectional(true);
       setRoutingFromArea('');
       setRoutingToArea('');
@@ -14019,28 +14040,8 @@ const Amain = () => {
                   <div className="form-section">
                     {/* Place Type Section */}
                     <div className="form-group">
-                      <div className="location-type-heading">
-                        <label className="form-label">نوع و موقعیت این مکان </label>
-                        {isAreaLayerActive && (
-                          <label className="area-access-control">
-                            <span>ماهیت محدوده</span>
-                            <select
-                              className="form-input"
-                              value={areaAccess.selected}
-                              onChange={(event) => {
-                                const selected = event.target.value;
-                                setAreaAccess((current) => ({ ...current, selected }));
-                              }}
-                              disabled={isLoadingAreaInfo || isSavingAreaInfo}
-                            >
-                              <option value="" disabled>تعیین نشده</option>
-                              <option value="public">عمومی</option>
-                              <option value="private">خصوصی</option>
-                            </select>
-                          </label>
-                        )}
-                      </div>
-                      <div className="location-type-grid">
+                      <label className="form-label">نوع و موقعیت این مکان </label>
+                      <div className={`location-type-grid${isAreaLayerActive ? ' area-location-type-grid' : ''}`}>
                         {/* Status */}
                         <div className="location-type-section">
                           <div className="location-type-label">وضعیت</div>
@@ -14090,6 +14091,47 @@ const Amain = () => {
                               </div>
                             </div>
                           </div>
+                        )}
+                        {isAreaLayerActive && (
+                          <fieldset className="location-type-section area-routing-field" disabled={isLoadingAreaInfo || isSavingAreaInfo}>
+                            <legend className="location-type-label">ماهیت محدوده</legend>
+                            <div className="location-type-options">
+                              {Object.entries({ public: 'عمومی', private: 'خصوصی' }).map(([value, label]) => (
+                                <label key={value} className={`location-type-option ${areaAccess.selected === value ? 'selected' : ''}`}>
+                                  <input
+                                    type="radio"
+                                    name="area-public-access"
+                                    value={value}
+                                    checked={areaAccess.selected === value}
+                                    onChange={() => setAreaAccess((current) => ({ ...current, selected: value }))}
+                                  />
+                                  <span>{label}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </fieldset>
+                        )}
+                        {isAreaLayerActive && AREA_ROUTING_LABELS[areaRouting.defaultRole] && (
+                          <fieldset className="location-type-section area-routing-field" disabled={isLoadingAreaInfo || isSavingAreaInfo}>
+                            <legend className="location-type-label">عبور از داخل محدوده</legend>
+                            <div className="location-type-options">
+                              {Object.entries({ default: 'پیش‌فرض نوع محدوده', ...AREA_ROUTING_LABELS }).map(([value, label]) => (
+                                <label key={value} className={`location-type-option ${areaRouting.selected === value ? 'selected' : ''}`}>
+                                  <input
+                                    type="radio"
+                                    name="area-routing-role"
+                                    value={value}
+                                    checked={areaRouting.selected === value}
+                                    onChange={() => setAreaRouting((current) => ({ ...current, selected: value }))}
+                                  />
+                                  <span>{label}</span>
+                                </label>
+                              ))}
+                            </div>
+                            {areaRouting.selected === 'default' && (
+                              <small className="area-routing-hint">رفتار پیش‌فرض این نوع محدوده «{AREA_ROUTING_LABELS[areaRouting.defaultRole]}» است.</small>
+                            )}
+                          </fieldset>
                         )}
                       </div>
                     </div>
