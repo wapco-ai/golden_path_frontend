@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import { ADMIN_ROLE_CODES } from '../../src/auth/admin/adminAccess.js';
 
 async function openPanel(page, roleTitles, roles = []) {
@@ -110,6 +111,44 @@ test('guidance-only access opens its form without granting map access', async ({
   await page.getByText('مدیریت امکانات', { exact: true }).click();
   await page.locator('#amain-sidebar').getByText('مدیریت نقاط راهنما', { exact: true }).click();
   await expect(page.getByRole('heading', { name: 'مدیریت نقاط راهنما', exact: true })).toBeVisible();
+});
+
+test('a new guidance point submits its photo on the selected basement floor', async ({ page }) => {
+  const png = readFileSync(new URL('../../public/icons/pwa-192x192.png', import.meta.url));
+  await openPanel(page, [], ['manage_guidance_points']);
+  await page.route('**/tms/services/gsm/tiles/**', route => route.fulfill({ contentType: 'image/png', body: png }));
+  await page.route('**/api/v1/admin/guidance-points**', route => route.fulfill({
+    json: { success: true, data: [], meta: { total: 0 } }
+  }));
+  await page.getByText('مدیریت امکانات', { exact: true }).click();
+  await page.locator('#amain-sidebar').getByText('مدیریت نقاط راهنما', { exact: true }).click();
+  const openAdd = page.getByRole('button', { name: 'اضافه کردن نقطه راهنمای جدید' });
+  await openAdd.click();
+  const modal = page.locator('.add-admin-modal');
+  const floor = modal.getByLabel('طبقه', { exact: true });
+  await expect(floor).toHaveValue('0');
+  await floor.selectOption('-1');
+  await expect(modal.locator('.maplibregl-marker')).toBeVisible({ timeout: 20_000 });
+  await modal.locator('.maplibregl-canvas').click({ position: { x: 90, y: 105 } });
+  await modal.locator('input[type=file]').setInputFiles({
+    name: 'basement.png', mimeType: 'image/png', buffer: png
+  });
+  const orientation = page.locator('.orientation-modal');
+  await orientation.locator('.orientation-option').first().click();
+  await orientation.getByRole('button', { name: 'تایید و ادامه', exact: true }).click();
+
+  const posted = page.waitForRequest(request => request.method() === 'POST'
+    && new URL(request.url()).pathname === '/api/v1/admin/guidance-points');
+  await modal.getByRole('button', { name: 'افزودن نقطه راهنما', exact: true }).click();
+  const request = await posted;
+  const form = await new Response(request.postDataBuffer(), {
+    headers: { 'Content-Type': request.headers()['content-type'] }
+  }).formData();
+  expect(form.get('floor')).toBe('-1');
+  expect(form.get('images[]')?.name).toBe('basement.png');
+  await expect(modal).toBeHidden();
+  await openAdd.click();
+  await expect(floor).toHaveValue('0');
 });
 
 test('map-only access does not grant the guidance form', async ({ page }) => {
