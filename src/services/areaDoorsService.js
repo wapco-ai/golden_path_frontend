@@ -1,6 +1,6 @@
 import appConfig from '../config/appConfig.js';
 
-export const fetchAreaDoors = async ({ areaGroupId, areaId, lat, lon, floor, lang, signal }) => {
+export const fetchAreaDoors = async ({ areaGroupId, areaId, lat, lon, floor, lang, mode, gender, signal }) => {
   const url = new URL(`${appConfig.apiBaseUrl}/api/v1/area-doors`);
 
   if (areaGroupId != null) {
@@ -16,6 +16,9 @@ export const fetchAreaDoors = async ({ areaGroupId, areaId, lat, lon, floor, lan
   if (lang) {
     url.searchParams.set('lang', lang);
   }
+
+  if (mode) url.searchParams.set('mode', mode);
+  if (gender) url.searchParams.set('gender', gender);
 
   const response = await fetch(url.toString(), {
     method: 'GET',

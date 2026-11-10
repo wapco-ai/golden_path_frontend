@@ -25,6 +25,7 @@ import { toast } from 'react-toastify';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import { createHaramVectorTileConfig } from '../config/vectorTiles';
 import { requestRouting } from '../services/routingService';
+import { doorEndpoint, doorRouteErrorMessage, replaceDoorEndpoint } from '../utils/doorRouteEndpoint';
 import appConfig from '../config/appConfig';
 import { USER_ACCESS_TOKEN_KEY, useUserAuthStore } from '../auth/user/userAuthStore';
 import { createDestination } from '../services/destinationService';
@@ -319,8 +320,8 @@ const FinalSearch = () => {
     clearFloorRequest();
 
     const attemptKey = JSON.stringify({
-      origin: origin.coordinates, originFloor: getPointFloor(origin),
-      destination: destination.coordinates, destinationFloor: getPointFloor(destination),
+      origin: origin.coordinates, originFloor: getPointFloor(origin), originDoor: doorEndpoint(origin),
+      destination: destination.coordinates, destinationFloor: getPointFloor(destination), destinationDoor: doorEndpoint(destination),
       transportMode,
       gender: selectedGender
     });
@@ -346,6 +347,8 @@ const FinalSearch = () => {
     const hasStoredRoute = storedRouteGeo && storedRouteSteps && storedRouteSteps.length > 0;
     const hasStoredSelection =
       hasStoredRoute &&
+      JSON.stringify(doorEndpoint(origin)) === JSON.stringify(doorEndpoint(storedOrigin)) &&
+      JSON.stringify(doorEndpoint(destination)) === JSON.stringify(doorEndpoint(storedDestination)) &&
       sameCoordinates(origin.coordinates, storedOrigin?.coordinates) &&
       sameCoordinates(destination.coordinates, storedDestination?.coordinates) &&
       Number(getPointFloor(origin)) === Number(getPointFloor(storedOrigin)) &&
@@ -411,7 +414,26 @@ const FinalSearch = () => {
         setLastFailedKey(null);
         return;
       } catch (err) {
-        if (err?.name === 'AbortError') return;
+        if (err?.name === 'AbortError' || !isMounted) return;
+        if (err.doorUnavailable) {
+          const { endpoint, replacement } = err.doorUnavailable;
+          const reason = intl.formatMessage({ id: doorRouteErrorMessage(err) });
+          if (replacement && ['origin', 'destination'].includes(endpoint) && window.confirm(intl.formatMessage(
+            { id: 'routeDoorReplacementConfirm' },
+            { reason, name: replacement.name || intl.formatMessage({ id: 'entry' }), distance: intl.formatNumber(Math.round(replacement.distanceMeters)) }
+          ))) {
+            setHasUserSelectedRoute(false);
+            if (endpoint === 'origin') {
+              setOrigin(replaceDoorEndpoint(origin, replacement));
+            } else {
+              setDestination(replaceDoorEndpoint(destination, replacement));
+            }
+            return;
+          }
+          setLastFailedKey(attemptKey);
+          toast.error(reason);
+          return;
+        }
         console.warn('routing service failed', err);
         if (err.status) { clearPersistedRouteData(); setLastFailedKey(attemptKey); toast.error(intl.formatMessage({ id: err.status >= 500 ? 'generalErrorMessage' : 'noRouteFound' })); return; }
       } finally {

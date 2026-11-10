@@ -16,8 +16,8 @@ test('RNG uses the original stylesheet with no added panel overrides', () => {
   // Compare canonical text, including Windows checkouts using CRLF.
   const css = Buffer.from(readFileSync(new URL('../src/styles/Routing.css', import.meta.url), 'utf8')
     .replace(/\r\n/g, '\n'), 'utf8');
-  // Preserve the stylesheet already on main (470eadff); this update changes no CSS.
-  assert.equal(blobHash(css), '6393b056f300cf7ce5e2546fb6adddb132b39c45');
+  // Preserve the stylesheet already on main (b00bf18); the door picker changes no RNG CSS.
+  assert.equal(blobHash(css), 'bbe9df5b62414289eff18043cfabb8085c42cc90');
   assert.ok(!existsSync(new URL('../src/styles/RngNavigation.css', import.meta.url)));
   assert.doesNotMatch(source, /RngNavigation\.css/);
 });

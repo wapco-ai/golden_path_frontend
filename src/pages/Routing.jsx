@@ -18,6 +18,7 @@ import useLocaleDigits from '../utils/useLocaleDigits';
 import { toast } from 'react-toastify';
 import ttsService from '../services/ttsService';
 import { requestRouting } from '../services/routingService';
+import { doorEndpoint, doorRouteErrorMessage } from '../utils/doorRouteEndpoint';
 import useGuidanceImage from '../hooks/useGuidanceImage.js';
 import { getLiveNavigationGeo, getNavigationProgress, nextDemoStep, resolveNavigationFrame } from '../utils/rngNavigation.js';
 import { rngMessages } from '../utils/rngMessages.js';
@@ -435,8 +436,8 @@ const RoutingPage = () => {
 
   const buildRouteWithFallback = useCallback(async (orig, dest, controller) => {
     const key = JSON.stringify([
-      orig?.coordinates, orig?.floor ?? getSessionFloor(),
-      dest?.coordinates, dest?.floor ?? getSessionFloor(),
+      orig?.coordinates, orig?.floor ?? getSessionFloor(), doorEndpoint(orig),
+      dest?.coordinates, dest?.floor ?? getSessionFloor(), doorEndpoint(dest),
       transportMode,
       gender,
       language
@@ -467,7 +468,7 @@ const RoutingPage = () => {
         console.warn('routing service failed', err);
         if (err.status) {
           persistRouteData(null, [], []);
-          toast.error(intl.formatMessage({ id: err.status >= 500 ? 'generalErrorMessage' : 'noRouteFound' }));
+          toast.error(intl.formatMessage({ id: err.doorUnavailable ? doorRouteErrorMessage(err) : err.status >= 500 ? 'generalErrorMessage' : 'noRouteFound' }));
           return false;
         }
       }

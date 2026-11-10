@@ -1,5 +1,6 @@
 import { userRequest } from '../api/userRequest.js';
 import { getPointFloor, normalizeFloor } from '../utils/floors.js';
+import { doorEndpoint, routeMode } from '../utils/doorRouteEndpoint.js';
 import appConfig from '../config/appConfig.js';
 import {
   beginRoutingRequest,
@@ -12,8 +13,9 @@ const buildCoordinatePayload = (point, fallbackFloor = null) => {
   if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) return null;
   const floor = getPointFloor(point, fallbackFloor);
 
+  const door = doorEndpoint(point);
   return {
-    type: 'coordinate',
+    ...(door ? { type: 'door', ...door } : { type: 'coordinate' }),
     lat: Number(lat),
     lon: Number(lon),
     ...(floor !== null ? { floor } : {}),
@@ -32,12 +34,7 @@ const buildRequestBody = ({ origin, destination, mode, gender, lang, maxAlternat
   if (originPayload.floor === undefined || destinationPayload.floor === undefined) {
     throw new Error('Choose the floor of each route endpoint');
   }
-  const normalizedMode =
-    mode === 'wheelchair'
-      ? 'wheelchair'
-      : mode === 'electric-car' || mode === 'van'
-        ? 'van'
-        : 'walk';
+  const normalizedMode = routeMode(mode);
 
   return {
     mode: normalizedMode,
@@ -284,6 +281,14 @@ export const requestRouting = async ({ origin, destination, mode, gender, lang, 
       const errorText = await response.text();
       const error = new Error(`Routing request failed: ${response.status} ${errorText}`);
       error.status = response.status;
+      if (response.status === 409) {
+        try {
+          const detail = JSON.parse(errorText);
+          if (detail.status === 'DOOR_UNAVAILABLE') error.doorUnavailable = detail;
+        } catch {
+          // Keep the generic routing error if the server returned a non-JSON body.
+        }
+      }
       throw error;
     }
 

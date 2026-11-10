@@ -20,6 +20,7 @@ import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { fetchAreaDoors } from '../services/areaDoorsService';
+import { routeMode } from '../utils/doorRouteEndpoint';
 import { getSessionFloor, setSessionFloor } from '../utils/sessionFloor';
 import { fetchLandmarkPlaces, localizedPlaceAddress } from '../services/landmarkService';
 import mode1 from '../assets/images/mode1.png';
@@ -876,7 +877,7 @@ const MapRoutingPage = () => {
     if (tempDestination && selectedEntry != null) {
       const selectedDoor = mapEntryDoors.find((door) => door?.doorNo === selectedEntry);
       const doorCoordinates = getDoorCoordinates(selectedDoor);
-      if (!doorCoordinates) return;
+      if (!doorCoordinates || (selectedDoor.routingStatus && selectedDoor.routingStatus !== 'available')) return;
       const finalDestination = {
         ...tempDestination,
         entry: selectedEntry,
@@ -1034,6 +1035,7 @@ const MapRoutingPage = () => {
 
     if (!selectedDestination && userLocation) {
       const destData = {
+        ...userLocation,
         name: userLocation.name,
         location: userLocation.location || userLocation.name,
         floor: getPointFloor(userLocation),
@@ -1051,6 +1053,7 @@ const MapRoutingPage = () => {
     // Case 2: Only destination exists (after first swap)
     else if (!userLocation && selectedDestination) {
       const originData = {
+        ...selectedDestination,
         name: selectedDestination.name,
         floor: getPointFloor(selectedDestination),
         coordinates: selectedDestination.coordinates,
@@ -1068,6 +1071,7 @@ const MapRoutingPage = () => {
     // Case 3: Both origin and destination exist (normal swap)
     else if (userLocation && selectedDestination) {
       const newOrigin = {
+        ...selectedDestination,
         name: selectedDestination.name,
         floor: getPointFloor(selectedDestination),
         coordinates: selectedDestination.coordinates,
@@ -1075,6 +1079,7 @@ const MapRoutingPage = () => {
       };
 
       const newDestination = {
+        ...userLocation,
         name: userLocation.name,
         floor: getPointFloor(userLocation),
         coordinates: userLocation.coordinates,
@@ -1254,7 +1259,11 @@ const MapRoutingPage = () => {
     setAreaDoorsData(null);
 
     try {
-      const response = await fetchAreaDoors({ areaGroupId, areaId, lat, lon, floor, lang: language, signal: selection.signal });
+      const { transportMode, gender } = useRouteStore.getState();
+      const response = await fetchAreaDoors({
+        areaGroupId, areaId, lat, lon, floor, lang: language,
+        mode: routeMode(transportMode), gender: gender === 'family' ? 'both' : gender, signal: selection.signal
+      });
       if (selection.signal.aborted) return;
       const area = response?.data?.area;
       const nextDoors = Array.isArray(response?.data?.doors)
@@ -1305,7 +1314,7 @@ const MapRoutingPage = () => {
   }, [areaDoorsStatus, mapEntryDoors.length, showEntryModal, tempDestination]);
 
   const handleDoorSelect = (door) => {
-    if (showEntryModal && door?.doorNo != null) {
+    if (showEntryModal && door?.doorNo != null && (!door.routingStatus || door.routingStatus === 'available')) {
       handleEntrySelect(door.doorNo);
     }
   };
@@ -2231,6 +2240,7 @@ const MapRoutingPage = () => {
               <div className="map-entries-grid">
                 {mapEntryDoors.map((entry) => {
                   const entryNumber = entry.doorNo;
+                  const unavailable = Boolean(entry.routingStatus && entry.routingStatus !== 'available');
                   const destinationName = entry.otherAreaName || entry.label
                     || intl.formatMessage({ id: 'mapEntryUnknownDestination' });
 
@@ -2239,13 +2249,17 @@ const MapRoutingPage = () => {
                       type="button"
                       key={entry.accessId ?? entryNumber}
                       className={`map-entry-item ${selectedEntry === entryNumber ? 'selected' : ''}`}
+                      disabled={unavailable}
                       aria-pressed={selectedEntry === entryNumber}
                       onClick={() => handleEntrySelect(entryNumber)}
                     >
                       <span className="map-entry-number">
                         <FormattedMessage id="entry" /> {entryNumber}
                       </span>
-                      <span className="map-entry-destination">{destinationName}</span>
+                      <span className="map-entry-destination">
+                        {destinationName}
+                        {unavailable && <> · <FormattedMessage id={entry.routingStatus === 'closed' ? 'routeDoorClosed' : 'routeDoorUnavailable'} /></>}
+                      </span>
                       {selectedEntry === entryNumber && (
                         <span className="map-entry-selected-indicator" aria-hidden="true">
                           <svg
