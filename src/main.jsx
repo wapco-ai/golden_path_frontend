@@ -5,10 +5,9 @@ import maplibregl from 'maplibre-gl';
 import App from './App.jsx';
 import IntlProviderWrapper from './IntlProviderWrapper.jsx';
 import './index.css';
-import { useGPSStore } from './store/gpsStore.js';
 import { DEFAULT_TILE_FLOOR } from './config/vectorTiles.js';
 import { initializeSessionFloor } from './utils/sessionFloor.js';
-import { captureQrLocation } from './services/qrLocationService.js';
+import { captureQrLocation, resolveQrPoint } from './services/qrLocationService.js';
 import { registerLegacyMapStyles } from './services/legacyMapStyles.js';
 // main.jsx
 // import maplibregl from 'maplibre-gl';
@@ -45,22 +44,6 @@ if (search && search.includes('&amp;')) {
 
 const params = new URLSearchParams(search);
 captureQrLocation(params);
-const lat = params.get('lat');
-const lng = params.get('lng');
-const qrId = params.get('id');
-if (lat && lng) {
-  sessionStorage.setItem('qrLat', lat);
-  sessionStorage.setItem('qrLng', lng);
-  if (qrId) sessionStorage.setItem('qrId', qrId);
-
-  // Also update the GPS store so components can use this location immediately
-  const updateCurrentLocation = useGPSStore.getState().updateCurrentLocation;
-  updateCurrentLocation({
-    coords: { lat: parseFloat(lat), lng: parseFloat(lng), accuracy: 0 },
-    timestamp: Date.now()
-  });
-}
-
 import { registerSW } from 'virtual:pwa-register';
 
 if (import.meta.env.PROD) {
@@ -82,6 +65,9 @@ if (import.meta.env.PROD) {
   });
 }
 
+// Resolve registered QR coordinates before any page can route from the URL.
+async function mountApp() {
+  await resolveQrPoint();
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <IntlProviderWrapper>
@@ -89,3 +75,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </IntlProviderWrapper>
   </React.StrictMode>,
 );
+
+}
+mountApp();

@@ -1,4 +1,4 @@
-import { validGps } from './locationQuality.js';
+import { validGps, PROGRESS_MAX_ACCURACY } from './locationQuality.js';
 import { getNavigationProgress, projectPointOnRoute } from './rngNavigation.js';
 
 const KEY = 'rngPausedNavigation';
@@ -36,7 +36,7 @@ export function getResumePosition(signal, geolocation = navigator.geolocation) {
     if (!geolocation) return finish(new Error('location'));
     geolocation.getCurrentPosition(position => {
       const geo = { lat: position.coords.latitude, lng: position.coords.longitude };
-      if (position.timestamp < startedAt || !validGps(geo, position.coords.accuracy, position.timestamp)) {
+      if (position.timestamp < startedAt || position.coords.accuracy > PROGRESS_MAX_ACCURACY || !validGps(geo, position.coords.accuracy, position.timestamp)) {
         return finish(new Error('location'));
       }
       finish(null, { ...geo, accuracy: position.coords.accuracy, timestamp: position.timestamp });
@@ -47,6 +47,16 @@ export function getResumePosition(signal, geolocation = navigator.geolocation) {
 export function resumeStepAt(geo, steps, currentStep, coordinates) {
   const projection = projectPointOnRoute([geo.lng, geo.lat], coordinates);
   if (!projection || projection.lateralDistanceM > 10) return null;
+  const accuracy = geo.fromQr ? 2 : geo.accuracy ?? 3;
+  if (accuracy > PROGRESS_MAX_ACCURACY) throw new Error('location');
+  // Nearby parallel or crossing legs cannot be disambiguated by one GPS fix.
+  const alternatives = [
+    projectPointOnRoute([geo.lng, geo.lat], coordinates, { maxAlong: projection.alongDistanceM - 15 }),
+    projectPointOnRoute([geo.lng, geo.lat], coordinates, { minAlong: projection.alongDistanceM + 15 })
+  ];
+  if (alternatives.some(p => p && p.lateralDistanceM <= projection.lateralDistanceM + accuracy * 2)) {
+    throw new Error('location');
+  }
   // Re-evaluate progress within this floor/segment without skipping a floor confirmation.
   const segmentId = steps[currentStep]?.segmentId;
   let index = currentStep;

@@ -13,7 +13,7 @@ const asGeo = (p) => isCoordinate(p) ? { lng: p[0], lat: p[1] } : null;
 const radians = (value) => value * Math.PI / 180;
 
 // Operates only on the server's route polyline, never on doors or POI geometry.
-export const projectPointOnRoute = (point, coordinates = []) => {
+export const projectPointOnRoute = (point, coordinates = [], { minAlong = 0, maxAlong = Infinity } = {}) => {
   if (!isCoordinate(point) || !Array.isArray(coordinates) || coordinates.length < 2) return null;
   if (!coordinates.every(isCoordinate)) return null;
   const longitudeScale = 111320 * Math.cos(radians(point[1]));
@@ -31,8 +31,10 @@ export const projectPointOnRoute = (point, coordinates = []) => {
     const squareLength = dx * dx + dy * dy;
     const t = squareLength > 0 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / squareLength)) : 0;
     const lateralDistanceM = Math.hypot(ax + t * dx, ay + t * dy);
-    if (!best || lateralDistanceM < best.lateralDistanceM) {
-      best = { lateralDistanceM, alongDistanceM: traversed + t * length, segmentIndex: i };
+    const alongDistanceM = traversed + t * length;
+    if (alongDistanceM >= minAlong && alongDistanceM <= maxAlong
+      && (!best || lateralDistanceM < best.lateralDistanceM)) {
+      best = { lateralDistanceM, alongDistanceM, segmentIndex: i };
     }
     traversed += length;
   }
@@ -135,7 +137,7 @@ export const getLiveNavigationGeo = ({ isDrActive, drPosition, userLocation, drT
 export const resolveNavigationFrame = ({
   step, stepIndex = 0, routeCoordinates = [], isRoutingActive = false,
   isDemoMode = false, hasArrived = false, isDrActive = false,
-  drPosition, userLocation, userHeading, sessionFloor = 0, drTimestamp, gpsTimestamp, now, anchorGeo
+  drPosition, userLocation, userHeading, sessionFloor = 0, drTimestamp, gpsTimestamp, now, anchorGeo, liveRouteM
 }) => {
   const live = isRoutingActive && !isDemoMode;
   const preview = getStepPreview(live && step?.previewAt === 'end'
@@ -157,7 +159,7 @@ export const resolveNavigationFrame = ({
     heading: preview.heading ?? (live && Number.isFinite(userHeading) ? ((userHeading % 360) + 360) % 360 : null),
     floor: floor === undefined ? 0 : Number(floor),
     mode: isDemoMode ? 'demo' : hasArrived ? 'arrived' : live ? 'live' : 'preview',
-    routeM: hasArrived ? 1 : live
+    routeM: hasArrived ? 1 : live && Number.isFinite(liveRouteM) ? liveRouteM : live
       ? (projection && projection.lateralDistanceM <= 10
         ? Math.max(getStepStartRouteM(step, routeCoordinates) ?? 0, projection.routeM)
         : (getStepStartRouteM(step, routeCoordinates) ?? 0))
@@ -165,12 +167,12 @@ export const resolveNavigationFrame = ({
   };
 };
 
-export const getNavigationProgress = (geo, steps, currentStep, routeCoordinates) => {
+export const getNavigationProgress = (geo, steps, currentStep, routeCoordinates, options = {}) => {
   const unchanged = { nextStep: currentStep, arrived: false };
   if (!isNavigationGeo(geo) || !Array.isArray(steps) || !steps[currentStep]) return unchanged;
   if (steps[currentStep].type === 'stepChangeFloor') return unchanged;
   const point = [geo.lng, geo.lat];
-  const projection = projectPointOnRoute(point, routeCoordinates);
+  const projection = options.projection === undefined ? projectPointOnRoute(point, routeCoordinates) : options.projection;
   if (!projection) {
     // A landing can coincide exactly with the origin/destination. It still cannot skip a transfer.
     const current = steps[currentStep];
@@ -198,7 +200,7 @@ export const getNavigationProgress = (geo, steps, currentStep, routeCoordinates)
     && projection.alongDistanceM >= boundary * projection.totalDistanceM - 5;
   const nextCoordinate = getStepPreview(next, routeCoordinates, currentStep + 1).coordinates[0];
   const nearNext = isCoordinate(nextCoordinate) && haversineMeters(point, nextCoordinate) <= 6;
-  return projection.lateralDistanceM <= 10 && (passed || nearNext)
+  return projection.lateralDistanceM <= 10 && (passed || (boundary === null && nearNext))
     ? { nextStep: currentStep + 1, arrived: false } : unchanged;
 };
 

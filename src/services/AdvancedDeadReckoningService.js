@@ -1,4 +1,10 @@
 import { validGeo, validGps, isFresh, HEADING_MAX_AGE } from '../utils/locationQuality.js';
+import { haversineMeters } from '../utils/routeSegments.js';
+
+export const DR_MAX_ANCHOR_AGE = 60000;
+export const DR_MAX_DISTANCE = 30;
+export const DR_MAX_UNCERTAINTY = 10;
+const distance = (a, b) => haversineMeters([a.lng, a.lat], [b.lng, b.lat]);
 
 class AdvancedDeadReckoningService {
   constructor() {
@@ -20,7 +26,14 @@ class AdvancedDeadReckoningService {
     this._gravityBaseline = null;
     this._motionMode = null;
     this._sensorRequestId = 0;
-    this.stepLengthMeters = 0.38;
+    this.stepLengthMeters = 0.7;
+    this.calibrated = false;
+    this.anchorTimestamp = null;
+    this.positionAccuracy = null;
+    this.distanceSinceAnchor = 0;
+    this._calibration = null;
+    this._strideSample = null;
+    this._lastGpsFix = null;
     // Thresholds are relative to gravity, not total acceleration (~9.81 m/s²).
     this.stepThresholdHigh = 0.95;
     this.stepThresholdLow = 0.2;
@@ -79,12 +92,14 @@ class AdvancedDeadReckoningService {
       geoPosition: this.geoPosition,
       geoPath: this.geoPath.slice(),
       positionTimestamp: this.positionTimestamp,
+      positionAccuracy: this.positionAccuracy,
+      anchorTimestamp: this.anchorTimestamp,
       heading: isFresh(this._headingAt, Date.now(), HEADING_MAX_AGE) ? this.heading : null
     };
     this.listeners.forEach(cb => cb(data));
   }
 
-  async start(initialPosition) {
+  async start(initialPosition, quality = {}) {
     if (!validGeo(initialPosition)) throw new Error('Invalid initial position');
     this._stopSensors();
     this.heading = null;
@@ -96,6 +111,8 @@ class AdvancedDeadReckoningService {
     this.geoPosition = { ...initialPosition };
     this.geoPath = [this.geoPosition];
     this.stepCount = 0;
+    this._setAnchor(quality);
+    this._calibration = null;
 
     this._lastMagnitude = 0;
     this._lastStepAt = 0;
@@ -116,7 +133,7 @@ class AdvancedDeadReckoningService {
     this._emit('serviceStateChanged');
   }
 
-  reset(position) {
+  reset(position, quality = {}) {
     this.heading = null;
     this._headingAt = null;
     this.positionTimestamp = null;
@@ -127,6 +144,8 @@ class AdvancedDeadReckoningService {
     this._smoothedMagnitude = null;
     this._gravityBaseline = null;
     this._motionMode = null;
+    this._setAnchor(position ? quality : { trusted: false });
+    this._calibration = null;
     if (position) {
       this.geoPosition = { ...position };
       this.geoPath = [this.geoPosition];
@@ -134,6 +153,15 @@ class AdvancedDeadReckoningService {
       this.geoPath = [];
     }
     this._emit('serviceStateChanged');
+  }
+
+  _setAnchor({ timestamp = Date.now(), accuracy = 5, trusted = true, mode = 'walk' } = {}) {
+    this.walking = !['wheelchair', 'van', 'electric-car'].includes(mode);
+    this.maxSpeed = ['van', 'electric-car'].includes(mode) ? 10 : 3;
+    this.anchorTimestamp = trusted && isFresh(timestamp) ? timestamp : null;
+    this.positionAccuracy = Number.isFinite(accuracy) && accuracy >= 0 ? accuracy : null;
+    this.distanceSinceAnchor = 0;
+    this._lastGpsFix = null;
   }
 
   async _startSensors(requestId) {
@@ -173,6 +201,10 @@ class AdvancedDeadReckoningService {
     window.addEventListener('devicemotion', this.motionHandler);
     const startedAt = Date.now();
     this._sensorTimer = setInterval(() => {
+      if (!isFresh(this.anchorTimestamp, Date.now(), DR_MAX_ANCHOR_AGE) && this.positionTimestamp !== null) {
+        this.positionTimestamp = null;
+        this._emit('anchorNeeded');
+      }
       if (Date.now() - (this._lastMotionAt ?? startedAt) >= 5000) {
         this.stop();
         this._emit('sensorsUnsupported');
@@ -251,6 +283,9 @@ class AdvancedDeadReckoningService {
     if (!this.isActive) return;
     const nextHeading = this._extractHeading(e);
     if (nextHeading !== null) {
+      if (this._calibration && Math.abs(((nextHeading - this._calibration.heading + 540) % 360) - 180) > 15) {
+        this._calibration = null;
+      }
       this.heading = nextHeading;
       this._headingAt = Date.now();
       this._emit('orientationChanged');
@@ -258,7 +293,16 @@ class AdvancedDeadReckoningService {
   }
 
   _processStep() {
-    if (!validGeo(this.geoPosition) || !isFresh(this._headingAt, Date.now(), HEADING_MAX_AGE)) {
+    if (!this.walking) return;
+    const now = Date.now();
+    if (!isFresh(this.anchorTimestamp, now, DR_MAX_ANCHOR_AGE)
+      || this.distanceSinceAnchor + this.stepLengthMeters > DR_MAX_DISTANCE
+      || !Number.isFinite(this.positionAccuracy) || this.positionAccuracy > DR_MAX_UNCERTAINTY) {
+      this.positionTimestamp = null;
+      this._emit('anchorNeeded');
+      return;
+    }
+    if (!validGeo(this.geoPosition) || !isFresh(this._headingAt, now, HEADING_MAX_AGE)) {
       this._emit('stepDetected');
       return;
     }
@@ -271,20 +315,66 @@ class AdvancedDeadReckoningService {
       lng: this.geoPosition.lng + dLng
     };
     this.positionTimestamp = Date.now();
+    this.distanceSinceAnchor += stepLength;
+    // An uncertainty allowance, not a measured statistical confidence interval.
+    this.positionAccuracy += stepLength * (this.calibrated ? 0.15 : 0.3);
+    if (this.positionAccuracy > DR_MAX_UNCERTAINTY) this.positionTimestamp = null;
     this.geoPath.push({ ...this.geoPosition });
     this._emit('stepDetected');
   }
 
   processGpsData(position, accuracy, timestamp = Date.now()) {
-    if (!this.isActive) return;
+    if (!this.isActive) return true;
     if (validGps(position, accuracy, timestamp)
-      && (this._lastGpsAt === null || timestamp >= this._lastGpsAt)) {
+      && (this._lastGpsAt === null || timestamp > this._lastGpsAt)) {
+      const anchored = isFresh(this.anchorTimestamp, Date.now(), DR_MAX_ANCHOR_AGE);
+      if (anchored && this._lastGpsFix) {
+        const seconds = Math.max(0, (timestamp - this._lastGpsFix.timestamp) / 1000);
+        if (distance(position, this._lastGpsFix) > this.maxSpeed * seconds + accuracy + this._lastGpsFix.accuracy) return false;
+      }
+      if (anchored && this.positionAccuracy !== null && this.positionAccuracy < accuracy
+        && (accuracy > Math.max(6, this.positionAccuracy * 1.5)
+          || distance(position, this.geoPosition) > accuracy + this.positionAccuracy)) return false;
+      this._calibrateStride(position, accuracy, timestamp);
       this._lastGpsAt = timestamp;
+      this._lastGpsFix = { ...position, accuracy, timestamp };
+      this.anchorTimestamp = timestamp;
+      this.positionAccuracy = accuracy;
+      this.distanceSinceAnchor = 0;
       this.positionTimestamp = timestamp;
       this.geoPosition = { ...position };
       this.geoPath.push({ ...position });
       this._emit('gpsCorrection');
+      return true;
     }
+    return false;
+  }
+
+  _calibrateStride(position, accuracy, timestamp) {
+    if (accuracy > 3 || !isFresh(this._headingAt, Date.now(), HEADING_MAX_AGE)) {
+      this._calibration = null;
+      return;
+    }
+    const baseline = this._calibration;
+    const current = { ...position, accuracy, timestamp, steps: this.stepCount, heading: this.heading };
+    if (!baseline) { this._calibration = current; return; }
+    const headingChange = Math.abs(((this.heading - baseline.heading + 540) % 360) - 180);
+    if (headingChange > 15 || timestamp - baseline.timestamp > DR_MAX_ANCHOR_AGE) {
+      this._calibration = current;
+      return;
+    }
+    const steps = this.stepCount - baseline.steps;
+    const meters = distance(position, baseline);
+    if (steps < 20 || meters < 20 || accuracy + baseline.accuracy > meters * 0.15) return;
+    const stride = meters / steps;
+    if (stride >= 0.35 && stride <= 1.1 && timestamp - baseline.timestamp >= 8000) {
+      if (this._strideSample && Math.abs(stride - this._strideSample) <= this._strideSample * 0.15) {
+        this.stepLengthMeters = (stride + this._strideSample) / 2;
+        this.calibrated = true;
+      }
+      this._strideSample = stride;
+    }
+    this._calibration = current;
   }
 }
 
