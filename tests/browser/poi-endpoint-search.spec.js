@@ -112,7 +112,7 @@ test('partial origin search shows areas and POIs and starts at the selected acce
   const { errors } = await setup(page);
   const area = { id: 'area-45', kind: 'area', areaId: 45, title: 'صحن آزمایشی', floor: 1, coordinates: [36.288, 59.616] };
   const poi = { id: '502', title: 'کفشداری صحن آزمایشی', floor: 0, coordinates: [36.287, 59.615] };
-  const door = { doorNo: 1, accessId: 94, otherAreaName: 'راهرو', coord4326: [59.6165, 36.2875] };
+  const door = { doorNo: 1, accessId: 94, selectedAreaId: 45, routingStatus: 'available', otherAreaName: 'راهرو', coord4326: [59.6165, 36.2875] };
   const areaRequests = [];
   const routeRequests = [];
   await page.route('**/api/v1/landmark-places**', route => {
@@ -157,7 +157,7 @@ test('partial origin search shows areas and POIs and starts at the selected acce
   await search.fill('صحن');
   await rows.getByText(poi.title, { exact: true }).click();
   await expect.poll(() => routeRequests.at(-1), { timeout: 30000 }).toMatchObject({
-    origin: { name: area.title, lat: door.coord4326[1], lon: door.coord4326[0], floor: area.floor },
+    origin: { name: area.title, type: 'door', accessId: 94, areaId: 45, lat: door.coord4326[1], lon: door.coord4326[0], floor: area.floor },
     destination: { name: poi.title, lat: poi.coordinates[0], lon: poi.coordinates[1], floor: poi.floor }
   });
   expect(errors).toEqual([]);
@@ -169,7 +169,7 @@ for (const selectArea of [false, true]) {
     const area = { id: 'area-45', kind: 'area', areaId: 45, title: 'صحن آزمایشی', floor: 1, coordinates: [36.288, 59.616] };
     const poi = { id: '502', title: 'کفشداری صحن آزمایشی', subGroup: 'sahn', floor: 1, coordinates: [36.287, 59.615] };
     const origin = { id: '501', title: 'مبدأ آزمایشی', floor: 0, coordinates: [36.286, 59.614] };
-    const door = { doorNo: 1, accessId: 94, otherAreaName: 'راهرو', coord4326: [59.6165, 36.2875] };
+    const door = { doorNo: 1, accessId: 94, selectedAreaId: 45, routingStatus: 'available', otherAreaName: 'راهرو', coord4326: [59.6165, 36.2875] };
     const areaRequests = [];
     const routeRequests = [];
     await page.route('**/api/v1/landmark-places**', route => {

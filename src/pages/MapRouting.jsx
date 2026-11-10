@@ -730,8 +730,7 @@ const MapRoutingPage = () => {
   };
 
 
-  const selectOrigin = ({ name, floor, coordinates }) => {
-    const origin = { name, floor, coordinates };
+  const selectOrigin = (origin) => {
     setIsTracking(false);
     setUserLocation(origin);
     setShowOriginModal(false);
