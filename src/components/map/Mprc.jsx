@@ -1,4 +1,4 @@
-import { GPS_OPTIONS, gpsMeasurement } from '../../utils/locationQuality.js';
+import { observeGps } from '../../utils/locationQuality.js';
 import useMapFloor from '../../hooks/useMapFloor';
 import { getPointFloor, pointIsOnFloor } from '../../utils/floors';
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
@@ -302,14 +302,10 @@ const Mprc = ({
 
     if (!isTracking) return undefined;
 
-    let lastFix = null;
-    const success = (pos) => {
-      const fix = gpsMeasurement(pos, lastFix);
-      if (!fix) return;
-      lastFix = fix;
+    const success = (fix) => {
       const c = {
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude
+        lat: fix.lat,
+        lng: fix.lng
       };
       setUserCoords(c);
       setUserLocation(previous => ({
@@ -329,13 +325,7 @@ const Mprc = ({
       console.error('Error getting location', e);
     };
 
-    navigator.geolocation.getCurrentPosition(success, err, GPS_OPTIONS);
-
-    const watchId = navigator.geolocation.watchPosition(success, err, GPS_OPTIONS);
-
-    return () => {
-      if (watchId != null) navigator.geolocation.clearWatch(watchId);
-    };
+    return observeGps(navigator.geolocation, success, err);
   }, [setUserLocation, intl, isTracking]);
 
   useEffect(() => {

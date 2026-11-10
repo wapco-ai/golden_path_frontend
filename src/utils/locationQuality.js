@@ -22,3 +22,24 @@ export const gpsMeasurement = (position, previous = null, now = Date.now()) => {
     && (!previous || timestamp > previous.timestamp)
     ? { ...geo, accuracy, timestamp, source: 'gps' } : null;
 };
+
+// getCurrentPosition cannot be cancelled, so also retire its callback when leaving GPS mode.
+export const observeGps = (geolocation, onFix, onError) => {
+  if (!geolocation) return () => {};
+  let active = true;
+  let previous = null;
+  const success = position => {
+    if (!active) return;
+    const fix = gpsMeasurement(position, previous);
+    if (!fix) return;
+    previous = fix;
+    onFix(fix);
+  };
+  const failure = error => { if (active) onError?.(error); };
+  geolocation.getCurrentPosition(success, failure, GPS_OPTIONS);
+  const watchId = geolocation.watchPosition(success, failure, GPS_OPTIONS);
+  return () => {
+    active = false;
+    if (watchId != null) geolocation.clearWatch(watchId);
+  };
+};

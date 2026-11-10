@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { NavigationProgressTracker } from '../src/utils/navigationProgressTracker.js';
-import { gpsMeasurement } from '../src/utils/locationQuality.js';
+import { gpsMeasurement, observeGps } from '../src/utils/locationQuality.js';
 import dr, { DR_MAX_ANCHOR_AGE } from '../src/services/AdvancedDeadReckoningService.js';
 import { captureQrLocation, resolveQrPoint, readQrPoint } from '../src/services/qrLocationService.js';
 
@@ -190,4 +190,26 @@ test('QR route planning does not expire a 30-second anchor before its 60-second 
   dr._processStep();
   assert.equal(dr.anchorTimestamp, timestamp);
   assert.ok(dr.positionTimestamp >= timestamp + 30000);
+});
+
+
+test('leaving GPS mode retires delayed initial and watched callbacks, including watch ID zero', () => {
+  let initial, watched, error;
+  const accepted = [], cleared = [], errors = [];
+  const stop = observeGps({
+    getCurrentPosition(success, failure) { initial = success; error = failure; },
+    watchPosition(success) { watched = success; return 0; },
+    clearWatch(id) { cleared.push(id); }
+  }, fix => accepted.push(fix), e => errors.push(e));
+  const position = { timestamp: Date.now(), coords: { latitude: start.lat, longitude: start.lng, accuracy: 5 } };
+  watched(position);
+  assert.equal(accepted.length, 1);
+  stop();
+  initial({ ...position, timestamp: Date.now() + 1 });
+  watched({ ...position, timestamp: Date.now() + 2 });
+  error({ code: 1 });
+  assert.equal(accepted.length, 1);
+  assert.deepEqual(cleared, [0]);
+  assert.deepEqual(errors, []);
+  assert.doesNotThrow(() => observeGps(null, () => {})());
 });
