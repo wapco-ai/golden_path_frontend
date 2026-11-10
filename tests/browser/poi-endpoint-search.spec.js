@@ -143,7 +143,8 @@ for (const target of ['origin', 'destination']) {
     await input.fill(cultural.title);
     await rows.getByText(cultural.title, { exact: true }).click();
     await expect(page).toHaveURL(/#\/location\?id=890$/);
-    await expect(page.getByText('متن فرهنگی آزمون', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: cultural.title, exact: true })).toBeVisible();
+    await expect(page.getByRole('paragraph').filter({ hasText: 'متن فرهنگی آزمون' })).toBeVisible();
   });
 }
 
