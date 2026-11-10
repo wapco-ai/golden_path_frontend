@@ -13,8 +13,8 @@ async function clickPortal(page) {
   await map.click({ position:{ x:box.width/2, y:box.height/2 } });
 }
 
-async function setup(page, { verifyPendingMap = false, conflictingGroup = false, ambiguousArea = false, sameFloorStair = false, savedStair = null } = {}) {
-  const writes=[]; const errors=[]; const candidateLookups=[]; const stairAreaLookups=[];
+async function setup(page, { verifyPendingMap = false, conflictingGroup = false, ambiguousArea = false, sameFloorStair = false, savedStair = null, manualDoor = false } = {}) {
+  const writes=[]; const errors=[]; const candidateLookups=[]; const stairAreaLookups=[]; const doorPreviews=[];
   let releaseStyle;
   const styleReady = verifyPendingMap ? new Promise(resolve => { releaseStyle = resolve; }) : Promise.resolve();
   page.on('pageerror',e => errors.push(e.message));
@@ -47,6 +47,22 @@ async function setup(page, { verifyPendingMap = false, conflictingGroup = false,
       : {data:{...req.postDataJSON(),id:9,version:1}};
     else if (path.endsWith('/same-floor-stairs/9/deactivate') && req.method()==='PATCH') json={data:{...savedStair,is_active:false,version:4}};
     else if (path.endsWith('/connectors/7') && req.method()==='GET') json=shared;
+    else if (manualDoor && path.endsWith('/doors/placement-preview')) {
+      const point = Object.fromEntries(url.searchParams);
+      doorPreviews.push(point);
+      if (point.door_id && doorPreviews.filter(preview => preview.door_id).length === 1) {
+        await route.fulfill({ status: 422, json: { message: 'نقطه را کمی دورتر از گوشه انتخاب کنید.' } });
+        return;
+      }
+      json = {
+        line: { type: 'LineString', coordinates: [[center[0] - 0.000007, center[1]], [center[0] + 0.000007, center[1]]] },
+        point: { type: 'Point', coordinates: center },
+        width_m: 1.2,
+      };
+    }
+    else if (manualDoor && /\/doors\/(with-info|201\/move)$/.test(path)) json = {
+      door: { id: 201 }, door_access_point: { id: 101 }, graph_status: 'queued',
+    };
     else if (path.endsWith('/doors/299/info')) json={...shared.info, point:{ floor:0, door_id:299, access_id:199, lon:center[0], lat:center[1] }};
     else if (path.endsWith('/connectors') && req.method()==='GET') json=[{id:7,title:'آسانسور مشترک',kind:'elevator'}];
     else if (/connectors(?:\/7)?$/.test(path) && req.method()!=='GET') json={...req.postDataJSON(),id:7,version:4,stops:req.postDataJSON().stops.map((s,i)=>({...s,door_id:200+i,access_id:100+i}))};
@@ -55,7 +71,7 @@ async function setup(page, { verifyPendingMap = false, conflictingGroup = false,
   });
   await page.route('**/map-styles/**/style*.json',async route=>{
     await styleReady;
-    const features=conflictingGroup ? [portal(0,199,299)] : [portal(0,101,201),portal(-1,100,200),portal(sameFloorStair ? 0 : -1,109,209),portal(1,102,202)];
+    const features=conflictingGroup ? [portal(0,199,299)] : manualDoor ? [portal(0,101,201)] : [portal(0,101,201),portal(-1,100,200),portal(sameFloorStair ? 0 : -1,109,209),portal(1,102,202)];
     await route.fulfill({json:{version:8,glyphs:'http://localhost:8080/glyphs/{fontstack}/{range}.pbf',
       sources:{door_access_points:{type:'geojson',data:{type:'FeatureCollection',features}}},
       layers:[{id:'background',type:'background',paint:{'background-color':'#f8f5f0'}},{id:'doors-access-point',type:'circle',source:'door_access_points',paint:{'circle-radius':10}}]}});
@@ -80,7 +96,7 @@ async function setup(page, { verifyPendingMap = false, conflictingGroup = false,
     await page.getByText('افزودن مکان روی نشانگر تنظیم شده',{exact:true}).click();
   }
   await expect(page.locator('.add-place-modal')).toBeVisible();
-  return {writes,errors,candidateLookups,stairAreaLookups};
+  return {writes,errors,candidateLookups,stairAreaLookups,doorPreviews};
 }
 
 async function chooseType(page, name='آسانسور') {
@@ -353,5 +369,43 @@ test('admin map tooltips work on icon hover, keyboard focus and Escape without c
   // Every tooltip is a detached overlay; it never replaces the original buttons.
   expect(await map.locator('[data-map-tooltip]').count()).toBeGreaterThan(15);
   expect(writes).toHaveLength(0);
+  expect(errors).toEqual([]);
+});
+
+
+test('ordinary door creation previews the server line before saving', async ({ page }) => {
+  const { writes, errors, doorPreviews } = await setup(page, { manualDoor: true });
+  await chooseType(page, 'نقطه اتصال');
+  await page.locator('.step2-content').getByText('فعال', { exact: true }).click();
+  await page.locator('.step2-content').getByText('به صورت پیاده', { exact: true }).click();
+  await page.locator('.step2-content').getByText('مسیر مناسب خانوادگی', { exact: true }).click();
+  await page.getByRole('button', { name: 'تایید اطلاعات و مرحله بعد', exact: true }).click();
+  await expect(page.getByText('پیش‌نمایش درب روی نقشه', { exact: false })).toBeVisible();
+  expect(writes).toHaveLength(0);
+  expect(doorPreviews).toHaveLength(1);
+  await page.getByRole('button', { name: 'تایید اطلاعات و ثبت این مکان', exact: false }).click();
+  await expect.poll(() => writes.length).toBe(1);
+  expect(writes[0].path).toBe('/api/v1/doors/with-info');
+  const { x, y, floor } = writes[0].body.point;
+  expect(doorPreviews[0]).toEqual({ x: String(x), y: String(y), floor: String(floor) });
+  expect(errors).toEqual([]);
+});
+
+test('ordinary door move allows another click after an invalid corner and waits for confirmation', async ({ page }) => {
+  const { writes, errors, doorPreviews } = await setup(page, { manualDoor: true });
+  await page.getByRole('button', { name: 'لغو و بازگشت', exact: true }).click();
+  await clickPortal(page);
+  await page.getByRole('button', { name: 'جابجایی درب انتخاب‌شده' }).click();
+  await clickPortal(page);
+  await expect(page.getByText('نقطه را کمی دورتر از گوشه انتخاب کنید.')).toBeVisible();
+  expect(writes).toHaveLength(0);
+  await clickPortal(page);
+  const confirm = page.getByRole('button', { name: 'تأیید جابه‌جایی درب' });
+  await expect(confirm).toBeVisible();
+  expect(writes).toHaveLength(0);
+  await confirm.click();
+  await expect.poll(() => writes.length).toBe(1);
+  expect(writes[0].path).toBe('/api/v1/doors/201/move');
+  expect(doorPreviews).toHaveLength(2);
   expect(errors).toEqual([]);
 });

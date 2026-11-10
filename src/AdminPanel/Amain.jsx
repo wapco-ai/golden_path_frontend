@@ -47,7 +47,7 @@ import {
   layerEditSettings
 } from '../config/vectorTiles';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
-import { bulkOpenCloseDoors, deleteDoor, getDoorInfo, moveDoor, pollDoorGraphStatus, updateDoorInfo } from '../services/adminDoorsService';
+import { bulkOpenCloseDoors, deleteDoor, getDoorInfo, moveDoor, pollDoorGraphStatus, previewDoorPlacement, updateDoorInfo } from '../services/adminDoorsService';
 import { deleteArea, getAreaInfo, listAreas, moveArea, updateAreaInfo } from '../services/adminAreasService';
 import { getAreaPublicAccess } from '../utils/adminAreaAppearance';
 import { convertLngLatToUtm32640 } from '../utils/utm';
@@ -1639,6 +1639,12 @@ const Amain = () => {
   const [isLoadingAreaInfo, setIsLoadingAreaInfo] = useState(false);
   const [isEditingDoorInfo, setIsEditingDoorInfo] = useState(false);
   const [isDoorMoveMode, setIsDoorMoveMode] = useState(false);
+  const [doorMovePreview, setDoorMovePreview] = useState(null);
+  const [isCommittingDoorMove, setIsCommittingDoorMove] = useState(false);
+  const doorMovePreviewRequest = useRef(null);
+  const [newDoorPreview, setNewDoorPreview] = useState(null);
+  const [isPreviewingNewDoor, setIsPreviewingNewDoor] = useState(false);
+  const newDoorPreviewRequest = useRef(null);
   const isAreaLayerActive = activeEditableLayer?.id === 'areas-outline';
   const isDoorAccessLayerActive = activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID;
   const selectedDoorsCount = selectedDoorIds.length;
@@ -5381,6 +5387,10 @@ const Amain = () => {
 
 
   const resetForm = () => {
+    newDoorPreviewRequest.current?.abort();
+    newDoorPreviewRequest.current = null;
+    setIsPreviewingNewDoor(false);
+    setNewDoorPreview(null);
     connectorForm.reset();
     setSelectedPlace(null);
     setPlaceName('');
@@ -7116,41 +7126,21 @@ const Amain = () => {
       }
 
       if (isDoorMoveMode && activeEditableLayer?.id === DOOR_ACCESS_LAYER_ID && selectedDoorId) {
-        let shouldKeepDoorMoveMode = false;
+        if (isCommittingDoorMove) return;
+        doorMovePreviewRequest.current?.abort();
+        const controller = new AbortController();
+        doorMovePreviewRequest.current = controller;
+        setDoorMovePreview(null);
 
         try {
           const floor = floorLabelToValue(mapFloor);
           const { x, y } = convertLngLatToUtm32640({ lng: lngLat.lng, lat: lngLat.lat });
-
-          const moveResponse = await moveDoor(selectedDoorId, { x, y, floor });
-          const movedProperties = {
-            ...(selectedFeatureProperties || {}),
-            door_id: selectedDoorId,
-            id: selectedDoorAccessPointId || selectedDoorId
-          };
-
-          const movedFeature = {
-            type: 'FeatureCollection',
-            features: [
-              {
-                type: 'Feature',
-                geometry: {
-                  type: 'Point',
-                  coordinates: [lngLat.lng, lngLat.lat]
-                },
-                properties: movedProperties
-              }
-            ]
-          };
-
-          setSelectedEditableFeature(movedFeature);
-          refreshActiveEditableLayerTiles();
-          handleSuccessfulDoorGraphMutation(moveResponse, 'درب با موفقیت جابجا شد');
+          const input = { x, y, floor, door_id: selectedDoorId };
+          const preview = await previewDoorPlacement(input, { signal: controller.signal });
+          if (!controller.signal.aborted) setDoorMovePreview({ ...preview, floor, input });
         } catch (error) {
-          shouldKeepDoorMoveMode = handleDoorMutationError(error, 'جابجایی درب ناموفق بود');
-        } finally {
-          if (!shouldKeepDoorMoveMode) {
-            setIsDoorMoveMode(false);
+          if (!controller.signal.aborted) {
+            toast.error(getApiErrorMessage(error, 'پیش‌نمایش جابه‌جایی درب در دسترس نیست'));
           }
         }
         return;
@@ -7241,10 +7231,9 @@ const Amain = () => {
     isVanDrawingLayerActive,
     mapFloor,
     isDoorMoveMode,
+    isCommittingDoorMove,
     isDoorBulkSelectMode,
     selectedDoorId,
-    selectedFeatureProperties,
-    selectedDoorAccessPointId,
     isTempAreaMoveMode,
     isTempAreaLayerActive,
     isTempAreaDrawingMode,
@@ -7260,6 +7249,56 @@ const Amain = () => {
     sanitizeFeatureForSelection
   ]);
 
+
+  useEffect(() => {
+    setDoorMovePreview(null);
+    return () => doorMovePreviewRequest.current?.abort();
+  }, [isDoorMoveMode, mapFloor, selectedDoorId, isDoorAccessLayerActive, activeMenu]);
+
+  useEffect(() => () => newDoorPreviewRequest.current?.abort(), []);
+
+  const visibleDoorPreview = isDoorMoveMode ? doorMovePreview
+    : isAddPlaceModalOpen && currentStep === 3 ? newDoorPreview : null;
+
+  useEffect(() => {
+    if (!map || !visibleDoorPreview || activeMenu !== 'mapmanage'
+      || visibleDoorPreview.floor !== floorLabelToValue(mapFloor)) return;
+
+    const source = 'admin-door-placement-preview';
+    const line = `${source}-line`;
+    const point = `${source}-point`;
+    const addPreview = () => {
+      if (map.getSource(source)) return;
+      map.addSource(source, {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: [visibleDoorPreview.line, visibleDoorPreview.point].map(geometry => ({
+            type: 'Feature', geometry, properties: {}
+          }))
+        }
+      });
+      map.addLayer({
+        id: line, source, type: 'line',
+        filter: ['==', ['geometry-type'], 'LineString'],
+        paint: { 'line-color': '#0f71ef', 'line-width': 4 }
+      });
+      map.addLayer({
+        id: point, source, type: 'circle',
+        filter: ['==', ['geometry-type'], 'Point'],
+        paint: { 'circle-color': '#0f71ef', 'circle-radius': 4, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1 }
+      });
+    };
+
+    if (map.getStyle()?.layers) addPreview();
+    map.on('style.load', addPreview);
+    return () => {
+      map.off('style.load', addPreview);
+      if (map.getLayer(point)) map.removeLayer(point);
+      if (map.getLayer(line)) map.removeLayer(line);
+      if (map.getSource(source)) map.removeSource(source);
+    };
+  }, [map, mapFloor, activeMenu, visibleDoorPreview]);
 
   useEffect(() => {
     if (!map || !isDoorAccessLayerActive || !isDoorBulkSelectMode) {
@@ -9365,6 +9404,30 @@ const Amain = () => {
     };
   };
 
+  const previewNewDoor = async (point) => {
+    if (newDoorPreviewRequest.current) return false;
+    const controller = new AbortController();
+    newDoorPreviewRequest.current = controller;
+    setIsPreviewingNewDoor(true);
+
+    try {
+      const preview = await previewDoorPlacement(point, { signal: controller.signal });
+      if (controller.signal.aborted) return false;
+      setNewDoorPreview({ ...preview, floor: point.floor });
+      return true;
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        toast.error(getApiErrorMessage(error, 'پیش‌نمایش درب در دسترس نیست'));
+      }
+      return false;
+    } finally {
+      if (newDoorPreviewRequest.current === controller) {
+        newDoorPreviewRequest.current = null;
+        setIsPreviewingNewDoor(false);
+      }
+    }
+  };
+
   const handleAddPlaceConfirm = async () => {
     if (currentStep === 1) {
       const hasRequiredGrouping = isAreaLayerActive
@@ -9389,6 +9452,13 @@ const Amain = () => {
       } else if (!locationStatus) {
         alert('لطفا وضعیت مکان را انتخاب کنید');
       } else {
+        const point = connectorForm.point;
+        if (!isAreaLayerActive && !isSharedConnector && !lastCreatedDoorId && point) {
+          const previewed = await previewNewDoor({
+            ...convertLngLatToUtm32640({ lng: point.lon, lat: point.lat }), floor: point.floor
+          });
+          if (!previewed) return;
+        }
         setCurrentStep(3);
       }
     } else if (currentStep === 3) {
@@ -9675,6 +9745,38 @@ const Amain = () => {
       refreshActiveEditableLayerTiles();
     } catch (error) {
       toast.error(error?.message || 'حذف درب ناموفق بود');
+    }
+  };
+
+  const handleDoorMoveConfirm = async () => {
+    if (!doorMovePreview || isCommittingDoorMove) return;
+    const { input, point } = doorMovePreview;
+    if (input.door_id !== selectedDoorId || input.floor !== floorLabelToValue(mapFloor)) return;
+
+    setIsCommittingDoorMove(true);
+    try {
+      const { x, y, floor } = input;
+      const response = await moveDoor(selectedDoorId, { x, y, floor });
+      setSelectedEditableFeature({
+        type: 'FeatureCollection',
+        features: [{
+          type: 'Feature',
+          geometry: point,
+          properties: {
+            ...selectedFeatureProperties,
+            door_id: selectedDoorId,
+            id: response.door_access_point?.id || selectedDoorAccessPointId
+          }
+        }]
+      });
+      refreshActiveEditableLayerTiles();
+      handleSuccessfulDoorGraphMutation(response, 'درب با موفقیت جابجا شد');
+      setIsDoorMoveMode(false);
+    } catch (error) {
+      handleDoorMutationError(error, 'جابجایی درب ناموفق بود');
+      setDoorMovePreview(null);
+    } finally {
+      setIsCommittingDoorMove(false);
     }
   };
 
@@ -12541,6 +12643,18 @@ const Amain = () => {
               <div className="map-container" ref={adminMapContainerRef}>
                 <div id="map-container" className="map-instance"></div>
                 <AdminMapTooltip containerRef={adminMapContainerRef} />
+                {isDoorMoveMode && isDoorAccessLayerActive && (
+                  <div className="door-move-preview-actions">
+                    {doorMovePreview && (
+                      <button type="button" className="add-place-btn" disabled={isCommittingDoorMove} onClick={handleDoorMoveConfirm}>
+                        تأیید جابه‌جایی درب
+                      </button>
+                    )}
+                    <button type="button" className="cancel-marker-btn" disabled={isCommittingDoorMove} onClick={() => setIsDoorMoveMode(false)}>
+                      لغو جابه‌جایی
+                    </button>
+                  </div>
+                )}
                 {connectorForm.picking && <button type="button" className="cancel-marker-btn connector-pick-cancel-btn" data-map-tooltip="لغو انتخاب توقف اتصال و بازگشت به فرم" onClick={connectorForm.cancelPick}>لغو انتخاب توقف و بازگشت به فرم</button>}
 
                 {mapContextMenu.isOpen && (
@@ -14857,6 +14971,11 @@ const Amain = () => {
               )}
             </div>
 
+            {currentStep === 3 && !isSharedConnector && newDoorPreview && (
+              <p className="door-placement-preview-caption">
+                پیش‌نمایش درب روی نقشه · عرض نمایشی {newDoorPreview.width_m.toLocaleString('fa-IR', { maximumFractionDigits: 2 })} متر
+              </p>
+            )}
             {/* Modal Footer - UNCHANGED */}
             <div className="modal-footer">
               <button
@@ -14872,7 +14991,7 @@ const Amain = () => {
                 <button
                   className="confirm-btn"
                   onClick={handleAddPlaceConfirm}
-                  disabled={isSavingPlaceInfo || isLoadingPlaceInfo}
+                  disabled={isSavingPlaceInfo || isLoadingPlaceInfo || isPreviewingNewDoor}
                 >
                   {isSavingPlaceInfo
                     ? 'در حال ذخیره اطلاعات...'
