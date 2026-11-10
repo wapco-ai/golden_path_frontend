@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { ADMIN_ROLE_CODES } from '../../src/auth/admin/adminAccess.js';
 
-async function openPanel(page, roleTitles, roles = []) {
+async function openPanel(page, roleTitles, roles = [], mockApi) {
   const requests = [];
   await page.addInitScript(() => {
     sessionStorage.setItem('gp_admin_access_token', 'fixture-token');
@@ -14,6 +14,8 @@ async function openPanel(page, roleTitles, roles = []) {
   await page.route('**/api/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     requests.push(path);
+    const mocked = await mockApi?.(route.request(), path);
+    if (mocked !== undefined) return route.fulfill({ json: mocked });
     let json = { data: [], items: [], total: 0 };
     if (path.endsWith('/admin/auth/me')) json = { id: 2, name: 'مدیر', roleTitles, roles, permissions: [] };
     if (path.endsWith('/floors')) json = [{ floor: 0, label: 'همکف' }];
@@ -153,24 +155,24 @@ test('a new guidance point submits its photo on the selected basement floor', as
 });
 
 test('editing guidance loads and changes the saved floor while retaining its image', async ({ page }) => {
-  await openPanel(page, [], ['manage_guidance_points']);
   let point = {
     id: 17, title: 'راهنمای آزمایشی', floor: -1, latitude: 36.288, longitude: 59.6157,
     coverage_radius_m: 35,
     images: [{ id: 42, image_url: '/icons/pwa-192x192.png', view_orientation: 'north', azimuth_deg: 0 }]
   };
   const writes = [];
-  await page.route('**/api/v1/admin/guidance-points**', async route => {
-    const request = route.request();
-    if (request.method() === 'POST') {
+  await openPanel(page, [], ['manage_guidance_points'], async (request, path) => {
+    if (path === '/api/v1/admin/guidance-points/17' && request.method() === 'POST') {
       const form = await new Response(request.postDataBuffer(), {
         headers: { 'Content-Type': request.headers()['content-type'] }
       }).formData();
       writes.push(form);
       point = { ...point, floor: Number(form.get('floor')) };
-      return route.fulfill({ json: { success: true, data: point } });
+      return { success: true, data: point };
     }
-    return route.fulfill({ json: { success: true, data: [point], meta: { total: 1 } } });
+    if (path === '/api/v1/admin/guidance-points' && request.method() === 'GET') {
+      return { success: true, data: [point], meta: { total: 1 } };
+    }
   });
   await page.getByText('مدیریت امکانات', { exact: true }).click();
   await page.locator('#amain-sidebar').getByText('مدیریت نقاط راهنما', { exact: true }).click();
