@@ -155,9 +155,11 @@ test('stride calibration needs two consistent measured straight walks and reject
 test('numeric cultural QR links resolve their registered POI instead of trusting URL coordinates', async t => {
   storage(t);
   captureQrLocation(new URLSearchParams('id=123&lat=1&lng=2'));
-  t.mock.method(globalThis, 'fetch', async url => url.includes('/qrcodes/')
-    ? { ok: false, status: 404 }
-    : { ok: true, json: async () => ({ places: { landmarkPlaces: [{ id: 123, coordinates: [36.3,59.6], floor: -1 }] } }) });
+  t.mock.method(globalThis, 'fetch', async url => {
+    if (url.includes('/qrcodes/')) return { ok: false, status: 404 };
+    assert.equal(new URL(url).searchParams.get('poi_id'), '123');
+    return { ok: true, json: async () => ({ places: { landmarkPlaces: [{ id: 123, coordinates: [36.3,59.6], floor: -1 }] } }) };
+  });
   assert.deepEqual((await resolveQrPoint()).coordinates, [36.3,59.6]);
 });
 

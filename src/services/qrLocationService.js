@@ -88,7 +88,7 @@ export async function resolveQrPoint(language = 'fa') {
       // Explicit legacy POI identifiers only; a disabled QR ending in digits must not fall through.
       const legacy = id.match(/^(?:poi_)?(\d+)$/i);
       if (response.status === 404 && legacy) {
-        const response = await fetch(`${appConfig.landmarkPlacesUrl}?language=${encodeURIComponent(language)}&poiId=${legacy[1]}&limit=1`,
+        const response = await fetch(`${appConfig.landmarkPlacesUrl}?language=${encodeURIComponent(language)}&poi_id=${legacy[1]}&limit=1`,
           { signal: controller.signal, cache: 'no-store' });
         if (response.ok) {
           const data = await response.json();
