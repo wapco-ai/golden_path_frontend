@@ -102,7 +102,7 @@ const RoutingPage = () => {
   const [positionClock, setPositionClock] = useState(Date.now());
   const gpsFixRef = useRef(null);
   const entryQr = readQrPoint();
-  const qrAnchorRef = useRef(entryQr?.verified && isFresh(entryQr.timestamp)
+  const qrAnchorRef = useRef(entryQr?.verified && isFresh(entryQr.timestamp, Date.now(), DR_MAX_ANCHOR_AGE)
     && origin?.source === 'qr' && origin.coordinates?.every((v, i) => v === entryQr.coordinates[i])
     ? { geo: { lat: entryQr.coordinates[0], lng: entryQr.coordinates[1] }, timestamp: entryQr.timestamp, floor: entryQr.floor } : null);
   const progressTracker = useRef(new NavigationProgressTracker());
@@ -1646,7 +1646,7 @@ const RoutingPage = () => {
     setIsRoutingActive(true);
     const fix = isFresh(gpsFixRef.current?.timestamp) ? gpsFixRef.current : null;
     const anchor = qrAnchorRef.current;
-    const trustedQr = anchor && isFresh(anchor.timestamp);
+    const trustedQr = anchor && isFresh(anchor.timestamp, Date.now(), DR_MAX_ANCHOR_AGE);
     advancedDeadReckoningService.start(fix ? { lat: fix.lat, lng: fix.lng } : { lat, lng }, fix
       ? { timestamp: fix.timestamp, accuracy: fix.accuracy, mode: transportMode }
       : { timestamp: anchor?.timestamp, accuracy: 2, trusted: Boolean(trustedQr), mode: transportMode }).catch((error) => {

@@ -178,3 +178,16 @@ test('an explicitly revalidated resume seeds progress inside a long step', () =>
   assert.equal(result.nextStep, 0);
   assert.ok(Math.abs(tracker.routeM - 0.6) < 0.01);
 });
+
+
+test('QR route planning does not expire a 30-second anchor before its 60-second budget', async t => {
+  const oldWindow = globalThis.window, oldMotion = globalThis.DeviceMotionEvent;
+  globalThis.window = { addEventListener() {}, removeEventListener() {} }; globalThis.DeviceMotionEvent = {};
+  t.after(() => { dr.stop(); globalThis.window = oldWindow; globalThis.DeviceMotionEvent = oldMotion; });
+  const timestamp = Date.now() - 30000;
+  await dr.start(start, { timestamp, accuracy: 2 });
+  dr._handleOrientation({ type: 'deviceorientationabsolute', alpha: 270 });
+  dr._processStep();
+  assert.equal(dr.anchorTimestamp, timestamp);
+  assert.ok(dr.positionTimestamp >= timestamp + 30000);
+});

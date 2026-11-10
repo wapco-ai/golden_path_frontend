@@ -158,7 +158,7 @@ class AdvancedDeadReckoningService {
   _setAnchor({ timestamp = Date.now(), accuracy = 5, trusted = true, mode = 'walk' } = {}) {
     this.walking = !['wheelchair', 'van', 'electric-car'].includes(mode);
     this.maxSpeed = ['van', 'electric-car'].includes(mode) ? 10 : 3;
-    this.anchorTimestamp = trusted && isFresh(timestamp) ? timestamp : null;
+    this.anchorTimestamp = trusted && isFresh(timestamp, Date.now(), DR_MAX_ANCHOR_AGE) ? timestamp : null;
     this.positionAccuracy = Number.isFinite(accuracy) && accuracy >= 0 ? accuracy : null;
     this.distanceSinceAnchor = 0;
     this._lastGpsFix = null;
