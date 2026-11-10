@@ -114,8 +114,7 @@ test('guidance-only access opens its form without granting map access', async ({
 });
 
 test('a new guidance point submits its photo on the selected basement floor', async ({ page }) => {
-  const fixture = JSON.parse(readFileSync(new URL('./fixtures/cultural-media.json', import.meta.url), 'utf8'));
-  const png = Buffer.from(fixture.png, 'base64');
+  const png = readFileSync(new URL('../../public/icons/pwa-192x192.png', import.meta.url));
   await openPanel(page, [], ['manage_guidance_points']);
   await page.route('**/tms/services/gsm/tiles/**', route => route.fulfill({ contentType: 'image/png', body: png }));
   await page.route('**/api/v1/admin/guidance-points**', route => route.fulfill({
