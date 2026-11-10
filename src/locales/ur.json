@@ -1,4 +1,7 @@
 {
+  "routeDoorClosed": "دروازہ بند ہے",
+  "routeDoorUnavailable": "دروازہ اس راستے کے لیے دستیاب نہیں",
+  "routeDoorReplacementConfirm": "{reason}۔ کیا {distance} میٹر دور {name} والا دروازہ استعمال کریں؟",
   "welcome": "خوش آمدید!",
   "appTitle": "مسیر طلائی",
   "selectLanguage": "حرم مطہر رضوی کے پیدل راستہ ایپ میں داخل ہونے کے لیے، پہلے ایپ کی زبان منتخب کریں اور پھر داخل ہوں۔",

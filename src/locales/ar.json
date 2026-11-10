@@ -1,4 +1,7 @@
 {
+  "routeDoorClosed": "الباب مغلق",
+  "routeDoorUnavailable": "الباب غير متاح لهذا المسار",
+  "routeDoorReplacementConfirm": "{reason}. هل تريد استخدام الباب المؤدي إلى {name} على بُعد {distance} متر؟",
   "welcome": "مرحبا بك!",
   "appTitle": "طريق الذهب",
   "selectLanguage": "للدخول إلى تطبيق مسار المشاة الخاص بالحر الحرم الرضوي الشريف، أولاً اختر لغة التطبيق ثم ادخل إلى التطبيق.",

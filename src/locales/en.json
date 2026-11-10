@@ -1,4 +1,7 @@
 {
+  "routeDoorClosed": "Door closed",
+  "routeDoorUnavailable": "Door unavailable for this route",
+  "routeDoorReplacementConfirm": "{reason}. Use the door to {name}, {distance} metres away?",
   "welcome": "Welcome!",
   "appTitle": "Golden Path",
   "selectLanguage": "To access the Golden Path app, first choose your language.",

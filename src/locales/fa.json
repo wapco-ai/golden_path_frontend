@@ -1,4 +1,7 @@
 {
+  "routeDoorClosed": "درب بسته است",
+  "routeDoorUnavailable": "درب برای این مسیر قابل استفاده نیست",
+  "routeDoorReplacementConfirm": "{reason} از دربِ «{name}» در فاصلهٔ {distance} متری استفاده شود؟",
   "welcome": "خوش آمدید!",
   "appTitle": "مسیر طلایی",
   "selectLanguage": "برای ورود به نرم افزار مسیریابی حرم مطهر رضوی ابتدا زبان برنامه را انتخاب کنید و وارد برنامه شوید.",

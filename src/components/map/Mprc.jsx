@@ -831,7 +831,9 @@ const Mprc = ({
       {showAreaDoors && doorsOnMapFloor.map((door) => {
         const [longitude, latitude] = door.coord4326;
         const otherArea = door.otherAreaName || door.toAreaName;
-        const label = [`${intl.formatMessage({ id: 'entry' })} ${door.doorNo}`, otherArea].filter(Boolean).join(' · ');
+        const unavailable = Boolean(door.routingStatus && door.routingStatus !== 'available');
+        const status = unavailable ? intl.formatMessage({ id: door.routingStatus === 'closed' ? 'routeDoorClosed' : 'routeDoorUnavailable' }) : null;
+        const label = [`${intl.formatMessage({ id: 'entry' })} ${door.doorNo}`, otherArea, status].filter(Boolean).join(' · ');
         const selected = selectedEntry === door.doorNo;
         return (
           <Marker
@@ -845,7 +847,7 @@ const Mprc = ({
               onDoorSelect?.(door);
             }}
           >
-            <button type="button" className="map-door-marker" title={label} aria-label={label} aria-pressed={selected}>
+            <button type="button" className="map-door-marker" disabled={unavailable} title={label} aria-label={label} aria-pressed={selected}>
               <span className="map-door-marker-number">{door.doorNo}</span>
             </button>
           </Marker>
