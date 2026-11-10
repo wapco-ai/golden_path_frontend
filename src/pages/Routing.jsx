@@ -1,5 +1,5 @@
 import { submitEmergency } from '../services/emergencyService';
-import { GPS_MAX_ACCURACY, validGps, isFresh } from '../utils/locationQuality.js';
+import { gpsMeasurement, isFresh } from '../utils/locationQuality.js';
 import FloorControl from '../components/map/FloorControl';
 import { routeCoordinates as getRouteCoordinates, isMultifloor, multifloorSteps, activeRouteCoordinates } from '../utils/multifloorRoute';
 import { withDoorStepInstructions } from '../utils/routeStepInstructions';
@@ -11,7 +11,8 @@ import RouteMap from '../components/map/RouteMap';
 import RngQrCorrection from '../components/map/RngQrCorrection';
 import RngPauseControl from '../components/map/RngPauseControl';
 import DeadReckoningControls from '../components/map/DeadReckoningControls';
-import advancedDeadReckoningService from '../services/AdvancedDeadReckoningService';
+import advancedDeadReckoningService, { DR_MAX_ANCHOR_AGE, DR_MAX_UNCERTAINTY } from '../services/AdvancedDeadReckoningService';
+import { NavigationProgressTracker } from '../utils/navigationProgressTracker.js';
 import '../styles/Routing.css';
 import { useRouteStore } from '../store/routeStore';
 import { useLangStore } from '../store/langStore';
@@ -20,10 +21,10 @@ import useLocaleDigits from '../utils/useLocaleDigits';
 import { toast } from 'react-toastify';
 import ttsService from '../services/ttsService';
 import { requestRouting } from '../services/routingService';
-import { resolveScannedQrPoint } from '../services/qrLocationService';
+import { resolveScannedQrPoint, readQrPoint } from '../services/qrLocationService';
 import { doorEndpoint, doorRouteErrorMessage } from '../utils/doorRouteEndpoint';
 import useGuidanceImage from '../hooks/useGuidanceImage.js';
-import { getLiveNavigationGeo, getNavigationProgress, nextDemoStep, resolveNavigationFrame } from '../utils/rngNavigation.js';
+import { getLiveNavigationGeo, nextDemoStep, projectPointOnRoute, resolveNavigationFrame } from '../utils/rngNavigation.js';
 import { rngMessages, rngQrMessages, rngPauseMessages } from '../utils/rngMessages.js';
 import { pauseRouteKey, readPausedNavigation, savePausedNavigation, getResumePosition, resumeStepAt } from '../utils/rngPause.js';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
@@ -100,7 +101,15 @@ const RoutingPage = () => {
   const [drTimestamp, setDrTimestamp] = useState(null);
   const [positionClock, setPositionClock] = useState(Date.now());
   const gpsFixRef = useRef(null);
-  const qrAnchorRef = useRef(null);
+  const entryQr = readQrPoint();
+  const qrAnchorRef = useRef(entryQr?.verified && isFresh(entryQr.timestamp, Date.now(), DR_MAX_ANCHOR_AGE)
+    && origin?.source === 'qr' && origin.coordinates?.every((v, i) => v === entryQr.coordinates[i])
+    ? { geo: { lat: entryQr.coordinates[0], lng: entryQr.coordinates[1] }, timestamp: entryQr.timestamp, floor: entryQr.floor } : null);
+  const progressTracker = useRef(new NavigationProgressTracker());
+  const activeSnapshot = useRef(null);
+  const [liveRouteM, setLiveRouteM] = useState(null);
+  const [drAccuracy, setDrAccuracy] = useState(null);
+  const resetProgress = (routeM = null) => { progressTracker.current.reset(routeM); setLiveRouteM(routeM); };
   const [selectedSoundOption, setSelectedSoundOption] = useState('on');
   const [isRoutingActive, setIsRoutingActive] = useState(Boolean(pausedNavigation));
   const [isClosingEmergency, setIsClosingEmergency] = useState(false);
@@ -190,6 +199,7 @@ const RoutingPage = () => {
   useEffect(() => {
     if (previousRoute.current === routeGeo) return;
     previousRoute.current = routeGeo;
+    resetProgress();
     // Session hydration can replace the route object without changing the trip.
     if (pauseRef.current?.key === pauseKey) return;
     qrAnchorRef.current = null;
@@ -342,6 +352,7 @@ const RoutingPage = () => {
     const remove = advancedDeadReckoningService.addListener(data => {
       setIsDrActive(data.isActive);
       setDrTimestamp(data.positionTimestamp);
+      setDrAccuracy(data.positionAccuracy);
       if (data.geoPosition) setDrPosition(data.geoPosition);
       if (data.geoPath) setDrGeoPath(data.geoPath);
       if (Number.isFinite(data.heading)) {
@@ -353,6 +364,7 @@ const RoutingPage = () => {
     const onVisibility = () => {
       if (document.hidden) {
         cancelResume();
+        if (activeSnapshot.current && !pauseRef.current) updatePause(activeSnapshot.current);
         advancedDeadReckoningService.stop();
         setDrTimestamp(null);
       }
@@ -491,6 +503,7 @@ const RoutingPage = () => {
     const geo = { lat, lng };
     const timestamp = Date.now();
     qrAnchorRef.current = { geo, timestamp, floor: newOrigin.floor };
+    resetProgress();
     gpsFixRef.current = null;
     setGpsTimestamp(null);
     setHasPreciseGps(false);
@@ -498,7 +511,7 @@ const RoutingPage = () => {
     setUserHeading(null);
     setCurrentStep(0);
     setSessionFloor(newOrigin.floor);
-    advancedDeadReckoningService.reset(geo);
+    advancedDeadReckoningService.reset(geo, { timestamp, accuracy: 2, mode: transportMode });
 
     // The route-change effect stops ordinary navigation. This replacement continues it.
     previousRoute.current = result.geo;
@@ -1053,6 +1066,7 @@ const RoutingPage = () => {
     routeCoordinates: activeRouteCoordinates(routeGeo, routeData?.steps?.[currentStep]),
     isRoutingActive, isDemoMode, hasArrived, isDrActive,
     drTimestamp, gpsTimestamp, now: positionClock, drPosition,
+    liveRouteM: liveRouteM ?? progressTracker.current.routeM ?? 0,
     anchorGeo: qrAnchorRef.current?.floor === sessionFloor ? qrAnchorRef.current.geo : null,
     userLocation: gpsFixRef.current
       ? [gpsFixRef.current.lat, gpsFixRef.current.lng] : userLocation, userHeading, sessionFloor: routeOriginFloor
@@ -1061,6 +1075,8 @@ const RoutingPage = () => {
   useEffect(() => {
     if (isMultifloor(routeGeo) && (!isRoutingActive || isDemoMode)) setSessionFloor(navigationFrame.floor);
   }, [routeGeo, navigationFrame.floor, isRoutingActive, isDemoMode]);
+  activeSnapshot.current = isRoutingActive && !isDemoMode && !isPaused
+    ? { key: pauseKey, step: currentStep, frame: navigationFrame, startedAt: Date.now() } : null;
   const effectiveHeading = navigationFrame.heading;
   const navigationLocation = useMemo(() => navigationFrame.geo
     ? [navigationFrame.geo.lat, navigationFrame.geo.lng] : userLocation,
@@ -1351,23 +1367,23 @@ const RoutingPage = () => {
   useEffect(() => {
     if (!navigator.geolocation) return;
     const watchId = navigator.geolocation.watchPosition((position) => {
-      const geo = { lat: position.coords.latitude, lng: position.coords.longitude };
-      const { accuracy, heading } = position.coords;
-      if (!validGps(geo, accuracy, position.timestamp)) return;
+      const fix = gpsMeasurement(position, gpsFixRef.current);
+      if (!fix) return;
+      const geo = { lat: fix.lat, lng: fix.lng };
+      const { accuracy, timestamp } = fix;
       const anchor = qrAnchorRef.current;
-      if (anchor && position.timestamp <= anchor.timestamp) return;
-      if (anchor && !gpsFixRef.current) {
-        const dr = advancedDeadReckoningService;
+      if (anchor && timestamp <= anchor.timestamp) return;
+      const dr = advancedDeadReckoningService;
+      if (anchor && isFresh(anchor.timestamp, Date.now(), DR_MAX_ANCHOR_AGE) && !gpsFixRef.current) {
         const reference = isFresh(dr.positionTimestamp) ? dr.geoPosition : anchor.geo;
-        if (haversineMeters([geo.lng, geo.lat], [reference.lng, reference.lat]) > GPS_MAX_ACCURACY) return;
+        if (accuracy > 6 || haversineMeters([geo.lng, geo.lat], [reference.lng, reference.lat]) > accuracy + 3) return;
       }
-      if (gpsFixRef.current && position.timestamp < gpsFixRef.current.timestamp) return;
-      gpsFixRef.current = { ...geo, accuracy, timestamp: position.timestamp };
-      setGpsTimestamp(position.timestamp);
+      if (!dr.processGpsData(geo, accuracy, timestamp)) return;
+      gpsFixRef.current = fix;
+      setGpsTimestamp(timestamp);
       setHasPreciseGps(true);
       setUserLocation([geo.lat, geo.lng]);
-      if (Number.isFinite(heading)) setUserHeading(heading);
-      advancedDeadReckoningService.processGpsData(geo, accuracy, position.timestamp);
+      if (Number.isFinite(position.coords.heading)) setUserHeading(position.coords.heading);
     }, () => {
       // Keep the last valid marker; its timestamp controls whether it can advance a route.
       setHasPreciseGps(false);
@@ -1378,11 +1394,18 @@ const RoutingPage = () => {
   // fromM is the real segment boundary, including unequal two-step routes.
   useEffect(() => {
     if (!isRoutingActive || isDemoMode || isPaused || pauseRef.current) return;
-    const geo = getLiveNavigationGeo({ isDrActive, drPosition, userLocation: gpsFixRef.current
-      ? [gpsFixRef.current.lat, gpsFixRef.current.lng] : userLocation, drTimestamp, gpsTimestamp, now: positionClock });
-    const progress = getNavigationProgress(
-      geo, routeData?.steps, currentStep, activeRouteCoordinates(routeGeo, routeData?.steps?.[currentStep])
-    );
+    const dr = advancedDeadReckoningService;
+    const useDr = isDrActive && isFresh(drTimestamp, positionClock)
+      && isFresh(dr.anchorTimestamp, positionClock, DR_MAX_ANCHOR_AGE)
+      && drAccuracy <= DR_MAX_UNCERTAINTY && (!isFresh(gpsTimestamp, positionClock) || drTimestamp > gpsTimestamp);
+    const measurement = useDr ? { ...drPosition, accuracy: drAccuracy, timestamp: drTimestamp }
+      : isFresh(gpsTimestamp, positionClock) ? gpsFixRef.current : null;
+    const step = routeData?.steps?.[currentStep];
+    const progress = progressTracker.current.update({ measurement, steps: routeData?.steps, currentStep,
+      coordinates: activeRouteCoordinates(routeGeo, step),
+      context: `${pauseKey}|${step?.segmentId ?? ''}|${step?.floor ?? sessionFloor}`,
+      mode: transportMode, now: positionClock });
+    setLiveRouteM(progressTracker.current.routeM);
     if (progress.nextStep !== currentStep) setCurrentStep(progress.nextStep);
     if (progress.arrived) {
       setHasArrived(true);
@@ -1391,7 +1414,7 @@ const RoutingPage = () => {
       advancedDeadReckoningService.stop();
     }
   }, [routeData?.steps, routeGeo, isRoutingActive, isDemoMode, isPaused, currentStep,
-    isDrActive, drPosition, userLocation, drTimestamp, gpsTimestamp, positionClock]);
+    isDrActive, drPosition, drAccuracy, userLocation, drTimestamp, gpsTimestamp, positionClock, pauseKey, sessionFloor, transportMode]);
 
   const toggleMapModal = () => {
     setIsMapModalOpen(!isMapModalOpen);
@@ -1520,6 +1543,7 @@ const RoutingPage = () => {
 
   const completeResume = (fix, index) => {
     if (document.hidden) return;
+    resetProgress(projectPointOnRoute([fix.lng, fix.lat], activeRouteCoordinates(routeGeo, routeData.steps[index]))?.routeM ?? 0);
     setCurrentStep(index);
     setHasArrived(false);
     setUserLocation([fix.lat, fix.lng]);
@@ -1536,7 +1560,8 @@ const RoutingPage = () => {
     updatePause(null);
     setIsResuming(false);
     resumeRequest.current = null;
-    advancedDeadReckoningService.start({ lat: fix.lat, lng: fix.lng }).catch(() => {
+    advancedDeadReckoningService.start({ lat: fix.lat, lng: fix.lng },
+      { timestamp: fix.timestamp, accuracy: fix.fromQr ? 2 : fix.accuracy, mode: transportMode }).catch(() => {
       // GPS guidance can continue even when motion sensors are unavailable.
       advancedDeadReckoningService.stop();
     });
@@ -1613,13 +1638,18 @@ const RoutingPage = () => {
     setIsDemoMode(false);
     setHasArrived(false);
     setCurrentStep(0);
+    resetProgress();
     const routeStart = getNavigationStartLocation();
     const [lat, lng] = routeStart || userLocation;
     setUserLocation([lat, lng]);
     setDrPosition({ lat, lng });
     setIsRoutingActive(true);
-    advancedDeadReckoningService.start(isFresh(gpsFixRef.current?.timestamp)
-      ? { lat: gpsFixRef.current.lat, lng: gpsFixRef.current.lng } : { lat, lng }).catch((error) => {
+    const fix = isFresh(gpsFixRef.current?.timestamp) ? gpsFixRef.current : null;
+    const anchor = qrAnchorRef.current;
+    const trustedQr = anchor && isFresh(anchor.timestamp, Date.now(), DR_MAX_ANCHOR_AGE);
+    advancedDeadReckoningService.start(fix ? { lat: fix.lat, lng: fix.lng } : { lat, lng }, fix
+      ? { timestamp: fix.timestamp, accuracy: fix.accuracy, mode: transportMode }
+      : { timestamp: anchor?.timestamp, accuracy: 2, trusted: Boolean(trustedQr), mode: transportMode }).catch((error) => {
       console.warn('Unable to start navigation sensors', error);
       advancedDeadReckoningService.stop();
       setIsRoutingActive(false);
@@ -1639,7 +1669,11 @@ const RoutingPage = () => {
     event.stopPropagation();
     if (directionDisabled || pauseRef.current) return;
     if (liveRouting) {
-      if (confirmsFloor) setSessionFloor(guideStep.toFloor);
+      resetProgress();
+      if (confirmsFloor) {
+        setSessionFloor(guideStep.toFloor);
+        advancedDeadReckoningService.reset(null);
+      }
       const nextStep = Math.min(currentStep + 1, stepCount - 1);
       // GPS may already have advanced this step by the time the tap is applied.
       setCurrentStep(previous => Math.max(previous, nextStep));

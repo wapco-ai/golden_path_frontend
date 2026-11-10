@@ -164,9 +164,9 @@ test('missing, stale, relative and previous-session headings cannot create a nor
   assert.deepEqual(deadReckoning.geoPosition, initialPosition);
 });
 
-test('GPS at 8–25 m corrects DR; invalid and stale fixes cannot move it', async () => {
+test('GPS at 8–25 m can initialize an unanchored DR; invalid and stale fixes cannot move it', async () => {
   setupSensors();
-  await deadReckoning.start(initialPosition);
+  await deadReckoning.start(initialPosition, { trusted: false });
   const fix = { lat: 36.289, lng: 59.617 };
   const now = Date.now();
   deadReckoning.processGpsData(fix, 25, now);
@@ -196,8 +196,8 @@ test('a recent GPS reading delivered after a step still corrects drift', async (
   await deadReckoning.start(initialPosition);
   sensors.emit('deviceorientationabsolute', { alpha: 270 });
   deadReckoning._processStep();
-  const fix = { lat: 36.289, lng: 59.617 };
-  deadReckoning.processGpsData(fix, 20, Date.now() - 1000);
+  const fix = { lat: initialPosition.lat, lng: initialPosition.lng + 0.00001 };
+  deadReckoning.processGpsData(fix, 3, Date.now() - 1000);
   assert.deepEqual(deadReckoning.geoPosition, fix);
   deadReckoning.processGpsData(initialPosition, 5, Date.now() - 3000);
   assert.deepEqual(deadReckoning.geoPosition, fix, 'out-of-order GPS is ignored');

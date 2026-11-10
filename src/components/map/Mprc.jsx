@@ -1,3 +1,4 @@
+import { observeGps } from '../../utils/locationQuality.js';
 import useMapFloor from '../../hooks/useMapFloor';
 import { getPointFloor, pointIsOnFloor } from '../../utils/floors';
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
@@ -301,15 +302,15 @@ const Mprc = ({
 
     if (!isTracking) return undefined;
 
-    const success = (pos) => {
+    const success = (fix) => {
       const c = {
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude
+        lat: fix.lat,
+        lng: fix.lng
       };
       setUserCoords(c);
       setUserLocation(previous => ({
         name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
-        coordinates: [c.lat, c.lng], source: 'gps',
+        coordinates: [c.lat, c.lng], source: 'gps', accuracy: fix.accuracy, timestamp: fix.timestamp,
         floor: previous?.source === 'gps' ? getPointFloor(previous) : null
       }));
       setViewState((v) => ({
@@ -324,21 +325,7 @@ const Mprc = ({
       console.error('Error getting location', e);
     };
 
-    navigator.geolocation.getCurrentPosition(success, err, {
-      enableHighAccuracy: false,
-      timeout: 10000,
-      maximumAge: 60000
-    });
-
-    const watchId = navigator.geolocation.watchPosition(success, err, {
-      enableHighAccuracy: false,
-      maximumAge: 0,
-      timeout: 10000
-    });
-
-    return () => {
-      if (watchId) navigator.geolocation.clearWatch(watchId);
-    };
+    return observeGps(navigator.geolocation, success, err);
   }, [setUserLocation, intl, isTracking]);
 
   useEffect(() => {

@@ -34,8 +34,8 @@ async function setup(page, { audio = true } = {}) {
         success({ timestamp: Date.now() - (window.gpsAge || 0), coords: {
           latitude: window.gpsFix.lat, longitude: window.gpsFix.lng, accuracy: window.gpsAccuracy ?? 5 } });
       },
-      watchPosition: success => { window.sendGps = (lat, lng) => success({ timestamp: Date.now(),
-        coords: { latitude: lat, longitude: lng, accuracy: 5 } }); return 1; }, clearWatch() {}
+      watchPosition: success => { window.sendGps = (lat, lng, accuracy = 5) => success({ timestamp: Date.now(),
+        coords: { latitude: lat, longitude: lng, accuracy } }); return 1; }, clearWatch() {}
     } });
   }, { origin, destination, routeGeo, routeSteps, audio });
   await page.route('**/api/v1/**', route => route.fulfill({ json: { status: 'NO_MATCH', data: [], features: [] } }));
@@ -80,18 +80,48 @@ test('manual next without GPS keeps live navigation, QR and pause active', async
   await expect(qr(page)).toBeVisible();
 });
 
-test('GPS advances the step without hiding the controls until arrival', async ({ page }) => {
+test('GPS advances with plausible motion and only confirms arrival after precise distinct samples', async ({ page }) => {
+  await page.clock.install();
   await setup(page);
   await expect(state(page)).toHaveAttribute('data-current-step', '0');
-  await page.evaluate(() => window.sendGps(36.2881, 59.615));
+  await page.evaluate(() => window.sendGps(36.287, 59.615));
+  await page.clock.runFor(100);
+  for (let i = 1; i <= 11; i++) {
+    await page.clock.fastForward(5000);
+    await page.evaluate(i => window.sendGps(36.287 + i * 0.0001, 59.615), i);
+    await page.clock.runFor(100);
+  }
   await expect(state(page)).toHaveAttribute('data-current-step', '1');
   await expect(state(page)).toHaveAttribute('data-navigation-mode', 'live');
   await expect(qr(page)).toBeVisible();
   await expect(pause(page)).toBeVisible();
-  await page.evaluate(() => window.sendGps(36.289, 59.615));
+  for (let i = 12; i <= 20; i++) {
+    await page.clock.fastForward(5000);
+    await page.evaluate(i => window.sendGps(36.287 + i * 0.0001, 59.615), i);
+    await page.clock.runFor(100);
+  }
+  await expect(state(page)).toHaveAttribute('data-navigation-mode', 'live');
+  for (let i = 0; i < 3; i++) {
+    await page.clock.fastForward(1000);
+    await page.evaluate(() => window.sendGps(36.289, 59.615, 2));
+    await page.clock.runFor(100);
+  }
   await expect(state(page)).toHaveAttribute('data-navigation-mode', 'arrived');
   await expect(qr(page)).toHaveCount(0);
   await expect(pause(page)).toHaveCount(0);
+});
+
+test('hiding an active trip pauses it until an explicit resume with a new position', async ({ page }) => {
+  await setup(page);
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(state(page)).toHaveAttribute('data-navigation-mode', 'paused');
+  await expect(resume(page)).toBeVisible();
+  await expect(qr(page)).toBeVisible();
 });
 
 test('pause freezes progress and audio through GPS movement, visibility changes and page reload', async ({ page }) => {

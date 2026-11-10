@@ -101,7 +101,7 @@ test('a new QR clears a previous floor and empty coordinates are not accepted', 
   assert.equal(readQrPoint(),null);
 });
 
-test('a delayed QR lookup cannot replace an explicitly confirmed floor', async t => {
+test('a registered QR resolves to its authoritative server floor', async t => {
   const values = new Map([['qrLat','36.3'],['qrLng','59.6'],['qrId','delayed-qr']]);
   const previous = Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage');
   Object.defineProperty(globalThis,'sessionStorage',{value:{getItem:key=>values.get(key) ?? null,setItem:(key,value)=>values.set(key,String(value)),removeItem:key=>values.delete(key)},configurable:true});
@@ -111,10 +111,10 @@ test('a delayed QR lookup cannot replace an explicitly confirmed floor', async t
   const {resolveQrPoint} = await import('../src/services/qrLocationService.js');
   const pending = resolveQrPoint();
   values.set('qrFloor','1'); setSessionFloor(1);
-  respond({ok:true,status:200,json:async()=>({floor:-1})});
-  assert.equal((await pending).floor,1);
-  assert.equal(values.get('qrFloor'),'1');
-  assert.equal(getSessionFloor(),1);
+  respond({ok:true,status:200,json:async()=>({id:"delayed-qr",coordinates:[36.3,59.6],floor:-1})});
+  assert.equal((await pending).floor,-1);
+  assert.equal(values.get('qrFloor'),'-1');
+  assert.equal(getSessionFloor(),-1);
 });
 
 test('popup coordinates come only from the visible floor, including an empty floor', () => {
