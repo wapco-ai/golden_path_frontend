@@ -44,6 +44,11 @@ test('GPS at identical XY cannot advance through an unconfirmed floor transfer',
   assert.equal(getNavigationProgress({lat:36.3,lng:59.6001},result,0,a).nextStep,1);
   assert.equal(getNavigationProgress({lat:36.3,lng:59.6002},result,3,b).arrived,true);
 });
+test('saved ground-floor transfers display the ground-floor label', () => {
+  const saved = { ...steps[1], toFloor: '0', instruction: 'از آسانسور 0 به طبقهٔ 0 بروید.' };
+  assert.equal(multifloorSteps(geo, [saved])[0].instruction, 'از آسانسور 0 به طبقه همکف بروید.');
+  assert.equal(multifloorSteps(geo, [steps[1]])[0].instruction, steps[1].instruction);
+});
 test('same-floor geometry retains the original feature object', () => {
   const single = {type:'Feature',geometry:{type:'LineString',coordinates:a}};
   assert.equal(routeOnFloor(single,0),single);
