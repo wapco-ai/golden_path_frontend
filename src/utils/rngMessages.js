@@ -6,6 +6,21 @@ export const rngMessages = {
   ur: { next: 'ڈیمو کا اگلا مرحلہ دکھائیں' }
 };
 
+export const rngPauseMessages = {
+  fa: { pause: 'توقف موقت', resume: 'ادامه مسیر', paused: 'راهنمای مسیر متوقف است',
+    checking: 'در حال بررسی موقعیت…', location: 'موقعیت تازه در دسترس نیست. GPS را فعال کنید یا موقعیت را با QR اصلاح کنید.',
+    failed: 'ادامه مسیر ممکن نشد. دوباره تلاش کنید یا موقعیت را با QR اصلاح کنید.' },
+  en: { pause: 'Pause navigation', resume: 'Resume navigation', paused: 'Navigation paused',
+    checking: 'Checking your location…', location: 'No fresh location. Enable GPS or correct your location with QR.',
+    failed: 'Could not resume. Try again or correct your location with QR.' },
+  ar: { pause: 'إيقاف مؤقت', resume: 'متابعة المسار', paused: 'تم إيقاف الإرشاد مؤقتًا',
+    checking: 'جارٍ التحقق من الموقع…', location: 'الموقع الحديث غير متاح. فعّل GPS أو صحح موقعك برمز QR.',
+    failed: 'تعذرت المتابعة. حاول مجددًا أو صحح موقعك برمز QR.' },
+  ur: { pause: 'عارضی توقف', resume: 'راستہ جاری رکھیں', paused: 'رہنمائی رکی ہوئی ہے',
+    checking: 'مقام کی جانچ جاری ہے…', location: 'تازہ مقام دستیاب نہیں۔ GPS فعال کریں یا QR سے مقام درست کریں۔',
+    failed: 'راستہ جاری نہیں ہو سکا۔ دوبارہ کوشش کریں یا QR سے مقام درست کریں۔' }
+};
+
 export const rngQrMessages = {
   fa: {
     scan: 'اصلاح مسیر با QR', loading: 'در حال محاسبهٔ مسیر از موقعیت جدید…',
