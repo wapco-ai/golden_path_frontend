@@ -30,8 +30,8 @@ export const createDoor = async ({
   return response.data;
 };
 
-export const getDoorInfo = async (id, { signal } = {}) => {
-  const response = await apiAdmin.get(`${DOORS_BASE_URL}/${id}/info`, { signal });
+export const getDoorInfo = async (id, { signal, accessPointId } = {}) => {
+  const response = await apiAdmin.get(`${DOORS_BASE_URL}/${id}/info`, { signal, params: { access_id: accessPointId } });
   return response.data;
 };
 

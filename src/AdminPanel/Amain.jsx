@@ -9691,7 +9691,7 @@ const Amain = () => {
 
     try {
       setIsLoadingDoorInfo(true);
-      const info = await getDoorInfo(doorId);
+      const info = await getDoorInfo(doorId, { accessPointId });
       fillDoorInfoForm({ ...info, point: info.point ? { ...info.point, door_id: doorId } : null });
       if (!Array.isArray(info?.routing?.areas) && !Array.isArray(info?.routing?.available_areas)) {
         await loadRoutingAreaOptions();

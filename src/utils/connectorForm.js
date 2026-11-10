@@ -16,6 +16,10 @@ export function isSelectedStop(stop, point, exactAccess = false) {
   return Number(stop.access_id) === Number(point.access_id);
 }
 
+export function isLockedSelectedStop(stop, point, exactAccess = false) {
+  return isSelectedStop(stop, point, exactAccess) && Boolean(stop.access_id) && !stop.error;
+}
+
 export function connectorAccessHits(features, floor) {
   const hits = new Map();
   for (const feature of features) {

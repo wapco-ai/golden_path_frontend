@@ -1,5 +1,5 @@
 import React from 'react';
-import { floorLabel, isSelectedStop, newStop, SAME_FLOOR_STAIR_KIND } from '../utils/connectorForm';
+import { floorLabel, isLockedSelectedStop, isSelectedStop, newStop, SAME_FLOOR_STAIR_KIND } from '../utils/connectorForm';
 import './ConnectorStops.css';
 
 const digits = new Intl.NumberFormat('fa');
@@ -81,7 +81,7 @@ export default function ConnectorStops({ value, onChange, kind, floors, groups, 
             </div>
           </div>
 
-          {!selected && <div className="connector-location">
+          {!isLockedSelectedStop(stop, selectedPoint, sameFloor) && <div className="connector-location">
             {!sameFloor && <div className="connector-field">
               <span className="connector-label">طبقه</span>
               <Select value={String(stop.floor)} disabled={Boolean(stop.access_id)} onChange={floor => patch(i, { ...newStop(floor, kind), access_id: null, accessOptions: null, door_id: null, area_id: null, area_name: null, lat: null, lon: null, areas: [], error: '' })}
