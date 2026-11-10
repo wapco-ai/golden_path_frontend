@@ -1157,8 +1157,8 @@
 }
 @media (min-width: 768px) and (max-width: 1366px) {
   .routing-page { width: 100%; min-width: 0; height: 100dvh; }
-  .live-image-container { flex-basis: 60%; height: 60%; min-height: 0; }
-  .map-section { flex-basis: 40%; height: 40%; min-height: 0; }
+  .live-image-container { flex-basis: 50%; height: 50%; min-height: 0; }
+  .map-section { flex-basis: 50%; height: 50%; min-height: 0; }
 }
 
 .gps-offline-notification.dismissing {
