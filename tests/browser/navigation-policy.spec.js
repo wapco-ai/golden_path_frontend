@@ -71,6 +71,10 @@ test('excess uncertainty keeps QR available and a persistent warning in both pan
     await expect(warning).toBeVisible();
     await expect(page.getByRole('button', { name: 'اصلاح مسیر با QR' })).toBeVisible();
     const box = await warning.boundingBox();
+    for (const control of [page.getByRole('button', { name: 'اصلاح مسیر با QR' }), page.getByRole('button', { name: 'توقف موقت', exact: true })]) {
+      const action = await control.boundingBox();
+      expect(box.y + box.height <= action.y || action.y + action.height <= box.y).toBe(true);
+    }
     expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(360);
     await page.screenshot({ path: `test-results/navigation-warning-${i}.png` });
     if (i === 0) await page.locator('.expand-button').click();
