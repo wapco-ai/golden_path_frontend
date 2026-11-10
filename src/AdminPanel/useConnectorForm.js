@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { getConnector, listConnectors, listFloors, listSameFloorStairs, listSameFloorStairAreas, resolveConnectorArea } from '../services/adminConnectorsService';
-import { connectorAccessHits, emptyConnector, floorLabel, isSelectedStop, newStop, SAME_FLOOR_STAIR_KIND, stairAreaCandidateParams } from '../utils/connectorForm';
+import { connectorAccessHits, emptyConnector, floorLabel, isLockedSelectedStop, isSelectedStop, newStop, SAME_FLOOR_STAIR_KIND, stairAreaCandidateParams } from '../utils/connectorForm';
 import { DOOR_ACCESS_LAYER_ID } from '../config/vectorTiles';
 
 export default function useConnectorForm({ map, mapFloor, setMapFloor, setModalOpen, fillInfo, kind }) {
@@ -114,7 +114,7 @@ export default function useConnectorForm({ map, mapFloor, setMapFloor, setModalO
     pickRef.current = null; setPicking(null); setMapFloor(current.previousFloor); setModalOpen(true);
   };
   const pick = (index) => {
-    if (!value.stops[index] || isSelectedStop(value.stops[index], point, sameFloor)) return;
+    if (!value.stops[index] || isLockedSelectedStop(value.stops[index], point, sameFloor)) return;
     if (!map) { toast.error('نقشه هنوز آماده نیست.'); return; }
     const excluded = sameFloor ? value.stops.find((_, i) => i !== index)?.access_id : null;
     const next = { index, floor: value.stops[index].floor, previousFloor: mapFloor, excluded };
@@ -123,6 +123,7 @@ export default function useConnectorForm({ map, mapFloor, setMapFloor, setModalO
     toast.info('یکی از نشانگرهای ورودی همین طبقه را انتخاب کنید. برای لغو Esc را بزنید.', { toastId: 'connector-map-pick', autoClose: false });
   };
   const selectAccess = (index, floor, access) => {
+    if (isSelectedStop(value.stops[index], point, sameFloor)) setPoint(null);
     const stop = { floor: Number(floor), ...access, accessOptions: null, area_id: null, area_name: null, areas: [], resolving: true, error: '' };
     setValue(c => ({ ...c, ...(sameFloor ? { stair_area_id: null } : {}), stops: c.stops.map((s, i) => i === index ? { ...s, ...stop } : s) }));
     resolve(stop);
@@ -152,7 +153,8 @@ export default function useConnectorForm({ map, mapFloor, setMapFloor, setModalO
     return () => { map.off('click', click); window.removeEventListener('keydown', key); };
   }, [map, picking]);
   const updateValue = next => {
-    if (point?.access_id && !next.stops.some(stop => isSelectedStop(stop, point, sameFloor))) return;
+    if (value.stops.some(stop => isLockedSelectedStop(stop, point, sameFloor)) &&
+        !next.stops.some(stop => isSelectedStop(stop, point, sameFloor))) return;
     if (!sameFloor) {
       setValue(next);
       return;

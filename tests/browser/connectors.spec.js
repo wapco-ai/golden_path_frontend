@@ -13,7 +13,7 @@ async function clickPortal(page) {
   await map.click({ position:{ x:box.width/2, y:box.height/2 } });
 }
 
-async function setup(page, { verifyPendingMap = false, conflictingGroup = false, ambiguousArea = false, sameFloorStair = false, savedStair = null, manualDoor = false } = {}) {
+async function setup(page, { verifyPendingMap = false, conflictingGroup = false, ambiguousArea = false, sameFloorStair = false, savedStair = null, manualDoor = false, invalidSelectedPoint = false } = {}) {
   const writes=[]; const errors=[]; const candidateLookups=[]; const stairAreaLookups=[]; const doorPreviews=[];
   let releaseStyle;
   const styleReady = verifyPendingMap ? new Promise(resolve => { releaseStyle = resolve; }) : Promise.resolve();
@@ -30,6 +30,10 @@ async function setup(page, { verifyPendingMap = false, conflictingGroup = false,
     else if (path.endsWith('/floors')) json=floors;
     else if (path.endsWith('/connectors/candidates')) {
       candidateLookups.push(Object.fromEntries(url.searchParams));
+      if (invalidSelectedPoint && url.searchParams.get('access_id') === '199') {
+        await route.fulfill({ status: 422, json: { message: 'نقطهٔ دسترسی معتبر در این طبقه انتخاب کنید.' } });
+        return;
+      }
       const area = sameFloorStair ? 200 + Number(url.searchParams.get('access_id')) : 300 + Number(url.searchParams.get('floor'));
       json = sameFloorStair && area === 309
         ? { area_id: null, areas: [{ id: 309, name: 'فضای بالای پله' }, { id: 310, name: 'فضای نامرتبط' }, { id: 311, name: 'فضای دو محدوده' }] }
@@ -71,7 +75,7 @@ async function setup(page, { verifyPendingMap = false, conflictingGroup = false,
   });
   await page.route('**/map-styles/**/style*.json',async route=>{
     await styleReady;
-    const features=conflictingGroup ? [portal(0,199,299)] : manualDoor ? [portal(0,101,201)] : [portal(0,101,201),portal(-1,100,200),portal(sameFloorStair ? 0 : -1,109,209),portal(1,102,202)];
+    const features=invalidSelectedPoint ? [portal(0,101,201), portal(0,199,299)] : conflictingGroup ? [portal(0,199,299)] : manualDoor ? [portal(0,101,201)] : [portal(0,101,201),portal(-1,100,200),portal(sameFloorStair ? 0 : -1,109,209),portal(1,102,202)];
     await route.fulfill({json:{version:8,glyphs:'http://localhost:8080/glyphs/{fontstack}/{range}.pbf',
       sources:{door_access_points:{type:'geojson',data:{type:'FeatureCollection',features}}},
       layers:[{id:'background',type:'background',paint:{'background-color':'#f8f5f0'}},{id:'doors-access-point',type:'circle',source:'door_access_points',paint:{'circle-radius':10}}]}});
@@ -314,6 +318,31 @@ test('a conflicting shared connector cannot replace the chosen point, while its 
   expect(writes).toHaveLength(0); expect(errors).toEqual([]);
 });
 
+
+for (const type of ['آسانسور', 'پلهٔ داخل طبقه']) {
+  test(`an invalid selected point can be replaced in ${type}`, async ({ page }) => {
+    const { candidateLookups, writes } = await setup(page, { conflictingGroup: true, invalidSelectedPoint: true });
+    const modal = page.locator('.add-place-modal');
+    await expect(modal.getByRole('button', { name: 'آسانسور', exact: true })).toBeVisible();
+    if (type !== 'آسانسور') {
+      await modal.getByRole('button', { name: 'آسانسور', exact: true }).click();
+      await page.getByRole('option', { name: type, exact: true }).click();
+    }
+    await modal.locator('.step-circle').nth(1).click();
+    const stop = page.getByTestId('connector-stop').first();
+    await expect(stop).toHaveAttribute('data-selected-point', 'true');
+    await expect(stop.getByRole('alert')).toContainText('نقطهٔ دسترسی معتبر در این طبقه انتخاب کنید.');
+    await stop.getByRole('button', { name: 'تغییر نقطه روی نقشه' }).click();
+    await clickPortal(page);
+    await stop.getByRole('button', { name: 'انتخاب یکی از ورودی‌های روی هم' }).click();
+    await page.getByRole('option', { name: 'درب 201 · نقطهٔ 101' }).click();
+    await expect(stop.getByTestId('connector-area-value')).toBeVisible();
+    await expect(stop.getByRole('alert')).toHaveCount(0);
+    await expect(stop).toHaveAttribute('data-selected-point', 'false');
+    expect(candidateLookups.map(params => params.access_id)).toEqual(['199', '101']);
+    expect(writes).toHaveLength(0);
+  });
+}
 
 test('admin map tooltips work on icon hover, keyboard focus and Escape without changing toolbar layout',async ({page})=>{
   const {writes,errors}=await setup(page);
