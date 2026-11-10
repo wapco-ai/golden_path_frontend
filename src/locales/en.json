@@ -237,6 +237,8 @@
   "youAreHereQr": "You are visiting this place",
   "navigateToMpr": "Navigation to this location",
   "landmarkPlaces": "Landmark Place",
+  "searchAreaType": "Area",
+  "searchPointType": "Point of interest",
   "walking": "minutes walk",
   "meter": "meter",
   "moreCulturalInfo": "More cultural info",

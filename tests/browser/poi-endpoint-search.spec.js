@@ -126,7 +126,15 @@ for (const selectArea of [false, true]) {
     });
     await page.route('**/api/v1/area-doors?*', route => {
       areaRequests.push(Object.fromEntries(new URL(route.request().url()).searchParams));
-      return route.fulfill({ json: { status: 'ok', data: { area: { id: area.areaId, floor: area.floor }, doors: [door] } } });
+      return route.fulfill({ json: { status: 'ok', data: {
+        area: {
+          id: area.areaId, floor: area.floor, bbox4326: [59.615, 36.287, 59.617, 36.289],
+          geometry: { type: 'Polygon', coordinates: [[
+            [59.615, 36.287], [59.617, 36.287], [59.617, 36.289], [59.615, 36.289], [59.615, 36.287]
+          ]] }
+        },
+        doors: [door]
+      } } });
     });
     await page.route('**/api/v1/routing/route', route => {
       routeRequests.push(route.request().postDataJSON());
@@ -139,6 +147,9 @@ for (const selectArea of [false, true]) {
     await page.getByText(origin.title, { exact: true }).click();
     await page.locator('.map-destination-input-wrapper').click();
     await page.locator('.map-search-modal input').fill(area.title);
+    const rows = page.locator('.map-destination-list li');
+    await expect(rows.filter({ hasText: area.title }).first().getByRole('img', { name: 'محدوده' })).toBeVisible();
+    await expect(rows.filter({ hasText: poi.title }).getByRole('img', { name: 'نقطهٔ شاخص' })).toBeVisible();
     const target = selectArea ? area : poi;
     await page.getByText(target.title, { exact: true }).click();
     if (selectArea) {
@@ -480,4 +491,17 @@ test('recent search hides only the repeated address without altering stored data
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('recent-search-storage')).state.recentSearches);
   expect(stored[0].address).toBe('چایخانه کوثر');
   expect(stored[0].coordinates).toEqual([36.287, 59.615]);
+});
+
+test('save-location search uses the normalized matches returned by the server', async ({ page }) => {
+  const { searches, errors } = await setup(page);
+  await page.goto('/#/pmap');
+  await page.locator('.pmap-search-input').click();
+  await page.locator('.pmap-search-modal input').fill('رواق آزمايشي');
+  const row = page.locator('.pmap-destination-list li');
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText(pois[1].title);
+  await expect(row.getByRole('img', { name: 'نقطهٔ شاخص' })).toBeVisible();
+  expect(searches.at(-1)).toMatchObject({ language: 'fa', search: 'رواق آزمايشي' });
+  expect(errors).toEqual([]);
 });
