@@ -40,6 +40,11 @@ export const updateDoorInfo = async (id, payload, { signal } = {}) => {
   return response.data;
 };
 
+export const previewDoorPlacement = async (point, { signal } = {}) => {
+  const response = await apiAdmin.get(`${DOORS_BASE_URL}/placement-preview`, { params: point, signal });
+  return response.data;
+};
+
 export const moveDoor = async (id, { x, y, floor }, { signal } = {}) => {
   const response = await apiAdmin.put(`${DOORS_BASE_URL}/${id}/move`, { x, y, floor }, { signal });
   return response.data;
