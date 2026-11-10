@@ -135,7 +135,7 @@ export const getLiveNavigationGeo = ({ isDrActive, drPosition, userLocation, drT
 export const resolveNavigationFrame = ({
   step, stepIndex = 0, routeCoordinates = [], isRoutingActive = false,
   isDemoMode = false, hasArrived = false, isDrActive = false,
-  drPosition, userLocation, userHeading, sessionFloor = 0, drTimestamp, gpsTimestamp, now
+  drPosition, userLocation, userHeading, sessionFloor = 0, drTimestamp, gpsTimestamp, now, anchorGeo
 }) => {
   const live = isRoutingActive && !isDemoMode;
   const preview = getStepPreview(live && step?.previewAt === 'end'
@@ -148,7 +148,7 @@ export const resolveNavigationFrame = ({
     ? drPosition : Number.isFinite(gpsTimestamp) && Array.isArray(userLocation)
       ? asGeo([userLocation[1], userLocation[0]]) : null;
   const geo = hasArrived ? asGeo(routeCoordinates.at(-1))
-    : live ? (liveGeo || lastKnownGeo || preview.geo) : preview.geo;
+    : live ? (liveGeo || lastKnownGeo || anchorGeo || preview.geo) : preview.geo;
   const projection = isNavigationGeo(geo) ? projectPointOnRoute([geo.lng, geo.lat], routeCoordinates) : null;
   const floor = [step?.floor, step?.routeStep?.floor, sessionFloor]
     .find((value) => value !== null && value !== undefined && value !== '' && Number.isInteger(Number(value)));
