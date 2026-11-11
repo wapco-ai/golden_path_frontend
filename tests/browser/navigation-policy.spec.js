@@ -96,7 +96,6 @@ test('Haram default ignores GPS and reaches the destination using actual motion 
 test('the home map shows the requested device location without enabling GPS for routing', async ({ page, context }) => {
   await page.setViewportSize({ width: 360, height: 780 });
   await context.grantPermissions(['geolocation']);
-  await context.setGeolocation({ latitude: 36.289, longitude: 59.617, accuracy: 12 });
   await page.addInitScript(() => {
     sessionStorage.setItem('selectedMapType', 'base');
     window.gpsCalls = [];
@@ -142,6 +141,7 @@ test('the home map shows the requested device location without enabling GPS for 
   expect(await page.evaluate(() => window.gpsCalls)).toEqual([]);
   await expect(marker).toHaveCount(0);
 
+  await context.setGeolocation({ latitude: 36.289, longitude: 59.617, accuracy: 12 });
   await locate.click();
   await expect(marker).toBeVisible();
   expect(await page.evaluate(() => window.gpsCalls)).toEqual(['getCurrentPosition', 'watchPosition']);
@@ -172,6 +172,7 @@ test('the home map shows the requested device location without enabling GPS for 
   await expect(marker).toHaveCount(0);
   expect(await page.evaluate(() => window.gpsCalls.at(-1))).toBe('clearWatch');
 
+  await context.setGeolocation({ latitude: 36.289, longitude: 59.6171, accuracy: 12 });
   await locate.click();
   await expect(marker).toBeVisible();
   const qrLink = id => page.evaluate(code => { window.location.hash = '#/location?lat=1&lng=2&id=' + code; }, id);
