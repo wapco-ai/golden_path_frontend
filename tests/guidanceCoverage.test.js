@@ -77,7 +77,7 @@ test('add and edit share the map initializer while retaining coordinate selectio
   assert.match(initializer, /zoom: 16/);
   assert.match(initializer, /draggable: true/);
   assert.match(initializer, /map\.on\('click'/);
-  assert.match(initializer, /markerRef\.current\.on\('dragend'/);
+  assert.match(initializer, /marker\.on\('dragend'/);
   assert.match(initializer, /location: newLocation/);
 
   const addStart = source.indexOf('const openAddModal =');

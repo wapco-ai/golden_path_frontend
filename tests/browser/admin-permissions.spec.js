@@ -195,6 +195,13 @@ test('editing guidance opens the saved basement map and returns to ground while 
   await page.getByText('مدیریت امکانات', { exact: true }).click();
   await page.locator('#amain-sidebar').getByText('مدیریت نقاط راهنما', { exact: true }).click();
   const edit = page.locator('tr').filter({ hasText: point.title }).locator('.edit-btn21');
+  let releaseBasementTiles;
+  const basementTileGate = new Promise(resolve => { releaseBasementTiles = resolve; });
+  await page.route('**/public.fn_public_engineering_map_mvt/**', async route => {
+    await basementTileGate;
+    await route.fulfill({ status: 204 });
+  });
+  const basementRequest = page.waitForRequest('**/public.fn_public_engineering_map_mvt/**');
   const basementTile = waitForGuidanceBasementTile(page);
   await edit.click();
   await page.setViewportSize({ width: 390, height: 740 });
@@ -202,8 +209,13 @@ test('editing guidance opens the saved basement map and returns to ground while 
   const floor = modal.getByLabel('طبقه', { exact: true });
   await expect(floor).toHaveValue('-1');
   await expect(modal.getByLabel('شعاع پوشش (متر)')).toHaveValue('35');
+  try {
+    await basementRequest;
+    await expect(modal.locator('.maplibregl-marker')).toBeVisible();
+  } finally {
+    releaseBasementTiles();
+  }
   await basementTile;
-  await expect(modal.locator('.maplibregl-marker')).toBeVisible();
   const groundTile = waitForGuidanceGroundTile(page);
   await floor.selectOption('0');
   await groundTile;
