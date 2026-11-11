@@ -10506,6 +10506,22 @@ body {
 }
 
 /* Settings */
+.admin-panel-isolated .settings-modal-container {
+  /* Override the admin panel's global max-height reset for this dialog. */
+  max-height: calc(100vh - 32px) !important;
+  max-height: calc(100dvh - 32px) !important;
+  overflow-y: auto;
+}
+
+.navigation-settings-form {
+  text-align: start;
+}
+
+.navigation-settings-form .form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 12px;
+}
 
 .settings-content {
   text-align: center;
@@ -11860,6 +11876,3 @@ body {
   margin: 0;
   padding: 8px 16px;
 }
-
-.navigation-settings-form { max-height: 65vh; overflow-y: auto; text-align: start; }
-.navigation-settings-form .form-group { display: flex; flex-direction: column; margin-bottom: 12px; }
