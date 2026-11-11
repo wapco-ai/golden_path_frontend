@@ -25,12 +25,13 @@ export const gpsMeasurement = (position, previous = null, now = Date.now()) => {
 };
 
 // getCurrentPosition cannot be cancelled, so also retire its callback when leaving GPS mode.
-export const observeGps = (geolocation, onFix, onError) => {
-  if (!geolocation || !getNavigationPolicy().gps_enabled) return () => {};
+export const observeGps = (geolocation, onFix, onError, { mapDisplay = false } = {}) => {
+  const canObserve = () => mapDisplay || getNavigationPolicy().gps_enabled;
+  if (!geolocation || !canObserve()) return () => {};
   let active = true;
   let previous = null;
   const success = position => {
-    if (!active || !getNavigationPolicy().gps_enabled) return;
+    if (!active || !canObserve()) return;
     const fix = gpsMeasurement(position, previous);
     if (!fix) return;
     previous = fix;
