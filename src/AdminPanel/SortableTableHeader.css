@@ -1,0 +1,11 @@
+.admin-table-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}

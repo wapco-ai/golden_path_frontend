@@ -12,7 +12,7 @@ const media = [
   { type: 'file', mime: 'application/pdf', url: '/storage/guide.pdf', path: 'uploads/contents/7/files/guide.pdf', name: 'guide.pdf' }
 ];
 
-async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.png', onWrite } = {}) {
+async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.png', onWrite, totalItems = 1 } = {}) {
   const writes = [], creates = [], uploads = [], deletes = [], errors = [], dialogs = [];
   let item = {
     poiId: 7, title: 'مکان فرهنگی آزمایشی', description: 'شرح مکان فرهنگی',
@@ -39,7 +39,9 @@ async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.
     else if (path.endsWith('/categories')) json = { items: [{ id: 1, title: 'گروه آزمایشی', code: 'test' }], total: 1 };
     else if (path.endsWith('/groups/metadata')) json = { groups: [] };
     else if (path.endsWith('/groups/subgroups')) json = { subGroups: {} };
-    else if (path.endsWith('/cultural-items') && request.method() === 'GET') json = { items: [{ ...item, media: item.media.fa }], totalItems: 1, page: 1, pageSize: 7 };
+    else if (path.endsWith('/cultural-items') && request.method() === 'GET') json = {
+      items: [{ ...item, media: item.media.fa }], totalItems, page: Number(url.searchParams.get('page')), pageSize: 7
+    };
     else if (path.endsWith('/cultural-items') && request.method() === 'POST') {
       creates.push(request.postDataJSON()); json = { poiId: 7 };
     }
@@ -80,6 +82,46 @@ async function openEdit(page) {
   await page.locator('.edit-cultural-btn').first().click();
   await expect(page.locator('.edit-cultural-page')).toBeVisible();
 }
+
+test('cultural table keeps the selected page and sorting after edit and refresh', async ({ page }) => {
+  const { writes } = await setup(page, { totalItems: 14 });
+  const waitForList = (sort, pageNumber) => page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === 'GET' && url.pathname === '/api/v1/cultural-items'
+      && url.searchParams.get('sort') === sort && url.searchParams.get('page') === String(pageNumber);
+  });
+
+  const initial = waitForList('id:desc', 1);
+  await page.goto('/#/admin');
+  await initial;
+  await page.getByText('مدیریت امکانات', { exact: true }).click();
+  await page.locator('#amain-sidebar').getByText('مدیریت اطلاعات فرهنگی', { exact: true }).click();
+
+  const table = page.locator('.cultural-table');
+  const secondPage = page.locator('.page-number.active').filter({ hasText: /^2$/ });
+  await expect(table.getByRole('columnheader', { name: 'شناسه' })).toHaveAttribute('aria-sort', 'descending');
+  const date = table.getByRole('columnheader', { name: 'تاریخ ایجاد' });
+  await Promise.all([waitForList('created_at:asc', 1), date.getByRole('button').click()]);
+  await Promise.all([waitForList('created_at:asc', 2), page.getByRole('button', { name: '2', exact: true }).click()]);
+  await expect(secondPage).toBeVisible();
+
+  await table.locator('.edit-cultural-btn').click();
+  const form = page.locator('.edit-cultural-page');
+  await form.getByPlaceholder('عنوان اطلاعات فرهنگی را بنویسید').fill('عنوان ویرایش‌شده');
+  await Promise.all([waitForList('created_at:asc', 2), form.getByRole('button', { name: 'ثبت تغییرات' }).click()]);
+  await expect(form).toBeHidden();
+  expect(writes).toHaveLength(1);
+  await expect(secondPage).toBeVisible();
+
+  await Promise.all([waitForList('created_at:asc', 2), page.locator('.cultural-table-header9 .refresh-btn').click()]);
+  await Promise.all([waitForList('created_at:asc', 2), page.reload()]);
+  await expect(secondPage).toBeVisible();
+  await expect(date).toHaveAttribute('aria-sort', 'ascending');
+
+  await Promise.all([waitForList('created_at:desc', 1), date.getByRole('button').click()]);
+  await expect(date).toHaveAttribute('aria-sort', 'descending');
+  await expect(secondPage).toHaveCount(0);
+});
 
 async function addVideos(page, mode, ...names) {
   await page.getByTestId(`cultural-video-input-${mode}`).setInputFiles(names.map(name => ({

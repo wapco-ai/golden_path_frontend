@@ -1,5 +1,5 @@
 // src/pages/Marks.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -12,9 +12,12 @@ import { ADMIN_MAP_MAX_ZOOM, extendAdminMapStyle } from '../services/legacyMapSt
 import { createEngineeringMapStyle } from '../hooks/usePublicFloorMap';
 import { DEFAULT_GUIDANCE_COVERAGE_RADIUS_M, coverageRadiusForForm, parseCoverageRadius } from '../utils/guidanceCoverage.js';
 import { floorLabel } from '../utils/connectorForm.js';
+import SortableTableHeader from './SortableTableHeader';
+import useAdminTablePreferences from './useAdminTablePreferences';
 
 const GROUND_MAP_STYLE = extendAdminMapStyle(MBTILES_SATELLITE_STYLE);
 const BASEMENT_MAP_STYLE = createEngineeringMapStyle('fa');
+const itemsPerPage = 5;
 
 // RTL plugin initialization
 function ensureRtlOnce() {
@@ -141,15 +144,23 @@ const resolvePersistedImagePath = (image) => {
   );
 };
 
+const normalizeMark = (item) => ({
+  ...item,
+  title: item.title || 'بدون عنوان',
+  images: (item.images || []).map((image, index) => normalizeGuidanceImage(image, index)),
+  location: { lat: Number(item.latitude), lng: Number(item.longitude) }
+});
+
 const Marks = () => {
   const [marks, setMarks] = useState([]);
 
   // State management
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const { page: currentPage, search: searchTerm, sort,
+    setPage: setCurrentPage, setSearch: setSearchTerm, setSort } =
+    useAdminTablePreferences('guidance', ['id', 'title', 'sort_order']);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const listRequest = useRef(0);
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -183,43 +194,38 @@ const Marks = () => {
   const mapStyleRef = useRef(mapStyle);
   const [selectedLocation, setSelectedLocation] = useState(null);
 
-  // Filter marks based on search
-  const filteredMarks = marks;
-
-  // Pagination
-  const totalPages = Math.max(1, Math.ceil((totalItems || filteredMarks.length) / itemsPerPage));
-  const currentMarks = filteredMarks;
-  const normalizeMark = (item) => ({
-    ...item,
-    id: item.id,
-    title: item.title || 'بدون عنوان',
-    images: (item.images || []).map((image, index) => normalizeGuidanceImage(image, index)),
-    location: { lat: Number(item.latitude), lng: Number(item.longitude) },
-    x: item.x,
-    y: item.y,
-    floor: item.floor
-  });
-  const fetchMarks = async ({ page = currentPage } = {}) => {
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const fetchMarks = useCallback(async () => {
+    const requestId = ++listRequest.current;
     setIsLoading(true);
     try {
-      const params = new URLSearchParams();
-      params.set('page', String(page));
-      params.set('limit', String(itemsPerPage));
-      if (searchTerm?.trim()) params.set('search', searchTerm.trim());
+      const params = new URLSearchParams({ page: String(currentPage), limit: String(itemsPerPage), sort });
+      if (searchTerm.trim()) params.set('search', searchTerm.trim());
       const res = await apiAdmin.get(`/api/v1/admin/guidance-points?${params.toString()}`);
+      if (requestId !== listRequest.current) return false;
       const payload = res.data;
       if (!payload?.success) throw new Error(payload?.message || 'خطا در دریافت لیست نقاط');
       const list = Array.isArray(payload?.data) ? payload.data : [];
+      const total = Number(payload?.meta?.total ?? list.length);
+      const lastPage = Math.max(1, Math.ceil(total / itemsPerPage));
+      if (currentPage > lastPage) setCurrentPage(lastPage);
       setMarks(list.map(normalizeMark));
-      setTotalItems(Number(payload?.meta?.total || list.length));
+      setTotalItems(total);
+      return true;
     } catch (err) {
-      toast.error(err.message || 'خطا در دریافت لیست نقاط');
+      if (requestId === listRequest.current) toast.error(err.message || 'خطا در دریافت لیست نقاط');
+      return false;
     } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+      if (requestId === listRequest.current) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
     }
-  };
-  useEffect(() => { fetchMarks({ page: currentPage }); }, [currentPage, itemsPerPage]);
+  }, [currentPage, searchTerm, setCurrentPage, sort]);
+  useEffect(() => {
+    fetchMarks();
+    return () => { listRequest.current += 1; };
+  }, [fetchMarks]);
 
   // Initialize map function
   const initializeMap = (lat, lng) => {
@@ -564,8 +570,8 @@ const Marks = () => {
       setIsAddModalOpen(false);
       setDeletedImages([]);
       toast.success('نقطه جدید با موفقیت اضافه شد');
-      setCurrentPage(1);
-      fetchMarks({ page: 1 });
+      if (currentPage === 1) fetchMarks();
+      else setCurrentPage(1);
       setFormData({
         title: '',
         images: [],
@@ -642,7 +648,7 @@ const Marks = () => {
       setIsEditModalOpen(false);
       setDeletedImages([]);
       toast.success('نقطه با موفقیت ویرایش شد');
-      fetchMarks({ page: currentPage });
+      fetchMarks();
     }).catch((err) => {
       console.error('Edit guidance point failed:', err);
       setIsSaving(false);
@@ -665,7 +671,7 @@ const Marks = () => {
       setIsDeleteModalOpen(false);
       setDeletedImages([]);
       toast.success('نقطه با موفقیت حذف شد');
-      fetchMarks({ page: currentPage });
+      fetchMarks();
     }).catch((err) => {
       setIsSaving(false);
       toast.error(err.message || 'خطا در حذف نقطه');
@@ -675,9 +681,9 @@ const Marks = () => {
   // Handle refresh
   const handleRefresh = () => {
     setIsRefreshing(true);
-    setIsLoading(true);
-
-    fetchMarks({ page: currentPage }).then(() => toast.success('لیست نقاط به‌روزرسانی شد'));
+    fetchMarks().then((loaded) => {
+      if (loaded) toast.success('لیست نقاط به‌روزرسانی شد');
+    });
   };
 
   // Pagination handlers
@@ -805,7 +811,6 @@ const Marks = () => {
                 placeholder="جستجوی عنوان..."
                 value={searchTerm}
                 onChange={(e) => {
-                  setCurrentPage(1);
                   setSearchTerm(e.target.value);
                 }}
                 className="search-input7"
@@ -823,30 +828,33 @@ const Marks = () => {
 
       {/* Marks Table */}
       <div className="users-table-container">
-        <table className="users-table">
+        <table className="users-table" aria-busy={isLoading}>
           <thead>
             <tr>
+              <SortableTableHeader column="id" sort={sort} onSort={setSort}>شناسه</SortableTableHeader>
               <th>تصویر</th>
-              <th>عنوان</th>
+              <SortableTableHeader column="title" sort={sort} onSort={setSort}>عنوان</SortableTableHeader>
+              <SortableTableHeader column="sort_order" sort={sort} onSort={setSort}>ترتیب نمایش</SortableTableHeader>
               <th>عملیات</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan="3" style={{ textAlign: 'center', padding: '20px' }}>
+                <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>
                   در حال بارگذاری...
                 </td>
               </tr>
-            ) : currentMarks.length === 0 ? (
+            ) : marks.length === 0 ? (
               <tr>
-                <td colSpan="3" style={{ textAlign: 'center', padding: '20px' }}>
+                <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>
                   نقطه‌ای یافت نشد
                 </td>
               </tr>
             ) : (
-              currentMarks.map(mark => (
+              marks.map(mark => (
                 <tr key={mark.id}>
+                  <td>{mark.id}</td>
                   <td>
                     <div className="user-profile-cell">
                       <div className="profile-image-small2" style={{ position: 'relative' }}>
@@ -877,6 +885,7 @@ const Marks = () => {
                   <td>
                     <span className="username-cell-marks">{truncateText(mark.title, 8)}</span>
                   </td>
+                  <td>{mark.sort_order}</td>
                   <td>
                     <div className="Marks-admin-actions">
                       <button

@@ -20,6 +20,8 @@ import Usersigned from './Usersigned';
 import Userlogs from './Userlogs';
 import ActivityLogs from './ActivityLogs';
 import Marks from './Marks';
+import SortableTableHeader from './SortableTableHeader';
+import useAdminTablePreferences from './useAdminTablePreferences';
 
 import {
   booleanPointInPolygon as turfBooleanPointInPolygon,
@@ -88,6 +90,10 @@ import useConnectorForm from './useConnectorForm';
 import { usesSharedConnectorEditor, connectorError, connectorPayload, floorLabel, floorValue, SAME_FLOOR_STAIR_KIND } from '../utils/connectorForm';
 import { createDoorWithInfo, deactivateSameFloorStair, saveConnector, saveSameFloorStair } from '../services/adminConnectorsService';
 import { requestRouting } from '../services/routingService';
+
+const ADMIN_TABLE_VIEW_KEY = 'gp_admin_table_view';
+const SORTABLE_ADMIN_VIEWS = ['مدیریت اطلاعات فرهنگی', 'مدیریت نقاط راهنما'];
+const culturalItemsPerPage = 7;
 
 const EMPTY_AREA_ROUTING = { saved: 'default', selected: 'default', defaultRole: null };
 const AREA_ROUTING_LABELS = {
@@ -921,9 +927,20 @@ const Amain = () => {
   const canManageMap = hasAdminRole(adminProfile, ['مدیریت نقشه']);
   const canOpenView = (view) => canOpenAdminView(adminProfile, view);
   const firstAllowedView = [...REPORT_VIEWS, ...FACILITY_VIEWS].find(canOpenView) || null;
-  const [activeMenu, setActiveMenu] = useState(() => canSeeDashboard ? 'dashboard'
-    : REPORT_VIEWS.includes(firstAllowedView) ? 'reports'
-      : firstAllowedView ? 'facmanage' : 'none');
+  const [restoredTableView] = useState(() => {
+    try {
+      const view = window.sessionStorage.getItem(ADMIN_TABLE_VIEW_KEY);
+      return SORTABLE_ADMIN_VIEWS.includes(view) && canOpenView(view) ? view : null;
+    } catch {
+      return null;
+    }
+  });
+  const [activeMenu, setActiveMenu] = useState(() => {
+    if (restoredTableView) return 'facmanage';
+    if (canSeeDashboard) return 'dashboard';
+    if (REPORT_VIEWS.includes(firstAllowedView)) return 'reports';
+    return firstAllowedView ? 'facmanage' : 'none';
+  });
   const [dashboardSummary, setDashboardSummary] = useState({
     totalUsers: 0,
     successfulNavigations: 0,
@@ -1256,7 +1273,7 @@ const Amain = () => {
   const [vanLineCoordinates, setVanLineCoordinates] = useState([])
   const [isSavingVanRoute, setIsSavingVanRoute] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
-  const [facManagementOpen, setfacManagementOpen] = useState(false);
+  const [facManagementOpen, setfacManagementOpen] = useState(Boolean(restoredTableView));
   const [reportsManagementOpen, setReportsManagementOpen] = useState(false);
   const [users, setUsers] = useState([]);
   const [recentUsersPagination, setRecentUsersPagination] = useState({
@@ -1288,8 +1305,20 @@ const Amain = () => {
   
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const calendarRef = useRef(null);
-  const [breadcrumbPath, setBreadcrumbPath] = useState(['منوی اصلی', 'داشبورد', ' آمار کلی']);
-  const [currentReportView, setCurrentReportView] = useState(() => canSeeDashboard ? null : firstAllowedView);
+  const [breadcrumbPath, setBreadcrumbPath] = useState(() => restoredTableView
+    ? ['منوی اصلی', 'مدیریت امکانات', restoredTableView] : ['منوی اصلی', 'داشبورد', ' آمار کلی']);
+  const [currentReportView, setCurrentReportView] = useState(() => restoredTableView ?? (canSeeDashboard ? null : firstAllowedView));
+  useEffect(() => {
+    try {
+      if (activeMenu === 'facmanage' && SORTABLE_ADMIN_VIEWS.includes(currentReportView)) {
+        window.sessionStorage.setItem(ADMIN_TABLE_VIEW_KEY, currentReportView);
+      } else {
+        window.sessionStorage.removeItem(ADMIN_TABLE_VIEW_KEY);
+      }
+    } catch {
+      // The current view is still available without session storage.
+    }
+  }, [activeMenu, currentReportView]);
   const [pieChartTimeFilter, setPieChartTimeFilter] = useState('ماه اخیر');
   const [barChartTimeFilter, setBarChartTimeFilter] = useState('هفته اخیر');
   const [isPieChartFilterOpen, setIsPieChartFilterOpen] = useState(false);
@@ -1866,13 +1895,16 @@ const Amain = () => {
   const [iconListError, setIconListError] = useState('');
   const [iconSearchTerm, setIconSearchTerm] = useState('');
   const [culturalData, setCulturalData] = useState([]);
-  const [culturalSearchTerm, setCulturalSearchTerm] = useState('');
+  const {
+    page: culturalCurrentPage, search: culturalSearchTerm, sort: culturalSort,
+    setPage: setCulturalCurrentPage,
+    setSearch: setCulturalSearchTerm, setSort: setCulturalSort
+  } = useAdminTablePreferences('cultural', ['id', 'title', 'created_at']);
   const [isDeleteCulturalModalOpen, setIsDeleteCulturalModalOpen] = useState(false);
   const [culturalToDelete, setCulturalToDelete] = useState(null);
-  const [culturalCurrentPage, setCulturalCurrentPage] = useState(1);
-  const [culturalItemsPerPage, setCulturalItemsPerPage] = useState(7);
   const [culturalTotalItems, setCulturalTotalItems] = useState(0);
   const [isLoadingCultural, setIsLoadingCultural] = useState(false);
+  const culturalListRequest = useRef(0);
   const [culturalPoiId, setCulturalPoiId] = useState('');
   const [isCulturalQrModalOpen, setIsCulturalQrModalOpen] = useState(false);
   const [culturalQrDataUrl, setCulturalQrDataUrl] = useState('');
@@ -3336,22 +3368,32 @@ const Amain = () => {
   }, [currentPage, itemsPerPage, searchTerm, loadRecentUsers, canSeeDashboard]);
 
   const loadCulturalItems = useCallback(async () => {
+    const requestId = ++culturalListRequest.current;
     setIsLoadingCultural(true);
     try {
       const data = await fetchCulturalItems({
         page: culturalCurrentPage,
         pageSize: culturalItemsPerPage,
-        search: culturalSearchTerm
+        search: culturalSearchTerm,
+        sort: culturalSort
       });
+      if (requestId !== culturalListRequest.current) return false;
+      const total = Number(data.totalItems ?? 0);
+      const lastPage = Math.max(1, Math.ceil(total / culturalItemsPerPage));
+      if (culturalCurrentPage > lastPage) setCulturalCurrentPage(lastPage);
       setCulturalData(data.items || []);
-      setCulturalTotalItems(data.totalItems || 0);
+      setCulturalTotalItems(total);
+      return true;
     } catch (error) {
-      console.error('خطا در دریافت اطلاعات فرهنگی:', error);
-      toast.error('خطا در دریافت اطلاعات فرهنگی');
+      if (requestId === culturalListRequest.current) {
+        console.error('خطا در دریافت اطلاعات فرهنگی:', error);
+        toast.error('خطا در دریافت اطلاعات فرهنگی');
+      }
+      return false;
     } finally {
-      setIsLoadingCultural(false);
+      if (requestId === culturalListRequest.current) setIsLoadingCultural(false);
     }
-  }, [culturalCurrentPage, culturalItemsPerPage, culturalSearchTerm]);
+  }, [culturalCurrentPage, culturalSearchTerm, culturalSort, setCulturalCurrentPage]);
 
   const handleRefreshCategories = async (e) => {
     if (e) {
@@ -3381,11 +3423,7 @@ const Amain = () => {
     setIsRefreshingCultural(true);
 
     try {
-      await loadCulturalItems();
-      toast.success('جدول اطلاعات فرهنگی به روز رسانی شد');
-    } catch (error) {
-      console.error('به‌روزرسانی جدول اطلاعات فرهنگی ناموفق بود', error);
-      toast.error('به‌روزرسانی جدول اطلاعات فرهنگی ناموفق بود');
+      if (await loadCulturalItems()) toast.success('جدول اطلاعات فرهنگی به روز رسانی شد');
     } finally {
       setIsRefreshingCultural(false);
     }
@@ -3393,6 +3431,7 @@ const Amain = () => {
 
   useEffect(() => {
     if (canOpenAdminView(adminProfile, 'مدیریت اطلاعات فرهنگی')) loadCulturalItems();
+    return () => { culturalListRequest.current += 1; };
   }, [loadCulturalItems, adminProfile]);
 
   // Add these handler functions with other handler functions
@@ -3427,11 +3466,6 @@ const Amain = () => {
 
   const handleCulturalPageChange = (pageNumber) => {
     setCulturalCurrentPage(pageNumber);
-  };
-
-  const handleCulturalItemsPerPageChange = (value) => {
-    setCulturalItemsPerPage(parseInt(value));
-    setCulturalCurrentPage(1);
   };
 
   const buildCulturalQrPath = (item) => {
@@ -12256,12 +12290,13 @@ const Amain = () => {
 
               {/* Cultural Data Table */}
               <div className="cultural-table-container">
-                <table className="cultural-table">
+                <table className="cultural-table" aria-busy={isLoadingCultural}>
                   <thead>
                     <tr>
-                      <th>عنوان</th>
+                      <SortableTableHeader column="id" sort={culturalSort} onSort={setCulturalSort}>شناسه</SortableTableHeader>
+                      <SortableTableHeader column="title" sort={culturalSort} onSort={setCulturalSort}>عنوان</SortableTableHeader>
                       <th>آدرس در حرم</th>
-                      <th>تاریخ ایجاد</th>
+                      <SortableTableHeader column="created_at" sort={culturalSort} onSort={setCulturalSort}>تاریخ ایجاد</SortableTableHeader>
                       <th>توضیحات</th>
                       <th>عملیات</th>
                     </tr>
@@ -12275,6 +12310,7 @@ const Amain = () => {
 
                       return (
                         <tr key={item.id}>
+                          <td>{item.poiId ?? item.id}</td>
                           <td>
                             <div className="cultural-title-cell">
                               <div className="cultural-avatar">
@@ -12401,11 +12437,12 @@ const Amain = () => {
                   </div>
 
                   <div className="page-numbers">
-                    {getCulturalPageNumbers().map(page => (
+                    {getCulturalPageNumbers().map((page, index) => (
                       <button
-                        key={page}
-                        className={`page-number ${culturalCurrentPage === page ? 'active' : ''}`}
+                        key={page === '...' ? `ellipsis-${index}` : page}
+                        className={`page-number ${culturalCurrentPage === page ? 'active' : ''} ${page === '...' ? 'ellipsis' : ''}`}
                         onClick={() => handleCulturalPageChange(page)}
+                        disabled={page === '...'}
                       >
                         {page}
                       </button>
@@ -12419,7 +12456,7 @@ const Amain = () => {
                       disabled={culturalCurrentPage === totalCulturalPages}
                     >
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path fillRule="evenodd" clipRule="evenodd" d="M10.3254 2.95375C10.1157 2.77404 9.80007 2.79832 9.62036 3.00799L5.62036 7.67465C5.45987 7.8619 5.45987 8.1382 5.62036 8.32544L9.62036 12.9921C9.80007 13.2018 10.1157 13.2261 10.3254 13.0463C10.535 12.8666 10.5593 12.551 10.3796 12.3413L6.65853 8.00005L10.3796 3.65878C10.5593 3.44912 10.535 3.13347 10.3254 2.95375Z" fill={culturalCurrentPage === Math.ceil(filteredCulturalData.length / culturalItemsPerPage) ? "#C5C5C5" : "#0F71EF"} />
+                        <path fillRule="evenodd" clipRule="evenodd" d="M10.3254 2.95375C10.1157 2.77404 9.80007 2.79832 9.62036 3.00799L5.62036 7.67465C5.45987 7.8619 5.45987 8.1382 5.62036 8.32544L9.62036 12.9921C9.80007 13.2018 10.1157 13.2261 10.3254 13.0463C10.535 12.8666 10.5593 12.551 10.3796 12.3413L6.65853 8.00005L10.3796 3.65878C10.5593 3.44912 10.535 3.13347 10.3254 2.95375Z" fill={culturalCurrentPage === totalCulturalPages ? "#C5C5C5" : "#0F71EF"} />
                       </svg>
                     </button>
 
@@ -12429,7 +12466,7 @@ const Amain = () => {
                       disabled={culturalCurrentPage === totalCulturalPages}
                     >
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path fillRule="evenodd" clipRule="evenodd" d="M11.6584 2.95363C11.4487 2.77392 11.1331 2.7982 10.9534 3.00787L6.95337 7.67453C6.79287 7.86178 6.79287 8.13808 6.95337 8.32532L10.9534 12.992C11.1331 13.2017 11.4487 13.2259 11.6584 13.0462C11.8681 12.8665 11.8923 12.5509 11.7126 12.3412L7.99154 7.99993L11.7126 3.65866C11.8923 3.44899 11.8681 3.13334 11.6584 2.95363ZM8.9916 2.9537C8.78193 2.77399 8.46628 2.79827 8.28657 3.00793L4.28657 7.6746C4.12608 7.86185 4.12608 8.13815 4.28657 8.32539L8.28657 12.9921C8.46628 13.2017 8.78193 13.226 8.9916 13.0463C9.20126 12.8666 9.22554 12.5509 9.04583 12.3413L5.32474 8L9.04583 3.65873C9.22554 3.44906 9.20126 3.13341 8.9916 2.9537Z" fill={culturalCurrentPage === Math.ceil(filteredCulturalData.length / culturalItemsPerPage) ? "#C5C5C5" : "#0F71EF"} />
+                        <path fillRule="evenodd" clipRule="evenodd" d="M11.6584 2.95363C11.4487 2.77392 11.1331 2.7982 10.9534 3.00787L6.95337 7.67453C6.79287 7.86178 6.79287 8.13808 6.95337 8.32532L10.9534 12.992C11.1331 13.2017 11.4487 13.2259 11.6584 13.0462C11.8681 12.8665 11.8923 12.5509 11.7126 12.3412L7.99154 7.99993L11.7126 3.65866C11.8923 3.44899 11.8681 3.13334 11.6584 2.95363ZM8.9916 2.9537C8.78193 2.77399 8.46628 2.79827 8.28657 3.00793L4.28657 7.6746C4.12608 7.86185 4.12608 8.13815 4.28657 8.32539L8.28657 12.9921C8.46628 13.2017 8.78193 13.226 8.9916 13.0463C9.20126 12.8666 9.22554 12.5509 9.04583 12.3413L5.32474 8L9.04583 3.65873C9.22554 3.44906 9.20126 3.13341 8.9916 2.9537Z" fill={culturalCurrentPage === totalCulturalPages ? "#C5C5C5" : "#0F71EF"} />
                       </svg>
                     </button>
                   </div>

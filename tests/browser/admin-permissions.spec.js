@@ -30,6 +30,52 @@ async function openPanel(page, roleTitles, roles = [], mockApi) {
   return requests;
 }
 
+test('guidance table keeps search, selected page and sorting after edit and refresh', async ({ page }) => {
+  let point = { id: 17, title: 'راهنمای قدیمی', sort_order: 0, floor: 0, latitude: 36.288, longitude: 59.6157, images: [] };
+  await openPanel(page, [], ['manage_guidance_points'], async (request, path) => {
+    if (path === '/api/v1/admin/guidance-points' && request.method() === 'GET') {
+      return { success: true, data: [point], meta: { total: 10 } };
+    }
+    if (path === '/api/v1/admin/guidance-points/17' && request.method() === 'POST') {
+      point = { ...point, title: 'راهنمای جدید' };
+      return { success: true, data: point };
+    }
+  });
+
+  const waitForList = (sort, pageNumber, search = null) => page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === 'GET' && url.pathname === '/api/v1/admin/guidance-points'
+      && url.searchParams.get('sort') === sort && url.searchParams.get('page') === String(pageNumber)
+      && url.searchParams.get('search') === search;
+  });
+  const table = page.locator('.admins-page .users-table');
+  const secondPage = page.locator('.page-number.active').filter({ hasText: /^2$/ });
+  await expect(table.getByRole('columnheader', { name: 'شناسه' })).toHaveAttribute('aria-sort', 'descending');
+  const order = table.getByRole('columnheader', { name: 'ترتیب نمایش' });
+  await Promise.all([waitForList('sort_order:asc', 1), order.getByRole('button').click()]);
+  const search = page.getByPlaceholder('جستجوی عنوان...');
+  await Promise.all([waitForList('sort_order:asc', 1, 'راهنما'), search.fill('راهنما')]);
+  await Promise.all([waitForList('sort_order:asc', 2, 'راهنما'), page.getByRole('button', { name: '2', exact: true }).click()]);
+  await expect(secondPage).toBeVisible();
+
+  await table.locator('.edit-btn21').click();
+  const modal = page.getByRole('dialog', { name: 'ویرایش نقطه راهنما' });
+  const save = modal.getByRole('button', { name: 'ویرایش نقطه راهنما', exact: true });
+  await Promise.all([waitForList('sort_order:asc', 2, 'راهنما'), save.click()]);
+  await expect(modal).toBeHidden();
+  await expect(secondPage).toBeVisible();
+
+  await Promise.all([waitForList('sort_order:asc', 2, 'راهنما'), page.locator('.admins-page .refresh-btn').click()]);
+  await Promise.all([waitForList('sort_order:asc', 2, 'راهنما'), page.reload()]);
+  await expect(secondPage).toBeVisible();
+  await expect(order).toHaveAttribute('aria-sort', 'ascending');
+  await expect(search).toHaveValue('راهنما');
+
+  await Promise.all([waitForList('sort_order:desc', 1, 'راهنما'), order.getByRole('button').click()]);
+  await expect(order).toHaveAttribute('aria-sort', 'descending');
+  await expect(secondPage).toHaveCount(0);
+});
+
 test('limited role hides other sections and does not request their data', async ({ page }) => {
   const requests = await openPanel(page, ['مدیریت اطلاعات فرهنگی']);
   await expect(page.locator('#dashboard-menu-item-m')).toBeHidden();
