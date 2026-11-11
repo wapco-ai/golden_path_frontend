@@ -1,17 +1,18 @@
 import { test, expect } from '@playwright/test';
 import { DEFAULT_NAVIGATION_POLICY } from '../../src/services/navigationPolicy.js';
 
-async function setup(page, length = 40, observeMap = false) {
+async function setup(page, length = 40, observeMap = false, stepTest = false) {
   await page.clock.install();
   await page.setViewportSize({ width: 360, height: 780 });
-  await page.addInitScript(length => {
-    const coordinates = [[59.615, 36.287], [59.615, 36.287 + length / 2 / 111195], [59.615, 36.287 + length / 111195]];
+  await page.addInitScript(({ length, stepTest }) => {
+    const middle = stepTest ? 0.15 : 0.5;
+    const coordinates = [[59.615, 36.287], [59.615, 36.287 + length * middle / 111195], [59.615, 36.287 + length / 111195]];
     const state = { origin: { name: 'مبدأ', coordinates: [36.287, 59.615], floor: 0 },
       destination: { name: 'مقصد', coordinates: [coordinates[2][1], 59.615], floor: 0 },
       routeGeo: { type: 'Feature', geometry: { type: 'LineString', coordinates },
         properties: { floor: 0, distanceMeters: length, durationSeconds: length } },
       routeSteps: coordinates.map(([lon, lat], i) => ({ type: i === 0 ? 'stepStart' : i === 2 ? 'stepArriveDestination' : 'stepGoStraight',
-        routeM: i / 2, coord: { lon, lat }, instruction: `مرحله ${i + 1}` })),
+        routeM: [0, middle, 1][i], coord: { lon, lat }, instruction: `مرحله ${i + 1}` })),
       alternativeRoutes: [], transportMode: 'walk', gender: 'female' };
     localStorage.setItem('route-storage', JSON.stringify({ state, version: 1 }));
     for (const [key, value] of Object.entries(state)) sessionStorage.setItem(key, JSON.stringify(value));
@@ -21,7 +22,13 @@ async function setup(page, length = 40, observeMap = false) {
     Object.defineProperty(navigator, 'geolocation', { configurable: true, value: {
       getCurrentPosition() { window.gpsCalls++; }, watchPosition() { window.gpsCalls++; return 1; }, clearWatch() {}
     } });
-    window.DeviceMotionEvent = class extends Event {};
+    window.motionPermissionRequests = 0;
+    window.DeviceMotionEvent = class extends Event {
+      static requestPermission() {
+        window.motionPermissionRequests++;
+        return Promise.resolve('granted');
+      }
+    };
     window.DeviceOrientationEvent = class extends Event {};
     window.motionTime = 1000;
     window.compass = bearing => {
@@ -45,13 +52,13 @@ async function setup(page, length = 40, observeMap = false) {
         else emitMotion(acceleration);
       });
     };
-  }, length);
+  }, { length, stepTest });
   await page.route('**/api/v1/**', route => route.fulfill({ json: { status: 'NO_MATCH', data: [], features: [] } }));
   await page.route('**/api/v1/navigation-settings', route => route.fulfill({ json: { policy: DEFAULT_NAVIGATION_POLICY, version: 1, walk_speed_mps: 1.2 } }));
   await page.route('**/tiles/**', route => route.fulfill({ status: 204 }));
   await page.route('**/tms/**', route => route.fulfill({ status: 204 }));
   if (observeMap) {
-    await page.goto('/#/');
+    await page.goto(stepTest ? '/?step-test=1#/' : '/#/');
     await page.evaluate(async () => {
       const source = await (await fetch('/src/components/map/RouteMap.jsx')).text();
       const modulePath = source.match(/["']([^"']*\/maplibre-gl\.js\?[^"']+)["']/)?.[1];
@@ -64,7 +71,7 @@ async function setup(page, length = 40, observeMap = false) {
     });
     await page.evaluate(() => { window.location.hash = '#/rng'; });
   } else {
-    await page.goto('/#/rng');
+    await page.goto(stepTest ? '/?step-test=1#/rng' : '/#/rng');
   }
   await page.locator('.start-routing-button').click();
   await expect(page.getByRole('button', { name: 'توقف موقت', exact: true })).toBeVisible();
@@ -81,7 +88,24 @@ test('Haram default ignores GPS and reaches the destination using actual motion 
   await setup(page);
   await walk(page, 58);
   await expect(page.locator('.routing-page')).toHaveAttribute('data-navigation-mode', 'arrived');
+  await expect(page.locator('.instruction-text')).toHaveText('به مقصد رسیدید.');
+  await expect(page.getByTestId('step-diagnostics')).toHaveCount(0);
   expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
+});
+
+test('step-test counts sensor steps and distinguishes the final instruction from arrival', async ({ page }) => {
+  await setup(page, 40, false, true);
+  await expect(page.getByTestId('step-diagnostic-steps')).toHaveText('0');
+  await walk(page, 2);
+  const routing = page.locator('.routing-page');
+  await expect(routing).toHaveAttribute('data-current-step', '1');
+  await expect(routing).toHaveAttribute('data-navigation-mode', 'live');
+  await expect(page.locator('.instruction-text')).toHaveText('به مسیر تا مقصد ادامه دهید.');
+  await expect(page.getByTestId('step-diagnostic-samples')).toHaveText('24');
+  await expect(page.getByTestId('step-diagnostic-steps')).toHaveText('2');
+  await expect(page.getByTestId('step-diagnostic-distance')).toHaveText('1.4');
+  await expect(page.getByTestId('step-diagnostic-progress')).toHaveText('1.4');
+  await expect(page.getByTestId('step-diagnostic-state')).toHaveText('فعال · 2');
 });
 
 test('live map rotates without steps and manual-origin walking advances after a sparse compass update', async ({ page }) => {
@@ -155,6 +179,60 @@ test('pause and confirmed resume preserve cumulative uncertainty without GPS', a
   expect(after).toBe(before);
   await walk(page, 3);
   expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
+});
+
+test('pause and resume keep the map position, accept late sensor data, and require real arrival', async ({ page }) => {
+  await setup(page, 40, true, true);
+  await walk(page, 10);
+  const state = page.locator('.routing-page');
+  const pause = page.getByRole('button', { name: 'توقف موقت', exact: true });
+  const resume = page.getByRole('button', { name: 'ادامه مسیر', exact: true });
+  const steps = page.getByTestId('step-diagnostic-steps');
+  const progress = page.getByTestId('step-diagnostic-progress');
+  const mapState = () => page.evaluate(() => {
+    const map = window.rngMap;
+    return {
+      bearing: map.getBearing(),
+      remainingStart: map.getSource('remaining-route').serialize().data.geometry.coordinates[0][1],
+    };
+  });
+  await expect(steps).toHaveText('10');
+  const before = await mapState();
+  const progressBefore = await progress.innerText();
+  await pause.click();
+  await walk(page, 2);
+  await expect(steps).toHaveText('10');
+  expect(await mapState()).toEqual(before);
+
+  page.once('dialog', dialog => dialog.accept());
+  await resume.click();
+  await page.clock.runFor(11000);
+  await expect(progress).toHaveText(progressBefore);
+  expect((await mapState()).remainingStart).toBeCloseTo(before.remainingStart, 8);
+
+  await page.evaluate(() => window.compass(45));
+  await page.clock.runFor(650);
+  await expect.poll(async () => (await mapState()).bearing).toBeCloseTo(45, 1);
+  await expect(steps).toHaveText('10');
+  await walk(page, 1);
+  await expect(steps).toHaveText('11');
+  expect((await mapState()).remainingStart).toBeGreaterThan(before.remainingStart);
+  await expect(state).toHaveAttribute('data-navigation-mode', 'live');
+  await expect(page.locator('.instruction-text')).toHaveText('به مسیر تا مقصد ادامه دهید.');
+
+  // Pause again after the first qualifying observation near the destination.
+  await walk(page, 42);
+  await expect(steps).toHaveText('53');
+  await expect(state).toHaveAttribute('data-navigation-mode', 'live');
+  await pause.click();
+  page.once('dialog', dialog => dialog.accept());
+  await resume.click();
+  await walk(page, 1);
+  await expect(state).toHaveAttribute('data-navigation-mode', 'live');
+  await walk(page, 1);
+  await expect(state).toHaveAttribute('data-navigation-mode', 'arrived');
+  await expect(page.locator('.instruction-text')).toHaveText('به مقصد رسیدید.');
+  expect(await page.evaluate(() => [window.gpsCalls, window.motionPermissionRequests])).toEqual([0, 1]);
 });
 
 async function openAdminPanel(page, profile) {
