@@ -11986,7 +11986,7 @@ const Amain = () => {
                                 </div>
                                 <span className="audio-file-name-edit">{audio.name}</span>
                               </div>
-                              <button className="remove-file-btn-small-edit" onClick={() => handleRemoveFile(audio.id, 'audio')}>
+                              <button type="button" className="remove-file-btn-small-edit" aria-label={`حذف ${audio.name}`} onClick={() => handleRemoveFile(audio.id, 'audio')}>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                   <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                                   <path d="M18 6l-12 12" />
@@ -12026,7 +12026,7 @@ const Amain = () => {
                                 </div>
                                 <span className="text-file-name-edit">{textFile.name}</span>
                               </div>
-                              <button className="remove-file-btn-small-edit" onClick={() => handleRemoveFile(textFile.id, 'text')}>
+                              <button type="button" className="remove-file-btn-small-edit" aria-label={`حذف ${textFile.name}`} onClick={() => handleRemoveFile(textFile.id, 'text')}>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                   <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                                   <path d="M18 6l-12 12" />

@@ -203,6 +203,43 @@ test('saving a removed video updates only media references and leaves a shared s
   expect(deletes).toEqual([]); expect(errors).toEqual([]);
 });
 
+test('audio and document remove buttons sit inside their rows and save only the remaining attachments', async ({ page }) => {
+  const otherAudio = { ...media[2], url: '/storage/keep.mp3', path: 'uploads/contents/7/audio/keep.mp3', name: 'keep.mp3' };
+  const otherDocument = { ...media[3], url: '/storage/keep.pdf', path: 'uploads/contents/7/files/keep.pdf', name: 'keep.pdf' };
+  const { writes, uploads, deletes, errors } = await setup(page, { mediaItems: [...media, otherAudio, otherDocument] });
+  await openEdit(page);
+
+  for (const [selector, name] of [['.audio-file-item-edit', 'sound.mp3'], ['.text-file-item-edit', 'guide.pdf']]) {
+    const row = page.locator(selector).filter({ hasText: name });
+    const button = row.getByRole('button', { name: `حذف ${name}`, exact: true });
+    await row.scrollIntoViewIfNeeded();
+    await expect(button).toBeVisible();
+    const rowBox = await row.boundingBox();
+    const buttonBox = await button.boundingBox();
+    expect(buttonBox.x).toBeGreaterThanOrEqual(rowBox.x);
+    expect(buttonBox.y).toBeGreaterThanOrEqual(rowBox.y);
+    expect(buttonBox.x + buttonBox.width).toBeLessThanOrEqual(rowBox.x + rowBox.width);
+    expect(buttonBox.y + buttonBox.height).toBeLessThanOrEqual(rowBox.y + rowBox.height);
+    await button.click();
+    await expect(row).toHaveCount(0);
+  }
+
+  await page.getByRole('button', { name: 'ثبت تغییرات', exact: true }).click();
+  await expect.poll(() => writes.length).toBe(1);
+  for (const { media: savedMedia } of Object.values(writes[0].translations)) {
+    expect(savedMedia.map(file => file.path)).toEqual([media[0], media[1], otherAudio, otherDocument].map(file => file.path));
+  }
+  await expect(page.locator('.edit-cultural-page')).toHaveCount(0);
+  await page.locator('.edit-cultural-btn').first().click();
+  await expect(page.locator('.audio-files-list-edit')).toContainText('keep.mp3');
+  await expect(page.locator('.text-files-list-edit')).toContainText('keep.pdf');
+  await expect(page.getByRole('button', { name: 'حذف sound.mp3' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'حذف guide.pdf' })).toHaveCount(0);
+  expect(uploads).toEqual([]);
+  expect(deletes).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
 test('an audio file with generic browser MIME reaches the existing details modal', async ({ page }) => {
   const { dialogs, uploads, errors } = await setup(page); await openEdit(page);
   await page.locator('.edit-file-subsection input[accept^="audio/*"]').setInputFiles({ name: 'local.mp3', mimeType: 'application/octet-stream', buffer: Buffer.from('ID3') });
