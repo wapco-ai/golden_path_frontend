@@ -15,7 +15,6 @@ import DeadReckoningControls from '../components/map/DeadReckoningControls';
 import advancedDeadReckoningService, { DR_MAX_ANCHOR_AGE, DR_MAX_UNCERTAINTY } from '../services/AdvancedDeadReckoningService';
 import { NavigationProgressTracker } from '../utils/navigationProgressTracker.js';
 import '../styles/Routing.css';
-import '../styles/NavigationWarning.css';
 import { useRouteStore } from '../store/routeStore';
 import { useLangStore } from '../store/langStore';
 import { getPointFloor } from '../utils/floors';
@@ -41,7 +40,6 @@ const ROUTE_OVERVIEW_HISTORY_KEY = 'routingRouteOverviewHistory';
 
 const RoutingPage = () => {
   const policy = getNavigationPolicy();
-  const [navigationWarning, setNavigationWarning] = useState(null);
   const [snappedGeo, setSnappedGeo] = useState(null);
   const {
     origin, destination, routeSteps, routeGeo, alternativeRoutes, transportMode, gender,
@@ -114,7 +112,7 @@ const RoutingPage = () => {
   const activeSnapshot = useRef(null);
   const [liveRouteM, setLiveRouteM] = useState(null);
   const [drAccuracy, setDrAccuracy] = useState(null);
-  const resetProgress = (routeM = null) => { progressTracker.current.reset(routeM); setLiveRouteM(routeM); setSnappedGeo(null); setNavigationWarning(null); };
+  const resetProgress = (routeM = null) => { progressTracker.current.reset(routeM); setLiveRouteM(routeM); setSnappedGeo(null); };
   const [selectedSoundOption, setSelectedSoundOption] = useState('on');
   const [isRoutingActive, setIsRoutingActive] = useState(Boolean(pausedNavigation));
   const [isClosingEmergency, setIsClosingEmergency] = useState(false);
@@ -1087,7 +1085,7 @@ const RoutingPage = () => {
   activeSnapshot.current = isRoutingActive && !isDemoMode && !isPaused
     ? { key: pauseKey, step: currentStep, frame: navigationFrame, startedAt: Date.now(),
       dr: { geo: drPosition, accuracy: drAccuracy, distance: advancedDeadReckoningService.distanceSinceAnchor,
-        routeM: liveRouteM, warning: navigationWarning, blocked: progressTracker.current.blocked } } : null;
+        routeM: liveRouteM, warning: progressTracker.current.warning, blocked: progressTracker.current.blocked } } : null;
   const effectiveHeading = navigationFrame.heading;
   const navigationLocation = useMemo(() => navigationFrame.geo
     ? [navigationFrame.geo.lat, navigationFrame.geo.lng] : userLocation,
@@ -1423,7 +1421,6 @@ const RoutingPage = () => {
       mode: transportMode, now: positionClock });
     setLiveRouteM(progressTracker.current.routeM);
     setSnappedGeo(progressTracker.current.snappedGeo);
-    setNavigationWarning(progressTracker.current.warning);
     if (progress.nextStep !== currentStep) setCurrentStep(progress.nextStep);
     if (progress.arrived) {
       setHasArrived(true);
@@ -1605,7 +1602,6 @@ const RoutingPage = () => {
       progressTracker.current.distance = paused.dr.distance;
       progressTracker.current.blocked = Boolean(paused.dr.blocked);
       progressTracker.current.warning = paused.dr.warning;
-      setNavigationWarning(paused.dr.warning);
       updatePause(null);
       setPositionClock(Date.now());
       advancedDeadReckoningService.start(paused.dr.geo, { accuracy: paused.dr.accuracy,
@@ -1710,7 +1706,6 @@ const RoutingPage = () => {
       resetProgress();
       tracker.distance = advancedDeadReckoningService.distanceSinceAnchor;
       tracker.blocked = blocked; tracker.warning = warning;
-      setNavigationWarning(warning);
       if (confirmsFloor) {
         setSessionFloor(guideStep.toFloor);
         const next = routeData.steps[currentStep + 1];
@@ -2172,15 +2167,6 @@ const RoutingPage = () => {
 
       {/* Map Section */}
       <div className="map-section">
-        {isRoutingActive && !isDemoMode && !policy.gps_enabled && navigationWarning && (
-          <div className="navigation-uncertainty-warning" role="alert" data-testid="navigation-warning">
-            {language === 'fa' ? (['uncertainty', 'off_route', 'ambiguous'].includes(navigationWarning)
-              ? `موقعیت قابل اتکا نیست (حد خطا ${policy.warning_uncertainty_m} متر). تأیید رسیدن متوقف است؛ برای اصلاح موقعیت QR نزدیک را اسکن کنید.`
-              : 'موقعیت یا جهت معتبر در دسترس نیست؛ پیشروی خودکار و تأیید رسیدن موقتاً متوقف است.')
-              : language === 'ar' ? 'الموقع غير موثوق. تأكيد الوصول متوقف؛ امسح رمز QR قريباً لتصحيح الموقع.'
-              : 'Position is uncertain. Automatic arrival is paused; scan a nearby QR to correct your position.'}
-          </div>
-        )}
         {showGpsOffline && !isGpsNoticeDismissed && (
           <div
             ref={gpsNoticeRef}
