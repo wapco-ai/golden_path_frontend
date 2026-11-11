@@ -96,7 +96,7 @@ test('pause and confirmed resume preserve cumulative uncertainty without GPS', a
   expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
 });
 
-async function openAdminPanel(page, roles) {
+async function openAdminPanel(page, profile) {
   await page.addInitScript(() => {
     sessionStorage.setItem('gp_admin_access_token', 'browser-fixture-only');
   });
@@ -105,7 +105,7 @@ async function openAdminPanel(page, roles) {
     if (pathname.endsWith('/admin/navigation-settings')) return route.fallback();
     if (pathname.endsWith('/floors')) return route.fulfill({ json: [{ floor: 0, label: 'همکف' }] });
     const json = pathname.endsWith('/admin/auth/me')
-      ? { id: 1, roles, permissions: [] }
+      ? { id: 1, permissions: [], ...profile }
       : { data: [], total: 0 };
     return route.fulfill({ json });
   });
@@ -128,7 +128,9 @@ test('dashboard administrator opens settings from the account menu and saves the
     await route.fulfill({ json: settings });
   });
 
-  const accountMenu = await openAdminPanel(page, ['super_dashboard_admin']);
+  const accountMenu = await openAdminPanel(page, {
+    roles: ['super_dashboard_admin'], canManageNavigationSettings: true,
+  });
   const settingsEntry = accountMenu.getByRole('button', { name: 'تنظیمات', exact: true });
   const form = page.locator('.settings-modal-container');
   await expect(form).toHaveCount(0);
@@ -151,13 +153,15 @@ test('dashboard administrator opens settings from the account menu and saves the
   await expect(limit).toHaveValue('25');
 });
 
-test('reports administrators cannot open navigation settings from the account menu', async ({ page }) => {
+test('another dashboard administrator cannot open navigation settings from the account menu', async ({ page }) => {
   let settingsRequests = 0;
   await page.route('**/api/v1/admin/navigation-settings', route => {
     settingsRequests++;
     return route.fulfill({ status: 403 });
   });
-  const accountMenu = await openAdminPanel(page, ['manage_reports']);
+  const accountMenu = await openAdminPanel(page, {
+    roles: ['super_dashboard_admin'], canManageNavigationSettings: false,
+  });
   await expect(accountMenu.getByRole('button', { name: 'تنظیمات', exact: true })).toHaveCount(0);
   await expect(page.locator('.settings-modal-container')).toHaveCount(0);
   expect(settingsRequests).toBe(0);

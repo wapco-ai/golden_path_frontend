@@ -874,7 +874,7 @@ const Amain = () => {
   const API_BASE = `${appConfig.apiBaseUrl}/api/v1/admin`;
   const notificationAccountKey = `${adminProfile?.id ?? adminProfile?.adminId ?? adminProfile?.username ?? adminProfile?.email ?? 'admin'}:${accessToken || (typeof window !== 'undefined' ? window.sessionStorage.getItem(ADMIN_ACCESS_TOKEN_KEY) : '') || ''}`;
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
-  const canManageNavigationSettings = hasAdminRole(adminProfile, ['ادمین کل داشبورد']);
+  const canManageNavigationSettings = adminProfile?.canManageNavigationSettings === true;
   const canSeeDashboard = hasAdminRole(adminProfile, ['ادمین کل داشبورد', 'مدیریت گزارشات']);
   const canManageMap = hasAdminRole(adminProfile, ['مدیریت نقشه']);
   const canOpenView = (view) => canOpenAdminView(adminProfile, view);
