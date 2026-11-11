@@ -29,7 +29,7 @@ async function setup(page, length = 40, observeMap = false) {
       Object.assign(heading, { alpha: (360 - bearing) % 360, absolute: true });
       window.dispatchEvent(heading);
     };
-    window.walkCycle = (withHeading = true, paced = false) => {
+    window.walkCycle = (withHeading = true, paced = false, idle = false) => {
       if (withHeading) window.compass(0);
       const emitMotion = z => {
         const motion = new Event('devicemotion');
@@ -40,8 +40,9 @@ async function setup(page, length = 40, observeMap = false) {
         window.dispatchEvent(motion);
       };
       [9.8, 9.8, 10.5, 12.4, 13, 11, 9.6, 9.2, 9.7, 9.8, 9.8, 9.8].forEach((z, i) => {
-        if (paced) setTimeout(() => emitMotion(z), i * 50);
-        else emitMotion(z);
+        const acceleration = idle ? 9.8 : z;
+        if (paced) setTimeout(() => emitMotion(acceleration), i * 50);
+        else emitMotion(acceleration);
       });
     };
   }, length);
@@ -90,14 +91,20 @@ test('live map rotates without steps and manual-origin walking advances after a 
     if (!map) return null;
     return {
       bearing: map.getBearing(),
+      moving: map.isMoving(),
       latitude: map.getCenter().lat,
       remainingStart: map.getSource('remaining-route')?.serialize().data?.geometry?.coordinates?.[0]?.[1],
     };
   });
-  await expect.poll(mapFrame, { timeout: 20000 }).not.toBeNull();
+  await page.evaluate(() => window.walkCycle(false, true, true));
+  await page.clock.runFor(650);
+  await expect.poll(async () => (await mapFrame())?.moving, { timeout: 20000 }).toBe(false);
   const initial = await mapFrame();
-  await page.evaluate(() => window.compass(45));
-  await page.clock.runFor(500);
+  await page.evaluate(() => {
+    window.compass(45);
+    window.walkCycle(false, true, true);
+  });
+  await page.clock.runFor(650);
   const turned = await mapFrame();
   expect(turned.bearing).toBeCloseTo(45, 1);
   expect(turned.latitude).toBeCloseTo(initial.latitude, 7);

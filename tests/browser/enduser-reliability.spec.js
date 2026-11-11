@@ -150,7 +150,7 @@ test('saved-place search uses real POIs rather than the missing vector tile laye
 test('language service outage still permits entering the application', async ({ page }) => {
   await page.route('**/api/v1/languages', route => route.abort());
   await page.goto('/#/');
-  await expect(page.locator('.lang-option')).toHaveCount(4);
+  await expect(page.locator('.lang-option, .lang-dropdown-item')).toHaveCount(4);
   await expect(page.locator('.lang-login-btn')).toBeEnabled();
   await page.locator('.lang-login-btn').click();
   await expect(page).toHaveURL(/#\/mpb$/);
