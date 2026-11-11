@@ -115,6 +115,12 @@ test('the home map shows the requested device location without enabling GPS for 
     if (url.pathname.endsWith('/navigation-settings')) {
       return route.fulfill({ json: { policy: DEFAULT_NAVIGATION_POLICY } });
     }
+    if (url.pathname.endsWith('/qrcodes/invalid-qr')) {
+      return route.fulfill({ status: 404, json: {} });
+    }
+    if (url.pathname.endsWith('/qrcodes/verified-qr')) {
+      return route.fulfill({ json: { id: 'verified-qr', coordinates: [36.287, 59.615], floor: -1, title: 'QR' } });
+    }
     if (url.pathname.endsWith('/landmark-places')) {
       landmarkRequests.push(url.searchParams);
       return route.fulfill({ json: { places: { landmarkPlaces: [] } } });
@@ -129,7 +135,9 @@ test('the home map shows the requested device location without enabling GPS for 
   await page.goto('/#/mpb');
   const locate = page.locator('.map-gps-button');
   const marker = page.locator('.map-marker-origin');
+  const canvas = page.locator('.maplibregl-canvas');
   await expect(locate).toBeVisible();
+  await expect(canvas).toBeVisible();
   expect(await page.evaluate(() => window.gpsCalls)).toEqual([]);
   await expect(marker).toHaveCount(0);
 
@@ -139,9 +147,67 @@ test('the home map shows the requested device location without enabling GPS for 
   expect(landmarkRequests.length).toBeGreaterThan(0);
   expect(landmarkRequests.every(params => !params.has('geo[lat]') && !params.has('geo[lng]'))).toBe(true);
 
+  const markerX = async () => (await marker.boundingBox()).x;
+  const centeredX = await markerX();
+  const mapBounds = await canvas.boundingBox();
+  const x = mapBounds.x + 105;
+  const y = mapBounds.y + 145;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 65, y, { steps: 10 });
+  await page.mouse.up();
+  await expect.poll(markerX).toBeGreaterThan(centeredX + 25);
+  await page.mouse.move(x + 65, y);
+  await page.mouse.wheel(0, 180);
+  await expect(locate).toHaveClass(/\bactive\b/);
+  await expect(marker).toBeVisible();
+  await expect.poll(markerX).toBeGreaterThan(centeredX + 25);
+  expect(await page.evaluate(() => window.gpsCalls)).toEqual(['getCurrentPosition', 'watchPosition']);
+  const afterPan = await markerX();
+  await context.setGeolocation({ latitude: 36.289, longitude: 59.6171, accuracy: 12 });
+  await expect.poll(markerX).toBeGreaterThan(afterPan + 2);
+
   await locate.click();
   await expect(marker).toHaveCount(0);
   expect(await page.evaluate(() => window.gpsCalls.at(-1))).toBe('clearWatch');
+
+  await locate.click();
+  await expect(marker).toBeVisible();
+  const qrLink = id => page.evaluate(code => { window.location.hash = '#/location?lat=1&lng=2&id=' + code; }, id);
+  const invalidLookup = page.waitForResponse('**/qrcodes/invalid-qr?**');
+  await qrLink('invalid-qr');
+  await invalidLookup;
+  await expect(page).toHaveURL(/#\/mpb$/);
+  await expect(marker).toBeVisible();
+  expect(await page.evaluate(() => window.gpsCalls.at(-1))).toBe('watchPosition');
+
+  let finishLookup;
+  const pendingLookup = new Promise(resolve => { finishLookup = resolve; });
+  await page.route('**/qrcodes/cancelled-qr?**', async route => {
+    await pendingLookup;
+    await route.fulfill({ json: { id: 'cancelled-qr', coordinates: [36.288, 59.616], floor: 0 } }).catch(() => {});
+  });
+  try {
+    const lookupStarted = page.waitForRequest('**/qrcodes/cancelled-qr?**');
+    await qrLink('cancelled-qr');
+    await lookupStarted;
+    await expect(marker).toBeVisible();
+    await page.evaluate(() => { window.location.hash = '#/mpb'; });
+    await expect(page).toHaveURL(/#\/mpb$/);
+  } finally {
+    finishLookup();
+  }
+  await expect(marker).toBeVisible();
+  expect(await page.evaluate(() => window.gpsCalls.at(-1))).toBe('watchPosition');
+
+  await qrLink('verified-qr');
+  await expect(locate).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => window.gpsCalls.at(-1))).toBe('clearWatch');
+  expect(await page.evaluate(() => ['qrLat', 'qrLng', 'qrFloor'].map(key => sessionStorage.getItem(key))))
+    .toEqual(['36.287', '59.615', '-1']);
+  await page.evaluate(() => { window.location.hash = '#/mpb'; });
+  await expect(marker).toBeVisible();
+  await expect(locate).toHaveClass(/\binactive\b/);
 });
 
 test('step-test counts sensor steps and distinguishes the final instruction from arrival', async ({ page }) => {
