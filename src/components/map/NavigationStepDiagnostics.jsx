@@ -6,27 +6,23 @@ const labels = {
     title: 'آزمایش قدم‌شمار', samples: 'نمونه‌های حرکت', steps: 'قدم‌های ثبت‌شده',
     signal: 'بیشینهٔ سیگنال / حد تشخیص', heading: 'جهت معتبر', anchor: 'مبدأ معتبر',
     distance: 'مسافت حسگر (متر)', progress: 'پیشروی روی خط (متر)',
-    length: 'طول خط مسیر (متر)', uncertainty: 'خطای برآوردی (متر)',
+    length: 'طول خط مسیر (متر)', routeDistance: 'فاصلهٔ تخمینی از خط مسیر (متر)',
     state: 'وضعیت سفر', yes: 'بله', no: 'خیر',
     modes: { live: 'فعال', paused: 'متوقف', arrived: 'رسیدن تأیید شد', preview: 'پیش‌نمایش', demo: 'دمو' },
-    reasons: { position: 'موقعیت معتبر در دسترس نیست', heading: 'جهت نامعتبر یا ناسازگار با مسیر',
-      uncertainty: 'خطا از حد گذشته', off_route: 'خارج از مسیر', ambiguous: 'بخش مسیر مبهم است' },
   },
   en: {
     title: 'Step detector test', samples: 'Motion samples', steps: 'Detected steps',
     signal: 'Peak signal / detection threshold', heading: 'Valid heading', anchor: 'Valid anchor',
     distance: 'Sensor distance (m)', progress: 'Progress on route (m)',
-    length: 'Route geometry length (m)', uncertainty: 'Estimated uncertainty (m)',
+    length: 'Route geometry length (m)', routeDistance: 'Estimated distance from route (m)',
     state: 'Trip status', yes: 'Yes', no: 'No',
     modes: { live: 'Active', paused: 'Paused', arrived: 'Arrival confirmed', preview: 'Preview', demo: 'Demo' },
-    reasons: { position: 'No valid position', heading: 'Invalid or mismatched heading',
-      uncertainty: 'Above uncertainty limit', off_route: 'Off route', ambiguous: 'Ambiguous route segment' },
   },
 };
 
 const decimal = value => Number.isFinite(value) ? value.toFixed(1) : '—';
 
-export default function NavigationStepDiagnostics({ service, tracker, mode, stage, routeLength, language }) {
+export default function NavigationStepDiagnostics({ service, tracker, mode, stage, routeLength, language, routeDistance }) {
   const text = labels[language] ?? labels.en;
   const reading = service.getStepDiagnostics();
   const values = [
@@ -38,8 +34,8 @@ export default function NavigationStepDiagnostics({ service, tracker, mode, stag
     ['distance', decimal(reading.distance)],
     ['progress', decimal(tracker.along ?? 0)],
     ['length', decimal(routeLength)],
-    ['uncertainty', decimal(reading.uncertainty)],
-    ['state', [text.modes[mode], stage, mode === 'live' ? text.reasons[tracker.warning] : null].filter(Boolean).join(' · ')],
+    ['routeDistance', decimal(routeDistance)],
+    ['state', [text.modes[mode], stage].filter(Boolean).join(' · ')],
   ];
 
   return (

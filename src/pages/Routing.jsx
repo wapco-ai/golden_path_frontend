@@ -104,6 +104,7 @@ const RoutingPage = () => {
   const mountedRef = useRef(true);
   const [gpsTimestamp, setGpsTimestamp] = useState(null);
   const [drTimestamp, setDrTimestamp] = useState(null);
+  const [drStepTimestamp, setDrStepTimestamp] = useState(null);
   const [positionClock, setPositionClock] = useState(Date.now());
   const gpsFixRef = useRef(null);
   const entryQr = readQrPoint();
@@ -113,13 +114,16 @@ const RoutingPage = () => {
   const progressTracker = useRef(new NavigationProgressTracker());
   const activeSnapshot = useRef(null);
   const [liveRouteM, setLiveRouteM] = useState(null);
+  const [routeDistance, setRouteDistance] = useState(null);
   const [drAccuracy, setDrAccuracy] = useState(null);
-  const resetProgress = (routeM = null, distance = 0, displayGeo = null) => {
+  const resetProgress = (routeM = null, distance = 0, displayGeo = null, discrepancy = null) => {
     const tracker = progressTracker.current;
     tracker.reset(routeM, distance);
     tracker.snappedGeo = displayGeo;
+    tracker.routeDistance = discrepancy;
     setLiveRouteM(routeM);
     setSnappedGeo(displayGeo);
+    setRouteDistance(discrepancy);
   };
   const [selectedSoundOption, setSelectedSoundOption] = useState('on');
   const [isRoutingActive, setIsRoutingActive] = useState(Boolean(pausedNavigation));
@@ -369,6 +373,7 @@ const RoutingPage = () => {
     const remove = advancedDeadReckoningService.addListener(data => {
       setIsDrActive(data.isActive);
       setDrTimestamp(data.positionTimestamp);
+      setDrStepTimestamp(data.stepTimestamp);
       setDrAccuracy(data.positionAccuracy);
       if (data.geoPosition) setDrPosition(data.geoPosition);
       if (data.geoPath) setDrGeoPath(data.geoPath);
@@ -535,7 +540,7 @@ const RoutingPage = () => {
     previousRoute.current = result.geo;
     if (pauseRef.current) {
       updatePause({ ...pauseRef.current, key: pauseRouteKey(result.geo, destination, transportMode, gender),
-        step: 0, dr: { geo, accuracy: policy.qr_accuracy_m, distance: 0, routeM: 0, warning: null, blocked: false },
+        step: 0, dr: { geo, accuracy: policy.qr_accuracy_m, distance: 0, routeM: 0 },
         frame: { ...pauseRef.current.frame, geo, floor: newOrigin.floor, routeM: 0, heading: null } });
     }
     persistRouteData(result.geo, result.steps, result.alternatives, result.sahns, newOrigin);
@@ -1102,7 +1107,7 @@ const RoutingPage = () => {
     ? { key: pauseKey, step: currentStep, frame: navigationFrame, startedAt: Date.now(),
       dr: { geo: drPosition, accuracy: drAccuracy, distance: advancedDeadReckoningService.distanceSinceAnchor,
         trusted: Number.isFinite(advancedDeadReckoningService.anchorTimestamp), snappedGeo,
-        routeM: liveRouteM, warning: progressTracker.current.warning, blocked: progressTracker.current.blocked } } : null;
+        routeM: liveRouteM, discrepancy: routeDistance } } : null;
   const effectiveHeading = navigationFrame.heading;
   const navigationLocation = useMemo(() => navigationFrame.geo
     ? [navigationFrame.geo.lat, navigationFrame.geo.lng] : userLocation,
@@ -1427,7 +1432,8 @@ const RoutingPage = () => {
       && isFresh(dr.anchorTimestamp, positionClock, DR_MAX_ANCHOR_AGE)
       && drAccuracy <= DR_MAX_UNCERTAINTY && (!isFresh(gpsTimestamp, positionClock) || drTimestamp > gpsTimestamp));
     const measurement = useDr ? { ...drPosition, accuracy: drAccuracy,
-      timestamp: isDrActive ? drTimestamp : null, source: 'dead_reckoning',
+      timestamp: isDrActive ? (policy.gps_enabled ? drTimestamp : drStepTimestamp) : null,
+      positionTimestamp: drTimestamp, source: 'dead_reckoning',
       heading: dr.getHeading(),
       distanceSinceAnchor: dr.distanceSinceAnchor }
       : isFresh(gpsTimestamp, positionClock) ? gpsFixRef.current : null;
@@ -1438,6 +1444,7 @@ const RoutingPage = () => {
       mode: transportMode, now: positionClock });
     setLiveRouteM(progressTracker.current.routeM);
     setSnappedGeo(progressTracker.current.snappedGeo);
+    setRouteDistance(progressTracker.current.routeDistance);
     if (progress.nextStep !== currentStep) setCurrentStep(progress.nextStep);
     if (progress.arrived) {
       setHasArrived(true);
@@ -1446,7 +1453,7 @@ const RoutingPage = () => {
       advancedDeadReckoningService.stop();
     }
   }, [routeData?.steps, routeGeo, isRoutingActive, isDemoMode, isPaused, currentStep,
-    isDrActive, drPosition, drAccuracy, userLocation, drTimestamp, gpsTimestamp, positionClock, pauseKey, sessionFloor, transportMode]);
+    isDrActive, drPosition, drAccuracy, userLocation, drTimestamp, drStepTimestamp, gpsTimestamp, positionClock, pauseKey, sessionFloor, transportMode]);
 
   const toggleMapModal = () => {
     setIsMapModalOpen(!isMapModalOpen);
@@ -1617,9 +1624,7 @@ const RoutingPage = () => {
         || !window.confirm(language === 'fa' ? 'آیا دقیقاً در محل توقف قبلی هستید؟ اگر جابه‌جا شده‌اید، لغو کنید و QR محل فعلی را اسکن کنید.'
           : 'Are you still at the exact pause location? If you moved, cancel and scan a nearby QR.')) return;
       if (document.hidden) return;
-      resetProgress(paused.dr.routeM, paused.dr.distance, paused.dr.snappedGeo);
-      progressTracker.current.blocked = Boolean(paused.dr.blocked);
-      progressTracker.current.warning = paused.dr.warning;
+      resetProgress(paused.dr.routeM, paused.dr.distance, paused.dr.snappedGeo, paused.dr.discrepancy);
       updatePause(null);
       setPositionClock(Date.now());
       if (!advancedDeadReckoningService.resume()) {
@@ -1729,11 +1734,7 @@ const RoutingPage = () => {
     event.stopPropagation();
     if (directionDisabled || pauseRef.current) return;
     if (liveRouting) {
-      const tracker = progressTracker.current;
-      const blocked = tracker.blocked, warning = tracker.warning;
-      resetProgress();
-      tracker.distance = advancedDeadReckoningService.distanceSinceAnchor;
-      tracker.blocked = blocked; tracker.warning = warning;
+      resetProgress(null, advancedDeadReckoningService.distanceSinceAnchor, null, confirmsFloor ? null : routeDistance);
       if (confirmsFloor) {
         setSessionFloor(guideStep.toFloor);
         const next = routeData.steps[currentStep + 1];
@@ -1946,6 +1947,7 @@ const RoutingPage = () => {
           stage={currentStep + 1}
           routeLength={getLineDistanceMeters(getRouteCoordinates(routeGeo))}
           language={language}
+          routeDistance={routeDistance}
         />
       )}
       {/* Separate overlay for info modal */}
@@ -2355,7 +2357,8 @@ const RoutingPage = () => {
               className={`info-modal ${isInfoModalOpen ? 'open' : 'closed'} ${isInfoModalDragging ? 'dragging' : ''}`}
             >
               {isRoutingActive && !isDemoMode && destination?.coordinates && (
-                <RngQrCorrection text={qrText} onScan={correctRouteFromQr} />
+                <RngQrCorrection text={qrText} onScan={correctRouteFromQr}
+                  distanceWarning={!policy.gps_enabled && Number.isFinite(routeDistance) && routeDistance > policy.snap_distance_m} />
               )}
               {isRoutingActive && !isDemoMode && (
                 <RngPauseControl paused={isPaused} busy={isResuming} text={pauseText}

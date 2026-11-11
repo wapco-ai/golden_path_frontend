@@ -9,7 +9,7 @@ const CAMERA = { video: { facingMode: { ideal: 'environment' }, width: { ideal: 
 const READER_OPTIONS = { formats: ['QRCode'], maxNumberOfSymbols: 1 };
 const HINT_KEY = 'rngQrCorrectionHintSeen';
 
-export default function RngQrCorrection({ text, onScan }) {
+export default function RngQrCorrection({ text, onScan, distanceWarning }) {
   const dialog = useRef(null);
   const videoRef = useRef(null);
   const request = useRef(null);
@@ -110,7 +110,9 @@ export default function RngQrCorrection({ text, onScan }) {
   return (
     <>
       <div className="rng-map-actions">
-        {showHint && <span className="rng-qr-hint" aria-hidden="true">{text.scan}</span>}
+        {distanceWarning
+          ? <span className="rng-qr-hint rng-qr-distance-warning" role="status" data-testid="navigation-warning">{text.distanceWarning}</span>
+          : showHint && <span className="rng-qr-hint" aria-hidden="true">{text.scan}</span>}
         <button
           type="button"
           className="rng-qr-button"

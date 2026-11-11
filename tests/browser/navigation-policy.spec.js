@@ -76,10 +76,13 @@ async function setup(page, length = 40, observeMap = false, stepTest = false) {
   await page.locator('.start-routing-button').click();
   await expect(page.getByRole('button', { name: 'توقف موقت', exact: true })).toBeVisible();
 }
-async function walk(page, count) {
+async function walk(page, count, bearing = 0) {
   for (let i = 0; i < count; i++) {
     await page.clock.fastForward(600);
-    await page.evaluate(() => window.walkCycle());
+    await page.evaluate(heading => {
+      window.compass(heading);
+      window.walkCycle(false);
+    }, bearing);
     await page.clock.runFor(20);
   }
 }
@@ -290,19 +293,23 @@ test('live map rotates without steps and manual-origin walking advances after a 
   expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
 });
 
-test('excess uncertainty blocks arrival and keeps the map controls visible without a banner', async ({ page }) => {
-  await setup(page, 64);
-  await walk(page, 85);
+test('route discrepancy shows a small QR warning while step-based display progress continues', async ({ page }) => {
+  await setup(page, 64, false, true);
+  await walk(page, 8, 90);
+  const warning = page.getByTestId('navigation-warning');
+  await expect(warning).toHaveCount(0);
+  await walk(page, 24, 90);
   const state = page.locator('.routing-page');
-  // 85 default 0.7 m steps add 17.85 m to the selected origin's 5 m allowance.
-  await expect(state).toHaveAttribute('data-current-step', '1');
-  // Walk into the arrival radius after crossing the configured 20 m uncertainty limit.
-  await walk(page, 8);
+  const progress = page.getByTestId('step-diagnostic-progress');
+  await expect(warning).toHaveText(/QR/);
+  await expect(progress).toHaveText('22.4');
+  await walk(page, 8, 0);
+  await expect(progress).toHaveText('28.0');
   await expect(state).toHaveAttribute('data-navigation-mode', 'live');
   await expect(state).toHaveAttribute('data-current-step', '1');
   for (const panel of ['closed', 'open']) {
     await expect(page.locator(`.info-modal.${panel}`)).toBeVisible();
-    await expect(page.getByTestId('navigation-warning')).toHaveCount(0);
+    await expect(warning).toBeVisible();
     await expect(page.getByRole('button', { name: 'اصلاح مسیر با QR' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'توقف موقت', exact: true })).toBeVisible();
     if (panel === 'closed') await page.locator('.expand-button').click();
@@ -310,16 +317,17 @@ test('excess uncertainty blocks arrival and keeps the map controls visible witho
   expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
 });
 
-test('pause and confirmed resume preserve cumulative uncertainty without GPS', async ({ page }) => {
-  await setup(page, 100);
-  await walk(page, 20);
-  const before = await page.evaluate(async () => (await import('/src/services/AdvancedDeadReckoningService.js')).default.positionAccuracy);
+test('pause and confirmed resume preserve the measured route discrepancy without GPS', async ({ page }) => {
+  await setup(page, 100, false, true);
+  await walk(page, 26, 90);
+  const distance = page.getByTestId('step-diagnostic-routeDistance');
+  const before = await distance.innerText();
+  expect(Number(before)).toBeGreaterThan(20);
   await page.getByRole('button', { name: 'توقف موقت', exact: true }).click();
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: 'ادامه مسیر', exact: true }).click();
   await expect(page.locator('.routing-page')).toHaveAttribute('data-navigation-mode', 'live');
-  const after = await page.evaluate(async () => (await import('/src/services/AdvancedDeadReckoningService.js')).default.positionAccuracy);
-  expect(after).toBe(before);
+  await expect(distance).toHaveText(before);
   await walk(page, 3);
   expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
 });

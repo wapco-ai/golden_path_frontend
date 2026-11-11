@@ -58,6 +58,15 @@
   pointer-events: none;
 }
 
+.rng-qr-distance-warning {
+  width: max-content;
+  max-width: min(216px, calc(100vw - 152px));
+  white-space: normal;
+  font-size: 0.75rem;
+  color: #713f12;
+  background: #fff7df;
+}
+
 .rng-qr-dialog {
   position: fixed;
   inset: 0;
