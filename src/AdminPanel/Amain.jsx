@@ -18,6 +18,7 @@ import Feedbacks from './Feedbacks';
 import Admins from './Admins';
 import Usersigned from './Usersigned';
 import Userlogs from './Userlogs';
+import ActivityLogs from './ActivityLogs';
 import Marks from './Marks';
 
 import {
@@ -37,7 +38,7 @@ import {
 import { ADMIN_ACCESS_TOKEN_KEY, getAdminSessionVersion, useAdminAuthStore } from '../auth/admin/adminAuthStore';
 import { changeAdminPassword, uploadAdminAvatar, deleteAdminAvatar } from '../services/adminAuthService';
 import { resolveAvatarUrl } from '../services/userProfileMapper';
-import { canOpenAdminView, hasAdminRole, REPORT_VIEWS, FACILITY_VIEWS } from '../auth/admin/adminAccess';
+import { ACTIVITY_LOG_VIEW, canOpenAdminView, hasAdminRole, REPORT_VIEWS, FACILITY_VIEWS } from '../auth/admin/adminAccess';
 import { initHaramVectorLayers } from '../utils/initVectorLayers';
 import { ADMIN_MAP_MAX_ZOOM, adminMapAssetRequest } from '../services/legacyMapStyles';
 import {
@@ -4214,6 +4215,10 @@ const Amain = () => {
   };
 
   const getPageTitle = () => {
+    if (currentReportView === ACTIVITY_LOG_VIEW) {
+      return { title: ACTIVITY_LOG_VIEW, description: '' };
+    }
+
     if (currentReportView === 'کاربران ثبت نام کرده') {
       return {
         title: 'گزارش کاربران ثبت نام کرده در نرم افزار مسیربایی حرم تا امروز',
@@ -5394,10 +5399,7 @@ const Amain = () => {
     setEditingCulturalId(null);
     setEditingCulturalData(null);
 
-    if (viewName === 'کاربران ثبت نام کرده' ||
-      viewName === 'لاگ های مسیریابی کاربران' ||
-      viewName === 'بازخورد ها' ||
-      viewName === 'دیدگاه ها') {
+    if (REPORT_VIEWS.includes(viewName)) {
       setActiveMenu('reports');
       setBreadcrumbPath(['منوی اصلی', 'گزارشات', viewName]);
     } else if (viewName === 'مدیریت دسته بندی‌ها' ||
@@ -11345,6 +11347,15 @@ const Amain = () => {
                     <div className="submenu-branch"></div>
                     <span>لاگ های مسیریابی کاربران</span>
                   </div>
+                  {canOpenView(ACTIVITY_LOG_VIEW) && (
+                    <button type="button"
+                      className={`submenu-item activity-submenu-item ${currentReportView === ACTIVITY_LOG_VIEW ? 'active' : ''}`}
+                      aria-current={currentReportView === ACTIVITY_LOG_VIEW ? 'page' : undefined}
+                      onClick={() => handleSubmenuClick(ACTIVITY_LOG_VIEW)}>
+                      <span className="submenu-branch" aria-hidden="true"></span>
+                      <span>{ACTIVITY_LOG_VIEW}</span>
+                    </button>
+                  )}
                   <div
                     className={`submenu-item ${currentReportView === 'بازخورد ها' ? 'active' : ''}`}
                     style={{ display: canOpenView('بازخورد ها') ? undefined : 'none' }}
@@ -12429,6 +12440,8 @@ const Amain = () => {
             <Usersigned />
           ) : currentReportView === 'لاگ های مسیریابی کاربران' ? (
             <Userlogs />
+          ) : currentReportView === ACTIVITY_LOG_VIEW ? (
+            canOpenView(ACTIVITY_LOG_VIEW) && <ActivityLogs />
           ) : currentReportView === 'دیدگاه ها' ? (
             <Reviews />
           ) : currentReportView === 'بازخورد ها' ? (
@@ -13659,6 +13672,7 @@ const Amain = () => {
             currentReportView !== 'مدیریت نقاط راهنما' &&
             currentReportView !== 'کاربران ثبت نام کرده' &&
             currentReportView !== 'لاگ های مسیریابی کاربران' &&
+            currentReportView !== ACTIVITY_LOG_VIEW &&
             activeMenu !== 'mapmanage' && (
               <div className="users-section">
                 <div className="section-header">

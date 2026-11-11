@@ -17,11 +17,13 @@ export const ADMIN_ROLE_CODES = Object.freeze({
 });
 
 export const ADMIN_ROLE_TITLES = Object.freeze(Object.keys(ADMIN_ROLE_CODES));
+export const ACTIVITY_LOG_VIEW = 'لاگ فعالیت کاربران';
 
 export const VIEW_ROLES = Object.freeze({
   'کاربران ثبت نام کرده': ['مدیریت کاربران ثبت نام کرده', 'مدیریت کاربران'],
   'دیدگاه ها': ['مدیریت دیدگاه ها'],
   'لاگ های مسیریابی کاربران': ['مدیریت لاگ های مسیریابی'],
+  [ACTIVITY_LOG_VIEW]: ['مدیریت گزارشات'],
   'بازخورد ها': ['مدیریت بازخورد ها'],
   'مدیریت دسته بندی‌ها': ['مدیریت دسته بندی'],
   'مدیریت صفحات': ['مدیریت صفحات'],
@@ -31,7 +33,7 @@ export const VIEW_ROLES = Object.freeze({
 });
 
 export const REPORT_VIEWS = Object.freeze([
-  'کاربران ثبت نام کرده', 'دیدگاه ها', 'لاگ های مسیریابی کاربران', 'بازخورد ها'
+  'کاربران ثبت نام کرده', 'دیدگاه ها', 'لاگ های مسیریابی کاربران', ACTIVITY_LOG_VIEW, 'بازخورد ها'
 ]);
 export const FACILITY_VIEWS = Object.freeze([
   'مدیریت دسته بندی‌ها', 'مدیریت صفحات', 'مدیریت اطلاعات فرهنگی',
