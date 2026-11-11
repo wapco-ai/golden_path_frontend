@@ -67,6 +67,54 @@ export function captureQrLocation(params) {
   if (floor !== null) sessionStorage.setItem('qrFloor', String(floor));
 }
 
+async function lookupLinkedQrRecord(id, language, signal) {
+  const response = await fetch(`${appConfig.apiBaseUrl}/api/v1/qrcodes/${encodeURIComponent(id)}?language=${encodeURIComponent(language)}`,
+    { signal, cache: 'no-store', headers: { Accept: 'application/json' } });
+  if (response.ok) {
+    const data = await response.json();
+    return data.id === id ? data : null;
+  }
+  // Explicit legacy POI identifiers only; a disabled QR ending in digits must not fall through.
+  const legacy = id.match(/^(?:poi_)?(\d+)$/i);
+  if (response.status !== 404 || !legacy) return null;
+  const places = await fetch(`${appConfig.landmarkPlacesUrl}?language=${encodeURIComponent(language)}&poi_id=${legacy[1]}&limit=1`,
+    { signal, cache: 'no-store' });
+  if (!places.ok) return null;
+  const data = await places.json();
+  const place = data?.places?.landmarkPlaces?.find(item => String(item.id) === legacy[1]);
+  return place ? { ...place, coordinates: place.coordinates ?? [place.geo?.lat, place.geo?.lon ?? place.geo?.lng] } : null;
+}
+
+function applyLinkedQrRecord(record, previousPoint) {
+  const [lat, lng] = Array.isArray(record?.coordinates) ? record.coordinates : [];
+  if (!validCoordinates(lat ?? null, lng ?? null)) return null;
+  const floor = getPointFloor(record);
+  sessionStorage.setItem('qrLat', String(lat));
+  sessionStorage.setItem('qrLng', String(lng));
+  if (typeof record.title === 'string') sessionStorage.setItem('qrName', record.title);
+  if (floor !== null) {
+    sessionStorage.setItem('qrFloor', String(floor));
+    setSessionFloor(floor);
+  } else {
+    // Only an explicit floor selection made during the lookup may survive an unknown server floor.
+    if (sessionStorage.getItem('qrFloor') === String(previousPoint?.floor)) sessionStorage.removeItem('qrFloor');
+  }
+  sessionStorage.setItem('qrVerified', qrKey());
+  sessionStorage.setItem('qrFloorApplied', qrKey());
+  return readQrPoint();
+}
+
+export async function acceptLinkedQrPoint(id, language, signal) {
+  if (!/^[a-z0-9_-]{1,120}$/i.test(id)) return null;
+  const record = await lookupLinkedQrRecord(id, language, signal);
+  const [lat, lng] = Array.isArray(record?.coordinates) ? record.coordinates : [];
+  if (signal.aborted || !validCoordinates(lat ?? null, lng ?? null)) return null;
+  clearQrLocation();
+  sessionStorage.setItem('qrId', id);
+  sessionStorage.setItem('qrCapturedAt', String(Date.now()));
+  return applyLinkedQrRecord(record);
+}
+
 export async function resolveQrPoint(language = 'fa') {
   const point = readQrPoint();
   const id = sessionStorage.getItem('qrId');
@@ -79,45 +127,13 @@ export async function resolveQrPoint(language = 'fa') {
     const timer = setTimeout(() => controller.abort(), 5000);
     let record = null;
     try {
-      const response = await fetch(`${appConfig.apiBaseUrl}/api/v1/qrcodes/${encodeURIComponent(id)}?language=${encodeURIComponent(language)}`,
-        { signal: controller.signal, cache: 'no-store', headers: { Accept: 'application/json' } });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.id === id) record = data;
-      }
-      // Explicit legacy POI identifiers only; a disabled QR ending in digits must not fall through.
-      const legacy = id.match(/^(?:poi_)?(\d+)$/i);
-      if (response.status === 404 && legacy) {
-        const response = await fetch(`${appConfig.landmarkPlacesUrl}?language=${encodeURIComponent(language)}&poi_id=${legacy[1]}&limit=1`,
-          { signal: controller.signal, cache: 'no-store' });
-        if (response.ok) {
-          const data = await response.json();
-          const place = data?.places?.landmarkPlaces?.find(item => String(item.id) === legacy[1]);
-          if (place) record = { ...place, coordinates: place.coordinates ?? [place.geo?.lat, place.geo?.lon ?? place.geo?.lng] };
-        }
-      }
+      record = await lookupLinkedQrRecord(id, language, controller.signal);
     } catch { /* A failed lookup cannot turn URL coordinates into a trusted anchor. */ }
     finally { clearTimeout(timer); }
     if (key !== qrKey()) return null;
-    const [lat, lng] = record?.coordinates || [];
-    if (!validCoordinates(lat ?? null, lng ?? null)) {
-      clearQrLocation();
-      return null;
-    }
-    const floor = getPointFloor(record);
-    sessionStorage.setItem('qrLat', String(lat));
-    sessionStorage.setItem('qrLng', String(lng));
-    if (typeof record.title === 'string') sessionStorage.setItem('qrName', record.title);
-    if (floor !== null) {
-      sessionStorage.setItem('qrFloor', String(floor));
-      setSessionFloor(floor);
-    } else {
-      // Only an explicit floor selection made during this lookup may survive an unknown server floor.
-      if (sessionStorage.getItem('qrFloor') === String(point?.floor)) sessionStorage.removeItem('qrFloor');
-    }
-    sessionStorage.setItem('qrVerified', qrKey());
-    sessionStorage.setItem('qrFloorApplied', qrKey());
-    return readQrPoint();
+    const resolved = applyLinkedQrRecord(record, point);
+    if (!resolved) clearQrLocation();
+    return resolved;
   })();
   pending.set(key, promise);
   try { return await promise; } finally { pending.delete(key); }

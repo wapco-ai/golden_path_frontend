@@ -28,6 +28,7 @@ import LocationShareOverlay from './components/common/LocationShareOverlay';
 import { ToastContainer, toast } from 'react-toastify';
 import adminRoutes from './routes/adminRoutes';
 import { recordPathInHistory } from './utils/navigationHistory';
+import useHomeQrEntry from './hooks/useHomeQrEntry';
 
 const useAppStyles = () => {
   const location = useLocation();
@@ -41,8 +42,8 @@ const useAppStyles = () => {
 
 
 const AppContent = () => {
-  const location = useLocation();
   const intl = useIntl();
+  const location = useHomeQrEntry(intl.locale);
   const hideHeaderFooter = location.pathname === '/login' || location.pathname === '/profile'|| location.pathname === '/lang'
     || location.pathname === '/location' || location.pathname === '/' || location.pathname === '/mpr'|| location.pathname === '/fs'
     || location.pathname === '/rop' || location.pathname === '/rng'|| location.pathname === '/mpb'
@@ -145,7 +146,7 @@ const AppContent = () => {
             </div>
           </div>
         )}
-        <Routes>
+        <Routes location={location}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/fs" element={<FinalSearch key={`shared-destination-${finalSearchRevision}`} />} />

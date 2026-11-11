@@ -2,7 +2,7 @@ import { observeGps } from '../../utils/locationQuality.js';
 import { getNavigationPolicy } from '../../services/navigationPolicy.js';
 import useMapFloor from '../../hooks/useMapFloor';
 import { getPointFloor, pointIsOnFloor } from '../../utils/floors';
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
 import { useIntl } from 'react-intl';
 import maplibregl from 'maplibre-gl';
@@ -104,6 +104,7 @@ const Mpbc = ({
   });
   const [userCoords, setUserCoords] = useState(null);
   const [mapGpsFix, setMapGpsFix] = useState(null);
+  const followGps = useRef(false);
   const [destCoords, setDestCoords] = useState(null);
   const [geoData, setGeoData] = useState(null);
   const [routeCoords, setRouteCoords] = useState(null);
@@ -135,9 +136,9 @@ const Mpbc = ({
     setViewState(evt.viewState);
     onZoomChange?.(evt.viewState.zoom);
     if (evt.originalEvent) {
-      onStopTracking();
+      followGps.current = false;
     }
-  }, [onZoomChange, onStopTracking]);
+  }, [onZoomChange]);
 
   const handleMapLoad = useCallback((event) => {
     if (!isEngineeringMap) initHaramVectorLayers(event?.target || event, vectorTileConfig);
@@ -222,6 +223,7 @@ const Mpbc = ({
       return;
     }
 
+    followGps.current = true;
     const success = (fix) => {
       if (getNavigationPolicy().gps_enabled) {
         setUserLocation(previous => ({
@@ -233,12 +235,14 @@ const Mpbc = ({
         setMapGpsFix(fix);
       }
 
-      setViewState((v) => ({
-        ...v,
-        latitude: fix.lat - 0.0004,
-        longitude: fix.lng,
-        zoom: 18
-      }));
+      if (followGps.current) {
+        setViewState((v) => ({
+          ...v,
+          latitude: fix.lat - 0.0004,
+          longitude: fix.lng,
+          zoom: 18
+        }));
+      }
     };
 
     const handleError = (error) => {
@@ -259,7 +263,7 @@ const Mpbc = ({
       const isMapSelection = sessionStorage.getItem('mapSelectedLat') &&
         sessionStorage.getItem('mapSelectedLng');
 
-      if (isTracking && getNavigationPolicy().gps_enabled && !isMapSelection) {
+      if (isTracking && followGps.current && getNavigationPolicy().gps_enabled && !isMapSelection) {
         setViewState(v => ({
           ...v,
           latitude: coords.lat - 0.0004,
