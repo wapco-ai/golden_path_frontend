@@ -12,12 +12,16 @@ const guide = source.slice(guideStart, guideEnd);
 const blobHash = (data) => createHash('sha1')
   .update(`blob ${data.length}\0`).update(data).digest('hex');
 
-test('RNG uses the original stylesheet with no added panel overrides', () => {
+test('RNG uses an existing release stylesheet with no added panel overrides', () => {
   // Compare canonical text, including Windows checkouts using CRLF.
   const css = Buffer.from(readFileSync(new URL('../src/styles/Routing.css', import.meta.url), 'utf8')
     .replace(/\r\n/g, '\n'), 'utf8');
-  // Preserve the stylesheet already on main (b00bf18); the door picker changes no RNG CSS.
-  assert.equal(blobHash(css), 'bbe9df5b62414289eff18043cfabb8085c42cc90');
+  // Production retained b00bf18; main already includes the image border from 4773306.
+  const existingStyles = [
+    'bbe9df5b62414289eff18043cfabb8085c42cc90',
+    'aeee60e52e85965181f79b8765deec186eacd763',
+  ];
+  assert.ok(existingStyles.includes(blobHash(css)), 'Unexpected RNG stylesheet change');
   assert.ok(!existsSync(new URL('../src/styles/RngNavigation.css', import.meta.url)));
   assert.doesNotMatch(source, /RngNavigation\.css/);
 });

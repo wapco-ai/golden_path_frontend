@@ -1,7 +1,8 @@
 import { observeGps } from '../../utils/locationQuality.js';
+import { getNavigationPolicy } from '../../services/navigationPolicy.js';
 import useMapFloor from '../../hooks/useMapFloor';
 import { getPointFloor, pointIsOnFloor } from '../../utils/floors';
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
 import { useIntl } from 'react-intl';
 import maplibregl from 'maplibre-gl';
@@ -82,7 +83,7 @@ const Mpbc = ({
   selectedCategory,
   userLocation,
   isTracking = true,
-  onUserMove,
+  onStopTracking,
   showImageMarkers = true,
   isQrCodeEntry = false,
   groups = [],
@@ -102,6 +103,8 @@ const Mpbc = ({
     zoom: 15
   });
   const [userCoords, setUserCoords] = useState(null);
+  const [mapGpsFix, setMapGpsFix] = useState(null);
+  const followGps = useRef(false);
   const [destCoords, setDestCoords] = useState(null);
   const [geoData, setGeoData] = useState(null);
   const [routeCoords, setRouteCoords] = useState(null);
@@ -132,10 +135,10 @@ const Mpbc = ({
   const onMove = useCallback((evt) => {
     setViewState(evt.viewState);
     onZoomChange?.(evt.viewState.zoom);
-    if (onUserMove && evt.originalEvent) {
-      onUserMove();
+    if (evt.originalEvent) {
+      followGps.current = false;
     }
-  }, [onZoomChange, onUserMove]);
+  }, [onZoomChange]);
 
   const handleMapLoad = useCallback((event) => {
     if (!isEngineeringMap) initHaramVectorLayers(event?.target || event, vectorTileConfig);
@@ -184,11 +187,10 @@ const Mpbc = ({
   }, []);
 
 
-  // Initialize map focus and user location based on QR entry or GPS tracking
+  // Initialize the map from the QR origin when device tracking is off.
   useEffect(() => {
     const storedLat = sessionStorage.getItem('qrLat');
     const storedLng = sessionStorage.getItem('qrLng');
-    const storedId = sessionStorage.getItem('qrId');
 
     // Priority 1: QR code location
     if (storedLat && storedLng && !isTracking && (!userLocation || userLocation.source === 'qr')) {
@@ -206,39 +208,50 @@ const Mpbc = ({
         longitude: coords.lng,
         zoom: 18
       }));
+    }
+  }, [isTracking, userLocation]);
+
+  useEffect(() => {
+    if (!isTracking) {
+      setMapGpsFix(null);
       return;
     }
 
-    if (!isTracking) return undefined;
+    const geolocation = navigator.geolocation;
+    if (!geolocation) {
+      onStopTracking();
+      return;
+    }
 
+    followGps.current = true;
     const success = (fix) => {
+      if (getNavigationPolicy().gps_enabled) {
+        setUserLocation(previous => ({
+          name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
+          coordinates: [fix.lat, fix.lng], source: 'gps', accuracy: fix.accuracy, timestamp: fix.timestamp,
+          floor: previous?.source === 'gps' ? getPointFloor(previous) : null
+        }));
+      } else {
+        setMapGpsFix(fix);
+      }
 
-      const c = {
-        lat: fix.lat,
-        lng: fix.lng
-      };
-
-      setUserCoords(c);
-      setUserLocation(previous => ({
-        name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
-        coordinates: [c.lat, c.lng], source: 'gps', accuracy: fix.accuracy, timestamp: fix.timestamp,
-        floor: previous?.source === 'gps' ? getPointFloor(previous) : null
-      }));
-
-      setViewState((v) => ({
-        ...v,
-        latitude: c.lat - 0.0004,
-        longitude: c.lng,
-        zoom: 18
-      }));
+      if (followGps.current) {
+        setViewState((v) => ({
+          ...v,
+          latitude: fix.lat - 0.0004,
+          longitude: fix.lng,
+          zoom: 18
+        }));
+      }
     };
 
-    const err = (e) => {
-      console.error('Error getting GPS location', e);
+    const handleError = (error) => {
+      console.error('Error getting GPS location', error);
+      if (error.code === error.PERMISSION_DENIED) onStopTracking();
     };
 
-    return observeGps(navigator.geolocation, success, err);
-  }, [setUserLocation, intl, isTracking]);
+    return observeGps(geolocation, success, handleError, { mapDisplay: true });
+  }, [setUserLocation, intl, isTracking, onStopTracking]);
 
   useEffect(() => {
     if (userLocation?.coordinates) {
@@ -250,7 +263,7 @@ const Mpbc = ({
       const isMapSelection = sessionStorage.getItem('mapSelectedLat') &&
         sessionStorage.getItem('mapSelectedLng');
 
-      if (isTracking && !isMapSelection) {
+      if (isTracking && followGps.current && getNavigationPolicy().gps_enabled && !isMapSelection) {
         setViewState(v => ({
           ...v,
           latitude: coords.lat - 0.0004,
@@ -260,6 +273,9 @@ const Mpbc = ({
       }
     }
   }, [userLocation, isTracking]);
+
+  const displayedGps = isTracking ? mapGpsFix : null;
+  const markerCoords = displayedGps || userCoords;
 
   // Update the destination useEffect to handle swapping:
   useEffect(() => {
@@ -704,8 +720,8 @@ const Mpbc = ({
       interactive={true}
     >
       {/* User location marker */}
-      {userCoords && (getPointFloor(userLocation) === null || pointIsOnFloor(userLocation, mapFloor)) && (
-        <Marker longitude={userCoords.lng} latitude={userCoords.lat} anchor="center">
+      {markerCoords && (displayedGps || getPointFloor(userLocation) === null || pointIsOnFloor(userLocation, mapFloor)) && (
+        <Marker longitude={markerCoords.lng} latitude={markerCoords.lat} anchor="center">
           <div className="map-marker-origin">
           </div>
         </Marker>

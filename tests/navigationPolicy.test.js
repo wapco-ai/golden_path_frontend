@@ -131,3 +131,39 @@ test('DR continues beyond 30 m and 60 seconds, grows uncertainty, and charges un
   assert.ok(dr.positionAccuracy > error);
   assert.equal(dr.positionTimestamp, null);
 });
+
+test('a steady gyro stream carries a known compass direction briefly and stops after an unconfirmed turn', async t => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: Date.now() });
+  const saved = { window: globalThis.window, motion: globalThis.DeviceMotionEvent };
+  globalThis.window = { addEventListener() {}, removeEventListener() {} };
+  globalThis.DeviceMotionEvent = {};
+  t.after(() => { dr.stop(); globalThis.window = saved.window; globalThis.DeviceMotionEvent = saved.motion; });
+  await dr.start(point(0), { accuracy: 5 });
+
+  const motion = (alpha = 0) => {
+    t.mock.timers.tick(100);
+    dr.motionHandler({
+      accelerationIncludingGravity: { x: 0, y: 0, z: 9.8 },
+      rotationRate: { alpha, beta: 0, gamma: 0 },
+    });
+  };
+  motion();
+  assert.equal(dr.getHeading(), null);
+  dr.orientationHandler({ type: 'deviceorientationabsolute', alpha: 0 });
+  for (let i = 0; i < 90; i++) motion();
+  assert.equal(dr.getHeading(), 0);
+  dr._processStep();
+  assert.ok(dr.geoPosition.lat > 0);
+  const lastPosition = dr.geoPosition;
+
+  motion(90);
+  motion(90);
+  assert.equal(dr.getHeading(), null);
+  dr._processStep();
+  assert.deepEqual(dr.geoPosition, lastPosition);
+  assert.equal(dr.positionTimestamp, null);
+
+  dr.orientationHandler({ type: 'deviceorientationabsolute', alpha: 0 });
+  for (let i = 0; i < 151; i++) motion();
+  assert.equal(dr.getHeading(), null);
+});

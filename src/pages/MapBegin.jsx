@@ -77,6 +77,7 @@ const MapBeginPage = () => {
   const [userLocation, setUserLocation] = useState(initialUserLocation);
   useQrOrigin(setUserLocation, language, intl.formatMessage({ id: 'mapCurrentLocationName' }));
   const [isTracking, setIsTracking] = useState(false);
+  const stopTracking = useCallback(() => setIsTracking(false), []);
   const [mapSelectedLocation, setMapSelectedLocation] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [showRouting, setShowRouting] = useState(false);
@@ -1011,7 +1012,7 @@ const MapBeginPage = () => {
           userLocation={userLocation}
           mapSelectedLocation={mapSelectedLocation}
           isTracking={isTracking}
-          onUserMove={() => setIsTracking(false)}
+          onStopTracking={stopTracking}
           showImageMarkers={showImageMarkers}
           isQrCodeEntry={isQrCodeEntry}
           groups={groups}

@@ -5,15 +5,23 @@ import { haversineMeters } from '../utils/routeSegments.js';
 export const DR_MAX_ANCHOR_AGE = 60000;
 export const DR_MAX_DISTANCE = 30;
 export const DR_MAX_UNCERTAINTY = 10;
+// Some browsers emit orientation only when it changes. A short continuation
+// requires uninterrupted gyro samples and a small net rotation from the last fix.
+const MAX_GYRO_GAP_MS = 250;
+const MAX_HEADING_ROTATION_DEG = 12;
 const distance = (a, b) => haversineMeters([a.lng, a.lat], [b.lng, b.lat]);
 
 class AdvancedDeadReckoningService {
   constructor() {
     this.policy = getNavigationPolicy();
     this.isActive = false;
+    this._paused = false;
     this.stepCount = 0;
+    this.motionSamples = 0;
+    this.peakStepSignal = 0;
     this.heading = null;
     this._headingAt = null;
+    this._headingMotion = null;
     this.positionTimestamp = null;
     this._lastGpsAt = null;
     this._lastMotionAt = null;
@@ -81,6 +89,48 @@ class AdvancedDeadReckoningService {
     return this._normalizeHeading(360 - e.alpha + orientationOffset);
   }
 
+  getHeading(now = Date.now()) {
+    if (!this.isActive || !Number.isFinite(this.heading)) return null;
+    const maxAge = this.policy.heading_max_age_ms;
+    if (isFresh(this._headingAt, now, maxAge)) return this.heading;
+    if (!this.policy.gps_enabled && this._headingMotion
+      && isFresh(this._headingAt, now, maxAge * 3)
+      && isFresh(this._headingMotion.at, now, MAX_GYRO_GAP_MS)) return this.heading;
+    return null;
+  }
+
+  _trackHeadingRotation(rotationRate, now) {
+    const motion = this._headingMotion;
+    if (!motion) return;
+    const elapsed = now - motion.at;
+    const rate = [rotationRate?.alpha, rotationRate?.beta, rotationRate?.gamma];
+    if (elapsed < 0 || elapsed > MAX_GYRO_GAP_MS
+      || !rate.every(Number.isFinite) || motion.screenAngle !== this._getScreenOrientationAngle()) {
+      this._headingMotion = null;
+      return;
+    }
+    const rotation = motion.rotation.map((degrees, i) => degrees + rate[i] * elapsed / 1000);
+    if (Math.hypot(...rotation) > MAX_HEADING_ROTATION_DEG) {
+      this._headingAt = null;
+      this._headingMotion = null;
+      return;
+    }
+    this._headingMotion = { ...motion, at: now, rotation };
+  }
+
+  getStepDiagnostics() {
+    return {
+      samples: this.motionSamples,
+      steps: this.stepCount,
+      signal: this.peakStepSignal,
+      threshold: this._motionMode === 'linear' ? this.linearStepThresholdHigh : this.stepThresholdHigh,
+      headingAvailable: this.getHeading() !== null,
+      anchorAvailable: Number.isFinite(this.anchorTimestamp),
+      distance: this.distanceSinceAnchor,
+      uncertainty: this.positionAccuracy,
+    };
+  }
+
   addListener(fn) {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
@@ -97,7 +147,7 @@ class AdvancedDeadReckoningService {
       positionAccuracy: this.positionAccuracy,
       anchorTimestamp: this.anchorTimestamp,
       distanceSinceAnchor: this.distanceSinceAnchor,
-      heading: isFresh(this._headingAt, Date.now(), this.policy.heading_max_age_ms) ? this.heading : null
+      heading: this.getHeading()
     };
     this.listeners.forEach(cb => cb(data));
   }
@@ -106,6 +156,7 @@ class AdvancedDeadReckoningService {
     if (!validGeo(initialPosition)) throw new Error('Invalid initial position');
     this._stopSensors();
     this.policy = getNavigationPolicy();
+    this._paused = false;
     if (!this.policy.gps_enabled) {
       this.stepLengthMeters = this.policy.step_length_m;
       this.calibrated = false;
@@ -113,6 +164,7 @@ class AdvancedDeadReckoningService {
     }
     this.heading = null;
     this._headingAt = null;
+    this._headingMotion = null;
     this.positionTimestamp = null;
     this._lastGpsAt = null;
     this._lastMotionAt = null;
@@ -120,6 +172,8 @@ class AdvancedDeadReckoningService {
     this.geoPosition = { ...initialPosition };
     this.geoPath = [this.geoPosition];
     this.stepCount = 0;
+    this.motionSamples = 0;
+    this.peakStepSignal = 0;
     this._setAnchor(quality);
     this._calibration = null;
 
@@ -139,15 +193,36 @@ class AdvancedDeadReckoningService {
     ++this._sensorRequestId;
     this._stopSensors();
     this.isActive = false;
+    this._paused = false;
     this._emit('serviceStateChanged');
+  }
+
+  pause() {
+    if (!this.isActive) return;
+    this._paused = true;
+    this.positionTimestamp = null;
+    this._emit('serviceStateChanged');
+  }
+
+  resume() {
+    if (!this.isActive || !this._paused) return false;
+    this._smoothedMagnitude = null;
+    this._gravityBaseline = null;
+    this._stepArmed = true;
+    this._paused = false;
+    this._emit('serviceStateChanged');
+    return true;
   }
 
   reset(position, quality = {}) {
     this.heading = null;
     this._headingAt = null;
+    this._headingMotion = null;
     this.positionTimestamp = null;
     this._lastGpsAt = null;
     this.stepCount = 0;
+    this.motionSamples = 0;
+    this.peakStepSignal = 0;
     this._lastStepAt = 0;
     this._stepArmed = true;
     this._smoothedMagnitude = null;
@@ -182,19 +257,19 @@ class AdvancedDeadReckoningService {
     }
 
     // Both requests must start synchronously within the same user gesture on iOS.
-    const requestPermission = (EventType) => {
+    const requestPermission = (EventType, ...args) => {
       if (!EventType || typeof EventType.requestPermission !== 'function') {
         return Promise.resolve('granted');
       }
       try {
-        return Promise.resolve(EventType.requestPermission());
+        return Promise.resolve(EventType.requestPermission(...args));
       } catch (error) {
         return Promise.reject(error);
       }
     };
     const hasOrientation = typeof DeviceOrientationEvent !== 'undefined';
     const motionPermission = requestPermission(DeviceMotionEvent);
-    const orientationPermission = requestPermission(hasOrientation ? DeviceOrientationEvent : null);
+    const orientationPermission = requestPermission(hasOrientation ? DeviceOrientationEvent : null, true);
     const [motionResult, orientationResult] = await Promise.allSettled([
       motionPermission, orientationPermission
     ]);
@@ -208,18 +283,22 @@ class AdvancedDeadReckoningService {
     }
 
     window.addEventListener('devicemotion', this.motionHandler);
-    const startedAt = Date.now();
-    this._sensorTimer = setInterval(() => {
-      if (this.policy.gps_enabled && !isFresh(this.anchorTimestamp, Date.now(), DR_MAX_ANCHOR_AGE) && this.positionTimestamp !== null) {
-        this.positionTimestamp = null;
-        this._emit('anchorNeeded');
-      }
-      if (Date.now() - (this._lastMotionAt ?? startedAt) >= 5000) {
-        this.stop();
-        this._emit('sensorsUnsupported');
-      }
-    }, 5000);
-    this._sensorTimer?.unref?.();
+    // Without GPS, the freshness checks gate progress while the listeners
+    // remain available for browsers that temporarily suspend motion events.
+    if (this.policy.gps_enabled) {
+      const startedAt = Date.now();
+      this._sensorTimer = setInterval(() => {
+        if (!isFresh(this.anchorTimestamp, Date.now(), DR_MAX_ANCHOR_AGE) && this.positionTimestamp !== null) {
+          this.positionTimestamp = null;
+          this._emit('anchorNeeded');
+        }
+        if (Date.now() - (this._lastMotionAt ?? startedAt) >= 5000) {
+          this.stop();
+          this._emit('sensorsUnsupported');
+        }
+      }, 5000);
+      this._sensorTimer?.unref?.();
+    }
     // Compass permission must not prevent step tracking.
     if (hasOrientation && orientationResult.status === 'fulfilled' && orientationResult.value === 'granted') {
       window.addEventListener('deviceorientationabsolute', this.orientationHandler);
@@ -238,6 +317,9 @@ class AdvancedDeadReckoningService {
 
   _handleMotion(e) {
     if (!this.isActive) return;
+    const receivedAt = Date.now();
+    if (!this.policy.gps_enabled) this._trackHeadingRotation(e.rotationRate, receivedAt);
+    if (this._paused) return;
 
     const magnitudeOf = (acc) => acc
       && [acc.x, acc.y, acc.z].every(v => typeof v === 'number' && Number.isFinite(v))
@@ -246,7 +328,8 @@ class AdvancedDeadReckoningService {
     const withGravity = magnitudeOf(e.accelerationIncludingGravity);
     const linear = magnitudeOf(e.acceleration);
     if (withGravity === null && linear === null) return;
-    this._lastMotionAt = Date.now();
+    this.motionSamples += 1;
+    this._lastMotionAt = receivedAt;
 
     const mode = withGravity !== null ? 'gravity' : 'linear';
     if (mode !== this._motionMode) {
@@ -271,6 +354,7 @@ class AdvancedDeadReckoningService {
       : this._smoothedMagnitude * 0.45 + motionMagnitude * 0.55;
 
     const magnitude = this._smoothedMagnitude;
+    this.peakStepSignal = Math.max(this.peakStepSignal, magnitude);
     const low = mode === 'gravity' ? this.stepThresholdLow : this.linearStepThresholdLow;
     const high = mode === 'gravity' ? this.stepThresholdHigh : this.linearStepThresholdHigh;
     const now = Number.isFinite(e.timeStamp) ? e.timeStamp : Date.now();
@@ -297,6 +381,14 @@ class AdvancedDeadReckoningService {
       }
       this.heading = nextHeading;
       this._headingAt = Date.now();
+      this._headingMotion = { at: this._headingAt, rotation: [0, 0, 0], screenAngle: this._getScreenOrientationAngle() };
+      this._emit('orientationChanged');
+    } else if (e.type === 'deviceorientationabsolute' || e.absolute === true
+      || Number.isFinite(e.webkitCompassHeading)) {
+      // An explicitly unavailable absolute reading invalidates the old one.
+      this.heading = null;
+      this._headingAt = null;
+      this._headingMotion = null;
       this._emit('orientationChanged');
     }
   }
@@ -312,7 +404,8 @@ class AdvancedDeadReckoningService {
       this._emit('anchorNeeded');
       return;
     }
-    if (!validGeo(this.geoPosition) || !isFresh(this._headingAt, now, this.policy.heading_max_age_ms)) {
+    const heading = this.getHeading(now);
+    if (!validGeo(this.geoPosition) || heading === null) {
       // Unobserved steps cannot disappear from the error budget.
       this.positionAccuracy += this.stepLengthMeters;
       this.positionTimestamp = null;
@@ -320,7 +413,7 @@ class AdvancedDeadReckoningService {
       return;
     }
     const stepLength = this.stepLengthMeters; // meters
-    const rad = (this.heading * Math.PI) / 180;
+    const rad = (heading * Math.PI) / 180;
     const dLat = (stepLength * Math.cos(rad)) / 111111;
     const dLng = (stepLength * Math.sin(rad)) / (111111 * Math.cos(this.geoPosition.lat * Math.PI / 180));
     this.geoPosition = {

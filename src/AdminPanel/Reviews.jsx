@@ -37,7 +37,9 @@ const Reviews = () => {
       comment: comment?.content ?? '',
       sender: comment?.authorName || comment?.authorEmail || 'نامشخص',
       date: comment?.createdAt ?? '',
-      section: comment?.postId != null ? String(comment.postId) : '-',
+      section: comment?.postTitle?.trim()
+        ? `${comment.postTitle.trim()} (${comment.postId})`
+        : String(comment?.postId ?? '-'),
       status: comment?.status ?? 'pending',
       operation: '',
       rejectionReasons: rejectionReasonMap[comment?.id] || []
