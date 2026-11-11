@@ -1,4 +1,3 @@
-import { resolveAvatarUrl } from '../services/userProfileMapper';
 import { getPointFloor } from '../utils/floors';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation as useReactLocation } from 'react-router-dom';
@@ -14,7 +13,7 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import ttsService from '../services/ttsService';
 import { fetchLandmarkPlaces } from '../services/landmarkService';
-import { submitUserFeedback } from '../services/userFeedbackService';
+import { listUserFeedback, submitUserFeedback } from '../services/userFeedbackService';
 import { useLocation } from 'react-router-dom';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
 import appConfig from '../config/appConfig.js';
@@ -90,13 +89,12 @@ const Location = () => {
   const formatDigits = useLocaleDigits();
   const [activeSlide, setActiveSlide] = useState(0);
   const [comment, setComment] = useState('');
-  const [comments, setComments] = useState([]);
+  const [feedback, setFeedback] = useState(null);
+  const [feedbackRevision, setFeedbackRevision] = useState(0);
   const [showFullAbout, setShowFullAbout] = useState(false);
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
-  const [views, setViews] = useState(0);
-  const [overallRating, setOverallRating] = useState(0);
   const [locationData, setLocationData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -109,8 +107,7 @@ const Location = () => {
   const [isVideoFullscreen, setIsVideoFullscreen] = useState(false);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [showAllCommentsModal, setShowAllCommentsModal] = useState(false);
-  const [commentLimit, setCommentLimit] = useState(3);
-  const [userAvatar, setUserAvatar] = useState(null);
+  const commentLimit = 3;
 
   const carouselRef = useRef(null);
   const aboutContentRef = useRef(null);
@@ -219,14 +216,10 @@ const Location = () => {
       location: place.location || place.address || place.label || '',
       openingHours: place.openingHours ?? place.open_hours ?? place.hours ?? '',
       contents: media.contents,
-      comments: Array.isArray(place.comments) ? place.comments : [],
-      views: place.views ?? place.view ?? 0,
       averageRating: place.averageRating ?? place.rate ?? place.rating ?? 0
     };
   };
 
-  const accountAvatar = useUserAuthStore((state) => state.user?.avatarUrl || state.user?.avatar);
-  useEffect(() => { setUserAvatar(resolveAvatarUrl(accountAvatar)); }, [accountAvatar]);
 
   const findMatchingLocation = (places, requestedId) => {
     if (!requestedId || !Array.isArray(places)) return null;
@@ -552,50 +545,23 @@ const Location = () => {
     setHoverRating(0);
   };
 
-  const formatCommentDate = (dateValue = new Date()) => {
-    const locale = ['fa', 'ur', 'ar'].includes(language) ? 'fa-IR' : 'en-US';
-    try {
-      return new Date(dateValue).toLocaleDateString(locale);
-    } catch {
-      return dateValue?.toString?.() || '';
-    }
-  };
-
-  const buildDisplayComment = (apiResponse, fallbackComment) => {
-    const responseComment = apiResponse?.comment || apiResponse?.data || apiResponse || {};
-    const dateValue = responseComment?.date || responseComment?.created_at || responseComment?.createdAt;
-
-    return {
-      author: responseComment?.author || responseComment?.user || responseComment?.user_name || fallbackComment.author,
-      text: responseComment?.text ?? responseComment?.comment ?? fallbackComment.text,
-      date: dateValue ? formatCommentDate(dateValue) : fallbackComment.date,
-      rating: Number(responseComment?.rating ?? responseComment?.score ?? fallbackComment.rating ?? 0) || 0
-    };
-  };
+  const locationPoiId = normalizeLocationId(locationData?.id || locationData?.value);
+  const poiId = /^[1-9]\d*$/.test(String(locationPoiId ?? '')) ? String(locationPoiId) : null;
 
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
     const trimmedComment = comment.trim();
     if (!trimmedComment) return;
 
-    const poiId = normalizeLocationId(locationData?.id || locationData?.value || getRequestedLocationId());
-
     if (!poiId) {
       toast.error(intl.formatMessage({ id: 'commentSubmitMissingId' }));
       return;
     }
 
-    const pendingComment = {
-      author: intl.formatMessage({ id: 'defaultCommentAuthor' }),
-      text: trimmedComment,
-      date: formatCommentDate(),
-      rating: rating || 0
-    };
-
     setIsSubmittingComment(true);
 
     try {
-      const response = await submitUserFeedback({
+      await submitUserFeedback({
         poiId,
         title: trimmedComment.slice(0, 80),
         body: trimmedComment,
@@ -603,16 +569,7 @@ const Location = () => {
         language
       });
 
-      const savedComment = buildDisplayComment(response, pendingComment);
-
-      if (response?.status === 'approved') setComments(prev => {
-        const updated = [savedComment, ...prev];
-        const average = updated.length
-          ? updated.reduce((sum, item) => sum + (item.rating || 0), 0) / updated.length
-          : 0;
-        setOverallRating(average);
-        return updated;
-      });
+      setFeedbackRevision(revision => revision + 1);
 
       setComment('');
       setRating(0);
@@ -700,14 +657,6 @@ const Location = () => {
     const coordinateTolerance = 0.0001;
 
     return latDiff < coordinateTolerance && lngDiff < coordinateTolerance;
-  };
-
-  const calculateAverageRating = () => {
-    if (comments.length === 0) {
-      return;
-    }
-    const average = comments.reduce((sum, comment) => sum + (comment.rating || 0), 0) / comments.length;
-    setOverallRating(average);
   };
 
   // Video and PDF handlers
@@ -813,9 +762,6 @@ const Location = () => {
               if (normalizedData) {
                 const localizedData = localizeLocationData(normalizedData, language);
                 setLocationData(localizedData);
-                setComments(localizedData.comments || []);
-                setViews(localizedData.views || 0);
-                setOverallRating(localizedData.averageRating || 0);
                 setLoading(false);
                 return;
               }
@@ -832,9 +778,6 @@ const Location = () => {
           if (normalizedData) {
             const localizedData = localizeLocationData(normalizedData, language);
             setLocationData(localizedData);
-            setComments(localizedData.comments || []);
-            setViews(localizedData.views || 0);
-            setOverallRating(localizedData.averageRating || 0);
             setLoading(false);
             return;
           }
@@ -865,9 +808,6 @@ const Location = () => {
 
         const localizedData = localizeLocationData(normalizedData, language);
         setLocationData(localizedData);
-        setComments(localizedData.comments || []);
-        setViews(localizedData.views || 0);
-        setOverallRating(localizedData.averageRating || 0);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -879,8 +819,56 @@ const Location = () => {
   }, [currentLocation, language, intl, locationState]);
 
   useEffect(() => {
-    calculateAverageRating();
-  }, [comments]);
+    if (!poiId) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    const request = { poiId, language, signal };
+
+    const loadFeedback = async () => {
+      const { feedbacks, summary } = await listUserFeedback({ ...request, page: 1 });
+      if (signal.aborted) return;
+
+      const { total, lastPage } = feedbacks.pagination;
+      const firstPage = { poiId, language, data: feedbacks.data, total, rating: summary.ratingAvg };
+      setFeedback(firstPage);
+      if (!showAllCommentsModal) return;
+
+      let data = firstPage.data;
+      for (let page = 2; page <= lastPage; page += 1) {
+        const next = await listUserFeedback({ ...request, page });
+        if (signal.aborted) return;
+        data = data.concat(next.feedbacks.data);
+        setFeedback({ ...firstPage, data });
+      }
+    };
+
+    loadFeedback().catch(error => {
+      if (!signal.aborted) console.error('Failed to load approved feedback', error);
+    });
+    return () => controller.abort();
+  }, [poiId, language, feedbackRevision, showAllCommentsModal]);
+
+  useEffect(() => {
+    const refreshFeedback = () => setFeedbackRevision(revision => revision + 1);
+    window.addEventListener('focus', refreshFeedback);
+    return () => window.removeEventListener('focus', refreshFeedback);
+  }, []);
+
+  const currentFeedback = feedback?.poiId === poiId && feedback.language === language ? feedback : null;
+  const commentCount = currentFeedback?.total ?? 0;
+  const overallRating = Number(currentFeedback?.rating ?? locationData?.averageRating) || 0;
+  const comments = useMemo(() => {
+    const locale = ['fa', 'ur', 'ar'].includes(language) ? 'fa-IR' : 'en-US';
+    const formatter = new Intl.DateTimeFormat(locale);
+    const guestName = intl.formatMessage({ id: 'defaultCommentAuthor' });
+    return (currentFeedback?.data ?? []).map(item => ({
+      id: item.id,
+      author: item.userName?.trim() || guestName,
+      text: item.body?.trim() || item.title || '',
+      date: item.createdAt ? formatter.format(new Date(item.createdAt)) : '',
+      rating: item.rating ?? 0
+    }));
+  }, [currentFeedback, language, intl]);
 
   if (loading)
     return <div className="loading">{intl.formatMessage({ id: 'loading' })}</div>;
@@ -986,7 +974,7 @@ const Location = () => {
               </svg>
               {formatDigits(overallRating.toFixed(1))}
             </span>
-            <span className="views">({formatDigits(views)} {intl.formatMessage({ id: 'commentsLabel' })})</span>
+            <span className="views">({formatDigits(commentCount)} {intl.formatMessage({ id: 'commentsLabel' })})</span>
           </div>
         </div>
 
@@ -1121,7 +1109,7 @@ const Location = () => {
       <section className="comments-section">
         <div className="comments-header">
           <h3>
-            <FormattedMessage id="commentsTitle" values={{ count: comments.length }} />
+            <FormattedMessage id="commentsTitle" values={{ count: commentCount }} />
           </h3>
           {/* <button className="view-all-btn" onClick={() => setShowAllCommentsModal(true)}>
             <FormattedMessage id="viewAll" />
@@ -1160,18 +1148,11 @@ const Location = () => {
         </div>
 
         <div className="comment-list-horizontal">
-          {comments.slice(0, commentLimit).map((item, index) => (
-            <div key={index} className="comment-item">
+          {comments.slice(0, commentLimit).map(item => (
+            <div key={item.id} className="comment-item">
               <div className="comment-header">
                 <div className="comment-author-section">
                   <div className="profile-avatar2">
-                    {userAvatar ? (
-                      <img
-                        src={userAvatar}
-                        alt={item.author}
-                        className="comment-avatar-img"
-                      />
-                    ) : (
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         width="24"
@@ -1188,7 +1169,6 @@ const Location = () => {
                         <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
                         <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
                       </svg>
-                    )}
                   </div>
                   <span className="comment-author">{item.author}</span>
                 </div>
@@ -1215,7 +1195,7 @@ const Location = () => {
               </div>
             </div>
           ))}
-          {comments.length > commentLimit && (
+          {commentCount > commentLimit && (
             <div className="view-more-comments-container" onClick={() => setShowAllCommentsModal(true)}>
               <div className="view-more-comments">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1441,18 +1421,11 @@ const Location = () => {
               </button>
             </div>
             <div className="all-comments-list">
-              {comments.map((item, index) => (
-                <div key={index} className="all-comments-item">
+              {comments.map(item => (
+                <div key={item.id} className="all-comments-item">
                   <div className="all-comments-header">
                     <div className="all-comments-author-section">
                       <div className="profile-avatar2">
-                        {userAvatar ? (
-                          <img
-                            src={userAvatar}
-                            alt={item.author}
-                            className="comment-avatar-img"
-                          />
-                        ) : (
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
                             width="24"
@@ -1469,7 +1442,6 @@ const Location = () => {
                             <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
                             <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
                           </svg>
-                        )}
                       </div>
                       <span className="all-comments-author">{item.author}</span>
                     </div>

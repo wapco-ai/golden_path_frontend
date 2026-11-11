@@ -1,6 +1,22 @@
 import appConfig from '../config/appConfig.js';
 import { userRequest } from '../api/userRequest.js';
 
+export const listUserFeedback = async ({ poiId, language, page, signal }) => {
+  const url = new URL(appConfig.userFeedbackUrl, window.location.origin);
+  url.searchParams.set('targetType', 'poi');
+  url.searchParams.set('targetId', poiId);
+  url.searchParams.set('lang', language);
+  url.searchParams.set('page', page);
+
+  const response = await fetch(url, {
+    headers: { Accept: 'application/json' },
+    cache: 'no-store',
+    signal
+  });
+  if (!response.ok) throw new Error(`Feedback list request failed with status ${response.status}`);
+  return response.json();
+};
+
 export const submitUserFeedback = async ({
   targetType = 'poi',
   targetId,

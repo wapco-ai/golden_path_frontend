@@ -79,6 +79,12 @@ export default defineConfig({
             method: 'GET'
           },
           {
+            // A moderation change should be visible on the next visit.
+            urlPattern: ({ url }) => url.pathname === '/api/v1/feedbacks',
+            handler: 'NetworkOnly',
+            method: 'GET'
+          },
+          {
             // A stale image-selection response must not be replayed during navigation.
             // Keep this before the generic API NetworkFirst rule below.
             urlPattern: ({ url }) => url.pathname === '/api/v1/landmark-view-image'
