@@ -1,10 +1,13 @@
-// Accessible name for the existing icon only; no added visible UI copy.
+// Accessible icon names and live arrival instructions.
 export const rngMessages = {
-  fa: { next: 'نمایش گام بعدی در دمو', nextLive: 'رفتن به گام بعدی' },
-  en: { next: 'Preview next demo step', nextLive: 'Go to the next step' },
-  ar: { next: 'معاينة الخطوة التجريبية التالية', nextLive: 'الانتقال إلى الخطوة التالية' },
-  ur: { next: 'ڈیمو کا اگلا مرحلہ دکھائیں', nextLive: 'اگلے مرحلے پر جائیں' }
+  fa: { next: 'نمایش گام بعدی در دمو', nextLive: 'رفتن به گام بعدی', approach: 'به مسیر تا مقصد ادامه دهید.', arrived: 'به مقصد رسیدید.' },
+  en: { next: 'Preview next demo step', nextLive: 'Go to the next step', approach: 'Continue along the route to your destination.', arrived: 'You have arrived at your destination.' },
+  ar: { next: 'معاينة الخطوة التجريبية التالية', nextLive: 'الانتقال إلى الخطوة التالية', approach: 'تابع المسار إلى وجهتك.', arrived: 'لقد وصلت إلى وجهتك.' },
+  ur: { next: 'ڈیمو کا اگلا مرحلہ دکھائیں', nextLive: 'اگلے مرحلے پر جائیں', approach: 'منزل تک راستے پر چلتے رہیں۔', arrived: 'آپ منزل پر پہنچ گئے ہیں۔' }
 };
+
+export const liveStepInstruction = (step, messages) =>
+  step?.type === 'stepArriveDestination' ? messages.approach : step?.instruction;
 
 export const rngPauseMessages = {
   fa: { pause: 'توقف موقت', resume: 'ادامه مسیر', paused: 'راهنمای مسیر متوقف است',

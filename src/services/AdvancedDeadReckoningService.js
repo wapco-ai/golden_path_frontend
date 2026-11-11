@@ -15,7 +15,10 @@ class AdvancedDeadReckoningService {
   constructor() {
     this.policy = getNavigationPolicy();
     this.isActive = false;
+    this._paused = false;
     this.stepCount = 0;
+    this.motionSamples = 0;
+    this.peakStepSignal = 0;
     this.heading = null;
     this._headingAt = null;
     this._headingMotion = null;
@@ -115,6 +118,19 @@ class AdvancedDeadReckoningService {
     this._headingMotion = { ...motion, at: now, rotation };
   }
 
+  getStepDiagnostics() {
+    return {
+      samples: this.motionSamples,
+      steps: this.stepCount,
+      signal: this.peakStepSignal,
+      threshold: this._motionMode === 'linear' ? this.linearStepThresholdHigh : this.stepThresholdHigh,
+      headingAvailable: this.getHeading() !== null,
+      anchorAvailable: Number.isFinite(this.anchorTimestamp),
+      distance: this.distanceSinceAnchor,
+      uncertainty: this.positionAccuracy,
+    };
+  }
+
   addListener(fn) {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
@@ -140,6 +156,7 @@ class AdvancedDeadReckoningService {
     if (!validGeo(initialPosition)) throw new Error('Invalid initial position');
     this._stopSensors();
     this.policy = getNavigationPolicy();
+    this._paused = false;
     if (!this.policy.gps_enabled) {
       this.stepLengthMeters = this.policy.step_length_m;
       this.calibrated = false;
@@ -155,6 +172,8 @@ class AdvancedDeadReckoningService {
     this.geoPosition = { ...initialPosition };
     this.geoPath = [this.geoPosition];
     this.stepCount = 0;
+    this.motionSamples = 0;
+    this.peakStepSignal = 0;
     this._setAnchor(quality);
     this._calibration = null;
 
@@ -174,7 +193,25 @@ class AdvancedDeadReckoningService {
     ++this._sensorRequestId;
     this._stopSensors();
     this.isActive = false;
+    this._paused = false;
     this._emit('serviceStateChanged');
+  }
+
+  pause() {
+    if (!this.isActive) return;
+    this._paused = true;
+    this.positionTimestamp = null;
+    this._emit('serviceStateChanged');
+  }
+
+  resume() {
+    if (!this.isActive || !this._paused) return false;
+    this._smoothedMagnitude = null;
+    this._gravityBaseline = null;
+    this._stepArmed = true;
+    this._paused = false;
+    this._emit('serviceStateChanged');
+    return true;
   }
 
   reset(position, quality = {}) {
@@ -184,6 +221,8 @@ class AdvancedDeadReckoningService {
     this.positionTimestamp = null;
     this._lastGpsAt = null;
     this.stepCount = 0;
+    this.motionSamples = 0;
+    this.peakStepSignal = 0;
     this._lastStepAt = 0;
     this._stepArmed = true;
     this._smoothedMagnitude = null;
@@ -244,18 +283,22 @@ class AdvancedDeadReckoningService {
     }
 
     window.addEventListener('devicemotion', this.motionHandler);
-    const startedAt = Date.now();
-    this._sensorTimer = setInterval(() => {
-      if (this.policy.gps_enabled && !isFresh(this.anchorTimestamp, Date.now(), DR_MAX_ANCHOR_AGE) && this.positionTimestamp !== null) {
-        this.positionTimestamp = null;
-        this._emit('anchorNeeded');
-      }
-      if (Date.now() - (this._lastMotionAt ?? startedAt) >= 5000) {
-        this.stop();
-        this._emit('sensorsUnsupported');
-      }
-    }, 5000);
-    this._sensorTimer?.unref?.();
+    // Without GPS, the freshness checks gate progress while the listeners
+    // remain available for browsers that temporarily suspend motion events.
+    if (this.policy.gps_enabled) {
+      const startedAt = Date.now();
+      this._sensorTimer = setInterval(() => {
+        if (!isFresh(this.anchorTimestamp, Date.now(), DR_MAX_ANCHOR_AGE) && this.positionTimestamp !== null) {
+          this.positionTimestamp = null;
+          this._emit('anchorNeeded');
+        }
+        if (Date.now() - (this._lastMotionAt ?? startedAt) >= 5000) {
+          this.stop();
+          this._emit('sensorsUnsupported');
+        }
+      }, 5000);
+      this._sensorTimer?.unref?.();
+    }
     // Compass permission must not prevent step tracking.
     if (hasOrientation && orientationResult.status === 'fulfilled' && orientationResult.value === 'granted') {
       window.addEventListener('deviceorientationabsolute', this.orientationHandler);
@@ -274,6 +317,9 @@ class AdvancedDeadReckoningService {
 
   _handleMotion(e) {
     if (!this.isActive) return;
+    const receivedAt = Date.now();
+    if (!this.policy.gps_enabled) this._trackHeadingRotation(e.rotationRate, receivedAt);
+    if (this._paused) return;
 
     const magnitudeOf = (acc) => acc
       && [acc.x, acc.y, acc.z].every(v => typeof v === 'number' && Number.isFinite(v))
@@ -282,8 +328,8 @@ class AdvancedDeadReckoningService {
     const withGravity = magnitudeOf(e.accelerationIncludingGravity);
     const linear = magnitudeOf(e.acceleration);
     if (withGravity === null && linear === null) return;
-    this._lastMotionAt = Date.now();
-    if (!this.policy.gps_enabled) this._trackHeadingRotation(e.rotationRate, this._lastMotionAt);
+    this.motionSamples += 1;
+    this._lastMotionAt = receivedAt;
 
     const mode = withGravity !== null ? 'gravity' : 'linear';
     if (mode !== this._motionMode) {
@@ -308,6 +354,7 @@ class AdvancedDeadReckoningService {
       : this._smoothedMagnitude * 0.45 + motionMagnitude * 0.55;
 
     const magnitude = this._smoothedMagnitude;
+    this.peakStepSignal = Math.max(this.peakStepSignal, magnitude);
     const low = mode === 'gravity' ? this.stepThresholdLow : this.linearStepThresholdLow;
     const high = mode === 'gravity' ? this.stepThresholdHigh : this.linearStepThresholdHigh;
     const now = Number.isFinite(e.timeStamp) ? e.timeStamp : Date.now();
