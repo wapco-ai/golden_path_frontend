@@ -293,27 +293,68 @@ test('live map rotates without steps and manual-origin walking advances after a 
   expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
 });
 
-test('route discrepancy shows a small QR warning while step-based display progress continues', async ({ page }) => {
-  await setup(page, 64, false, true);
-  await walk(page, 8, 90);
+test('route discrepancy briefly opens a separate warning and keeps the QR badge tappable', async ({ page }) => {
+  await setup(page, 30, false, true);
   const warning = page.getByTestId('navigation-warning');
+  const badge = page.getByRole('button', { name: 'نمایش هشدار فاصله از مسیر' });
+  const qr = page.getByRole('button', { name: 'اصلاح مسیر با QR', exact: true });
+  await walk(page, 8, 90);
   await expect(warning).toHaveCount(0);
-  await walk(page, 24, 90);
+  await expect(badge).toHaveCount(0);
+  await walk(page, 16, 90);
   const state = page.locator('.routing-page');
   const progress = page.getByTestId('step-diagnostic-progress');
   await expect(warning).toHaveText(/QR/);
-  await expect(progress).toHaveText('22.4');
+  await expect(badge).toHaveAttribute('aria-expanded', 'true');
+  const messageBounds = await warning.boundingBox();
+  const headerBounds = await page.locator('.fixed-header-icons').boundingBox();
+  const mapBounds = await page.locator('.map-container-rng').boundingBox();
+  expect(messageBounds.y).toBeGreaterThanOrEqual(headerBounds.y + headerBounds.height - 1);
+  expect(messageBounds.y + messageBounds.height).toBeLessThanOrEqual(mapBounds.y);
+  await expect(progress).toHaveText('16.8');
+  await page.clock.fastForward(4100);
+  await expect(warning).toHaveCount(0);
+  await expect(badge).toHaveAttribute('aria-expanded', 'false');
+
   await walk(page, 8, 0);
-  await expect(progress).toHaveText('28.0');
+  await expect(progress).toHaveText('22.4');
+  await expect(warning).toHaveCount(0);
   await expect(state).toHaveAttribute('data-navigation-mode', 'live');
   await expect(state).toHaveAttribute('data-current-step', '1');
   for (const panel of ['closed', 'open']) {
     await expect(page.locator(`.info-modal.${panel}`)).toBeVisible();
-    await expect(warning).toBeVisible();
-    await expect(page.getByRole('button', { name: 'اصلاح مسیر با QR' })).toBeVisible();
+    await expect(badge).toBeVisible();
+    await expect(qr).toBeVisible();
+    const gap = await badge.evaluate(element => element.parentElement.querySelector('.rng-qr-button')
+      .getBoundingClientRect().top - element.getBoundingClientRect().bottom);
+    expect(gap).toBeGreaterThanOrEqual(0);
     await expect(page.getByRole('button', { name: 'توقف موقت', exact: true })).toBeVisible();
-    if (panel === 'closed') await page.locator('.expand-button').click();
+    if (panel === 'closed') {
+      await page.locator('.expand-button').click();
+      await page.clock.runFor(400);
+    }
   }
+
+  const instruction = page.locator('.instruction-text');
+  const instructionLayout = () => instruction.evaluate(element =>
+    [element.offsetTop, element.offsetLeft, element.offsetHeight, element.offsetWidth]);
+  const layoutBefore = await instructionLayout();
+  await badge.click();
+  await expect(warning).toBeVisible();
+  expect(await instructionLayout()).toEqual(layoutBefore);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await qr.click();
+  await expect(page.getByRole('dialog', { name: 'اصلاح مسیر با QR' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.clock.fastForward(4100);
+  await expect(warning).toHaveCount(0);
+  await expect(badge).toBeVisible();
+
+  await walk(page, 18, 0);
+  await expect(badge).toHaveCount(0);
+  await expect(warning).toHaveCount(0);
+  await expect(state).toHaveAttribute('data-navigation-mode', 'live');
   expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
 });
 

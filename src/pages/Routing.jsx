@@ -115,6 +115,8 @@ const RoutingPage = () => {
   const activeSnapshot = useRef(null);
   const [liveRouteM, setLiveRouteM] = useState(null);
   const [routeDistance, setRouteDistance] = useState(null);
+  const [showDistanceMessage, setShowDistanceMessage] = useState(false);
+  const distanceMessageTimer = useRef(null);
   const [drAccuracy, setDrAccuracy] = useState(null);
   const resetProgress = (routeM = null, distance = 0, displayGeo = null, discrepancy = null) => {
     const tracker = progressTracker.current;
@@ -1722,6 +1724,18 @@ const RoutingPage = () => {
   };
 
   const liveRouting = isRoutingActive && !isDemoMode;
+  const distanceWarning = liveRouting && Boolean(destination?.coordinates) && !policy.gps_enabled
+    && Number.isFinite(routeDistance) && routeDistance > policy.snap_distance_m;
+  const openDistanceMessage = useCallback(() => {
+    window.clearTimeout(distanceMessageTimer.current);
+    setShowDistanceMessage(true);
+    distanceMessageTimer.current = window.setTimeout(() => setShowDistanceMessage(false), 4000);
+  }, []);
+  useEffect(() => {
+    if (distanceWarning) openDistanceMessage();
+    else setShowDistanceMessage(false);
+    return () => window.clearTimeout(distanceMessageTimer.current);
+  }, [distanceWarning, openDistanceMessage]);
   const guideStep = routeData?.steps?.[currentStep];
   const stepCount = routeData?.steps?.length ?? 0;
   const guideInstruction = hasArrived ? rngText.arrived
@@ -2177,6 +2191,11 @@ const RoutingPage = () => {
               <ellipse cx="9.99984" cy="14.1667" rx="5.83333" ry="3.33333" fill="#1E2023" />
             </svg>
           </button>
+          <div id="rng-distance-message" className="rng-distance-message-region" role="status">
+            {distanceWarning && showDistanceMessage && (
+              <span className="rng-distance-message" data-testid="navigation-warning">{qrText.distanceWarning}</span>
+            )}
+          </div>
         </div>
         <div className="image-placeholder">
           {liveLandmarkImage?.image?.url && failedImageUrl !== liveLandmarkImage.image.url ? (
@@ -2358,7 +2377,8 @@ const RoutingPage = () => {
             >
               {isRoutingActive && !isDemoMode && destination?.coordinates && (
                 <RngQrCorrection text={qrText} onScan={correctRouteFromQr}
-                  distanceWarning={!policy.gps_enabled && Number.isFinite(routeDistance) && routeDistance > policy.snap_distance_m} />
+                  distanceWarning={distanceWarning} distanceMessageOpen={showDistanceMessage}
+                  onDistanceWarningClick={openDistanceMessage} />
               )}
               {isRoutingActive && !isDemoMode && (
                 <RngPauseControl paused={isPaused} busy={isResuming} text={pauseText}
