@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { DEFAULT_NAVIGATION_POLICY } from '../../src/services/navigationPolicy.js';
 
-async function setup(page, length = 40) {
+async function setup(page, length = 40, observeMap = false) {
   await page.clock.install();
   await page.setViewportSize({ width: 360, height: 780 });
   await page.addInitScript(length => {
@@ -24,22 +24,48 @@ async function setup(page, length = 40) {
     window.DeviceMotionEvent = class extends Event {};
     window.DeviceOrientationEvent = class extends Event {};
     window.motionTime = 1000;
-    window.walkCycle = () => {
+    window.compass = bearing => {
       const heading = new Event('deviceorientationabsolute');
-      Object.assign(heading, { alpha: 0, absolute: true }); window.dispatchEvent(heading);
-      for (const z of [9.8, 9.8, 10.5, 12.4, 13, 11, 9.6, 9.2, 9.7, 9.8, 9.8, 9.8]) {
+      Object.assign(heading, { alpha: (360 - bearing) % 360, absolute: true });
+      window.dispatchEvent(heading);
+    };
+    window.walkCycle = (withHeading = true, paced = false, idle = false) => {
+      if (withHeading) window.compass(0);
+      const emitMotion = z => {
         const motion = new Event('devicemotion');
         Object.defineProperty(motion, 'timeStamp', { value: window.motionTime });
-        Object.assign(motion, { accelerationIncludingGravity: { x: 0, y: 0, z }, acceleration: null });
-        window.motionTime += 50; window.dispatchEvent(motion);
-      }
+        Object.assign(motion, { accelerationIncludingGravity: { x: 0, y: 0, z }, acceleration: null,
+          rotationRate: { alpha: 0, beta: 0, gamma: 0 } });
+        window.motionTime += 50;
+        window.dispatchEvent(motion);
+      };
+      [9.8, 9.8, 10.5, 12.4, 13, 11, 9.6, 9.2, 9.7, 9.8, 9.8, 9.8].forEach((z, i) => {
+        const acceleration = idle ? 9.8 : z;
+        if (paced) setTimeout(() => emitMotion(acceleration), i * 50);
+        else emitMotion(acceleration);
+      });
     };
   }, length);
   await page.route('**/api/v1/**', route => route.fulfill({ json: { status: 'NO_MATCH', data: [], features: [] } }));
   await page.route('**/api/v1/navigation-settings', route => route.fulfill({ json: { policy: DEFAULT_NAVIGATION_POLICY, version: 1, walk_speed_mps: 1.2 } }));
   await page.route('**/tiles/**', route => route.fulfill({ status: 204 }));
   await page.route('**/tms/**', route => route.fulfill({ status: 204 }));
-  await page.goto('/#/rng');
+  if (observeMap) {
+    await page.goto('/#/');
+    await page.evaluate(async () => {
+      const source = await (await fetch('/src/components/map/RouteMap.jsx')).text();
+      const modulePath = source.match(/["']([^"']*\/maplibre-gl\.js\?[^"']+)["']/)?.[1];
+      const { default: maplibre } = await import(modulePath);
+      const easeTo = maplibre.Map.prototype.easeTo;
+      maplibre.Map.prototype.easeTo = function (...args) {
+        window.rngMap = this;
+        return easeTo.apply(this, args);
+      };
+    });
+    await page.evaluate(() => { window.location.hash = '#/rng'; });
+  } else {
+    await page.goto('/#/rng');
+  }
   await page.locator('.start-routing-button').click();
   await expect(page.getByRole('button', { name: 'توقف موقت', exact: true })).toBeVisible();
 }
@@ -55,6 +81,45 @@ test('Haram default ignores GPS and reaches the destination using actual motion 
   await setup(page);
   await walk(page, 58);
   await expect(page.locator('.routing-page')).toHaveAttribute('data-navigation-mode', 'arrived');
+  expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
+});
+
+test('live map rotates without steps and manual-origin walking advances after a sparse compass update', async ({ page }) => {
+  await setup(page, 40, true);
+  const mapFrame = () => page.evaluate(() => {
+    const map = window.rngMap;
+    if (!map) return null;
+    return {
+      bearing: map.getBearing(),
+      moving: map.isMoving(),
+      latitude: map.getCenter().lat,
+      remainingStart: map.getSource('remaining-route')?.serialize().data?.geometry?.coordinates?.[0]?.[1],
+    };
+  });
+  await page.evaluate(() => window.walkCycle(false, true, true));
+  await page.clock.runFor(650);
+  await expect.poll(async () => (await mapFrame())?.moving, { timeout: 20000 }).toBe(false);
+  const initial = await mapFrame();
+  await page.evaluate(() => {
+    window.compass(45);
+    window.walkCycle(false, true, true);
+  });
+  await page.clock.runFor(650);
+  const turned = await mapFrame();
+  expect(turned.bearing).toBeCloseTo(45, 1);
+  expect(turned.latitude).toBeCloseTo(initial.latitude, 7);
+
+  await page.evaluate(() => {
+    window.compass(0);
+    for (let i = 0; i < 15; i++) {
+      setTimeout(() => window.walkCycle(false, true), i * 600);
+    }
+  });
+  await page.clock.runFor(9350);
+  const walked = await mapFrame();
+  // At least 9 m. The first five seconds alone can account for less than 6 m.
+  expect(walked.latitude - initial.latitude).toBeGreaterThan(9 / 111195);
+  expect(walked.remainingStart - initial.latitude).toBeGreaterThan(9 / 111195);
   expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
 });
 

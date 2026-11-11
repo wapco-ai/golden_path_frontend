@@ -1065,6 +1065,7 @@ const RoutingPage = () => {
   // One navigation frame feeds the image and map in both open/closed panel states.
   // Demo/preview uses the selected segment; live navigation uses actual DR/GPS.
   const routeOriginFloor = getPointFloor(origin, sessionFloor);
+  const liveHeading = isDrActive ? advancedDeadReckoningService.getHeading() : null;
   const navigationFrame = useMemo(() => pausedNavigation?.frame || resolveNavigationFrame({
     step: routeData?.steps?.[currentStep],
     stepIndex: currentStep,
@@ -1076,9 +1077,9 @@ const RoutingPage = () => {
     anchorGeo: !policy.gps_enabled && snappedGeo ? snappedGeo
       : qrAnchorRef.current?.floor === sessionFloor ? qrAnchorRef.current.geo : null,
     userLocation: gpsFixRef.current
-      ? [gpsFixRef.current.lat, gpsFixRef.current.lng] : userLocation, userHeading, sessionFloor: routeOriginFloor
+      ? [gpsFixRef.current.lat, gpsFixRef.current.lng] : userLocation, userHeading, liveHeading, sessionFloor: routeOriginFloor
   }), [pausedNavigation, routeData?.steps, currentStep, routeGeo, isRoutingActive, isDemoMode,
-    hasArrived, isDrActive, drPosition, userLocation, userHeading, routeOriginFloor, sessionFloor, drTimestamp, gpsTimestamp, positionClock, liveRouteM, snappedGeo]);
+    hasArrived, isDrActive, drPosition, userLocation, userHeading, routeOriginFloor, sessionFloor, drTimestamp, gpsTimestamp, positionClock, liveRouteM, snappedGeo, liveHeading]);
   useEffect(() => {
     if (isMultifloor(routeGeo) && (!isRoutingActive || isDemoMode)) setSessionFloor(navigationFrame.floor);
   }, [routeGeo, navigationFrame.floor, isRoutingActive, isDemoMode]);
@@ -1411,7 +1412,7 @@ const RoutingPage = () => {
       && drAccuracy <= DR_MAX_UNCERTAINTY && (!isFresh(gpsTimestamp, positionClock) || drTimestamp > gpsTimestamp));
     const measurement = useDr ? { ...drPosition, accuracy: drAccuracy,
       timestamp: isDrActive ? drTimestamp : null, source: 'dead_reckoning',
-      heading: isFresh(dr._headingAt, positionClock, policy.heading_max_age_ms) ? dr.heading : null,
+      heading: dr.getHeading(),
       distanceSinceAnchor: dr.distanceSinceAnchor }
       : isFresh(gpsTimestamp, positionClock) ? gpsFixRef.current : null;
     const step = routeData?.steps?.[currentStep];
@@ -2190,7 +2191,7 @@ const RoutingPage = () => {
           <RouteMap
             ref={routeMapRef}
             userLocation={navigationLocation}
-            userHeading={effectiveHeading}
+            userHeading={navigationFrame.mapHeading ?? effectiveHeading}
             navigationControlled={true}
             isOverviewMode={showAllRoutesView || showAlternativeRoutes}
             progressRouteM={navigationFrame.routeM}

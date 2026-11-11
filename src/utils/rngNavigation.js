@@ -141,7 +141,7 @@ export const getLiveNavigationGeo = ({ isDrActive, drPosition, userLocation, drT
 export const resolveNavigationFrame = ({
   step, stepIndex = 0, routeCoordinates = [], isRoutingActive = false,
   isDemoMode = false, hasArrived = false, isDrActive = false,
-  drPosition, userLocation, userHeading, sessionFloor = 0, drTimestamp, gpsTimestamp, now, anchorGeo, liveRouteM
+  drPosition, userLocation, userHeading, liveHeading, sessionFloor = 0, drTimestamp, gpsTimestamp, now, anchorGeo, liveRouteM
 }) => {
   const live = isRoutingActive && !isDemoMode;
   const preview = getStepPreview(live && step?.previewAt === 'end'
@@ -158,9 +158,11 @@ export const resolveNavigationFrame = ({
   const projection = isNavigationGeo(geo) ? projectPointOnRoute([geo.lng, geo.lat], routeCoordinates) : null;
   const floor = [step?.floor, step?.routeStep?.floor, sessionFloor]
     .find((value) => value !== null && value !== undefined && value !== '' && Number.isInteger(Number(value)));
+  const heading = preview.heading ?? (live && Number.isFinite(userHeading) ? ((userHeading % 360) + 360) % 360 : null);
   return {
     geo,
-    heading: preview.heading ?? (live && Number.isFinite(userHeading) ? ((userHeading % 360) + 360) % 360 : null),
+    heading,
+    mapHeading: live && Number.isFinite(liveHeading) ? liveHeading : heading,
     floor: floor === undefined ? 0 : Number(floor),
     mode: isDemoMode ? 'demo' : hasArrived ? 'arrived' : live ? 'live' : 'preview',
     routeM: hasArrived ? 1 : live && Number.isFinite(liveRouteM) ? liveRouteM : live

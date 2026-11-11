@@ -104,7 +104,8 @@ test('both iOS sensor permission prompts start within the same gesture', async (
       calls.push('motion');
       return new Promise(resolve => { grantMotion = resolve; });
     },
-    requestOrientation: () => {
+    requestOrientation: absolute => {
+      assert.equal(absolute, true);
       calls.push('orientation');
       return Promise.resolve('granted');
     }
