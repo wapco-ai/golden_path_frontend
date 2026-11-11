@@ -1,15 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BiQrScan } from 'react-icons/bi';
 import { FormattedMessage } from 'react-intl';
-import { prepareZXingModule, readBarcodes } from 'zxing-wasm/reader';
-import readerWasmUrl from 'zxing-wasm/reader/zxing_reader.wasm?url';
+import { readBarcodes } from 'zxing-wasm/reader';
+import { prepareQrReader } from '../../services/qrReader';
 import '../../styles/RngQrCorrection.css';
 
 const CAMERA = { video: { facingMode: { ideal: 'environment' }, width: { ideal: 720 } }, audio: false };
 const READER_OPTIONS = { formats: ['QRCode'], maxNumberOfSymbols: 1 };
 const HINT_KEY = 'rngQrCorrectionHintSeen';
-
-prepareZXingModule({ overrides: { locateFile: () => readerWasmUrl } });
 
 export default function RngQrCorrection({ text, onScan }) {
   const dialog = useRef(null);
@@ -94,7 +92,7 @@ export default function RngQrCorrection({ text, onScan }) {
       stream = camera;
       if (stopped) return release();
       video.srcObject = stream;
-      await video.play();
+      await Promise.all([video.play(), prepareQrReader()]);
       if (!stopped) void readFrame();
     }).catch(fail);
 
