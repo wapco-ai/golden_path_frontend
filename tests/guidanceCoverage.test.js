@@ -61,7 +61,7 @@ test('guidance placement shares the navigation satellite style for regular floor
   assert.match(source, /import \{ MBTILES_SATELLITE_STYLE \} from '\.\.\/services\/mbtilesMapStyle';/);
   assert.match(routeMap, /import \{ MBTILES_SATELLITE_STYLE \} from '\.\.\/\.\.\/services\/mbtilesMapStyle';/);
   assert.match(routeMap, /usePublicFloorMap\(\s*routeFloor,\s*language,\s*MBTILES_SATELLITE_STYLE,/);
-  assert.match(source, /style: extendAdminMapStyle\(MBTILES_SATELLITE_STYLE\),/);
+  assert.match(source, /const GROUND_MAP_STYLE = extendAdminMapStyle\(MBTILES_SATELLITE_STYLE\);/);
   assert.doesNotMatch(source, /osm-voyager\/style-en\.json/);
   // Do not fork the shared URL, numbering scheme, tile size or zoom settings here.
   assert.doesNotMatch(source, /tiles:\s*\[|scheme:\s*['"]|tileSize:\s*\d/);

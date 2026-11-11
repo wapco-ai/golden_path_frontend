@@ -23,7 +23,7 @@ const appearance = {
   areaCovered: ['get', 'is_covered']
 };
 
-const engineeringStyle = (language) => {
+export const createEngineeringMapStyle = (language) => {
   const params = new URLSearchParams({ p_floor: '-1', p_lang: language });
   const tile = `${appConfig.tileBaseUrl}/${TILE_FUNCTION}/{z}/{x}/{y}.pbf?${params}`;
   return {
@@ -63,7 +63,7 @@ const engineeringStyle = (language) => {
 export default function usePublicFloorMap(floor, language, regularStyle, regularKey, onRegularMapError) {
   const isEngineeringMap = normalizeFloor(floor) === -1;
   const style = useMemo(
-    () => isEngineeringMap ? engineeringStyle(language) : null,
+    () => isEngineeringMap ? createEngineeringMapStyle(language) : null,
     [isEngineeringMap, language]
   );
   const mapId = useId();

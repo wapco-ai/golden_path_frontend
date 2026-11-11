@@ -9,8 +9,12 @@ import apiAdmin from '../api/apiAdmin';
 import { deleteFile } from '../services/fileService';
 import { MBTILES_SATELLITE_STYLE } from '../services/mbtilesMapStyle';
 import { ADMIN_MAP_MAX_ZOOM, extendAdminMapStyle } from '../services/legacyMapStyles';
+import { createEngineeringMapStyle } from '../hooks/usePublicFloorMap';
 import { DEFAULT_GUIDANCE_COVERAGE_RADIUS_M, coverageRadiusForForm, parseCoverageRadius } from '../utils/guidanceCoverage.js';
 import { floorLabel } from '../utils/connectorForm.js';
+
+const GROUND_MAP_STYLE = extendAdminMapStyle(MBTILES_SATELLITE_STYLE);
+const BASEMENT_MAP_STYLE = createEngineeringMapStyle('fa');
 
 // RTL plugin initialization
 function ensureRtlOnce() {
@@ -175,6 +179,8 @@ const Marks = () => {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
+  const mapStyle = Number(formData.floor) === -1 ? BASEMENT_MAP_STYLE : GROUND_MAP_STYLE;
+  const mapStyleRef = useRef(mapStyle);
   const [selectedLocation, setSelectedLocation] = useState(null);
 
   // Filter marks based on search
@@ -242,7 +248,7 @@ const Marks = () => {
     try {
       const map = new maplibregl.Map({
         container: mapContainerRef.current,
-        style: extendAdminMapStyle(MBTILES_SATELLITE_STYLE),
+        style: mapStyleRef.current,
         maxZoom: ADMIN_MAP_MAX_ZOOM,
         center: [lng, lat],
         zoom: 16
@@ -315,6 +321,14 @@ const Marks = () => {
       toast.error('خطا در بارگذاری نقشه');
     }
   };
+
+  useEffect(() => {
+    mapStyleRef.current = mapStyle;
+    const map = mapRef.current;
+    if (map && map.getContainer() === mapContainerRef.current) {
+      map.setStyle(mapStyle, { diff: false });
+    }
+  }, [mapStyle]);
 
   // Cleanup map on unmount
   useEffect(() => {
