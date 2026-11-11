@@ -96,25 +96,73 @@ test('pause and confirmed resume preserve cumulative uncertainty without GPS', a
   expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
 });
 
-test('administrator can edit and save policy in the existing settings form', async ({ page }) => {
-  await setup(page);
+async function openAdminPanel(page, profile) {
+  await page.addInitScript(() => {
+    sessionStorage.setItem('gp_admin_access_token', 'browser-fixture-only');
+  });
+  await page.route('**/api/v1/**', route => {
+    const { pathname } = new URL(route.request().url());
+    if (pathname.endsWith('/admin/navigation-settings')) return route.fallback();
+    if (pathname.endsWith('/floors')) return route.fulfill({ json: [{ floor: 0, label: 'همکف' }] });
+    const json = pathname.endsWith('/admin/auth/me')
+      ? { id: 1, permissions: [], ...profile }
+      : { data: [], total: 0 };
+    return route.fulfill({ json });
+  });
+  await page.goto('/#/admin');
+  const accountMenu = page.locator('.sidebar-footer');
+  await expect(accountMenu.getByText('حساب کاربری', { exact: true })).toBeVisible();
+  return accountMenu;
+}
+
+test('dashboard administrator opens settings from the account menu and saves the uncertainty limit', async ({ page }) => {
+  let settings = { policy: DEFAULT_NAVIGATION_POLICY, version: 1, walk_speed_mps: 1.2 };
   let saved = null;
   await page.route('**/api/v1/admin/navigation-settings', async route => {
-    if (route.request().method() === 'PUT') saved = route.request().postDataJSON();
-    await route.fulfill({ json: saved ? { ...saved, version: 2 } : { policy: DEFAULT_NAVIGATION_POLICY, version: 1, walk_speed_mps: 1.2 } });
+    const request = route.request();
+    expect(request.headers().authorization).toBe('Bearer browser-fixture-only');
+    if (request.method() === 'PUT') {
+      saved = request.postDataJSON();
+      settings = { ...saved, version: settings.version + 1 };
+    }
+    await route.fulfill({ json: settings });
   });
-  await page.evaluate(async () => {
-    const [{ default: React }, { default: ReactDOM }, { default: Settings }] = await Promise.all([
-      import('/node_modules/.vite/deps/react.js'), import('/node_modules/.vite/deps/react-dom_client.js'),
-      import('/src/AdminPanel/NavigationSettings.jsx')]);
-    const container = document.createElement('div');
-    container.style.cssText = 'position:fixed;inset:0;background:white;z-index:99999;padding:15px';
-    document.body.appendChild(container);
-    ReactDOM.createRoot(container).render(React.createElement(Settings, { adminFetch: (url, options) => fetch(url, options), onClose() {} }));
+
+  const accountMenu = await openAdminPanel(page, {
+    roles: ['super_dashboard_admin'], canManageNavigationSettings: true,
   });
-  await page.getByLabel('حد هشدار خطای تجمعی (متر)', { exact: true }).fill('25');
-  await page.getByRole('button', { name: 'ذخیره', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('ذخیره شد');
-  expect(saved.policy.warning_uncertainty_m).toBe(25);
-  expect(saved.policy.gps_enabled).toBe(false);
+  const settingsEntry = accountMenu.getByRole('button', { name: 'تنظیمات', exact: true });
+  const form = page.locator('.settings-modal-container');
+  await expect(form).toHaveCount(0);
+  await settingsEntry.click();
+
+  const limit = form.getByLabel('حد هشدار خطای تجمعی (متر)', { exact: true });
+  await expect(limit).toHaveValue('20');
+  await limit.fill('25');
+  await form.getByRole('button', { name: 'ذخیره', exact: true }).click();
+  await expect(form.getByRole('status')).toContainText('ذخیره شد');
+  expect(saved).toEqual({
+    policy: { ...DEFAULT_NAVIGATION_POLICY, warning_uncertainty_m: 25 },
+    version: 1,
+    walk_speed_mps: 1.2,
+  });
+
+  await form.getByRole('button', { name: 'بستن', exact: true }).click();
+  await expect(form).toHaveCount(0);
+  await settingsEntry.click();
+  await expect(limit).toHaveValue('25');
+});
+
+test('another dashboard administrator cannot open navigation settings from the account menu', async ({ page }) => {
+  let settingsRequests = 0;
+  await page.route('**/api/v1/admin/navigation-settings', route => {
+    settingsRequests++;
+    return route.fulfill({ status: 403 });
+  });
+  const accountMenu = await openAdminPanel(page, {
+    roles: ['super_dashboard_admin'], canManageNavigationSettings: false,
+  });
+  await expect(accountMenu.getByRole('button', { name: 'تنظیمات', exact: true })).toHaveCount(0);
+  await expect(page.locator('.settings-modal-container')).toHaveCount(0);
+  expect(settingsRequests).toBe(0);
 });
