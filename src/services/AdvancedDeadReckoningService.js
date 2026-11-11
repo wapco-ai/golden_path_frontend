@@ -426,7 +426,7 @@ class AdvancedDeadReckoningService {
       lat: this.geoPosition.lat + dLat,
       lng: this.geoPosition.lng + dLng
     };
-    this.positionTimestamp = Date.now();
+    this.positionTimestamp = now;
     if (this.policy.gps_enabled) {
       this.distanceSinceAnchor += stepLength;
       this.positionAccuracy += stepLength * (this.calibrated ? 0.15 : this.policy.drift_per_meter);
