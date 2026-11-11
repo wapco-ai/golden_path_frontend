@@ -7,7 +7,8 @@ export const uploadFile = async ({
   entityTable,
   entityId,
   bucket = 'files',
-  keepOriginalName = false
+  keepOriginalName = false,
+  onUploadProgress
 }) => {
   if (!file) {
     throw new Error('فایل برای آپلود ارسال نشده است');
@@ -26,6 +27,7 @@ export const uploadFile = async ({
   formData.append('keep_original_name', keepOriginalName ? 'true' : 'false');
 
   const response = await apiAdmin.post(FILES_BASE_URL, formData, {
+    onUploadProgress,
     headers: {
       Accept: 'application/json'
     }

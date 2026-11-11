@@ -11397,6 +11397,49 @@ body {
   justify-content: flex-end;
 }
 
+.cultural-save-footer {
+  flex-wrap: wrap;
+}
+
+.cultural-save-status {
+  flex-basis: 100%;
+  min-width: 0;
+  color: #475569;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.cultural-save-status p {
+  margin: 0;
+}
+
+.edit-action-buttons + .cultural-save-status {
+  margin-top: 0.75rem;
+}
+
+.cultural-save-status [role="alert"] {
+  color: #b91c1c;
+}
+
+.cultural-save-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.cultural-save-progress progress {
+  flex: 1;
+  min-width: 0;
+  accent-color: #0f71ef;
+}
+
+.edit-action-buttons button:disabled,
+.cultural-save-footer button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
 .cancel-edit-btn,
 .save-edit-btn {
   padding: 0.7rem 1.8rem;

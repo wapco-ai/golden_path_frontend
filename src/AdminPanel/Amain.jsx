@@ -101,6 +101,47 @@ const CulturalUploadHint = ({ kind }) => (
   <p className="cultural-upload-hint">{CULTURAL_UPLOAD_RULES[kind].help}</p>
 );
 
+const culturalNumber = new Intl.NumberFormat('fa-IR');
+const culturalPercent = new Intl.NumberFormat('fa-IR', { style: 'percent' });
+
+const CulturalSaveStatus = ({ status, pendingCount }) => {
+  if (!status && !pendingCount) return null;
+
+  const { phase, failedPhase, name, index, total, progress } = status ?? {};
+  const sending = phase === 'uploading';
+  const fileNumber = sending ? `فایل ${culturalNumber.format(index)} از ${culturalNumber.format(total)}` : '';
+  const fileName = name && <bdi>{name}</bdi>;
+  let message;
+
+  if (sending) {
+    message = <>{progress === 1 ? 'در انتظار تأیید سرور برای' : 'در حال ارسال'} {fileNumber} · {fileName}</>;
+  } else if (phase === 'preparing') {
+    message = 'در حال ایجاد رکورد برای ارسال فایل‌ها…';
+  } else if (phase === 'finalizing') {
+    message = 'در حال ثبت نهایی…';
+  } else if (phase === 'error') {
+    if (failedPhase === 'uploading') message = <>ارسال فایل {fileName} ناموفق بود. دوباره ذخیره کنید.</>;
+    else if (failedPhase === 'preparing') message = 'ایجاد رکورد برای ارسال فایل‌ها ناموفق بود. دوباره ذخیره کنید.';
+    else message = 'ثبت نهایی ناموفق بود. دوباره ذخیره کنید.';
+  } else {
+    message = `${culturalNumber.format(pendingCount)} فایل آمادهٔ ارسال پس از ذخیره`;
+  }
+
+  return (
+    <div className="cultural-save-status" dir="rtl">
+      {phase === 'error' ? <p role="alert">{message}</p> : <p role="status">{message}</p>}
+      {sending && (
+        <div className="cultural-save-progress">
+          <progress max={1} value={progress} aria-label={`پیشرفت ارسال ${fileNumber}`} />
+          {progress !== undefined && <span aria-hidden="true">{culturalPercent.format(Math.floor(progress * 100) / 100)}</span>}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const newCulturalSaveDraft = () => ({ saving: false, createdPoiId: null, uploads: new Map() });
+
 const CulturalVideoUploadSection = ({ editing = false, files, onUpload, onRemove }) => (
   <div className={`cultural-video-upload ${editing ? 'edit-file-subsection' : 'file-upload-section'}`} data-testid={`cultural-video-section-${editing ? 'edit' : 'create'}`}>
     <div className={editing ? 'edit-section-header' : 'file-section-header'}>
@@ -2006,12 +2047,21 @@ const Amain = () => {
   const [pendingFileInfo, setPendingFileInfo] = useState(null);
   const culturalUploadQueueRef = useRef([]);
   const culturalPreviewUrlsRef = useRef(new Set());
+  const culturalSaveDraftRef = useRef(newCulturalSaveDraft());
+  const [culturalSaveStatus, setCulturalSaveStatus] = useState(null);
+  const isCulturalSaving = Boolean(culturalSaveStatus && culturalSaveStatus.phase !== 'error');
+  const culturalFiles = [...profileImages, ...videoFiles, ...audioFiles, ...textFiles];
+  const pendingCulturalFileCount = culturalFiles.filter(({ file, id }) => (
+    file && !culturalSaveDraftRef.current.uploads.has(id)
+  )).length;
 
   const releaseCulturalPreview = (file) => {
     if (culturalPreviewUrlsRef.current.delete(file?.url)) URL.revokeObjectURL(file.url);
   };
 
   const resetCulturalUploads = () => {
+    culturalSaveDraftRef.current = newCulturalSaveDraft();
+    setCulturalSaveStatus(null);
     culturalUploadQueueRef.current = [];
     culturalPreviewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     culturalPreviewUrlsRef.current.clear();
@@ -2324,7 +2374,29 @@ const Amain = () => {
     return 'file';
   };
 
-  const uploadCulturalFiles = async (files = [], entityId) => {
+  const saveCulturalForm = async (save, onSuccess) => {
+    const draft = culturalSaveDraftRef.current;
+    if (draft.saving || pendingImageFile || pendingFileInfo) return;
+
+    draft.saving = true;
+    const reportStatus = (status) => {
+      if (culturalSaveDraftRef.current === draft) setCulturalSaveStatus(status);
+    };
+
+    reportStatus({ phase: 'preparing' });
+    try {
+      await save(draft, reportStatus);
+    } catch (error) {
+      console.error('ذخیرهٔ اطلاعات فرهنگی ناموفق بود', error);
+      reportStatus((status) => ({ ...status, phase: 'error', failedPhase: status.phase }));
+      return;
+    } finally {
+      draft.saving = false;
+    }
+    if (culturalSaveDraftRef.current === draft) onSuccess();
+  };
+
+  const uploadCulturalFiles = async (files, entityId, draft, reportStatus) => {
     const targetEntityId = Number(entityId);
 
     if (!Number.isInteger(targetEntityId) || targetEntityId <= 0) {
@@ -2332,10 +2404,10 @@ const Amain = () => {
     }
 
     const uploadedFiles = [];
+    const total = files.filter(({ file }) => file).length;
+    let index = 0;
 
     for (const file of files) {
-      if (!file) continue;
-
       if (!file.file) {
         uploadedFiles.push({
           ...file,
@@ -2348,16 +2420,29 @@ const Amain = () => {
         continue;
       }
 
-      const validationError = validateCulturalUpload(file.file, culturalMediaKind(file));
-      if (validationError) throw new Error(validationError);
+      index += 1;
+      let response = draft.uploads.get(file.id);
+      if (!response) {
+        const uploadStatus = { phase: 'uploading', name: file.name, index, total };
+        reportStatus(uploadStatus);
+        const validationError = validateCulturalUpload(file.file, culturalMediaKind(file));
+        if (validationError) throw new Error(validationError);
 
-      const response = await uploadFile({
-        file: file.file,
-        entityTable: 'contents',
-        entityId: targetEntityId,
-        bucket: resolveFileBucket(file),
-        keepOriginalName: true
-      });
+        response = await uploadFile({
+          file: file.file,
+          entityTable: 'contents',
+          entityId: targetEntityId,
+          bucket: resolveFileBucket(file),
+          keepOriginalName: true,
+          onUploadProgress: ({ progress }) => {
+            if (Number.isFinite(progress)) {
+              reportStatus({ ...uploadStatus, progress: Math.min(1, progress) });
+            }
+          }
+        });
+        if (!response?.path && !response?.url) throw new Error('مسیر فایل از سرور دریافت نشد');
+        draft.uploads.set(file.id, response);
+      }
 
       uploadedFiles.push({
         ...file,
@@ -3946,13 +4031,8 @@ const Amain = () => {
       return;
     }
 
-    try {
-      const uploadedFiles = await uploadCulturalFiles([
-        ...profileImages,
-        ...videoFiles,
-        ...audioFiles,
-        ...textFiles
-      ], editingCulturalId);
+    await saveCulturalForm(async (draft, reportStatus) => {
+      const uploadedFiles = await uploadCulturalFiles(culturalFiles, editingCulturalId, draft, reportStatus);
 
       const attachments = buildAttachmentPayload(uploadedFiles);
       const resolvedPrimary = selectCulturalPrimaryImage(uploadedFiles, primaryImage?.id);
@@ -3988,14 +4068,13 @@ const Amain = () => {
           : null
       };
 
+      reportStatus({ phase: 'finalizing' });
       await updateCulturalItem(editingCulturalId, payload);
+    }, () => {
       toast.success('اطلاعات فرهنگی با موفقیت ویرایش شد');
       loadCulturalItems();
       exitEditMode();
-    } catch (error) {
-      console.error('خطا در ویرایش آیتم فرهنگی', error);
-      toast.error('ویرایش آیتم فرهنگی ناموفق بود');
-    }
+    });
   };
 
   const cleanupCulturalMap = useCallback(() => {
@@ -4122,6 +4201,7 @@ const Amain = () => {
   };
 
   const handleCancelEditCultural = () => {
+    if (culturalSaveDraftRef.current.saving) return;
     // Clean up map and marker
     cleanupCulturalMap();
 
@@ -4234,6 +4314,7 @@ const Amain = () => {
   };
 
   const closeAddCulturalModal = () => {
+    if (culturalSaveDraftRef.current.saving) return;
     setIsAddCulturalModalOpen(false);
     resetCulturalForm();
   };
@@ -5227,12 +5308,10 @@ const Amain = () => {
       return Number.isInteger(numericId) && numericId > 0 ? numericId : null;
     };
 
-    try {
-      const settingsPayload = buildSettingsPayload();
-
-      const poiPayload = {
+    await saveCulturalForm(async (draft, reportStatus) => {
+      const placeType = selectedPlaceType || 'farhangi';
+      const details = {
         floor: culturalFloor,
-        category_leaf_id: resolveCategoryLeafId(),
         location: {
           lng: selectedLocation.lng,
           lat: selectedLocation.lat
@@ -5242,73 +5321,49 @@ const Amain = () => {
           group_id: culturalPlaceCategory,
           sub_group_id: selectedSubGroup?.value || null,
           sub_group_label: selectedSubGroup?.label || null
-        },
-        placeType: selectedPlaceType || 'farhangi'
+        }
       };
-
-      // مرحله ۱: اول آیتم را بدون فایل بساز تا poi_id واقعی بگیریم
-      const createdItem = await createCulturalItem({
-        poi: poiPayload,
-        translations: buildCulturalTranslationsPayload([]),
+      const settingsAndRestrictions = {
         settings: {
-          ...settingsPayload,
-          placeType: selectedPlaceType || 'farhangi'
+          ...buildSettingsPayload(),
+          placeType
         },
         time_restrictions: buildCulturalTimeRestrictionsPayload(),
         prayer_restrictions: buildCulturalPrayerRestrictionsPayload()
-      });
+      };
 
-      const createdPoiId = resolveCreatedPoiId(createdItem);
-
-      if (!createdPoiId) {
-        throw new Error('شناسه آیتم فرهنگی بعد از ثبت از سرور دریافت نشد');
-      }
-
-      // مرحله ۲: حالا فایل‌ها را با entity_id عددی آپلود کن
-      const filesToUpload = [
-        ...profileImages,
-        ...videoFiles,
-        ...audioFiles,
-        ...textFiles
-      ];
-
-      if (filesToUpload.length > 0) {
-        const uploadedFiles = await uploadCulturalFiles(filesToUpload, createdPoiId);
-        const attachments = buildAttachmentPayload(uploadedFiles);
-        const resolvedPrimary = selectCulturalPrimaryImage(uploadedFiles, primaryImage?.id);
-
-        // مرحله ۳: آیتم را با media نهایی آپدیت کن
-        await updateCulturalItem(createdPoiId, {
-          poi_id: createdPoiId,
-          primaryImage: resolvedPrimary?.path || resolvedPrimary?.url || null,
-          translations: buildCulturalTranslationsPayload(attachments),
-          addressInShrine: placeAddress,
-          grouping: {
-            group_id: culturalPlaceCategory,
-            sub_group_id: selectedSubGroup?.value || null,
-            sub_group_label: selectedSubGroup?.label || null
+      if (!draft.createdPoiId) {
+        if (!culturalFiles.length) reportStatus({ phase: 'finalizing' });
+        const createdItem = await createCulturalItem({
+          poi: {
+            ...details,
+            category_leaf_id: resolveCategoryLeafId(),
+            placeType
           },
-          settings: {
-            ...settingsPayload,
-            placeType: selectedPlaceType || 'farhangi'
-          },
-          floor: culturalFloor,
-          location: {
-            lng: selectedLocation.lng,
-            lat: selectedLocation.lat
-          },
-          time_restrictions: buildCulturalTimeRestrictionsPayload(),
-          prayer_restrictions: buildCulturalPrayerRestrictionsPayload()
+          translations: buildCulturalTranslationsPayload([]),
+          ...settingsAndRestrictions
         });
+        draft.createdPoiId = resolveCreatedPoiId(createdItem);
+        if (!draft.createdPoiId) throw new Error('شناسه آیتم فرهنگی بعد از ثبت از سرور دریافت نشد');
+        if (!culturalFiles.length) return;
       }
 
+      const uploadedFiles = await uploadCulturalFiles(culturalFiles, draft.createdPoiId, draft, reportStatus);
+      const attachments = buildAttachmentPayload(uploadedFiles);
+      const resolvedPrimary = selectCulturalPrimaryImage(uploadedFiles, primaryImage?.id);
+      reportStatus({ phase: 'finalizing' });
+      await updateCulturalItem(draft.createdPoiId, {
+        poi_id: draft.createdPoiId,
+        primaryImage: resolvedPrimary?.path || resolvedPrimary?.url || null,
+        translations: buildCulturalTranslationsPayload(attachments),
+        ...details,
+        ...settingsAndRestrictions
+      });
+    }, () => {
       toast.success('اطلاعات فرهنگی با موفقیت ثبت شد');
       closeAddCulturalModal();
       loadCulturalItems();
-    } catch (error) {
-      console.error('ثبت آیتم فرهنگی ناموفق بود', error);
-      toast.error(error?.message || 'ثبت آیتم فرهنگی ناموفق بود');
-    }
+    });
   };
 
 
@@ -5330,6 +5385,7 @@ const Amain = () => {
   };
 
   const handleSubmenuClick = (viewName) => {
+    if (culturalSaveDraftRef.current.saving) return;
     if (!canOpenView(viewName)) return;
     setCurrentReportView(viewName);
 
@@ -9146,6 +9202,7 @@ const Amain = () => {
   }, [activeMenu, currentReportView, isEditingCultural]);
 
   const handleMenuClick = (menuName, breadcrumbLabel) => {
+    if (culturalSaveDraftRef.current.saving) return;
     if (menuName === 'dashboard' && !canSeeDashboard) return;
     if (menuName === 'mapmanage' && !canManageMap) return;
     if (menuName !== 'reports') {
@@ -11671,7 +11728,7 @@ const Amain = () => {
                 <div className="edit-right-section">
 
                   {/* Title and Details */}
-                  <div className="edit-form-section">
+                  <div className="edit-form-section" inert={isCulturalSaving ? '' : undefined}>
                     <h3 className="edit-form-title">عنوان و جزئیات</h3>
 
                     <div className="edit-form-group">
@@ -11726,7 +11783,7 @@ const Amain = () => {
                   </div>
 
                   {/* Address and Location */}
-                  <div className="edit-form-section">
+                  <div className="edit-form-section" inert={isCulturalSaving ? '' : undefined}>
                     <h3 className="edit-form-title">آدرس و موقعیت اطلاعات فرهنگی</h3>
 
                     <div className="edit-form-group">
@@ -11798,7 +11855,7 @@ const Amain = () => {
                   </div>
 
                   {/* Restrictions Section */}
-                  <div className="edit-form-section">
+                  <div className="edit-form-section" inert={isCulturalSaving ? '' : undefined}>
                     <h3 className="edit-form-title">محدودیت‌های اعمال شده</h3>
 
                     <div className="edit-restrictions-section">
@@ -11874,17 +11931,18 @@ const Amain = () => {
 
                   {/* Action Buttons */}
                   <div className="edit-action-buttons">
-                    <button className="cancel-edit-btn" onClick={handleCancelEditCultural}>
+                    <button className="cancel-edit-btn" onClick={handleCancelEditCultural} disabled={isCulturalSaving}>
                       انصراف
                     </button>
-                    <button className="save-edit-btn" onClick={handleSaveEditCultural}>
+                    <button className="save-edit-btn" onClick={handleSaveEditCultural} disabled={isCulturalSaving}>
                       ثبت تغییرات
                     </button>
                   </div>
+                  <CulturalSaveStatus status={culturalSaveStatus} pendingCount={pendingCulturalFileCount} />
                 </div>
 
                 {/* Left Section */}
-                <div className="edit-left-section">
+                <div className="edit-left-section" inert={isCulturalSaving ? '' : undefined}>
 
                   {/* Profile Images Section */}
                   <div className="edit-media-section">
@@ -15527,7 +15585,7 @@ const Amain = () => {
                   {culturalStep === 4 && 'مرحله چهارم اطلاعات'}
                 </span>
               </div>
-              <div className="step-progress">
+              <div className="step-progress" inert={isCulturalSaving ? '' : undefined}>
                 <div
                   className={`step-circle ${culturalStep >= 1 ? 'active' : ''}`}
                   onClick={() => handleStepCircleClick(1)}
@@ -15563,7 +15621,7 @@ const Amain = () => {
             </div>
 
             {/* Modal Content */}
-            <div className="modal-content">
+            <div className="modal-content" inert={isCulturalSaving ? '' : undefined}>
               {culturalStep === 1 && (
                 <div className="step-content">
                   <div className="step-intro">
@@ -16581,16 +16639,21 @@ const Amain = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="modal-footer">
+            <div className="modal-footer cultural-save-footer">
+              {culturalStep === 4 && (
+                <CulturalSaveStatus status={culturalSaveStatus} pendingCount={pendingCulturalFileCount} />
+              )}
               <button
                 className="cancel-btn11"
                 onClick={closeAddCulturalModal}
+                disabled={isCulturalSaving}
               >
                 انصراف و بستن
               </button>
               <button
                 className="confirm-btn"
                 onClick={culturalStep === 4 ? handleSaveCulturalData : handleCulturalNextStep}
+                disabled={isCulturalSaving}
               >
                 {culturalStep === 4 ? 'تایید و ثبت اطلاعات' : 'تایید و مرحله بعد'}
               </button>
@@ -17086,7 +17149,7 @@ const Amain = () => {
                 onClick={handleSaveFileWithDetails}
                 disabled={!fileUploadTitle.trim() || !fileUploadDescription.trim()}
               >
-                ذخیره و آپلود فایل
+                افزودن فایل به فرم
               </button>
             </div>
           </div>
