@@ -58,26 +58,22 @@ test('Haram default ignores GPS and reaches the destination using actual motion 
   expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
 });
 
-test('excess uncertainty keeps QR available and a persistent warning in both panel states', async ({ page }) => {
-  await setup(page, 100);
+test('excess uncertainty blocks arrival and keeps the map controls visible without a banner', async ({ page }) => {
+  await setup(page, 64);
   await walk(page, 85);
-  const warning = page.getByTestId('navigation-warning');
-  await expect(warning).toContainText('حد خطا 20 متر');
-  await expect(page.locator('.routing-page')).toHaveAttribute('data-navigation-mode', 'live');
-  const step = await page.locator('.routing-page').getAttribute('data-current-step');
+  const state = page.locator('.routing-page');
+  // 85 default 0.7 m steps add 17.85 m to the selected origin's 5 m allowance.
+  await expect(state).toHaveAttribute('data-current-step', '1');
+  // Walk into the arrival radius after crossing the configured 20 m uncertainty limit.
   await walk(page, 8);
-  await expect(page.locator('.routing-page')).toHaveAttribute('data-current-step', step);
-  for (let i = 0; i < 2; i++) {
-    await expect(warning).toBeVisible();
+  await expect(state).toHaveAttribute('data-navigation-mode', 'live');
+  await expect(state).toHaveAttribute('data-current-step', '1');
+  for (const panel of ['closed', 'open']) {
+    await expect(page.locator(`.info-modal.${panel}`)).toBeVisible();
+    await expect(page.getByTestId('navigation-warning')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'اصلاح مسیر با QR' })).toBeVisible();
-    const box = await warning.boundingBox();
-    for (const control of [page.getByRole('button', { name: 'اصلاح مسیر با QR' }), page.getByRole('button', { name: 'توقف موقت', exact: true })]) {
-      const action = await control.boundingBox();
-      expect(box.y + box.height <= action.y || action.y + action.height <= box.y).toBe(true);
-    }
-    expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(360);
-    await page.screenshot({ path: `test-results/navigation-warning-${i}.png` });
-    if (i === 0) await page.locator('.expand-button').click();
+    await expect(page.getByRole('button', { name: 'توقف موقت', exact: true })).toBeVisible();
+    if (panel === 'closed') await page.locator('.expand-button').click();
   }
   expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
 });
