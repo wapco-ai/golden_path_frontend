@@ -93,6 +93,57 @@ test('Haram default ignores GPS and reaches the destination using actual motion 
   expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
 });
 
+test('the home map shows the requested device location without enabling GPS for routing', async ({ page, context }) => {
+  await page.setViewportSize({ width: 360, height: 780 });
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({ latitude: 36.289, longitude: 59.617, accuracy: 12 });
+  await page.addInitScript(() => {
+    sessionStorage.setItem('selectedMapType', 'base');
+    window.gpsCalls = [];
+    const geolocation = navigator.geolocation;
+    for (const method of ['getCurrentPosition', 'watchPosition', 'clearWatch']) {
+      const original = geolocation[method].bind(geolocation);
+      geolocation[method] = (...args) => {
+        window.gpsCalls.push(method);
+        return original(...args);
+      };
+    }
+  });
+  const landmarkRequests = [];
+  await page.route('**/api/v1/**', route => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith('/navigation-settings')) {
+      return route.fulfill({ json: { policy: DEFAULT_NAVIGATION_POLICY } });
+    }
+    if (url.pathname.endsWith('/landmark-places')) {
+      landmarkRequests.push(url.searchParams);
+      return route.fulfill({ json: { places: { landmarkPlaces: [] } } });
+    }
+    return route.fulfill({ json: { data: [], features: [] } });
+  });
+  await page.route('**/map-styles/**/style*.json', route => route.fulfill({ json: {
+    version: 8, sources: {}, layers: [{ id: 'background', type: 'background' }]
+  } }));
+  await page.route('**/tiles/**', route => route.fulfill({ status: 204 }));
+
+  await page.goto('/#/mpb');
+  const locate = page.locator('.map-gps-button');
+  const marker = page.locator('.map-marker-origin');
+  await expect(locate).toBeVisible();
+  expect(await page.evaluate(() => window.gpsCalls)).toEqual([]);
+  await expect(marker).toHaveCount(0);
+
+  await locate.click();
+  await expect(marker).toBeVisible();
+  expect(await page.evaluate(() => window.gpsCalls)).toEqual(['getCurrentPosition', 'watchPosition']);
+  expect(landmarkRequests.length).toBeGreaterThan(0);
+  expect(landmarkRequests.every(params => !params.has('geo[lat]') && !params.has('geo[lng]'))).toBe(true);
+
+  await locate.click();
+  await expect(marker).toHaveCount(0);
+  expect(await page.evaluate(() => window.gpsCalls.at(-1))).toBe('clearWatch');
+});
+
 test('step-test counts sensor steps and distinguishes the final instruction from arrival', async ({ page }) => {
   await setup(page, 40, false, true);
   await expect(page.getByTestId('step-diagnostic-steps')).toHaveText('0');
