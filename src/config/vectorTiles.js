@@ -506,7 +506,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     },
     {
       id: 'van-edges',
-      titleFa: 'مسیر ون برقی',
+      titleFa: 'مسیر زائربر',
       table: MESH_TRIANGLES_SOURCE_LAYER,
       sourceId: 'van_edges',
       sourceLayer: VAN_EDGES_VECTOR_LAYER_NAME,
@@ -526,7 +526,7 @@ const buildHaramAdminVectorTileConfig = (lang = DEFAULT_TILE_LANG) => {
     },
     {
       id: 'van-nodes',
-      titleFa: 'گره مسیر ون',
+      titleFa: 'گره مسیر زائربر',
       table: VAN_EDGES_FUNCTION_SOURCE_LAYER,
       sourceId: 'van_nodes',
       sourceLayer: VAN_NODES_VECTOR_LAYER_NAME,

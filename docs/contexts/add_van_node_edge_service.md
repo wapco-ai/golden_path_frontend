@@ -13,7 +13,7 @@
 
 **کاربرد:**
 
-* `stop`: ایستگاه/نقطه توقف ون
+* `stop`: ایستگاه/نقطه توقف زائربر
 * `junction`: نقطه اتصال/تغییر مسیر (بدون نمایش به‌عنوان ایستگاه، یا نمایش با سبک متفاوت)
 
 ---
@@ -83,7 +83,7 @@ GET /api/v1/admin/van/nodes?language=fa&floor=0&limit=50
       "x": 734700.12,
       "y": 4018800.55,
       "updated_at": "2025-12-14T09:10:00Z",
-      "name": "ایستگاه ون ۱",
+      "name": "ایستگاه زائربر ۱",
       "description": "کنار ورودی اصلی"
     }
   ],
@@ -117,7 +117,7 @@ GET /api/v1/admin/van/nodes/101?language=fa
   "node_type": "stop",
   "geom": { "x": 734700.12, "y": 4018800.55 },
   "basic_info": {
-    "title": { "fa": "ایستگاه ون ۱", "en": "Van Stop 1", "ar": "", "ur": "" },
+    "title": { "fa": "ایستگاه زائربر ۱", "en": "Zaerbar Stop 1", "ar": "", "ur": "" },
     "description": { "fa": "کنار ورودی اصلی", "en": "", "ar": "", "ur": "" }
   },
   "updated_at": "2025-12-14T09:10:00Z"
@@ -141,7 +141,7 @@ Content-Type: application/json
   "node_type": "stop",
   "geom": { "x": 734700.12, "y": 4018800.55 },
   "basic_info": {
-    "title": { "fa": "ایستگاه ون ۱", "en": "Van Stop 1", "ar": "", "ur": "" },
+    "title": { "fa": "ایستگاه زائربر ۱", "en": "Zaerbar Stop 1", "ar": "", "ur": "" },
     "description": { "fa": "کنار ورودی اصلی", "en": "", "ar": "", "ur": "" }
   }
 }
@@ -168,7 +168,7 @@ PUT /api/v1/admin/van/nodes/101
 ```json
 {
   "basic_info": {
-    "title": { "fa": "ایستگاه ون شماره ۱" }
+    "title": { "fa": "ایستگاه زائربر شماره ۱" }
   }
 }
 ```
@@ -329,7 +329,7 @@ DELETE /api/v1/admin/van/edges/9001
 
 ## 5) سناریو کامل UI (گام به گام)
 
-### سناریو A: ساخت شبکه ون از صفر
+### سناریو A: ساخت شبکه زائربر از صفر
 
 1. کاربر روی نقشه کلیک می‌کند → مختصات UTM را می‌گیریم → `POST node`
 2. دو تا node که ساخته شد → کاربر «اتصال» می‌زند → `POST edge`

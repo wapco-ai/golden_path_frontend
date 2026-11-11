@@ -408,7 +408,7 @@ const GENDER_VALUE_MAP = {
 
 const TRANSPORT_OPTIONS = [
   { value: 'wheelchair', label: 'ویلچر', icon: 'wheelchair' },
-  { value: 'van', label: 'ون برقی', icon: 'electric' },
+  { value: 'van', label: 'زائربر', icon: 'electric' },
   { value: 'walk', label: 'به صورت پیاده', icon: 'walking' }
 ];
 
@@ -437,7 +437,7 @@ const normalizeGenderValue = (value) => {
 const getTransportLabel = (value) => TRANSPORT_OPTIONS.find((option) => option.value === value)?.label || value;
 const normalizeTransportValue = (value) => TRANSPORT_OPTIONS.find((option) => option.value === value)?.value
   || TRANSPORT_OPTIONS.find((option) => option.label === value)?.value
-  || value;
+  || (value === 'ون برقی' ? 'van' : value);
 
 const placeTypeLabelToValue = (label) => PLACE_TYPE_OPTIONS.find((option) => option.label === label)?.value || '';
 const placeTypeValueToLabel = (value) => PLACE_TYPE_OPTIONS.find((option) => option.value === value)?.label || '';
@@ -8965,7 +8965,7 @@ const Amain = () => {
       const coordinate = vanLineCoordinates[index];
 
       if (!Array.isArray(coordinate) || coordinate.length < 2) {
-        throw new Error('مختصات مسیر ون نامعتبر است');
+        throw new Error('مختصات مسیر زائربر نامعتبر است');
       }
 
       const [lng, lat] = coordinate || [];
@@ -8985,7 +8985,7 @@ const Amain = () => {
       const nodeId = nodeResponse?.id;
 
       if (!nodeId) {
-        throw new Error('شناسه گره ون دریافت نشد');
+        throw new Error('شناسه گره زائربر دریافت نشد');
       }
 
       createdNodes.push({ id: nodeId, coordinate });
@@ -9012,7 +9012,7 @@ const Amain = () => {
     }
 
     refreshActiveEditableLayerTiles();
-    toast.success('مسیر ون با موفقیت ذخیره شد');
+    toast.success('مسیر زائربر با موفقیت ذخیره شد');
   }, [mapFloor, refreshActiveEditableLayerTiles, vanLineCoordinates]);
 
   const handleToggleVanDrawing = async () => {
@@ -9022,7 +9022,7 @@ const Amain = () => {
     }
 
     if (!isVanDrawingLayerActive) {
-      toast.error('برای ترسیم مسیر ون، لایه گره‌های ون باید در حالت ویرایش فعال باشد');
+      toast.error('برای ترسیم مسیر زائربر، لایه گره‌های زائربر باید در حالت ویرایش فعال باشد');
       return;
     }
 
@@ -9034,13 +9034,13 @@ const Amain = () => {
     }
 
     if (vanLineCoordinates.length < 2) {
-      toast.error('برای ذخیره مسیر ون حداقل دو نقطه لازم است');
+      toast.error('برای ذخیره مسیر زائربر حداقل دو نقطه لازم است');
       setIsVanDrawingMode(false);
       setVanLineCoordinates([]);
       return;
     }
 
-    const routeTitle = window.prompt('برای ذخیره مسیر ون یک عنوان وارد کنید', 'مسیر ون جدید');
+    const routeTitle = window.prompt('برای ذخیره مسیر زائربر یک عنوان وارد کنید', 'مسیر زائربر جدید');
 
     if (!routeTitle || !routeTitle.trim()) return;
 
@@ -9050,7 +9050,7 @@ const Amain = () => {
       setIsVanDrawingMode(false);
       setVanLineCoordinates([]);
     } catch (error) {
-      toast.error(error?.message || 'ذخیره مسیر ون ناموفق بود');
+      toast.error(error?.message || 'ذخیره مسیر زائربر ناموفق بود');
     } finally {
       setIsSavingVanRoute(false);
     }
@@ -9058,7 +9058,7 @@ const Amain = () => {
 
   const handleVanNodeDelete = async () => {
     if (!isVanNodesLayerActive) {
-      toast.error('برای حذف گره ون، لایه گره ون باید در حالت ویرایش فعال باشد');
+      toast.error('برای حذف گره زائربر، لایه گره زائربر باید در حالت ویرایش فعال باشد');
       return;
     }
 
@@ -9067,17 +9067,17 @@ const Amain = () => {
       return;
     }
 
-    const confirmDelete = window.confirm(`آیا از حذف گره ون انتخاب‌شده (شناسه ${selectedVanNodeId}) مطمئن هستید؟ این عملیات قابل بازگشت نیست.`);
+    const confirmDelete = window.confirm(`آیا از حذف گره زائربر انتخاب‌شده (شناسه ${selectedVanNodeId}) مطمئن هستید؟ این عملیات قابل بازگشت نیست.`);
 
     if (!confirmDelete) return;
 
     try {
       await deleteVanNode(selectedVanNodeId);
-      toast.success('گره ون با موفقیت حذف شد');
+      toast.success('گره زائربر با موفقیت حذف شد');
       setSelectedEditableFeature(null);
       refreshActiveEditableLayerTiles();
     } catch (error) {
-      toast.error(error?.message || 'حذف گره ون ناموفق بود');
+      toast.error(error?.message || 'حذف گره زائربر ناموفق بود');
     }
   };
 
@@ -13060,7 +13060,7 @@ const Amain = () => {
 
                     {/* Button 3 */}
                     <div className={`action-button van-manage ${openSubMenu === 3 ? 'selected' : ''}`}
-                      data-map-tooltip="مدیریت مسیرها و گره‌های ون برقی" aria-label="مدیریت مسیرها و گره‌های ون برقی" role="button" tabIndex={0} aria-expanded={openSubMenu === 3} aria-controls="admin-map-van-tools" onKeyDown={activateAdminMapControlByKeyboard}
+                      data-map-tooltip="مدیریت مسیرها و گره‌های زائربر" aria-label="مدیریت مسیرها و گره‌های زائربر" role="button" tabIndex={0} aria-expanded={openSubMenu === 3} aria-controls="admin-map-van-tools" onKeyDown={activateAdminMapControlByKeyboard}
                       onClick={() => {
                         setOpenSubMenu(openSubMenu === 3 ? null : 3);
                         // Reset location marker mode when other buttons are clicked
@@ -13074,18 +13074,18 @@ const Amain = () => {
                       <div className="sub-buttons3" id="admin-map-van-tools">
                         <button
                           className={`sub-btn van-create ${isVanDrawingMode ? 'active' : ''}`}
-                          data-map-tooltip="شروع یا پایان ترسیم مسیر ون برقی" aria-label="شروع یا پایان ترسیم مسیر ون برقی"
+                          data-map-tooltip="شروع یا پایان ترسیم مسیر زائربر" aria-label="شروع یا پایان ترسیم مسیر زائربر"
                           disabled={isSavingVanRoute}
                           onClick={handleToggleVanDrawing}
                         >
                           <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 106.67 122.88" xmlSpace="preserve"><g><path className="st0" d="M87.73,0c1.3-0.01,2.42,0.43,3.39,1.35l14.16,13.55c0.92,0.88,1.37,2.04,1.39,3.32 c0.02,1.3-0.36,2.49-1.26,3.39l-7.54,7.84L76.95,9.25l7.46-7.77C85.32,0.53,86.43,0.02,87.73,0L87.73,0L87.73,0z M21.44,72.88 c2.56-0.79,5.26,0.65,6.05,3.2c0.79,2.56-0.65,5.26-3.2,6.05c-7.45,2.28-12.44,6.7-14.1,10.85c-0.44,1.11-0.59,2.12-0.42,2.96 c0.13,0.63,0.51,1.21,1.14,1.66c2.72,1.99,8.58,2.5,18.42,0.11c4.76-1.16,2.81-0.68,5.99-1.27c6.32-1.17,12.63-1.97,17.72-1.72 c6.68,0.33,11.7,2.48,13.41,7.61c1.11,3.32,0.8,6.2,0.52,8.78c-0.1,0.93-0.19,1.79-0.15,2.36c0,0.02,1.01-0.05,5.9-0.44 c5.66-0.45,11.52-2.68,17.3-4.89c2.97-1.13,5.91-2.25,9.25-3.28c2.56-0.78,5.26,0.67,6.03,3.22c0.78,2.56-0.67,5.26-3.22,6.03 c-2.59,0.79-5.59,1.94-8.6,3.08c-6.45,2.46-12.96,4.94-20,5.5c-12.88,1.01-15.87-2.63-16.33-8.48c-0.11-1.38,0.03-2.71,0.18-4.14 c0.17-1.6,0.36-3.39-0.07-4.69c-0.19-0.58-2.02-0.88-4.68-1c-4.26-0.21-9.84,0.51-15.52,1.57c-2.83,0.52-0.8,0.02-5.45,1.15 c-12.96,3.15-21.57,1.81-26.39-1.71c-2.71-1.97-4.32-4.56-4.94-7.47c-0.58-2.71-0.25-5.63,0.91-8.54 C3.81,82.85,11.04,76.06,21.44,72.88L21.44,72.88L21.44,72.88z M44.06,51.71l12.84,12.35l-15.7,4.22 c-0.57,0.11-0.79-0.12-0.69-0.64L44.06,51.71L44.06,51.71L44.06,51.71z M70.31,16.13l20.91,20.14L62.66,66.41l-25.59,6.86 c-0.92,0.18-1.28-0.18-1.13-1.05l5.8-25.94L70.31,16.13L70.31,16.13L70.31,16.13z" /></g></svg>
                         </button>
                         <button className="sub-btn move-van-node"
-                          data-map-tooltip="ابزار جابجایی گره ون" aria-label="ابزار جابجایی گره ون">
+                          data-map-tooltip="ابزار جابجایی گره زائربر" aria-label="ابزار جابجایی گره زائربر">
                           <svg xmlns="http://www.w3.org/2000/svg" shapeRendering="geometricPrecision" textRendering="geometricPrecision" imageRendering="optimizeQuality" fillRule="evenodd" clipRule="evenodd" viewBox="0 0 512 512"><path fillRule="nonzero" d="M318.633 104.048h-49.644v94.774c22.158 5.014 39.533 22.56 44.319 44.772h94.644v-78.986L512 256l-104.048 91.392V268.989h-94.774c-4.968 21.952-22.237 39.221-44.189 44.189v94.774h78.403L256 512l-91.392-104.048H243.594v-94.644c-22.212-4.786-39.758-22.161-44.772-44.319h-94.774v78.403L0 256l104.048-91.392V243.594h94.644c4.83-22.419 22.483-40.072 44.902-44.902v-94.644h-78.986L256 0l91.392 104.048h-28.759z" /></svg>
                         </button>
                         <button className="sub-btn delete-van-node"
-                          data-map-tooltip="حذف گره ون انتخاب‌شده" aria-label="حذف گره ون انتخاب‌شده" onClick={handleVanNodeDelete}>
+                          data-map-tooltip="حذف گره زائربر انتخاب‌شده" aria-label="حذف گره زائربر انتخاب‌شده" onClick={handleVanNodeDelete}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M4 7l16 0" />
