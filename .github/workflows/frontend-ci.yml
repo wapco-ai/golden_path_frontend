@@ -28,8 +28,11 @@ jobs:
         run: node --input-type=module -e "import { createJSONStorage } from 'zustand/middleware'; if (typeof createJSONStorage !== 'function') process.exit(1);"
       - run: npm run build
 
-      - name: Install browser for form integration tests
-        run: npx playwright install --with-deps chromium
+      - name: Select the runner browser for integration tests
+        run: |
+          browser="$(command -v google-chrome)"
+          "$browser" --version
+          echo "GP_TEST_CHROMIUM=$browser" >> "$GITHUB_ENV"
       - name: Admin connector forms in desktop and mobile browser
         run: npm run test:browser
       - name: Installed PWA notification cache isolation
