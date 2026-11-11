@@ -38,7 +38,7 @@ An existing multi-floor stair/ramp/escalator/elevator group may be reclassified 
 Elevators connect all usable served floors. Waiting time applies once per boarding.
 Stairs, ramps and escalators connect consecutive stops in the displayed physical
 order. Reverse travel time defaults to forward time and can be overridden.
-Wheelchairs cannot use stairs/escalators; electric vans cannot use connectors.
+Wheelchairs cannot use stairs/escalators; Zaerbar cannot use connectors.
 
 Selected origin/destination floors survive search, map selection and route storage.
 Routes retain separate walk geometry per floor and explicit transfer steps.

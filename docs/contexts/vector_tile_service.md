@@ -121,7 +121,7 @@ export const haramVectorTileConfig: HaramVectorTileLayerConfig[] = [
   },
   {
     id: "van-edges",
-    titleFa: "مسیر ون‌ها (خطوط)",
+    titleFa: "مسیر زائربر",
     table: "public.van_edges",
     sourceId: "van-edges",
     sourceLayer: "public.van_edges",
@@ -133,7 +133,7 @@ export const haramVectorTileConfig: HaramVectorTileLayerConfig[] = [
   },
   {
     id: "van-nodes",
-    titleFa: "گره‌های ون",
+    titleFa: "گره مسیر زائربر",
     table: "public.van_nodes",
     sourceId: "van-nodes",
     sourceLayer: "public.van_nodes",

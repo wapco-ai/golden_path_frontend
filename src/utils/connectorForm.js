@@ -55,7 +55,7 @@ export function connectorError(connector, kind, modes, stairCandidates) {
     if (modes.length !== 1 || modes[0] !== 'walk') return 'پلهٔ داخل طبقه فقط برای تردد پیاده قابل استفاده است.';
     if (connector.stops.length !== 2 || floors.size !== 1) return 'دو سر پله را در همین طبقه مشخص کنید.';
   } else {
-    if (modes.includes('van')) return 'اتصال بین طبقات برای ون برقی قابل استفاده نیست.';
+    if (modes.includes('van')) return 'اتصال بین طبقات برای زائربر قابل استفاده نیست.';
     if (connector.stops.length < 2) return 'حداقل دو توقف در طبقات متفاوت مشخص کنید.';
     if (floors.size !== connector.stops.length) return 'هر طبقه فقط یک توقف در این اتصال دارد.';
   }
