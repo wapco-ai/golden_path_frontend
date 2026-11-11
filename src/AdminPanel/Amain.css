@@ -11616,6 +11616,9 @@ body {
 .text-file-item-edit > .remove-file-btn-small-edit {
   position: static;
   flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-inline-start: 0.5rem;
 }
 
 .audio-file-name-edit,
