@@ -2,11 +2,43 @@ import appConfig from '../config/appConfig.js';
 import { getPointFloor, normalizeFloor } from '../utils/floors.js';
 import { setSessionFloor } from '../utils/sessionFloor.js';
 import { isFresh } from '../utils/locationQuality.js';
-import { userRequest } from '../api/userRequest.js';
 
 const pending = new Map();
+const qrFetchOptions = { cache: 'no-store', priority: 'high' };
+const scanLookupTimeoutMs = 12000;
+const scanLookupAttempts = 2;
 const validCoordinates = (lat, lng) => lat !== null && lng !== null && String(lat).trim() !== '' && String(lng).trim() !== '' && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)) && Math.abs(Number(lat)) <= 90 && Math.abs(Number(lng)) <= 180;
 const qrKey = () => ['qrLat', 'qrLng', 'qrId'].map(key => sessionStorage.getItem(key) || '').join('|');
+
+function fetchQrLocation(code, query, signal) {
+  return fetch(`${appConfig.apiBaseUrl}/api/v1/qrcodes/${encodeURIComponent(code)}?${query}`, {
+    ...qrFetchOptions, signal, headers: { Accept: 'application/json' }
+  });
+}
+
+async function lookupScannedQrRecord(code, language, signal) {
+  const query = new URLSearchParams({ language, includeContents: 'false', includeComments: 'false' });
+  for (let attempt = 1; attempt <= scanLookupAttempts; attempt += 1) {
+    if (signal?.aborted) throw signal.reason;
+    const controller = new AbortController();
+    const abort = () => controller.abort(signal.reason);
+    signal?.addEventListener('abort', abort, { once: true });
+    const timer = setTimeout(() => controller.abort(), scanLookupTimeoutMs);
+    try {
+      const response = await fetchQrLocation(code, query, controller.signal);
+      if (response.status === 404) return null;
+      if (!response.ok) throw new Error(`QR lookup failed (${response.status})`);
+      // A response can stall after the headers. Keep the deadline through the body read.
+      return await response.json();
+    } catch (error) {
+      const retryable = controller.signal.aborted || error instanceof TypeError;
+      if (!retryable || signal?.aborted || attempt === scanLookupAttempts) throw error;
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', abort);
+    }
+  }
+}
 
 export async function resolveScannedQrPoint(value, language, signal) {
   let code = typeof value === 'string' ? value.trim() : '';
@@ -21,12 +53,9 @@ export async function resolveScannedQrPoint(value, language, signal) {
   }
   if (!codePattern.test(code)) return null;
 
-  const query = new URLSearchParams({ language, includeContents: 'false', includeComments: 'false' });
-  const response = await userRequest(`${appConfig.apiBaseUrl}/api/v1/qrcodes/${encodeURIComponent(code)}?${query}`, { signal });
-  if (response.status === 404) return null;
-  if (!response.ok) throw new Error(`QR lookup failed (${response.status})`);
-
-  const { id, coordinates, floor, title } = await response.json();
+  const record = await lookupScannedQrRecord(code, language, signal);
+  if (!record) return null;
+  const { id, coordinates, floor, title } = record;
   const [lat, lng] = Array.isArray(coordinates) ? coordinates : [];
   if (id !== code || !validCoordinates(lat ?? null, lng ?? null)) return null;
   return { coordinates: [Number(lat), Number(lng)], floor: normalizeFloor(floor), name: title || code, source: 'qr', qrCode: code, verified: true, timestamp: Date.now(), accuracy: 2 };
@@ -68,9 +97,7 @@ export function captureQrLocation(params) {
 }
 
 async function lookupLinkedQrRecord(id, language, signal) {
-  const options = { signal, cache: 'no-store', priority: 'high' };
-  const response = await fetch(`${appConfig.apiBaseUrl}/api/v1/qrcodes/${encodeURIComponent(id)}?language=${encodeURIComponent(language)}`,
-    { ...options, headers: { Accept: 'application/json' } });
+  const response = await fetchQrLocation(id, new URLSearchParams({ language }), signal);
   if (response.ok) {
     const data = await response.json();
     return data.id === id ? data : null;
@@ -79,7 +106,7 @@ async function lookupLinkedQrRecord(id, language, signal) {
   const legacy = id.match(/^(?:poi_)?(\d+)$/i);
   if (response.status !== 404 || !legacy) return null;
   const places = await fetch(`${appConfig.landmarkPlacesUrl}?language=${encodeURIComponent(language)}&poi_id=${legacy[1]}&limit=1`,
-    options);
+    { ...qrFetchOptions, signal });
   if (!places.ok) return null;
   const data = await places.json();
   const place = data?.places?.landmarkPlaces?.find(item => String(item.id) === legacy[1]);

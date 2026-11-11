@@ -117,6 +117,59 @@ test('a registered QR resolves to its authoritative server floor', async t => {
   assert.equal(getSessionFloor(),-1);
 });
 
+test('a scan retries when a successful QR response stalls while reading the body', async t => {
+  const { resolveScannedQrPoint } = await import('../src/services/qrLocationService.js');
+  const qr = { id: 'QR-RAVAQ-QODS-02', coordinates: [36.287932, 59.615982], floor: 0 };
+  const signals = [];
+  let expireAttempt;
+  let beginBody;
+  const bodyStarted = new Promise(resolve => { beginBody = resolve; });
+  t.mock.method(globalThis, 'setTimeout', (expire, delay) => {
+    assert.equal(delay, 12000);
+    expireAttempt = expire;
+    return 0;
+  });
+  t.mock.method(globalThis, 'fetch', async (url, { cache, priority, signal }) => {
+    assert.match(url, /\/qrcodes\/QR-RAVAQ-QODS-02\?language=fa&includeContents=false&includeComments=false$/);
+    assert.equal(cache, 'no-store');
+    assert.equal(priority, 'high');
+    signals.push(signal);
+    return {
+      ok: true, status: 200,
+      json: signals.length === 1
+        ? () => new Promise((_, reject) => {
+          signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+          beginBody();
+        })
+        : async () => qr
+    };
+  });
+  const lookup = resolveScannedQrPoint(qr.id, 'fa', new AbortController().signal);
+  await bodyStarted;
+  expireAttempt();
+  const result = await lookup;
+  assert.equal(signals.length, 2);
+  assert.equal(signals[0].aborted, true);
+  assert.equal(signals[1].aborted, false);
+  assert.deepEqual(result.coordinates, qr.coordinates);
+  assert.equal(result.floor, 0);
+  assert.equal(result.verified, true);
+});
+
+test('cancelling a stalled QR lookup stops it without retrying', async t => {
+  const { resolveScannedQrPoint } = await import('../src/services/qrLocationService.js');
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', (_url, { signal }) => new Promise((_, reject) => {
+    calls += 1;
+    signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+  }));
+  const controller = new AbortController();
+  const lookup = resolveScannedQrPoint('QR-RAVAQ-QODS-02', 'fa', controller.signal);
+  controller.abort();
+  await assert.rejects(lookup, { name: 'AbortError' });
+  assert.equal(calls, 1);
+});
+
 test('popup coordinates come only from the visible floor, including an empty floor', () => {
   const a=[[59.6,36.3],[59.61,36.3]],b=[[59.62,36.3],[59.63,36.3]];
   const geo={type:'Feature',properties:{multifloor:true,segments:[
