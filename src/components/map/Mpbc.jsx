@@ -41,6 +41,37 @@ const nodeFunctionColors = {
   door: '#e53935'
 };
 
+function LandmarkMarkerImage({ url, title }) {
+  const image = useRef(null);
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    if (inView) return;
+    if (!window.IntersectionObserver) {
+      setInView(true);
+      return;
+    }
+    const element = image.current;
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) setInView(true);
+    }, { root: element.closest('.maplibregl-map') });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [inView]);
+
+  return (
+    <img
+      ref={image}
+      className="image-marker-content"
+      src={inView ? url : undefined}
+      alt=""
+      aria-label={title || 'landmark'}
+      fetchpriority="low"
+      style={{ objectFit: 'cover' }}
+    />
+  );
+}
+
 const getCompositeIcon = (groups = [], group, nodeFunction, size = 35, opacity = 1) => {
   const color = nodeFunctionColors[nodeFunction] || groupColors[group] || '#999';
   let iconData =
@@ -690,12 +721,7 @@ const Mpbc = ({
               />
             </svg>
 
-            {/* Existing image content */}
-            <div
-              className="image-marker-content"
-              style={{ backgroundImage: `url(${imageUrl})` }}
-              aria-label={title || 'landmark'}
-            />
+            <LandmarkMarkerImage url={imageUrl} title={title} />
           </div>
         </Marker>
       );

@@ -96,7 +96,6 @@ test('Haram default ignores GPS and reaches the destination using actual motion 
 test('the home map shows the requested device location without enabling GPS for routing', async ({ page, context }) => {
   await page.setViewportSize({ width: 360, height: 780 });
   await context.grantPermissions(['geolocation']);
-  await context.setGeolocation({ latitude: 36.289, longitude: 59.617, accuracy: 12 });
   await page.addInitScript(() => {
     sessionStorage.setItem('selectedMapType', 'base');
     window.gpsCalls = [];
@@ -110,7 +109,7 @@ test('the home map shows the requested device location without enabling GPS for 
     }
   });
   const landmarkRequests = [];
-  await page.route('**/api/v1/**', route => {
+  await page.route('**/api/v1/**', async route => {
     const url = new URL(route.request().url());
     if (url.pathname.endsWith('/navigation-settings')) {
       return route.fulfill({ json: { policy: DEFAULT_NAVIGATION_POLICY } });
@@ -119,6 +118,7 @@ test('the home map shows the requested device location without enabling GPS for 
       return route.fulfill({ status: 404, json: {} });
     }
     if (url.pathname.endsWith('/qrcodes/verified-qr')) {
+      await new Promise(resolve => setTimeout(resolve, 5500));
       return route.fulfill({ json: { id: 'verified-qr', coordinates: [36.287, 59.615], floor: -1, title: 'QR' } });
     }
     if (url.pathname.endsWith('/landmark-places')) {
@@ -141,6 +141,7 @@ test('the home map shows the requested device location without enabling GPS for 
   expect(await page.evaluate(() => window.gpsCalls)).toEqual([]);
   await expect(marker).toHaveCount(0);
 
+  await context.setGeolocation({ latitude: 36.289, longitude: 59.617, accuracy: 12 });
   await locate.click();
   await expect(marker).toBeVisible();
   expect(await page.evaluate(() => window.gpsCalls)).toEqual(['getCurrentPosition', 'watchPosition']);
@@ -171,6 +172,7 @@ test('the home map shows the requested device location without enabling GPS for 
   await expect(marker).toHaveCount(0);
   expect(await page.evaluate(() => window.gpsCalls.at(-1))).toBe('clearWatch');
 
+  await context.setGeolocation({ latitude: 36.289, longitude: 59.6171, accuracy: 12 });
   await locate.click();
   await expect(marker).toBeVisible();
   const qrLink = id => page.evaluate(code => { window.location.hash = '#/location?lat=1&lng=2&id=' + code; }, id);
@@ -201,13 +203,37 @@ test('the home map shows the requested device location without enabling GPS for 
   expect(await page.evaluate(() => window.gpsCalls.at(-1))).toBe('watchPosition');
 
   await qrLink('verified-qr');
-  await expect(locate).toHaveCount(0);
+  await expect(locate).toHaveCount(0, { timeout: 15000 });
   await expect.poll(() => page.evaluate(() => window.gpsCalls.at(-1))).toBe('clearWatch');
   expect(await page.evaluate(() => ['qrLat', 'qrLng', 'qrFloor'].map(key => sessionStorage.getItem(key))))
     .toEqual(['36.287', '59.615', '-1']);
   await page.evaluate(() => { window.location.hash = '#/mpb'; });
   await expect(marker).toBeVisible();
   await expect(locate).toHaveClass(/\binactive\b/);
+});
+
+test('the home map loads marker photos only as they enter the viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.addInitScript(() => sessionStorage.setItem('selectedMapType', 'base'));
+  await page.route('**/api/v1/**', route => {
+    if (new URL(route.request().url()).pathname.endsWith('/landmark-places')) {
+      return route.fulfill({ json: { places: { landmarkPlaces: [
+        { id: 1, title: 'Visible photo', floor: 0, coordinates: [36.287, 59.6157], image: '/visible-marker.png' },
+        { id: 2, title: 'Offscreen photo', floor: 0, coordinates: [36.5, 59.8], image: '/offscreen-marker.png' },
+      ] } } });
+    }
+    return route.fulfill({ json: { data: [], features: [] } });
+  });
+  await page.route('**/map-styles/**/style*.json', route => route.fulfill({ json: {
+    version: 8, sources: {}, layers: [{ id: 'background', type: 'background' }],
+  } }));
+  await page.route('**/tiles/**', route => route.fulfill({ status: 204 }));
+
+  await page.goto('/#/mpb');
+  await expect(page.locator('.image-marker-content[aria-label="Visible photo"]')).toHaveAttribute('src', /visible-marker\.png$/);
+  const offscreenPhoto = page.locator('.image-marker-content[aria-label="Offscreen photo"]');
+  await expect(offscreenPhoto).toHaveCount(1);
+  await expect(offscreenPhoto).not.toHaveAttribute('src', /./);
 });
 
 test('step-test counts sensor steps and distinguishes the final instruction from arrival', async ({ page }) => {
