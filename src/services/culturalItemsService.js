@@ -3,12 +3,13 @@ import { normalizeCulturalItem } from './culturalItemMapper.js';
 
 const CULTURAL_ITEMS_BASE_URL = '/api/v1/cultural-items';
 
-export const fetchCulturalItems = async ({ page, pageSize, search, language = 'fa' }) => {
+export const fetchCulturalItems = async ({ page, pageSize, search, sort, language = 'fa' }) => {
   const response = await apiAdmin.get(CULTURAL_ITEMS_BASE_URL, {
     params: {
       language,
       page,
       pageSize,
+      sort,
       ...(search ? { search } : {})
     }
   });
