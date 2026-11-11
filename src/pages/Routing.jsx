@@ -23,6 +23,7 @@ import { toast } from 'react-toastify';
 import ttsService from '../services/ttsService';
 import { requestRouting } from '../services/routingService';
 import { resolveScannedQrPoint, readQrPoint } from '../services/qrLocationService';
+import { prepareQrReader } from '../services/qrReader';
 import { doorEndpoint, doorRouteErrorMessage } from '../utils/doorRouteEndpoint';
 import useGuidanceImage from '../hooks/useGuidanceImage.js';
 import { getLiveNavigationGeo, nextDemoStep, projectPointOnRoute, resolveNavigationFrame } from '../utils/rngNavigation.js';
@@ -122,6 +123,12 @@ const RoutingPage = () => {
   };
   const [selectedSoundOption, setSelectedSoundOption] = useState('on');
   const [isRoutingActive, setIsRoutingActive] = useState(Boolean(pausedNavigation));
+  const canPrepareQr = Boolean(destination?.coordinates && navigator.mediaDevices?.getUserMedia);
+  useEffect(() => {
+    if (canPrepareQr) void prepareQrReader().catch(() => {
+      // Opening the scanner retries a failed background download.
+    });
+  }, [canPrepareQr]);
   const [isClosingEmergency, setIsClosingEmergency] = useState(false);
   const [isClosingSound, setIsClosingSound] = useState(false);
   const [showAllRoutesView, setShowAllRoutesView] = useState(false);
@@ -496,7 +503,7 @@ const RoutingPage = () => {
     let result;
     try {
       result = await requestRouting({ origin: newOrigin, destination: { ...destination, floor: destinationFloor },
-        mode: transportMode, gender, lang: language, signal });
+        mode: transportMode, gender, lang: language, signal, allowNearbyDestination: true });
     } catch (error) {
       if (error.doorUnavailable) return doorRouteErrorMessage(error);
       if (error.status === 404 || error.status === 422) return 'noRoute';
@@ -506,6 +513,8 @@ const RoutingPage = () => {
     const active = useRouteStore.getState();
     if (active.routeGeo !== routeGeo || active.destination !== destination
       || active.transportMode !== transportMode || active.gender !== gender) return;
+    // The server may find a nearby start, but correction must keep the requested endpoint.
+    if (result.geo?.properties?.nearbyDestination) return 'noRoute';
     if (!getRouteCoordinates(result.geo).length || !result.steps.length) return 'noRoute';
 
     const [lat, lng] = newOrigin.coordinates;
@@ -1565,9 +1574,9 @@ const RoutingPage = () => {
     setDrTimestamp(null);
   };
 
-  const completeResume = (fix, index) => {
+  const completeResume = (fix, index, routeM) => {
     if (document.hidden) return;
-    resetProgress(projectPointOnRoute([fix.lng, fix.lat], activeRouteCoordinates(routeGeo, routeData.steps[index]))?.routeM ?? 0);
+    resetProgress(routeM ?? projectPointOnRoute([fix.lng, fix.lat], activeRouteCoordinates(routeGeo, routeData.steps[index]))?.routeM ?? 0);
     setCurrentStep(index);
     setHasArrived(false);
     setUserLocation([fix.lat, fix.lng]);
@@ -1630,6 +1639,10 @@ const RoutingPage = () => {
         ? { ...anchor.geo, timestamp: anchor.timestamp, fromQr: true }
         : await getResumePosition(controller.signal);
       if (controller.signal.aborted || document.hidden || pauseRef.current !== paused) return;
+      if (fix.fromQr && paused.step === 0 && routeGeo?.properties?.nearbyOrigin) {
+        completeResume(fix, 0, 0);
+        return;
+      }
       const index = resumeStepAt(fix, routeData.steps, currentStep,
         activeRouteCoordinates(routeGeo, routeData.steps[currentStep]));
       if (index !== null) {
@@ -1680,14 +1693,15 @@ const RoutingPage = () => {
     setHasArrived(false);
     setCurrentStep(0);
     resetProgress();
-    const routeStart = getNavigationStartLocation();
+    const anchor = qrAnchorRef.current;
+    const trustedQr = anchor && isFresh(anchor.timestamp, Date.now(), DR_MAX_ANCHOR_AGE);
+    const routeStart = trustedQr && routeGeo.properties?.nearbyOrigin
+      ? [anchor.geo.lat, anchor.geo.lng] : getNavigationStartLocation();
     const [lat, lng] = routeStart || userLocation;
     setUserLocation([lat, lng]);
     setDrPosition({ lat, lng });
     setIsRoutingActive(true);
     const fix = policy.gps_enabled && isFresh(gpsFixRef.current?.timestamp) ? gpsFixRef.current : null;
-    const anchor = qrAnchorRef.current;
-    const trustedQr = anchor && isFresh(anchor.timestamp, Date.now(), DR_MAX_ANCHOR_AGE);
     const manualAnchor = !policy.gps_enabled && origin?.source !== 'gps' && origin?.source !== 'qr' && origin?.coordinates?.length === 2;
     advancedDeadReckoningService.start(fix ? { lat: fix.lat, lng: fix.lng } : { lat, lng }, fix
       ? { timestamp: fix.timestamp, accuracy: fix.accuracy, mode: transportMode }

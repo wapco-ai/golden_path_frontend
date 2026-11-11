@@ -34,6 +34,14 @@ const correctedRoute = {
     step('stepStart', 0, 2, 0, landing), step('stepArriveDestination', 0, 2, 1, point(destination))]
 };
 
+const nearbyStart = [point(anchor)[0], point(anchor)[1] + 0.00016];
+const nearbyRoute = structuredClone(correctedRoute);
+nearbyRoute.geo.geometry.coordinates[0][0] = nearbyStart;
+nearbyRoute.geo.properties.segments[0].geometry.coordinates[0] = nearbyStart;
+nearbyRoute.geo.properties.nearbyOrigin = { coordinates: [nearbyStart[1], nearbyStart[0]], floor: -1 };
+nearbyRoute.steps[0] = step('stepStart', -1, 0, 0, nearbyStart, { instruction: 'از نقطهٔ نزدیک مبدأ شروع کنید.' });
+const coordinateDestination = { name: destination.name, floor: destination.floor, coordinates: destination.coordinates };
+
 const test = base.extend({
   launchOptions: [async ({ launchOptions }, use) => {
     const dir = await mkdtemp(join(tmpdir(), 'rng-qr-camera-'));
@@ -64,7 +72,7 @@ const test = base.extend({
   }, { scope: 'worker' }]
 });
 
-async function startRoute(page) {
+async function startRoute(page, endpoint = destination) {
   await page.setViewportSize({ width: 360, height: 780 });
   await page.addInitScript(({ origin, destination, firstRoute }) => {
     const state = { origin, destination, routeGeo: firstRoute.geo, routeSteps: firstRoute.steps,
@@ -81,7 +89,7 @@ async function startRoute(page) {
       window.cameraTracks.push(...stream.getTracks());
       return stream;
     };
-  }, { origin, destination, firstRoute });
+  }, { origin, destination: endpoint, firstRoute });
   await page.route('**/api/v1/**', route => route.fulfill({ json: { status: 'NO_MATCH', data: [], features: [] } }));
   await page.route('**/tiles/**', route => route.fulfill({ status: 204 }));
   await page.route('**/tms/**', route => route.fulfill({ status: 204 }));
@@ -99,7 +107,10 @@ async function expectCameraReleased(page) {
 }
 
 test('RNG scans with GPS off, keeps the destination and updates the floor without stopping', async ({ page }) => {
+  const reader = page.waitForResponse(response => new URL(response.url()).pathname.endsWith('/zxing_reader.wasm')
+    && !new URL(response.url()).searchParams.has('import'));
   const button = await startRoute(page);
+  expect((await reader).ok()).toBe(true);
   for (const state of ['closed', 'open']) {
     const panel = page.locator(`.info-modal.${state}`);
     await expect(panel).toBeVisible();
@@ -124,6 +135,48 @@ test('RNG scans with GPS off, keeps the destination and updates the floor withou
     destination: JSON.parse(sessionStorage.getItem('destination')), floor: sessionStorage.getItem('haramCurrentFloor') })))
     .toMatchObject({ origin: { coordinates: anchor.coordinates, floor: -1 }, destination, floor: '-1' });
   await expectCameraReleased(page);
+});
+
+test('QR correction can use a nearby route start while retaining the QR position and exact destination on resume', async ({ page }) => {
+  const button = await startRoute(page, coordinateDestination);
+  await page.getByRole('button', { name: 'توقف موقت', exact: true }).click();
+  await page.route(`**/api/v1/qrcodes/${code}?*`, route => route.fulfill({ json: anchor }));
+  await page.route('**/api/v1/routing/route', route => route.fulfill({ json: nearbyRoute }));
+  const request = page.waitForRequest('**/api/v1/routing/route');
+  await button.click();
+  expect((await request).postDataJSON()).toMatchObject({ allowNearbyDestination: true,
+    origin: { lat: anchor.coordinates[0], lon: anchor.coordinates[1], floor: -1 },
+    destination: { type: 'coordinate', lat: coordinateDestination.coordinates[0],
+      lon: coordinateDestination.coordinates[1], floor: 0 } });
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.locator('.routing-page')).toHaveAttribute('data-navigation-mode', 'paused');
+  const state = await page.evaluate(() => ({
+    origin: JSON.parse(sessionStorage.getItem('origin')),
+    destination: JSON.parse(sessionStorage.getItem('destination')),
+    pause: JSON.parse(sessionStorage.getItem('rngPausedNavigation')),
+  }));
+  expect(state).toMatchObject({ origin: { coordinates: anchor.coordinates }, destination: coordinateDestination,
+    pause: { step: 0, frame: { geo: { lat: anchor.coordinates[0], lng: anchor.coordinates[1] } } } });
+  await expect(page.locator('.instruction-text')).toContainText('از نقطهٔ نزدیک مبدأ شروع کنید');
+  await page.getByRole('button', { name: 'ادامه مسیر', exact: true }).click();
+  await expect(page.locator('.routing-page')).toHaveAttribute('data-navigation-mode', 'live');
+  await expect(page.locator('.instruction-text')).toContainText('از نقطهٔ نزدیک مبدأ شروع کنید');
+});
+
+test('QR correction rejects a route that substitutes a nearby destination', async ({ page }) => {
+  const button = await startRoute(page, coordinateDestination);
+  await page.route(`**/api/v1/qrcodes/${code}?*`, route => route.fulfill({ json: anchor }));
+  const result = structuredClone(nearbyRoute);
+  result.geo.properties.nearbyDestination = { coordinates: [36.2881, 59.6161], floor: 0 };
+  await page.route('**/api/v1/routing/route', route => route.fulfill({ json: result }));
+  await button.click();
+  await expect(page.getByRole('dialog').getByRole('alert')).toContainText('مسیری به مقصد پیدا نشد');
+  const state = await page.evaluate(() => ({
+    origin: JSON.parse(sessionStorage.getItem('origin')),
+    destination: JSON.parse(sessionStorage.getItem('destination')),
+    geo: JSON.parse(sessionStorage.getItem('routeGeo')),
+  }));
+  expect(state).toEqual({ origin, destination: coordinateDestination, geo: firstRoute.geo });
 });
 
 test('invalid QR and unavailable route preserve the active route and allow a retry', async ({ page }) => {
