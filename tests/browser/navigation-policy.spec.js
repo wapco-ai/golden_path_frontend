@@ -123,7 +123,10 @@ test('the home map shows the requested device location without enabling GPS for 
     }
     if (url.pathname.endsWith('/landmark-places')) {
       landmarkRequests.push(url.searchParams);
-      return route.fulfill({ json: { places: { landmarkPlaces: [] } } });
+      return route.fulfill({ json: { places: { landmarkPlaces: [
+        { id: 1, title: 'Visible photo', floor: 0, coordinates: [36.287, 59.6157], image: '/visible-marker.png' },
+        { id: 2, title: 'Offscreen photo', floor: 0, coordinates: [36.5, 59.8], image: '/offscreen-marker.png' }
+      ] } } });
     }
     return route.fulfill({ json: { data: [], features: [] } });
   });
@@ -138,6 +141,10 @@ test('the home map shows the requested device location without enabling GPS for 
   const canvas = page.locator('.maplibregl-canvas');
   await expect(locate).toBeVisible();
   await expect(canvas).toBeVisible();
+  await expect(page.locator('.image-marker-content[aria-label="Visible photo"]')).toHaveAttribute('src', /visible-marker\.png$/);
+  const offscreenPhoto = page.locator('.image-marker-content[aria-label="Offscreen photo"]');
+  await expect(offscreenPhoto).toHaveCount(1);
+  await expect(offscreenPhoto).not.toHaveAttribute('src', /./);
   expect(await page.evaluate(() => window.gpsCalls)).toEqual([]);
   await expect(marker).toHaveCount(0);
 
