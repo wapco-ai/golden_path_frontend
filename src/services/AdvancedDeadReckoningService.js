@@ -23,6 +23,7 @@ class AdvancedDeadReckoningService {
     this._headingAt = null;
     this._headingMotion = null;
     this.positionTimestamp = null;
+    this.stepTimestamp = null;
     this._lastGpsAt = null;
     this._lastMotionAt = null;
     this._sensorTimer = null;
@@ -127,7 +128,6 @@ class AdvancedDeadReckoningService {
       headingAvailable: this.getHeading() !== null,
       anchorAvailable: Number.isFinite(this.anchorTimestamp),
       distance: this.distanceSinceAnchor,
-      uncertainty: this.positionAccuracy,
     };
   }
 
@@ -144,6 +144,7 @@ class AdvancedDeadReckoningService {
       geoPosition: this.geoPosition,
       geoPath: this.geoPath.slice(),
       positionTimestamp: this.positionTimestamp,
+      stepTimestamp: this.stepTimestamp,
       positionAccuracy: this.positionAccuracy,
       anchorTimestamp: this.anchorTimestamp,
       distanceSinceAnchor: this.distanceSinceAnchor,
@@ -166,6 +167,7 @@ class AdvancedDeadReckoningService {
     this._headingAt = null;
     this._headingMotion = null;
     this.positionTimestamp = null;
+    this.stepTimestamp = null;
     this._lastGpsAt = null;
     this._lastMotionAt = null;
     const requestId = ++this._sensorRequestId;
@@ -194,6 +196,7 @@ class AdvancedDeadReckoningService {
     this._stopSensors();
     this.isActive = false;
     this._paused = false;
+    this.stepTimestamp = null;
     this._emit('serviceStateChanged');
   }
 
@@ -201,6 +204,7 @@ class AdvancedDeadReckoningService {
     if (!this.isActive) return;
     this._paused = true;
     this.positionTimestamp = null;
+    this.stepTimestamp = null;
     this._emit('serviceStateChanged');
   }
 
@@ -219,6 +223,7 @@ class AdvancedDeadReckoningService {
     this._headingAt = null;
     this._headingMotion = null;
     this.positionTimestamp = null;
+    this.stepTimestamp = null;
     this._lastGpsAt = null;
     this.stepCount = 0;
     this.motionSamples = 0;
@@ -396,6 +401,8 @@ class AdvancedDeadReckoningService {
   _processStep() {
     if (!this.walking) return;
     const now = Date.now();
+    this.stepTimestamp = now;
+    if (!this.policy.gps_enabled) this.distanceSinceAnchor += this.stepLengthMeters;
     if (!Number.isFinite(this.anchorTimestamp) || !Number.isFinite(this.positionAccuracy)
       || (this.policy.gps_enabled && (!isFresh(this.anchorTimestamp, now, DR_MAX_ANCHOR_AGE)
         || this.distanceSinceAnchor + this.stepLengthMeters > DR_MAX_DISTANCE
@@ -406,8 +413,7 @@ class AdvancedDeadReckoningService {
     }
     const heading = this.getHeading(now);
     if (!validGeo(this.geoPosition) || heading === null) {
-      // Unobserved steps cannot disappear from the error budget.
-      this.positionAccuracy += this.stepLengthMeters;
+      if (this.policy.gps_enabled) this.positionAccuracy += this.stepLengthMeters;
       this.positionTimestamp = null;
       this._emit('stepDetected');
       return;
@@ -420,11 +426,12 @@ class AdvancedDeadReckoningService {
       lat: this.geoPosition.lat + dLat,
       lng: this.geoPosition.lng + dLng
     };
-    this.positionTimestamp = Date.now();
-    this.distanceSinceAnchor += stepLength;
-    // An uncertainty allowance, not a measured statistical confidence interval.
-    this.positionAccuracy += stepLength * (this.policy.gps_enabled && this.calibrated ? 0.15 : this.policy.drift_per_meter);
-    if (this.policy.gps_enabled && this.positionAccuracy > DR_MAX_UNCERTAINTY) this.positionTimestamp = null;
+    this.positionTimestamp = now;
+    if (this.policy.gps_enabled) {
+      this.distanceSinceAnchor += stepLength;
+      this.positionAccuracy += stepLength * (this.calibrated ? 0.15 : this.policy.drift_per_meter);
+      if (this.positionAccuracy > DR_MAX_UNCERTAINTY) this.positionTimestamp = null;
+    }
     this.geoPath.push({ ...this.geoPosition });
     this._emit('stepDetected');
   }

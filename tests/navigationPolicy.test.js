@@ -9,9 +9,9 @@ import { observeGps } from '../src/utils/locationQuality.js';
 const point = (m, offset = 0) => ({ lat: m / 111195, lng: offset / 111195 });
 const coordinates = [[0, 0], [0, 50 / 111195]];
 const steps = [{ fromM: 0 }, { fromM: 0.5 }, { fromM: 1, type: 'stepArriveDestination' }];
-function feed(tracker, m, { currentStep = 0, accuracy = 2 + m * 0.3, heading = 0, offset = 0, ...extra } = {}) {
+function feed(tracker, m, { currentStep = 0, heading = 0, offset = 0, ...extra } = {}) {
   const timestamp = 100000 + Math.round(m * 1000);
-  return tracker.update({ measurement: { ...point(m, offset), accuracy, heading, timestamp,
+  return tracker.update({ measurement: { ...point(m, offset), heading, timestamp, positionTimestamp: timestamp,
     distanceSinceAnchor: m, source: 'dead_reckoning', ...extra },
     steps, currentStep, coordinates, context: 'trip|0', now: timestamp, mode: 'walk' });
 }
@@ -36,7 +36,7 @@ test('invalid settings never replace a valid offline policy or enable GPS', asyn
   assert.equal(validNavigationPolicy({ ...defaults, arrival_samples: 2.5 }), false);
 });
 
-test('step-only navigation advances in sequence and arrives without a destination QR at uncertainty above 6 m', () => {
+test('step-only navigation advances in sequence and arrives without a destination QR', () => {
   const tracker = new NavigationProgressTracker();
   let currentStep = 0, arrived = false;
   for (let m = 0.7; m <= 50; m += 0.7) {
@@ -46,52 +46,50 @@ test('step-only navigation advances in sequence and arrives without a destinatio
   }
   assert.equal(currentStep, 2);
   assert.equal(arrived, true);
-  assert.equal(tracker.warning, null);
+  assert.ok(tracker.routeDistance < 0.01);
 });
 
-test('exceeding 20 m latches the warning; GPS, rerenders and snapping cannot clear it', () => {
+test('a discrepancy above 20 m never blocks progress or uses reported accuracy', () => {
   const tracker = new NavigationProgressTracker();
-  feed(tracker, 0.7);
-  const original = tracker.routeM;
-  assert.equal(feed(tracker, 1.4, { accuracy: 20.1 }).arrived, false);
-  assert.equal(tracker.warning, 'uncertainty');
-  feed(tracker, 2.1, { accuracy: 1, source: 'gps' });
-  feed(tracker, 2.8, { accuracy: 1 });
-  assert.equal(tracker.routeM, original);
-  tracker.reset(); // A newly verified anchor may reset the budget.
-  feed(tracker, 0.7);
-  assert.equal(tracker.warning, null);
+  feed(tracker, 0.7, { accuracy: 80 });
+  assert.ok(tracker.routeDistance < 0.01);
+  assert.equal(feed(tracker, 1.4, { offset: 22 }).arrived, false);
+  assert.ok(Math.abs(tracker.routeDistance - 22) < 0.01);
+  assert.ok(Math.abs(tracker.along - 1.4) < 0.01);
+  feed(tracker, 2.1, { offset: 22, source: 'gps' });
+  assert.ok(Math.abs(tracker.along - 1.4) < 0.01);
+  feed(tracker, 2.8, { offset: 22 });
+  assert.ok(Math.abs(tracker.along - 2.8) < 0.01);
+  feed(tracker, 3.5, { offset: 0 });
+  assert.ok(tracker.routeDistance < 0.01);
 });
 
-test('display snapping preserves raw uncertainty and cannot declare arrival from lateral discrepancy', () => {
+test('a display marker reaching the end cannot declare arrival while the raw estimate is off route', () => {
   const tracker = new NavigationProgressTracker();
   let currentStep = 0;
   for (let m = 0.7; m <= 50; m += 0.7) {
-    const result = feed(tracker, m, { offset: 10, currentStep, accuracy: 15 });
+    const result = feed(tracker, m, { offset: 22, currentStep });
     currentStep = result.nextStep;
     assert.equal(result.arrived, false);
   }
   assert.equal(tracker.snappedGeo.lng, 0);
-  assert.equal(tracker.warning, null);
+  assert.ok(tracker.routeDistance > 20);
+  assert.ok(tracker.routeM > 0.99);
 });
 
-test('large discrepancy and an impossible jump freeze progress instead of inventing a reroute', () => {
+test('the discrepancy projects onto the bounded section of a single long edge', () => {
   const tracker = new NavigationProgressTracker();
   feed(tracker, 0.7);
-  feed(tracker, 1.4, { offset: 21 });
-  assert.equal(tracker.warning, 'off_route');
-  assert.equal(tracker.blocked, true);
-  tracker.reset();
-  feed(tracker, 0.7);
   feed(tracker, 45, { distanceSinceAnchor: 1.4 });
-  assert.equal(tracker.warning, 'off_route');
+  assert.ok(Math.abs(tracker.routeDistance - 40.6) < 0.01);
+  assert.ok(Math.abs(tracker.along - 1.4) < 0.01);
 });
 
 test('a close return leg cannot move the marker to the end of a hairpin route', () => {
   const tracker = new NavigationProgressTracker();
   const line = [[0, 0], [0, 100 / 111195], [2 / 111195, 100 / 111195], [2 / 111195, 0]];
   const result = tracker.update({ measurement: { ...point(1, 2), accuracy: 10, heading: 0,
-    timestamp: 100000, distanceSinceAnchor: 1, source: 'dead_reckoning' },
+    timestamp: 100000, positionTimestamp: 100000, distanceSinceAnchor: 1, source: 'dead_reckoning' },
     steps, currentStep: 0, coordinates: line, context: 'hairpin', now: 100000 });
   assert.equal(result.arrived, false);
   assert.ok(tracker.routeM < 0.02);
@@ -105,14 +103,17 @@ test('floor changes and duplicate samples never auto-confirm arrival', () => {
   for (let i = 0; i < 5; i++) assert.deepEqual(tracker.update(input), { nextStep: 0, arrived: false });
 });
 
-test('wrong heading prevents automatic step progression', () => {
+test('missing heading allows display progress but cannot update the raw distance or confirm arrival', () => {
   const tracker = new NavigationProgressTracker();
-  feed(tracker, 0.7, { heading: 180 });
-  assert.equal(tracker.warning, 'heading');
-  assert.equal(tracker.routeM, 0);
+  feed(tracker, 0.7, { offset: 22 });
+  const distance = tracker.routeDistance;
+  const result = feed(tracker, 50, { currentStep: 2, heading: null, positionTimestamp: null });
+  assert.equal(result.arrived, false);
+  assert.ok(tracker.routeM > 0.99);
+  assert.equal(tracker.routeDistance, distance);
 });
 
-test('DR continues beyond 30 m and 60 seconds, grows uncertainty, and charges unobserved steps', async t => {
+test('DR keeps the raw path and detected walking distance independent without a drift coefficient', async t => {
   const saved = { window: globalThis.window, motion: globalThis.DeviceMotionEvent };
   globalThis.window = { addEventListener() {}, removeEventListener() {} };
   globalThis.DeviceMotionEvent = {};
@@ -123,12 +124,16 @@ test('DR continues beyond 30 m and 60 seconds, grows uncertainty, and charges un
     dr.heading = 0; dr._headingAt = Date.now(); dr._processStep();
   }
   assert.ok(dr.distanceSinceAnchor > 69);
-  assert.ok(dr.positionAccuracy > 20);
+  assert.equal(dr.positionAccuracy, 2);
   assert.ok(Number.isFinite(dr.positionTimestamp));
-  const error = dr.positionAccuracy;
+  const raw = dr.geoPosition;
+  const walked = dr.distanceSinceAnchor;
   dr._headingAt = null;
   dr._processStep();
-  assert.ok(dr.positionAccuracy > error);
+  assert.equal(dr.positionAccuracy, 2);
+  assert.deepEqual(dr.geoPosition, raw);
+  assert.ok(Math.abs(dr.distanceSinceAnchor - walked - 0.7) < 0.001);
+  assert.ok(Number.isFinite(dr.stepTimestamp));
   assert.equal(dr.positionTimestamp, null);
 });
 

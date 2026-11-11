@@ -26,28 +26,32 @@ export const rngPauseMessages = {
 
 export const rngQrMessages = {
   fa: {
-    scan: 'اصلاح مسیر با QR', loading: 'در حال محاسبهٔ مسیر از موقعیت جدید…',
+    scan: 'اصلاح مسیر با QR', distanceWarning: 'فاصله از مسیر زیاد است. برای اصلاح، QR نزدیک را اسکن کنید.',
+    loading: 'در حال محاسبهٔ مسیر از موقعیت جدید…',
     invalid: 'این کد QR برای مسیریابی ثبت نشده یا غیرفعال است.', floor: 'طبقهٔ این کد QR مشخص نیست.',
     camera: 'دوربین باز نشد. دسترسی دوربین را بررسی کنید.', noRoute: 'از این موقعیت مسیری به مقصد پیدا نشد.',
     connection: 'به‌روزرسانی مسیر ناموفق بود. اتصال اینترنت را بررسی کنید.',
     retry: 'تلاش دوباره', continue: 'ادامهٔ مسیر فعلی', updated: 'مسیر از {place} به‌روز شد.'
   },
   en: {
-    scan: 'Correct route with QR', loading: 'Calculating the route from your new location…',
+    scan: 'Correct route with QR', distanceWarning: 'You may be off route. Scan a nearby QR to correct.',
+    loading: 'Calculating the route from your new location…',
     invalid: 'This QR code is inactive or unregistered for routing.', floor: 'The floor for this QR code is unknown.',
     camera: 'Could not open the camera. Check camera permissions.', noRoute: 'No route to your destination was found from this location.',
     connection: 'Could not update the route. Check your internet connection.',
     retry: 'Try again', continue: 'Continue current route', updated: 'Route updated from {place}.'
   },
   ar: {
-    scan: 'تصحيح المسار برمز QR', loading: 'جارٍ حساب المسار من موقعك الجديد…',
+    scan: 'تصحيح المسار برمز QR', distanceWarning: 'قد تكون بعيدًا عن المسار. امسح رمز QR قريبًا للتصحيح.',
+    loading: 'جارٍ حساب المسار من موقعك الجديد…',
     invalid: 'رمز QR غير نشط أو غير مسجل للملاحة.', floor: 'طابق رمز QR غير معروف.',
     camera: 'تعذر فتح الكاميرا. تحقق من إذن الوصول إليها.', noRoute: 'تعذر العثور على مسار إلى وجهتك من هذا الموقع.',
     connection: 'تعذر تحديث المسار. تحقق من اتصال الإنترنت.',
     retry: 'إعادة المحاولة', continue: 'متابعة المسار الحالي', updated: 'تم تحديث المسار من {place}.'
   },
   ur: {
-    scan: 'QR سے راستہ درست کریں', loading: 'نئی جگہ سے راستہ تلاش کیا جا رہا ہے…',
+    scan: 'QR سے راستہ درست کریں', distanceWarning: 'آپ راستے سے دور ہو سکتے ہیں۔ درستگی کے لیے قریبی QR اسکین کریں۔',
+    loading: 'نئی جگہ سے راستہ تلاش کیا جا رہا ہے…',
     invalid: 'یہ QR کوڈ غیر فعال ہے یا راستے کے لیے رجسٹرڈ نہیں ہے۔', floor: 'اس QR کوڈ کی منزل معلوم نہیں۔',
     camera: 'کیمرہ نہیں کھلا۔ کیمرے کی اجازت چیک کریں۔', noRoute: 'اس جگہ سے منزل تک کوئی راستہ نہیں ملا۔',
     connection: 'راستہ اپ ڈیٹ نہیں ہوا۔ انٹرنیٹ کنکشن چیک کریں۔',

@@ -13,7 +13,7 @@ const asGeo = (p) => isCoordinate(p) ? { lng: p[0], lat: p[1] } : null;
 const radians = (value) => value * Math.PI / 180;
 
 // Operates only on the server's route polyline, never on doors or POI geometry.
-export const projectPointOnRoute = (point, coordinates = [], { minAlong = 0, maxAlong = Infinity } = {}) => {
+export const projectPointOnRoute = (point, coordinates = [], { minAlong = 0, maxAlong = Infinity, clipToWindow = false } = {}) => {
   if (!isCoordinate(point) || !Array.isArray(coordinates) || coordinates.length < 2) return null;
   if (!coordinates.every(isCoordinate)) return null;
   const longitudeScale = 111320 * Math.cos(radians(point[1]));
@@ -30,10 +30,16 @@ export const projectPointOnRoute = (point, coordinates = [], { minAlong = 0, max
     const dx = (b[0] - a[0]) * longitudeScale;
     const dy = (b[1] - a[1]) * 111320;
     const squareLength = dx * dx + dy * dy;
-    const t = squareLength > 0 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / squareLength)) : 0;
+    const low = clipToWindow ? Math.max(0, (minAlong - traversed) / length) : 0;
+    const high = clipToWindow ? Math.min(1, (maxAlong - traversed) / length) : 1;
+    if (low > high) {
+      traversed += length;
+      continue;
+    }
+    const t = squareLength > 0 ? Math.max(low, Math.min(high, -(ax * dx + ay * dy) / squareLength)) : low;
     const lateralDistanceM = Math.hypot(ax + t * dx, ay + t * dy);
     const alongDistanceM = traversed + t * length;
-    if (alongDistanceM >= minAlong && alongDistanceM <= maxAlong) {
+    if (clipToWindow || (alongDistanceM >= minAlong && alongDistanceM <= maxAlong)) {
       const candidate = { lateralDistanceM, alongDistanceM, segmentIndex: i,
         geo: { lng: a[0] + t * (b[0] - a[0]), lat: a[1] + t * (b[1] - a[1]) },
         heading: (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360 };
