@@ -231,10 +231,10 @@ test('audio and document remove buttons sit inside their rows and save only the 
   }
   await expect(page.locator('.edit-cultural-page')).toHaveCount(0);
   await page.locator('.edit-cultural-btn').first().click();
-  await expect(page.locator('.audio-files-list-edit')).toContainText('keep.mp3');
-  await expect(page.locator('.text-files-list-edit')).toContainText('keep.pdf');
-  await expect(page.getByRole('button', { name: 'حذف sound.mp3' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'حذف guide.pdf' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'حذف keep.mp3', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'حذف keep.pdf', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'حذف sound.mp3', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'حذف guide.pdf', exact: true })).toHaveCount(0);
   expect(uploads).toEqual([]);
   expect(deletes).toEqual([]);
   expect(errors).toEqual([]);
