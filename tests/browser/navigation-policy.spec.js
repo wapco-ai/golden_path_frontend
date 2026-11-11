@@ -119,6 +119,7 @@ test('the home map shows the requested device location without enabling GPS for 
       return route.fulfill({ status: 404, json: {} });
     }
     if (url.pathname.endsWith('/qrcodes/verified-qr')) {
+      await new Promise(resolve => setTimeout(resolve, 5500));
       return route.fulfill({ json: { id: 'verified-qr', coordinates: [36.287, 59.615], floor: -1, title: 'QR' } });
     }
     if (url.pathname.endsWith('/landmark-places')) {
@@ -201,7 +202,7 @@ test('the home map shows the requested device location without enabling GPS for 
   expect(await page.evaluate(() => window.gpsCalls.at(-1))).toBe('watchPosition');
 
   await qrLink('verified-qr');
-  await expect(locate).toHaveCount(0);
+  await expect(locate).toHaveCount(0, { timeout: 15000 });
   await expect.poll(() => page.evaluate(() => window.gpsCalls.at(-1))).toBe('clearWatch');
   expect(await page.evaluate(() => ['qrLat', 'qrLng', 'qrFloor'].map(key => sessionStorage.getItem(key))))
     .toEqual(['36.287', '59.615', '-1']);

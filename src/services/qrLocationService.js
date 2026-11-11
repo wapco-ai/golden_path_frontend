@@ -68,8 +68,9 @@ export function captureQrLocation(params) {
 }
 
 async function lookupLinkedQrRecord(id, language, signal) {
+  const options = { signal, cache: 'no-store', priority: 'high' };
   const response = await fetch(`${appConfig.apiBaseUrl}/api/v1/qrcodes/${encodeURIComponent(id)}?language=${encodeURIComponent(language)}`,
-    { signal, cache: 'no-store', headers: { Accept: 'application/json' } });
+    { ...options, headers: { Accept: 'application/json' } });
   if (response.ok) {
     const data = await response.json();
     return data.id === id ? data : null;
@@ -78,7 +79,7 @@ async function lookupLinkedQrRecord(id, language, signal) {
   const legacy = id.match(/^(?:poi_)?(\d+)$/i);
   if (response.status !== 404 || !legacy) return null;
   const places = await fetch(`${appConfig.landmarkPlacesUrl}?language=${encodeURIComponent(language)}&poi_id=${legacy[1]}&limit=1`,
-    { signal, cache: 'no-store' });
+    options);
   if (!places.ok) return null;
   const data = await places.json();
   const place = data?.places?.landmarkPlaces?.find(item => String(item.id) === legacy[1]);

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { acceptLinkedQrPoint } from '../services/qrLocationService';
 
+const QR_LOOKUP_TIMEOUT_MS = 20000;
+
 export default function useHomeQrEntry(language) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -30,7 +32,7 @@ export default function useHomeQrEntry(language) {
     const timer = window.setTimeout(() => {
       controller.abort();
       restoreHome();
-    }, 5000);
+    }, QR_LOOKUP_TIMEOUT_MS);
 
     acceptLinkedQrPoint(qrId, language, controller.signal).then(point => {
       if (controller.signal.aborted) return;
