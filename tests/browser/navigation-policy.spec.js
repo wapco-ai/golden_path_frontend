@@ -110,7 +110,7 @@ test('the home map shows the requested device location without enabling GPS for 
     }
   });
   const landmarkRequests = [];
-  await page.route('**/api/v1/**', route => {
+  await page.route('**/api/v1/**', async route => {
     const url = new URL(route.request().url());
     if (url.pathname.endsWith('/navigation-settings')) {
       return route.fulfill({ json: { policy: DEFAULT_NAVIGATION_POLICY } });
