@@ -115,7 +115,16 @@ test('guidance-only access opens its form without granting map access', async ({
   await expect(page.getByRole('heading', { name: 'مدیریت نقاط راهنما', exact: true })).toBeVisible();
 });
 
-test('a new guidance point submits its photo on the selected basement floor', async ({ page }) => {
+const waitForGuidanceGroundTile = page => page.waitForResponse(response =>
+  new URL(response.url()).pathname.includes('/tms/services/gsm/tiles/') && response.ok());
+
+const waitForGuidanceBasementTile = page => page.waitForResponse(response => {
+  const url = new URL(response.url());
+  return url.pathname.includes('/tiles/public.fn_public_engineering_map_mvt/') &&
+    url.searchParams.get('p_floor') === '-1' && url.searchParams.get('p_lang') === 'fa' && response.ok();
+});
+
+test('a new guidance point switches to the basement map and submits its photo on that floor', async ({ page }) => {
   const png = readFileSync(new URL('../../public/icons/pwa-192x192.png', import.meta.url));
   await openPanel(page, [], ['manage_guidance_points']);
   await page.route('**/tms/services/gsm/tiles/**', route => route.fulfill({ contentType: 'image/png', body: png }));
@@ -125,14 +134,23 @@ test('a new guidance point submits its photo on the selected basement floor', as
   await page.getByText('مدیریت امکانات', { exact: true }).click();
   await page.locator('#amain-sidebar').getByText('مدیریت نقاط راهنما', { exact: true }).click();
   const openAdd = page.getByRole('button', { name: 'اضافه کردن نقطه راهنمای جدید' });
+  const groundTile = waitForGuidanceGroundTile(page);
   await openAdd.click();
   const modal = page.getByRole('dialog', { name: 'افزودن نقطه راهنما' });
   const floor = modal.getByLabel('طبقه', { exact: true });
   await expect(floor).toHaveValue('0');
   await expect(modal.getByLabel('شعاع پوشش (متر)')).toHaveValue('100');
-  await floor.selectOption('-1');
+  await groundTile;
   await expect(modal.locator('.maplibregl-marker')).toBeVisible({ timeout: 20_000 });
   await modal.locator('.maplibregl-canvas').click({ position: { x: 90, y: 105 } });
+  const coordinates = modal.locator('.guidance-modal__coordinates');
+  await expect(coordinates).toBeVisible();
+  const selectedCoordinates = await coordinates.innerText();
+  const basementTile = waitForGuidanceBasementTile(page);
+  await floor.selectOption('-1');
+  await basementTile;
+  await expect(modal.locator('.maplibregl-marker')).toBeVisible();
+  await expect(coordinates).toHaveText(selectedCoordinates);
   await modal.locator('input[type=file]').setInputFiles({
     name: 'basement.png', mimeType: 'image/png', buffer: png
   });
@@ -154,7 +172,7 @@ test('a new guidance point submits its photo on the selected basement floor', as
   await expect(floor).toHaveValue('0');
 });
 
-test('editing guidance loads and changes the saved floor while retaining its image', async ({ page }) => {
+test('editing guidance opens the saved basement map and returns to ground while retaining its image', async ({ page }) => {
   let point = {
     id: 17, title: 'راهنمای آزمایشی', floor: -1, latitude: 36.288, longitude: 59.6157,
     coverage_radius_m: 35,
@@ -177,13 +195,31 @@ test('editing guidance loads and changes the saved floor while retaining its ima
   await page.getByText('مدیریت امکانات', { exact: true }).click();
   await page.locator('#amain-sidebar').getByText('مدیریت نقاط راهنما', { exact: true }).click();
   const edit = page.locator('tr').filter({ hasText: point.title }).locator('.edit-btn21');
+  let releaseBasementTiles;
+  const basementTileGate = new Promise(resolve => { releaseBasementTiles = resolve; });
+  await page.route('**/public.fn_public_engineering_map_mvt/**', async route => {
+    await basementTileGate;
+    await route.fulfill({ status: 204 });
+  });
+  const basementRequest = page.waitForRequest('**/public.fn_public_engineering_map_mvt/**');
+  const basementTile = waitForGuidanceBasementTile(page);
   await edit.click();
   await page.setViewportSize({ width: 390, height: 740 });
   const modal = page.getByRole('dialog', { name: 'ویرایش نقطه راهنما' });
   const floor = modal.getByLabel('طبقه', { exact: true });
   await expect(floor).toHaveValue('-1');
   await expect(modal.getByLabel('شعاع پوشش (متر)')).toHaveValue('35');
+  try {
+    await basementRequest;
+    await expect(modal.locator('.maplibregl-marker')).toBeVisible();
+  } finally {
+    releaseBasementTiles();
+  }
+  await basementTile;
+  const groundTile = waitForGuidanceGroundTile(page);
   await floor.selectOption('0');
+  await groundTile;
+  await expect(modal.locator('.maplibregl-marker')).toBeVisible();
   const save = modal.getByRole('button', { name: 'ویرایش نقطه راهنما', exact: true });
   await expect(save).toBeInViewport();
   expect(await modal.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);

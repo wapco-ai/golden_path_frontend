@@ -9,8 +9,12 @@ import apiAdmin from '../api/apiAdmin';
 import { deleteFile } from '../services/fileService';
 import { MBTILES_SATELLITE_STYLE } from '../services/mbtilesMapStyle';
 import { ADMIN_MAP_MAX_ZOOM, extendAdminMapStyle } from '../services/legacyMapStyles';
+import { createEngineeringMapStyle } from '../hooks/usePublicFloorMap';
 import { DEFAULT_GUIDANCE_COVERAGE_RADIUS_M, coverageRadiusForForm, parseCoverageRadius } from '../utils/guidanceCoverage.js';
 import { floorLabel } from '../utils/connectorForm.js';
+
+const GROUND_MAP_STYLE = extendAdminMapStyle(MBTILES_SATELLITE_STYLE);
+const BASEMENT_MAP_STYLE = createEngineeringMapStyle('fa');
 
 // RTL plugin initialization
 function ensureRtlOnce() {
@@ -175,6 +179,8 @@ const Marks = () => {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
+  const mapStyle = Number(formData.floor) === -1 ? BASEMENT_MAP_STYLE : GROUND_MAP_STYLE;
+  const mapStyleRef = useRef(mapStyle);
   const [selectedLocation, setSelectedLocation] = useState(null);
 
   // Filter marks based on search
@@ -242,7 +248,7 @@ const Marks = () => {
     try {
       const map = new maplibregl.Map({
         container: mapContainerRef.current,
-        style: extendAdminMapStyle(MBTILES_SATELLITE_STYLE),
+        style: mapStyleRef.current,
         maxZoom: ADMIN_MAP_MAX_ZOOM,
         center: [lng, lat],
         zoom: 16
@@ -250,55 +256,23 @@ const Marks = () => {
 
       map.addControl(new maplibregl.NavigationControl());
 
-      map.on('load', () => {
-        console.log('Map loaded successfully');
+      const marker = new maplibregl.Marker({
+        element: createRedMarker(),
+        draggable: true
+      })
+        .setLngLat([lng, lat])
+        .addTo(map);
+      markerRef.current = marker;
 
-        // Add marker with custom red marker
-        if (markerRef.current) {
-          markerRef.current.remove();
-        }
-
-        markerRef.current = new maplibregl.Marker({
-          element: createRedMarker(),
-          draggable: true
-        })
-          .setLngLat([lng, lat])
-          .addTo(map);
-
-        // Handle marker drag end
-        markerRef.current.on('dragend', () => {
-          const lngLat = markerRef.current.getLngLat();
-          const newLocation = { lat: lngLat.lat, lng: lngLat.lng };
-          setSelectedLocation(newLocation);
-          setFormData(prev => ({ ...prev, location: newLocation }));
-        });
-
-        // Handle map click to place marker
-        map.on('click', (e) => {
-          const { lng, lat } = e.lngLat;
-          const newLocation = { lat, lng };
-
-          if (markerRef.current) {
-            markerRef.current.setLngLat([lng, lat]);
-          } else {
-            markerRef.current = new maplibregl.Marker({
-              element: createRedMarker(),
-              draggable: true
-            })
-              .setLngLat([lng, lat])
-              .addTo(map);
-
-            markerRef.current.on('dragend', () => {
-              const lngLat = markerRef.current.getLngLat();
-              const draggedLocation = { lat: lngLat.lat, lng: lngLat.lng };
-              setSelectedLocation(draggedLocation);
-              setFormData(prev => ({ ...prev, location: draggedLocation }));
-            });
-          }
-
-          setSelectedLocation(newLocation);
-          setFormData(prev => ({ ...prev, location: newLocation }));
-        });
+      const selectLocation = ({ lat, lng }) => {
+        const newLocation = { lat, lng };
+        setSelectedLocation(newLocation);
+        setFormData(prev => ({ ...prev, location: newLocation }));
+      };
+      marker.on('dragend', () => selectLocation(marker.getLngLat()));
+      map.on('click', ({ lngLat }) => {
+        marker.setLngLat(lngLat);
+        selectLocation(lngLat);
       });
 
       mapRef.current = map;
@@ -315,6 +289,14 @@ const Marks = () => {
       toast.error('خطا در بارگذاری نقشه');
     }
   };
+
+  useEffect(() => {
+    mapStyleRef.current = mapStyle;
+    const map = mapRef.current;
+    if (map && map.getContainer() === mapContainerRef.current) {
+      map.setStyle(mapStyle, { diff: false });
+    }
+  }, [mapStyle]);
 
   // Cleanup map on unmount
   useEffect(() => {
