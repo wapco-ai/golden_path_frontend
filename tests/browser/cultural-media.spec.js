@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
+import { createServer } from 'node:http';
 
 const fixture = JSON.parse(fs.readFileSync(new URL('./fixtures/cultural-media.json', import.meta.url), 'utf8'));
 const png = Buffer.from(fixture.png, 'base64');
@@ -11,8 +12,8 @@ const media = [
   { type: 'file', mime: 'application/pdf', url: '/storage/guide.pdf', path: 'uploads/contents/7/files/guide.pdf', name: 'guide.pdf' }
 ];
 
-async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.png' } = {}) {
-  const writes = [], uploads = [], deletes = [], errors = [], dialogs = [];
+async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.png', onWrite } = {}) {
+  const writes = [], creates = [], uploads = [], deletes = [], errors = [], dialogs = [];
   let item = {
     poiId: 7, title: 'مکان فرهنگی آزمایشی', description: 'شرح مکان فرهنگی',
     titles: { fa: 'مکان فرهنگی آزمایشی', en: '', ar: '', ur: '' },
@@ -39,9 +40,15 @@ async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.
     else if (path.endsWith('/groups/metadata')) json = { groups: [] };
     else if (path.endsWith('/groups/subgroups')) json = { subGroups: {} };
     else if (path.endsWith('/cultural-items') && request.method() === 'GET') json = { items: [{ ...item, media: item.media.fa }], totalItems: 1, page: 1, pageSize: 7 };
+    else if (path.endsWith('/cultural-items') && request.method() === 'POST') {
+      creates.push(request.postDataJSON()); json = { poiId: 7 };
+    }
     else if (path.endsWith('/cultural-items/7') && request.method() === 'GET') json = item;
     else if (path.endsWith('/cultural-items/7') && request.method() === 'PUT') {
       const body = request.postDataJSON(); writes.push(body);
+      if (onWrite && !await onWrite(writes.length)) {
+        return route.fulfill({ status: 500, json: { message: 'Temporary save failure' } });
+      }
       item = { ...item, media: Object.fromEntries(Object.entries(body.translations).map(([lang, entry]) => [lang, entry.media])) };
       json = item;
     } else if (path.endsWith('/files') && request.method() === 'POST') {
@@ -63,7 +70,7 @@ async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.
   await page.route('**/map-styles/**/style*.json', route => route.fulfill({ json: { version: 8, sources: {}, layers: [{ id: 'background', type: 'background' }] } }));
   await page.route('**/tiles/**', route => route.fulfill({ status: 204 }));
   await page.route('**/tms/**', route => route.fulfill({ status: 204 }));
-  return { writes, uploads, deletes, errors, dialogs };
+  return { writes, creates, uploads, deletes, errors, dialogs };
 }
 
 async function openEdit(page) {
@@ -73,6 +80,142 @@ async function openEdit(page) {
   await page.locator('.edit-cultural-btn').first().click();
   await expect(page.locator('.edit-cultural-page')).toBeVisible();
 }
+
+async function addVideos(page, mode, ...names) {
+  await page.getByTestId(`cultural-video-input-${mode}`).setInputFiles(names.map(name => ({
+    name, mimeType: 'video/mp4', buffer: Buffer.concat([mp4, Buffer.alloc(256 * 1024)])
+  })));
+  for (const name of names) {
+    await page.getByPlaceholder('عنوان فایل را وارد کنید').fill(name);
+    await page.getByPlaceholder('توضیحات فایل را وارد کنید').fill('شرح فایل آزمایشی');
+    await page.getByRole('button', { name: 'افزودن فایل به فرم', exact: true }).click();
+  }
+}
+
+test('editing reports actual upload bytes and retries only the failed stage', async ({ page }) => {
+  test.setTimeout(90_000);
+  const uploads = [];
+  const server = createServer(async (request, response) => {
+    response.setHeader('Access-Control-Allow-Origin', '*');
+    response.setHeader('Access-Control-Allow-Headers', 'authorization, content-type');
+    if (request.method === 'OPTIONS') {
+      response.writeHead(204).end();
+      return;
+    }
+    const parts = [];
+    for await (const part of request) parts.push(part);
+    const filename = Buffer.concat(parts).toString('latin1').match(/filename="([^"]+)"/)?.[1];
+    uploads.push(filename);
+    response.setHeader('Content-Type', 'application/json');
+    if (uploads.length === 2) {
+      response.writeHead(500).end(JSON.stringify({ message: 'Temporary upload failure' }));
+      return;
+    }
+    response.end(JSON.stringify({ path: `uploads/contents/7/videos/${filename}`, mime: 'video/mp4' }));
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  let finishFirstWrite;
+  const firstFinalResponse = new Promise(resolve => { finishFirstWrite = resolve; });
+  try {
+    const target = `http://127.0.0.1:${server.address().port}/upload-fixture`;
+    await page.addInitScript((url) => {
+      const open = XMLHttpRequest.prototype.open;
+      XMLHttpRequest.prototype.open = function (method, requestUrl, ...args) {
+        const isUpload = method.toUpperCase() === 'POST' && new URL(requestUrl, location.href).pathname === '/api/v1/files';
+        return open.call(this, method, isUpload ? url : requestUrl, ...args);
+      };
+    }, target);
+    const { writes, errors } = await setup(page, {
+      onWrite: async count => {
+        if (count > 1) return true;
+        await firstFinalResponse;
+        return false;
+      }
+    });
+    await openEdit(page);
+    const form = page.locator('.edit-cultural-page');
+    const save = form.getByRole('button', { name: 'ثبت تغییرات' });
+    const title = form.getByPlaceholder('عنوان اطلاعات فرهنگی را بنویسید');
+    await title.fill('عنوان ویرایش‌شده');
+    await addVideos(page, 'edit', 'first.mp4', 'second.mp4');
+    await expect(form.getByRole('status')).toContainText('۲ فایل آمادهٔ ارسال');
+
+    const network = await page.context().newCDPSession(page);
+    await network.send('Network.enable');
+    await network.send('Network.emulateNetworkConditions', {
+      offline: false, latency: 30, downloadThroughput: -1, uploadThroughput: 96 * 1024
+    });
+    await save.click();
+    await expect(save).toBeDisabled();
+    const first = form.getByRole('progressbar', { name: 'پیشرفت ارسال فایل ۱ از ۲' });
+    await expect.poll(async () => first.evaluate(progress => progress.value)).toBeGreaterThan(0);
+    await expect(first).not.toHaveAttribute('value', '1');
+    await expect(form.locator('.cultural-save-progress span')).toHaveText(/[۰-۹]+٪/);
+    await expect(form.getByRole('status')).toContainText('first.mp4');
+    await expect(form.getByRole('progressbar', { name: 'پیشرفت ارسال فایل ۲ از ۲' })).toBeVisible();
+    await expect(form.getByRole('alert')).toContainText('ارسال فایل second.mp4 ناموفق بود');
+    await expect(title).toHaveValue('عنوان ویرایش‌شده');
+    expect(writes).toHaveLength(0);
+    expect(uploads).toEqual(['first.mp4', 'second.mp4']);
+
+    await save.click();
+    await expect(form.getByRole('progressbar', { name: 'پیشرفت ارسال فایل ۲ از ۲' })).toBeVisible();
+    await expect(form.getByRole('status')).toHaveText('در حال ثبت نهایی…');
+    await expect(save).toBeDisabled();
+    await expect(form.getByRole('progressbar')).toHaveCount(0);
+    finishFirstWrite();
+    await expect(form.getByRole('alert')).toHaveText('ثبت نهایی ناموفق بود. دوباره ذخیره کنید.');
+    await expect(title).toHaveValue('عنوان ویرایش‌شده');
+    await save.click();
+    await expect(form).toHaveCount(0);
+    expect(writes).toHaveLength(2);
+    expect(writes[1].translations.fa.media.map(file => file.path)).toEqual(expect.arrayContaining([
+      'uploads/contents/7/videos/first.mp4', 'uploads/contents/7/videos/second.mp4'
+    ]));
+    expect(uploads).toEqual(['first.mp4', 'second.mp4', 'second.mp4']);
+    expect(errors).toEqual([]);
+  } finally {
+    finishFirstWrite();
+    server.closeAllConnections();
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
+test('creating preserves the draft and reuses its server ID and uploads after a final save error', async ({ page }) => {
+  const { creates, writes, uploads, errors } = await setup(page, { onWrite: async count => count > 1 });
+  await page.goto('/#/admin');
+  await page.getByText('مدیریت امکانات', { exact: true }).click();
+  await page.getByText('مدیریت اطلاعات فرهنگی', { exact: true }).click();
+  await page.getByRole('button', { name: 'ایجاد اطلاعات فرهنگی', exact: true }).click();
+  const form = page.locator('.add-cultural-modal');
+  const title = form.getByPlaceholder('عنوان اطلاعات فرهنگی را بنویسید');
+  await title.fill('مکان جدید با فایل');
+  await form.locator('.cultural-type-option10').filter({ hasText: 'فرهنگی' }).click();
+  await form.locator('select').filter({ has: page.getByRole('option', { name: 'گروه اصلی فرهنگی' }) }).selectOption('1');
+  const steps = form.locator('.step-circle');
+  await steps.nth(1).click();
+  await form.getByPlaceholder('آدرس اطلاعات فرهنگی را بنویسید').fill('صحن آزمایشی');
+  await form.locator('#cultural-map-container .maplibregl-canvas').click();
+  await steps.nth(3).click();
+  await addVideos(page, 'create', 'create.mp4');
+  await expect(form.getByRole('status')).toContainText('۱ فایل آمادهٔ ارسال');
+  const save = form.getByRole('button', { name: 'تایید و ثبت اطلاعات', exact: true });
+  await save.click();
+  await expect(form.getByRole('alert')).toHaveText('ثبت نهایی ناموفق بود. دوباره ذخیره کنید.');
+  await expect(form.getByTestId('cultural-video-section-create')).toContainText('create.mp4');
+  await steps.first().click();
+  await expect(title).toHaveValue('مکان جدید با فایل');
+  await title.fill('عنوان اصلاح‌شده پس از خطا');
+  await steps.nth(3).click();
+  await save.click();
+  await expect(form).toHaveCount(0);
+  expect(creates).toHaveLength(1);
+  expect(writes).toHaveLength(2);
+  expect(writes[1].translations.fa.title).toBe('عنوان اصلاح‌شده پس از خطا');
+  expect(writes[1].translations.fa.media[0].path).toBe('uploads/contents/7/videos/create.mp4');
+  expect(uploads).toHaveLength(1);
+  expect(errors).toEqual([]);
+});
 
 for (const width of [1440, 1920]) {
   test(`${width}px cultural editor keeps the image card and puts video beside audio and documents`, async ({ page }, testInfo) => {
@@ -113,7 +256,7 @@ test('the separate video field uploads MP4 and preserves the existing image and 
   await page.getByTestId('cultural-video-input-edit').setInputFiles({ name: 'new.mp4', mimeType: 'video/mp4', buffer: mp4 });
   await page.getByPlaceholder('عنوان فایل را وارد کنید').fill('فیلم تازه');
   await page.getByPlaceholder('توضیحات فایل را وارد کنید').fill('شرح فیلم تازه');
-  await page.getByRole('button', { name: 'ذخیره و آپلود فایل', exact: true }).click();
+  await page.getByRole('button', { name: 'افزودن فایل به فرم', exact: true }).click();
   await expect(page.getByTestId('cultural-video-section-edit').locator('video')).toHaveCount(2);
   await page.getByRole('button', { name: 'ثبت تغییرات', exact: true }).click();
   await expect.poll(() => writes.length).toBe(1);
@@ -142,7 +285,7 @@ test('multiple selected videos are processed in order and all survive the final 
   for (const title of ['فیلم نخست', 'فیلم دوم']) {
     await page.getByPlaceholder('عنوان فایل را وارد کنید').fill(title);
     await page.getByPlaceholder('توضیحات فایل را وارد کنید').fill(`توضیح ${title}`);
-    await page.getByRole('button', { name: 'ذخیره و آپلود فایل', exact: true }).click();
+    await page.getByRole('button', { name: 'افزودن فایل به فرم', exact: true }).click();
   }
   await expect(page.getByTestId('cultural-video-section-edit').locator('video')).toHaveCount(3);
   await page.getByRole('button', { name: 'ثبت تغییرات', exact: true }).click();
