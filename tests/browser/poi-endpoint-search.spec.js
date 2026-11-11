@@ -447,6 +447,27 @@ test('MPB text results also hide the map floor picker without requiring POI imag
   expect(errors).toEqual([]);
 });
 
+test('MPB result cards prefer the thumbnail and fall back to the original photo', async ({ page }) => {
+  await setup(page);
+  const original = '/storage/uploads/contents/1/images/original.jpg';
+  const thumbnail = '/storage/uploads/card-thumbnails-v1/preview.webp';
+  await page.route('**/api/v1/landmark-places?*', route => {
+    const url = new URL(route.request().url());
+    const landmarkPlaces = url.searchParams.has('search') ? [
+      { id: '1', title: 'تصویر اول', image: original, thumbnail },
+      { id: '2', title: 'تصویر دوم', image: original },
+    ] : [];
+    return route.fulfill({ json: { places: { landmarkPlaces } } });
+  });
+
+  await page.goto('/#/mpb');
+  await page.locator('.gp-mapbegin input').first().fill('تصویر');
+  const photos = page.locator('.search-result-image3');
+  await expect(photos).toHaveCount(2);
+  await expect(photos.nth(0)).toHaveCSS('background-image', /\/card-thumbnails-v1\/preview\.webp/);
+  await expect(photos.nth(1)).toHaveCSS('background-image', /\/images\/original\.jpg/);
+});
+
 for (const target of ['origin', 'destination']) {
   test(`${target} search keeps each address with its own POI across ordering and language`, async ({ page }) => {
     const { errors, areaRequests } = await setup(page);
