@@ -11612,6 +11612,21 @@ body {
   gap: 0.5rem;
 }
 
+.audio-file-item-edit > .remove-file-btn-small-edit,
+.text-file-item-edit > .remove-file-btn-small-edit {
+  position: static;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-inline-start: 0.5rem;
+  padding: 0;
+}
+
+.audio-file-name-edit,
+.text-file-name-edit {
+  overflow-wrap: anywhere;
+}
+
 .audio-icon-edit,
 .pdf-icon-edit {
   display: flex;
