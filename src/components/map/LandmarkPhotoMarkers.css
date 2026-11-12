@@ -1,0 +1,15 @@
+.rng-photo-landmark-name {
+  position: absolute;
+  transform: translate(calc(-50% + var(--name-shift-x, 0px)), var(--name-shift-y, 0px));
+  width: max-content;
+  max-width: 150px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.24);
+  color: #202124;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  overflow-wrap: anywhere;
+}

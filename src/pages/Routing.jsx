@@ -161,6 +161,16 @@ const RoutingPage = () => {
   useEffect(() => subscribeToSessionFloor(setCurrentFloor), []);
   const navigate = useNavigate();
 
+  const handleLandmarkSelection = useCallback(({ id, coords, title, place }) => {
+    const params = new URLSearchParams({ id, lat: coords.lat, lng: coords.lng });
+    navigate(`/location?${params}`, {
+      state: {
+        guidanceBackground: location,
+        location: { id, title, floor: getPointFloor(place), coordinates: [coords.lat, coords.lng] }
+      }
+    });
+  }, [location, navigate]);
+
   const handleBackNavigation = useCallback(() => {
     let overviewHistory = null;
 
@@ -2262,6 +2272,7 @@ const RoutingPage = () => {
             is3DView={is3DView}
             routeGeo={routeGeo}
             routeFloor={navigationFrame.floor}
+            onSelectLandmark={handleLandmarkSelection}
             alternativeRoutes={routeData.alternativeRoutes}
             onSelectAlternativeRoute={handleSelectAlternativeRoute}
             showAlternativeRoutes={showAlternativeRoutesOnMap}

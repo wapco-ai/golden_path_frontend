@@ -85,6 +85,7 @@ const Location = () => {
   };
 
   const locationState = currentLocation.state?.location;
+  const fromGuidance = currentLocation.state?.guidanceBackground?.pathname === '/rng';
   const intl = useIntl();
   const formatDigits = useLocaleDigits();
   const [activeSlide, setActiveSlide] = useState(0);
@@ -870,27 +871,39 @@ const Location = () => {
     }));
   }, [currentFeedback, language, intl]);
 
-  if (loading)
-    return <div className="loading">{intl.formatMessage({ id: 'loading' })}</div>;
-  if (error)
+  const backButton = (
+    <button
+      className="back-btn6"
+      aria-label={intl.formatMessage({ id: 'back' })}
+      onClick={() => fromGuidance ? navigate(-1) : navigate('/mpb')}
+    >
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path fillRule="evenodd" clipRule="evenodd" d="M11.2244 4.55806C11.4685 4.31398 11.8642 4.31398 12.1083 4.55806L17.1083 9.55806C17.3524 9.80214 17.3524 10.1979 17.1083 10.4419L12.1083 15.4419C11.8642 15.686 11.4685 15.686 11.2244 15.4419C10.9803 15.1979 10.9803 14.8021 11.2244 14.5581L15.1575 10.625H3.33301C2.98783 10.625 2.70801 10.3452 2.70801 10C2.70801 9.65482 2.98783 9.375 3.33301 9.375H15.1575L11.2244 5.44194C10.9803 5.19786 10.9803 4.80214 11.2244 4.55806Z" fill="black" />
+      </svg>
+    </button>
+  );
+
+  if (loading || error || !locationData) {
+    const message = loading
+      ? intl.formatMessage({ id: 'loading' })
+      : error
+        ? intl.formatMessage({ id: 'fetchError' }, { error })
+        : intl.formatMessage({ id: 'noDataFound' });
+
     return (
-      <div className="error">
-        {intl.formatMessage({ id: 'fetchError' }, { error })}
-      </div>
+      <>
+        {fromGuidance && <div className="fixed-header-icons">{backButton}</div>}
+        <div className={loading ? 'loading' : error ? 'error' : 'no-data'}>{message}</div>
+      </>
     );
-  if (!locationData)
-    return <div className="no-data">{intl.formatMessage({ id: 'noDataFound' })}</div>;
+  }
 
   return (
     <div className="location-page">
       {/* Updated Carousel */}
       <div className="carousel-wrapper">
         <div className="fixed-header-icons">
-          <button className="back-btn6" onClick={() => navigate('/mpb')}>
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path fillRule="evenodd" clipRule="evenodd" d="M11.2244 4.55806C11.4685 4.31398 11.8642 4.31398 12.1083 4.55806L17.1083 9.55806C17.3524 9.80214 17.3524 10.1979 17.1083 10.4419L12.1083 15.4419C11.8642 15.686 11.4685 15.686 11.2244 15.4419C10.9803 15.1979 10.9803 14.8021 11.2244 14.5581L15.1575 10.625H3.33301C2.98783 10.625 2.70801 10.3452 2.70801 10C2.70801 9.65482 2.98783 9.375 3.33301 9.375H15.1575L11.2244 5.44194C10.9803 5.19786 10.9803 4.80214 11.2244 4.55806Z" fill="black" />
-            </svg>
-          </button>
+          {backButton}
           <button className="profile-icon" onClick={() => {
             if (accessToken && user) {
               navigate('/profile');
@@ -948,13 +961,10 @@ const Location = () => {
           <div className="line left-line"></div>
           <div className="circle"></div>
           <span>
-            {isQrCodeEntry ? (
-              <FormattedMessage
-                id={isAtInitialLocation() ? "youAreHere" : "youAreHereQr"}
-              />
-            ) : (
-              <FormattedMessage id="youAreHereQr" />
-            )}
+            <FormattedMessage id={fromGuidance
+              ? 'viewingGuidanceLandmark'
+              : isQrCodeEntry && isAtInitialLocation() ? 'youAreHere' : 'youAreHereQr'}
+            />
           </span>
           <div className="line right-line"></div>
         </div>
