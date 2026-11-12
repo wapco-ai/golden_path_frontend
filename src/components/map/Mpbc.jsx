@@ -10,6 +10,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
 import { mapAssetRequest } from '../../services/legacyMapStyles';
 import usePublicFloorMap from '../../hooks/usePublicFloorMap';
+import LandmarkPhotoMarkers from './LandmarkPhotoMarkers';
 import { MBTILES_SATELLITE_STYLE, OSM_BASIC_STYLE_URL } from '../../services/mbtilesMapStyle';
 import { useLangStore } from '../../store/langStore';
 import { loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
@@ -40,37 +41,6 @@ const groupColors = {
 const nodeFunctionColors = {
   door: '#e53935'
 };
-
-function LandmarkMarkerImage({ url, title }) {
-  const image = useRef(null);
-  const [inView, setInView] = useState(false);
-
-  useEffect(() => {
-    if (inView) return;
-    if (!window.IntersectionObserver) {
-      setInView(true);
-      return;
-    }
-    const element = image.current;
-    const observer = new IntersectionObserver(entries => {
-      if (entries.some(entry => entry.isIntersecting)) setInView(true);
-    }, { root: element.closest('.maplibregl-map') });
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [inView]);
-
-  return (
-    <img
-      ref={image}
-      className="image-marker-content"
-      src={inView ? url : undefined}
-      alt=""
-      aria-label={title || 'landmark'}
-      fetchpriority="low"
-      style={{ objectFit: 'cover' }}
-    />
-  );
-}
 
 const getCompositeIcon = (groups = [], group, nodeFunction, size = 35, opacity = 1) => {
   const color = nodeFunctionColors[nodeFunction] || groupColors[group] || '#999';
@@ -174,49 +144,6 @@ const Mpbc = ({
   const handleMapLoad = useCallback((event) => {
     if (!isEngineeringMap) initHaramVectorLayers(event?.target || event, vectorTileConfig);
   }, [isEngineeringMap, vectorTileConfig]);
-
-  const extractPlaceCoordinates = useCallback((place = {}) => {
-    const lat =
-      place.lat ??
-      place.latitude ??
-      place?.location?.lat ??
-      place?.geo?.lat ??
-      place?.coordinates?.[0] ??
-      place?.geometry?.coordinates?.[1];
-    const lng =
-      place.lng ??
-      place.longitude ??
-      place?.location?.lng ??
-      place?.geo?.lng ??
-      place?.coordinates?.[1] ??
-      place?.geometry?.coordinates?.[0];
-
-    if (lat == null || lng == null) return null;
-    return { lat: Number(lat), lng: Number(lng) };
-  }, []);
-
-  const getFirstImage = useCallback((place) => {
-    if (!place) return null;
-
-    if (Array.isArray(place.image) && place.image.length > 0) {
-      return place.image[0];
-    }
-
-    if (Array.isArray(place.images) && place.images.length > 0) {
-      return place.images[0];
-    }
-
-    if (typeof place.image === 'string' && place.image.trim()) {
-      return place.image;
-    }
-
-    if (typeof place.images === 'string' && place.images.trim()) {
-      return place.images;
-    }
-
-    return null;
-  }, []);
-
 
   // Initialize the map from the QR origin when device tracking is off.
   useEffect(() => {
@@ -622,110 +549,21 @@ const Mpbc = ({
     }
   }, [selectedCategory, selectedFeatureForBubble, subGroups, matchesSelectedCategory])
 
-  // Function to render image markers for landmarks with images
-  const renderImageMarkers = () => {
-    if (!showImageMarkers || !Array.isArray(landmarkPlaces) || landmarkPlaces.length === 0) {
-      return null;
-    }
-
-    const floorLandmarks = landmarkPlaces.filter(place => pointIsOnFloor(place, mapFloor));
-    const filteredLandmarks = selectedCategory
-      ? floorLandmarks.filter(matchesSelectedCategory)
-      : floorLandmarks;
-
-    const seenCoords = new Set();
-
-    const markers = filteredLandmarks
-      .map((place, idx) => {
-        const coords = extractPlaceCoordinates(place);
-        const imageUrl = getFirstImage(place);
-
-        if (!coords || !imageUrl) return null;
-
-        const key = place.id ? `landmark-${place.id}` : `landmark-${idx}`;
-        const coordKey = `${mapFloor}-${coords.lng.toFixed(6)}-${coords.lat.toFixed(6)}`;
-
-        if (seenCoords.has(coordKey)) return null;
-        seenCoords.add(coordKey);
-
-        return { key, coords, imageUrl, title: place.title || place.name || place.subGroup, place };
-      })
-      .filter(Boolean);
-
-    const normalizeImages = (place) => {
-      if (Array.isArray(place.image)) return place.image;
-      if (Array.isArray(place.images)) return place.images;
-
-      const firstImage = getFirstImage(place);
-      return firstImage ? [firstImage] : [];
+  const handleLandmarkSelection = ({ id, coords, images, title, place }) => {
+    const feature = {
+      geometry: { type: 'Point', coordinates: [coords.lng, coords.lat] },
+      properties: {
+        ...place,
+        id,
+        name: title,
+        label: title,
+        subGroupValue: place.subGroupValue || place.value || place.id,
+        img: images,
+        isLandmark: true
+      }
     };
-
-    return markers.map(({ key, coords, imageUrl, title, place }) => {
-      const landmarkId = place.id || place.value || place.subGroupValue ||
-        `landmark-${coords.lat}-${coords.lng}`;
-      const isSelected = selectedFeatureForBubble?.properties?.isLandmark &&
-        ((selectedFeatureForBubble.properties.id === landmarkId) ||
-          (selectedFeatureForBubble.properties.value === landmarkId) ||
-          (selectedFeatureForBubble.properties.subGroupValue === landmarkId));
-
-      return (
-        <Marker key={key} longitude={coords.lng} latitude={coords.lat} anchor="center">
-          <div
-            className={`image-marker-container ${isSelected ? 'selected-landmark-container' : ''}`}
-            onClick={(event) => {
-              event?.stopPropagation?.();
-
-              const feature = {
-                geometry: { type: 'Point', coordinates: [coords.lng, coords.lat] },
-                properties: {
-                  ...place,
-                  id: landmarkId,
-                  name: place.title || place.name || place.subGroup,
-                  label: place.title || place.name || place.subGroup,
-                  subGroupValue: place.subGroupValue || place.value || place.id,
-                  img: normalizeImages(place),
-                  isLandmark: true,
-                  distance: place.distance,
-                  time: place.time,
-                  description: place.description,
-                  address: place.address
-                }
-              };
-
-
-              setSelectedFeatureForBubble(feature);
-
-              onMapClick?.({ lat: coords.lat, lng: coords.lng }, feature);
-            }}
-          >
-
-            {isSelected && (
-              <>
-                <div className="selected-landmark-effect"></div>
-              </>
-            )}
-
-            {/* Existing SVG icon */}
-            <svg
-              width="40"
-              height="47"
-              viewBox="0 0 55 63"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M54.6562 27.3281C54.6562 39.6299 46.5275 50.0319 35.3486 53.459C35.1079 53.8493 34.8535 54.2605 34.585 54.6924L33.1699 56.9687C30.7353 60.8845 29.5175 62.8418 27.7412 62.8418C25.9651 62.8417 24.7479 60.8842 22.3135 56.9687L20.8975 54.6924C20.6938 54.3648 20.4993 54.0485 20.3115 53.7451C8.61859 50.6476 8.59898e-05 39.9953 -1.19455e-06 27.3281C-5.34814e-07 12.2351 12.2351 -1.85429e-06 27.3281 -1.19455e-06C42.4211 0.000106671 54.6562 12.2352 54.6562 27.3281Z"
-                fill="white"
-                stroke={isSelected ? "#0F71EF" : "none"}
-                strokeWidth={isSelected ? "3" : "2"} 
-              />
-            </svg>
-
-            <LandmarkMarkerImage url={imageUrl} title={title} />
-          </div>
-        </Marker>
-      );
-    });
+    setSelectedFeatureForBubble(feature);
+    onMapClick?.(coords, feature);
   };
 
   return (
@@ -812,7 +650,18 @@ const Mpbc = ({
       )} */}
 
       {/* Image markers for subgroups with images */}
-      {renderImageMarkers()}
+      {showImageMarkers && (
+        <LandmarkPhotoMarkers
+          places={landmarkPlaces}
+          floor={mapFloor}
+          matchesPlace={selectedCategory ? matchesSelectedCategory : undefined}
+          isRtl={isRtl}
+          isPitched={viewState.pitch > 0}
+          bearing={viewState.bearing}
+          selectedPlace={selectedFeatureForBubble?.properties?.isLandmark ? selectedFeatureForBubble.properties : null}
+          onSelect={handleLandmarkSelection}
+        />
+      )}
 
       {/* Point features (doors, services, etc.) - Only show when a category is selected */}
       {pointFeatures

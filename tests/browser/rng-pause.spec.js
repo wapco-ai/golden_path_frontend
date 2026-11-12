@@ -14,7 +14,7 @@ const routeGeo = { type: 'Feature', geometry: { type: 'LineString', coordinates:
 const routeSteps = coords.map(([lon, lat], i) => ({ type: i === 2 ? 'stepArriveDestination' : 'stepStart',
   routeM: i / 2, coord: { lon, lat }, instruction: `راهنمای مرحله ${i + 1}` }));
 
-async function setup(page, { audio = true } = {}) {
+async function setup(page, { audio = true, landmarks } = {}) {
   await page.setViewportSize({ width: 360, height: 780 });
   await page.addInitScript(({ origin, destination, routeGeo, routeSteps, audio }) => {
     if (!sessionStorage.getItem('pauseTestSeeded')) {
@@ -45,6 +45,14 @@ async function setup(page, { audio = true } = {}) {
     } });
   }, { origin, destination, routeGeo, routeSteps, audio });
   await page.route('**/api/v1/**', route => route.fulfill({ json: { status: 'NO_MATCH', data: [], features: [] } }));
+  if (landmarks) {
+    await page.route('**/api/v1/landmark-places?*', route => {
+      const id = new URL(route.request().url()).searchParams.get('poi_id');
+      return route.fulfill({ json: { places: {
+        landmarkPlaces: id ? landmarks.filter(place => String(place.id) === id) : landmarks
+      } } });
+    });
+  }
   await page.route('**/tiles/**', route => route.fulfill({ status: 204 }));
   await page.route('**/tms/**', route => route.fulfill({ status: 204 }));
   await page.goto('/#/');
@@ -67,6 +75,64 @@ const pause = page => page.getByRole('button', { name: 'توقف موقت', exac
 const resume = page => page.getByRole('button', { name: 'ادامه مسیر', exact: true });
 const state = page => page.locator('.routing-page');
 const qr = page => page.getByRole('button', { name: 'اصلاح مسیر با QR' });
+
+test('a guidance photo opens Location and returns to the same live or paused session', async ({ page }) => {
+  const landmark = {
+    id: 411, title: 'صحن نمونه', floor: 0, coordinates: [36.28724, 59.61449],
+    description: 'توضیحات مکان نمونه', image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6aQAAAAASUVORK5CYII='
+  };
+  await setup(page, { landmarks: [
+    landmark, { ...landmark, id: 412, title: 'طبقهٔ دیگر', floor: -1 }
+  ] });
+  const bubble = page.locator('.map-container-rng').getByRole('button', { name: landmark.title });
+  await expect(bubble).toBeVisible();
+  await expect(page.locator('.map-container-rng').getByRole('button', { name: 'طبقهٔ دیگر' })).toHaveCount(0);
+  await state(page).evaluate(el => { window.guidancePage = el; });
+  for (const mode of ['live', 'paused']) {
+    if (mode === 'paused') await pause(page).click();
+    await expect(state(page)).toHaveAttribute('data-navigation-mode', mode);
+    await bubble.click();
+    await expect(page).toHaveURL(/#\/location\?id=411/);
+    await expect(page.locator('.location-page h1')).toHaveText(landmark.title);
+    await expect(page.locator('.location-page .you-are-here')).toHaveText('مشاهده این مکان');
+    await expect(page.locator('.location-page')).toContainText(landmark.description);
+    await expect(state(page)).toBeHidden();
+    if (mode === 'live') await page.getByRole('button', { name: 'بازگشت', exact: true }).click();
+    else await page.goBack();
+    await expect(page).toHaveURL(/#\/rng$/);
+    await expect(state(page)).toBeVisible();
+    await expect(state(page)).toHaveAttribute('data-navigation-mode', mode);
+    expect(await state(page).evaluate(el => el === window.guidancePage)).toBe(true);
+  }
+});
+
+test('guidance photo names follow the user across the 200 metre boundary', async ({ page }) => {
+  await page.clock.install();
+  const title = 'نام کامل یک مکان با عنوان طولانی در حرم مطهر رضوی';
+  const metresPerDegree = 111194.927;
+  const image = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6aQAAAAASUVORK5CYII=';
+  await setup(page, { landmarks: [
+    { id: 421, title, image, floor: 0, coordinates: [36.287 - 199 / metresPerDegree, 59.615] },
+    { id: 422, title: 'مکان شمالی', image, floor: 0, coordinates: [36.287 + 201 / metresPerDegree, 59.615] },
+    { id: 423, title: 'مکان در طبقه دیگر', image, floor: -1, coordinates: [36.287, 59.615] }
+  ] });
+  const map = page.locator('.map-container-rng');
+  const bubble = name => map.getByRole('button', { name, exact: true });
+  const label = name => bubble(name).locator('.rng-photo-landmark-name');
+  await page.evaluate(() => window.sendGps(36.287, 59.615));
+  await page.clock.runFor(100);
+  await expect(label(title)).toHaveText(title);
+  await expect(bubble('مکان شمالی')).toHaveCount(1);
+  await expect(label('مکان شمالی')).toHaveCount(0);
+  await expect(bubble('مکان در طبقه دیگر')).toHaveCount(0);
+
+  await page.clock.fastForward(5000);
+  await page.evaluate(() => window.sendGps(36.2871, 59.615));
+  await page.clock.runFor(100);
+  await expect(label('مکان شمالی')).toHaveText('مکان شمالی');
+  await expect(label(title)).toHaveCount(0);
+  await expect(bubble(title)).toHaveCount(1);
+});
 
 test('manual next without GPS keeps live navigation, QR and pause active', async ({ page }) => {
   await setup(page);

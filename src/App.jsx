@@ -44,6 +44,8 @@ const useAppStyles = () => {
 const AppContent = () => {
   const intl = useIntl();
   const location = useHomeQrEntry(intl.locale);
+  const guidanceBackground = location.pathname === '/location' && location.state?.guidanceBackground?.pathname === '/rng'
+    ? location.state.guidanceBackground : null;
   const hideHeaderFooter = location.pathname === '/login' || location.pathname === '/profile'|| location.pathname === '/lang'
     || location.pathname === '/location' || location.pathname === '/' || location.pathname === '/mpr'|| location.pathname === '/fs'
     || location.pathname === '/rop' || location.pathname === '/rng'|| location.pathname === '/mpb'
@@ -146,14 +148,18 @@ const AppContent = () => {
             </div>
           </div>
         )}
-        <Routes location={location}>
+        <Routes location={guidanceBackground ?? location}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/fs" element={<FinalSearch key={`shared-destination-${finalSearchRevision}`} />} />
           <Route path="/rop" element={<RouteOverview />} />
           <Route path="/" element={<LangPage />} />
           <Route path="/mpr" element={<MapRouting/>} />
-          <Route path="/rng" element={<Routing/>} />
+          <Route path="/rng" element={
+            <div style={{ display: guidanceBackground ? 'none' : 'contents' }}>
+              <Routing />
+            </div>
+          } />
           <Route path="/location" element={<Location />} />
           <Route path="/mpb" element={<MapBegin />} />
           <Route path="/pinfo" element={<ProfileInfo />} />
@@ -169,6 +175,11 @@ const AppContent = () => {
           <Route path="/faq" element={<Faq />} />
           {adminRoutes}
         </Routes>
+        {guidanceBackground && (
+          <Routes location={location}>
+            <Route path="/location" element={<Location />} />
+          </Routes>
+        )}
       </main>
       {!hideHeaderFooter && <Footer />}
     </div>

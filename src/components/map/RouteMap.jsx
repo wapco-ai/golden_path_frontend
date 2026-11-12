@@ -9,17 +9,20 @@ import useOfflineMapStyle from '../../hooks/useOfflineMapStyle';
 import usePublicFloorMap from '../../hooks/usePublicFloorMap';
 import advancedDeadReckoningService from '../../services/AdvancedDeadReckoningService';
 import ArrowMarker from './ArrowMarker';
+import LandmarkPhotoMarkers, { getLandmarkId } from './LandmarkPhotoMarkers';
+import { fetchLandmarkPlaces } from '../../services/landmarkService';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
 import appConfig from '../../config/appConfig';
 import { useLangStore } from '../../store/langStore';
 import { createHaramVectorTileConfig } from '../../config/vectorTiles';
 import voyagerBaseMapStyle from '../../services/osmMapStyle';
 import { MBTILES_SATELLITE_STYLE } from '../../services/mbtilesMapStyle';
-import { sliceLineByFraction } from '../../utils/routeSegments';
+import { haversineMeters, sliceLineByFraction } from '../../utils/routeSegments';
 
 import { forwardRef, useImperativeHandle } from 'react';
 
 const TERRAIN_PROBE_URL = appConfig.terrainProbeUrl;
+const LANDMARK_NAME_RADIUS_METERS = 200;
 const HIDDEN_VECTOR_LAYER_IDS = new Set([
   'areas-outline',
   'areas-fill',
@@ -42,6 +45,7 @@ const RouteMap = forwardRef(({
   showAlternativeRoutes = false,
   navigationControlled = false,
   isOverviewMode = false,
+  onSelectLandmark,
   progressRouteM = null,
   routeFloor = 0
 }, ref) => {
@@ -54,6 +58,9 @@ const RouteMap = forwardRef(({
     && Number.isFinite(userLocation[1]);
   const markerLat = isValidUserLocation ? userLocation[0] : null;
   const markerLng = isValidUserLocation ? userLocation[1] : null;
+  const showLandmarkName = useCallback(({ lng, lat }) => markerLat !== null
+    && haversineMeters([markerLng, markerLat], [lng, lat]) <= LANDMARK_NAME_RADIUS_METERS,
+  [markerLat, markerLng]);
 
   const isRtl = ["fa", "ar", "ur"].includes(language);
   const baseMapStyle = voyagerBaseMapStyle;
@@ -124,8 +131,28 @@ const RouteMap = forwardRef(({
   const [heading, setHeading] = useState(userHeading ?? 0);
   const [mapReady, setMapReady] = useState(0);
   const [terrainAvailable, setTerrainAvailable] = useState(false);
+  const [landmarkData, setLandmarkData] = useState(null);
+  const [bearing, setBearing] = useState(0);
   const [, setTraveledRouteGeo] = useState(null);
   const [remainingRouteGeo, setRemainingRouteGeo] = useState(null);
+
+  const showPhotoLandmarks = is3DView && !isOverviewMode && Boolean(onSelectLandmark);
+  const photoLandmarks = showPhotoLandmarks && landmarkData?.language === language
+    ? landmarkData.places : [];
+  const routeMarkerStyle = photoLandmarks.length ? { zIndex: photoLandmarks.length + 1 } : { zIndex: '' };
+
+  useEffect(() => {
+    if (!showPhotoLandmarks) return;
+    const controller = new AbortController();
+    fetchLandmarkPlaces({ language, signal: controller.signal }).then(data => {
+      if (controller.signal.aborted) return;
+      const places = Array.isArray(data.places.landmarkPlaces) ? data.places.landmarkPlaces : [];
+      setLandmarkData({ language, places: places.filter(place => getLandmarkId(place)) });
+    }).catch(() => {
+      if (!controller.signal.aborted) setLandmarkData(null);
+    });
+    return () => controller.abort();
+  }, [showPhotoLandmarks, language]);
 
   const handleMapRef = useCallback((map) => {
     mapRef.current = map;
@@ -479,9 +506,11 @@ const RouteMap = forwardRef(({
       ref={handleMapRef}
       mapLib={maplibregl}
       mapStyle={mapStyle}
+      style={{ isolation: 'isolate' }}
       styleDiffing={false}
       interactiveLayerIds={altLayerIds}
       onLoad={handleMapLoad}
+      onMove={(event) => setBearing(event.viewState.bearing)}
       onClick={(e) => {
         const feature = e.features && e.features[0];
         if (
@@ -508,15 +537,27 @@ const RouteMap = forwardRef(({
       terrain={!isEngineeringMap && is3DView && terrainAvailable ? { source: 'terrain', exaggeration: 1.5 } : undefined}
       onError={onMapError}
     >
+      {photoLandmarks.length > 0 && (
+        <LandmarkPhotoMarkers
+          places={photoLandmarks}
+          floor={routeFloor}
+          isRtl={isRtl}
+          isPitched
+          bearing={bearing}
+          showName={showLandmarkName}
+          onSelect={onSelectLandmark}
+        />
+      )}
+
       {/* User location marker */}
       {!useDrPosition && isValidUserLocation && (
-        <Marker longitude={userLocation[1]} latitude={userLocation[0]} anchor="center">
+        <Marker longitude={userLocation[1]} latitude={userLocation[0]} anchor="center" style={routeMarkerStyle}>
           <ArrowMarker />
         </Marker>
       )}
 
       {useDrPosition && drPosition && Number.isFinite(drPosition.lng) && Number.isFinite(drPosition.lat) && (
-        <Marker longitude={drPosition.lng} latitude={drPosition.lat} anchor="center">
+        <Marker longitude={drPosition.lng} latitude={drPosition.lat} anchor="center" style={routeMarkerStyle}>
           <ArrowMarker />
         </Marker>
       )}
@@ -534,6 +575,7 @@ const RouteMap = forwardRef(({
             longitude={destinationCoordinate[0]}
             latitude={destinationCoordinate[1]}
             anchor="bottom"
+            style={routeMarkerStyle}
           >
             <DestinationPin />
           </Marker>
