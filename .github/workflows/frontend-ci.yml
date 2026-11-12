@@ -22,6 +22,8 @@ jobs:
           node-version: '20'
           cache: npm
       - run: npm ci
+      - name: Verify frontend release guard
+        run: python3 -m unittest discover -s tests -p test_frontend_release.py
       - name: Route and RNG regression tests
         run: npm test
       - name: Verify tests do not corrupt installed dependencies

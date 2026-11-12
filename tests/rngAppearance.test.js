@@ -12,6 +12,12 @@ const guide = source.slice(guideStart, guideEnd);
 const blobHash = (data) => createHash('sha1')
   .update(`blob ${data.length}\0`).update(data).digest('hex');
 
+test('navigation audio errors are logged without a user notification', () => {
+  const executable = source.replace(/^\s*\/\/.*$/gm, '');
+  assert.match(executable, /console\.error\('Failed to play navigation audio'/);
+  assert.doesNotMatch(executable, /toast\.error\([^\n]*ttsPlaybackError/);
+});
+
 test('RNG uses an existing release stylesheet with no added panel overrides', () => {
   // Compare canonical text, including Windows checkouts using CRLF.
   const css = Buffer.from(readFileSync(new URL('../src/styles/Routing.css', import.meta.url), 'utf8')

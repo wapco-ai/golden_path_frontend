@@ -150,8 +150,27 @@ test('saved-place search uses real POIs rather than the missing vector tile laye
 test('language service outage still permits entering the application', async ({ page }) => {
   await page.route('**/api/v1/languages', route => route.abort());
   await page.goto('/#/');
-  await expect(page.locator('.lang-option, .lang-dropdown-item')).toHaveCount(4);
+  await expect(page.locator('.lang-dropdown-item')).toHaveCount(4);
   await expect(page.locator('.lang-login-btn')).toBeEnabled();
   await page.locator('.lang-login-btn').click();
+  await expect(page).toHaveURL(/#\/mpb$/);
+});
+
+test('language dropdown and place return use the released navigation', async ({ page }) => {
+  await page.route('**/api/v1/languages', route => route.abort());
+  await page.route('**/api/v1/landmark-places**', route => route.fulfill({ json: {
+    places: { landmarkPlaces: [{ id: 944, title: 'چایخانه رضوان', floor: 0 }] }
+  } }));
+  await page.goto('/#/');
+  const trigger = page.locator('button.lang-dropdown-trigger');
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await trigger.click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  const options = page.getByRole('option');
+  await expect(options).toHaveCount(4);
+  await options.first().click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await page.goto('/#/location?id=944');
+  await page.locator('.location-page .back-btn6').click();
   await expect(page).toHaveURL(/#\/mpb$/);
 });
