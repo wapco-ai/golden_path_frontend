@@ -90,6 +90,7 @@ const normalizeLandmarkPlace = (place = {}) => {
     ...place,
     floor: getPointFloor(place),
     image: primaryImage || fallbackImage || place.image,
+    thumbnail: resolveMediaValue(place.thumbnail),
     images: Array.isArray(place.images)
       ? place.images.map((item) => resolveMediaValue(item)).filter(Boolean)
       : place.images

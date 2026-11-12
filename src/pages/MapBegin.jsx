@@ -23,6 +23,11 @@ import mode1 from '../assets/images/mode1.png';
 import mode2 from '../assets/images/mode2.png';
 import mode3 from '../assets/images/mode3.png';
 
+const landmarkCardBackground = (place) => {
+  const image = place.thumbnail || place.image;
+  return image ? { backgroundImage: `url(${image})` } : undefined;
+};
+
 const MapBeginPage = () => {
   // Size the landmark bottom sheet from the currently visible viewport.
   // visualViewport is important on iOS/Android when browser bars or the keyboard change height.
@@ -1199,9 +1204,9 @@ const MapBeginPage = () => {
                     <div key={index} className="search-result-card3">
                       <div
                         className="search-result-image3"
-                        style={{ backgroundImage: result.image ? `url(${result.image})` : 'none' }}
+                        style={landmarkCardBackground(result)}
                       >
-                        {!result.image && (
+                        {!result.thumbnail && !result.image && (
                           <div className="search-result-image-placeholder">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                               <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -1452,7 +1457,7 @@ const MapBeginPage = () => {
                     <div key={`${activePlacesModal}-${index}`} className="events-modal-item">
                       <div
                         className="events-modal-image"
-                        style={place.image ? { backgroundImage: `url(${place.image})` } : {}}
+                        style={landmarkCardBackground(place)}
                       />
                       <div className="events-modal-info">
                         <h4>{place.title}</h4>
@@ -1522,7 +1527,7 @@ const MapBeginPage = () => {
                     <div className="image-container">
                       <div
                         className="place-image"
-                        style={place.image ? { backgroundImage: `url(${place.image})` } : {}}
+                        style={landmarkCardBackground(place)}
                       ></div>
                       <button className="transparent-save-btn">
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1623,7 +1628,7 @@ const MapBeginPage = () => {
                     <div className="image-container">
                       <div
                         className="place-image"
-                        style={{ backgroundImage: `url(${place.image})` }}
+                        style={landmarkCardBackground(place)}
                       ></div>
                       <button className="transparent-save-btn">
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1717,7 +1722,7 @@ const MapBeginPage = () => {
                       <div className="image-container">
                         <div
                           className="place-image"
-                          style={{ backgroundImage: `url(${place.image})` }}
+                          style={landmarkCardBackground(place)}
                         ></div>
                         <button className="transparent-save-btn">
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
