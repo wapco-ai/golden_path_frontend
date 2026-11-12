@@ -60,19 +60,19 @@ try {
         Pop-Location
     }
 
-    $stage = (Invoke-Native wsl.exe (@('-d', 'Ubuntu', '--') + $ssh +
+    $stage = (Invoke-Native wsl.exe (@('-d', 'Ubuntu', '--exec') + $ssh +
         @('mktemp', '-d', '/home/ubuntu/deploy_app/frontend-release-XXXXXXXX'))).Trim()
     if ($stage -notmatch '^/home/ubuntu/deploy_app/frontend-release-[A-Za-z0-9]{8}$') {
         throw 'Unexpected production staging directory.'
     }
-    $unixWork = (Invoke-Native wsl.exe @('-d', 'Ubuntu', '--', 'wslpath', '-a', $work)).Trim()
+    $unixWork = (Invoke-Native wsl.exe @('-d', 'Ubuntu', '--exec', 'wslpath', '-a', $work)).Trim()
     $transport = "ssh -S $socket -o BatchMode=yes -o ConnectTimeout=8"
-    Invoke-Native wsl.exe @('-d', 'Ubuntu', '--', 'rsync', '-z', '-e', $transport,
+    Invoke-Native wsl.exe @('-d', 'Ubuntu', '--exec', 'rsync', '-z', '-e', $transport,
         '--', "$unixWork/release.json", "${server}:$stage/")
-    Invoke-Native wsl.exe @('-d', 'Ubuntu', '--', 'rsync', '-rcz', '-e', $transport,
+    Invoke-Native wsl.exe @('-d', 'Ubuntu', '--exec', 'rsync', '-rcz', '-e', $transport,
         '--compare-dest=/opt/golden_path_stack/frontend/dist', '--',
         "$unixWork/source/dist/", "${server}:$stage/frontend/")
-    Invoke-Native wsl.exe (@('-d', 'Ubuntu', '--') + $ssh +
+    Invoke-Native wsl.exe (@('-d', 'Ubuntu', '--exec') + $ssh +
         @('sudo', '-n', 'python3', '/opt/golden_path_stack/scripts/frontend_release.py', 'publish', $stage))
 } finally {
     $env:GP_TEST_CHROMIUM = $oldBrowser
