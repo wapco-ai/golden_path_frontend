@@ -35,6 +35,12 @@ async function setupRoute(page, fromQr = false) {
     }
   },{geo,steps,fromQr});
   await page.route('**/api/v1/**',r=>r.fulfill({json:{status:'NO_MATCH',data:[],features:[]}}));
+  if (fromQr) {
+    await page.clock.setFixedTime(new Date());
+    await page.route('**/api/v1/qrcodes/END-TRIP-QR?*', route => route.fulfill({
+      json: { id: 'END-TRIP-QR', floor: -1, coordinates: [36.287, 59.615] }
+    }));
+  }
   await page.route('**/tiles/**',r=>r.fulfill({status:204}));
   await page.route('**/tms/**',r=>r.fulfill({status:204}));
   return errors;
