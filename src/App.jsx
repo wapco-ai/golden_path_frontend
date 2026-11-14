@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
-import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { HashRouter as Router, Navigate, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
 import Profile from './pages/Profile';
 import FinalSearch from './pages/FinalSearch';
 import LangPage from './pages/LangPage';
@@ -27,7 +27,7 @@ import RouteRequestLoader from './components/common/RouteRequestLoader';
 import LocationShareOverlay from './components/common/LocationShareOverlay';
 import { ToastContainer, toast } from 'react-toastify';
 import adminRoutes from './routes/adminRoutes';
-import { recordPathInHistory } from './utils/navigationHistory';
+import { discardReplacedTripHistory, endedTripForLocation, recordPathInHistory } from './utils/navigationHistory';
 import useHomeQrEntry from './hooks/useHomeQrEntry';
 
 const useAppStyles = () => {
@@ -44,6 +44,8 @@ const useAppStyles = () => {
 const AppContent = () => {
   const intl = useIntl();
   const location = useHomeQrEntry(intl.locale);
+  const navigationType = useNavigationType();
+  const endedTrip = endedTripForLocation(location, navigationType);
   const guidanceBackground = location.pathname === '/location' && location.state?.guidanceBackground?.pathname === '/rng'
     ? location.state.guidanceBackground : null;
   const hideHeaderFooter = location.pathname === '/login' || location.pathname === '/profile'|| location.pathname === '/lang'
@@ -68,8 +70,9 @@ const AppContent = () => {
   }, [intl.locale]);
 
   useEffect(() => {
-    recordPathInHistory(location.pathname);
-  }, [location.pathname]);
+    discardReplacedTripHistory(navigationType);
+    if (!endedTrip) recordPathInHistory(location.pathname);
+  }, [location.key, location.pathname, navigationType, endedTrip]);
 
   useEffect(() => {
     const handleDestinationUpdate = () => {
@@ -123,6 +126,8 @@ const AppContent = () => {
   };
 
   const isAdminRoute = location.pathname.startsWith('/admin');
+
+  if (endedTrip) return <Navigate to="/mpb" replace state={{ finishedTrip: endedTrip.position }} />;
 
   return (
     <div className={`app ${isAdminRoute ? 'no-app-styles' : ''}`}>

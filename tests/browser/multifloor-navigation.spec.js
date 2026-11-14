@@ -60,3 +60,42 @@ test('route overview shows the current floor and the transfer duration in the ex
   await expect(page.locator('.carousel-next')).toBeDisabled();
   expect(errors).toEqual([]);
 });
+
+test('ending a trip opens the home map at the confirmed landing and retires the route history', async ({ page }) => {
+  const errors = await setupRoute(page);
+  await page.goto('/#/rop');
+  await page.locator('.start-routing-btn').click();
+  await page.locator('.start-routing-button').click();
+  await page.locator('.direction-icon-rng').click();
+  await expect(page.locator('.instruction-text')).toContainText('با آسانسور به طبقه یک بروید');
+  await page.locator('.direction-icon-rng').click();
+  await expect(page.locator('.instruction-text')).toContainText('حرکت در طبقه یک');
+
+  await page.getByRole('button', { name: 'پایان و بستن سفر' }).click();
+  await expect(page).toHaveURL(/#\/mpb$/);
+  await expect(page.getByText('مسیریابی پایان یافت', { exact: true })).toBeVisible();
+  await expect(page.locator('.routing-page')).toHaveCount(0);
+  const marker = page.locator('.map-marker-origin');
+  await expect(marker).toBeVisible();
+  const canvas = page.getByRole('region', { name: 'Map', exact: true });
+  await expect.poll(async () => {
+    const [point, map] = await Promise.all([marker.boundingBox(), canvas.boundingBox()]);
+    return Math.abs(point.x + point.width / 2 - map.x - map.width / 2) < 2
+      && Math.abs(point.y + point.height / 2 - map.y - map.height / 2) < 2;
+  }).toBe(true);
+  expect(await page.evaluate(() => ({
+    position: history.state.usr.finishedTrip,
+    floor: sessionStorage.getItem('haramCurrentFloor'),
+    route: JSON.parse(localStorage.getItem('route-storage')).state.routeGeo,
+    savedRoute: sessionStorage.getItem('routeGeo'),
+  }))).toMatchObject({ position: { coordinates: [36.287, 59.6151], floor: 1 }, floor: '1', route: null, savedRoute: null });
+
+  await page.goBack();
+  await expect(page).toHaveURL(/#\/mpb$/);
+  await expect(page.locator('.instruction-text2')).toHaveCount(0);
+  await expect(marker).toBeVisible();
+  await page.goForward();
+  await expect(page).toHaveURL(/#\/mpb$/);
+  await expect(page.locator('.routing-page')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

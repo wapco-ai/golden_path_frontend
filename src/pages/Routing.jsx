@@ -1,6 +1,6 @@
 import { getNavigationPolicy } from '../services/navigationPolicy.js';
 import { submitEmergency } from '../services/emergencyService';
-import { gpsMeasurement, isFresh } from '../utils/locationQuality.js';
+import { gpsMeasurement, isFresh, validGeo } from '../utils/locationQuality.js';
 import FloorControl from '../components/map/FloorControl';
 import { routeCoordinates as getRouteCoordinates, isMultifloor, multifloorSteps, activeRouteCoordinates } from '../utils/multifloorRoute';
 import { withDoorStepInstructions } from '../utils/routeStepInstructions';
@@ -23,7 +23,7 @@ import useLocaleDigits from '../utils/useLocaleDigits';
 import { toast } from 'react-toastify';
 import ttsService from '../services/ttsService';
 import { requestRouting } from '../services/routingService';
-import { resolveScannedQrPoint, readQrPoint } from '../services/qrLocationService';
+import { clearQrLocation, resolveScannedQrPoint, readQrPoint } from '../services/qrLocationService';
 import { prepareQrReader } from '../services/qrReader';
 import { doorEndpoint, doorRouteErrorMessage } from '../utils/doorRouteEndpoint';
 import useGuidanceImage from '../hooks/useGuidanceImage.js';
@@ -31,6 +31,7 @@ import { getLiveNavigationGeo, nextDemoStep, projectPointOnRoute, resolveNavigat
 import { arrivalInstruction, finalStepDistanceMeters, liveStepInstruction, rngMessages, rngQrMessages, rngPauseMessages } from '../utils/rngMessages.js';
 import { pauseRouteKey, readPausedNavigation, savePausedNavigation, getResumePosition, resumeStepAt } from '../utils/rngPause.js';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
+import { finishTripHistory } from '../utils/navigationHistory';
 import {
   buildRouteMSegments,
   getLineDistanceMeters,
@@ -108,6 +109,8 @@ const RoutingPage = () => {
   const [drStepTimestamp, setDrStepTimestamp] = useState(null);
   const [positionClock, setPositionClock] = useState(Date.now());
   const gpsFixRef = useRef(null);
+  const lastDrFix = useRef(null);
+  const confirmedLanding = useRef(null);
   const entryQr = readQrPoint();
   const qrAnchorRef = useRef(entryQr?.verified && isFresh(entryQr.timestamp, Date.now(), DR_MAX_ANCHOR_AGE)
     && origin?.source === 'qr' && origin.coordinates?.every((v, i) => v === entryQr.coordinates[i])
@@ -392,6 +395,11 @@ const RoutingPage = () => {
 
   useEffect(() => {
     const remove = advancedDeadReckoningService.addListener(data => {
+      if (Number.isFinite(data.positionTimestamp) && validGeo(data.geoPosition)
+        && Number.isFinite(data.positionAccuracy) && data.positionAccuracy <= DR_MAX_UNCERTAINTY) {
+        lastDrFix.current = { ...data.geoPosition, timestamp: data.positionTimestamp,
+          accuracy: data.positionAccuracy, floor: getSessionFloor() };
+      }
       setIsDrActive(data.isActive);
       setDrTimestamp(data.positionTimestamp);
       setDrStepTimestamp(data.stepTimestamp);
@@ -547,6 +555,8 @@ const RoutingPage = () => {
     const geo = { lat, lng };
     const timestamp = Date.now();
     qrAnchorRef.current = { geo, timestamp, floor: newOrigin.floor };
+    lastDrFix.current = null;
+    confirmedLanding.current = null;
     resetProgress();
     gpsFixRef.current = null;
     setGpsTimestamp(null);
@@ -1704,20 +1714,61 @@ const RoutingPage = () => {
     }
   };
 
-  const toggleRouting = () => {
+  const endTrip = () => {
+    const anchor = qrAnchorRef.current;
+    const qr = anchor && { ...anchor.geo, timestamp: anchor.timestamp, floor: anchor.floor, accuracy: policy.qr_accuracy_m };
+    const gpsOrigin = origin?.source === 'gps' && Number.isFinite(origin.timestamp) && {
+      lat: origin.coordinates?.[0], lng: origin.coordinates?.[1], timestamp: origin.timestamp,
+      floor: getPointFloor(origin), accuracy: origin.accuracy
+    };
+    const paused = pauseRef.current;
+    const pausedFix = paused?.dr?.trusted && paused.dr.accuracy <= DR_MAX_UNCERTAINTY && {
+      ...paused.dr.geo, timestamp: paused.startedAt, floor: paused.frame.floor, accuracy: paused.dr.accuracy
+    };
+    const fix = [gpsFixRef.current, lastDrFix.current, qr, gpsOrigin, pausedFix, confirmedLanding.current]
+      .filter(candidate => validGeo(candidate) && Number.isFinite(candidate.timestamp))
+      .sort((a, b) => b.timestamp - a.timestamp)[0];
+    const dr = advancedDeadReckoningService;
+    // A manually confirmed start/landing can be the only anchor before the first step.
+    const confirmedAnchor = !policy.gps_enabled && Number.isFinite(dr.anchorTimestamp) && validGeo(dr.geoPosition)
+      && dr.positionAccuracy <= DR_MAX_UNCERTAINTY && (!fix || dr.anchorTimestamp > fix.timestamp)
+      ? { ...dr.geoPosition, floor: getSessionFloor(), timestamp: dr.anchorTimestamp, accuracy: dr.positionAccuracy }
+      : null;
+    const position = confirmedAnchor || fix;
+    const finishedPosition = position ? {
+      coordinates: [position.lat, position.lng], floor: getPointFloor(position), accuracy: position.accuracy,
+      lastKnown: Boolean(paused) || !isFresh(position.timestamp)
+    } : null;
+
     cancelResume();
     updatePause(null);
-    if (isRoutingActive) {
-      setIsRoutingActive(false);
-      advancedDeadReckoningService.stop();
-      setIs3DView(false);
-      return;
+    activeSnapshot.current = null;
+    audioRef.current?.pause();
+    dr.stop();
+    clearQrLocation();
+    for (const key of [ROUTE_OVERVIEW_HISTORY_KEY, 'routeGeo', 'routeSteps', 'alternativeRoutes', 'routeSahns',
+      'routeSummaryData', 'manualRouteSelected', 'origin', 'destination', 'currentOrigin', 'currentDestination',
+      'updatedOrigin', 'updatedDestination', 'returnToFinalSearch', 'activeInput', 'transportMode', 'gender',
+      'mapSelectedLat', 'mapSelectedLng', 'mapSelectedId']) {
+      sessionStorage.removeItem(key);
     }
+    useRouteStore.getState().clearRoute();
+    setSessionFloor(finishedPosition?.floor ?? 0);
+    finishTripHistory(finishedPosition);
+    navigate('/mpb', { replace: true, state: { finishedTrip: finishedPosition } });
+    toast.success(intl.formatMessage({ id: 'tripEnded' }));
+  };
+
+  const startRouting = () => {
+    cancelResume();
+    updatePause(null);
     if (!routeData?.steps?.length || !routeGeo) return;
     // A real start must not resume a simulated step with a real origin position.
     setIsDemoMode(false);
     setHasArrived(false);
     setCurrentStep(0);
+    lastDrFix.current = null;
+    confirmedLanding.current = null;
     resetProgress();
     const anchor = qrAnchorRef.current;
     const trustedQr = anchor && isFresh(anchor.timestamp, Date.now(), DR_MAX_ANCHOR_AGE);
@@ -1725,6 +1776,7 @@ const RoutingPage = () => {
     const routeStart = trustedQr && routeGeo.properties?.nearbyOrigin
       ? [anchor.geo.lat, anchor.geo.lng] : selectedGpsOrigin || getNavigationStartLocation();
     const [lat, lng] = routeStart || userLocation;
+    setSessionFloor(trustedQr ? anchor.floor ?? routeOriginFloor : routeOriginFloor);
     setUserLocation([lat, lng]);
     setDrPosition({ lat, lng });
     setIsRoutingActive(true);
@@ -1778,6 +1830,8 @@ const RoutingPage = () => {
         const next = routeData.steps[currentStep + 1];
         const point = activeRouteCoordinates(routeGeo, next)?.[0];
         const dr = advancedDeadReckoningService;
+        if (point) confirmedLanding.current = { lng: point[0], lat: point[1],
+          floor: guideStep.toFloor, timestamp: Date.now() };
         const accuracy = dr.positionAccuracy;
         const distanceSinceAnchor = dr.distanceSinceAnchor;
         if (!policy.gps_enabled && point && Number.isFinite(accuracy)) {
@@ -2499,15 +2553,14 @@ const RoutingPage = () => {
 
               <div className="bottom-controls">
                 <button
-                  className={`start-routing-button ${isRoutingActive ? 'stop-routing' : ''}`}
+                  className={`start-routing-button ${isRoutingActive || hasArrived ? 'stop-routing' : ''}`}
                   onClick={() => {
-                    toggleRouting();
-                    if (!isRoutingActive) {
-                      toggleInfoModal(); // Call only when not active
-                    }
+                    if (isRoutingActive || hasArrived) return endTrip();
+                    startRouting();
+                    toggleInfoModal();
                   }}
                 >
-                  {isRoutingActive ? (
+                  {isRoutingActive || hasArrived ? (
                     <FormattedMessage id="stopRouting" />
                   ) : (
                     <FormattedMessage id="startRouting" />

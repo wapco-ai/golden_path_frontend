@@ -1,5 +1,39 @@
 const PATH_HISTORY_KEY = 'appPathHistory';
 const MAX_PATH_HISTORY_LENGTH = 50;
+const ENDED_TRIP_KEY = 'endedTripHistory';
+const tripPaths = new Set(['/fs', '/rop', '/rng']);
+
+const readEndedTrip = () => {
+  try {
+    return JSON.parse(sessionStorage.getItem(ENDED_TRIP_KEY));
+  } catch {
+    return null;
+  }
+};
+
+export function finishTripHistory(position) {
+  sessionStorage.setItem(ENDED_TRIP_KEY, JSON.stringify({ index: window.history.state?.idx, position }));
+  writePathHistory(readPathHistory().filter(path => !tripPaths.has(path)));
+}
+
+export function endedTripForLocation(location, navigationType) {
+  const ended = readEndedTrip();
+  const index = window.history.state?.idx;
+  if (!Number.isInteger(ended?.index) || !Number.isInteger(index) || index > ended.index) return null;
+  if (navigationType === 'PUSH') return null;
+  const path = location.state?.guidanceBackground?.pathname ?? location.pathname;
+  return tripPaths.has(path) ? ended : null;
+}
+
+export function discardReplacedTripHistory(navigationType) {
+  if (navigationType !== 'PUSH') return;
+  const ended = readEndedTrip();
+  const index = window.history.state?.idx;
+  // A push from an older entry removes the forward entries, including the ended trip.
+  if (Number.isInteger(index) && index <= ended?.index) {
+    sessionStorage.setItem(ENDED_TRIP_KEY, JSON.stringify({ ...ended, index: index - 1 }));
+  }
+}
 
 const readPathHistory = () => {
   try {

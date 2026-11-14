@@ -156,6 +156,8 @@
   "otherRoutes": "سایر مسیرها",
   "startRouting": "شروع مسیریابی",
   "stopRouting": "پایان و بستن سفر",
+  "tripEnded": "مسیریابی پایان یافت",
+  "lastKnownTripPosition": "آخرین موقعیت ثبت‌شده",
   "returnToRoute": "برگرد به مسیر",
   "from": "از",
   "to": "به",

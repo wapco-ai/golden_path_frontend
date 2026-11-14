@@ -156,6 +156,8 @@
   "otherRoutes": "مسارات أخرى",
   "startRouting": "بدء المسار",
   "stopRouting": "إنهاء الرحلة",
+  "tripEnded": "انتهت الملاحة",
+  "lastKnownTripPosition": "آخر موقع معروف",
   "returnToRoute": "العودة للمسار",
   "from": "من",
   "to": "إلى",

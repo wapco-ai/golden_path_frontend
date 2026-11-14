@@ -156,6 +156,8 @@
   "otherRoutes": "دیگر راستے",
   "startRouting": " روٹنگ شروع کریں ",
   "stopRouting": "سفر ختم کریں",
+  "tripEnded": "رہنمائی ختم ہو گئی",
+  "lastKnownTripPosition": "آخری معلوم مقام",
   "returnToRoute": "  واپس ٹریک پر  ",
   "from": "سے",
   "to": "تک",

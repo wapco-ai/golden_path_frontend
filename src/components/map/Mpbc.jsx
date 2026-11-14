@@ -80,6 +80,7 @@ const getCompositeIcon = (groups = [], group, nodeFunction, size = 35, opacity =
 };
 
 const Mpbc = ({
+  initialTripPosition,
   setUserLocation,
   selectedDestination = null,
   onMapClick,
@@ -101,9 +102,9 @@ const Mpbc = ({
   const intl = useIntl();
   const mapFloor = useMapFloor();
   const [viewState, setViewState] = useState({
-    latitude: 36.2870,
-    longitude: 59.6157,
-    zoom: 15
+    latitude: initialTripPosition?.coordinates?.[0] ?? 36.2870,
+    longitude: initialTripPosition?.coordinates?.[1] ?? 59.6157,
+    zoom: initialTripPosition ? 18 : 15
   });
   const [userCoords, setUserCoords] = useState(null);
   const [mapGpsFix, setMapGpsFix] = useState(null);
@@ -153,7 +154,7 @@ const Mpbc = ({
     const storedLng = sessionStorage.getItem('qrLng');
 
     // Priority 1: QR code location
-    if (storedLat && storedLng && !isTracking && (!userLocation || userLocation.source === 'qr')) {
+    if (initialTripPosition === undefined && storedLat && storedLng && !isTracking && (!userLocation || userLocation.source === 'qr')) {
       const coords = {
         lat: parseFloat(storedLat),
         lng: parseFloat(storedLng)
@@ -169,7 +170,7 @@ const Mpbc = ({
         zoom: 18
       }));
     }
-  }, [isTracking, userLocation]);
+  }, [initialTripPosition, isTracking, userLocation]);
 
   useEffect(() => {
     if (!isTracking) {
@@ -501,8 +502,10 @@ const Mpbc = ({
       {/* User location marker */}
       {markerCoords && (displayedGps || getPointFloor(userLocation) === null || pointIsOnFloor(userLocation, mapFloor)) && (
         <Marker longitude={markerCoords.lng} latitude={markerCoords.lat} anchor="center">
-          <div className="map-marker-origin">
-          </div>
+          <div className="map-marker-origin" />
+          {!displayedGps && userLocation?.lastKnown && (
+            <span className="map-last-known-label">{intl.formatMessage({ id: 'lastKnownTripPosition' })}</span>
+          )}
         </Marker>
       )}
 
