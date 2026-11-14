@@ -139,4 +139,19 @@ async function loadFloorTiles({ floor, zoom }) {
   }
 }
 
+export function closestSelectableMapPoint(features, { lat, lng }) {
+  let closest = null;
+  let distance = 0.0005;
+  for (const feature of features) {
+    if (feature.geometry?.type !== 'Point' || ['door', 'connection'].includes(feature.properties?.nodeFunction)) continue;
+    const [featureLng, featureLat] = feature.geometry.coordinates ?? [];
+    if (!Number.isFinite(featureLng) || !Number.isFinite(featureLat)) continue;
+    const candidateDistance = Math.hypot(featureLng - lng, featureLat - lat);
+    if (candidateDistance > distance || (closest && candidateDistance === distance)) continue;
+    closest = feature;
+    distance = candidateDistance;
+  }
+  return closest;
+}
+
 export default loadGeoJsonData;

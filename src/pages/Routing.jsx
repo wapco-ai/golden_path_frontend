@@ -897,13 +897,13 @@ const RoutingPage = () => {
   }, [isInfoModalOpen]);
 
   useEffect(() => {
-    // When info modal state changes, update GPS offline notification visibility
-    if (navigator.geolocation) {
+    // Haram guidance uses DR even if the browser has blocked geolocation.
+    if (policy.gps_enabled && navigator.geolocation) {
       navigator.permissions?.query({ name: 'geolocation' }).then(permissionStatus => {
         setShowGpsOffline(permissionStatus.state === 'denied' && !isInfoModalOpen);
-      });
+      }).catch(() => {});
     }
-  }, [isInfoModalOpen]);
+  }, [isInfoModalOpen, policy.gps_enabled]);
 
   // Dismiss GPS offline notice when tapping anywhere outside of it
   useEffect(() => {
@@ -1712,8 +1712,9 @@ const RoutingPage = () => {
     resetProgress();
     const anchor = qrAnchorRef.current;
     const trustedQr = anchor && isFresh(anchor.timestamp, Date.now(), DR_MAX_ANCHOR_AGE);
+    const selectedGpsOrigin = !policy.gps_enabled && origin?.source === 'gps' ? getOriginStartLocation() : null;
     const routeStart = trustedQr && routeGeo.properties?.nearbyOrigin
-      ? [anchor.geo.lat, anchor.geo.lng] : getNavigationStartLocation();
+      ? [anchor.geo.lat, anchor.geo.lng] : selectedGpsOrigin || getNavigationStartLocation();
     const [lat, lng] = routeStart || userLocation;
     setUserLocation([lat, lng]);
     setDrPosition({ lat, lng });
@@ -1723,8 +1724,9 @@ const RoutingPage = () => {
     advancedDeadReckoningService.start(fix ? { lat: fix.lat, lng: fix.lng } : { lat, lng }, fix
       ? { timestamp: fix.timestamp, accuracy: fix.accuracy, mode: transportMode }
       : { timestamp: trustedQr ? anchor.timestamp : Date.now(),
-        accuracy: trustedQr ? policy.qr_accuracy_m : policy.manual_accuracy_m,
-        trusted: Boolean(trustedQr || manualAnchor), mode: transportMode }).catch((error) => {
+        accuracy: trustedQr ? policy.qr_accuracy_m : selectedGpsOrigin && Number.isFinite(origin.accuracy)
+          ? origin.accuracy : policy.manual_accuracy_m,
+        trusted: Boolean(trustedQr || manualAnchor || selectedGpsOrigin), mode: transportMode }).catch((error) => {
       console.warn('Unable to start navigation sensors', error);
       advancedDeadReckoningService.stop();
       setIsRoutingActive(false);

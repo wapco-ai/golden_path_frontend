@@ -1,5 +1,3 @@
-import { getNavigationPolicy } from '../services/navigationPolicy.js';
-import { GPS_OPTIONS, gpsMeasurement } from '../utils/locationQuality.js';
 import FloorControl from '../components/map/FloorControl';
 import FloorTag from '../components/map/FloorTag';
 import useMapFloor from '../hooks/useMapFloor';
@@ -200,22 +198,6 @@ const FinalSearch = () => {
       }
     }
   }, [transportMode, routeGeo]);
-
-  // Fallback to current GPS coordinates if origin coords not provided and no QR data
-  useEffect(() => {
-    let active = true;
-    if (!origin.coordinates && !(qrLat && qrLng) && getNavigationPolicy().gps_enabled && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const fix = gpsMeasurement(pos);
-          if (active && fix) setOrigin(o => o.coordinates ? o : ({ ...o, coordinates: [fix.lat, fix.lng], source: 'gps',
-            accuracy: fix.accuracy, timestamp: fix.timestamp }));
-        },
-        (err) => console.error('gps error', err), GPS_OPTIONS
-      )
-    }
-    return () => { active = false; };
-  }, [origin.coordinates, qrLat, qrLng])
 
   useEffect(() => {
     const checkForUpdates = () => {

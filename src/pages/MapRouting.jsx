@@ -1,4 +1,5 @@
-import { getNavigationPolicy } from '../services/navigationPolicy.js';
+import { GPS_OPTIONS, gpsMeasurement } from '../utils/locationQuality.js';
+import { clearQrLocation } from '../services/qrLocationService.js';
 import SearchPlaceIcon from '../components/SearchPlaceIcon';
 import useQrOrigin from '../hooks/useQrOrigin';
 import useEndpointFloor from '../hooks/useEndpointFloor';
@@ -18,7 +19,7 @@ import { useSearchStore } from '../store/searchStore';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import '../styles/MapRouting.css';
-import { loadGeoJsonData } from '../utils/loadGeoJsonData.js';
+import { closestSelectableMapPoint, loadGeoJsonData } from '../utils/loadGeoJsonData.js';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { fetchAreaDoors } from '../services/areaDoorsService';
@@ -70,7 +71,7 @@ const MapRoutingPage = () => {
   const [userLocation, setUserLocation] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeInput, setActiveInput] = useState(null);
-  const [isGPSEnabled, setIsGPSEnabled] = useState(false);
+  const [isGpsPending, setIsGpsPending] = useState(false);
   const [isSelectingFromMap, setIsSelectingFromMap] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
   const [mapSelectedLocation, setMapSelectedLocation] = useState(null);
@@ -200,13 +201,15 @@ const MapRoutingPage = () => {
   const searchInputRef = useRef(null);
   const swapButtonRef = useRef(null);
   const endpointSelectionRequest = useRef(null);
+  const mapFeatures = useRef(null);
 
   const cancelEndpointSelection = useCallback(() => {
     endpointSelectionRequest.current?.abort();
     endpointSelectionRequest.current = null;
+    setIsGpsPending(false);
   }, []);
 
-  useEffect(() => cancelEndpointSelection, [cancelEndpointSelection]);
+  useEffect(() => () => endpointSelectionRequest.current?.abort(), []);
 
   // Lazy loaded geojson data for destination search
   const [geoData, setGeoData] = useState(null);
@@ -637,13 +640,6 @@ const MapRoutingPage = () => {
     location.state?.fromFinalSearch, askFloor, clearFloorRequest
   ]);
 
-  useEffect(() => {
-
-    if (userLocation && userLocation.name !== intl.formatMessage({ id: 'mapCurrentLocationName' })) {
-      setIsTracking(false);
-    }
-  }, [userLocation, intl]);
-
   const handleSubgroupSelect = async (subgroup) => {
     cancelEndpointSelection();
     setActiveInput('destination');
@@ -919,6 +915,7 @@ const MapRoutingPage = () => {
       .then(data => {
         if (isMounted) {
           setGeoData(data);
+          mapFeatures.current = { floor: mapFloor, features: data.features };
         }
       })
       .catch(err => {
@@ -1028,6 +1025,7 @@ const MapRoutingPage = () => {
   };
 
   const handleSwapLocations = () => {
+    cancelEndpointSelection();
 
     setMapTapCount(0);
     setLastTapInput(null);
@@ -1093,7 +1091,6 @@ const MapRoutingPage = () => {
       sessionStorage.setItem('currentDestination', JSON.stringify(newDestination));
 
       setIsTracking(false);
-      setTimeout(() => setIsTracking(true), 100);
     }
     // Case 4: Neither exists (do nothing)
     else {
@@ -1202,19 +1199,6 @@ const MapRoutingPage = () => {
   };
 
   useEffect(() => {
-    if (!showOriginModal) return undefined;
-    let active = true;
-    if (getNavigationPolicy().gps_enabled && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        () => { if (active) setIsGPSEnabled(true); },
-        () => { if (active) setIsGPSEnabled(false); },
-        { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
-      );
-    } else setIsGPSEnabled(false);
-    return () => { active = false; };
-  }, [showOriginModal]);
-
-  useEffect(() => {
     const fromLandmarkCard = sessionStorage.getItem('fromLandmarkCard');
     const destinationData = sessionStorage.getItem('landmarkCardDestination');
 
@@ -1240,19 +1224,6 @@ const MapRoutingPage = () => {
       }
     }
   }, []);
-
-  const handleCurrentLocationSelect = () => {
-    if (!getNavigationPolicy().gps_enabled) {
-      toast.info(language === 'fa' ? 'در حالت حرم، مبدأ را از نقشه یا QR انتخاب کنید.' : 'Select your starting point on the map or scan a QR.');
-      return;
-    }
-    cancelEndpointSelection();
-    for (const key of ['qrLat', 'qrLng', 'qrId', 'qrFloor', 'qrName']) sessionStorage.removeItem(key);
-    // Wait for fresh coordinates before the completed-endpoints effect can route.
-    setUserLocation(previous => previous?.source === 'gps' ? { ...previous, coordinates: null } : null);
-    setIsTracking(true);
-    setShowOriginModal(false);
-  };
 
   const requestAreaDoors = useCallback(async ({ areaGroupId, areaId, lat, lon, floor = getSessionFloor(), destination, target = 'destination' }) => {
     endpointSelectionRequest.current?.abort();
@@ -1337,45 +1308,106 @@ const MapRoutingPage = () => {
     setMapEntryDoors([]);
   };
 
+  const selectMapEndpoint = (target, latlng, feature, floor, fix) => {
+    const isDestination = target === 'destination';
+    const fallback = intl.formatMessage({ id: fix ? 'mapGpsCurrentLocation'
+      : isDestination ? 'mapSelectedLocation' : 'mapSelectedLocationFromMap' });
+    const point = {
+      name: feature?.properties?.name || fallback,
+      location: fallback,
+      coordinates: [latlng.lat, latlng.lng],
+      floor,
+      fromMapSelection: true,
+      ...(fix && { source: 'gps', accuracy: fix.accuracy, timestamp: fix.timestamp })
+    };
+
+    clearFloorRequest();
+    setIsChoosingFromMap(false);
+    setIsSelectingFromMap(false);
+    setIsTracking(Boolean(fix));
+    setAreaDoorsData(null);
+    setAreaDoorsStatus(null);
+    setMapEntryDoors([]);
+    if (isDestination) {
+      setSelectedDestination(point);
+      sessionStorage.setItem('currentDestination', JSON.stringify(point));
+      setShowDestinationModal(false);
+      setShowEntryModal(false);
+      setTempDestination(null);
+    } else {
+      if (fix) clearQrLocation();
+      setUserLocation(point);
+      sessionStorage.setItem('currentOrigin', JSON.stringify(point));
+      setShowOriginModal(false);
+    }
+  };
+
+  const handleCurrentLocationSelect = (target) => {
+    if (showEntryModal || isGpsPending) return;
+    if (!target && (userLocation?.source === 'qr' || sessionStorage.getItem('qrId')
+      || (sessionStorage.getItem('qrLat') && sessionStorage.getItem('qrLng')))) {
+      setIsTracking(true);
+      return;
+    }
+
+    const toastId = 'map-endpoint-gps';
+    const notify = id => {
+      if (toast.isActive(toastId)) {
+        toast.update(toastId, { render: intl.formatMessage({ id }), autoClose: 3500, delay: 0 });
+      } else {
+        toast.warn(intl.formatMessage({ id }), { toastId, autoClose: 3500 });
+      }
+    };
+    if (!window.isSecureContext) {
+      notify('mapGpsSecureConnection');
+      return;
+    }
+    if (!navigator.geolocation) {
+      notify('mapGpsUnavailable');
+      return;
+    }
+
+    cancelEndpointSelection();
+    const request = new AbortController();
+    endpointSelectionRequest.current = request;
+    const floor = mapFloor;
+    setIsGpsPending(true);
+    setIsTracking(false);
+
+    const finish = () => {
+      if (request.signal.aborted) return false;
+      endpointSelectionRequest.current = null;
+      setIsGpsPending(false);
+      return true;
+    };
+
+    navigator.geolocation.getCurrentPosition(position => {
+      if (!finish()) return;
+      const fix = gpsMeasurement(position);
+      if (!fix) {
+        notify('mapGpsInaccurate');
+        return;
+      }
+
+      const data = mapFeatures.current;
+      const feature = data?.floor === floor ? closestSelectableMapPoint(data.features, fix) : null;
+      selectMapEndpoint(target || 'origin', fix, feature, floor, fix);
+    }, error => {
+      if (!finish()) return;
+      if (/\b(?:location (?:services|provider)|gps)\s+(?:(?:is|are)\s+)?(?:disabled|turned off|off)\b/i.test(error.message || '')) {
+        notify('gpsOfflineMessage');
+      } else {
+        notify(error.code === 1 ? 'mapGpsPermission' : 'mapGpsUnavailable');
+      }
+    }, GPS_OPTIONS);
+  };
+
   const handleMapClick = (latlng, feature) => {
     if (showEntryModal) return;
+    if (isGpsPending) cancelEndpointSelection();
     if (isSelectingFromMap) {
-      setIsChoosingFromMap(false);
-
-      if (activeInput === 'destination') {
-        // For destination
-        const locName = feature?.properties?.name || intl.formatMessage({ id: 'mapSelectedLocation' });
-        const destination = {
-          name: locName,
-          location: intl.formatMessage({ id: 'mapSelectedLocation' }),
-          coordinates: [latlng.lat, latlng.lng],
-          floor: mapFloor,
-          fromMapSelection: true
-        };
-
-        setSelectedDestination(destination);
-        sessionStorage.setItem('currentDestination', JSON.stringify(destination));
-        setShowEntryModal(false);
-        setTempDestination(null);
-      } else {
-        // For origin
-        const locName = feature?.properties?.name || intl.formatMessage({ id: 'mapSelectedLocationFromMap' });
-        const origin = {
-          name: locName,
-          location: intl.formatMessage({ id: 'mapSelectedLocationFromMap' }),
-          coordinates: [latlng.lat, latlng.lng],
-          floor: mapFloor,
-          fromMapSelection: true
-        };
-
-        setAreaDoorsData(null);
-        setAreaDoorsStatus(null);
-        setMapEntryDoors([]);
-        setUserLocation(origin);
-        sessionStorage.setItem('currentOrigin', JSON.stringify(origin));
-      }
-      setIsSelectingFromMap(false);
-      return; // Return early for modal-based map selection
+      selectMapEndpoint(activeInput, latlng, feature, mapFloor);
+      return;
     }
 
     // Handle landmark clicks
@@ -1560,7 +1592,6 @@ const MapRoutingPage = () => {
       {/* Map Container */}
       <div className={`map-routing-container ${isSelectingFromMap ? 'hide-attribution' : ''}`}>
         <Mprc
-          setUserLocation={setUserLocation}
           selectedDestination={selectedDestination}
           onMapClick={handleMapClick}
           isSelectingLocation={isSelectingFromMap}
@@ -1586,7 +1617,9 @@ const MapRoutingPage = () => {
         {!isSelectingFromMap && (
           <button
             className={`map-gps-button ${isTracking ? 'active' : 'inactive'}`}
-            onClick={() => setIsTracking((t) => !t)}
+            aria-label={intl.formatMessage({ id: 'mapGpsCurrentLocation' })}
+            aria-busy={isGpsPending}
+            onClick={() => handleCurrentLocationSelect()}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path stroke="none" d="M0 0h24v24H0z" fill="none" />
@@ -2114,19 +2147,30 @@ const MapRoutingPage = () => {
                       <FormattedMessage id="chooseFromMap" />
                     </span>
                   </div>
-                  {isGPSEnabled && activeInput === 'origin' && (
-                    <div className="map-option-item" onClick={handleCurrentLocationSelect}>
-                      <div className="map-option-icon">
-                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path fillRule="evenodd" clipRule="evenodd" d="M13.4885 1.43864C12.4052 1.29299 10.9817 1.29166 8.99984 1.29166C7.01798 1.29166 5.59447 1.29299 4.51115 1.43864C3.44582 1.58187 2.80355 1.85428 2.32883 2.32899C1.85412 2.80371 1.58171 3.44598 1.43848 4.51131C1.29283 5.59463 1.2915 7.01814 1.2915 9C1.2915 10.9819 1.29283 12.4054 1.43848 13.4887C1.58171 14.554 1.85412 15.1963 2.32883 15.671C2.71852 16.0607 3.22112 16.3141 3.97797 16.4715L16.4714 3.97813C16.3139 3.22128 16.0605 2.71868 15.6708 2.32899C15.1961 1.85428 14.5539 1.58187 13.4885 1.43864ZM16.6559 5.56137L11.5508 10.6665L16.0568 15.1726C16.3023 14.7565 16.4624 14.2232 16.5612 13.4887C16.7068 12.4054 16.7082 10.9819 16.7082 9C16.7082 7.60122 16.7075 6.48057 16.6559 5.56137ZM15.173 16.0566L10.6669 11.5504L5.56121 16.6561C6.48041 16.7077 7.60106 16.7083 8.99984 16.7083C10.9817 16.7083 12.4052 16.707 13.4885 16.5614C14.2234 16.4626 14.7569 16.3023 15.173 16.0566ZM13.6551 0.199786C14.859 0.361652 15.809 0.699436 16.5547 1.44511C17.3004 2.19079 17.6382 3.14081 17.8 4.34475C17.9582 5.52099 17.9582 7.02852 17.9582 8.95219V9.04781C17.9582 10.9715 17.9582 12.479 17.8 13.6552C17.6382 14.8592 17.3004 15.8092 16.5547 16.5549C15.809 17.3006 14.859 17.6383 13.6551 17.8002C12.4788 17.9583 10.9713 17.9583 9.04765 17.9583H8.95203C7.02836 17.9583 5.52083 17.9583 4.34459 17.8002C3.14065 17.6383 2.19063 17.3006 1.44495 16.5549C0.699276 15.8092 0.361493 14.8592 0.199626 13.6552C0.0414851 12.479 0.0414935 10.9715 0.0415041 9.04781V8.95218C0.0414933 7.02852 0.0414847 5.52099 0.199626 4.34475C0.361492 3.14081 0.699276 2.19079 1.44495 1.44511C2.19063 0.699437 3.14065 0.361653 4.34459 0.199786C5.52083 0.0416453 7.02836 0.0416537 8.95202 0.0416643H9.04765C10.9713 0.0416535 12.4788 0.0416449 13.6551 0.199786ZM2.95817 6.29768C2.95817 4.41182 4.58689 2.95825 6.49984 2.95825C8.41279 2.95825 10.0415 4.41182 10.0415 6.29768C10.0415 7.98624 9.00333 9.97915 7.2788 10.7161C6.78335 10.9278 6.21633 10.9278 5.72087 10.7161C3.99634 9.97915 2.95817 7.98624 2.95817 6.29768ZM6.49984 4.20825C5.19113 4.20825 4.20817 5.18526 4.20817 6.29768C4.20817 7.5839 5.0318 9.06229 6.21208 9.56668C6.39379 9.64433 6.60589 9.64433 6.78759 9.56668C7.96788 9.06229 8.7915 7.5839 8.7915 6.29768C8.7915 5.18526 7.80855 4.20825 6.49984 4.20825Z" fill="#0F71EF" />
-                          <path d="M7.33317 6.5C7.33317 6.96024 6.96007 7.33333 6.49984 7.33333C6.0396 7.33333 5.6665 6.96024 5.6665 6.5C5.6665 6.03976 6.0396 5.66666 6.49984 5.66666C6.96007 5.66666 7.33317 6.03976 7.33317 6.5Z" fill="#0F71EF" />
-                        </svg>
-                      </div>
-                      <span className="map-option-text">
-                        {intl.formatMessage({ id: 'mapCurrentLocation' }, { loc: userLocation?.name || '' })}
-                      </span>
+                  <div
+                    className="map-option-item"
+                    role="button"
+                    tabIndex={0}
+                    aria-busy={isGpsPending}
+                    onClick={() => handleCurrentLocationSelect(activeInput)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        handleCurrentLocationSelect(activeInput);
+                      }
+                    }}
+                  >
+                    <div className="map-option-icon">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F71EF" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="8" />
+                        <circle cx="12" cy="12" r="3" />
+                        <path d="M12 2v2m0 16v2M2 12h2m16 0h2" />
+                      </svg>
                     </div>
-                  )}
+                    <span className="map-option-text">
+                      <FormattedMessage id="mapGpsCurrentLocation" />
+                    </span>
+                  </div>
                 </div>
               )}
 

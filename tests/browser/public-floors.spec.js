@@ -22,7 +22,12 @@ async function setup(page, options = {}) {
     const url = new URL(route.request().url());
     const path = url.pathname;
     let json = {data:[],features:[],status:'NO_MATCH'};
-    if (path.endsWith('/floors')) {
+    if (path.endsWith('/navigation-settings') && options.navigationPolicy) {
+      json = {policy: options.navigationPolicy};
+    } else if (path.endsWith('/route-endpoint-label') && options.endpointLabel) {
+      options.endpointLabel(url.searchParams);
+      json = {label:{name:'عنوان نقطه روی نقشه',nearby:false}};
+    } else if (path.endsWith('/floors')) {
       floorRequests++;
       if (options.failFirstFloors && floorRequests === 1) return route.fulfill({status:503,json:{message:'unavailable'}});
       json = options.floors || floors;
@@ -209,28 +214,106 @@ test('catalog request failure offers retry without inventing available floors', 
   await expect(page.locator('.gp-floor-option')).toHaveCount(3);
 });
 
-test('replacing a mapped origin with GPS waits for fresh coordinates and explicit floor', async ({page,context}) => {
-  const {requests,errors} = await setup(page);
-  await context.grantPermissions(['geolocation']);
-  await context.setGeolocation({latitude:36.287,longitude:59.615,accuracy:5});
+async function mockCurrentLocation(page, longitude) {
+  await page.addInitScript(lon => {
+    window.mockLocationLongitude = lon;
+    Object.defineProperty(navigator, 'geolocation', { value: {
+      getCurrentPosition(success) {
+        success({ coords:{latitude:36.287, longitude:window.mockLocationLongitude, accuracy:5}, timestamp:Date.now() });
+      },
+    } });
+  }, longitude);
+}
+
+test('GPS uses the selected map floor, shares the endpoint label lookup and defaults to origin', async ({page}) => {
+  const labels = [];
+  const {requests, errors} = await setup(page, {
+    navigationPolicy: DEFAULT_NAVIGATION_POLICY,
+    endpointLabel: params => labels.push(Object.fromEntries(params)),
+  });
+  await mockCurrentLocation(page, 59.615);
   await page.goto('/#/mpr');
-  await tapMap(page);
-  await chooseFloor(page,'منفی ۱');
-  await tapMap(page);
-  await expect(page.locator('.location-input.origin-input')).toBeVisible();
-  await expect(page.locator('.route-request-loader')).toHaveCount(0);
-  const count = requests.length;
-  await page.locator('.location-input.origin-input').click();
-  await expect(page.locator('.map-option-item')).toHaveCount(2);
-  await page.locator('.map-option-item').nth(1).click();
-  await expect(page.getByRole('dialog',{name:'طبقهٔ مبدأ'})).toBeVisible();
-  expect(requests.length).toBe(count);
-  await page.locator('.gp-floor-option').filter({hasText:'همکف'}).click();
-  await expect.poll(() => requests.length).toBeGreaterThan(count);
-  expect(requests.at(-1).origin).toMatchObject({floor:0,lat:36.287,lon:59.615});
-  expect(requests.at(-1).destination.floor).toBe(-1);
+  await chooseFloor(page, 'منفی ۱');
+  await page.locator('.map-gps-button').click();
+  await expect(page.locator('.map-marker-origin')).toBeVisible();
+  await expect(page.locator('.map-current-location input')).toHaveValue(/عنوان نقطه روی نقشه.*منفی/);
+  expect(labels).toContainEqual({lat:'36.287', lon:'59.615', floor:'-1', lang:'fa'});
+  expect(requests).toHaveLength(0);
+  expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentOrigin')))).toMatchObject({
+    source:'gps', floor:-1, coordinates:[36.287, 59.615], accuracy:5,
+  });
+
+  await chooseFloor(page, 'طبقه ۱');
+  await page.locator('.map-destination-input-wrapper').click();
+  await expect(page.locator('.map-option-item')).toHaveText(['انتخاب از روی نقشه', 'محل فعلی شما']);
+  await page.evaluate(() => { window.mockLocationLongitude = 59.6151; });
+  await page.locator('.map-search-modal').getByRole('button', {name:'محل فعلی شما'}).click();
+  await expect.poll(() => requests.length).toBeGreaterThan(0);
+  expect(requests.at(-1).origin).toMatchObject({floor:-1,lat:36.287,lon:59.615});
+  expect(requests.at(-1).destination).toMatchObject({floor:1,lat:36.287,lon:59.6151});
+  expect(labels).toContainEqual({lat:'36.287', lon:'59.6151', floor:'1', lang:'fa'});
+  await expect(page.getByRole('dialog', {name:/طبقهٔ (مبدأ|مقصد)/})).toHaveCount(0);
   await expect(page.locator('.route-request-loader')).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test('GPS destination preserves the QR origin and its floor', async ({page}) => {
+  const {requests} = await setup(page, {navigationPolicy: DEFAULT_NAVIGATION_POLICY});
+  await mockCurrentLocation(page, 59.6151);
+  await page.goto('/?lat=36.287&lng=59.615&id=test-qr#/mpr');
+  await expect(page.locator('.gp-floor-trigger')).toContainText('منفی ۱', {timeout: 20000});
+  await expect(page.locator('.map-marker-origin')).toBeVisible();
+  expect(requests).toHaveLength(0);
+  await chooseFloor(page, 'همکف');
+  await page.locator('.map-destination-input-wrapper').click();
+  await page.locator('.map-option-item').last().click();
+  await expect.poll(() => requests.length).toBeGreaterThan(0);
+  expect(requests.at(-1).origin).toMatchObject({floor:-1,lat:36.287,lon:59.615});
+  expect(requests.at(-1).destination).toMatchObject({floor:0,lat:36.287,lon:59.6151});
+  expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentOrigin')).source)).toBe('qr');
+});
+
+test('location permission is requested by either control and failures leave the endpoint intact', async ({page}) => {
+  await setup(page, {navigationPolicy: DEFAULT_NAVIGATION_POLICY});
+  await page.addInitScript(() => {
+    window.locationCalls = 0;
+    window.locationReply = 'denied';
+    Object.defineProperty(navigator, 'geolocation', {value: {
+      getCurrentPosition(success, failure) {
+        window.locationCalls++;
+        const reply = window.locationReply;
+        if (reply === 'valid' || reply === 'inaccurate') {
+          success({coords:{latitude:36.287, longitude:59.615, accuracy:reply === 'valid' ? 5 : 60}, timestamp:Date.now()});
+        } else {
+          failure(reply === 'denied' ? {code:1, message:'User denied Geolocation'}
+            : {code:2, message:'Location services are disabled'});
+        }
+      },
+    }});
+  });
+  await page.goto('/#/mpr');
+  const field = page.locator('.map-current-location input');
+  await field.click();
+  await expect(page.locator('.map-option-item')).toHaveText(['انتخاب از روی نقشه', 'محل فعلی شما']);
+  expect(await page.evaluate(() => window.locationCalls)).toBe(0);
+  await page.locator('.map-option-item').last().click();
+  await expect(page.getByRole('alert').filter({hasText:'دسترسی موقعیت را در تنظیمات'})).toBeVisible();
+  expect(await page.evaluate(() => window.locationCalls)).toBe(1);
+  await page.evaluate(() => { window.locationReply = 'valid'; });
+  await page.locator('.map-option-item').last().click();
+  await expect(field).toHaveValue(/محل فعلی شما/);
+
+  await page.evaluate(() => { window.locationReply = 'inaccurate'; });
+  await page.locator('.map-gps-button').click();
+  await expect(page.getByRole('alert').filter({hasText:'دقت موقعیت کافی نیست'})).toBeVisible();
+  await expect(field).toHaveValue(/محل فعلی شما/);
+  await expect(page.locator('.map-marker-origin')).toBeVisible();
+
+  await page.evaluate(() => { window.locationReply = 'disabled'; });
+  await page.locator('.map-gps-button').click();
+  await expect(page.getByRole('alert').filter({hasText:'GPS دستگاه شما خاموش است'})).toBeVisible();
+  await expect(field).toHaveValue(/محل فعلی شما/);
+  expect(await page.evaluate(() => window.locationCalls)).toBe(4);
 });
 
 test('swapping endpoints replaces a pending floor request with the new target', async ({page}) => {
