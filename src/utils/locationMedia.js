@@ -184,9 +184,11 @@ export const normalizePlaceMedia = (place = {}, options = {}) => {
   const addImage = (media, fallback = null) => {
     if (getMediaKind(media, fallback) !== 'image') return;
     const url = resolveMediaUrl(media, options);
-    if (url && !seenImages.has(url)) {
+    if (!url) return;
+    const key = /^https?:/i.test(url) ? new URL(url).href : url;
+    if (!seenImages.has(key)) {
       images.push(url);
-      seenImages.add(url);
+      seenImages.add(key);
     }
   };
   for (const field of [place.images, place.image, place.img]) {
