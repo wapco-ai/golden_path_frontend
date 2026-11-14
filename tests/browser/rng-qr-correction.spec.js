@@ -1,7 +1,4 @@
-import { test as base, expect } from '@playwright/test';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { test, expect } from '@playwright/test';
 import QRCode from 'qrcode';
 
 const code = 'QR-RAVAQ-QODS-02';
@@ -42,39 +39,23 @@ nearbyRoute.geo.properties.nearbyOrigin = { coordinates: [nearbyStart[1], nearby
 nearbyRoute.steps[0] = step('stepStart', -1, 0, 0, nearbyStart, { instruction: 'از نقطهٔ نزدیک مبدأ شروع کنید.' });
 const coordinateDestination = { name: destination.name, floor: destination.floor, coordinates: destination.coordinates };
 
-const test = base.extend({
-  launchOptions: [async ({ launchOptions }, use) => {
-    const dir = await mkdtemp(join(tmpdir(), 'rng-qr-camera-'));
-    const video = join(dir, 'qr.y4m');
-    // The printed URL carries deliberately wrong coordinates and floor. Only the ID is trusted.
-    const qr = QRCode.create(`https://example.org/#/location?lat=1&lng=2&floor=5&id=${code}`).modules;
-    const size = 400;
-    const scale = 8;
-    const margin = Math.floor((size - qr.size * scale) / 2);
-    const frame = Buffer.alloc(size * size * 1.5, 128);
-    frame.fill(235, 0, size * size);
-    for (let row = 0; row < qr.size; row++) {
-      for (let col = 0; col < qr.size; col++) {
-        if (!qr.get(row, col)) continue;
-        for (let y = 0; y < scale; y++) {
-          const start = (margin + row * scale + y) * size + margin + col * scale;
-          frame.fill(16, start, start + scale);
-        }
-      }
-    }
-    await writeFile(video, Buffer.concat([Buffer.from(`YUV4MPEG2 W${size} H${size} F10:1 Ip A1:1 C420jpeg\nFRAME\n`), frame]));
-    try {
-      await use({ ...launchOptions, args: [...(launchOptions.args || []), '--use-fake-ui-for-media-stream',
-        '--use-fake-device-for-media-stream', `--use-file-for-fake-video-capture=${video}`] });
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
-  }, { scope: 'worker' }]
-});
+// Keep the decoded QR real while supplying frames independently of Chrome's fake capture file.
+const qr = QRCode.create(`https://example.org/#/location?lat=1&lng=2&floor=5&id=${code}`).modules;
+const qrFrame = { size: qr.size, pixels: Array.from(qr.data) };
+
+async function presentQr(page, action) {
+  const count = await page.evaluate(() => window.cameraTracks.length);
+  await action.click();
+  await expect.poll(() => page.evaluate(() => window.cameraTracks.length)).toBe(count + 1);
+  await expect.poll(() => page.locator('.rng-qr-camera video').evaluate(video =>
+    video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0
+  )).toBe(true);
+  await page.evaluate(() => window.showQrFrame());
+}
 
 async function startRoute(page, endpoint = destination) {
   await page.setViewportSize({ width: 360, height: 780 });
-  await page.addInitScript(({ origin, destination, firstRoute }) => {
+  await page.addInitScript(({ origin, destination, firstRoute, qrFrame }) => {
     const state = { origin, destination, routeGeo: firstRoute.geo, routeSteps: firstRoute.steps,
       alternativeRoutes: [], transportMode: 'wheelchair', gender: 'female' };
     localStorage.setItem('route-storage', JSON.stringify({ state, version: 1 }));
@@ -82,14 +63,33 @@ async function startRoute(page, endpoint = destination) {
     sessionStorage.setItem('haramCurrentFloor', '0');
     Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition() {},
       watchPosition: callback => { window.sendGps = callback; return 1; }, clearWatch() {} } });
-    const getUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
     window.cameraTracks = [];
-    navigator.mediaDevices.getUserMedia = async constraints => {
-      const stream = await getUserMedia(constraints);
-      window.cameraTracks.push(...stream.getTracks());
+    navigator.mediaDevices.getUserMedia = async () => {
+      const scale = 8;
+      const quietZone = 4;
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = (qrFrame.size + 2 * quietZone) * scale;
+      const context = canvas.getContext('2d');
+      context.fillStyle = '#fff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      const stream = canvas.captureStream(0);
+      const [track] = stream.getVideoTracks();
+      window.cameraTracks.push(track);
+      track.requestFrame();
+      window.showQrFrame = () => {
+        track.requestFrame();
+        context.fillStyle = '#000';
+        for (const [index, black] of qrFrame.pixels.entries()) {
+          if (black) context.fillRect(
+            (index % qrFrame.size + quietZone) * scale,
+            (Math.floor(index / qrFrame.size) + quietZone) * scale,
+            scale, scale
+          );
+        }
+      };
       return stream;
     };
-  }, { origin, destination: endpoint, firstRoute });
+  }, { origin, destination: endpoint, firstRoute, qrFrame });
   await page.route('**/api/v1/**', route => route.fulfill({ json: { status: 'NO_MATCH', data: [], features: [] } }));
   await page.route('**/tiles/**', route => route.fulfill({ status: 204 }));
   await page.route('**/tms/**', route => route.fulfill({ status: 204 }));
@@ -110,7 +110,9 @@ test('RNG scans with GPS off, keeps the destination and updates the floor withou
   const reader = page.waitForResponse(response => new URL(response.url()).pathname.endsWith('/zxing_reader.wasm')
     && !new URL(response.url()).searchParams.has('import'));
   const button = await startRoute(page);
-  expect((await reader).ok()).toBe(true);
+  const wasm = await reader;
+  expect(wasm.ok()).toBe(true);
+  expect((await wasm.body()).subarray(0, 4)).toEqual(Buffer.from([0, 0x61, 0x73, 0x6d]));
   for (const state of ['closed', 'open']) {
     const panel = page.locator(`.info-modal.${state}`);
     await expect(panel).toBeVisible();
@@ -123,9 +125,11 @@ test('RNG scans with GPS off, keeps the destination and updates the floor withou
   }
   await page.route(`**/api/v1/qrcodes/${code}?*`, route => route.fulfill({ json: anchor }));
   await page.route('**/api/v1/routing/route', route => route.fulfill({ json: correctedRoute }));
-  const request = page.waitForRequest('**/api/v1/routing/route', { timeout: 12000 });
-  await button.click();
-  expect((await request).postDataJSON()).toMatchObject({ mode: 'wheelchair', gender: 'female',
+  const [request] = await Promise.all([
+    page.waitForRequest('**/api/v1/routing/route', { timeout: 12000 }),
+    presentQr(page, button),
+  ]);
+  expect(request.postDataJSON()).toMatchObject({ mode: 'wheelchair', gender: 'female',
     origin: { lat: anchor.coordinates[0], lon: anchor.coordinates[1], floor: -1 },
     destination: { type: 'door', accessId: 42, areaId: 24, lat: destination.coordinates[0], lon: destination.coordinates[1], floor: 0 } });
   await expect(page.getByRole('dialog')).toBeHidden();
@@ -143,7 +147,7 @@ test('QR correction can use a nearby route start while retaining the QR position
   await page.route(`**/api/v1/qrcodes/${code}?*`, route => route.fulfill({ json: anchor }));
   await page.route('**/api/v1/routing/route', route => route.fulfill({ json: nearbyRoute }));
   const request = page.waitForRequest('**/api/v1/routing/route');
-  await button.click();
+  await presentQr(page, button);
   expect((await request).postDataJSON()).toMatchObject({ allowNearbyDestination: true,
     origin: { lat: anchor.coordinates[0], lon: anchor.coordinates[1], floor: -1 },
     destination: { type: 'coordinate', lat: coordinateDestination.coordinates[0],
@@ -169,7 +173,7 @@ test('QR correction rejects a route that substitutes a nearby destination', asyn
   const result = structuredClone(nearbyRoute);
   result.geo.properties.nearbyDestination = { coordinates: [36.2881, 59.6161], floor: 0 };
   await page.route('**/api/v1/routing/route', route => route.fulfill({ json: result }));
-  await button.click();
+  await presentQr(page, button);
   await expect(page.getByRole('dialog').getByRole('alert')).toContainText('مسیری به مقصد پیدا نشد');
   const state = await page.evaluate(() => ({
     origin: JSON.parse(sessionStorage.getItem('origin')),
@@ -182,12 +186,12 @@ test('QR correction rejects a route that substitutes a nearby destination', asyn
 test('invalid QR and unavailable route preserve the active route and allow a retry', async ({ page }) => {
   const button = await startRoute(page);
   await page.route(`**/api/v1/qrcodes/${code}?*`, route => route.fulfill({ status: 404, json: {} }), { times: 1 });
-  await button.click();
+  await presentQr(page, button);
   await expect(page.getByRole('dialog').getByRole('alert')).toContainText('ثبت نشده');
   await expectCameraReleased(page);
   await page.route(`**/api/v1/qrcodes/${code}?*`, route => route.fulfill({ json: anchor }));
   await page.route('**/api/v1/routing/route', route => route.fulfill({ status: 422, json: {} }));
-  await page.getByRole('button', { name: 'تلاش دوباره' }).click();
+  await presentQr(page, page.getByRole('button', { name: 'تلاش دوباره' }));
   await expect(page.getByRole('dialog').getByRole('alert')).toContainText('مسیری به مقصد پیدا نشد');
   await page.getByRole('button', { name: 'ادامهٔ مسیر فعلی' }).click();
   await expect(page.locator('.routing-page')).toHaveAttribute('data-navigation-mode', 'live');
@@ -200,7 +204,7 @@ test('QR correction during a pause preserves the pause and resumes from the scan
   await page.getByRole('button', { name: 'توقف موقت', exact: true }).click();
   await page.route(`**/api/v1/qrcodes/${code}?*`, route => route.fulfill({ json: anchor }));
   await page.route('**/api/v1/routing/route', route => route.fulfill({ json: correctedRoute }));
-  await button.click();
+  await presentQr(page, button);
   await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page.locator('.routing-page')).toHaveAttribute('data-navigation-mode', 'paused');
   await expect(page.locator('.instruction-text')).toContainText('حرکت از موقعیت جدید');
@@ -218,7 +222,7 @@ test('cancelling a route correction ignores its pending result', async ({ page }
     await new Promise(resolve => { finishRoute = resolve; });
     await route.fulfill({ json: correctedRoute });
   });
-  await button.click();
+  await presentQr(page, button);
   await expect.poll(() => !!finishRoute).toBe(true);
   await expect(page.getByRole('dialog').getByRole('status')).toBeVisible();
   await page.keyboard.press('Escape');
