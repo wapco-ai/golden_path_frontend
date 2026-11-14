@@ -1,3 +1,4 @@
+import GpsAccuracyCircle from '../components/map/GpsAccuracyCircle';
 import FloorControl from '../components/map/FloorControl';
 import { routeCoordinates as getRouteCoordinates, routeCoordinatesOnFloor, routeOnFloor, isMultifloor, multifloorSteps } from '../utils/multifloorRoute';
 import { getPointFloor, localRouteFallbackFloor } from '../utils/floors';
@@ -1157,6 +1158,8 @@ const RouteOverview = () => {
           onLoad={handleMapLoad}
           onError={onMapError}
         >
+          <GpsAccuracyCircle id="gps-origin-accuracy" point={origin} floor={activeRouteFloor} />
+          <GpsAccuracyCircle id="gps-destination-accuracy" point={destination} floor={activeRouteFloor} />
           {originMarkerCoord && (originMarkerFloor === null || originMarkerFloor === activeRouteFloor) && (
             <Marker
               longitude={originMarkerCoord[0]}

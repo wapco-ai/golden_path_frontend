@@ -1,3 +1,4 @@
+import GpsAccuracyCircle from './GpsAccuracyCircle';
 import { LandmarkMarkerPlaceholder } from './LandmarkPhotoMarkers';
 import { matchesMapCategory } from '../../utils/groupMetadata';
 import useMapFloor from '../../hooks/useMapFloor';
@@ -87,6 +88,7 @@ const getCompositeIcon = (groups = [], group, nodeFunction, size = 35, opacity =
 
 const Mprc = ({
   selectedDestination,
+  gpsSample,
   onMapClick,
   isSelectingLocation,
   selectedCategory,
@@ -539,6 +541,9 @@ const Mprc = ({
       onError={onMapError}
       interactive={true}
     >
+      <GpsAccuracyCircle id="gps-origin-accuracy" point={userLocation} floor={mapFloor} />
+      <GpsAccuracyCircle id="gps-destination-accuracy" point={selectedDestination} floor={mapFloor} />
+      <GpsAccuracyCircle id="gps-sample-accuracy" point={gpsSample} floor={mapFloor} />
       {/* User location marker */}
       {userCoords && (getPointFloor(userLocation) === null || pointIsOnFloor(userLocation, mapFloor)) && (
         <Marker longitude={userCoords.lng} latitude={userCoords.lat} anchor="center">

@@ -45,3 +45,53 @@ export const observeGps = (geolocation, onFix, onError, { mapDisplay = false } =
     if (watchId != null) geolocation.clearWatch(watchId);
   };
 };
+
+const ENDPOINT_GPS_TIMEOUT = 30000;
+const locationDisabled = error =>
+  /\b(?:location (?:services|provider)|gps)\s+(?:(?:is|are)\s+)?(?:disabled|turned off|off)\b/i.test(error?.message || '');
+
+export function acquireGpsEndpoint(geolocation, { signal, onSample, onFix, onFailure }) {
+  if (signal.aborted) return;
+  let active = true;
+  let watchId;
+  let bestAccuracy = null;
+
+  const cleanup = () => {
+    active = false;
+    clearTimeout(timer);
+    signal.removeEventListener('abort', cleanup);
+    if (watchId != null) geolocation.clearWatch(watchId);
+  };
+  const fail = (reason) => {
+    if (!active) return;
+    cleanup();
+    onFailure(reason, bestAccuracy);
+  };
+  const timer = setTimeout(() => fail(bestAccuracy === null ? 'unavailable' : 'inaccurate'), ENDPOINT_GPS_TIMEOUT);
+  signal.addEventListener('abort', cleanup, { once: true });
+
+  const onPosition = position => {
+    if (!active) return;
+    const point = { lat: position.coords.latitude, lng: position.coords.longitude };
+    const { accuracy } = position.coords;
+    if (!validGeo(point) || !Number.isFinite(accuracy) || accuracy < 0 || !isFresh(position.timestamp)) return;
+    if (accuracy <= Math.min(GPS_MAX_ACCURACY, getNavigationPolicy().gps_max_accuracy_m)) {
+      cleanup();
+      onFix({ ...point, accuracy, timestamp: position.timestamp, source: 'gps' });
+    } else if (bestAccuracy === null || accuracy < bestAccuracy) {
+      bestAccuracy = accuracy;
+      onSample({ ...point, accuracy, source: 'gps' });
+    }
+  };
+  const onError = error => {
+    if (locationDisabled(error)) fail('disabled');
+    else if (error.code === 1) fail('permission');
+  };
+
+  try {
+    watchId = geolocation.watchPosition(onPosition, onError, { ...GPS_OPTIONS, timeout: ENDPOINT_GPS_TIMEOUT });
+    if (!active && watchId != null) geolocation.clearWatch(watchId);
+  } catch {
+    fail('unavailable');
+  }
+}

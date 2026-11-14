@@ -266,6 +266,22 @@
   color: #fff;
 }
 
+.map-gps-button[aria-busy="true"] svg {
+  color: #1976d2;
+  animation: map-gps-acquiring 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes map-gps-acquiring {
+  from { opacity: 0.45; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-gps-button[aria-busy="true"] svg {
+    animation: none;
+  }
+}
+
 .map-gps-button.inactive {
   background-color: #f2f2f2;
   color: #9e9e9e;

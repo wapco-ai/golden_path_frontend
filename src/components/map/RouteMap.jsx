@@ -1,3 +1,4 @@
+import GpsAccuracyCircle from './GpsAccuracyCircle';
 import { routeCoordinates as getRouteCoordinates, routeCoordinatesOnFloor, routeOnFloor, routeOnMapFloor, isMultifloor } from '../../utils/multifloorRoute';
 import { normalizeFloor } from '../../utils/floors';
 // src/components/map/RouteMap.jsx
@@ -34,6 +35,9 @@ const HIDDEN_VECTOR_LAYER_IDS = new Set([
 const RouteMap = forwardRef(({ 
   userLocation,
   userHeading,
+  origin,
+  destination,
+  gpsFix,
   routeSteps,
   currentStep,
   isInfoModalOpen,
@@ -549,6 +553,9 @@ const RouteMap = forwardRef(({
         />
       )}
 
+      <GpsAccuracyCircle id="gps-origin-accuracy" point={origin} floor={routeFloor} />
+      <GpsAccuracyCircle id="gps-destination-accuracy" point={destination} floor={routeFloor} />
+      <GpsAccuracyCircle id="gps-live-accuracy" point={gpsFix} floor={routeFloor} />
       {/* User location marker */}
       {!useDrPosition && isValidUserLocation && (
         <Marker longitude={userLocation[1]} latitude={userLocation[0]} anchor="center" style={routeMarkerStyle}>

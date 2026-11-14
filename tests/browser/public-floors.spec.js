@@ -218,9 +218,11 @@ async function mockCurrentLocation(page, longitude) {
   await page.addInitScript(lon => {
     window.mockLocationLongitude = lon;
     Object.defineProperty(navigator, 'geolocation', { value: {
-      getCurrentPosition(success) {
+      watchPosition(success) {
         success({ coords:{latitude:36.287, longitude:window.mockLocationLongitude, accuracy:5}, timestamp:Date.now() });
+        return 1;
       },
+      clearWatch() {},
     } });
   }, longitude);
 }
@@ -275,11 +277,12 @@ test('GPS destination preserves the QR origin and its floor', async ({page}) => 
 
 test('location permission is requested by either control and failures leave the endpoint intact', async ({page}) => {
   await setup(page, {navigationPolicy: DEFAULT_NAVIGATION_POLICY});
+  await page.clock.install();
   await page.addInitScript(() => {
     window.locationCalls = 0;
     window.locationReply = 'denied';
     Object.defineProperty(navigator, 'geolocation', {value: {
-      getCurrentPosition(success, failure) {
+      watchPosition(success, failure) {
         window.locationCalls++;
         const reply = window.locationReply;
         if (reply === 'valid' || reply === 'inaccurate') {
@@ -288,7 +291,9 @@ test('location permission is requested by either control and failures leave the 
           failure(reply === 'denied' ? {code:1, message:'User denied Geolocation'}
             : {code:2, message:'Location services are disabled'});
         }
+        return window.locationCalls;
       },
+      clearWatch() {},
     }});
   });
   await page.goto('/#/mpr');
@@ -305,7 +310,10 @@ test('location permission is requested by either control and failures leave the 
 
   await page.evaluate(() => { window.locationReply = 'inaccurate'; });
   await page.locator('.map-gps-button').click();
-  await expect(page.getByRole('alert').filter({hasText:'دقت موقعیت کافی نیست'})).toBeVisible();
+  await expect(page.locator('.map-gps-button')).toHaveAttribute('aria-busy', 'true');
+  await expect(page.getByRole('alert').filter({hasText:'بهترین دقت دریافتی'})).toHaveCount(0);
+  await page.clock.fastForward(30000);
+  await expect(page.getByRole('alert').filter({hasText:'بهترین دقت دریافتی'})).toBeVisible();
   await expect(field).toHaveValue(/محل فعلی شما/);
   await expect(page.locator('.map-marker-origin')).toBeVisible();
 
@@ -314,6 +322,60 @@ test('location permission is requested by either control and failures leave the 
   await expect(page.getByRole('alert').filter({hasText:'GPS دستگاه شما خاموش است'})).toBeVisible();
   await expect(field).toHaveValue(/محل فعلی شما/);
   expect(await page.evaluate(() => window.locationCalls)).toBe(4);
+});
+
+test('one tap waits for the first fresh accurate GPS fix and removes its temporary accuracy layer', async ({page}) => {
+  await setup(page, {navigationPolicy: DEFAULT_NAVIGATION_POLICY});
+  await page.addInitScript(() => {
+    window.gpsWatch = { started: 0, cleared: [] };
+    Object.defineProperty(navigator, 'geolocation', {value: {
+      watchPosition(success, failure, options) {
+        window.gpsWatch.started++;
+        window.gpsWatch.options = options;
+        window.sendFix = (accuracy, age = 0) => success({
+          coords: {latitude:36.287, longitude:59.615, accuracy},
+          timestamp: Date.now() - age,
+        });
+        return 7;
+      },
+      clearWatch(id) { window.gpsWatch.cleared.push(id); },
+    }});
+  });
+  await page.goto('/#/');
+  await page.evaluate(async () => {
+    const source = await (await fetch('/src/components/map/Mprc.jsx')).text();
+    const modulePath = source.match(/["']([^"']*\/maplibre-gl\.js\?[^"']+)["']/)?.[1];
+    const { default: maplibre } = await import(modulePath);
+    const addSource = maplibre.Map.prototype.addSource;
+    maplibre.Map.prototype.addSource = function (id, source) {
+      if (id.startsWith('gps-')) window.gpsMap = this;
+      return addSource.call(this, id, source);
+    };
+    location.hash = '/mpr';
+  });
+  const button = page.locator('.map-gps-button');
+  await button.click();
+  await expect(button).toHaveAttribute('aria-busy', 'true');
+  await page.evaluate(() => { window.sendFix(60); window.sendFix(10, 16000); });
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  expect(await page.evaluate(() => sessionStorage.getItem('currentOrigin'))).toBeNull();
+  await expect.poll(() => page.evaluate(() => Boolean(window.gpsMap?.getSource('gps-sample-accuracy')))).toBe(true);
+  const ring = await page.evaluate(() => window.gpsMap.getSource('gps-sample-accuracy')._data.geometry.coordinates[0]);
+  expect(ring[0][0]).toBeCloseTo(59.615, 6);
+  expect((ring[0][1] - 36.287) * 111195).toBeCloseTo(60, 1);
+
+  await page.evaluate(() => { window.sendFix(25); window.sendFix(6); });
+  await expect(page.locator('.map-marker-origin')).toBeVisible();
+  await expect(button).toHaveAttribute('aria-busy', 'false');
+  await expect.poll(() => page.evaluate(() => [
+    Boolean(window.gpsMap?.getSource('gps-sample-accuracy')),
+    Boolean(window.gpsMap?.getSource('gps-origin-accuracy')),
+  ])).toEqual([false, true]);
+  expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem('currentOrigin')).accuracy)).toBe(25);
+  expect(await page.evaluate(() => window.gpsWatch)).toMatchObject({
+    started:1, cleared:[7], options:{enableHighAccuracy:true, timeout:30000, maximumAge:0},
+  });
+  await expect(page.getByRole('alert')).toHaveCount(0);
 });
 
 test('swapping endpoints replaces a pending floor request with the new target', async ({page}) => {
