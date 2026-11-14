@@ -14,16 +14,22 @@ const steps=[
   {type:'stepArriveDestination',segmentId:2,floor:1,routeM:1,coordinates:[[36.287,59.6152],[36.287,59.6152]],instruction:'به مقصد رسیدید'}
 ];
 
-async function setupRoute(page) {
+async function setupRoute(page, fromQr = false) {
   const errors=[]; page.on('pageerror',e=>errors.push(e.message));
-  await page.addInitScript(({geo,steps})=>{
-    const origin={name:'مبدأ',floor:-1,coordinates:[36.287,59.615]};
+  await page.addInitScript(({geo,steps,fromQr})=>{
+    const origin={name:'مبدأ',floor:-1,coordinates:[36.287,59.615], ...(fromQr && { source: 'qr' })};
     const destination={name:'مقصد',floor:1,coordinates:[36.287,59.6152]};
     const state={origin,destination,routeGeo:geo,routeSteps:steps,alternativeRoutes:[],transportMode:'walking',gender:'both'};
     localStorage.setItem('route-storage',JSON.stringify({state,version:1}));
     for(const [key,value] of Object.entries({origin,destination,routeGeo:geo,routeSteps:steps,alternativeRoutes:[]})) sessionStorage.setItem(key,JSON.stringify(value));
     sessionStorage.setItem('haramCurrentFloor','1');
-  },{geo,steps});
+    if (fromQr) {
+      const [lat, lng] = origin.coordinates;
+      const id = 'END-TRIP-QR';
+      for (const [key, value] of Object.entries({ qrLat: lat, qrLng: lng, qrId: id, qrFloor: -1,
+        qrVerified: [lat, lng, id].join('|'), qrCapturedAt: Date.now() })) sessionStorage.setItem(key, String(value));
+    }
+  },{geo,steps,fromQr});
   await page.route('**/api/v1/**',r=>r.fulfill({json:{status:'NO_MATCH',data:[],features:[]}}));
   await page.route('**/tiles/**',r=>r.fulfill({status:204}));
   await page.route('**/tms/**',r=>r.fulfill({status:204}));
@@ -98,4 +104,17 @@ test('ending a trip opens the home map at the confirmed landing and retires the 
   await expect(page).toHaveURL(/#\/mpb$/);
   await expect(page.locator('.routing-page')).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test('ending a trip during a pause keeps the last verified QR location and floor', async ({ page }) => {
+  await setupRoute(page, true);
+  await page.goto('/#/rng');
+  await page.locator('.start-routing-button').click();
+  await page.getByRole('button', { name: 'توقف موقت', exact: true }).click();
+  await page.getByRole('button', { name: 'پایان و بستن سفر' }).click();
+  await expect(page).toHaveURL(/#\/mpb$/);
+  await expect(page.getByText('آخرین موقعیت ثبت‌شده', { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => history.state.usr.finishedTrip)).toMatchObject({
+    coordinates: [36.287, 59.615], floor: -1, lastKnown: true
+  });
 });

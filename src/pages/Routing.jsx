@@ -41,6 +41,13 @@ import {
 
 const ROUTE_OVERVIEW_HISTORY_KEY = 'routingRouteOverviewHistory';
 
+const readRouteQrAnchor = (origin) => {
+  const point = readQrPoint();
+  if (!point?.verified || !isFresh(point.timestamp, Date.now(), DR_MAX_ANCHOR_AGE)
+    || origin?.source !== 'qr' || !origin.coordinates?.every((value, index) => value === point.coordinates[index])) return null;
+  return { geo: { lat: point.coordinates[0], lng: point.coordinates[1] }, timestamp: point.timestamp, floor: point.floor };
+};
+
 const RoutingPage = () => {
   const policy = getNavigationPolicy();
   const showStepDiagnostics = new URLSearchParams(window.location.search).get('step-test') === '1';
@@ -111,10 +118,7 @@ const RoutingPage = () => {
   const gpsFixRef = useRef(null);
   const lastDrFix = useRef(null);
   const confirmedLanding = useRef(null);
-  const entryQr = readQrPoint();
-  const qrAnchorRef = useRef(entryQr?.verified && isFresh(entryQr.timestamp, Date.now(), DR_MAX_ANCHOR_AGE)
-    && origin?.source === 'qr' && origin.coordinates?.every((v, i) => v === entryQr.coordinates[i])
-    ? { geo: { lat: entryQr.coordinates[0], lng: entryQr.coordinates[1] }, timestamp: entryQr.timestamp, floor: entryQr.floor } : null);
+  const qrAnchorRef = useRef(readRouteQrAnchor(origin));
   const progressTracker = useRef(new NavigationProgressTracker());
   const activeSnapshot = useRef(null);
   const [liveRouteM, setLiveRouteM] = useState(null);
@@ -247,7 +251,7 @@ const RoutingPage = () => {
     resetProgress();
     // Session hydration can replace the route object without changing the trip.
     if (pauseRef.current?.key === pauseKey) return;
-    qrAnchorRef.current = null;
+    qrAnchorRef.current = readRouteQrAnchor(origin);
     setCurrentStep(0);
     setIsDemoMode(false);
     setHasArrived(false);
