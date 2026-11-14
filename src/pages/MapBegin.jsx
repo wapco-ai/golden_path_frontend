@@ -656,7 +656,10 @@ const MapBeginPage = () => {
       .catch(err => console.error('Failed to load routing-data.json', err));
   }, []);
 
+  const showFeaturedPlaces = isFeaturedZoom && !selectedCategory;
+
   useEffect(() => {
+    let isCurrent = true;
     const loadLandmarkPlaces = async () => {
       const geoCoordinates = userLocation?.coordinates;
       const geo = Array.isArray(geoCoordinates) && geoCoordinates.length >= 2
@@ -672,9 +675,10 @@ const MapBeginPage = () => {
         const data = await fetchLandmarkPlaces({
           language,
           geo,
-          featured: isFeaturedZoom ? 1 : undefined
+          featured: showFeaturedPlaces ? 1 : undefined
         });
 
+        if (!isCurrent) return;
         const apiLandmarks = Array.isArray(data?.places?.landmarkPlaces)
           ? data.places.landmarkPlaces
           : [];
@@ -697,7 +701,7 @@ const MapBeginPage = () => {
           .sort((a, b) => parseNumber(a.distance, Number.POSITIVE_INFINITY) - parseNumber(b.distance, Number.POSITIVE_INFINITY))
           .slice(0, 10);
 
-        setLandmarkPlaces(landmarksWithImages);
+        setLandmarkPlaces(apiLandmarks);
 
         setRoutingData(prev => {
           const mergedPlaces = {
@@ -715,6 +719,7 @@ const MapBeginPage = () => {
           };
         });
       } catch (error) {
+        if (!isCurrent) return;
         console.error('Failed to load landmark places', error);
         toast.error(intl.formatMessage({ id: 'generalErrorMessage' }));
 
@@ -733,7 +738,8 @@ const MapBeginPage = () => {
     };
 
     loadLandmarkPlaces();
-  }, [language, userLocation, intl, isFeaturedZoom]);
+    return () => { isCurrent = false; };
+  }, [language, userLocation, intl, showFeaturedPlaces]);
 
   useEffect(() => {
     const fetchShrineEvents = async () => {

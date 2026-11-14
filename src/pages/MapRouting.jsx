@@ -149,56 +149,31 @@ const MapRoutingPage = () => {
     };
   }, [language]);
 
+  const showFeaturedPlaces = isFeaturedZoom && !mapSelectedCategory && !isChoosingFromMap;
+
   useEffect(() => {
+    let isCurrent = true;
     const loadLandmarkPlaces = async () => {
       const geoCoordinates = userLocation?.coordinates;
       const geo = Array.isArray(geoCoordinates) && geoCoordinates.length >= 2
         ? { lat: geoCoordinates[0], lng: geoCoordinates[1] }
         : null;
 
-      const getFirstImage = (place) => {
-        if (!place) return null;
-
-        if (Array.isArray(place.image) && place.image.length > 0) {
-          return place.image[0];
-        }
-
-        if (Array.isArray(place.images) && place.images.length > 0) {
-          return place.images[0];
-        }
-
-        if (typeof place.image === 'string' && place.image.trim()) {
-          return place.image;
-        }
-
-        if (typeof place.images === 'string' && place.images.trim()) {
-          return place.images;
-        }
-
-        return null;
-      };
-
       try {
         const data = await fetchLandmarkPlaces({
           language,
           geo,
-          featured: isFeaturedZoom ? 1 : undefined
+          featured: showFeaturedPlaces ? 1 : undefined
         });
 
+        if (!isCurrent) return;
         const apiLandmarks = Array.isArray(data?.places?.landmarkPlaces)
           ? data.places.landmarkPlaces
           : [];
 
-        const landmarksWithImages = apiLandmarks
-          .map(place => {
-            const image = getFirstImage(place);
-            if (!image) return null;
-            return { ...place, image };
-          })
-          .filter(Boolean);
-
-        setLandmarkPlaces(landmarksWithImages);
+        setLandmarkPlaces(apiLandmarks);
       } catch (error) {
+        if (!isCurrent) return;
         console.error('Failed to load landmark places', error);
         toast.error(intl.formatMessage({ id: 'generalErrorMessage' }));
         setLandmarkPlaces([]);
@@ -206,7 +181,8 @@ const MapRoutingPage = () => {
     };
 
     loadLandmarkPlaces();
-  }, [language, userLocation, intl, isFeaturedZoom]);
+    return () => { isCurrent = false; };
+  }, [language, userLocation, intl, showFeaturedPlaces]);
 
 
 
