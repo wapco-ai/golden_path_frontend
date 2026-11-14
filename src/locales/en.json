@@ -157,6 +157,8 @@
   "otherRoutes": "Other routes",
   "startRouting": "Start navigation",
   "stopRouting": "End trip",
+  "tripEnded": "Navigation ended",
+  "lastKnownTripPosition": "Last known location",
   "returnToRoute": "Return to route",
   "from": "From",
   "to": "To",

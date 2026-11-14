@@ -3,6 +3,7 @@ import useQrOrigin from '../hooks/useQrOrigin';
 import FloorControl from '../components/map/FloorControl';
 import useMapFloor from '../hooks/useMapFloor';
 import { getPointFloor } from '../utils/floors';
+import { setSessionFloor } from '../utils/sessionFloor';
 import { readQrPoint } from '../services/qrLocationService';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
@@ -65,6 +66,7 @@ const MapBeginPage = () => {
   const location = useLocation();
   const intl = useIntl();
   const mapFloor = useMapFloor();
+  const finishedTrip = location.state?.finishedTrip;
   const language = useLangStore(state => state.language);
   const getCategoryLabel = (label) => intl.messages?.[label] ?? label;
   const { accessToken, user } = useUserAuthStore();
@@ -79,8 +81,13 @@ const MapBeginPage = () => {
       coordinates: [parseFloat(storedLat), parseFloat(storedLng)]
     }
     : null;
-  const [userLocation, setUserLocation] = useState(initialUserLocation);
-  useQrOrigin(setUserLocation, language, intl.formatMessage({ id: 'mapCurrentLocationName' }));
+  const currentLocationName = intl.formatMessage({ id: 'mapCurrentLocationName' });
+  const [userLocation, setUserLocation] = useState(() => finishedTrip === undefined ? initialUserLocation
+    : finishedTrip && { ...finishedTrip, name: currentLocationName });
+  useQrOrigin(setUserLocation, language, currentLocationName, finishedTrip === undefined);
+  useEffect(() => {
+    if (finishedTrip !== undefined) setSessionFloor(finishedTrip?.floor ?? 0);
+  }, [finishedTrip]);
   const [isTracking, setIsTracking] = useState(false);
   const stopTracking = useCallback(() => setIsTracking(false), []);
   const [mapSelectedLocation, setMapSelectedLocation] = useState(null);
@@ -112,7 +119,7 @@ const MapBeginPage = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [isModalDragging, setIsModalDragging] = useState(false);
   const [showMapStyleMenu, setShowMapStyleMenu] = useState(false);
-  const [mapZoomLevel, setMapZoomLevel] = useState(15);
+  const [mapZoomLevel, setMapZoomLevel] = useState(finishedTrip ? 18 : 15);
   const isFeaturedZoom = mapZoomLevel <= 15;
   const handleMapZoomChange = useCallback((zoom) => {
     const roundedZoom = Math.round(zoom);
@@ -997,6 +1004,7 @@ const MapBeginPage = () => {
       {/* Map Container */}
       <div className="map-routing-container">
         <Mpbc
+          initialTripPosition={finishedTrip}
           setUserLocation={setUserLocation}
           selectedDestination={null}
           onMapClick={handleMapClick}
