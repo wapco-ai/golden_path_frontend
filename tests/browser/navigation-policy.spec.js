@@ -1,20 +1,40 @@
 import { test, expect } from '@playwright/test';
 import { DEFAULT_NAVIGATION_POLICY } from '../../src/services/navigationPolicy.js';
 
-async function setup(page, length = 40, observeMap = false, stepTest = false, gpsOrigin = false) {
+async function setup(page, length = 40, observeMap = false, stepTest = false, nearby = null, multifloor = false, gpsOrigin = false) {
   await page.clock.install();
   await page.setViewportSize({ width: 360, height: 780 });
-  await page.addInitScript(({ length, stepTest, gpsOrigin }) => {
+  await page.addInitScript(({ length, stepTest, nearby, multifloor, gpsOrigin }) => {
     const middle = stepTest ? 0.15 : 0.5;
     const coordinates = [[59.615, 36.287], [59.615, 36.287 + length * middle / 111195], [59.615, 36.287 + length / 111195]];
+    const meters = value => value / 111195;
+    const lower = [[59.615, 36.287], [59.615, 36.287 + meters(120)]];
+    const upper = [[59.615, 36.287 + meters(120)], [59.615, 36.287 + meters(120) + meters(length)]];
     const state = { origin: { name: 'مبدأ', coordinates: [36.287, 59.615], floor: 0,
       ...(gpsOrigin && { source: 'gps', accuracy: 5, timestamp: Date.now() }) },
       destination: { name: 'مقصد', coordinates: [coordinates[2][1], 59.615], floor: 0 },
       routeGeo: { type: 'Feature', geometry: { type: 'LineString', coordinates },
-        properties: { floor: 0, distanceMeters: length, durationSeconds: length } },
+        properties: { floor: 0, distanceMeters: length, durationSeconds: length,
+          ...(nearby ? { nearbyDestination: { coordinates: [coordinates[2][1], 59.615], floor: 0, label: nearby.label } } : {}) } },
       routeSteps: coordinates.map(([lon, lat], i) => ({ type: i === 0 ? 'stepStart' : i === 2 ? 'stepArriveDestination' : 'stepGoStraight',
-        routeM: [0, middle, 1][i], coord: { lon, lat }, instruction: `مرحله ${i + 1}` })),
+        routeM: [0, middle, 1][i], coord: { lon, lat },
+        instruction: i === 2 && nearby ? nearby.instruction : `مرحله ${i + 1}` })),
       alternativeRoutes: [], transportMode: 'walk', gender: 'female' };
+    if (multifloor) {
+      const point = ([lon, lat]) => ({ lon, lat });
+      state.routeGeo = { type: 'Feature', geometry: { type: 'MultiLineString', coordinates: [lower, upper] },
+        properties: { multifloor: true, floor: 0, distanceMeters: 120 + length, durationSeconds: 120 + length, segments: [
+          { id: 0, kind: 'walk', floor: 0, geometry: { type: 'LineString', coordinates: lower }, duration_s: 120, distance_m: 120 },
+          { id: 1, kind: 'lift', floor: 0, fromFloor: 0, toFloor: 1, geometry: null, duration_s: 10, distance_m: 0 },
+          { id: 2, kind: 'walk', floor: 1, geometry: { type: 'LineString', coordinates: upper }, duration_s: length, distance_m: length }] } };
+      state.destination = { ...state.destination, floor: 1 };
+      state.routeSteps = [
+        { type: 'stepStart', routeM: 0, floor: 0, segmentId: 0, coord: point(lower[0]), instruction: 'مرحله 1' },
+        { type: 'stepChangeFloor', floor: 0, fromFloor: 0, toFloor: 1, segmentId: 1, coord: point(lower[1]), endCoord: point(upper[0]), instruction: 'به طبقه ۱ بروید.' },
+        { type: 'stepGoStraight', routeM: 0.75, floor: 1, segmentId: 2,
+          coord: point([upper[0][0], upper[0][1] + meters(length * 0.75)]), instruction: 'مرحله 3' },
+        { type: 'stepArriveDestination', routeM: 1, floor: 1, segmentId: 2, coord: point(upper[1]) }];
+    }
     localStorage.setItem('route-storage', JSON.stringify({ state, version: 1 }));
     for (const [key, value] of Object.entries(state)) sessionStorage.setItem(key, JSON.stringify(value));
     sessionStorage.setItem('haramCurrentFloor', '0');
@@ -53,7 +73,7 @@ async function setup(page, length = 40, observeMap = false, stepTest = false, gp
         else emitMotion(acceleration);
       });
     };
-  }, { length, stepTest, gpsOrigin });
+  }, { length, stepTest, nearby, multifloor, gpsOrigin });
   await page.route('**/api/v1/**', route => route.fulfill({ json: { status: 'NO_MATCH', data: [], features: [] } }));
   await page.route('**/api/v1/navigation-settings', route => route.fulfill({ json: { policy: DEFAULT_NAVIGATION_POLICY, version: 1, walk_speed_mps: 1.2 } }));
   await page.route('**/tiles/**', route => route.fulfill({ status: 204 }));
@@ -101,7 +121,7 @@ test('a GPS-selected origin anchors walking DR without new GPS requests', async 
   await page.addInitScript(() => {
     navigator.permissions.query = async () => ({ state: 'denied' });
   });
-  await setup(page, 40, false, false, true);
+  await setup(page, 40, false, false, null, false, true);
   await expect(page.locator('.gps-offline-notification')).toHaveCount(0);
   await walk(page, 58);
   await expect(page.locator('.routing-page')).toHaveAttribute('data-navigation-mode', 'arrived');
@@ -258,7 +278,7 @@ test('step-test counts sensor steps and distinguishes the final instruction from
   const routing = page.locator('.routing-page');
   await expect(routing).toHaveAttribute('data-current-step', '1');
   await expect(routing).toHaveAttribute('data-navigation-mode', 'live');
-  await expect(page.locator('.instruction-text')).toHaveText('به مسیر تا مقصد ادامه دهید.');
+  await expect(page.locator('.instruction-text')).toHaveText('۳۴ متر به سمت مقصد حرکت کنید.');
   await expect(page.getByTestId('step-diagnostic-samples')).toHaveText('24');
   await expect(page.getByTestId('step-diagnostic-steps')).toHaveText('2');
   await expect(page.getByTestId('step-diagnostic-distance')).toHaveText('1.4');
@@ -422,7 +442,7 @@ test('pause and resume keep the map position, accept late sensor data, and requi
   await expect(steps).toHaveText('11');
   expect((await mapState()).remainingStart).toBeGreaterThan(before.remainingStart);
   await expect(state).toHaveAttribute('data-navigation-mode', 'live');
-  await expect(page.locator('.instruction-text')).toHaveText('به مسیر تا مقصد ادامه دهید.');
+  await expect(page.locator('.instruction-text')).toHaveText('۳۴ متر به سمت مقصد حرکت کنید.');
 
   // Pause again after the first qualifying observation near the destination.
   await walk(page, 42);
@@ -437,6 +457,49 @@ test('pause and resume keep the map position, accept late sensor data, and requi
   await expect(state).toHaveAttribute('data-navigation-mode', 'arrived');
   await expect(page.locator('.instruction-text')).toHaveText('به مقصد رسیدید.');
   expect(await page.evaluate(() => [window.gpsCalls, window.motionPermissionRequests])).toEqual([0, 1]);
+});
+
+test('a nearby endpoint is named while walking and shows the backend arrival text after arrival', async ({ page }) => {
+  const instruction = 'به نزدیک‌ترین نقطهٔ قابل‌دسترسی به باب‌الجواد رسیدید.';
+  await setup(page, 40, false, false, { label: { name: 'باب الجواد', kind: 'door', nearby: false }, instruction });
+  await walk(page, 30);
+  const routing = page.locator('.routing-page');
+  await expect(routing).toHaveAttribute('data-navigation-mode', 'live');
+  await expect(page.locator('.instruction-text')).toHaveText('۲۰ متر به سمت باب الجواد حرکت کنید.');
+  await walk(page, 28);
+  await expect(routing).toHaveAttribute('data-navigation-mode', 'arrived');
+  await expect(page.locator('.instruction-text')).toHaveText(instruction);
+});
+
+test('a nearby endpoint without a name or backend text still gets localized guidance and arrival', async ({ page }) => {
+  await setup(page, 40, false, false, { label: null, instruction: '' });
+  await walk(page, 30);
+  const routing = page.locator('.routing-page');
+  await expect(routing).toHaveAttribute('data-navigation-mode', 'live');
+  await expect(page.locator('.instruction-text')).toHaveText('۲۰ متر تا انتهای مسیر ادامه دهید.');
+  await walk(page, 28);
+  await expect(routing).toHaveAttribute('data-navigation-mode', 'arrived');
+  await expect(page.locator('.instruction-text')).toHaveText('به نزدیک‌ترین نقطهٔ قابل‌دسترسی رسیدید.');
+});
+
+test('a multifloor final step is measured from the preceding walk step on the destination floor', async ({ page }) => {
+  await setup(page, 40, false, false, null, true);
+  await walk(page, 100);
+  const routing = page.locator('.routing-page');
+  await page.getByRole('button', { name: 'تأیید رسیدن به طبقه مقصد' }).click();
+  await expect(routing).toHaveAttribute('data-navigation-mode', 'live');
+  await walk(page, 52);
+  await expect(routing).toHaveAttribute('data-navigation-mode', 'live');
+  await expect(page.locator('.instruction-text')).toHaveText('۱۰ متر به سمت مقصد حرکت کنید.');
+});
+
+test('a long final step reports its whole distance before a reachable destination is announced', async ({ page }) => {
+  await setup(page, 200, false, true);
+  await walk(page, 50);
+  const routing = page.locator('.routing-page');
+  await expect(routing).toHaveAttribute('data-navigation-mode', 'live');
+  await expect(page.locator('.instruction-text')).toHaveText('۱۷۰ متر به سمت مقصد حرکت کنید.');
+  await expect(page.locator('.instruction-text')).not.toHaveText('به مقصد رسیدید.');
 });
 
 async function openAdminPanel(page, profile) {
