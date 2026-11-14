@@ -13,6 +13,7 @@ Route geometry remains server-owned: door_access_points -> routing_nodes -> rout
 ## QR and inertial estimates
 
 - Registered QR links resolve ID, coordinates and floor through the server before mounting the application. URL coordinates cannot override the registered QR. Invalid/disabled lookups clear the previous QR. Numeric and poi_N cultural links retain the legacy POI lookup only after a QR 404.
+- Route correction uses that same POI lookup for printed place QR codes. It requires the matching public place and its server coordinates and floor before recalculating to the selected destination.
 - A QR capture time is not refreshed by a repeated lookup. A 2 m working allowance is assigned to a verified QR anchor; this is not proof of surveying accuracy or physical proximity to a shared link.
 - Dead reckoning starts only with a fresh trusted GPS/QR anchor. The 0.7 m default stride is an estimate. Two consistent straight GPS-measured walks can calibrate stride (at least 20 steps, 20 m, 8 seconds, <=3 m GPS accuracy and combined endpoint allowance <=15% of distance). Turns invalidate the calibration segment.
 - Dead reckoning expires after 60 seconds or 30 m, and uncertainty increases with distance. The 10 m cap is a conservative software budget, not a statistical accuracy guarantee. Automatic progress stops earlier when the 6 m budget is exceeded. Wheelchair/vehicle navigation does not translate phone steps into walking distance.

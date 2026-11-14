@@ -94,6 +94,7 @@ export default defineConfig({
           {
             // Route correction requires the QR's current registration and floor.
             urlPattern: ({ url }) => url.pathname.startsWith('/api/v1/qrcodes/')
+              || (url.pathname === '/api/v1/landmark-places' && url.searchParams.has('poi_id'))
               || url.pathname === '/api/v1/route-endpoint-label',
             handler: 'NetworkOnly'
           },
