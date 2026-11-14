@@ -16,6 +16,10 @@ const steps=[
 
 async function setupRoute(page, fromQr = false) {
   const errors=[]; page.on('pageerror',e=>errors.push(e.message));
+  await page.route('**/*', route => {
+    const url = new URL(route.request().url());
+    return ['127.0.0.1', 'localhost'].includes(url.hostname) ? route.continue() : route.abort();
+  });
   await page.addInitScript(({geo,steps,fromQr})=>{
     const origin={name:'مبدأ',floor:-1,coordinates:[36.287,59.615], ...(fromQr && { source: 'qr' })};
     const destination={name:'مقصد',floor:1,coordinates:[36.287,59.6152]};
@@ -51,7 +55,7 @@ test('RNG previews transfers in sequence and switches the existing map floor',as
 
 test('route overview shows the current floor and the transfer duration in the existing carousel',async({page})=>{
   const errors=await setupRoute(page);
-  await page.goto('/#/rop');
+  await page.goto('/#/rop', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('.instruction-text2')).toContainText('حرکت در طبقه منفی یک');
   await expect.poll(()=>page.evaluate(()=>sessionStorage.getItem('haramCurrentFloor'))).toBe('-1');
   await page.locator('.carousel-next').click();
@@ -69,7 +73,7 @@ test('route overview shows the current floor and the transfer duration in the ex
 
 test('ending a trip opens the home map at the confirmed landing and retires the route history', async ({ page }) => {
   const errors = await setupRoute(page);
-  await page.goto('/#/rop');
+  await page.goto('/#/rop', { waitUntil: 'domcontentloaded' });
   await page.locator('.start-routing-btn').click();
   await page.locator('.start-routing-button').click();
   await page.locator('.direction-icon-rng').click();
@@ -108,7 +112,7 @@ test('ending a trip opens the home map at the confirmed landing and retires the 
 
 test('ending a trip during a pause keeps the last verified QR location and floor', async ({ page }) => {
   await setupRoute(page, true);
-  await page.goto('/#/rng');
+  await page.goto('/#/rng', { waitUntil: 'domcontentloaded' });
   await page.locator('.start-routing-button').click();
   await page.getByRole('button', { name: 'توقف موقت', exact: true }).click();
   await page.getByRole('button', { name: 'پایان و بستن سفر' }).click();
