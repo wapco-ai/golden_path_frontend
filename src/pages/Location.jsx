@@ -44,6 +44,16 @@ const fileMap = {
 
 const mediaOptions = { apiBaseUrl: appConfig.apiBaseUrl, fileMap };
 
+const placeHeadingByGroup = new Map([
+  ['rozemonavare', 'pilgrimagePlaceHeading'],
+  ['sahn', 'pilgrimagePlaceHeading'],
+  ['ravaq', 'pilgrimagePlaceHeading'],
+  ['masjed', 'pilgrimagePlaceHeading'],
+  ['elmi', 'visitingPlaceHeading'],
+  ['eyvan', 'visitingPlaceHeading'],
+  ['madrese', 'visitingPlaceHeading']
+]);
+
 // Get subgroup label based on currently loaded geoData
 const getLocalizedSubgroupLabel = (geoData, value, fallback) => {
   if (geoData) {
@@ -961,10 +971,7 @@ const Location = () => {
           <div className="line left-line"></div>
           <div className="circle"></div>
           <span>
-            <FormattedMessage id={fromGuidance
-              ? 'viewingGuidanceLandmark'
-              : isQrCodeEntry && isAtInitialLocation() ? 'youAreHere' : 'youAreHereQr'}
-            />
+            <FormattedMessage id={placeHeadingByGroup.get(locationData.group) ?? 'placeInformationHeading'} />
           </span>
           <div className="line right-line"></div>
         </div>

@@ -231,6 +231,7 @@ const RouteOverview = () => {
         location: {
           title: landmark.title || landmark.name,
           name: landmark.title || landmark.name,
+          group: landmark.group,
           label: landmark.title || landmark.name,
           location: landmark.address || '',
           address: landmark.address || '',

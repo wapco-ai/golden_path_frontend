@@ -12,7 +12,7 @@ const media = [
   { type: 'file', mime: 'application/pdf', url: '/storage/guide.pdf', path: 'uploads/contents/7/files/guide.pdf', name: 'guide.pdf' }
 ];
 
-async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.png', onWrite, totalItems = 1 } = {}) {
+async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.png', onWrite, totalItems = 1, landmarkGroup } = {}) {
   const writes = [], creates = [], uploads = [], deletes = [], errors = [], dialogs = [];
   let item = {
     poiId: 7, title: 'مکان فرهنگی آزمایشی', description: 'شرح مکان فرهنگی',
@@ -60,7 +60,7 @@ async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.
     } else if (path.endsWith('/files') && request.method() === 'DELETE') {
       deletes.push(url.searchParams.get('path')); json = { success: true };
     } else if (path.endsWith('/landmark-places')) json = { places: { landmarkPlaces: [{
-      id: '7', title: 'مکان فرهنگی آزمایشی', coordinates: [36.2853, 59.6134], floor: 0,
+      id: '7', title: 'مکان فرهنگی آزمایشی', group: landmarkGroup, coordinates: [36.2853, 59.6134], floor: 0,
       image: primaryImage, content: { body: 'شرح مکان فرهنگی', media: mediaItems }
     }] } };
     await route.fulfill({ json });
@@ -449,6 +449,27 @@ test('the create wizard exposes distinct image and video requirements in its exi
   await page.locator('.add-cultural-modal').screenshot({ path: testInfo.outputPath('cultural-create-upload.png') });
   expect(errors).toEqual([]);
 });
+
+for (const [label, landmarkGroup, heading] of [
+  ['pilgrimage', 'rozemonavare', 'در حال زیارت این مکان هستید'],
+  ['cultural', 'elmi', 'در حال بازدید از این محل هستید'],
+  ['service after scanning a QR code', 'khadamat', 'اطلاعات این محل'],
+  ['unknown', 'other', 'اطلاعات این محل'],
+  ['missing', undefined, 'اطلاعات این محل']
+]) {
+  test(`public cultural card heading for a ${label} place`, async ({ page }) => {
+    await setup(page, { landmarkGroup });
+    if (landmarkGroup === 'khadamat') {
+      await page.addInitScript(() => {
+        sessionStorage.setItem('qrId', '7');
+        sessionStorage.setItem('qrLat', '36.2853');
+        sessionStorage.setItem('qrLng', '59.6134');
+      });
+    }
+    await page.goto('/#/location?id=7');
+    await expect(page.locator('.location-page .you-are-here')).toHaveText(heading);
+  });
+}
 
 test('public cultural media uses a direct video URL and never renders the film as a gallery image', async ({ page }) => {
   const { errors } = await setup(page);

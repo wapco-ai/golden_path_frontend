@@ -78,7 +78,7 @@ const qr = page => page.getByRole('button', { name: 'اصلاح مسیر با QR
 
 test('a guidance photo opens Location and returns to the same live or paused session', async ({ page }) => {
   const landmark = {
-    id: 411, title: 'صحن نمونه', floor: 0, coordinates: [36.28724, 59.61449],
+    id: 411, title: 'صحن نمونه', group: 'sahn', floor: 0, coordinates: [36.28724, 59.61449],
     description: 'توضیحات مکان نمونه', image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6aQAAAAASUVORK5CYII='
   };
   await setup(page, { landmarks: [
@@ -94,7 +94,7 @@ test('a guidance photo opens Location and returns to the same live or paused ses
     await bubble.click();
     await expect(page).toHaveURL(/#\/location\?id=411/);
     await expect(page.locator('.location-page h1')).toHaveText(landmark.title);
-    await expect(page.locator('.location-page .you-are-here')).toHaveText('مشاهده این مکان');
+    await expect(page.locator('.location-page .you-are-here')).toHaveText('در حال زیارت این مکان هستید');
     await expect(page.locator('.location-page')).toContainText(landmark.description);
     await expect(state(page)).toBeHidden();
     if (mode === 'live') await page.getByRole('button', { name: 'بازگشت', exact: true }).click();

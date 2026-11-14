@@ -341,6 +341,7 @@ const MapRoutingPage = () => {
           coordinates: subGroup.coordinates,
           geo: subGroup.geo,
           floor: getPointFloor(subGroup),
+          group: mapSelectedCategory?.value,
           category: mapSelectedCategory?.label,
           categoryIcon: mapSelectedCategory?.png,
           fromMPR: true,

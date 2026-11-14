@@ -431,6 +431,7 @@ const MapBeginPage = () => {
   const handlePlaceCulturalInfo = (place) => {
     const locationData = {
       floor: getPointFloor(place),
+      group: place.group,
       label: place.title || place.name || place.label || intl.formatMessage({ id: 'mapSelectedLocation' }),
       img: place.image ? [place.image] :
         place.images ? (Array.isArray(place.images) ? place.images : [place.images]) :
@@ -492,6 +493,7 @@ const MapBeginPage = () => {
 
       setSelectedLocation({
         floor: mapFloor,
+        group: landmark.group,
         label: landmark.label || landmark.name || intl.formatMessage({ id: 'mapSelectedLocation' }),
         img: images,
         address: landmark.address,
@@ -556,6 +558,7 @@ const MapBeginPage = () => {
       if (subgroup && subgroup.img) {
         setSelectedLocation({
           ...subgroup,
+          group: feature.properties.group,
           coordinates: [latlng.lat, latlng.lng]
         });
         setShowLocationDetails(true);
@@ -581,6 +584,7 @@ const MapBeginPage = () => {
         // Set the selected location with coordinates from QR code
         setSelectedLocation({
           ...sahneEnghelabInfo,
+          group: 'sahn',
           floor: getPointFloor(readQrPoint()),
           coordinates: [parseFloat(storedLat), parseFloat(storedLng)]
         });
@@ -806,6 +810,7 @@ const MapBeginPage = () => {
 
         setSelectedLocation({
           floor: getPointFloor(foundLandmark),
+          group: foundLandmark.group,
           label: foundLandmark.label || foundLandmark.name || foundLandmark.title || intl.formatMessage({ id: 'mapSelectedLocation' }),
           img: images,
           address: foundLandmark.address,
