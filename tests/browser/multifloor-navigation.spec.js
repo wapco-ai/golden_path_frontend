@@ -87,9 +87,18 @@ test('ending a trip opens the home map at the confirmed landing and retires the 
   await page.locator('.direction-icon-rng').click();
   await expect(page.locator('.instruction-text')).toContainText('حرکت در طبقه یک');
 
+  await page.evaluate(() => {
+    const observer = new MutationObserver(() => {
+      if (document.querySelector('.Toastify')?.textContent.includes('مسیریابی پایان یافت')) {
+        window.tripEndedToastShown = true;
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
   await page.getByRole('button', { name: 'پایان و بستن سفر' }).click();
   await expect(page).toHaveURL(/#\/mpb$/);
-  await expect(page.getByText('مسیریابی پایان یافت', { exact: true })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.tripEndedToastShown)).toBe(true);
   await expect(page.locator('.routing-page')).toHaveCount(0);
   const marker = page.locator('.map-marker-origin');
   await expect(marker).toBeVisible();
