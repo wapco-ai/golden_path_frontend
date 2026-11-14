@@ -1,6 +1,5 @@
 import { LandmarkMarkerPlaceholder } from './LandmarkPhotoMarkers';
 import { matchesMapCategory } from '../../utils/groupMetadata';
-import { observeGps } from '../../utils/locationQuality.js';
 import useMapFloor from '../../hooks/useMapFloor';
 import { getPointFloor, pointIsOnFloor } from '../../utils/floors';
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
@@ -13,7 +12,7 @@ import { mapAssetRequest } from '../../services/legacyMapStyles';
 import usePublicFloorMap from '../../hooks/usePublicFloorMap';
 import { MBTILES_SATELLITE_STYLE, OSM_BASIC_STYLE_URL } from '../../services/mbtilesMapStyle';
 import { useLangStore } from '../../store/langStore';
-import { loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
+import { closestSelectableMapPoint, loadGeoJsonData } from '../../utils/loadGeoJsonData.js';
 import { createHaramVectorTileConfig } from '../../config/vectorTiles';
 import { initHaramVectorLayers } from '../../utils/initVectorLayers';
 
@@ -87,7 +86,6 @@ const getCompositeIcon = (groups = [], group, nodeFunction, size = 35, opacity =
 };
 
 const Mprc = ({
-  setUserLocation,
   selectedDestination,
   onMapClick,
   isSelectingLocation,
@@ -280,56 +278,6 @@ const Mprc = ({
     onMapClick?.({ lat: coords.lat, lng: coords.lng }, feature);
   };
 
-  // Initialize map focus and user location based on QR entry or GPS tracking
-  useEffect(() => {
-    const storedLat = sessionStorage.getItem('qrLat');
-    const storedLng = sessionStorage.getItem('qrLng');
-    const storedId = sessionStorage.getItem('qrId');
-
-    if (storedLat && storedLng && !isTracking && (!userLocation || userLocation.source === 'qr')) {
-      const coords = {
-        lat: parseFloat(storedLat),
-        lng: parseFloat(storedLng)
-      };
-      setUserCoords(coords);
-
-      setViewState(v => ({
-        ...v,
-        latitude: coords.lat,
-        longitude: coords.lng,
-        zoom: 18
-      }));
-      return; // Skip GPS if QR code exists
-    }
-
-    if (!isTracking) return undefined;
-
-    const success = (fix) => {
-      const c = {
-        lat: fix.lat,
-        lng: fix.lng
-      };
-      setUserCoords(c);
-      setUserLocation(previous => ({
-        name: intl.formatMessage({ id: 'mapCurrentLocationName' }),
-        coordinates: [c.lat, c.lng], source: 'gps', accuracy: fix.accuracy, timestamp: fix.timestamp,
-        floor: previous?.source === 'gps' ? getPointFloor(previous) : null
-      }));
-      setViewState((v) => ({
-        ...v,
-        latitude: c.lat,
-        longitude: c.lng,
-        zoom: 18
-      }));
-    };
-
-    const err = (e) => {
-      console.error('Error getting location', e);
-    };
-
-    return observeGps(navigator.geolocation, success, err);
-  }, [setUserLocation, intl, isTracking]);
-
   useEffect(() => {
     if (userLocation?.coordinates) {
       const [lat, lng] = userLocation.coordinates;
@@ -338,7 +286,7 @@ const Mprc = ({
 
       const fromMapTap = userLocation.fromMapSelection === true;
   
-      if (!fromMapTap && (isTracking || !destCoords)) {
+      if (isTracking || (!fromMapTap && !destCoords)) {
         setViewState(v => ({
           ...v,
           latitude: lat,
@@ -397,60 +345,10 @@ const Mprc = ({
     fitAreaDoors(mapRef.current);
   }, [fitAreaDoors]);
 
-  const handleClick = (e) => {
-    if (isSelectingLocation) {
-      const { lng, lat } = e.lngLat;
-      const c = { lat, lng };
-      setSelectedCoords({ ...c, floor: mapFloor });
-
-      let closestFeature = null;
-      if (pointFeatures.length) {
-        let minDist = Infinity;
-        pointFeatures.forEach((f) => {
-          const [flng, flat] = f.geometry.coordinates || [];
-          if (typeof flng !== 'number' || typeof flat !== 'number') {
-            return;
-          }
-          const d = Math.hypot(flng - lng, flat - lat);
-          if (d < minDist) {
-            minDist = d;
-            closestFeature = f;
-          }
-        });
-        if (minDist > 0.0005) {
-          closestFeature = null;
-        }
-      }
-
-
-      if (onMapClick) onMapClick(c, closestFeature);
-    } else {
-
-      const { lng, lat } = e.lngLat;
-      const c = { lat, lng };
-
-      let closestFeature = null;
-      if (pointFeatures.length) {
-        let minDist = Infinity;
-        pointFeatures.forEach((f) => {
-          const [flng, flat] = f.geometry.coordinates || [];
-          if (typeof flng !== 'number' || typeof flat !== 'number') {
-            return;
-          }
-          const d = Math.hypot(flng - lng, flat - lat);
-          if (d < minDist) {
-            minDist = d;
-            closestFeature = f;
-          }
-        });
-        if (minDist > 0.0005) {
-          closestFeature = null;
-        }
-      }
-
-
-      if (onMapClick) onMapClick(c, closestFeature);
-    }
+  const handleClick = ({ lngLat: { lng, lat } }) => {
+    const point = { lat, lng };
+    if (isSelectingLocation) setSelectedCoords({ ...point, floor: mapFloor });
+    onMapClick?.(point, closestSelectableMapPoint(pointFeatures, point));
   };
 
   const shouldLoadGeoJson = Boolean(
@@ -574,21 +472,13 @@ const Mprc = ({
         }
 
         const features = Array.isArray(data?.features) ? data.features : [];
-        const nextPointFeatures = features.filter((f) => {
-          if (f.geometry?.type !== 'Point') {
-            return false;
-          }
-          const nodeFn = f.properties?.nodeFunction;
-          return nodeFn !== 'door' && nodeFn !== 'connection';
-        });
-
         const nextDoorNodes = features.filter(
           (f) =>
             f.geometry?.type === 'Point' &&
             ['door', 'connection'].includes(f.properties?.nodeFunction)
         );
 
-        setPointFeatures(nextPointFeatures);
+        setPointFeatures(features);
         setDoorConnectionNodes(nextDoorNodes);
       })
       .catch(err => {

@@ -1,13 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { DEFAULT_NAVIGATION_POLICY } from '../../src/services/navigationPolicy.js';
 
-async function setup(page, length = 40, observeMap = false, stepTest = false) {
+async function setup(page, length = 40, observeMap = false, stepTest = false, gpsOrigin = false) {
   await page.clock.install();
   await page.setViewportSize({ width: 360, height: 780 });
-  await page.addInitScript(({ length, stepTest }) => {
+  await page.addInitScript(({ length, stepTest, gpsOrigin }) => {
     const middle = stepTest ? 0.15 : 0.5;
     const coordinates = [[59.615, 36.287], [59.615, 36.287 + length * middle / 111195], [59.615, 36.287 + length / 111195]];
-    const state = { origin: { name: 'مبدأ', coordinates: [36.287, 59.615], floor: 0 },
+    const state = { origin: { name: 'مبدأ', coordinates: [36.287, 59.615], floor: 0,
+      ...(gpsOrigin && { source: 'gps', accuracy: 5, timestamp: Date.now() }) },
       destination: { name: 'مقصد', coordinates: [coordinates[2][1], 59.615], floor: 0 },
       routeGeo: { type: 'Feature', geometry: { type: 'LineString', coordinates },
         properties: { floor: 0, distanceMeters: length, durationSeconds: length } },
@@ -52,7 +53,7 @@ async function setup(page, length = 40, observeMap = false, stepTest = false) {
         else emitMotion(acceleration);
       });
     };
-  }, { length, stepTest });
+  }, { length, stepTest, gpsOrigin });
   await page.route('**/api/v1/**', route => route.fulfill({ json: { status: 'NO_MATCH', data: [], features: [] } }));
   await page.route('**/api/v1/navigation-settings', route => route.fulfill({ json: { policy: DEFAULT_NAVIGATION_POLICY, version: 1, walk_speed_mps: 1.2 } }));
   await page.route('**/tiles/**', route => route.fulfill({ status: 204 }));
@@ -93,6 +94,17 @@ test('Haram default ignores GPS and reaches the destination using actual motion 
   await expect(page.locator('.routing-page')).toHaveAttribute('data-navigation-mode', 'arrived');
   await expect(page.locator('.instruction-text')).toHaveText('به مقصد رسیدید.');
   await expect(page.getByTestId('step-diagnostics')).toHaveCount(0);
+  expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
+});
+
+test('a GPS-selected origin anchors walking DR without new GPS requests', async ({ page }) => {
+  await page.addInitScript(() => {
+    navigator.permissions.query = async () => ({ state: 'denied' });
+  });
+  await setup(page, 40, false, false, true);
+  await expect(page.locator('.gps-offline-notification')).toHaveCount(0);
+  await walk(page, 58);
+  await expect(page.locator('.routing-page')).toHaveAttribute('data-navigation-mode', 'arrived');
   expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
 });
 
