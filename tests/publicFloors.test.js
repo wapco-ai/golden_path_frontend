@@ -156,6 +156,34 @@ test('a scan retries when a successful QR response stalls while reading the body
   assert.equal(result.verified, true);
 });
 
+test('legacy place QR correction resolves exact IDs and uses only server coordinates and floor', async t => {
+  const { resolveScannedQrPoint } = await import('../src/services/qrLocationService.js');
+  const requests = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    const target = new URL(url);
+    requests.push(target);
+    assert.equal(options.cache, 'no-store');
+    if (target.pathname.startsWith('/api/v1/qrcodes/')) return { status: 404 };
+    assert.equal(target.pathname, '/api/v1/landmark-places');
+    return { ok: true, json: async () => ({ places: { landmarkPlaces: [
+      { id: '1009', coordinates: [36.284834, 59.613849], floor: 0, title: 'فوریت‌های پزشکی' },
+      { id: 986, geo: { lat: 36.286439, lon: 59.611304, floor: 0 }, title: 'باب الجواد' },
+    ] } }) };
+  });
+  const scan = value => resolveScannedQrPoint(value, 'fa', new AbortController().signal);
+  const medical = await scan('https://example.org/#/location?lat=1&lng=2&floor=-1&id=1009');
+  assert.deepEqual(medical.coordinates, [36.284834, 59.613849]);
+  assert.equal(medical.floor, 0);
+  assert.equal(medical.verified, true);
+  const gate = await scan('poi_986');
+  assert.deepEqual(gate.coordinates, [36.286439, 59.611304]);
+  assert.equal(gate.floor, 0);
+  assert.equal(await scan('999999'), null);
+  assert.equal(await scan('QR-INACTIVE-986'), null);
+  assert.deepEqual(requests.filter(url => url.pathname.endsWith('/landmark-places')).map(url => url.searchParams.get('poi_id')),
+    ['1009', '986', '999999']);
+});
+
 test('cancelling a stalled QR lookup stops it without retrying', async t => {
   const { resolveScannedQrPoint } = await import('../src/services/qrLocationService.js');
   let calls = 0;
