@@ -1,46 +1,11 @@
 import appConfig from '../config/appConfig.js';
 
-const normalizeMediaUrl = (value) => {
-  if (!value || typeof value !== 'string') return null;
-
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  if (trimmed.startsWith('data:')) return trimmed;
-  if (trimmed.includes('://') || trimmed.startsWith('//')) return trimmed;
-
-  const normalizedPath = trimmed.startsWith('/') ? trimmed : `/${trimmed.replace(/^\.\//, '')}`;
-  return `${appConfig.apiBaseUrl}${normalizedPath}`;
-};
+import { resolveMediaUrl } from '../utils/locationMedia.js';
 
 const resolveImageSource = (image) => {
-  if (!image) return null;
-
-  if (typeof image === 'string') {
-    return normalizeMediaUrl(image);
-  }
-
-  if (typeof image !== 'object') {
-    return null;
-  }
-
-  if (image.url) {
-    return normalizeMediaUrl(image.url) || image.url;
-  }
-
-  if (image.path) {
-    return normalizeMediaUrl(image.path);
-  }
-
-  if (typeof image.data === 'string' && image.data.trim()) {
-    const mime = image.mime || 'image/jpeg';
-    const normalizedBase64 = image.data
-      .trim()
-      .replace(/^data:[^;]+;base64,/, '');
-
-    return `data:${mime};base64,${normalizedBase64}`;
-  }
-
-  return null;
+  const url = resolveMediaUrl(image, { apiBaseUrl: appConfig.apiBaseUrl });
+  if (!url || /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(url)) return url;
+  return new URL(url, appConfig.apiBaseUrl + '/').href;
 };
 
 export const fetchLandmarkViewImage = async ({

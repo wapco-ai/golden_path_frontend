@@ -59,7 +59,7 @@ import { formatCulturalCreatedAt } from '../utils/culturalItemDate.js';
 import { createCategoryApiError } from '../utils/categoryApiError.js';
 import { normalizeDashboardNotifications, buildNotificationGroups } from '../utils/adminNotifications.js';
 import { normalizeRecentUser } from '../utils/adminRecentUsers.js';
-import { resolveMediaUrl, localizeMediaText } from '../utils/locationMedia.js';
+import { resolveMediaUrl, storedMediaSource, localizeMediaText } from '../utils/locationMedia.js';
 import { CULTURAL_UPLOAD_RULES, validateCulturalUpload, culturalUploadMime, culturalMediaKind, splitCulturalMedia, culturalFileMetadata, buildCulturalAttachmentPayload, selectCulturalPrimaryImage, markCulturalPrimaryImage, findExistingCulturalPrimary } from '../utils/culturalMediaUpload.js';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import appConfig from '../config/appConfig';
@@ -2149,7 +2149,7 @@ const Amain = () => {
   const normalizeMediaAttachment = (attachment, defaultMime = 'application/octet-stream') => {
     if (!attachment) return null;
     const file = typeof attachment === 'string' ? { url: attachment } : attachment;
-    const resolvedUrl = resolveMediaUrl(buildMediaUrl(file, file.mime || defaultMime), { apiBaseUrl: appConfig.apiBaseUrl }) || '';
+    const resolvedUrl = resolveMediaUrl(storedMediaSource(buildMediaUrl(file, file.mime || defaultMime), file.path), { apiBaseUrl: appConfig.apiBaseUrl }) || '';
     const kind = culturalMediaKind({ ...file, url: resolvedUrl });
     const declaredMime = file.mime || (file.type?.includes('/') ? file.type : null);
     const dataMime = resolvedUrl.match(/^data:([^;]+);/)?.[1];

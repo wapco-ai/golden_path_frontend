@@ -11,9 +11,24 @@ const EXTENSION_MIMES = {
   ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
 };
 
+export const publicUploadPath = (value) => {
+  if (typeof value !== 'string') return null;
+  const path = value.trim().replace(/^(?:\.\/|\/)?(?:storage\/)?(?=uploads\/)/, '');
+  if (!path.startsWith('uploads/') || /[?#\\\u0000-\u001f]/.test(path) || /(?:^|\/)\.{1,2}(?:\/|$)/.test(path)) return null;
+  return '/storage/' + path;
+};
+
+export const storedMediaSource = (url, key) => {
+  const path = publicUploadPath(key);
+  if (!path) return url;
+  if (!url) return path;
+  if (/^http:\/\//i.test(url) && !/[?#]/.test(url)) return path;
+  return url;
+};
+
 const mediaValue = (media) => {
   const value = typeof media === 'string'
-    ? media : media?.mediaUrl || media?.url || media?.path || media?.src;
+    ? media : storedMediaSource(media?.mediaUrl || media?.url || media?.image_url || media?.src, media?.path || media?.image_key) || media?.path;
   return typeof value === 'string' ? value : '';
 };
 
@@ -120,7 +135,8 @@ export const resolveMediaUrl = (media, { apiBaseUrl = '', fileMap = {}, defaultM
       } catch {
         return null;
       }
-      if (['localhost', '127.0.0.1'].includes(parsed.hostname)) {
+      const sameApiHost = parsed.hostname === new URL(apiBaseUrl, globalThis.location?.href || 'http://localhost').hostname;
+      if (['localhost', '127.0.0.1'].includes(parsed.hostname) || (sameApiHost && /^\/(?:storage|uploads|api)\//.test(parsed.pathname))) {
         value = `${parsed.pathname}${parsed.search}${parsed.hash}`;
       } else {
         return value;

@@ -1,5 +1,5 @@
 import { convertUtm32640ToLngLat } from '../utils/utm.js';
-import { getMediaKind, getMediaMime, resolveMediaUrl } from '../utils/locationMedia.js';
+import { getMediaKind, getMediaMime, storedMediaSource, resolveMediaUrl } from '../utils/locationMedia.js';
 
 const buildMediaUrl = (media, defaultMime = 'image/jpeg') => {
   if (!media) return null;
@@ -19,7 +19,8 @@ const buildMediaUrl = (media, defaultMime = 'image/jpeg') => {
   }
 
   if (typeof media === 'object') {
-    if (media.url) return buildMediaUrl(media.url, media.mime || defaultMime);
+    const source = storedMediaSource(media.url, media.path || media.image_key);
+    if (source) return buildMediaUrl(source, media.mime || defaultMime);
     if (media.path) return buildMediaUrl(media.path, media.mime || defaultMime);
     if (media.data) {
       if (typeof media.data === 'string' && /^data:/i.test(media.data)) return media.data;

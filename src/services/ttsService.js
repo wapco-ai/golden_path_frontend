@@ -126,7 +126,15 @@ const fetchSpeech = async (text, payload = {}) => {
       }
 
       if (data?.file_url) {
-        const fileResponse = await fetch(data.file_url);
+        const endpoint = new URL(TTS_URL, window.location.href);
+        const fileUrl = new URL(data.file_url, endpoint);
+        if (!['http:', 'https:'].includes(fileUrl.protocol)) {
+          throw new Error('Invalid TTS audio URL');
+        }
+        if (fileUrl.protocol === 'http:' && (endpoint.protocol === 'https:' || window.location.protocol === 'https:')) {
+          fileUrl.protocol = 'https:';
+        }
+        const fileResponse = await fetch(fileUrl);
         if (!fileResponse.ok) {
           throw new Error('Failed to download TTS audio file');
         }

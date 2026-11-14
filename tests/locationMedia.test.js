@@ -189,3 +189,22 @@ test('recognizes only known raw image signatures without overriding an explicit 
     assert.equal(resolveMediaUrl({ type: 'video', url: encoded }), null);
   }
 });
+
+test('uses the current API for stored HTTP media and deduplicates the gallery image', () => {
+  const imagePath = 'uploads/contents/1006/images/photo.webp';
+  const audioPath = 'uploads/contents/1006/audio/talk.mp3';
+  const result = normalizePlaceMedia({
+    image: '/storage/' + imagePath,
+    content: { media: [
+      { type: 'image', url: 'http://192.0.2.10/storage/' + imagePath, path: imagePath },
+      { type: 'audio', url: 'http://192.0.2.10/storage/' + audioPath, path: audioPath }
+    ] }
+  }, options);
+
+  assert.deepEqual(result.images, [options.apiBaseUrl + '/storage/' + imagePath]);
+  assert.equal(result.contents[0].mediaUrl, options.apiBaseUrl + '/storage/' + audioPath);
+  assert.equal(resolveMediaUrl('http://golden.example/storage/track.mp3?version=1', options),
+    'https://golden.example/storage/track.mp3?version=1');
+  assert.equal(resolveMediaUrl('https://cdn.example/track.mp3?token=example', options),
+    'https://cdn.example/track.mp3?token=example');
+});

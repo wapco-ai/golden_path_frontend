@@ -1,5 +1,6 @@
 import appConfig from '../config/appConfig.js';
 import { getPointFloor } from '../utils/floors.js';
+import { storedMediaSource, resolveMediaUrl } from '../utils/locationMedia.js';
 
 const inflightRequests = new Map();
 const responseCache = new Map();
@@ -29,7 +30,8 @@ const resolveMediaValue = (media, defaultMime = 'image/jpeg') => {
   if (!media) return null;
 
   if (typeof media === 'object') {
-    if (media.url) return resolveMediaValue(media.url, media.mime || defaultMime);
+    const source = storedMediaSource(media.url, media.path || media.image_key);
+    if (source) return resolveMediaValue(source, media.mime || defaultMime);
     if (media.path) return resolveMediaValue(media.path, media.mime || defaultMime);
     if (media.data) return `data:${media.mime || defaultMime};base64,${media.data}`;
     return null;
@@ -46,31 +48,10 @@ const resolveMediaValue = (media, defaultMime = 'image/jpeg') => {
     return `data:${defaultMime};base64,${normalized}`;
   }
 
-  if (trimmed.startsWith('/')) {
-    return `${appConfig.apiBaseUrl}${normalizeUploadPath(trimmed)}`;
+  if (trimmed.startsWith('//') || /^[a-z][a-z\d+.-]*:/i.test(trimmed)) {
+    return resolveMediaUrl(trimmed, { apiBaseUrl: appConfig.apiBaseUrl });
   }
-
-  if (!trimmed.includes('://') && !trimmed.startsWith('//')) {
-    return `${appConfig.apiBaseUrl}${normalizeUploadPath(trimmed)}`;
-  }
-
-  if (!trimmed.includes('://') && !trimmed.startsWith('//')) {
-    return `${appConfig.apiBaseUrl}/${trimmed.replace(/^\.\//, '')}`;
-  }
-
-  try {
-    const parsedUrl = new URL(trimmed);
-    const isLocalHost = parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1';
-
-    if (isLocalHost) {
-      const apiBase = new URL(appConfig.apiBaseUrl);
-      return `${apiBase.origin}${normalizeUploadPath(parsedUrl.pathname)}${parsedUrl.search}${parsedUrl.hash}`;
-    }
-  } catch {
-    return trimmed;
-  }
-
-  return trimmed;
+  return appConfig.apiBaseUrl + normalizeUploadPath(trimmed);
 };
 
 // The API may return either an already localized string or a language map.
