@@ -208,3 +208,13 @@ test('uses the current API for stored HTTP media and deduplicates the gallery im
   assert.equal(resolveMediaUrl('https://cdn.example/track.mp3?token=example', options),
     'https://cdn.example/track.mp3?token=example');
 });
+
+test('deduplicates encoded and unencoded copies of the same gallery image', () => {
+  const filename = '\u0631\u0648\u0636\u0647.webp';
+  const path = '/storage/uploads/contents/1006/images/';
+  const result = normalizePlaceMedia({
+    image: options.apiBaseUrl + path + encodeURIComponent(filename),
+    content: { media: [{ type: 'image', url: path + filename }] }
+  }, options);
+  assert.equal(result.images.length, 1);
+});
