@@ -10,6 +10,7 @@ import {
 } from '../src/utils/routeSegments.js';
 import { withDoorStepInstructions } from '../src/utils/routeStepInstructions.js';
 import { getNavigationProgress } from '../src/utils/rngNavigation.js';
+import { arrivalInstruction, finalStepDistanceMeters, liveStepInstruction, rngMessages } from '../src/utils/rngMessages.js';
 
 const coordinates = [[59.615, 36.287], [59.6151, 36.287], [59.6151, 36.2872]];
 const steps = [
@@ -176,4 +177,117 @@ test('coincident door positions remain skipped without dropping the terminal arr
   ], coordinates);
   assert.equal(result.length, 2);
   assert.equal(result.at(-1).type, 'stepArriveDestination');
+});
+
+const finalContext = (step, geo, name, label) => {
+  const nearby = geo?.properties?.nearbyDestination;
+  const meters = Math.round(getLineDistanceMeters(step.coordinates));
+  return { nearby: Boolean(nearby), name: nearby ? label : name, distance: meters > 0 ? String(meters) : null };
+};
+
+test('a reachable destination is guided by final-segment distance and named only after arrival', () => {
+  const messages = rngMessages.fa;
+  const line = [[59.615, 36.287], [59.615, 36.2876]];
+  const segment = buildRouteMSegments([steps[0], { ...steps[2], instruction: 'backend' }], line).at(-1);
+  const step = { ...segment.step, coordinates: segment.coordinates };
+  const context = finalContext(step, null, 'باب‌الجواد');
+  assert.equal(context.distance, '67');
+  assert.equal(liveStepInstruction(step, messages, context), '67 متر به سمت باب‌الجواد حرکت کنید.');
+  assert.equal(arrivalInstruction(step, messages, context), 'به باب‌الجواد رسیدید.');
+  assert.equal(liveStepInstruction({ instruction: 'مسیر را ادامه دهید.' }, messages, context), 'مسیر را ادامه دهید.');
+  assert.equal(liveStepInstruction(step, rngMessages.en, { ...context, name: 'Bab al-Jawad' }), 'Walk 67 meters toward Bab al-Jawad.');
+  assert.equal(arrivalInstruction(step, rngMessages.en, { ...context, name: 'Bab al-Jawad' }), 'You have arrived at Bab al-Jawad.');
+  assert.equal(liveStepInstruction(step, messages, { ...context, name: '' }), messages.approach);
+  assert.equal(arrivalInstruction(step, messages, { ...context, name: ' ' }), messages.arrived);
+  assert.equal(liveStepInstruction(step, messages, { ...context, distance: null }), 'به سمت باب‌الجواد حرکت کنید.');
+});
+
+test('a long terminal step reports its whole final segment, not a short generic message', () => {
+  const line = [[59.61, 36.28], [59.61, 36.282], [59.612, 36.282], [59.612, 36.285]];
+  const total = getLineDistanceMeters(line);
+  const input = [steps[0], { ...steps[1], routeM: 0.05 }, { ...steps[2], routeM: 1 }];
+  const segment = buildRouteMSegments(input, line).at(-1);
+  const step = { ...segment.step, coordinates: segment.coordinates };
+  const context = finalContext(step, null, 'باب‌الجواد');
+  assert.ok(Number(context.distance) > 400);
+  assert.equal(Number(context.distance), Math.round(total * 0.95));
+  assert.equal(liveStepInstruction(step, rngMessages.fa, context), `${context.distance} متر به سمت باب‌الجواد حرکت کنید.`);
+});
+
+test('a nearby endpoint guides to the real route end and then shows the backend arrival text', () => {
+  const messages = rngMessages.fa;
+  const geo = { properties: { nearbyDestination: { coordinates: [36.2876, 59.615], floor: 0, label: { name: 'باب الجواد' } } } };
+  const line = [[59.615, 36.287], [59.615, 36.2876]];
+  const backend = 'به نزدیک‌ترین نقطهٔ قابل‌دسترسی به باب‌الجواد رسیدید.';
+  const segment = buildRouteMSegments([steps[0], { ...steps[2], instruction: backend }], line).at(-1);
+  const step = { ...segment.step, coordinates: segment.coordinates };
+  const named = finalContext(step, geo, 'باب‌الجواد', 'باب الجواد');
+  assert.equal(liveStepInstruction(step, messages, named), '67 متر به سمت باب الجواد حرکت کنید.');
+  assert.equal(arrivalInstruction(step, messages, named), backend);
+  const unnamed = finalContext(step, geo, 'باب‌الجواد', null);
+  assert.equal(liveStepInstruction(step, messages, unnamed), '67 متر تا انتهای مسیر ادامه دهید.');
+  assert.equal(liveStepInstruction(step, messages, { nearby: true, name: null, distance: null }), messages.toEnd);
+  assert.equal(arrivalInstruction({ ...step, instruction: '  ' }, messages, named), messages.arrivedNearby);
+});
+
+test('a nearby endpoint with empty backend text uses the localized closest-point arrival message', () => {
+  const context = { nearby: true, name: null, distance: null };
+  for (const text of [undefined, null, '', '   ']) {
+    const step = { type: 'stepArriveDestination', instruction: text };
+    assert.equal(arrivalInstruction(step, rngMessages.fa, context), 'به نزدیک‌ترین نقطهٔ قابل‌دسترسی رسیدید.');
+    assert.equal(arrivalInstruction(step, rngMessages.en, context), 'You have reached the closest accessible point.');
+  }
+  assert.equal(arrivalInstruction({ instruction: 'متن بک‌اند' }, rngMessages.fa, context), 'متن بک‌اند');
+  assert.equal(arrivalInstruction({ instruction: '' }, rngMessages.fa, { nearby: false, name: 'باب‌الجواد' }), 'به باب‌الجواد رسیدید.');
+});
+
+test('an unnamed nearby endpoint without a distance asks the pilgrim to continue to the route end', () => {
+  const step = { type: 'stepArriveDestination' };
+  for (const [language, expected] of [['fa', 'تا انتهای مسیر ادامه دهید.'], ['en', 'Continue to the end of the route.']]) {
+    assert.equal(liveStepInstruction(step, rngMessages[language], { nearby: true, name: '', distance: null }), expected);
+  }
+  assert.equal(liveStepInstruction(step, rngMessages.fa, { nearby: true, name: null, distance: '42' }), '42 متر تا انتهای مسیر ادامه دهید.');
+  assert.equal(liveStepInstruction(step, rngMessages.fa, { nearby: false, name: null, distance: null }), rngMessages.fa.approach);
+});
+
+test('a multifloor final step measures only the walk on the destination floor', () => {
+  const walkLine = (floor, meters) => [[59.615, 36.287], [59.615, 36.287 + meters / 111195]].map(p => [p[0], p[1] + floor * 0]);
+  const lower = walkLine(-1, 120);
+  const upper = walkLine(0, 50);
+  const geo = { properties: { multifloor: true, segments: [
+    { id: 0, kind: 'walk', floor: -1, geometry: { coordinates: lower } },
+    { id: 1, kind: 'lift', floor: -1, fromFloor: -1, toFloor: 0, geometry: null },
+    { id: 2, kind: 'walk', floor: 0, geometry: { coordinates: upper } }
+  ] } };
+  const arrival = { type: 'stepArriveDestination', floor: 0, segmentId: 2, distanceMeters: 0, coordinates: [upper.at(-1)] };
+  const meters = finalStepDistanceMeters(geo, arrival);
+  assert.ok(Math.abs(meters - getLineDistanceMeters(upper)) < 0.001);
+  assert.ok(Math.abs(meters - 50) < 0.5);
+  assert.equal(Math.round(finalStepDistanceMeters(geo, { ...arrival, floor: -1, segmentId: 0 })), 120);
+  assert.equal(finalStepDistanceMeters(geo, { ...arrival, floor: -1 }), 0);
+  assert.equal(finalStepDistanceMeters(geo, { ...arrival, segmentId: 1 }), 0);
+  const context = { nearby: false, name: 'مقصد', distance: String(Math.round(meters)) };
+  assert.equal(liveStepInstruction(arrival, rngMessages.fa, context), '50 متر به سمت مقصد حرکت کنید.');
+  assert.equal(finalStepDistanceMeters({ properties: {} }, { distanceMeters: 12 }), 12);
+});
+
+test('a multifloor final step is measured from the start of the preceding walk step', () => {
+  const upper = [[59.615, 36.287], [59.615, 36.287 + 40 / 111195]];
+  const lower = [[59.615, 36.286], [59.615, 36.286 + 120 / 111195]];
+  const geo = { properties: { multifloor: true, segments: [
+    { id: 0, kind: 'walk', floor: -1, geometry: { coordinates: lower } },
+    { id: 1, kind: 'lift', floor: -1, fromFloor: -1, toFloor: 0, geometry: null },
+    { id: 2, kind: 'walk', floor: 0, geometry: { coordinates: upper } }
+  ] } };
+  const arrival = { type: 'stepArriveDestination', floor: 0, segmentId: 2, routeM: 1, fromM: 1, distanceMeters: 0 };
+  const middle = { type: 'stepGoStraight', floor: 0, segmentId: 2, routeM: 0.75, fromM: 0.75 };
+  const measure = previous => Math.round(finalStepDistanceMeters(geo, arrival, previous));
+  assert.equal(measure(middle), 10);
+  assert.equal(measure({ ...middle, routeM: 0, fromM: 0 }), 40);
+  assert.equal(measure(undefined), 40);
+  assert.equal(measure({ type: 'stepChangeFloor', floor: -1, segmentId: 1 }), 40);
+  assert.equal(measure({ ...middle, segmentId: 0, floor: -1 }), 40);
+  assert.equal(measure({ ...middle, floor: -1 }), 40);
+  const context = { nearby: false, name: 'مقصد', distance: String(measure(middle)) };
+  assert.equal(liveStepInstruction(arrival, rngMessages.fa, context), '10 متر به سمت مقصد حرکت کنید.');
 });

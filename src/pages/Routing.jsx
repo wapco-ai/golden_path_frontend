@@ -8,6 +8,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
 import { FormattedMessage, useIntl } from 'react-intl';
+import { formatEndpointLabel } from '../hooks/useRouteEndpointLabel';
 import RouteMap from '../components/map/RouteMap';
 import RngQrCorrection from '../components/map/RngQrCorrection';
 import RngPauseControl from '../components/map/RngPauseControl';
@@ -27,7 +28,7 @@ import { prepareQrReader } from '../services/qrReader';
 import { doorEndpoint, doorRouteErrorMessage } from '../utils/doorRouteEndpoint';
 import useGuidanceImage from '../hooks/useGuidanceImage.js';
 import { getLiveNavigationGeo, nextDemoStep, projectPointOnRoute, resolveNavigationFrame } from '../utils/rngNavigation.js';
-import { liveStepInstruction, rngMessages, rngQrMessages, rngPauseMessages } from '../utils/rngMessages.js';
+import { arrivalInstruction, finalStepDistanceMeters, liveStepInstruction, rngMessages, rngQrMessages, rngPauseMessages } from '../utils/rngMessages.js';
 import { pauseRouteKey, readPausedNavigation, savePausedNavigation, getResumePosition, resumeStepAt } from '../utils/rngPause.js';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
 import {
@@ -218,6 +219,14 @@ const RoutingPage = () => {
 
   const language = useLangStore(state => state.language);
   const rngText = rngMessages[language] || rngMessages.fa;
+  const nearbyDestination = routeGeo?.properties?.nearbyDestination;
+  const nearbyName = nearbyDestination ? formatEndpointLabel(intl, nearbyDestination.label) : null;
+  const destinationName = destination?.name;
+  const finalStepContext = useCallback((step, previousStep) => {
+    const meters = Math.round(finalStepDistanceMeters(routeGeo, step, previousStep));
+    return { nearby: Boolean(nearbyDestination), name: nearbyDestination ? nearbyName : destinationName,
+      distance: meters > 0 ? intl.formatNumber(meters) : null };
+  }, [intl, routeGeo, nearbyDestination, nearbyName, destinationName]);
   const qrText = rngQrMessages[language] || rngQrMessages.fa;
   const pauseText = rngPauseMessages[language] || rngPauseMessages.fa;
   useEffect(() => {
@@ -448,9 +457,9 @@ const RoutingPage = () => {
     }
 
     const segments = [];
-    const currentInstruction = liveStepInstruction(current, rngText);
+    const currentInstruction = liveStepInstruction(current, rngText, finalStepContext(current, steps[currentStep - 1]));
     if (currentInstruction) segments.push(currentInstruction);
-    const nextInstruction = liveStepInstruction(steps[currentStep + 1], rngText);
+    const nextInstruction = liveStepInstruction(steps[currentStep + 1], rngText, finalStepContext(steps[currentStep + 1], current));
     if (nextInstruction) {
       segments.push(intl.formatMessage({ id: 'nextStepAnnouncement' }, { instruction: nextInstruction }));
     }
@@ -491,7 +500,7 @@ const RoutingPage = () => {
       isCancelled = true;
       audioEl.pause();
     };
-  }, [currentStep, intl, isRoutingActive, isPaused, language, rngText, routeData?.steps, selectedSoundOption]);
+  }, [currentStep, finalStepContext, intl, isRoutingActive, isPaused, language, rngText, routeData?.steps, selectedSoundOption]);
 
   useEffect(() => {
     if (isDrActive) {
@@ -1750,8 +1759,11 @@ const RoutingPage = () => {
   }, [distanceWarning, openDistanceMessage]);
   const guideStep = routeData?.steps?.[currentStep];
   const stepCount = routeData?.steps?.length ?? 0;
-  const guideInstruction = hasArrived ? rngText.arrived
-    : liveRouting ? liveStepInstruction(guideStep, rngText) : guideStep?.instruction;
+  const lastStep = routeData?.steps?.at(-1);
+  // The displayed arrival title is generated locally when the server text is empty.
+  const serverArrival = { instruction: routeSteps?.at(-1)?.instruction };
+  const guideInstruction = hasArrived ? arrivalInstruction(serverArrival, rngText, finalStepContext(lastStep, routeData?.steps?.at(-2)))
+    : liveRouting ? liveStepInstruction(guideStep, rngText, finalStepContext(guideStep, routeData?.steps?.[currentStep - 1])) : guideStep?.instruction;
   const confirmsFloor = liveRouting && guideStep?.type === 'stepChangeFloor';
   const directionDisabled = isPaused || !routeGeo || !guideStep
     || (liveRouting && !confirmsFloor && currentStep >= stepCount - 1);

@@ -1,13 +1,66 @@
+import { getLineDistanceMeters, sliceLineByFraction } from './routeSegments.js';
+
 // Accessible icon names and live arrival instructions.
 export const rngMessages = {
-  fa: { next: 'نمایش گام بعدی در دمو', nextLive: 'رفتن به گام بعدی', approach: 'به مسیر تا مقصد ادامه دهید.', arrived: 'به مقصد رسیدید.' },
-  en: { next: 'Preview next demo step', nextLive: 'Go to the next step', approach: 'Continue along the route to your destination.', arrived: 'You have arrived at your destination.' },
-  ar: { next: 'معاينة الخطوة التجريبية التالية', nextLive: 'الانتقال إلى الخطوة التالية', approach: 'تابع المسار إلى وجهتك.', arrived: 'لقد وصلت إلى وجهتك.' },
-  ur: { next: 'ڈیمو کا اگلا مرحلہ دکھائیں', nextLive: 'اگلے مرحلے پر جائیں', approach: 'منزل تک راستے پر چلتے رہیں۔', arrived: 'آپ منزل پر پہنچ گئے ہیں۔' }
+  fa: { next: 'نمایش گام بعدی در دمو', nextLive: 'رفتن به گام بعدی', approach: 'به مسیر تا مقصد ادامه دهید.', arrived: 'به مقصد رسیدید.',
+    toward: '{distance} متر به سمت {name} حرکت کنید.', towardNoDistance: 'به سمت {name} حرکت کنید.',
+    towardEnd: '{distance} متر تا انتهای مسیر ادامه دهید.', arrivedAt: 'به {name} رسیدید.',
+    arrivedNearby: 'به نزدیک‌ترین نقطهٔ قابل‌دسترسی رسیدید.', toEnd: 'تا انتهای مسیر ادامه دهید.' },
+  en: { next: 'Preview next demo step', nextLive: 'Go to the next step', approach: 'Continue along the route to your destination.', arrived: 'You have arrived at your destination.',
+    toward: 'Walk {distance} meters toward {name}.', towardNoDistance: 'Walk toward {name}.',
+    towardEnd: 'Continue {distance} meters to the end of the route.', arrivedAt: 'You have arrived at {name}.',
+    arrivedNearby: 'You have reached the closest accessible point.', toEnd: 'Continue to the end of the route.' },
+  ar: { next: 'معاينة الخطوة التجريبية التالية', nextLive: 'الانتقال إلى الخطوة التالية', approach: 'تابع المسار إلى وجهتك.', arrived: 'لقد وصلت إلى وجهتك.',
+    toward: 'سر {distance} مترًا باتجاه {name}.', towardNoDistance: 'سر باتجاه {name}.',
+    towardEnd: 'تابع {distance} مترًا حتى نهاية المسار.', arrivedAt: 'لقد وصلت إلى {name}.',
+    arrivedNearby: 'وصلت إلى أقرب نقطة متاحة.', toEnd: 'تابع حتى نهاية المسار.' },
+  ur: { next: 'ڈیمو کا اگلا مرحلہ دکھائیں', nextLive: 'اگلے مرحلے پر جائیں', approach: 'منزل تک راستے پر چلتے رہیں۔', arrived: 'آپ منزل پر پہنچ گئے ہیں۔',
+    toward: '{name} کی طرف {distance} میٹر چلیں۔', towardNoDistance: '{name} کی طرف چلیں۔',
+    towardEnd: 'راستے کے اختتام تک {distance} میٹر چلتے رہیں۔', arrivedAt: 'آپ {name} پر پہنچ گئے ہیں۔',
+    arrivedNearby: 'آپ قریب ترین قابلِ رسائی مقام پر پہنچ گئے ہیں۔', toEnd: 'راستے کے اختتام تک چلتے رہیں۔' }
 };
 
-export const liveStepInstruction = (step, messages) =>
-  step?.type === 'stepArriveDestination' ? messages.approach : step?.instruction;
+const fill = (template, values) => template.replace(/\{(\w+)\}/g, (_, key) => values[key]);
+const clean = value => typeof value === 'string' ? value.trim() : '';
+
+// context: { nearby, name, distance } for the terminal step. `name` is the requested
+// destination, or the nearby endpoint's own label for a nearby route; `distance` is the
+// already localized length of the final segment, or null when it is unknown.
+export const liveStepInstruction = (step, messages, context = {}) => {
+  if (step?.type !== 'stepArriveDestination') return step?.instruction;
+  const name = clean(context.name);
+  const distance = context.distance ?? null;
+  if (name) return fill(distance === null ? messages.towardNoDistance : messages.toward, { name, distance });
+  if (!context.nearby) return messages.approach;
+  return distance !== null ? fill(messages.towardEnd, { distance }) : messages.toEnd;
+};
+
+// Length of the final walk. A multifloor arrival step has no length of its own, so
+// measure the route geometry of the destination-floor walk segment: from the start of
+// the preceding walk step in that segment (or the segment start) to the arrival point.
+export const finalStepDistanceMeters = (geo, step, previousStep) => {
+  if (geo?.properties?.multifloor === true) {
+    const segment = (geo.properties.segments || []).find(item => item.kind === 'walk'
+      && String(item.id) === String(step?.segmentId)
+      && (step?.floor == null || Number(item.floor) === Number(step.floor)));
+    const coordinates = segment?.geometry?.coordinates;
+    const sameWalk = previousStep && previousStep.type !== 'stepChangeFloor'
+      && previousStep.type !== 'stepArriveDestination'
+      && String(previousStep.segmentId) === String(step?.segmentId)
+      && (previousStep.floor == null || step?.floor == null || Number(previousStep.floor) === Number(step.floor));
+    const from = sameWalk ? Number(previousStep.fromM ?? previousStep.routeM) : NaN;
+    if (!Number.isFinite(from)) return getLineDistanceMeters(coordinates);
+    return getLineDistanceMeters(sliceLineByFraction(coordinates, from, Number.isFinite(step?.routeM) ? step.routeM : 1));
+  }
+  return Number.isFinite(step?.distanceMeters) ? step.distanceMeters : getLineDistanceMeters(step?.coordinates);
+};
+
+// A reachable destination is named locally. A nearby endpoint shows the backend's wording.
+export const arrivalInstruction = (step, messages, context = {}) => {
+  if (context.nearby) return clean(step?.instruction) || messages.arrivedNearby;
+  const name = clean(context.name);
+  return name ? fill(messages.arrivedAt, { name }) : messages.arrived;
+};
 
 export const rngPauseMessages = {
   fa: { pause: 'توقف موقت', resume: 'ادامه مسیر', paused: 'راهنمای مسیر متوقف است',
