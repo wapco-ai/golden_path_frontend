@@ -1424,7 +1424,7 @@ const RoutingPage = () => {
         if (accuracy > 6 || haversineMeters([geo.lng, geo.lat], [reference.lng, reference.lat]) > accuracy + 3) return;
       }
       if (!dr.processGpsData(geo, accuracy, timestamp)) return;
-      gpsFixRef.current = fix;
+      gpsFixRef.current = { ...fix, floor: getSessionFloor() };
       setGpsTimestamp(timestamp);
       setHasPreciseGps(true);
       setUserLocation([geo.lat, geo.lng]);
@@ -1602,7 +1602,7 @@ const RoutingPage = () => {
     setDrPosition({ lat: fix.lat, lng: fix.lng });
     setDrTimestamp(null);
     if (!fix.fromQr) {
-      gpsFixRef.current = fix;
+      gpsFixRef.current = { ...fix, floor: getSessionFloor() };
       setGpsTimestamp(fix.timestamp);
       setHasPreciseGps(true);
     }
@@ -2270,7 +2270,9 @@ const RoutingPage = () => {
             currentStep={currentStep}
             isInfoModalOpen={isInfoModalOpen}
             isMapModalOpen={isMapModalOpen}
+            origin={origin}
             destination={destination}
+            gpsFix={policy.gps_enabled && navigationFrame.mode === 'live' ? gpsFixRef.current : null}
             is3DView={is3DView}
             routeGeo={routeGeo}
             routeFloor={navigationFrame.floor}

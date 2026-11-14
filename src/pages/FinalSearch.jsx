@@ -1,3 +1,4 @@
+import GpsAccuracyCircle from '../components/map/GpsAccuracyCircle';
 import FloorControl from '../components/map/FloorControl';
 import FloorTag from '../components/map/FloorTag';
 import useMapFloor from '../hooks/useMapFloor';
@@ -882,6 +883,8 @@ const FinalSearch = () => {
             }
           }}
         >
+          <GpsAccuracyCircle id="gps-origin-accuracy" point={origin} floor={mapFloor} />
+          <GpsAccuracyCircle id="gps-destination-accuracy" point={destination} floor={mapFloor} />
           {isValidLngLat(routeOrigin.coordinates) && pointIsOnFloor(routeOrigin, mapFloor) && (
             <Marker
               longitude={routeOrigin.coordinates[1]}

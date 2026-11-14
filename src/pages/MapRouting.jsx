@@ -1,4 +1,4 @@
-import { GPS_OPTIONS, gpsMeasurement } from '../utils/locationQuality.js';
+import { acquireGpsEndpoint } from '../utils/locationQuality.js';
 import { clearQrLocation } from '../services/qrLocationService.js';
 import SearchPlaceIcon from '../components/SearchPlaceIcon';
 import useQrOrigin from '../hooks/useQrOrigin';
@@ -72,6 +72,7 @@ const MapRoutingPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeInput, setActiveInput] = useState(null);
   const [isGpsPending, setIsGpsPending] = useState(false);
+  const [gpsSample, setGpsSample] = useState(null);
   const [isSelectingFromMap, setIsSelectingFromMap] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
   const [mapSelectedLocation, setMapSelectedLocation] = useState(null);
@@ -201,12 +202,14 @@ const MapRoutingPage = () => {
   const searchInputRef = useRef(null);
   const swapButtonRef = useRef(null);
   const endpointSelectionRequest = useRef(null);
+  const gpsToast = useRef(null);
   const mapFeatures = useRef(null);
 
   const cancelEndpointSelection = useCallback(() => {
     endpointSelectionRequest.current?.abort();
     endpointSelectionRequest.current = null;
     setIsGpsPending(false);
+    setGpsSample(null);
   }, []);
 
   useEffect(() => () => endpointSelectionRequest.current?.abort(), []);
@@ -1350,13 +1353,11 @@ const MapRoutingPage = () => {
       return;
     }
 
-    const toastId = 'map-endpoint-gps';
-    const notify = id => {
-      if (toast.isActive(toastId)) {
-        toast.update(toastId, { render: intl.formatMessage({ id }), autoClose: 3500, delay: 0 });
-      } else {
-        toast.warn(intl.formatMessage({ id }), { toastId, autoClose: 3500 });
-      }
+    const notify = (id, values) => {
+      const messageId = 'map-endpoint-gps-' + id;
+      if (gpsToast.current && gpsToast.current !== messageId) toast.dismiss(gpsToast.current);
+      gpsToast.current = messageId;
+      toast.warn(intl.formatMessage({ id }, values), { toastId: messageId, autoClose: 3500 });
     };
     if (!window.isSecureContext) {
       notify('mapGpsSecureConnection');
@@ -1375,31 +1376,33 @@ const MapRoutingPage = () => {
     setIsTracking(false);
 
     const finish = () => {
-      if (request.signal.aborted) return false;
       endpointSelectionRequest.current = null;
       setIsGpsPending(false);
-      return true;
+      setGpsSample(null);
     };
 
-    navigator.geolocation.getCurrentPosition(position => {
-      if (!finish()) return;
-      const fix = gpsMeasurement(position);
-      if (!fix) {
-        notify('mapGpsInaccurate');
-        return;
+    acquireGpsEndpoint(navigator.geolocation, {
+      signal: request.signal,
+      onSample: sample => setGpsSample({ ...sample, floor }),
+      onFix: fix => {
+        finish();
+        if (gpsToast.current) toast.dismiss(gpsToast.current);
+        gpsToast.current = null;
+        const data = mapFeatures.current;
+        const feature = data?.floor === floor ? closestSelectableMapPoint(data.features, fix) : null;
+        selectMapEndpoint(target || 'origin', fix, feature, floor, fix);
+      },
+      onFailure: (reason, accuracy) => {
+        finish();
+        const message = {
+          disabled: 'gpsOfflineMessage',
+          permission: 'mapGpsPermission',
+          inaccurate: 'mapGpsBestAccuracy',
+          unavailable: 'mapGpsUnavailable'
+        }[reason];
+        notify(message, { accuracy: Math.ceil(accuracy) });
       }
-
-      const data = mapFeatures.current;
-      const feature = data?.floor === floor ? closestSelectableMapPoint(data.features, fix) : null;
-      selectMapEndpoint(target || 'origin', fix, feature, floor, fix);
-    }, error => {
-      if (!finish()) return;
-      if (/\b(?:location (?:services|provider)|gps)\s+(?:(?:is|are)\s+)?(?:disabled|turned off|off)\b/i.test(error.message || '')) {
-        notify('gpsOfflineMessage');
-      } else {
-        notify(error.code === 1 ? 'mapGpsPermission' : 'mapGpsUnavailable');
-      }
-    }, GPS_OPTIONS);
+    });
   };
 
   const handleMapClick = (latlng, feature) => {
@@ -1593,6 +1596,7 @@ const MapRoutingPage = () => {
       <div className={`map-routing-container ${isSelectingFromMap ? 'hide-attribution' : ''}`}>
         <Mprc
           selectedDestination={selectedDestination}
+          gpsSample={gpsSample}
           onMapClick={handleMapClick}
           isSelectingLocation={isSelectingFromMap}
           selectedCategory={mapSelectedCategory}
@@ -2168,7 +2172,7 @@ const MapRoutingPage = () => {
                       </svg>
                     </div>
                     <span className="map-option-text">
-                      <FormattedMessage id="mapGpsCurrentLocation" />
+                      <FormattedMessage id={isGpsPending ? 'mapGpsAcquiring' : 'mapGpsCurrentLocation'} />
                     </span>
                   </div>
                 </div>

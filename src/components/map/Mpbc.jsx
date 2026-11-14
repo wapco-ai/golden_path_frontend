@@ -1,3 +1,4 @@
+import GpsAccuracyCircle from './GpsAccuracyCircle';
 import { matchesMapCategory } from '../../utils/groupMetadata';
 import { observeGps } from '../../utils/locationQuality.js';
 import { getNavigationPolicy } from '../../services/navigationPolicy.js';
@@ -495,6 +496,8 @@ const Mpbc = ({
       onError={onMapError}
       interactive={true}
     >
+      <GpsAccuracyCircle id="gps-origin-accuracy" point={displayedGps || userLocation} floor={mapFloor} />
+      <GpsAccuracyCircle id="gps-destination-accuracy" point={selectedDestination} floor={mapFloor} />
       {/* User location marker */}
       {markerCoords && (displayedGps || getPointFloor(userLocation) === null || pointIsOnFloor(userLocation, mapFloor)) && (
         <Marker longitude={markerCoords.lng} latitude={markerCoords.lat} anchor="center">
