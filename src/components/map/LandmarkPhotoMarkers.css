@@ -1,3 +1,17 @@
+.image-marker-content.landmark-marker-placeholder {
+  display: grid;
+  place-items: center;
+  background-color: #e7eff9;
+}
+
+.landmark-marker-placeholder::before {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background-color: #0f71ef;
+  content: '';
+}
+
 .rng-photo-landmark-name {
   position: absolute;
   transform: translate(calc(-50% + var(--name-shift-x, 0px)), var(--name-shift-y, 0px));

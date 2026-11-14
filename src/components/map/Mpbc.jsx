@@ -1,3 +1,4 @@
+import { matchesMapCategory } from '../../utils/groupMetadata';
 import { observeGps } from '../../utils/locationQuality.js';
 import { getNavigationPolicy } from '../../services/navigationPolicy.js';
 import useMapFloor from '../../hooks/useMapFloor';
@@ -279,7 +280,7 @@ const Mpbc = ({
           }
 
           // When category is selected, only allow selection of features from that category
-          if (selectedCategory && group !== selectedCategory.value) {
+          if (selectedCategory && !matchesMapCategory(f.properties, selectedCategory)) {
             return; // Skip this feature - not in selected category
           }
 
@@ -386,7 +387,7 @@ const Mpbc = ({
         if (!selectedCategory) return acc;
 
         // If a category is selected, only show features from that category
-        if (selectedCategory && group !== selectedCategory.value) return acc;
+        if (!matchesMapCategory(properties, selectedCategory)) return acc;
 
         // Don't show features that have images (they're handled separately)
         if (hasImage) return acc;
@@ -422,99 +423,10 @@ const Mpbc = ({
     )
     : [];
 
-  const categoryIdToGroup = {
-    1: 'sahn',
-    groupSahn: 'sahn',
-    groupCourtyard: 'sahn',
-    2: 'eyvan',
-    groupEyvan: 'eyvan',
-    3: 'ravaq',
-    groupRavaqPlural: 'ravaq',
-    groupRavaq: 'ravaq',
-    4: 'masjed',
-    groupMosques: 'masjed',
-    groupMosque: 'masjed',
-    5: 'madrese',
-    groupSchools: 'madrese',
-    groupSchool: 'madrese',
-    6: 'khadamat',
-    groupServices: 'khadamat',
-    groupService: 'khadamat',
-    7: 'elmi',
-    groupCulture: 'elmi',
-    groupCultural: 'elmi',
-    8: 'cemetery',
-    groupCemetery: 'cemetery',
-    9: 'qrcode',
-    groupQRScan: 'qrcode',
-    qr: 'qrcode',
-    'qr-code': 'qrcode',
-    10: 'elevator',
-    groupElevator: 'elevator',
-    11: 'other',
-    groupOther: 'other'
-  };
-
-  const matchesSelectedCategory = useCallback((place) => {
-    if (!selectedCategory) return true;
-
-    const selectedValue = selectedCategory.value
-      ?? selectedCategory.id
-      ?? selectedCategory.categories_leaf_id
-      ?? selectedCategory.code;
-
-    if (selectedValue == null) return true;
-
-    const normalizeValues = (values) => {
-      const set = new Set();
-
-      values.forEach((val) => {
-        if (val === undefined || val === null) return;
-        const stringVal = String(val);
-        set.add(stringVal);
-
-        const mapped = categoryIdToGroup[val] ?? categoryIdToGroup[stringVal];
-        if (mapped) {
-          set.add(String(mapped));
-        }
-      });
-
-      return Array.from(set);
-    };
-
-    const selectedCandidates = normalizeValues([
-      selectedValue,
-      selectedCategory.group,
-      selectedCategory.name,
-      selectedCategory.title,
-      selectedCategory.label,
-      selectedCategory.code,
-      categoryIdToGroup[selectedValue]
-    ]);
-
-    const propertyKey = selectedCategory.property || selectedCategory.property_target || selectedCategory.propertyTarget;
-
-    const placeCandidates = normalizeValues([
-      propertyKey ? place?.[propertyKey] : undefined,
-      place?.categories_leaf_id,
-      place?.category_leaf_id,
-      place?.categoryLeafId,
-      place?.category_id,
-      place?.categoryId,
-      place?.category,
-      place?.group,
-      place?.subGroup,
-      place?.subgroup,
-      place?.sub_group,
-      place?.subGroupValue,
-      place?.subgroupValue,
-      place?.sub_group_value,
-      place?.group,
-      place?.nodeFunction
-    ]);
-
-    return selectedCandidates.some((candidate) => placeCandidates.includes(candidate));
-  }, [selectedCategory]);
+  const matchesSelectedCategory = useCallback(
+    place => matchesMapCategory(place, selectedCategory),
+    [selectedCategory]
+  );
 
   // Clear bubbles that don't match the active category filter
   // Clear bubbles that don't match the active category filter
@@ -541,7 +453,7 @@ const Mpbc = ({
       (sg) => sg.value === featureSubGroup && sg.img
     );
 
-    const isCategoryMismatch = selectedCategory && featureGroup !== selectedCategory.value;
+    const isCategoryMismatch = !matchesSelectedCategory(featureProps);
     const lacksImage = !subgroupHasImage;
 
     if (isCategoryMismatch || lacksImage) {
@@ -654,7 +566,8 @@ const Mpbc = ({
         <LandmarkPhotoMarkers
           places={landmarkPlaces}
           floor={mapFloor}
-          matchesPlace={selectedCategory ? matchesSelectedCategory : undefined}
+          matchesPlace={matchesSelectedCategory}
+          showWithoutPhoto={Boolean(selectedCategory)}
           isRtl={isRtl}
           isPitched={viewState.pitch > 0}
           bearing={viewState.bearing}
@@ -670,10 +583,7 @@ const Mpbc = ({
         const [lng, lat] = feature.geometry.coordinates;
         const { group, nodeFunction } = feature.properties || {};
 
-        const highlight =
-          selectedCategory &&
-          feature.properties &&
-          feature.properties[selectedCategory.property] === selectedCategory.value;
+        const highlight = selectedCategory && matchesSelectedCategory(feature.properties);
         const hasFilter = !!selectedCategory;
         const iconSize = hasFilter ? (highlight ? 40 : 25) : 35;
         const iconOpacity = hasFilter ? (highlight ? 1 : 0.4) : 1;

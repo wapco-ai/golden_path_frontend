@@ -447,6 +447,43 @@ test('MPB text results also hide the map floor picker without requiring POI imag
   expect(errors).toEqual([]);
 });
 
+test('public maps and destination list use API categories for places without photos', async ({ page }) => {
+  await setup(page);
+  const group = { value: 'new-custom-group', propertyTarget: 'group', label: { fa: 'گروه پویا' } };
+  const other = { value: 'other', propertyTarget: 'group', label: { fa: 'سایر' } };
+  const place = { ...pois[1], title: 'مکان بی تصویر', group: group.value, subGroup: other.value };
+  const requests = [];
+  await page.route('**/api/v1/groups/metadata?*', route => route.fulfill({ json: { groups: [group, other] } }));
+  await page.route('**/api/v1/groups/subgroups?*', route => {
+    const category = new URL(route.request().url()).searchParams.get('group');
+    const subGroups = category === group.value ? { [group.value]: [
+      { value: place.subGroupValue, label: { fa: place.title }, geo: { lat: 36.287, lng: 59.615, floor: 0 } }
+    ] } : {};
+    return route.fulfill({ json: { subGroups } });
+  });
+  await page.route('**/api/v1/landmark-places?*', route => {
+    const featured = new URL(route.request().url()).searchParams.has('featured');
+    requests.push(featured);
+    return route.fulfill({ json: { places: { landmarkPlaces: featured ? [] : [place] } } });
+  });
+
+  for (const path of ['mpb', 'mpr']) {
+    await page.goto(`/#/${path}`);
+    const category = label => page.locator('.map-category-item').getByText(label, { exact: true });
+    await category(group.label.fa).click();
+    const marker = page.locator('.maplibregl-marker').getByRole('button', { name: place.title, exact: true });
+    await expect(marker.locator('.landmark-marker-placeholder')).toBeVisible();
+    await category(other.label.fa).click();
+    await expect(marker).toHaveCount(0);
+  }
+  expect(requests).toContain(true);
+  expect(requests).toContain(false);
+
+  await page.locator('.map-destination-input-wrapper').click();
+  await page.locator('.map-category-item2').getByText(group.label.fa, { exact: true }).click();
+  await expect(page.locator('.map-subgroups-search-results').getByText(place.title, { exact: true })).toBeVisible();
+});
+
 test('MPB result cards prefer the thumbnail and fall back to the original photo', async ({ page }) => {
   await setup(page);
   const original = '/storage/uploads/contents/1/images/original.jpg';

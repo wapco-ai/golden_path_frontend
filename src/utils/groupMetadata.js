@@ -56,6 +56,12 @@ export const normalizeGroupMetadata = (groups, language) => {
   }));
 };
 
+export const matchesMapCategory = (place, category) => {
+  if (!category) return true;
+  const property = category.propertyTarget ?? category.property ?? 'group';
+  return category.value != null && place?.[property] === category.value;
+};
+
 const localizeField = (value, language) => {
   if (!value) return value;
 

@@ -1,3 +1,5 @@
+import { LandmarkMarkerPlaceholder } from './LandmarkPhotoMarkers';
+import { matchesMapCategory } from '../../utils/groupMetadata';
 import { observeGps } from '../../utils/locationQuality.js';
 import useMapFloor from '../../hooks/useMapFloor';
 import { getPointFloor, pointIsOnFloor } from '../../utils/floors';
@@ -457,109 +459,16 @@ const Mprc = ({
     isSelectingLocation
   );
 
-  const categoryIdToGroup = {
-    1: 'sahn',
-    'groupCourtyardPlural': 'sahn',
-    'groupCourtyard': 'sahn',
-    'groupCourtyards': 'sahn',
-    2: 'eyvan',
-    'groupEyvanPlural': 'eyvan',
-    'groupEyvan': 'eyvan',
-    3: 'ravaq',
-    'groupRavaqPlural': 'ravaq',
-    'groupRavaq': 'ravaq',
-    4: 'masjed',
-    'groupMosques': 'masjed',
-    'groupMosque': 'masjed',
-    5: 'madrese',
-    'groupSchools': 'madrese',
-    'groupSchool': 'madrese',
-    6: 'khadamat',
-    'groupServices': 'khadamat',
-    'groupService': 'khadamat',
-    7: 'elmi',
-    'groupCulture': 'elmi',
-    'groupCultural': 'elmi',
-    8: 'cemetery',
-    'groupCemetery': 'cemetery',
-    9: 'qrcode',
-    'groupQRScan': 'qrcode',
-    'qr': 'qrcode',
-    'qr-code': 'qrcode',
-    10: 'elevator',
-    'groupElevator': 'elevator',
-    11: 'other',
-    'groupOther': 'other'
-  };
-
-  const normalizeCandidateValues = (values) => {
-    const set = new Set();
-
-    values.forEach((val) => {
-      if (val === undefined || val === null) return;
-      const strVal = String(val);
-      set.add(strVal);
-
-      const mapped = categoryIdToGroup[val] ?? categoryIdToGroup[strVal];
-      if (mapped) {
-        set.add(String(mapped));
-      }
-    });
-
-    return Array.from(set);
-  };
-
   useEffect(() => {
     if (!isSelectingLocation) {
       setSelectedCoords(null);
     }
   }, [isSelectingLocation]);
 
-  const matchesSelectedCategory = useCallback((place) => {
-    if (!selectedCategory) return true;
-
-    const selectedValue = selectedCategory.value
-      ?? selectedCategory.id
-      ?? selectedCategory.categories_leaf_id
-      ?? selectedCategory.code;
-
-    if (selectedValue == null) return true;
-
-    const selectedCandidates = normalizeCandidateValues([
-      selectedValue,
-      selectedCategory.group,
-      selectedCategory.name,
-      selectedCategory.title,
-      selectedCategory.label,
-      selectedCategory.code,
-      categoryIdToGroup[selectedValue]
-    ]);
-
-    const propertyKey =
-      selectedCategory.property ||
-      selectedCategory.property_target ||
-      selectedCategory.propertyTarget;
-
-    const candidateValues = normalizeCandidateValues([
-      propertyKey ? place?.[propertyKey] : undefined,
-      place?.categories_leaf_id,
-      place?.category_leaf_id,
-      place?.categoryLeafId,
-      place?.category_id,
-      place?.categoryId,
-      place?.category,
-      place?.subGroup,
-      place?.subgroup,
-      place?.sub_group,
-      place?.subGroupValue,
-      place?.subgroupValue,
-      place?.sub_group_value,
-      place?.group,
-      place?.nodeFunction
-    ]);
-
-    return selectedCandidates.some((selected) => candidateValues.includes(selected));
-  }, [selectedCategory]);
+  const matchesSelectedCategory = useCallback(
+    place => matchesMapCategory(place, selectedCategory),
+    [selectedCategory]
+  );
 
   const renderLandmarkMarkers = useCallback(() => {
     // Check if landmarks should be displayed
@@ -578,20 +487,19 @@ const Mprc = ({
       return null;
     }
 
-    const seenCoords = new Set();
+    const seen = new Set();
 
     const markers = filteredLandmarks
       .map((place, idx) => {
         const coords = extractPlaceCoordinates(place);
         const imageUrl = getFirstImage(place);
 
-        if (!coords || !imageUrl) return null;
+        if (!coords) return null;
 
         const key = place.id ? `landmark-${place.id}` : `landmark-${idx}`;
-        const coordKey = `${mapFloor}-${coords.lng.toFixed(6)}-${coords.lat.toFixed(6)}`;
-
-        if (seenCoords.has(coordKey)) return null;
-        seenCoords.add(coordKey);
+        const markerKey = place.id ?? `${coords.lng.toFixed(6)}-${coords.lat.toFixed(6)}`;
+        if (seen.has(markerKey)) return null;
+        seen.add(markerKey);
 
         return { key, coords, imageUrl, title: place.title || place.name || place.subGroup, place };
       })
@@ -602,18 +510,20 @@ const Mprc = ({
       const coordsId = `${coords.lat.toFixed(6)},${coords.lng.toFixed(6)}`;
       const isSelected = selectedLandmarkId === coordsId;
 
-      console.log('Landmark render check:', {
-        title,
-        coordsId,
-        selectedLandmarkId,
-        isSelected
-      });
-
       return (
         <Marker key={key} longitude={coords.lng} latitude={coords.lat} anchor="center">
           <div
             className={`image-marker-container ${isSelected ? 'selected' : ''}`}
+            role="button"
+            tabIndex={0}
+            aria-label={title}
             onClick={(event) => handleLandmarkClick(event, place, coords)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                handleLandmarkClick(event, place, coords);
+              }
+            }}
           >
             {/* Landmark pin SVG */}
             <svg width="40" height="47" viewBox="0 0 55 63" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -626,13 +536,11 @@ const Mprc = ({
             </svg>
 
             {/* Image inside pin */}
-            <div
-              className="image-marker-content"
-              style={{
-                backgroundImage: `url(${imageUrl})`,
-              }}
-              aria-label={title || 'landmark'}
-            />
+            {imageUrl ? (
+              <div className="image-marker-content" style={{ backgroundImage: `url(${imageUrl})` }} />
+            ) : (
+              <LandmarkMarkerPlaceholder />
+            )}
 
             {/* Pulsing rings - only shown when selected */}
             {isSelected && (

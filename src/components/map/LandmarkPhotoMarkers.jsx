@@ -108,8 +108,13 @@ export function getLandmarkId(place) {
   return place.id || place.poi_id || place.poiId || place.value || place.subGroupValue;
 }
 
+export function LandmarkMarkerPlaceholder() {
+  return <span className="image-marker-content landmark-marker-placeholder" aria-hidden="true" />;
+}
+
 export default function LandmarkPhotoMarkers({
-  places, floor, isRtl, isPitched, bearing = 0, matchesPlace, selectedPlace, showName, onSelect
+  places, floor, isRtl, isPitched, bearing = 0, matchesPlace, selectedPlace, showName,
+  showWithoutPhoto = false, onSelect
 }) {
   const { current: map } = useMap();
   const [scales, setScales] = useState(() => new Map());
@@ -122,22 +127,24 @@ export default function LandmarkPhotoMarkers({
       if (!pointIsOnFloor(place, floor) || (matchesPlace && !matchesPlace(place))) return [];
       const coords = getCoordinates(place);
       const images = getImages(place);
-      if (!coords || images.length === 0) return [];
+      if (!coords || (!showWithoutPhoto && images.length === 0)) return [];
 
       const coordKey = `${coords.lng.toFixed(6)}-${coords.lat.toFixed(6)}`;
-      if (seen.has(coordKey)) return [];
-      seen.add(coordKey);
+      const id = getLandmarkId(place);
+      const markerKey = showWithoutPhoto ? id ?? coordKey : coordKey;
+      if (seen.has(markerKey)) return [];
+      seen.add(markerKey);
 
       return [{
         coords,
         images,
         title: place.title || place.name || place.label || place.subGroup,
-        id: getLandmarkId(place) || `landmark-${coords.lat}-${coords.lng}`,
+        id: id ?? `landmark-${coords.lat}-${coords.lng}`,
         place,
         world: maplibregl.MercatorCoordinate.fromLngLat(coords)
       }];
     });
-  }, [places, floor, matchesPlace]);
+  }, [places, floor, matchesPlace, showWithoutPhoto]);
 
   useEffect(() => {
     if (!isPitched || !map || markers.length === 0) return;
@@ -264,7 +271,9 @@ export default function LandmarkPhotoMarkers({
                 strokeWidth={isSelected ? "3" : "2"}
               />
             </svg>
-            <LandmarkMarkerImage url={images[0]} title={title} />
+            {images.length > 0
+              ? <LandmarkMarkerImage url={images[0]} title={title} />
+              : <LandmarkMarkerPlaceholder />}
           </div>
         </div>
       </Marker>
