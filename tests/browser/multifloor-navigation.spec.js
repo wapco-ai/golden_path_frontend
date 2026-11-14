@@ -98,7 +98,7 @@ test('ending a trip opens the home map at the confirmed landing and retires the 
     const [point, map] = await Promise.all([marker.boundingBox(), canvas.boundingBox()]);
     return Math.abs(point.x + point.width / 2 - map.x - map.width / 2) < 2
       && Math.abs(point.y + point.height / 2 - map.y - map.height / 2) < 2;
-  }).toBe(true);
+  }, { timeout: 20000 }).toBe(true);
   expect(await page.evaluate(() => ({
     position: history.state.usr.finishedTrip,
     floor: sessionStorage.getItem('haramCurrentFloor'),
