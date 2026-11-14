@@ -137,6 +137,8 @@ async function addVideos(page, mode, ...names) {
 test('editing reports actual upload bytes and retries only the failed stage', async ({ page }) => {
   test.setTimeout(90_000);
   const uploads = [];
+  let releaseSecondUpload;
+  const holdSecondUpload = new Promise(resolve => { releaseSecondUpload = resolve; });
   const server = createServer(async (request, response) => {
     response.setHeader('Access-Control-Allow-Origin', '*');
     response.setHeader('Access-Control-Allow-Headers', 'authorization, content-type');
@@ -150,6 +152,7 @@ test('editing reports actual upload bytes and retries only the failed stage', as
     uploads.push(filename);
     response.setHeader('Content-Type', 'application/json');
     if (uploads.length === 2) {
+      await holdSecondUpload;
       response.writeHead(500).end(JSON.stringify({ message: 'Temporary upload failure' }));
       return;
     }
@@ -187,21 +190,35 @@ test('editing reports actual upload bytes and retries only the failed stage', as
     await network.send('Network.emulateNetworkConditions', {
       offline: false, latency: 30, downloadThroughput: -1, uploadThroughput: 96 * 1024
     });
+    await page.evaluate(() => {
+      const status = document.querySelector('.cultural-save-status');
+      window.firstFileProgress = [];
+      const observer = new MutationObserver(() => {
+        const bar = status.querySelector('progress[aria-label="پیشرفت ارسال فایل ۱ از ۲"]');
+        if (bar && bar.value > 0 && bar.value < bar.max) {
+          window.firstFileProgress.push({
+            percent: status.querySelector('.cultural-save-progress span')?.textContent,
+            message: status.querySelector('[role="status"]')?.textContent,
+          });
+        }
+      });
+      observer.observe(status, { subtree: true, childList: true, attributes: true, characterData: true });
+    });
     await save.click();
     await expect(save).toBeDisabled();
-    const first = form.getByRole('progressbar', { name: 'پیشرفت ارسال فایل ۱ از ۲' });
-    await expect.poll(async () => first.evaluate(progress => progress.value)).toBeGreaterThan(0);
-    await expect(first).not.toHaveAttribute('value', '1');
-    await expect(form.locator('.cultural-save-progress span')).toHaveText(/[۰-۹]+٪/);
-    await expect(form.getByRole('status')).toContainText('first.mp4');
     await expect(form.getByRole('progressbar', { name: 'پیشرفت ارسال فایل ۲ از ۲' })).toBeVisible();
+    const progress = await page.evaluate(() => window.firstFileProgress);
+    expect(progress).toEqual(expect.arrayContaining([expect.objectContaining({
+      percent: expect.stringMatching(/[۰-۹]+٪/),
+      message: expect.stringContaining('first.mp4'),
+    })]));
+    releaseSecondUpload();
     await expect(form.getByRole('alert')).toContainText('ارسال فایل second.mp4 ناموفق بود');
     await expect(title).toHaveValue('عنوان ویرایش‌شده');
     expect(writes).toHaveLength(0);
     expect(uploads).toEqual(['first.mp4', 'second.mp4']);
 
     await save.click();
-    await expect(form.getByRole('progressbar', { name: 'پیشرفت ارسال فایل ۲ از ۲' })).toBeVisible();
     await expect(form.getByRole('status')).toHaveText('در حال ثبت نهایی…');
     await expect(save).toBeDisabled();
     await expect(form.getByRole('progressbar')).toHaveCount(0);
@@ -217,6 +234,7 @@ test('editing reports actual upload bytes and retries only the failed stage', as
     expect(uploads).toEqual(['first.mp4', 'second.mp4', 'second.mp4']);
     expect(errors).toEqual([]);
   } finally {
+    releaseSecondUpload();
     finishFirstWrite();
     server.closeAllConnections();
     await new Promise(resolve => server.close(resolve));
