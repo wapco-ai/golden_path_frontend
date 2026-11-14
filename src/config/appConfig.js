@@ -13,43 +13,29 @@ const inferHostedBaseUrl = () => {
   return null;
 };
 
-const inferHostedTileBaseUrl = () => {
-  if (typeof window === 'undefined' || !window?.location?.origin) {
-    return 'http://localhost:8080/tiles';
-  }
-
-  const { origin, hostname } = window.location;
-
-  if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
-    return `${origin.replace(/\/$/, '')}/tiles`;
-  }
-
-  return 'http://localhost:8080/tiles';
-};
-
-const defaultApiBaseUrl = inferHostedBaseUrl() || 'http://localhost:8080';
-const defaultTileBaseUrl = inferHostedTileBaseUrl();
-const defaultRoutingRouteUrl = `${defaultApiBaseUrl}/api/v1/routing/route`;
-const defaultLanguagesUrl = `${defaultApiBaseUrl}/api/v1/languages`;
-const defaultLandmarkPlacesUrl = `${defaultApiBaseUrl}/api/v1/landmark-places`;
-const defaultLandmarkViewImageUrl = `${defaultApiBaseUrl}/api/v1/landmark-view-image`;
-const defaultGroupMetadataUrl = `${defaultApiBaseUrl}/api/v1/groups/metadata`;
-const defaultGroupSubGroupsUrl = `${defaultApiBaseUrl}/api/v1/groups/subgroups`;
-const defaultUserFeedbackUrl = `${defaultApiBaseUrl}/api/v1/feedbacks`;
-const defaultAdminSupportFeedbacksUrl = `${defaultApiBaseUrl}/api/v1/admin/support-feedbacks`;
-const defaultSupportFeedbackUrl = `${defaultApiBaseUrl}/api/v1/support/feedback`;
-const defaultAdminVanBaseUrl = `${defaultApiBaseUrl}/api/v1/admin/van`;
-const defaultAdminCommentsBaseUrl = `${defaultApiBaseUrl}/api/v1/admin/comments`;
-const defaultAdminUsersBaseUrl = `${defaultApiBaseUrl}/api/v1/admin/users`;
-const defaultTempBlockAreasBaseUrl = `${defaultApiBaseUrl}/api/v1/admin/temp-block-areas`;
-const defaultDestinationsUrl = `${defaultApiBaseUrl}/api/v1/destinations`;
-const defaultLocationSharesUrl = `${defaultApiBaseUrl}/api/v1/location-shares`;
+const apiBaseUrl = (import.meta?.env?.VITE_API_BASE_URL?.trim() || inferHostedBaseUrl() || 'http://localhost:8080').replace(/\/$/, '');
+const defaultTileBaseUrl = apiBaseUrl + '/tiles';
+const defaultRoutingRouteUrl = `${apiBaseUrl}/api/v1/routing/route`;
+const defaultLanguagesUrl = `${apiBaseUrl}/api/v1/languages`;
+const defaultLandmarkPlacesUrl = `${apiBaseUrl}/api/v1/landmark-places`;
+const defaultLandmarkViewImageUrl = `${apiBaseUrl}/api/v1/landmark-view-image`;
+const defaultGroupMetadataUrl = `${apiBaseUrl}/api/v1/groups/metadata`;
+const defaultGroupSubGroupsUrl = `${apiBaseUrl}/api/v1/groups/subgroups`;
+const defaultUserFeedbackUrl = `${apiBaseUrl}/api/v1/feedbacks`;
+const defaultAdminSupportFeedbacksUrl = `${apiBaseUrl}/api/v1/admin/support-feedbacks`;
+const defaultSupportFeedbackUrl = `${apiBaseUrl}/api/v1/support/feedback`;
+const defaultAdminVanBaseUrl = `${apiBaseUrl}/api/v1/admin/van`;
+const defaultAdminCommentsBaseUrl = `${apiBaseUrl}/api/v1/admin/comments`;
+const defaultAdminUsersBaseUrl = `${apiBaseUrl}/api/v1/admin/users`;
+const defaultTempBlockAreasBaseUrl = `${apiBaseUrl}/api/v1/admin/temp-block-areas`;
+const defaultDestinationsUrl = `${apiBaseUrl}/api/v1/destinations`;
+const defaultLocationSharesUrl = `${apiBaseUrl}/api/v1/location-shares`;
 // const defaultMbtilesSatelliteTilesUrl = 'http://localhost:8088/services/gsm/tiles/{z}/{x}/{y}.jpg';
-const defaultMbtilesSatelliteTilesUrl = `${defaultApiBaseUrl}/tms/services/gsm/tiles/{z}/{x}/{y}.jpg`;
-const defaultMbtilesOfflineOsmhTilesUrl = `${defaultApiBaseUrl}/tms/services/osmh/tiles/{z}/{x}/{y}.png`;
+const defaultMbtilesSatelliteTilesUrl = `${apiBaseUrl}/tms/services/gsm/tiles/{z}/{x}/{y}.jpg`;
+const defaultMbtilesOfflineOsmhTilesUrl = `${apiBaseUrl}/tms/services/osmh/tiles/{z}/{x}/{y}.png`;
 
 const appConfig = {
-  apiBaseUrl: (import.meta?.env?.VITE_API_BASE_URL?.trim() || defaultApiBaseUrl).replace(/\/$/, ''),
+  apiBaseUrl,
   tileBaseUrl: (import.meta?.env?.VITE_TILE_BASE_URL?.trim() || defaultTileBaseUrl).replace(/\/$/, ''),
   routingRouteUrl: (import.meta?.env?.VITE_ROUTING_ROUTE_URL?.trim() || defaultRoutingRouteUrl).replace(/\/$/, ''),
   languagesUrl: (import.meta?.env?.VITE_LANGUAGES_URL?.trim() || defaultLanguagesUrl).replace(/\/$/, ''),
@@ -74,7 +60,7 @@ const appConfig = {
   googleMapsDirectionsBaseUrl: import.meta?.env?.VITE_GOOGLE_MAPS_DIRECTIONS_BASE_URL?.trim() || 'https://www.google.com/maps/dir/',
   ttsAuthUrl: import.meta?.env?.VITE_TTS_AUTH_URL?.trim() || 'https://api.aipaa.ir/auth/token/',
   ttsRequestUrl: import.meta?.env?.VITE_TTS_REQUEST_URL?.trim() || 'https://api.aipaa.ir/api/v1/voice/tts-file-response/?expire-file=yes',
-  shrineEventsBaseUrl: import.meta?.env?.VITE_SHRINE_EVENTS_BASE_URL?.trim() || `${defaultApiBaseUrl}/api/v1/kouthar/`,
+  shrineEventsBaseUrl: import.meta?.env?.VITE_SHRINE_EVENTS_BASE_URL?.trim() || `${apiBaseUrl}/api/v1/kouthar/`,
   doorBoundaryToleranceMeters: Number(import.meta?.env?.VITE_DOOR_BOUNDARY_TOLERANCE ?? '') || 4
 };
 

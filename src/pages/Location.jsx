@@ -662,7 +662,7 @@ const Location = () => {
 
   // Video and PDF handlers
   const handleVideoClick = (videoContent) => {
-    const videoUrl = resolveMediaUrl(videoContent, mediaOptions);
+    const videoUrl = resolveMediaUrl(videoContent.mediaUrl || videoContent, mediaOptions);
     if (!videoUrl) {
       toast.error(intl.formatMessage({ id: 'videoLoadError' }));
       return;
@@ -688,7 +688,7 @@ const Location = () => {
   };
 
   const handlePdfClick = (pdfContent) => {
-    const pdfUrl = resolveMediaUrl(pdfContent, mediaOptions);
+    const pdfUrl = resolveMediaUrl(pdfContent.mediaUrl || pdfContent, mediaOptions);
     if (!pdfUrl) {
       return;
     }

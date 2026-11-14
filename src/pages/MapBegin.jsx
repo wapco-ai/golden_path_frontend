@@ -634,28 +634,6 @@ const MapBeginPage = () => {
     return placeId && storedId.includes(placeId);
   };
 
-  useEffect(() => {
-    fetch(`./data/routing-data.json`)
-      .then(res => res.json())
-      .then(data => {
-        setRoutingData(prev => {
-          const mergedPlaces = {
-            ...(data.places || {}),
-            ...(prev?.places || {}),
-            landmarkPlaces: prev?.places?.landmarkPlaces ?? data.places?.landmarkPlaces ?? []
-          };
-
-          return {
-            ...data,
-            ...prev,
-            places: mergedPlaces
-          };
-        });
-        setShrineEvents(data.places?.shrineEvents || []);
-      })
-      .catch(err => console.error('Failed to load routing-data.json', err));
-  }, []);
-
   const showFeaturedPlaces = isFeaturedZoom && !selectedCategory;
 
   useEffect(() => {
@@ -706,9 +684,9 @@ const MapBeginPage = () => {
         setRoutingData(prev => {
           const mergedPlaces = {
             ...(prev?.places || {}),
-            landmarkPlaces: landmarksWithImages.length ? landmarksWithImages : prev?.places?.landmarkPlaces || [],
-            mostVisited: topRatedLandmarks.length ? topRatedLandmarks : prev?.places?.mostVisited || [],
-            nearest: nearestLandmarks.length ? nearestLandmarks : prev?.places?.nearest || []
+            landmarkPlaces: landmarksWithImages,
+            mostVisited: topRatedLandmarks,
+            nearest: nearestLandmarks
           };
 
           return {
@@ -873,9 +851,7 @@ const MapBeginPage = () => {
   };
 
 
-  const eventsToShow = shrineEvents.length > 0
-    ? shrineEvents
-    : routingData?.places?.shrineEvents || [];
+  const eventsToShow = shrineEvents;
 
   const [isEventsModalOpen, setIsEventsModalOpen] = useState(false);
   const [activePlacesModal, setActivePlacesModal] = useState(null);
@@ -1331,7 +1307,7 @@ const MapBeginPage = () => {
           )}
 
           {/* Shrine Events */}
-          {routingData && eventsToShow.length > 0 && (
+          {eventsToShow.length > 0 && (
             <div className="shrine-events-section">
               <div className="shrine-events-header">
                 <h2 className="shrine-events-title">
@@ -1513,7 +1489,7 @@ const MapBeginPage = () => {
             </div>
           )}
           {/* Landmarks */}
-          {routingData && (
+          {routingData?.places?.landmarkPlaces?.length > 0 && (
             <div className="routing-places-section">
               <div className="section-header">
                 <h2 className="section-title6">
@@ -1614,7 +1590,7 @@ const MapBeginPage = () => {
             </div>
           )}
           {/* Most visited places*/}
-          {routingData && (
+          {routingData?.places?.mostVisited?.length > 0 && (
             <div className="routing-places-section">
               <div className="section-header">
                 <h2 className="section-title6">
@@ -1712,7 +1688,7 @@ const MapBeginPage = () => {
             </div>
           )}
           {/* Nearest Places*/}
-          {routingData && (
+          {routingData?.places?.nearest?.length > 0 && (
             <div className="routing-places-section">
               <div className="section-header">
                 <h2 className="section-title6">

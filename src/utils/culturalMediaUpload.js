@@ -1,4 +1,4 @@
-import { resolveMediaUrl } from './locationMedia.js';
+import { publicUploadPath, resolveMediaUrl } from './locationMedia.js';
 
 const MiB = 1024 * 1024;
 
@@ -111,7 +111,7 @@ export function buildCulturalAttachmentPayload(files = []) {
       type: kind === 'text' ? 'file' : kind,
       mime: file.mime || file.type || 'application/octet-stream',
       path,
-      url: file.url || path,
+      url: publicUploadPath(path) || file.url || path,
       metadata: culturalFileMetadata(file),
       bucket: file.bucket,
       orientation: file.orientation ?? null,
