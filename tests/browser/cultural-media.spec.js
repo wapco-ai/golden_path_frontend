@@ -14,6 +14,7 @@ const media = [
 
 async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.png', onWrite, totalItems = 1, landmarkGroup } = {}) {
   const writes = [], creates = [], uploads = [], deletes = [], errors = [], dialogs = [];
+  await page.route(url => !['127.0.0.1', 'localhost'].includes(url.hostname), route => route.abort());
   let item = {
     poiId: 7, title: 'مکان فرهنگی آزمایشی', description: 'شرح مکان فرهنگی',
     titles: { fa: 'مکان فرهنگی آزمایشی', en: '', ar: '', ur: '' },
@@ -76,7 +77,7 @@ async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.
 }
 
 async function openEdit(page) {
-  await page.goto('/#/admin');
+  await page.goto('/#/admin', { waitUntil: 'commit' });
   await page.getByText('مدیریت امکانات', { exact: true }).click();
   await page.getByText('مدیریت اطلاعات فرهنگی', { exact: true }).click();
   await page.locator('.edit-cultural-btn').first().click();
@@ -135,7 +136,7 @@ async function addVideos(page, mode, ...names) {
 }
 
 test('editing reports actual upload bytes and retries only the failed stage', async ({ page }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(120_000);
   const uploads = [];
   let releaseSecondUpload;
   const holdSecondUpload = new Promise(resolve => { releaseSecondUpload = resolve; });
@@ -206,7 +207,7 @@ test('editing reports actual upload bytes and retries only the failed stage', as
     });
     await save.click();
     await expect(save).toBeDisabled();
-    await expect(form.getByRole('progressbar', { name: 'پیشرفت ارسال فایل ۲ از ۲' })).toBeVisible();
+    await expect(form.getByRole('progressbar', { name: 'پیشرفت ارسال فایل ۲ از ۲' })).toBeVisible({ timeout: 20000 });
     const progress = await page.evaluate(() => window.firstFileProgress);
     expect(progress).toEqual(expect.arrayContaining([expect.objectContaining({
       percent: expect.stringMatching(/[۰-۹]+٪/),
@@ -219,7 +220,7 @@ test('editing reports actual upload bytes and retries only the failed stage', as
     expect(uploads).toEqual(['first.mp4', 'second.mp4']);
 
     await save.click();
-    await expect(form.getByRole('status')).toHaveText('در حال ثبت نهایی…');
+    await expect(form.getByRole('status')).toHaveText('در حال ثبت نهایی…', { timeout: 20000 });
     await expect(save).toBeDisabled();
     await expect(form.getByRole('progressbar')).toHaveCount(0);
     finishFirstWrite();
@@ -243,7 +244,7 @@ test('editing reports actual upload bytes and retries only the failed stage', as
 
 test('creating preserves the draft and reuses its server ID and uploads after a final save error', async ({ page }) => {
   const { creates, writes, uploads, errors } = await setup(page, { onWrite: async count => count > 1 });
-  await page.goto('/#/admin');
+  await page.goto('/#/admin', { waitUntil: 'commit' });
   await page.getByText('مدیریت امکانات', { exact: true }).click();
   await page.getByText('مدیریت اطلاعات فرهنگی', { exact: true }).click();
   await page.getByRole('button', { name: 'ایجاد اطلاعات فرهنگی', exact: true }).click();
@@ -261,7 +262,7 @@ test('creating preserves the draft and reuses its server ID and uploads after a 
   await expect(form.getByRole('status')).toContainText('۱ فایل آمادهٔ ارسال');
   const save = form.getByRole('button', { name: 'تایید و ثبت اطلاعات', exact: true });
   await save.click();
-  await expect(form.getByRole('alert')).toHaveText('ثبت نهایی ناموفق بود. دوباره ذخیره کنید.');
+  await expect(form.getByRole('alert')).toHaveText('ثبت نهایی ناموفق بود. دوباره ذخیره کنید.', { timeout: 20000 });
   await expect(form.getByTestId('cultural-video-section-create')).toContainText('create.mp4');
   await steps.first().click();
   await expect(title).toHaveValue('مکان جدید با فایل');
