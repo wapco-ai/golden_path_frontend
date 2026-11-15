@@ -323,6 +323,8 @@
   "profileUpdatedSuccess": "Profile updated successfully!",
   "entry": "Entry",
   "confirmEntry": "Confirm Entry",
+  "mapPrivateAreaResult": "Private area",
+  "noPrivateAreaRoute": "No accessible route was found near this area.",
   "mapAreaResult": "Area",
   "mapNoAreaEntries": "There are no recorded entrances for this area.",
   "mapEntryUnknownDestination": "Destination unknown",

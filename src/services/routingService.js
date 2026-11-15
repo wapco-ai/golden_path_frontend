@@ -26,7 +26,10 @@ const buildCoordinatePayload = (point, fallbackFloor = null) => {
 const buildRequestBody = ({ origin, destination, mode, gender, lang, maxAlternatives, floor, allowNearbyDestination }) => {
   const normalizedFloor = normalizeFloor(floor);
   const originPayload = buildCoordinatePayload(origin, normalizedFloor);
-  const destinationPayload = buildCoordinatePayload(destination, normalizedFloor);
+  const destinationPayload = destination?.privateArea
+    ? { type: 'privateArea', id: destination.areaId,
+      floor: getPointFloor(destination, normalizedFloor) ?? undefined, name: destination.name }
+    : buildCoordinatePayload(destination, normalizedFloor);
 
   if (!originPayload || !destinationPayload) {
     throw new Error('Missing origin or destination coordinates');

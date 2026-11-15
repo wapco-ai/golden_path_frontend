@@ -323,6 +323,8 @@
   "profileUpdatedSuccess": "پروفایل با موفقیت به‌روزرسانی شد!",
   "entry": "ورودی",
   "confirmEntry": "تأیید ورودی",
+  "mapPrivateAreaResult": "محدودهٔ خصوصی",
+  "noPrivateAreaRoute": "مسیر قابل‌دسترسی تا نزدیکی این محدوده پیدا نشد.",
   "mapAreaResult": "محدوده",
   "mapNoAreaEntries": "برای این محدوده ورودی ثبت نشده است.",
   "mapEntryUnknownDestination": "مقصد در نامشخص است",

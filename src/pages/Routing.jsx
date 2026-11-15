@@ -552,7 +552,7 @@ const RoutingPage = () => {
     if (active.routeGeo !== routeGeo || active.destination !== destination
       || active.transportMode !== transportMode || active.gender !== gender) return;
     // The server may find a nearby start, but correction must keep the requested endpoint.
-    if (result.geo?.properties?.nearbyDestination) return 'noRoute';
+    if (result.geo?.properties?.nearbyDestination && !destination?.privateArea) return 'noRoute';
     if (!getRouteCoordinates(result.geo).length || !result.steps.length) return 'noRoute';
 
     const [lat, lng] = newOrigin.coordinates;

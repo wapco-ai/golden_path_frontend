@@ -310,6 +310,7 @@ const FinalSearch = () => {
     const attemptKey = JSON.stringify({
       origin: origin.coordinates, originFloor: getPointFloor(origin), originDoor: doorEndpoint(origin),
       destination: destination.coordinates, destinationFloor: getPointFloor(destination), destinationDoor: doorEndpoint(destination),
+      privateAreaId: destination.privateArea ? destination.areaId : null,
       transportMode,
       gender: selectedGender
     });
@@ -337,6 +338,8 @@ const FinalSearch = () => {
       hasStoredRoute &&
       JSON.stringify(doorEndpoint(origin)) === JSON.stringify(doorEndpoint(storedOrigin)) &&
       JSON.stringify(doorEndpoint(destination)) === JSON.stringify(doorEndpoint(storedDestination)) &&
+      (destination.privateArea ? destination.areaId : null) ===
+        (storedDestination?.privateArea ? storedDestination.areaId : null) &&
       sameCoordinates(origin.coordinates, storedOrigin?.coordinates) &&
       sameCoordinates(destination.coordinates, storedDestination?.coordinates) &&
       Number(getPointFloor(origin)) === Number(getPointFloor(storedOrigin)) &&
@@ -423,7 +426,7 @@ const FinalSearch = () => {
           return;
         }
         console.warn('routing service failed', err);
-        if (err.status) { clearPersistedRouteData(); setLastFailedKey(attemptKey); toast.error(intl.formatMessage({ id: err.status >= 500 ? 'generalErrorMessage' : 'noRouteFound' })); return; }
+        if (err.status) { clearPersistedRouteData(); setLastFailedKey(attemptKey); toast.error(intl.formatMessage({ id: err.status >= 500 ? 'generalErrorMessage' : destination.privateArea && err.status === 404 ? 'noPrivateAreaRoute' : 'noRouteFound' })); return; }
       } finally {
         if (isMounted) setIsRequestingRoute(false);
       }

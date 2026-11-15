@@ -741,3 +741,42 @@ for (const endpoint of ['origin', 'destination']) {
     });
   });
 }
+
+
+test('private area is a destination only and routes directly by ID without an entrance picker', async ({ page }) => {
+  test.setTimeout(90000);
+  const { areaRequests } = await setup(page);
+  const area = { id: 'area-45', kind: 'area', areaId: 45, privateArea: true, title: 'کارگاه آزمون', floor: 1, coordinates: [36.288, 59.616] };
+  const searches = [];
+  await page.route('**/api/v1/landmark-places**', route => {
+    const params = new URL(route.request().url()).searchParams;
+    const term = params.get('search');
+    if (term) searches.push(Object.fromEntries(params));
+    const places = term === area.title ? (params.get('include_private_areas') === '1' ? [area] : [])
+      : term ? [pois[0]] : [];
+    return route.fulfill({ json: { places: { landmarkPlaces: places } } });
+  });
+  let body;
+  await page.route('**/api/v1/routing/route', route => {
+    body = route.request().postDataJSON();
+    return route.fulfill({ status: 404, json: { status: 'NO_PATH' } });
+  });
+
+  await page.goto('/#/mpr', { waitUntil: 'domcontentloaded' });
+  await page.locator('.map-current-location').click();
+  const input = page.locator('.map-search-modal input');
+  await input.fill(area.title);
+  await expect.poll(() => searches.at(-1)?.search).toBe(area.title);
+  expect(searches.at(-1).include_private_areas).toBeUndefined();
+  await input.fill(pois[0].title);
+  await page.getByText(pois[0].title, { exact: true }).click();
+  await page.locator('.map-destination-input-wrapper').click();
+  await input.fill(area.title);
+  const row = page.locator('.map-destination-list li').filter({ hasText: area.title });
+  await expect(row).toContainText('محدودهٔ خصوصی');
+  await row.click();
+  await expect(page.locator('.map-entry-modal')).toHaveCount(0);
+  await expect.poll(() => body?.destination).toEqual({ type: 'privateArea', id: 45, floor: 1, name: area.title });
+  await expect(page.getByText('مسیر قابل‌دسترسی تا نزدیکی این محدوده پیدا نشد.')).toBeVisible();
+  expect(areaRequests).toEqual([]);
+});

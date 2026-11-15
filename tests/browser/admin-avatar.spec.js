@@ -24,7 +24,7 @@ async function setup(page) {
   });
   await page.route('**/*', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname;
-    if (url.hostname === '127.0.0.1' && ['5173', '5179'].includes(url.port)) return route.continue();
+    if (url.origin === new URL(test.info().project.use.baseURL).origin) return route.continue();
     if (url.hostname !== 'localhost' || url.port !== '8080') return route.abort();
     const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS' };
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });

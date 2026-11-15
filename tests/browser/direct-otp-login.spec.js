@@ -24,7 +24,7 @@ async function setup(page, options = {}) {
   // Tests exercise only the local application's public contract; no employer call is made.
   await page.route('**/*', async (route) => {
     const url = new URL(route.request().url());
-    if (url.hostname === '127.0.0.1' && ['5173', '5179'].includes(url.port)) return route.continue();
+    if (url.origin === new URL(test.info().project.use.baseURL).origin) return route.continue();
     if (url.hostname === 'fonts.googleapis.com') return route.fulfill({ contentType: 'text/css', body: '' });
     if (url.hostname !== 'localhost' || url.port !== '8080') {
       calls.external.push(url.origin);
