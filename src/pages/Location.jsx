@@ -44,6 +44,14 @@ const fileMap = {
 
 const mediaOptions = { apiBaseUrl: appConfig.apiBaseUrl, fileMap };
 
+const placeHeadingByType = new Map([
+  ['ziyarati', 'pilgrimagePlaceHeading'],
+  ['farhangi', 'visitingPlaceHeading'],
+  ['tarikhi', 'visitingPlaceHeading'],
+  ['memari', 'visitingPlaceHeading'],
+  ['khadamati', 'placeInformationHeading']
+]);
+
 const placeHeadingByGroup = new Map([
   ['rozemonavare', 'pilgrimagePlaceHeading'],
   ['sahn', 'pilgrimagePlaceHeading'],
@@ -754,8 +762,8 @@ const Location = () => {
 
             // Fetch landmarks and search by title
             const landmarksResponse = await fetchLandmarkPlaces({
-              language
-              // Don't pass poiId - get all landmarks
+              language,
+              search: decodedTitle
             });
 
             const allLandmarks = Array.isArray(landmarksResponse?.places?.landmarkPlaces)
@@ -908,6 +916,10 @@ const Location = () => {
     );
   }
 
+  const headingId = locationData.placeType
+    ? placeHeadingByType.get(locationData.placeType)
+    : placeHeadingByGroup.get(locationData.group);
+
   return (
     <div className="location-page">
       {/* Updated Carousel */}
@@ -971,7 +983,7 @@ const Location = () => {
           <div className="line left-line"></div>
           <div className="circle"></div>
           <span>
-            <FormattedMessage id={placeHeadingByGroup.get(locationData.group) ?? 'placeInformationHeading'} />
+            <FormattedMessage id={headingId ?? 'placeInformationHeading'} />
           </span>
           <div className="line right-line"></div>
         </div>
