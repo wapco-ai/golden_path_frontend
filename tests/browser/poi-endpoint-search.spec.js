@@ -734,7 +734,7 @@ for (const endpoint of ['origin', 'destination']) {
     expect(requests[0][endpoint]).toMatchObject({ type: 'door', accessId: 50581, areaId: 1000006, floor: 0 });
 
     const accepted = page.waitForEvent('dialog').then(dialog => dialog.accept());
-    await page.reload({ waitUntil: 'commit' });
+    await page.getByRole('button', { name: 'ویلچر', exact: true }).click();
     await accepted;
     await expect.poll(() => requests.at(-1)?.[endpoint]).toMatchObject({
       type: 'door', accessId: 51210, areaId: 1000006, floor: 0
