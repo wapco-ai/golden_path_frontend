@@ -439,6 +439,7 @@ const MapBeginPage = () => {
     const locationData = {
       floor: getPointFloor(place),
       group: place.group,
+      placeType: place.placeType,
       label: place.title || place.name || place.label || intl.formatMessage({ id: 'mapSelectedLocation' }),
       img: place.image ? [place.image] :
         place.images ? (Array.isArray(place.images) ? place.images : [place.images]) :
@@ -501,6 +502,7 @@ const MapBeginPage = () => {
       setSelectedLocation({
         floor: mapFloor,
         group: landmark.group,
+        placeType: landmark.placeType,
         label: landmark.label || landmark.name || intl.formatMessage({ id: 'mapSelectedLocation' }),
         img: images,
         address: landmark.address,
@@ -818,6 +820,7 @@ const MapBeginPage = () => {
         setSelectedLocation({
           floor: getPointFloor(foundLandmark),
           group: foundLandmark.group,
+          placeType: foundLandmark.placeType,
           label: foundLandmark.label || foundLandmark.name || foundLandmark.title || intl.formatMessage({ id: 'mapSelectedLocation' }),
           img: images,
           address: foundLandmark.address,

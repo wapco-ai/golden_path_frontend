@@ -232,6 +232,7 @@ const RouteOverview = () => {
           title: landmark.title || landmark.name,
           name: landmark.title || landmark.name,
           group: landmark.group,
+          placeType: landmark.placeType,
           label: landmark.title || landmark.name,
           location: landmark.address || '',
           address: landmark.address || '',
