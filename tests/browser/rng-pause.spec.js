@@ -291,14 +291,21 @@ test('failed recalculation retains the route and a delayed GPS response cannot r
   await expect(resume(page)).toBeEnabled();
   await expect(state(page)).toHaveAttribute('data-navigation-mode', 'paused');
   expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem('routeGeo')))).toEqual(routeGeo);
-  await page.evaluate(() => { window.gpsPending = true; });
+  await page.evaluate(() => {
+    window.gpsPending = true;
+    window.resumeGps = undefined;
+  });
   await resume(page).click();
   await expect(resume(page)).toBeDisabled();
+  await page.waitForFunction(() => typeof window.resumeGps === 'function');
+  const pendingGps = await page.evaluateHandle(() => window.resumeGps);
   await page.locator('.expand-button').click();
   await page.locator('.start-routing-button').click();
-  await page.evaluate(() => window.resumeGps({ timestamp: Date.now(), coords: {
+  await expect(page).toHaveURL(/#\/mpb$/);
+  await pendingGps.evaluate(deliver => deliver({ timestamp: Date.now(), coords: {
     latitude: 36.288, longitude: 59.615, accuracy: 5 } }));
-  await expect(state(page)).toHaveAttribute('data-navigation-mode', 'preview');
+  await expect(page).toHaveURL(/#\/mpb$/);
+  await expect(state(page)).toHaveCount(0);
   expect(await page.evaluate(() => sessionStorage.getItem('rngPausedNavigation'))).toBeNull();
 });
 
