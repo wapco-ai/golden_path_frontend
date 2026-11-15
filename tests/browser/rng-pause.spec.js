@@ -298,8 +298,12 @@ test('failed recalculation retains the route and a delayed GPS response cannot r
   await page.locator('.start-routing-button').click();
   await page.evaluate(() => window.resumeGps({ timestamp: Date.now(), coords: {
     latitude: 36.288, longitude: 59.615, accuracy: 5 } }));
-  await expect(state(page)).toHaveAttribute('data-navigation-mode', 'preview');
-  expect(await page.evaluate(() => sessionStorage.getItem('rngPausedNavigation'))).toBeNull();
+  await expect(page).toHaveURL(/#\/mpb$/);
+  await expect(state(page)).toHaveCount(0);
+  expect(await page.evaluate(() => ({
+    paused: sessionStorage.getItem('rngPausedNavigation'),
+    route: sessionStorage.getItem('routeGeo')
+  }))).toEqual({ paused: null, route: null });
 });
 
 test('pending speech cannot play after pause, and resume speaks the current instruction', async ({ page }) => {
