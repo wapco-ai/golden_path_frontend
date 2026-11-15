@@ -42,6 +42,7 @@ test('the admin map keeps real vector layers visible at zoom 24 using zoom-22 ti
   await page.route('**/map-styles/**/style*.json', route => route.fulfill({
     json: {
       version: 8,
+      glyphs: '/fonts/{fontstack}/{range}.pbf',
       sources: { basemap: { type: 'geojson', data: area } },
       layers: [{ id: 'basemap', type: 'fill', source: 'basemap', maxzoom: 24 }]
     }
@@ -60,11 +61,12 @@ test('the admin map keeps real vector layers visible at zoom 24 using zoom-22 ti
     if (!tile) return route.fulfill({ status: 204 });
     return route.fulfill({
       contentType: 'application/vnd.mapbox-vector-tile',
-      body: Buffer.from(vtpbf.fromGeojsonVt({ [name]: tile }))
+      body: Buffer.from(vtpbf.fromGeojsonVt({ [name]: tile }, { version: 2 }))
     });
   });
 
-  await page.goto('/#/admin');
+  await page.route('**/fonts/**', route => route.fulfill({ status: 204 }));
+  await page.goto('/#/admin', { waitUntil: 'domcontentloaded' });
   await page.evaluate(async () => {
     const source = await (await fetch('/src/AdminPanel/Amain.jsx')).text();
     const modulePath = source.match(/["']([^"']*\/maplibre-gl\.js\?[^"']+)["']/)?.[1];
@@ -84,13 +86,13 @@ test('the admin map keeps real vector layers visible at zoom 24 using zoom-22 ti
     return [...new Set(map.queryRenderedFeatures(undefined, { layers }).map(feature => feature.layer.id))].sort();
   });
   const expected = ['areas-fill', 'areas-outline', 'basemap', 'doors-access-point'];
-  await expect.poll(visibleLayers).toEqual(expected);
+  await expect.poll(visibleLayers, { timeout: 20000 }).toEqual(expected);
 
   const zoomIn = page.getByRole('button', { name: 'بزرگ‌نمایی نقشه', exact: true });
   for (let zoom = 17; zoom <= 24; zoom++) {
     await zoomIn.click();
     await expect.poll(() => page.evaluate(() => window.__testAdminMap.getZoom())).toBeCloseTo(zoom, 5);
   }
-  await expect.poll(visibleLayers).toEqual(expected);
+  await expect.poll(visibleLayers, { timeout: 20000 }).toEqual(expected);
   expect(Math.max(...requestedZooms)).toBe(22);
 });

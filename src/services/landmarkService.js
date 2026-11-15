@@ -86,6 +86,7 @@ export const fetchLandmarkPlaces = async ({
   poiId,
   search,
   includeExactAreas,
+  includePrivateAreas,
   limit,
   featured,
   signal
@@ -109,6 +110,7 @@ export const fetchLandmarkPlaces = async ({
 
   if (includeExactAreas) {
     params.set('include_exact_areas', '1');
+    if (includePrivateAreas) params.set('include_private_areas', '1');
   }
 
   if (featured != null) {

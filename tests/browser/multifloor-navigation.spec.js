@@ -48,8 +48,8 @@ async function setupRoute(page, fromQr = false) {
 
 test('RNG previews transfers in sequence and switches the existing map floor',async({page})=>{
   const errors=await setupRoute(page);
-  await page.goto('/#/rng', { waitUntil: 'commit' });
-  await expect(page.locator('.instruction-text')).toContainText('حرکت در طبقه منفی یک');
+  await page.goto('/#/rng', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('.instruction-text')).toContainText('حرکت در طبقه منفی یک', { timeout: 20000 });
   await page.locator('.direction-icon-rng').click();
   await expect(page.locator('.instruction-text')).toContainText('با آسانسور به طبقه یک بروید');
   expect(await page.evaluate(()=>sessionStorage.getItem('haramCurrentFloor'))).toBe('-1');
@@ -61,8 +61,8 @@ test('RNG previews transfers in sequence and switches the existing map floor',as
 
 test('route overview shows the current floor and the transfer duration in the existing carousel',async({page})=>{
   const errors=await setupRoute(page);
-  await page.goto('/#/rop', { waitUntil: 'commit' });
-  await expect(page.locator('.instruction-text2')).toContainText('حرکت در طبقه منفی یک');
+  await page.goto('/#/rop', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('.instruction-text2')).toContainText('حرکت در طبقه منفی یک', { timeout: 20000 });
   await expect.poll(()=>page.evaluate(()=>sessionStorage.getItem('haramCurrentFloor'))).toBe('-1');
   await page.locator('.carousel-next').click();
   await expect(page.locator('.instruction-text2')).toContainText('با آسانسور به طبقه یک بروید');

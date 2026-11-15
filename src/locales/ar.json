@@ -323,6 +323,8 @@
   "profileUpdatedSuccess": "تم تحديث الملف الشخصي بنجاح!",
   "entry": "مدخل",
   "confirmEntry": "تأييد المدخل",
+  "mapPrivateAreaResult": "منطقة خاصة",
+  "noPrivateAreaRoute": "لم يُعثر على مسار متاح إلى قرب هذه المنطقة.",
   "mapAreaResult": "منطقة",
   "mapNoAreaEntries": "لا توجد مداخل مسجلة لهذه المنطقة.",
   "mapEntryUnknownDestination": "وجهة المدخل غير معروفة",

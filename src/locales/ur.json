@@ -323,6 +323,8 @@
   "profileUpdatedSuccess": "پروفائل کامیابی سے اپ ڈیٹ ہو گئی!",
   "entry": "داخلہ",
   "confirmEntry": "داخلہ کی تصدیق کریں",
+  "mapPrivateAreaResult": "نجی علاقہ",
+  "noPrivateAreaRoute": "اس علاقے کے قریب کوئی قابلِ رسائی راستہ نہیں ملا۔",
   "mapAreaResult": "علاقہ",
   "mapNoAreaEntries": "اس علاقے کے لیے کوئی داخلی راستہ درج نہیں ہے۔",
   "mapEntryUnknownDestination": "دروازے کی منزل نامعلوم ہے",

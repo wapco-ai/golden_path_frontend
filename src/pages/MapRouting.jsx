@@ -528,7 +528,7 @@ const MapRoutingPage = () => {
     const displayAddress = displaySearchAddress(destination.name, address);
     let locationLabel = displayAddress;
     if (isAreaResult(destination)) {
-      locationLabel = intl.formatMessage({ id: 'mapAreaResult' });
+      locationLabel = intl.formatMessage({ id: destination.privateArea ? 'mapPrivateAreaResult' : 'mapAreaResult' });
     } else if (destination.kind === 'cultural') {
       locationLabel = intl.formatMessage({ id: 'culturalInfo' });
     }
@@ -545,7 +545,8 @@ const MapRoutingPage = () => {
       id,
       kind: place.kind,
       ...(isAreaResult(place) ? {
-        ...area, source: 'area', sourceId: place.areaGroupId ?? place.areaId
+        ...area, source: 'area', sourceId: place.areaGroupId ?? place.areaId,
+        ...(place.privateArea ? { privateArea: true } : {})
       } : { poiId: id }),
       name: place.title || place.name || '',
       location: localizedPlaceAddress(place.address, language),
@@ -558,7 +559,8 @@ const MapRoutingPage = () => {
   };
 
   const trimmedSearchQuery = searchQuery.trim();
-  const searchKey = JSON.stringify([trimmedSearchQuery, language]);
+  const includePrivateAreas = showDestinationModal;
+  const searchKey = JSON.stringify([trimmedSearchQuery, language, includePrivateAreas]);
   const filteredDestinations = landmarkSearchResults?.key === searchKey
     ? landmarkSearchResults.places.map(toSearchDestination)
     : [];
@@ -766,7 +768,7 @@ const MapRoutingPage = () => {
       }
     }
 
-    if (isAreaResult(destination)) {
+    if (isAreaResult(destination) && !destination.privateArea) {
       setShowOriginModal(false);
       setSessionFloor(floor);
       setTempDestination(destination);
@@ -785,6 +787,7 @@ const MapRoutingPage = () => {
   };
 
   const handleRecentSelection = async (destination) => {
+    if (destination.privateArea && activeInput !== 'destination') return;
     if (destination.kind === 'area' || (destination.entry == null && destination.door == null)) {
       handleDestinationSelect(destination);
       return;
@@ -952,6 +955,7 @@ const MapRoutingPage = () => {
         geo,
         search: trimmedSearchQuery,
         includeExactAreas: true,
+        includePrivateAreas,
         limit: 30,
         signal: controller.signal
       })
@@ -974,7 +978,7 @@ const MapRoutingPage = () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [trimmedSearchQuery, language, userLocation, searchKey]);
+  }, [trimmedSearchQuery, language, userLocation, searchKey, includePrivateAreas]);
 
   const handleRouteFromSubgroup = (subgroup) => {
     console.log('Routing from main page subgroup:', subgroup);
@@ -2190,7 +2194,7 @@ const MapRoutingPage = () => {
                     </p>
                   ) : (
                     <ul className="map-destination-list">
-                      {recentSearches.map((destination, index) => (
+                      {recentSearches.map((destination, index) => (destination.privateArea && !showDestinationModal ? null : (
                         <li key={`${destination.id || 'destination'}-${index}`} style={{ position: 'relative' }} onClick={() => handleRecentSelection(destination)}>
                           <div className="map-recent-icon">
                             <SearchPlaceIcon area={isAreaResult(destination)} />
@@ -2228,7 +2232,7 @@ const MapRoutingPage = () => {
                             </div>
                           )}
                         </li>
-                      ))}
+                      )))}
                     </ul>
                   )}
                 </>
