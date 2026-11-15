@@ -12,7 +12,7 @@ const media = [
   { type: 'file', mime: 'application/pdf', url: '/storage/guide.pdf', path: 'uploads/contents/7/files/guide.pdf', name: 'guide.pdf' }
 ];
 
-async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.png', onWrite, totalItems = 1, landmarkGroup } = {}) {
+async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.png', onWrite, totalItems = 1, landmarkGroup, landmarkPlaceType } = {}) {
   const writes = [], creates = [], uploads = [], deletes = [], errors = [], dialogs = [];
   await page.route(url => !['127.0.0.1', 'localhost'].includes(url.hostname), route => route.abort());
   let item = {
@@ -61,7 +61,7 @@ async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.
     } else if (path.endsWith('/files') && request.method() === 'DELETE') {
       deletes.push(url.searchParams.get('path')); json = { success: true };
     } else if (path.endsWith('/landmark-places')) json = { places: { landmarkPlaces: [{
-      id: '7', title: 'مکان فرهنگی آزمایشی', group: landmarkGroup, coordinates: [36.2853, 59.6134], floor: 0,
+      id: '7', title: 'مکان فرهنگی آزمایشی', group: landmarkGroup, placeType: landmarkPlaceType, coordinates: [36.2853, 59.6134], floor: 0,
       image: primaryImage, content: { body: 'شرح مکان فرهنگی', media: mediaItems }
     }] } };
     await route.fulfill({ json });
@@ -469,15 +469,19 @@ test('the create wizard exposes distinct image and video requirements in its exi
   expect(errors).toEqual([]);
 });
 
-for (const [label, landmarkGroup, heading] of [
-  ['pilgrimage', 'rozemonavare', 'در حال زیارت این مکان هستید'],
-  ['cultural', 'elmi', 'در حال بازدید از این محل هستید'],
-  ['service after scanning a QR code', 'khadamat', 'اطلاعات این محل'],
-  ['unknown', 'other', 'اطلاعات این محل'],
-  ['missing', undefined, 'اطلاعات این محل']
+for (const [label, landmarkGroup, landmarkPlaceType, heading] of [
+  ['pilgrimage without a cultural type', 'rozemonavare', null, 'در حال زیارت این مکان هستید'],
+  ['cultural without a cultural type', 'elmi', null, 'در حال بازدید از این محل هستید'],
+  ['service after scanning a QR code', 'khadamat', 'khadamati', 'اطلاعات این محل'],
+  ['unknown', 'other', undefined, 'اطلاعات این محل'],
+  ['missing', undefined, undefined, 'اطلاعات این محل'],
+  ['pilgrimage in the cemetery group', 'cemetery', 'ziyarati', 'در حال زیارت این مکان هستید'],
+  ['historical in the pilgrimage group', 'sahn', 'tarikhi', 'در حال بازدید از این محل هستید'],
+  ['service in the pilgrimage group', 'sahn', 'khadamati', 'اطلاعات این محل'],
+  ['cemetery without a cultural type', 'cemetery', null, 'اطلاعات این محل']
 ]) {
   test(`public cultural card heading for a ${label} place`, async ({ page }) => {
-    await setup(page, { landmarkGroup });
+    await setup(page, { landmarkGroup, landmarkPlaceType });
     if (landmarkGroup === 'khadamat') {
       await page.addInitScript(() => {
         sessionStorage.setItem('qrId', '7');
