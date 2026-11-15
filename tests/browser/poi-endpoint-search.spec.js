@@ -727,14 +727,14 @@ for (const endpoint of ['origin', 'destination']) {
       expect(dialog.message()).toContain(replacement.name);
       await dialog.dismiss();
     });
-    await page.goto('/#/fs');
+    await page.goto('/#/fs', { waitUntil: 'commit' });
     await rejected;
     await expect(page.getByText('درب بسته است', { exact: true })).toBeVisible();
     expect(requests).toHaveLength(1);
     expect(requests[0][endpoint]).toMatchObject({ type: 'door', accessId: 50581, areaId: 1000006, floor: 0 });
 
     const accepted = page.waitForEvent('dialog').then(dialog => dialog.accept());
-    await page.reload();
+    await page.reload({ waitUntil: 'commit' });
     await accepted;
     await expect.poll(() => requests.at(-1)?.[endpoint]).toMatchObject({
       type: 'door', accessId: 51210, areaId: 1000006, floor: 0
