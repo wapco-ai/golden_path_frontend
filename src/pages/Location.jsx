@@ -260,42 +260,65 @@ const Location = () => {
     }) || null;
   };
 
+  // ---------------------------------------------------------------------------
+  // Consolidated initialization effect.
+  //
+  // A visit is treated as a QR visit ONLY when locationEntrySource === 'qr'.
+  // There is no implicit "qr* keys exist" fallback anymore, because that
+  // fallback kept resurrecting the QR origin after a MapBegin -> Location
+  // navigation (where some other code mirrors mapSelected* into qr*).
+  //
+  // On any non-QR mount, we also strip any lingering qr* keys so no later
+  // effect, focus handler, or reload can promote this page to QR origin.
+  // ---------------------------------------------------------------------------
   useEffect(() => {
-    // More flexible QR code detection - only need coordinates
+    const entrySource = sessionStorage.getItem('locationEntrySource');
+
     const qrLat = sessionStorage.getItem('qrLat');
     const qrLng = sessionStorage.getItem('qrLng');
     const qrId = sessionStorage.getItem('qrId');
 
-    // Consider it QR code entry if we have coordinates
-    const hasQrCoordinates = !!(qrLat && qrLng);
+    const qrValid =
+      qrLat != null && qrLng != null &&
+      Number.isFinite(parseFloat(qrLat)) &&
+      Number.isFinite(parseFloat(qrLng));
 
-    setIsQrCodeEntry(hasQrCoordinates);
+    const isQrVisit = entrySource === 'qr' && qrValid;
 
-    // Set initial QR location if available
-    if (hasQrCoordinates) {
-      setInitialQrLocation({
-        lat: parseFloat(qrLat),
-        lng: parseFloat(qrLng),
-        id: qrId || null // Make ID optional
-      });
+    // If this is NOT a QR visit, strip any qr* keys immediately so nothing
+    // can promote this page to QR origin later (including after reload).
+    if (!isQrVisit) {
+      sessionStorage.removeItem('qrLat');
+      sessionStorage.removeItem('qrLng');
+      sessionStorage.removeItem('qrId');
+      sessionStorage.removeItem('locationEntrySource');
     }
 
-    // Get current user location from session storage
-    const currentLat = sessionStorage.getItem('mapSelectedLat') || qrLat;
-    const currentLng = sessionStorage.getItem('mapSelectedLng') || qrLng;
-    const currentId = sessionStorage.getItem('mapSelectedId') || qrId;
+    setIsQrCodeEntry(isQrVisit);
+    setInitialQrLocation(
+      isQrVisit
+        ? { lat: parseFloat(qrLat), lng: parseFloat(qrLng), id: qrId || null }
+        : null
+    );
 
-    if (currentLat && currentLng) {
-      setCurrentUserLocation({
-        lat: parseFloat(currentLat),
-        lng: parseFloat(currentLng),
-        id: currentId
-      });
+    // Current user location: only from an explicit map selection, or from the
+    // QR point for a genuine QR visit.
+    const mapLat = sessionStorage.getItem('mapSelectedLat');
+    const mapLng = sessionStorage.getItem('mapSelectedLng');
+    const mapId = sessionStorage.getItem('mapSelectedId');
+
+    let current = null;
+    if (mapLat != null && mapLng != null &&
+        Number.isFinite(parseFloat(mapLat)) &&
+        Number.isFinite(parseFloat(mapLng))) {
+      current = { lat: parseFloat(mapLat), lng: parseFloat(mapLng), id: mapId || null };
+    } else if (isQrVisit) {
+      current = { lat: parseFloat(qrLat), lng: parseFloat(qrLng), id: qrId || null };
     }
+    setCurrentUserLocation(current);
   }, []);
 
   const handleSaveDestination = () => {
-    // Implement save destination logic
     toast.success(intl.formatMessage({ id: 'destinationSaved' }));
   };
 
@@ -604,39 +627,7 @@ const Location = () => {
     }
   };
 
-  useEffect(() => {
-    const qrLat = sessionStorage.getItem('qrLat');
-    const qrLng = sessionStorage.getItem('qrLng');
-    const qrId = sessionStorage.getItem('qrId');
-
-    const hasQrCoordinates = !!(qrLat && qrLng);
-    const hasQrId = !!qrId;
-
-    setIsQrCodeEntry(hasQrCoordinates && hasQrId);
-
-    // Set initial QR location if available
-    if (hasQrCoordinates && hasQrId) {
-      setInitialQrLocation({
-        lat: parseFloat(qrLat),
-        lng: parseFloat(qrLng),
-        id: qrId
-      });
-    }
-
-    // Get current user location from session storage
-    const currentLat = sessionStorage.getItem('mapSelectedLat') || sessionStorage.getItem('qrLat');
-    const currentLng = sessionStorage.getItem('mapSelectedLng') || sessionStorage.getItem('qrLng');
-    const currentId = sessionStorage.getItem('mapSelectedId') || sessionStorage.getItem('qrId');
-
-    if (currentLat && currentLng) {
-      setCurrentUserLocation({
-        lat: parseFloat(currentLat),
-        lng: parseFloat(currentLng),
-        id: currentId
-      });
-    }
-  }, []);
-
+  // DEBUG effect preserved but harmless; it now reflects the consolidated state.
   useEffect(() => {
     console.log('=== DEBUG Location Component ===');
     console.log('initialQrLocation:', initialQrLocation);
@@ -651,12 +642,15 @@ const Location = () => {
       sessionStorage.getItem('mapSelectedLng'),
       sessionStorage.getItem('mapSelectedId')
     );
+    console.log('locationEntrySource:', sessionStorage.getItem('locationEntrySource'));
     console.log('isAtInitialLocation result:', isAtInitialLocation());
     console.log('===============================');
   }, [initialQrLocation, currentUserLocation]);
 
 
   const isAtInitialLocation = () => {
+    // Only meaningful for genuine QR visits.
+    if (!isQrCodeEntry) return false;
     if (!initialQrLocation || !currentUserLocation) return false;
 
     const normalizeId = (id) => {
@@ -677,6 +671,44 @@ const Location = () => {
 
     return latDiff < coordinateTolerance && lngDiff < coordinateTolerance;
   };
+
+  // ---------------------------------------------------------------------------
+  // Bottom route button visibility.
+  //
+  // Requirements:
+  //   1. It must be a genuine QR entry (isQrCodeEntry).
+  //   2. The page must be showing the SAME place as the QR origin.
+  //      This prevents a mirrored / stale qr* value from promoting an
+  //      unrelated place (e.g. the one opened from MapBegin) to origin.
+  //   3. The current user location must be a finite coordinate pair.
+  // ---------------------------------------------------------------------------
+  const isSamePlaceAsQrOrigin = (() => {
+    if (!isQrCodeEntry || !initialQrLocation || !locationData) return false;
+
+    const norm = (v) => (v == null ? '' : String(v).replace(/\/+$/, '').trim());
+
+    // Prefer id comparison.
+    const locId = norm(locationData.id ?? locationData.value);
+    const qrIdNorm = norm(initialQrLocation.id);
+    if (locId && qrIdNorm && locId === qrIdNorm) return true;
+
+    // Fall back to coordinates.
+    const coords = locationData.coordinates;
+    if (Array.isArray(coords) && coords.length >= 2 &&
+        Number.isFinite(coords[0]) && Number.isFinite(coords[1])) {
+      const latDiff = Math.abs(coords[0] - initialQrLocation.lat);
+      const lngDiff = Math.abs(coords[1] - initialQrLocation.lng);
+      return latDiff < 0.0001 && lngDiff < 0.0001;
+    }
+    return false;
+  })();
+
+  const canShowNavigateButton =
+    isQrCodeEntry &&
+    isSamePlaceAsQrOrigin &&
+    currentUserLocation != null &&
+    Number.isFinite(currentUserLocation.lat) &&
+    Number.isFinite(currentUserLocation.lng);
 
   // Video and PDF handlers
   const handleVideoClick = (videoContent) => {
@@ -1152,7 +1184,7 @@ const Location = () => {
         <div className="comment-input-wrapper" onClick={handleCommentClick}>
           <div className="comment-input-header">
             <svg width="20" height="20" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path fillRule="evenodd" clipRule="evenodd" d="M7.99992 1.83337C4.59416 1.83337 1.83325 4.59428 1.83325 8.00004C1.83325 8.98741 2.06494 9.91924 2.47645 10.7454C2.64161 11.077 2.70521 11.4736 2.60101 11.863L2.20394 13.347C2.13101 13.6196 2.38036 13.8689 2.65291 13.796L4.13694 13.399C4.5264 13.2947 4.92292 13.3583 5.25452 13.5235C6.08072 13.935 7.01255 14.1667 7.99992 14.1667C11.4057 14.1667 14.1666 11.4058 14.1666 8.00004C14.1666 4.59428 11.4057 1.83337 7.99992 1.83337ZM0.833252 8.00004C0.833252 4.042 4.04188 0.833374 7.99992 0.833374C11.958 0.833374 15.1666 4.042 15.1666 8.00004C15.1666 11.9581 11.958 15.1667 7.99992 15.1667C6.85438 15.1667 5.77027 14.8976 4.80868 14.4186C4.66519 14.3472 4.51868 14.332 4.39541 14.365L2.91139 14.762C1.8955 15.0339 0.966101 14.1045 1.23792 13.0886L1.63499 11.6045C1.66797 11.4813 1.65281 11.3348 1.58134 11.1913C1.10239 10.2297 0.833252 9.14558 0.833252 8.00004ZM4.83325 7.00004C4.83325 6.7239 5.05711 6.50004 5.33325 6.50004H10.6666C10.9427 6.50004 11.1666 6.7239 11.1666 7.00004C11.1666 7.27618 10.9427 7.50004 10.6666 7.50004H5.33325C5.05711 7.50004 4.83325 7.27618 4.83325 7.00004ZM4.83325 9.33337C4.83325 9.05723 5.05711 8.83337 5.33325 8.83337H8.99992C9.27606 8.83337 9.49992 9.05723 9.49992 9.33337C9.49992 9.60952 9.27606 9.83337 8.99992 9.83337H5.33325C5.05711 9.83337 4.83325 9.60952 4.83325 9.33337Z" fill="#1E2023" />
+              <path fillRule="evenodd" clipRule="evenodd" d="M7.99992 1.83337C4.59416 1.83337 1.83325 4.59428 1.83325 8.00004C1.83325 8.98741 2.06494 9.91924 2.47645 10.7454C2.64161 11.077 2.70521 11.4736 2.60101 11.863L2.20394 13.347C2.13101 13.6196 2.38036 13.8689 2.65291 13.796L4.13694 13.399C4.5264 13.2947 4.92292 13.3583 5.25452 13.5235C6.08072 13.935 7.01255 14.1667 7.99992 14.1667C11.4057 14.1667 14.1666 11.4058 14.1666 8.00004C14.1666 4.59428 11.4057 1.83337 7.99992 1.83337ZM0.833252 8.00004C0.833252 4.042 4.04188 0.833374 7.99992 0.833374C11.958 0.833374 15.1666 4.042 15.1666 8.00004C15.1666 11.9581 11.958 15.1667 7.99992 15.1667C6.85438 15.1667 5.77027 14.8976 4.80868 14.4186C4.66519 14.3472 4.51868 14.332 4.39541 14.365L2.91139 14.762C1.8955 15.0339 0.966101 14.1045 1.23792 13.0886L1.63499 11.6045C1.66797 11.4813 1.65281 11.3348 1.58134 11.1913C1.10239 10.2297 0.833252 9.14558 0.833252 8.00004ZM4.83325 7.00004C4.83325 6.7239 5.05711 6.50004 5.33325 6.50004H10.6666C10.9427 6.50004 11.1666 6.7239 11.1666 7.00004C11.1666 7.27618 10.9427 7.50004 10.6666 7.50004H5.33325C5.05711 7.27618 4.83325 7.00004 4.83325 7.00004ZM4.83325 9.33337C4.83325 9.05723 5.05711 8.83337 5.33325 8.83337H8.99992C9.27606 8.83337 9.49992 9.05723 9.49992 9.33337C9.49992 9.60952 9.27606 9.83337 8.99992 9.83337H5.33325C5.05711 9.83337 4.83325 9.60952 4.83325 9.33337Z" fill="#1E2023" />
             </svg>
 
             <h4>
@@ -1310,24 +1342,22 @@ const Location = () => {
           </div>
         </>
       )}
-      {isQrCodeEntry && (
+
+      {/* Fixed bottom route button — single, gated on:
+            isQrCodeEntry + same place as QR origin + finite current user location. */}
+      {canShowNavigateButton && (
         <div className="fixed-bottom-button-container">
           <button
             className="fixed-bottom-button"
             onClick={() => {
-              // Determine if we're at QR location (origin) or selected location (destination)
               const isOriginSelection = isAtInitialLocation();
 
-              // Set session variable to tell MPR what type of selection this is
               if (isOriginSelection) {
-                // User is at QR location - this should be set as ORIGIN
                 sessionStorage.setItem('locationSelectionType', 'origin');
               } else {
-                // User selected a different place - this should be set as DESTINATION
                 sessionStorage.setItem('locationSelectionType', 'destination');
               }
 
-              // Store location data in session
               if (locationData) {
                 sessionStorage.setItem('locationFromPage', JSON.stringify({
                   floor: getPointFloor(locationData),
@@ -1395,47 +1425,6 @@ const Location = () => {
         </>
       )}
 
-      {isQrCodeEntry && (
-        <div className="fixed-bottom-button-container">
-          <button
-            className="fixed-bottom-button"
-            onClick={() => {
-              // Determine if we're at QR location (origin) or selected location (destination)
-              const isOriginSelection = isAtInitialLocation();
-
-              // Set session variable to tell MPR what type of selection this is
-              if (isOriginSelection) {
-                // User is at QR location - this should be set as ORIGIN
-                sessionStorage.setItem('locationSelectionType', 'origin');
-              } else {
-                // User selected a different place - this should be set as DESTINATION
-                sessionStorage.setItem('locationSelectionType', 'destination');
-              }
-
-              // Store location data in session
-              if (locationData) {
-                sessionStorage.setItem('locationFromPage', JSON.stringify({
-                  floor: getPointFloor(locationData),
-                  name: locationData.title || locationData.name || locationData.label,
-                  coordinates: locationData.coordinates,
-                  location: locationData.location || '',
-                  id: locationData.id || locationData.value
-                }));
-              }
-
-              navigate('/mpr');
-            }}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#FFFFFF">
-              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-              <path d="M11.092 2.581a1 1 0 0 1 1.754 -.116l.062 .116l8.005 17.365c.198 .566 .05 1.196 -.378 1.615a1.53 1.53 0 0 1 -1.459 .393l-7.077 -2.398l-6.899 2.338a1.535 1.535 0 0 1 -1.52 -.231l-.112 -.1c-.398 -.386 -.556 -.954 -.393 -1.556l.047 -.15l7.97 -17.276z" />
-            </svg>
-            <FormattedMessage
-              id={isAtInitialLocation() ? "navigateFromMpr" : "navigateToMpr"}
-            />
-          </button>
-        </div>
-      )}
       {showAllCommentsModal && (
         <>
           <div className="modal-overlay-location all-comments-overlay" onClick={() => setShowAllCommentsModal(false)}></div>

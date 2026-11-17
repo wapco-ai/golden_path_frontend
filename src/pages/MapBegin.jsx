@@ -42,24 +42,12 @@ const MapBeginPage = () => {
     const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 390;
     const isLandscape = viewportWidth > viewportHeight;
 
-    // Choose the sheet ratio by the actual viewport instead of forcing one value
-    // on every phone. Narrow/short screens use less height; wider phones can use more.
-    let ratio;
-    if (isLandscape || viewportHeight <= 520) {
-      ratio = 0.50;
-    } else if (viewportHeight <= 700 || viewportWidth <= 360) {
-      ratio = 0.41;
-    } else if (viewportWidth <= 390) {
-      ratio = 0.42;
-    } else if (viewportWidth <= 430) {
-      ratio = 0.44;
-    } else {
-      ratio = 0.42;
-    }
+    // This is only a first-paint fallback. Once the landmark card renders,
+    // the measurement effect sets the exact header + card height.
+    const ratio = isLandscape ? 0.52 : viewportHeight <= 520 ? 0.58 : 0.42;
+    const minHeight = Math.min(250, viewportHeight * 0.34);
+    const maxHeight = viewportHeight * (isLandscape ? 0.72 : 0.58);
 
-    // Keep a usable minimum while preventing the panel from swallowing the map.
-    const minHeight = Math.min(220, viewportHeight * 0.38);
-    const maxHeight = viewportHeight * (isLandscape || viewportHeight <= 520 ? 0.60 : 0.56);
     return Math.round(Math.min(maxHeight, Math.max(minHeight, viewportHeight * ratio)));
   };
   const navigate = useNavigate();
@@ -127,6 +115,8 @@ const MapBeginPage = () => {
   }, []);
   const modalGestureRef = useRef({ active: false, moved: false, startY: 0, startHeight: 140, lastY: 0, lastTime: 0, velocity: 0, height: 140 });
   const modalFrameRef = useRef(null);
+  const landmarkSheetHeaderRef = useRef(null);
+  const landmarkCardRef = useRef(null);
   const [preventMapCentering, setPreventMapCentering] = useState(false);
   const [groups, setGroups] = useState([]);
   const [subGroups, setSubGroups] = useState({});
@@ -391,7 +381,7 @@ const MapBeginPage = () => {
     if (deltaTime > 0) gesture.velocity = (gesture.lastY - touchY) / deltaTime;
     const deltaY = gesture.startY - touchY;
     if (Math.abs(deltaY) > 4) gesture.moved = true;
-    const screenHeight = window.innerHeight;
+    const screenHeight = getVisibleViewportHeight();
     let nextHeight = gesture.startHeight + deltaY;
     if (nextHeight < 140) nextHeight = 140 - (140 - nextHeight) * 0.2;
     else if (nextHeight > screenHeight) nextHeight = screenHeight + (nextHeight - screenHeight) * 0.12;
@@ -412,8 +402,8 @@ const MapBeginPage = () => {
     gesture.active = false;
     if (modalFrameRef.current) { cancelAnimationFrame(modalFrameRef.current); modalFrameRef.current = null; }
     setIsModalDragging(false);
-    const screenHeight = window.innerHeight;
-    const halfTarget = isQrCodeEntry && showLocationDetails ? getVisibleViewportHeight() * 0.3 : getLandmarkSheetHeight();
+    const screenHeight = getVisibleViewportHeight();
+    const halfTarget = isQrCodeEntry && showLocationDetails ? getVisibleViewportHeight() * 0.36 : getLandmarkSheetHeight();
     const finalHeight = gesture.height;
     const finalVelocity = gesture.velocity;
     let targetHeight;
@@ -612,6 +602,52 @@ const MapBeginPage = () => {
       }
     }
   }, [storedId, storedLat, storedLng, language]);
+
+  // For a selected landmark, size the sheet to the pinned search header
+  // plus the complete cultural-information card. This prevents the next
+  // recommendations section from peeking into the initially opened sheet.
+  useEffect(() => {
+    if (!showRouting || !showLocationDetails || expandedSearch || isModalDragging) {
+      return undefined;
+    }
+
+    let frameId = 0;
+    let observer;
+
+    const measureLandmarkSheet = () => {
+      const header = landmarkSheetHeaderRef.current;
+      const card = landmarkCardRef.current;
+      if (!header || !card) return;
+
+      const contentHeight = header.getBoundingClientRect().height
+        + card.getBoundingClientRect().height;
+
+      // Keep a little room for the sheet edge, while preserving a scrollable
+      // fallback on exceptionally short viewports.
+      const viewportHeight = getVisibleViewportHeight();
+      const measuredHeight = Math.ceil(contentHeight + 1);
+      const maxHeight = Math.round(viewportHeight * 0.9);
+
+      setCurrentHeight(Math.min(measuredHeight, maxHeight));
+    };
+
+    frameId = requestAnimationFrame(measureLandmarkSheet);
+
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => {
+        cancelAnimationFrame(frameId);
+        frameId = requestAnimationFrame(measureLandmarkSheet);
+      });
+
+      if (landmarkSheetHeaderRef.current) observer.observe(landmarkSheetHeaderRef.current);
+      if (landmarkCardRef.current) observer.observe(landmarkCardRef.current);
+    }
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      observer?.disconnect();
+    };
+  }, [showRouting, showLocationDetails, selectedLocation, expandedSearch, isModalDragging]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -1142,7 +1178,7 @@ const MapBeginPage = () => {
         className={`search-bar-container ${showRouting ? 'expanded' : ''} ${expandedSearch ? 'fully-expanded' : ''} ${isModalDragging ? 'dragging' : ''} ${isQrCodeEntry ? 'qr-code-entry' : ''}`}
         style={(showRouting || isModalDragging || isAutoExpanding) ? { height: `${currentHeight}px`, transform: 'translateY(0)' } : {}}
       >
-        <div className="search-bar-pinned-wrapper">
+        <div className="search-bar-pinned-wrapper" ref={landmarkSheetHeaderRef}>
           <div
             className="search-bar-toggle"
             onClick={(e) => {
@@ -1246,7 +1282,7 @@ const MapBeginPage = () => {
 
 
           {showRouting && showLocationDetails && selectedLocation && (
-            <div className="selected-location-section">
+            <div className="selected-location-section" ref={landmarkCardRef}>
               <div className="selected-location-images">
                 <div className="location-image-scroll">
                   {/* Handle both single image and multiple images */}

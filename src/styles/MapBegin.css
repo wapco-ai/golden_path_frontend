@@ -2381,3 +2381,223 @@ body.sidebar-open {
 @media (min-width: 768px) and (max-width: 1366px) {
   .map-routing-page { width: 100%; min-width: 0; height: 100dvh; }
 }
+
+
+/* --------------------------------------------------------------------------
+   Responsive landmark bottom sheet
+   These rules intentionally override the older fixed vh rules above.
+   -------------------------------------------------------------------------- */
+.search-bar-container {
+  box-sizing: border-box;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
+  transition: height 280ms cubic-bezier(0.22, 1, 0.36, 1),
+              transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.search-bar-container.expanded,
+.search-bar-container.expanded:not(.fully-expanded) {
+  height: auto;
+  overflow: hidden;
+  min-height: 0;
+  max-height: 100vh;
+  max-height: 100dvh;
+}
+
+.search-bar-container.fully-expanded {
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.search-bar-pinned-wrapper {
+  position: relative;
+  top: auto;
+  z-index: 2;
+  flex: 0 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.modal-content-wrapper {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  scroll-behavior: smooth;
+  padding-bottom: max(18px, env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.search-bar-container:not(.expanded) .modal-content-wrapper {
+  overflow-y: hidden;
+  flex: 0 0 0;
+}
+
+.search-bar-container.dragging .modal-content-wrapper {
+  pointer-events: none;
+}
+
+/* The place card is allowed to shrink horizontally, but never clips its
+   description or action. Images keep a stable, viewport-independent ratio. */
+.selected-location-section {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px 15px 18px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.selected-location-images {
+  width: 100%;
+  margin: 0;
+  min-width: 0;
+}
+
+.location-image-scroll {
+  width: 100%;
+  min-width: 0;
+  gap: 10px;
+  padding: 0 0 4px;
+}
+
+.location-main-image {
+  width: clamp(132px, 43vw, 190px);
+  height: clamp(96px, 13vh, 132px);
+  aspect-ratio: 1.62 / 1;
+  flex: 0 0 auto;
+  background-size: cover;
+  background-position: center;
+}
+
+.selected-location-info {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.location-details7 {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.selected-location-title {
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  font-size: clamp(16px, 4.2vw, 18px);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.location-meta7 {
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-size: clamp(11px, 3vw, 13px);
+  line-height: 1.5;
+}
+
+.location-description {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  gap: 5px;
+}
+
+.location-description p {
+  display: block;
+  width: 100%;
+  margin: 0;
+  font-size: clamp(13px, 3.5vw, 14px);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.cultural-info-btn {
+  align-self: flex-start;
+  min-height: 40px;
+  max-width: 100%;
+  padding: 4px 0;
+  white-space: normal;
+  text-align: start;
+  line-height: 1.5;
+}
+
+.cultural-info-btn svg {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 360px) {
+  .selected-location-section {
+    padding-inline: 12px;
+  }
+
+  .location-main-image {
+    width: min(48vw, 168px);
+  }
+
+  .location-description p {
+    font-size: 13px;
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .selected-location-section {
+    padding-top: 8px;
+    gap: 5px;
+  }
+
+  .location-main-image {
+    height: clamp(76px, 18vh, 100px);
+  }
+
+  .search-bar-pinned-wrapper {
+    padding-bottom: 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-bar-container {
+    transition: none;
+  }
+}
+
+
+/* Initial landmark sheet: end exactly at the selected cultural-info card. */
+.modal-content-wrapper {
+  padding-bottom: 0;
+}
+
+.search-bar-container.fully-expanded .modal-content-wrapper {
+  padding-bottom: max(18px, env(safe-area-inset-bottom));
+}
+
+/* Avoid reserving extra space after the selected-place card. */
+.selected-location-section {
+  margin-bottom: 0;
+}
