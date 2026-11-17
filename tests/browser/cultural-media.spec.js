@@ -44,7 +44,8 @@ async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.
       items: [{ ...item, media: item.media.fa }], totalItems, page: Number(url.searchParams.get('page')), pageSize: 7
     };
     else if (path.endsWith('/cultural-items') && request.method() === 'POST') {
-      creates.push(request.postDataJSON()); json = { poiId: 7 };
+      const body = request.postDataJSON();
+      creates.push(body); item = { ...item, location: body.poi.location }; json = { poiId: 7 };
     }
     else if (path.endsWith('/cultural-items/7') && request.method() === 'GET') json = item;
     else if (path.endsWith('/cultural-items/7') && request.method() === 'PUT') {
@@ -52,7 +53,7 @@ async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.
       if (onWrite && !await onWrite(writes.length)) {
         return route.fulfill({ status: 500, json: { message: 'Temporary save failure' } });
       }
-      item = { ...item, media: Object.fromEntries(Object.entries(body.translations).map(([lang, entry]) => [lang, entry.media])) };
+      item = { ...item, location: body.location ?? item.location, media: Object.fromEntries(Object.entries(body.translations).map(([lang, entry]) => [lang, entry.media])) };
       json = item;
     } else if (path.endsWith('/files') && request.method() === 'POST') {
       const multipart = request.postDataBuffer().toString('latin1'); uploads.push(multipart);
@@ -82,6 +83,175 @@ async function openEdit(page) {
   await page.getByText('مدیریت اطلاعات فرهنگی', { exact: true }).click();
   await page.locator('.edit-cultural-btn').first().click();
   await expect(page.locator('.edit-cultural-page')).toBeVisible();
+}
+
+// Observe real MapLibre instances; clicks still go through the rendered canvas.
+async function observeCoordinateMaps(page) {
+  await page.evaluate(async () => {
+    const source = await (await fetch('/src/AdminPanel/Amain.jsx')).text();
+    const modulePath = source.match(/["']([^"']*\/maplibre-gl\.js\?[^"']+)["']/)?.[1];
+    const { default: maplibre } = await import(modulePath);
+    window.coordinateMaps = {};
+    window.coordinateMarkers = {};
+    const addControl = maplibre.Map.prototype.addControl;
+    maplibre.Map.prototype.addControl = function (...args) {
+      window.coordinateMaps[this.getContainer().id] = this;
+      return addControl.apply(this, args);
+    };
+    const addTo = maplibre.Marker.prototype.addTo;
+    maplibre.Marker.prototype.addTo = function (map) {
+      window.coordinateMarkers[map.getContainer().id] = this;
+      return addTo.call(this, map);
+    };
+  });
+}
+
+async function openCoordinateForm(page, mode) {
+  await page.goto('/#/admin');
+  await observeCoordinateMaps(page);
+  await page.getByText('مدیریت امکانات', { exact: true }).click();
+  await page.getByText('مدیریت اطلاعات فرهنگی', { exact: true }).click();
+  if (mode === 'edit') {
+    await page.locator('.edit-cultural-btn').first().click();
+    return page.locator('.edit-cultural-page');
+  }
+  await page.getByRole('button', { name: 'ایجاد اطلاعات فرهنگی', exact: true }).click();
+  const form = page.locator('.add-cultural-modal');
+  await form.getByPlaceholder('عنوان اطلاعات فرهنگی را بنویسید').fill('مکان با مختصات دستی');
+  await form.locator('.cultural-type-option10').filter({ hasText: 'فرهنگی' }).click();
+  await form.locator('select').filter({ has: page.getByRole('option', { name: 'گروه اصلی فرهنگی' }) }).selectOption('1');
+  await form.getByRole('button', { name: 'تایید و مرحله بعد', exact: true }).click();
+  await form.getByPlaceholder('آدرس اطلاعات فرهنگی را بنویسید').fill('صحن آزمایشی');
+  return form;
+}
+
+const coordinateInput = (form, axis) => form.getByLabel(axis === 'lat' ? 'عرض جغرافیایی (Latitude)' : 'طول جغرافیایی (Longitude)', { exact: true });
+const coordinateMapId = mode => mode === 'edit' ? 'edit-cultural-map-container' : 'cultural-map-container';
+
+async function expectCoordinateMarker(page, mode, point) {
+  const id = coordinateMapId(mode);
+  await expect.poll(() => page.evaluate(id => {
+    const marker = window.coordinateMarkers[id];
+    return marker && { lat: marker.getLngLat().lat, lng: marker.getLngLat().lng };
+  }, id)).toEqual(point);
+  await expect(page.locator(`#${id} .maplibregl-marker`)).toHaveCount(1);
+}
+
+async function clickCoordinateMap(page, form, mode) {
+  const id = coordinateMapId(mode);
+  const canvas = page.locator(`#${id} .maplibregl-canvas`);
+  await canvas.scrollIntoViewIfNeeded();
+  await expect.poll(() => page.evaluate(id => Boolean(window.coordinateMaps[id]?.loaded()), id)).toBe(true);
+  const { width, height } = await canvas.boundingBox();
+  const position = { x: Math.floor(width * 0.7), y: Math.floor(height * 0.6) };
+  await page.evaluate(id => {
+    window.coordinateClick = null;
+    window.coordinateMaps[id].once('click', event => {
+      const map = window.coordinateMaps[id];
+      const rect = map.getContainer().getBoundingClientRect();
+      const point = id === 'cultural-map-container'
+        ? map.unproject([event.originalEvent.clientX - rect.left, event.originalEvent.clientY - rect.top])
+        : event.lngLat;
+      window.coordinateClick = { lat: point.lat, lng: point.lng };
+    });
+  }, id);
+  await canvas.click({ position });
+  await expect.poll(() => page.evaluate(() => window.coordinateClick)).not.toBeNull();
+  const point = await page.evaluate(() => window.coordinateClick);
+  await expect.poll(async () => Number(await coordinateInput(form, 'lat').inputValue())).toBeCloseTo(point.lat, 7);
+  await expect.poll(async () => Number(await coordinateInput(form, 'lng').inputValue())).toBeCloseTo(point.lng, 7);
+  return {
+    lat: Number(await coordinateInput(form, 'lat').inputValue()),
+    lng: Number(await coordinateInput(form, 'lng').inputValue())
+  };
+}
+
+for (const mode of ['create', 'edit']) {
+  test(`cultural coordinates ${mode}: manual input and real map clicks stay synchronized through save and reopen`, async ({ page }, testInfo) => {
+    test.setTimeout(180_000);
+    const { writes, creates, errors } = await setup(page);
+    const form = await openCoordinateForm(page, mode);
+    if (mode === 'edit') {
+      await expect(coordinateInput(form, 'lat')).toHaveValue('36.2853');
+      await expect(coordinateInput(form, 'lng')).toHaveValue('59.6134');
+    }
+    const manual = { lat: 36.291234567, lng: 59.617123456 };
+    await coordinateInput(form, 'lat').fill('۳۶٫۲۹۱۲۳۴۵۶۷');
+    await coordinateInput(form, 'lng').fill('۵۹٫۶۱۷۱۲۳۴۵۶');
+    await expectCoordinateMarker(page, mode, manual);
+    await expect.poll(() => page.evaluate(id => {
+      const center = window.coordinateMaps[id].getCenter();
+      return { lat: center.lat, lng: center.lng };
+    }, coordinateMapId(mode))).toEqual(manual);
+    await expect(coordinateInput(form, 'lat')).toHaveValue('۳۶٫۲۹۱۲۳۴۵۶۷');
+    const clicked = await clickCoordinateMap(page, form, mode);
+    await expectCoordinateMarker(page, mode, clicked);
+    // Moving by hand after a click must update the existing marker, not leave two.
+    await coordinateInput(form, 'lat').fill(String(manual.lat));
+    await coordinateInput(form, 'lng').fill(String(manual.lng));
+    await expectCoordinateMarker(page, mode, manual);
+    if (mode === 'create') {
+      const steps = form.locator('.step-circle');
+      await form.getByRole('button', { name: 'تایید و مرحله بعد', exact: true }).click();
+      await steps.nth(1).click();
+      await expect(coordinateInput(form, 'lat')).toHaveValue(String(manual.lat));
+      await expectCoordinateMarker(page, mode, manual);
+      await clickCoordinateMap(page, form, mode);
+      await coordinateInput(form, 'lat').fill(String(manual.lat));
+      await coordinateInput(form, 'lng').fill(String(manual.lng));
+      await expectCoordinateMarker(page, mode, manual);
+    }
+    await form.locator('.cultural-coordinate-fields').screenshot({ path: testInfo.outputPath(`coordinates-${mode}.png`) });
+    if (mode === 'create') await form.locator('.step-circle').nth(3).click();
+    await form.getByRole('button', { name: mode === 'edit' ? 'ثبت تغییرات' : 'تایید و ثبت اطلاعات', exact: true }).click();
+    await expect(form).toHaveCount(0);
+    expect(writes).toHaveLength(mode === 'edit' ? 1 : 0);
+    expect(mode === 'edit' ? writes[0].location : creates[0].poi.location).toEqual(manual);
+    await page.locator('.edit-cultural-btn').first().click();
+    const reopened = page.locator('.edit-cultural-page');
+    await expect(coordinateInput(reopened, 'lat')).toHaveValue(String(manual.lat));
+    await expect(coordinateInput(reopened, 'lng')).toHaveValue(String(manual.lng));
+    await expectCoordinateMarker(page, 'edit', manual);
+    expect(errors).toEqual([]);
+  });
+
+  test(`cultural coordinates ${mode}: invalid or incomplete drafts block save and can recover by clicking the map`, async ({ page }) => {
+    test.setTimeout(180_000);
+    const { writes, creates, errors } = await setup(page);
+    const form = await openCoordinateForm(page, mode);
+    const lat = coordinateInput(form, 'lat'), lng = coordinateInput(form, 'lng');
+    await lat.fill('36.29'); await lng.fill('59.61');
+    await expectCoordinateMarker(page, mode, { lat: 36.29, lng: 59.61 });
+    for (const invalid of ['', '-', '91', '-91', '36abc']) {
+      await lat.fill(invalid);
+      await expect(lat).toHaveAttribute('aria-invalid', 'true');
+      await expect(page.locator(`#${coordinateMapId(mode)} .maplibregl-marker`)).toHaveCount(0);
+      await form.getByRole('button', { name: mode === 'edit' ? 'ثبت تغییرات' : 'تایید و مرحله بعد', exact: true }).click();
+      await expect(form).toBeVisible();
+      await expect(lat).toBeVisible();
+      if (mode === 'create') {
+        await form.locator('.step-circle').nth(3).click();
+        await expect(lat).toBeVisible();
+      }
+      expect(writes).toHaveLength(0); expect(creates).toHaveLength(0);
+    }
+    await lat.fill('36.29');
+    for (const invalid of ['', '181', '-181', 'Infinity']) {
+      await lng.fill(invalid);
+      await expect(lng).toHaveAttribute('aria-invalid', 'true');
+      await form.getByRole('button', { name: mode === 'edit' ? 'ثبت تغییرات' : 'تایید و مرحله بعد', exact: true }).click();
+      expect(writes).toHaveLength(0); expect(creates).toHaveLength(0);
+    }
+    const clicked = await clickCoordinateMap(page, form, mode);
+    await expect(lat).toHaveAttribute('aria-invalid', 'false');
+    await expect(lng).toHaveAttribute('aria-invalid', 'false');
+    await expectCoordinateMarker(page, mode, clicked);
+    if (mode === 'create') await form.locator('.step-circle').nth(3).click();
+    await form.getByRole('button', { name: mode === 'edit' ? 'ثبت تغییرات' : 'تایید و ثبت اطلاعات', exact: true }).click();
+    await expect(form).toHaveCount(0);
+    expect(mode === 'edit' ? writes[0].location : creates[0].poi.location).toEqual(clicked);
+    expect(errors).toEqual([]);
+  });
 }
 
 test('cultural table keeps the selected page and sorting after edit and refresh', async ({ page }) => {

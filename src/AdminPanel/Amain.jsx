@@ -22,6 +22,8 @@ import ActivityLogs from './ActivityLogs';
 import Marks from './Marks';
 import SortableTableHeader from './SortableTableHeader';
 import useAdminTablePreferences from './useAdminTablePreferences';
+import useCulturalCoordinates from './useCulturalCoordinates';
+import CulturalCoordinateFields from './CulturalCoordinateFields';
 
 import {
   booleanPointInPolygon as turfBooleanPointInPolygon,
@@ -1926,8 +1928,9 @@ const Amain = () => {
   const [selectedCulturalTypes, setSelectedCulturalTypes] = useState([]);
   const [culturalTypeError, setCulturalTypeError] = useState(false);
   const [culturalMap, setCulturalMap] = useState(null);
-  const [selectedLocation, setSelectedLocation] = useState(null);
-  const [currentMarker, setCurrentMarker] = useState(null);
+  const culturalCoordinates = useCulturalCoordinates();
+  const { location: selectedLocation, selectLocation: setSelectedLocation } = culturalCoordinates;
+  const currentMarkerRef = useRef(null);
   const editMapTimeoutRef = useRef(null);
   const editMapRetryRef = useRef(0);
   const editMapResizeObserverRef = useRef(null);
@@ -4055,6 +4058,7 @@ const Amain = () => {
 
 
   const handleSaveEditCultural = async () => {
+    if (!culturalCoordinates.validate()) return;
     if (!editingCulturalId || !culturalTitle.trim()) {
       alert('لطفا عنوان را وارد کنید');
       return;
@@ -4114,9 +4118,9 @@ const Amain = () => {
 
   const cleanupCulturalMap = useCallback(() => {
     console.log('Cultural map remove');
-    if (currentMarker) {
-      currentMarker.remove();
-      setCurrentMarker(null);
+    if (currentMarkerRef.current) {
+      currentMarkerRef.current.remove();
+      currentMarkerRef.current = null;
     }
 
     if (editMapResizeObserverRef.current) {
@@ -4132,7 +4136,7 @@ const Amain = () => {
       }
       setCulturalMap(null);
     }
-  }, [currentMarker, culturalMap]);
+  }, [culturalMap]);
 
   const formatJalaliDate = (date) => {
     const jalali = toJalaali(date.getFullYear(), date.getMonth() + 1, date.getDate());
@@ -4478,20 +4482,13 @@ const Amain = () => {
         }
       }, 50);
 
-      setTimeout(() => {
-        initializeCulturalMap();
-      }, 100);
-
     } else if (culturalStep === 2) {
       if (!placeAddress.trim()) {
         alert('لطفا آدرس را وارد کنید');
         return;
       }
 
-      if (!selectedLocation) {
-        alert('لطفا یک نقطه روی نقشه انتخاب کنید');
-        return;
-      }
+      if (!culturalCoordinates.validate()) return;
 
       setCulturalStep(3);
 
@@ -4808,65 +4805,8 @@ const Amain = () => {
       initHaramVectorLayers(mapInstance, editVectorConfig);
     });
 
-    const createRedMarker = () => {
-      const el = document.createElement('div');
-      el.innerHTML = `
-        <svg width="24" height="41" viewBox="0 0 24 41" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path fillRule="evenodd" clip-rule="evenodd" d="M12 0C5.37258 0 0 6.00388 0 12.75C0 19.4433 3.82999 26.7186 9.8056 29.5117C11.1986 30.1628 12.8014 30.1628 14.1944 29.5117C20.17 26.7186 24 19.4433 24 12.75C24 6.00388 18.6274 0 12 0ZM12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" fill="#EA4335"/>
-          <path d="M12.0088 22.5685C7.15256 22.5687 3.21582 26.5061 3.21582 31.3624C3.21606 36.2185 7.15271 40.1552 12.0088 40.1554C16.8651 40.1554 20.8025 36.2187 20.8027 31.3624C20.8027 26.506 16.8652 22.5685 12.0088 22.5685Z" stroke="#EA4335" stroke-width="1.50419"/>
-        </svg>
-      `;
-      el.style.cursor = 'pointer';
-      el.style.width = '24px';
-      el.style.height = '41px';
-      el.style.transform = 'translateZ(0)';
-      el.style.pointerEvents = 'none';
-      // el.style.transform = 'translate(-50%, -100%)';
-
-      return el;
-    };
-
-    let marker = null;
-
-    // Add initial marker if there's a selected location
-    if (selectedLocation) {
-      console.log('Adding marker at:', selectedLocation);
-      marker = new maplibregl.Marker({
-        element: createRedMarker(),  // Use custom red marker
-        // anchor: 'bottom'
-      })
-        .setLngLat([selectedLocation.lng, selectedLocation.lat])
-        .addTo(mapInstance);
-      setCurrentMarker(marker);
-    }
-
-    // Add click event to map for selecting new location
-    mapInstance.on('click', (e) => {
-      const coordinates = e.lngLat;
-      // بررسی اینکه آیا مکان جدید واقعاً متفاوت است
-      if (!selectedLocation || (coordinates.lng !== selectedLocation.lng || coordinates.lat !== selectedLocation.lat)) {
-        // Update selected location state
-        setSelectedLocation(coordinates);
-
-        // Remove existing marker if it exists
-        if (marker) {
-          marker.remove();
-        }
-
-        // Create new marker at clicked location WITH CUSTOM RED MARKER
-        marker = new maplibregl.Marker({
-          element: createRedMarker()  // Use custom red marker
-        })
-          .setLngLat([coordinates.lng, coordinates.lat])
-          .addTo(mapInstance);
-
-        // Update current marker in state
-        setCurrentMarker(marker);
-
-        console.log('New location selected:', coordinates);
-        // پاک‌سازی منابع هنگام خروج از حالت ویرایش
-
-      }
+    mapInstance.on('click', event => {
+      setSelectedLocation(event.lngLat);
     });
 
     setCulturalMap(mapInstance);
@@ -5134,8 +5074,30 @@ const Amain = () => {
     el.style.cursor = 'pointer';
     el.style.width = '24px';
     el.style.height = '41px';
+    el.style.pointerEvents = 'none';
     return el;
   };
+
+  // One marker follows the same validated value used by both save handlers.
+  useEffect(() => {
+    if (!culturalMap) return;
+    if (!selectedLocation) {
+      currentMarkerRef.current?.remove();
+      currentMarkerRef.current = null;
+      return;
+    }
+    const point = [selectedLocation.lng, selectedLocation.lat];
+    if (!currentMarkerRef.current) {
+      const editing = culturalMap.getContainer().id === 'edit-cultural-map-container';
+      currentMarkerRef.current = new maplibregl.Marker(editing
+        ? { element: createRedMarker() }
+        : { element: createMarkerElement(), anchor: 'bottom', offset: [0, 11] }
+      ).setLngLat(point).addTo(culturalMap);
+    } else {
+      currentMarkerRef.current.setLngLat(point);
+    }
+    if (culturalCoordinates.source === 'manual') culturalMap.jumpTo({ center: point });
+  }, [culturalMap, selectedLocation, culturalCoordinates.source]);
 
   const toggleCulturalPrayerEvent = (eventValue) => {
     if (culturalSelectedPrayerEvents.includes(eventValue)) {
@@ -5174,6 +5136,7 @@ const Amain = () => {
   const initializeCulturalMap = useCallback(() => {
     const mapContainer = document.getElementById('cultural-map-container');
     if (!mapContainer) return null;
+    if (culturalMap?.getContainer() === mapContainer) return culturalMap;
 
     const mapInstance = new maplibregl.Map({
       container: mapContainer,
@@ -5207,50 +5170,21 @@ const Amain = () => {
 
     mapInstance.addControl(new maplibregl.NavigationControl());
 
-    // Keep track of the marker
-    let marker = null;
-
-    if (selectedLocation) {
-      marker = new maplibregl.Marker({
-        element: createMarkerElement(),
-        anchor: 'bottom',
-        offset: [0, 11]
-      })
-        .setLngLat([selectedLocation.lng, selectedLocation.lat])
-        .addTo(mapInstance);
-      setCurrentMarker(marker);
-    }
-
-    // Add click event to map
-    mapInstance.on('click', (event) => {
+    mapInstance.on('click', event => {
       mapInstance.resize();
-      const coordinates = getCulturalMapClickCoordinates(mapInstance, event);
-      setSelectedLocation(coordinates);
-
-      // Remove existing marker if it exists
-      if (marker) {
-        marker.remove();
-      }
-
-      // Create new marker exactly on the clicked point.
-      marker = new maplibregl.Marker({
-        element: createMarkerElement(),
-        anchor: 'bottom',
-        offset: [0, 11]
-      })
-        .setLngLat([coordinates.lng, coordinates.lat])
-        .addTo(mapInstance);
-
-      // Store the marker in state
-      setCurrentMarker(marker);
+      setSelectedLocation(getCulturalMapClickCoordinates(mapInstance, event));
     });
 
     setCulturalMap(mapInstance);
     return mapInstance;
-  }, [getCulturalMapClickCoordinates, selectedLocation, adminVectorTileConfig]);
+  }, [getCulturalMapClickCoordinates, selectedLocation, adminVectorTileConfig, culturalMap, setSelectedLocation]);
 
   useEffect(() => {
-    if (!isAddCulturalModalOpen || culturalStep !== 2) return;
+    if (!isAddCulturalModalOpen) return;
+    if (culturalStep !== 2) {
+      if (culturalMap) cleanupCulturalMap();
+      return;
+    }
 
     if (!document.getElementById('cultural-map-container')) return;
 
@@ -5263,7 +5197,7 @@ const Amain = () => {
     } else {
       requestAnimationFrame(() => culturalMap.resize());
     }
-  }, [isAddCulturalModalOpen, culturalStep, culturalMap, initializeCulturalMap]);
+  }, [isAddCulturalModalOpen, culturalStep, culturalMap, initializeCulturalMap, cleanupCulturalMap]);
 
 
   useEffect(() => {
@@ -5317,8 +5251,8 @@ const Amain = () => {
       return;
     }
 
-    if (!selectedLocation) {
-      alert('لطفا یک نقطه روی نقشه انتخاب کنید');
+    if (!culturalCoordinates.validate()) {
+      setCulturalStep(2);
       return;
     }
 
@@ -5592,10 +5526,7 @@ const Amain = () => {
           alert('لطفا آدرس را وارد کنید');
           return;
         }
-        if (!selectedLocation) {
-          alert('لطفا یک نقطه روی نقشه انتخاب کنید');
-          return;
-        }
+        if (!culturalCoordinates.validate()) return;
       }
     }
 
@@ -11869,6 +11800,7 @@ const Amain = () => {
 
                     <div className="edit-form-group">
                       <label className="edit-form-label">موقعیت جغرافیایی</label>
+                      <CulturalCoordinateFields coordinates={culturalCoordinates} editing />
                       <div className="edit-map-container">
                         <div id="edit-cultural-map-container" className="edit-map-instance"></div>
                         {selectedLocation && (
@@ -15904,7 +15836,7 @@ const Amain = () => {
                       </div>
 
                       <div className="map-instruction">
-                        <span>برای انتخاب موقعیت دقیق، روی نقشه کلیک کنید</span>
+                        <span>موقعیت را روی نقشه انتخاب کنید یا مختصات را وارد کنید</span>
                         {selectedLocation && (
                           <div className="selected-coordinates">
                             <span>موقعیت انتخاب شده:</span>
@@ -15915,6 +15847,7 @@ const Amain = () => {
                         )}
                       </div>
 
+                      <CulturalCoordinateFields coordinates={culturalCoordinates} />
                       <div className="cultural-map-container">
                         <div id="cultural-map-container" className="cultural-map-instance"></div>
                       </div>
