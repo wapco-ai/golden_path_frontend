@@ -52,8 +52,8 @@ try {
             'run', 'test:browser', '--', '--timeout', '120000',
             'admin-permissions.spec.js', 'cultural-media.spec.js', 'rng-qr-correction.spec.js',
             'engineering-basemap.spec.js', 'multifloor-navigation.spec.js',
-            'enduser-reliability.spec.js', 'poi-endpoint-search.spec.js',
-            '--grep', 'guidance table keeps|a new guidance point switches|editing guidance opens|reports actual upload|reuses its server ID|cultural table keeps|QR correction|RNG scans|invalid QR|cancelling a route|changes the basemap after the transfer step|middle option selects engineering|keeps the engineering selection|RNG previews transfers|ending a trip|language service outage|language dropdown and place return|thumbnail'
+            'enduser-reliability.spec.js', 'poi-endpoint-search.spec.js', 'navigation-policy.spec.js',
+            '--grep', 'guidance table keeps|a new guidance point switches|editing guidance opens|reports actual upload|reuses its server ID|cultural table keeps|QR correction|RNG scans|invalid QR|cancelling a route|changes the basemap after the transfer step|middle option selects engineering|keeps the engineering selection|the home map shows the requested device location|RNG previews transfers|ending a trip|language service outage|language dropdown and place return|thumbnail'
         )
         Invoke-Native python @($guard, 'manifest', 'dist', $commit, (Join-Path $work 'release.json'))
     } finally {
