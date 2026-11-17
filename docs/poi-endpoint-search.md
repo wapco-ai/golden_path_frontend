@@ -7,6 +7,9 @@ images or category assignments. MPR already renders text results without an
 image requirement; MPB's remaining image-only search filter is now removed.
 Both preserve the returned POI floor. No map-floor or featured filter is added
 to endpoint text search. Normal map landmark discovery remains unchanged.
+When choosing an MPR origin or destination from the map, only landmarks with
+an image are shown; landmarks without images remain available in text search
+and category browsing.
 
 Both MPR inputs request matching areas and POIs for text search, including
 partial area names. A selected area opens the existing entrance picker on its

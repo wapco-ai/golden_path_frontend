@@ -394,7 +394,7 @@ const Mprc = ({
         const coords = extractPlaceCoordinates(place);
         const imageUrl = getFirstImage(place);
 
-        if (!coords) return null;
+        if (!coords || (isChoosingFromMap && !imageUrl)) return null;
 
         const key = place.id ? `landmark-${place.id}` : `landmark-${idx}`;
         const markerKey = place.id ?? `${coords.lng.toFixed(6)}-${coords.lat.toFixed(6)}`;
