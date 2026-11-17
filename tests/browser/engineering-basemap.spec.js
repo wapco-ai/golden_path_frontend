@@ -182,7 +182,10 @@ for (const screen of ['fs', 'rop', 'rng']) {
       return Object.entries(map.getStyle().sources).filter(([id, source]) => /route/.test(id) && source.type === 'geojson')
         .map(([, source]) => source.data);
     });
-    expect(JSON.stringify(routes)).toContain(String(state.routeGeo.geometry.coordinates[0][0]));
+    // Navigation may show only the remaining segment at the current step.
+    const coordinates = routes.flatMap(route => route.geometry?.coordinates || []);
+    expect(coordinates.length).toBeGreaterThan(0);
+    for (const point of coordinates) expect(state.routeGeo.geometry.coordinates).toContainEqual(point);
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('route-storage')).state);
     expect(stored.routeGeo).toEqual(state.routeGeo);
     expect(stored.routeSteps).toEqual(state.routeSteps);
