@@ -373,6 +373,7 @@ test('map picks update both names while retaining the selected coordinates', asy
   await pick(origin, 480);
   await expect(page.locator(`${origin} input`)).toHaveValue(/صحن قدس/);
   await pick('.map-destination-input-wrapper', 600);
+  await expect.poll(() => lookups.length).toBe(3);
 
   await expect.poll(() => routes.at(-1)).toMatchObject({
     origin: { name: 'صحن قدس', lat: Number(lookups[1].lat), lon: Number(lookups[1].lon), floor: 0 },
