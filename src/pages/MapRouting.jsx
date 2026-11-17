@@ -23,7 +23,7 @@ import { closestSelectableMapPoint, loadGeoJsonData } from '../utils/loadGeoJson
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { fetchAreaDoors } from '../services/areaDoorsService';
-import { routeMode } from '../utils/doorRouteEndpoint';
+import { doorEndpoint, routeMode } from '../utils/doorRouteEndpoint';
 import { getSessionFloor, setSessionFloor } from '../utils/sessionFloor';
 import { fetchLandmarkPlaces, localizedPlaceAddress } from '../services/landmarkService';
 import engineeringMapPreview from '../assets/images/engineering-map.png';
@@ -55,6 +55,7 @@ const MapRoutingPage = () => {
   const [showOriginModal, setShowOriginModal] = useState(false);
   const [selectedDestination, setSelectedDestination] = useState(null);
   const [showEntryModal, setShowEntryModal] = useState(false);
+  const [pendingEntrance, setPendingEntrance] = useState(null);
   const [entryTarget, setEntryTarget] = useState('destination');
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [tempDestination, setTempDestination] = useState(null);
@@ -546,7 +547,7 @@ const MapRoutingPage = () => {
       kind: place.kind,
       ...(isAreaResult(place) ? {
         ...area, source: 'area', sourceId: place.areaGroupId ?? place.areaId,
-        ...(place.privateArea ? { privateArea: true } : {})
+        ...(place.privateArea ? { privateArea: true, hasApproachDoors: place.hasApproachDoors } : {})
       } : { poiId: id }),
       name: place.title || place.name || '',
       location: localizedPlaceAddress(place.address, language),
@@ -738,7 +739,7 @@ const MapRoutingPage = () => {
     setUserLocation(origin);
     setShowOriginModal(false);
 
-    if (location.state?.showOriginModal) {
+    if (location.state?.showOriginModal && !pendingEntrance) {
       sessionStorage.setItem('updatedOrigin', JSON.stringify(origin));
       navigate('/fs', { replace: true });
     }
@@ -763,12 +764,13 @@ const MapRoutingPage = () => {
 
     if (target === 'destination') {
       setShowDestinationModal(false);
+      setPendingEntrance(null);
       if (!destination.fromMapSelection) {
         addSearch(destination);
       }
     }
 
-    if (isAreaResult(destination) && !destination.privateArea) {
+    if (isAreaResult(destination) && (!destination.privateArea || (target === 'destination' && destination.hasApproachDoors !== false))) {
       setShowOriginModal(false);
       setSessionFloor(floor);
       setTempDestination(destination);
@@ -1200,6 +1202,7 @@ const MapRoutingPage = () => {
     clearFloorRequest();
     setActiveInput(inputType);
     if (inputType === 'destination') {
+      setPendingEntrance(null);
       setShowDestinationModal(true);
     } else {
       setShowOriginModal(true);
@@ -1243,12 +1246,39 @@ const MapRoutingPage = () => {
 
     try {
       const { transportMode, gender } = useRouteStore.getState();
+      const originFloor = getPointFloor(userLocation);
+      const origin = userLocation?.coordinates && originFloor !== null
+        ? { lat: userLocation.coordinates[0], lon: userLocation.coordinates[1], floor: originFloor, ...doorEndpoint(userLocation) }
+        : null;
       const response = await fetchAreaDoors({
-        areaGroupId, areaId, lat, lon, floor, lang: language,
+        areaGroupId, areaId, lat, lon, floor, lang: language, target, origin,
         mode: routeMode(transportMode), gender: gender === 'family' ? 'both' : gender, signal: selection.signal
       });
       if (selection.signal.aborted) return;
       const area = response?.data?.area;
+      const mapPoint = destination?.fromMapSelection && !isAreaResult(destination);
+      if (mapPoint && response?.data?.restrictedArea) {
+        destination = { ...destination, kind: 'area', areaId: area.id, name: area.name || destination.name };
+        setTempDestination(destination);
+        setEntryTarget('destination');
+        setShowEntryModal(true);
+      } else if (mapPoint || (destination?.privateArea && response?.status === 'ok' && !response.data.doors?.length)) {
+        setShowEntryModal(false);
+        setTempDestination(null);
+        setSelectedDestination(destination);
+        sessionStorage.setItem('currentDestination', JSON.stringify(destination));
+        return;
+      }
+      if (destination && response?.data?.requiresOrigin) {
+        setPendingEntrance({ areaGroupId, areaId, lat, lon, floor, destination });
+        setSelectedDestination(null);
+        setTempDestination(null);
+        setShowEntryModal(false);
+        setActiveInput('origin');
+        setShowOriginModal(true);
+        setSearchQuery('');
+        return;
+      }
       const nextDoors = Array.isArray(response?.data?.doors)
         ? response.data.doors.map(door => ({ ...door, otherAreaName: getEntryDestinationName(door, area) }))
         : [];
@@ -1277,12 +1307,31 @@ const MapRoutingPage = () => {
       setMapEntryDoors(nextDoors);
     } catch (error) {
       if (selection.signal.aborted) return;
+      if (destination?.fromMapSelection && !isAreaResult(destination) && [400, 404].includes(error.status)) {
+        setSelectedDestination(destination);
+        sessionStorage.setItem('currentDestination', JSON.stringify(destination));
+        return;
+      }
       console.error('failed to fetch area doors', error);
       setAreaDoorsStatus('error');
       setAreaDoorsData(null);
       setMapEntryDoors([]);
     }
-  }, [addSearch, language]);
+  }, [addSearch, language, userLocation]);
+
+  useEffect(() => {
+    if (!pendingEntrance || !userLocation?.coordinates || showOriginModal || showEntryModal || isSelectingFromMap) return;
+    if (getPointFloor(userLocation) === null) {
+      askFloor(userLocation, 'origin', point => setUserLocation(point));
+      return;
+    }
+    setPendingEntrance(null);
+    setActiveInput('destination');
+    setEntryTarget('destination');
+    setTempDestination(pendingEntrance.destination);
+    setShowEntryModal(true);
+    requestAreaDoors(pendingEntrance);
+  }, [pendingEntrance, userLocation, showOriginModal, showEntryModal, isSelectingFromMap, requestAreaDoors, askFloor]);
 
   useEffect(() => {
     if (!showEntryModal && areaDoorsStatus && areaDoorsStatus !== 'loading' && !mapEntryDoors.length && tempDestination) {
@@ -1337,8 +1386,9 @@ const MapRoutingPage = () => {
     setAreaDoorsStatus(null);
     setMapEntryDoors([]);
     if (isDestination) {
-      setSelectedDestination(point);
-      sessionStorage.setItem('currentDestination', JSON.stringify(point));
+      setSelectedDestination(null);
+      setPendingEntrance(null);
+      requestAreaDoors({ lat: latlng.lat, lon: latlng.lng, floor, destination: point });
       setShowDestinationModal(false);
       setShowEntryModal(false);
       setTempDestination(null);
@@ -1480,12 +1530,8 @@ const MapRoutingPage = () => {
         setLastTapInput('origin');
         setMapTapCount(prev => prev + 1);
       } else if (inputToFill === 'destination') {
-        // For destination, also trigger area doors check
-        setTempDestination(locationData);
-        requestAreaDoors({ lat: latlng.lat, lon: latlng.lng });
-
-        setSelectedDestination(locationData);
-        sessionStorage.setItem('currentDestination', JSON.stringify(locationData));
+        setPendingEntrance(null);
+        requestAreaDoors({ lat: latlng.lat, lon: latlng.lng, floor: mapFloor, destination: locationData });
         setLastTapInput('destination');
         setMapTapCount(prev => prev + 1);
       }

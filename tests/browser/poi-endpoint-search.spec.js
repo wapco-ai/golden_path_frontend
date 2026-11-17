@@ -250,7 +250,9 @@ for (const selectArea of [false, true]) {
     if (selectArea) {
       await expect(page.locator('.map-entry-item')).toHaveCount(1);
       await expect(page.locator('.map-entry-item')).toContainText('راهرو');
-      expect(areaRequests).toEqual([{ area_id: '45', floor: '1', lang: 'fa', mode: 'walk', gender: 'male' }]);
+      expect(areaRequests).toEqual([{ area_id: '45', floor: '1', lang: 'fa', mode: 'walk', gender: 'male',
+        target: 'destination', 'origin[lat]': String(origin.coordinates[0]),
+        'origin[lon]': String(origin.coordinates[1]), 'origin[floor]': String(origin.floor) }]);
       expect(routeRequests).toEqual([]);
       await expect(page.locator('.gp-floor-trigger')).toContainText('۱');
       const marker = page.locator('.map-door-marker');
@@ -303,7 +305,7 @@ test('a grouped destination shows one row and requests the group entrances by it
   await expect(entries.first()).toBeDisabled();
   await expect(entries.first()).toContainText('درب بسته است');
   await expect(markers.first()).toBeDisabled();
-  expect(areaRequests).toEqual([{ area_group_id: area.areaGroupId, floor: '0', lang: 'fa', mode: 'walk', gender: 'male' }]);
+  expect(areaRequests).toEqual([{ area_group_id: area.areaGroupId, floor: '0', lang: 'fa', mode: 'walk', gender: 'male', target: 'destination' }]);
   await expect(entries.nth(1)).toContainText('صحن بعثت');
   await entries.nth(1).click();
   await expect(markers.nth(1)).toHaveAttribute('aria-pressed', 'true');
@@ -746,7 +748,7 @@ for (const endpoint of ['origin', 'destination']) {
 test('private area is a destination only and routes directly by ID without an entrance picker', async ({ page }) => {
   test.setTimeout(90000);
   const { areaRequests } = await setup(page);
-  const area = { id: 'area-45', kind: 'area', areaId: 45, privateArea: true, title: 'کارگاه آزمون', floor: 1, coordinates: [36.288, 59.616] };
+  const area = { id: 'area-45', kind: 'area', areaId: 45, privateArea: true, hasApproachDoors: false, title: 'کارگاه آزمون', floor: 1, coordinates: [36.288, 59.616] };
   const searches = [];
   await page.route('**/api/v1/landmark-places**', route => {
     const params = new URL(route.request().url()).searchParams;
@@ -779,4 +781,46 @@ test('private area is a destination only and routes directly by ID without an en
   await expect.poll(() => body?.destination).toEqual({ type: 'privateArea', id: 45, floor: 1, name: area.title });
   await expect(page.getByText('مسیر قابل‌دسترسی تا نزدیکی این محدوده پیدا نشد.')).toBeVisible();
   expect(areaRequests).toEqual([]);
+});
+
+test('restricted destination resumes the entrance picker with the chosen origin', async ({ page }) => {
+  await setup(page);
+  const area = { kind: 'area', id: 'area-45', areaId: 45, floor: -1, privateArea: true,
+    hasApproachDoors: true, title: 'محدوده آزمون', coordinates: [36.2872, 59.6152] };
+  const start = { ...pois[0], title: 'مبدأ آزمون' };
+  await page.route('**/api/v1/landmark-places**', route => {
+    const term = new URL(route.request().url()).searchParams.get('search');
+    return route.fulfill({ json: { places: { landmarkPlaces: term === area.title ? [area] : term ? [start] : [] } } });
+  });
+  await page.route('**/api/v1/area-doors?*', route => {
+    const query = new URL(route.request().url()).searchParams;
+    expect(query.get('target')).toBe('destination');
+    const hasOrigin = query.has('origin[floor]');
+    if (hasOrigin) {
+      expect(query.get('origin[lat]')).toBe(String(start.coordinates[0]));
+      expect(query.get('origin[floor]')).toBe('-1');
+    }
+    return route.fulfill({ json: { status: 'ok', data: { area, requiresOrigin: !hasOrigin,
+      doors: [7, 8].map(n => ({ doorNo: n, accessId: 100+n, selectedAreaId: 45,
+        coord4326: [59.6152, 36.2872], approachOnly: true,
+        routingStatus: hasOrigin && n === 8 ? 'available' : 'unavailable' })) } } });
+  });
+  let request;
+  await page.route('**/api/v1/routing/route', route => {
+    request = route.request().postDataJSON();
+    return route.fulfill({ status: 404, json: { status: 'NO_PATH' } });
+  });
+  await page.goto('/#/mpr');
+  await page.locator('.map-destination-input-wrapper').click();
+  const search = page.locator('.map-search-modal input');
+  await search.fill(area.title);
+  await page.getByText(area.title, { exact: true }).click();
+  await expect(search).toHaveAttribute('placeholder', /مبدا|مبدأ/);
+  await search.fill(start.title);
+  await page.getByText(start.title, { exact: true }).click();
+  const doors = page.locator('.map-entry-item');
+  await expect(doors.nth(0)).toBeDisabled();
+  await doors.nth(1).click();
+  await page.locator('.map-confirm-entry-button').click();
+  await expect.poll(() => request?.destination).toMatchObject({ type: 'door', areaId: 45, accessId: 108, floor: -1 });
 });
