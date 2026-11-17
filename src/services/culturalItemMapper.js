@@ -64,6 +64,12 @@ const normalizeLocation = (location) => {
 
   const { x, y, floor, lng, lat } = location;
 
+  // The API already transforms stored geometry to WGS84 without rounding.
+  // Prefer that pair; the legacy UTM converter rounds to six decimal places.
+  if (Number.isFinite(lng) && Number.isFinite(lat) && Math.abs(lng) <= 180 && Math.abs(lat) <= 90) {
+    return { lng, lat, floor: floor ?? null };
+  }
+
   if (typeof x === 'number' && typeof y === 'number') {
     const { lng: convertedLng, lat: convertedLat } = convertUtm32640ToLngLat({ x, y });
     return {
