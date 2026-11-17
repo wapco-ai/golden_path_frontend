@@ -184,6 +184,26 @@ for (const mode of ['create', 'edit']) {
       return { lat: center.lat, lng: center.lng };
     }, coordinateMapId(mode))).toEqual(manual);
     await expect(coordinateInput(form, 'lat')).toHaveValue('۳۶٫۲۹۱۲۳۴۵۶۷');
+    if (mode === 'edit') {
+      const button = form.getByRole('button', { name: 'نمایش موقعیت انتخاب‌شده', exact: true });
+      await expect(form.locator('.selected-coordinates-edit')).toHaveCount(0);
+      const mapBounds = await form.locator('#edit-cultural-map-container').boundingBox();
+      const buttonBounds = await button.boundingBox();
+      expect(mapBounds.height).toBe(300);
+      expect(buttonBounds.x).toBeGreaterThan(mapBounds.x);
+      expect(buttonBounds.y).toBeGreaterThan(mapBounds.y);
+      expect(buttonBounds.x + buttonBounds.width).toBeLessThan(mapBounds.x + mapBounds.width);
+      expect(buttonBounds.y + buttonBounds.height).toBeLessThan(mapBounds.y + mapBounds.height);
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.evaluate(() => window.coordinateMaps['edit-cultural-map-container'].jumpTo({ center: [59.63, 36.30], zoom: 18 }));
+      await button.click();
+      await expect.poll(() => page.evaluate(() => window.coordinateMaps['edit-cultural-map-container'].getCenter().lat)).toBeCloseTo(manual.lat, 8);
+      await expect.poll(() => page.evaluate(() => window.coordinateMaps['edit-cultural-map-container'].getCenter().lng)).toBeCloseTo(manual.lng, 8);
+      await expect.poll(() => page.evaluate(() => window.coordinateMaps['edit-cultural-map-container'].getZoom())).toBe(16);
+      await expect(coordinateInput(form, 'lat')).toHaveValue('۳۶٫۲۹۱۲۳۴۵۶۷');
+      await expect(coordinateInput(form, 'lng')).toHaveValue('۵۹٫۶۱۷۱۲۳۴۵۶');
+      await form.locator('.edit-map-container').screenshot({ path: testInfo.outputPath('cultural-map-overlay.png') });
+    }
     const clicked = await clickCoordinateMap(page, form, mode);
     await expectCoordinateMarker(page, mode, clicked);
     // Moving by hand after a click must update the existing marker, not leave two.
@@ -225,6 +245,7 @@ for (const mode of ['create', 'edit']) {
     for (const invalid of ['', '-', '91', '-91', '36abc']) {
       await lat.fill(invalid);
       await expect(lat).toHaveAttribute('aria-invalid', 'true');
+      if (mode === 'edit') await expect(form.getByRole('button', { name: 'نمایش موقعیت انتخاب‌شده', exact: true })).toBeDisabled();
       await expect(page.locator(`#${coordinateMapId(mode)} .maplibregl-marker`)).toHaveCount(0);
       await form.getByRole('button', { name: mode === 'edit' ? 'ثبت تغییرات' : 'تایید و مرحله بعد', exact: true }).click();
       await expect(form).toBeVisible();

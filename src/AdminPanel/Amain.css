@@ -11298,11 +11298,16 @@ body {
   border: 1px solid #ecf3fa;
 }
 
+.edit-map-viewport {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+}
+
 .edit-map-instance {
-  height: 200px;
+  height: 300px;
   background: #eef2fa;
   border-radius: 18px;
-  margin-bottom: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -11310,30 +11315,45 @@ body {
   font-size: 0.8rem;
 }
 
-.selected-coordinates-edit {
-  background: #eff6ff;
-  padding: 0.5rem 1rem;
-  border-radius: 40px;
-  font-size: 0.75rem;
-  display: flex;
-  justify-content: space-between;
-  margin: 10px 0;
-}
-
 .select-location-btn-edit {
-  background: #0f71ef;
-  border: none;
-  color: white;
-  padding: 10px 18px;
-  border-radius: 40px;
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #fff;
+  border: 1px solid #dce7f5;
+  color: #0f71ef;
+  padding: 10px 14px;
+  border-radius: 14px;
+  box-shadow: 0 3px 12px rgba(27, 64, 105, 0.14);
   font-weight: 500;
-  width: 100%;
+  max-width: calc(100% - 24px);
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  transition: background 0.2s, box-shadow 0.2s;
 }
 
-.select-location-btn-edit:hover {
-  background: #0a5bc9;
+.select-location-btn-edit:hover:not(:disabled) {
+  background: #eff6ff;
+  box-shadow: 0 4px 14px rgba(27, 64, 105, 0.2);
+}
+
+.select-location-btn-edit:focus-visible {
+  outline: 3px solid #0f71ef;
+  outline-offset: 2px;
+}
+
+.select-location-btn-edit:disabled {
+  color: #8091a7;
+  cursor: default;
+}
+
+.select-location-btn-edit svg {
+  flex-shrink: 0;
 }
 
 .edit-restrictions-section {

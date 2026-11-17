@@ -11802,31 +11802,32 @@ const Amain = () => {
                       <label className="edit-form-label">موقعیت جغرافیایی</label>
                       <CulturalCoordinateFields coordinates={culturalCoordinates} editing />
                       <div className="edit-map-container">
-                        <div id="edit-cultural-map-container" className="edit-map-instance"></div>
-                        {selectedLocation && (
-                          <div className="selected-coordinates-edit">
-                            <span>موقعیت انتخاب شده:</span>
-                            <span className="coordinates-value-edit">
-                              {selectedLocation.lat.toFixed(6)}°N, {selectedLocation.lng.toFixed(6)}°E
-                            </span>
-                          </div>
-                        )}
-                        <button
-                          className="select-location-btn-edit"
-                          onClick={() => {
-                            const isEditMapInstance = culturalMap?.getContainer?.()?.id === 'edit-cultural-map-container';
-                            if (isEditingCultural && editingCulturalData && (!culturalMap || !isEditMapInstance)) {
-                              initializeEditMap();
-                            } else if (selectedLocation) {
-                              culturalMap.flyTo({
-                                center: [selectedLocation.lng, selectedLocation.lat],
-                                zoom: 16
-                              });
-                            }
-                          }}
-                        >
-                          {selectedLocation ? 'تغییر موقعیت روی نقشه' : 'انتخاب موقعیت روی نقشه'}
-                        </button>
+                        <div className="edit-map-viewport">
+                          <div id="edit-cultural-map-container" className="edit-map-instance"></div>
+                          <button
+                            type="button"
+                            className="select-location-btn-edit"
+                            disabled={!selectedLocation}
+                            onClick={() => {
+                              const isEditMapInstance = culturalMap?.getContainer?.()?.id === 'edit-cultural-map-container';
+                              if (isEditingCultural && editingCulturalData && (!culturalMap || !isEditMapInstance)) {
+                                initializeEditMap();
+                              } else if (selectedLocation) {
+                                culturalMap.flyTo({
+                                  center: [selectedLocation.lng, selectedLocation.lat],
+                                  zoom: 16
+                                });
+                              }
+                            }}
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true" focusable="false">
+                              <circle cx="12" cy="12" r="7" />
+                              <circle cx="12" cy="12" r="2.5" />
+                              <path d="M12 2v3m0 14v3M2 12h3m14 0h3" strokeLinecap="round" />
+                            </svg>
+                            <span>نمایش موقعیت انتخاب‌شده</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
