@@ -15,11 +15,25 @@ export class NavigationProgressTracker {
     this.along = null;
     this.routeM = null;
     this.arrival = null;
+    this.arrivalFeedback = null;
   }
 
   constructor() { this.reset(); }
 
-  update({ measurement, steps, currentStep, coordinates, context, mode, now = Date.now() }) {
+  update(input) {
+    const progress = this.updateObservation(input);
+    const { steps, currentStep, coordinates } = input;
+    const total = getLineDistanceMeters(coordinates);
+    const atEnd = currentStep === steps?.length - 1
+      && steps[currentStep]?.type === 'stepArriveDestination'
+      && this.along !== null && this.along >= total - 0.1;
+    // Feedback never changes the evidence required to confirm arrival.
+    this.arrivalFeedback = !progress.arrived && atEnd
+      ? (this.arrival ? 'arrivalChecking' : 'arrivalUncertain') : null;
+    return progress;
+  }
+
+  updateObservation({ measurement, steps, currentStep, coordinates, context, mode, now = Date.now() }) {
     const policy = getNavigationPolicy();
     const blind = !policy.gps_enabled;
     const unchanged = { nextStep: currentStep, arrived: false };

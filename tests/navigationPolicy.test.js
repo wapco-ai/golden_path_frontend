@@ -113,6 +113,44 @@ test('missing heading allows display progress but cannot update the raw distance
   assert.equal(tracker.routeDistance, distance);
 });
 
+test('arrival feedback explains a displayed endpoint without weakening raw-position checks', () => {
+  const tracker = new NavigationProgressTracker();
+  feed(tracker, 1);
+  assert.equal(tracker.arrivalFeedback, null);
+  feed(tracker, 49, { currentStep: 2, offset: 4 });
+  assert.equal(tracker.arrivalFeedback, null);
+  assert.equal(feed(tracker, 50, { currentStep: 2, offset: 4 }).arrived, false);
+  assert.equal(tracker.arrivalFeedback, 'arrivalUncertain');
+  assert.equal(tracker.routeM, 1);
+  assert.equal(feed(tracker, 50.7, { currentStep: 2 }).arrived, false);
+  assert.equal(tracker.arrivalFeedback, 'arrivalChecking');
+  assert.equal(feed(tracker, 51.4, { currentStep: 2 }).arrived, true);
+  assert.equal(tracker.arrivalFeedback, null);
+  tracker.reset();
+  assert.equal(tracker.arrivalFeedback, null);
+});
+
+test('missing and expired observations explain an unconfirmed endpoint, never confirm it', () => {
+  const tracker = new NavigationProgressTracker();
+  feed(tracker, 50, { currentStep: 2, heading: null, positionTimestamp: null });
+  assert.equal(tracker.arrivalFeedback, 'arrivalUncertain');
+  feed(tracker, 50.7, { currentStep: 2 });
+  assert.equal(tracker.arrivalFeedback, 'arrivalChecking');
+  const result = tracker.update({ measurement: null, steps, currentStep: 2,
+    coordinates, context: 'trip|0', now: 200000 });
+  assert.equal(result.arrived, false);
+  assert.equal(tracker.arrivalFeedback, 'arrivalUncertain');
+});
+
+test('arrival feedback cannot appear on a floor transfer or an earlier route step', () => {
+  const tracker = new NavigationProgressTracker();
+  feed(tracker, 50, { currentStep: 1, offset: 4 });
+  assert.equal(tracker.arrivalFeedback, null);
+  tracker.update({ measurement: null, steps: [{ type: 'stepChangeFloor' }], currentStep: 0,
+    coordinates, context: 'transfer', now: 200000 });
+  assert.equal(tracker.arrivalFeedback, null);
+});
+
 test('DR keeps the raw path and detected walking distance independent without a drift coefficient', async t => {
   const saved = { window: globalThis.window, motion: globalThis.DeviceMotionEvent };
   globalThis.window = { addEventListener() {}, removeEventListener() {} };

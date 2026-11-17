@@ -101,7 +101,7 @@ async function walk(page, count, bearing = 0) {
   for (let i = 0; i < count; i++) {
     await page.clock.fastForward(600);
     await page.evaluate(heading => {
-      window.compass(heading);
+      if (heading !== null) window.compass(heading);
       window.walkCycle(false);
     }, bearing);
     await page.clock.runFor(20);
@@ -116,6 +116,54 @@ test('Haram default ignores GPS and reaches the destination using actual motion 
   await expect(page.getByTestId('step-diagnostics')).toHaveCount(0);
   expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
 });
+
+test('confirmed arrival marks the map with a green check in both panel states and clears on a new trip', async ({ page }, testInfo) => {
+  test.setTimeout(120000);
+  await setup(page, 47);
+  await expect(page.locator('[data-navigation-marker="active"]')).toHaveCount(1);
+  await walk(page, 68);
+  const marker = page.locator('[data-navigation-marker="arrived"]');
+  await expect(marker).toHaveCount(1);
+  await expect(marker).toHaveAttribute('aria-label', 'به مقصد رسیدید.');
+  await expect(marker.locator('path[fill="#15803D"]')).toHaveCount(1);
+  await expect(marker.locator('path[d="m5 12 4 4L19 6"]')).toHaveCount(1);
+  await expect(page.locator('.instruction-text')).toHaveText('به مقصد رسیدید.');
+  await page.screenshot({ path: testInfo.outputPath('arrived-closed.png') });
+  await page.locator('.modal-toggle3').click();
+  await expect(marker).toBeVisible();
+  await expect(page.locator('.instruction-text')).toHaveText('به مقصد رسیدید.');
+  await page.screenshot({ path: testInfo.outputPath('arrived-open.png') });
+  await page.locator('.modal-toggle3').click();
+  await expect(marker).toBeVisible();
+  await page.locator('.start-routing-button').click();
+  await expect(page).toHaveURL(/#\/mpb$/);
+  await page.goto('/#/rng');
+  await expect(page.locator('[data-navigation-marker="arrived"]')).toHaveCount(0);
+});
+
+for (const [scenario, heading] of [['five-degree bias', 5], ['missing heading', null]]) {
+  test(`the 47 m endpoint explains ${scenario} and keeps QR correction available`, async ({ page }) => {
+    test.setTimeout(120000);
+    await setup(page, 47);
+    await walk(page, 68, heading);
+    await expect(page.locator('.routing-page')).toHaveAttribute('data-navigation-mode', 'live');
+    await expect(page.locator('.instruction-text')).toContainText('موقعیت برای تأیید رسیدن مطمئن نیست');
+    await expect(page.locator('.instruction-text')).toContainText('دکمهٔ QR');
+    await expect(page.locator('[data-navigation-marker="arrived"]')).toHaveCount(0);
+    await expect(page.locator('[data-navigation-marker="active"]')).toHaveCount(1);
+    const qrButton = page.getByRole('button', { name: 'اصلاح مسیر با QR', exact: true });
+    await expect(qrButton).toBeVisible();
+    await qrButton.click();
+    await expect(page.locator('.rng-qr-dialog')).toBeVisible();
+    await page.locator('.rng-qr-dialog-actions button').last().click();
+    await expect(page.locator('.rng-qr-dialog')).not.toBeVisible();
+    await page.locator('.modal-toggle3').click();
+    await expect(page.locator('.instruction-text')).toContainText('موقعیت برای تأیید رسیدن مطمئن نیست');
+    await page.clock.runFor(20000);
+    await expect(page.locator('.instruction-text')).toContainText('موقعیت برای تأیید رسیدن مطمئن نیست');
+    expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
+  });
+}
 
 test('a GPS-selected origin anchors walking DR without new GPS requests', async ({ page }) => {
   await page.addInitScript(() => {

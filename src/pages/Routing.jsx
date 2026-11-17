@@ -123,12 +123,14 @@ const RoutingPage = () => {
   const activeSnapshot = useRef(null);
   const [liveRouteM, setLiveRouteM] = useState(null);
   const [routeDistance, setRouteDistance] = useState(null);
+  const [arrivalFeedback, setArrivalFeedback] = useState(null);
   const [showDistanceMessage, setShowDistanceMessage] = useState(false);
   const distanceMessageTimer = useRef(null);
   const [drAccuracy, setDrAccuracy] = useState(null);
   const resetProgress = (routeM = null, distance = 0, displayGeo = null, discrepancy = null) => {
     const tracker = progressTracker.current;
     tracker.reset(routeM, distance);
+    setArrivalFeedback(null);
     tracker.snappedGeo = displayGeo;
     tracker.routeDistance = discrepancy;
     setLiveRouteM(routeM);
@@ -469,7 +471,8 @@ const RoutingPage = () => {
     }
 
     const segments = [];
-    const currentInstruction = liveStepInstruction(current, rngText, finalStepContext(current, steps[currentStep - 1]));
+    const currentInstruction = arrivalFeedback ? rngText[arrivalFeedback]
+      : liveStepInstruction(current, rngText, finalStepContext(current, steps[currentStep - 1]));
     if (currentInstruction) segments.push(currentInstruction);
     const nextInstruction = liveStepInstruction(steps[currentStep + 1], rngText, finalStepContext(steps[currentStep + 1], current));
     if (nextInstruction) {
@@ -512,7 +515,7 @@ const RoutingPage = () => {
       isCancelled = true;
       audioEl.pause();
     };
-  }, [currentStep, finalStepContext, intl, isRoutingActive, isPaused, language, rngText, routeData?.steps, selectedSoundOption]);
+  }, [arrivalFeedback, currentStep, finalStepContext, intl, isRoutingActive, isPaused, language, rngText, routeData?.steps, selectedSoundOption]);
 
   useEffect(() => {
     if (isDrActive) {
@@ -1478,6 +1481,7 @@ const RoutingPage = () => {
       context: `${pauseKey}|${step?.segmentId ?? ''}|${step?.floor ?? sessionFloor}`,
       mode: transportMode, now: positionClock });
     setLiveRouteM(progressTracker.current.routeM);
+    setArrivalFeedback(progressTracker.current.arrivalFeedback);
     setSnappedGeo(progressTracker.current.snappedGeo);
     setRouteDistance(progressTracker.current.routeDistance);
     if (progress.nextStep !== currentStep) setCurrentStep(progress.nextStep);
@@ -1819,7 +1823,8 @@ const RoutingPage = () => {
   // The displayed arrival title is generated locally when the server text is empty.
   const serverArrival = { instruction: routeSteps?.at(-1)?.instruction };
   const guideInstruction = hasArrived ? arrivalInstruction(serverArrival, rngText, finalStepContext(lastStep, routeData?.steps?.at(-2)))
-    : liveRouting ? liveStepInstruction(guideStep, rngText, finalStepContext(guideStep, routeData?.steps?.[currentStep - 1])) : guideStep?.instruction;
+    : liveRouting && !isPaused && arrivalFeedback ? rngText[arrivalFeedback]
+      : liveRouting ? liveStepInstruction(guideStep, rngText, finalStepContext(guideStep, routeData?.steps?.[currentStep - 1])) : guideStep?.instruction;
   const confirmsFloor = liveRouting && guideStep?.type === 'stepChangeFloor';
   const directionDisabled = isPaused || !routeGeo || !guideStep
     || (liveRouting && !confirmsFloor && currentStep >= stepCount - 1);
@@ -2333,6 +2338,8 @@ const RoutingPage = () => {
             userLocation={navigationLocation}
             userHeading={navigationFrame.mapHeading ?? effectiveHeading}
             navigationControlled={true}
+            navigationArrived={hasArrived}
+            arrivalLabel={hasArrived ? guideInstruction : undefined}
             isOverviewMode={showAllRoutesView || showAlternativeRoutes}
             progressRouteM={navigationFrame.routeM}
             showDrTrace={isRoutingActive && !isDemoMode}

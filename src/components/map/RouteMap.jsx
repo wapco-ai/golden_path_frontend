@@ -48,6 +48,8 @@ const RouteMap = forwardRef(({
   onSelectAlternativeRoute,
   showAlternativeRoutes = false,
   navigationControlled = false,
+  navigationArrived = false,
+  arrivalLabel,
   isOverviewMode = false,
   onSelectLandmark,
   progressRouteM = null,
@@ -559,13 +561,13 @@ const RouteMap = forwardRef(({
       {/* User location marker */}
       {!useDrPosition && isValidUserLocation && (
         <Marker longitude={userLocation[1]} latitude={userLocation[0]} anchor="center" style={routeMarkerStyle}>
-          <ArrowMarker />
+          <ArrowMarker arrived={navigationArrived} label={arrivalLabel} />
         </Marker>
       )}
 
       {useDrPosition && drPosition && Number.isFinite(drPosition.lng) && Number.isFinite(drPosition.lat) && (
         <Marker longitude={drPosition.lng} latitude={drPosition.lat} anchor="center" style={routeMarkerStyle}>
-          <ArrowMarker />
+          <ArrowMarker arrived={navigationArrived} label={arrivalLabel} />
         </Marker>
       )}
 

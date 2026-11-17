@@ -8,6 +8,8 @@ Display progress follows the server line by detected step distance. The advisory
 
 Automatic arrival requires the last route step, display progress near the endpoint, and distinct fresh steps whose raw estimates are within the separate arrival radius with compatible heading. A destination QR is not required. Phone heading and stride estimates require field validation.
 
+Confirmed arrival turns the existing map marker green with a check and an accessible arrival label. At the displayed final endpoint (within 0.1 m), pending evidence shows a confirmation message in the existing guide. Missing/stale heading or an off-endpoint raw estimate instead explains that arrival is unconfirmed and points to the existing QR correction button. These messages also use the existing speech path. Display progress alone never confirms arrival; no radius, observation count, routing geometry or GPS policy is relaxed. Feedback resets with route correction, floor/route context changes and a new trip, and is suppressed during pause/demo previews.
+
 Pausing stores the raw position, route progress and last measured discrepancy. Without a new QR, resuming requires the user to confirm they are still at the pause location. Floor transfer remains an explicit user action. QR correction preserves the existing camera and cancellation behavior.
 
 Validation covers motion-event navigation without GPS, arrival without QR, progress after a distance warning, false-arrival protection, both panel states, pause/resume, settings persistence, hairpin projection, floor boundaries and legacy administrator-enabled GPS scenarios. Physical device accuracy has not been measured by these automated tests.
