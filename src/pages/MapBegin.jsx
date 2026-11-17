@@ -20,7 +20,7 @@ import { fetchGroupMetadata, fetchSubGroups } from '../services/groupService';
 import { normalizeGroupMetadata, normalizeSubGroupMetadata } from '../utils/groupMetadata';
 import { useUserAuthStore } from '../auth/user/userAuthStore';
 import { useNavigate, useLocation } from 'react-router-dom';
-import mode1 from '../assets/images/mode1.png';
+import engineeringMapPreview from '../assets/images/engineering-map.png';
 import mode2 from '../assets/images/mode2.png';
 import mode3 from '../assets/images/mode3.png';
 
@@ -1096,8 +1096,8 @@ const MapBeginPage = () => {
         >
           <div className="map-button-preview">
             <img
-              src={selectedMapType === 'satellite' ? mode2 : selectedMapType === 'simple' ? mode3 : mode1}
-              alt={selectedMapType === 'satellite' ? 'Satellite view' : selectedMapType === 'simple' ? 'Offline OSMH view' : 'Default view'}
+              src={selectedMapType === 'satellite' ? mode2 : selectedMapType === 'simple' ? mode3 : engineeringMapPreview}
+              alt={selectedMapType === 'satellite' ? 'Satellite view' : selectedMapType === 'simple' ? 'Offline OSMH view' : 'Engineering map view'}
               className="map-preview-thumbnail"
             />
           </div>
@@ -1128,12 +1128,12 @@ const MapBeginPage = () => {
                 setSelectedMapType('base');
                 setShowMapStyleMenu(false);
               }}
-              title={intl.formatMessage({ id: 'baseMap' })}
+              title={intl.formatMessage({ id: 'engineeringMap' })}
             >
               <div className="map-preview-container">
                 <img
-                  src={mode1}
-                  alt="Default map view"
+                  src={engineeringMapPreview}
+                  alt="Engineering map view"
                   className="map-preview-image"
                 />
               </div>
@@ -1875,7 +1875,7 @@ const MapBeginPage = () => {
                       <div className="submenu-radio">
                         {selectedMapType === 'base' && <div className="radio-inner"></div>}
                       </div>
-                      <span className="submenu-text">{intl.formatMessage({ id: 'baseMap' })}</span>
+                      <span className="submenu-text">{intl.formatMessage({ id: 'engineeringMap' })}</span>
                     </div>
 
                     <div

@@ -135,8 +135,8 @@ const Mprc = ({
     : isOfflineOsmh
       ? `mbtiles-offline-osmh-${styleKey}`
       : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
-  const { mapStyle, mapRenderKey, isEngineeringMap, onMapError } = usePublicFloorMap(
-    mapFloor, language, regularMapStyle, regularMapKey, isSatellite ? undefined : handleMapError
+  const { mapStyle, mapRenderKey, isEngineeringMap, isBasementMap, onMapError } = usePublicFloorMap(
+    mapFloor, language, regularMapStyle, regularMapKey, isSatellite ? undefined : handleMapError, selectedMapType
   );
   const vectorTileConfig = useMemo(() => {
     return createHaramVectorTileConfig(language).filter(
@@ -495,7 +495,7 @@ const Mprc = ({
   }, [language, shouldLoadGeoJson, mapFloor]);
 
   useEffect(() => {
-    if (!isEngineeringMap && userCoords && destCoords && pointIsOnFloor(userLocation, mapFloor) && pointIsOnFloor(selectedDestination, mapFloor) && doorConnectionNodes.length) {
+    if (!isBasementMap && userCoords && destCoords && pointIsOnFloor(userLocation, mapFloor) && pointIsOnFloor(selectedDestination, mapFloor) && doorConnectionNodes.length) {
       const points = doorConnectionNodes;
       const nearest = (coords) => {
         let best = null;
@@ -523,7 +523,7 @@ const Mprc = ({
     } else {
       setRouteCoords(null);
     }
-  }, [isEngineeringMap, userCoords, destCoords, doorConnectionNodes, mapFloor, userLocation, selectedDestination]);
+  }, [isBasementMap, userCoords, destCoords, doorConnectionNodes, mapFloor, userLocation, selectedDestination]);
 
   return (
     <Map
@@ -580,7 +580,7 @@ const Mprc = ({
       )}
 
       {/* Route line */}
-      {!isEngineeringMap && routeCoords && (
+      {!isBasementMap && routeCoords && (
         <Source id="route" type="geojson" data={{ type: 'Feature', geometry: { type: 'LineString', coordinates: routeCoords } }}>
           <Layer id="route-line" type="line" paint={{ 'line-color': '#4285F4', 'line-width': 4, 'line-opacity': 0.7 }} />
         </Source>

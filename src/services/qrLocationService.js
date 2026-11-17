@@ -75,7 +75,7 @@ export async function resolveScannedQrPoint(value, language, signal) {
 }
 
 export function clearQrLocation() {
-  for (const key of ['qrLat', 'qrLng', 'qrId', 'qrFloor', 'qrName', 'qrFloorApplied', 'qrVerified', 'qrCapturedAt']) {
+  for (const key of ['qrLat', 'qrLng', 'qrId', 'qrFloor', 'qrName', 'qrFloorApplied', 'qrVerified', 'qrCapturedAt', 'locationEntrySource']) {
     sessionStorage.removeItem(key);
   }
 }
@@ -145,6 +145,8 @@ export async function acceptLinkedQrPoint(id, language, signal) {
   clearQrLocation();
   sessionStorage.setItem('qrId', id);
   sessionStorage.setItem('qrCapturedAt', String(Date.now()));
+  // Location preserves QR coordinates only for an explicitly confirmed QR visit.
+  sessionStorage.setItem('locationEntrySource', 'qr');
   return applyLinkedQrRecord(record);
 }
 

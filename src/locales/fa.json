@@ -433,6 +433,7 @@
   "locationUpdated": "مکان با موفقیت به‌روزرسانی شد",
   "mapType": "نوع نقشه",
   "baseMap": "تصویر پایه",
+  "engineeringMap": "نقشهٔ مهندسی",
   "satelliteMap": "تصویر ماهواره ای",
   "searchResults": "نتایج جستجو",
   "simpleMap": "نقشه ساده",

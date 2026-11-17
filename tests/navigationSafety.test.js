@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { NavigationProgressTracker } from '../src/utils/navigationProgressTracker.js';
 import { gpsMeasurement, observeGps } from '../src/utils/locationQuality.js';
 import dr, { DR_MAX_ANCHOR_AGE } from '../src/services/AdvancedDeadReckoningService.js';
-import { captureQrLocation, resolveQrPoint, readQrPoint } from '../src/services/qrLocationService.js';
+import { acceptLinkedQrPoint, captureQrLocation, resolveQrPoint, readQrPoint } from '../src/services/qrLocationService.js';
 
 const start = { lat: 36.288, lng: 59.6157 };
 const point = (x, y = 0) => [start.lng + x / (111320 * Math.cos(start.lat * Math.PI / 180)), start.lat + y / 111320];
@@ -97,6 +97,26 @@ function storage(t) {
   t.after(() => { if (old === undefined) delete globalThis.sessionStorage; else globalThis.sessionStorage = old; });
   return values;
 }
+
+test('only a confirmed QR link marks the location visit as QR and preserves its server point', async t => {
+  const values = storage(t);
+  t.mock.method(globalThis, 'fetch', async url => url.includes('/INVALID?')
+    ? { ok: false, status: 404 }
+    : { ok: true, status: 200, json: async () => ({ id: 'QR-ENTRY', coordinates: [start.lat, start.lng], floor: -1 }) });
+  assert.equal(await acceptLinkedQrPoint('INVALID', 'fa', new AbortController().signal), null);
+  assert.equal(values.get('locationEntrySource'), undefined);
+  const cancelled = new AbortController();
+  cancelled.abort();
+  assert.equal(await acceptLinkedQrPoint('QR-ENTRY', 'fa', cancelled.signal), null);
+  assert.equal(values.get('locationEntrySource'), undefined);
+  const point = await acceptLinkedQrPoint('QR-ENTRY', 'fa', new AbortController().signal);
+  assert.equal(values.get('locationEntrySource'), 'qr');
+  assert.equal(point.verified, true);
+  assert.equal(point.floor, -1);
+  assert.deepEqual(point.coordinates, [start.lat, start.lng]);
+  captureQrLocation(new URLSearchParams('lat=1&lng=2'));
+  assert.equal(values.get('locationEntrySource'), undefined, 'an unverified link cannot inherit a confirmed visit');
+});
 
 test('registered QR coordinates and floor always come from the server, even if the URL supplies a floor', async t => {
   storage(t);
