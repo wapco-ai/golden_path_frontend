@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$Chromium = $env:GP_TEST_CHROMIUM,
+    [ValidatePattern('^/tmp/[A-Za-z0-9._-]+\.sock$')]
+    [string]$SshSocket = '/tmp/goldenpath-door-prod.sock',
     [switch]$CheckOnly
 )
 
@@ -8,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 $repository = Split-Path -Parent $PSScriptRoot
 $guard = Join-Path $PSScriptRoot 'frontend_release.py'
 $server = 'ubuntu@94.101.176.78'
-$socket = '/tmp/goldenpath-door-prod.sock'
+$socket = $SshSocket
 $ssh = @('ssh', '-S', $socket, '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8', $server)
 
 function Invoke-Native {
@@ -53,7 +55,7 @@ try {
             'admin-permissions.spec.js', 'cultural-media.spec.js', 'rng-qr-correction.spec.js',
             'engineering-basemap.spec.js', 'multifloor-navigation.spec.js',
             'enduser-reliability.spec.js', 'poi-endpoint-search.spec.js', 'navigation-policy.spec.js',
-            '--grep', 'guidance table keeps|a new guidance point switches|editing guidance opens|reports actual upload|reuses its server ID|cultural table keeps|QR correction|RNG scans|invalid QR|cancelling a route|changes the basemap after the transfer step|middle option selects engineering|keeps the engineering selection|the home map shows the requested device location|RNG previews transfers|ending a trip|language service outage|language dropdown and place return|thumbnail'
+            '--grep', 'guidance table keeps|a new guidance point switches|editing guidance opens|reports actual upload|reuses its server ID|cultural table keeps|cultural coordinates|QR correction|RNG scans|invalid QR|cancelling a route|changes the basemap after the transfer step|middle option selects engineering|keeps the engineering selection|the home map shows the requested device location|RNG previews transfers|ending a trip|language service outage|language dropdown and place return|thumbnail'
         )
         Invoke-Native python @($guard, 'manifest', 'dist', $commit, (Join-Path $work 'release.json'))
     } finally {

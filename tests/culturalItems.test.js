@@ -2,6 +2,23 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { normalizeCulturalItem } from '../src/services/culturalItemMapper.js';
 import { formatCulturalCreatedAt } from '../src/utils/culturalItemDate.js';
+import { convertLngLatToUtm32640 } from '../src/utils/utm.js';
+
+test('real API responses retain geographic precision when UTM coordinates are also present', () => {
+  const point = { lat: 36.29081234, lng: 59.61612345 };
+  const item = normalizeCulturalItem({ location: { ...convertLngLatToUtm32640(point), ...point, floor: -1 } });
+  assert.deepEqual(item.location, { ...point, floor: -1 });
+  assert.deepEqual(normalizeCulturalItem({ location: { lat: 0, lng: 0, x: 500000, y: 4000000, floor: 0 } }).location,
+    { lat: 0, lng: 0, floor: 0 });
+});
+
+test('legacy cultural locations still convert UTM when a complete valid geographic pair is absent', () => {
+  const utm = convertLngLatToUtm32640({ lat: 36.290812, lng: 59.616123 });
+  for (const point of [{}, { lat: 36.29 }, { lat: null, lng: null }, { lat: 91, lng: 59.61 }]) {
+    const item = normalizeCulturalItem({ location: { ...utm, ...point, floor: 0 } });
+    assert.deepEqual(item.location, { lat: 36.290812, lng: 59.616123, floor: 0 });
+  }
+});
 
 test('normalizes creation dates from the list and detail API without inventing missing dates', () => {
   const createdAt = '2026-10-18T14:43:24Z';

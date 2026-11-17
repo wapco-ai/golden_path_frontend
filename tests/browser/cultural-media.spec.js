@@ -1,10 +1,12 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import { createServer } from 'node:http';
+import { convertLngLatToUtm32640 } from '../../src/utils/utm.js';
 
 const fixture = JSON.parse(fs.readFileSync(new URL('./fixtures/cultural-media.json', import.meta.url), 'utf8'));
 const png = Buffer.from(fixture.png, 'base64');
 const mp4 = Buffer.from(fixture.mp4, 'base64');
+const serverLocation = point => ({ ...convertLngLatToUtm32640(point), floor: 0, ...point });
 const media = [
   { type: 'image', mime: 'image/png', url: '/storage/cover.png', path: 'uploads/contents/7/images/cover.png', name: 'cover.png' },
   { type: 'video', mime: 'video/mp4', url: '/storage/film.mp4', path: 'uploads/contents/7/videos/film.mp4', name: 'film.mp4', title: 'فیلم فرهنگی', description: 'توضیح فیلم فرهنگی' },
@@ -22,7 +24,7 @@ async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.
     media: { fa: mediaItems, en: [], ar: [], ur: [] }, primaryImage,
     addressInShrine: 'صحن آزمایشی', grouping: { group_id: 1 },
     placeType: 'farhangi', showUserFeedbacks: true, showMediaGallery: true,
-    location: { lng: 59.6134, lat: 36.2853, floor: 0 },
+    location: serverLocation({ lng: 59.6134, lat: 36.2853, floor: 0 }),
     time_restrictions: [], prayer_restrictions: [], createdAt: '2026-10-18T10:00:00Z'
   };
   page.on('pageerror', error => errors.push(error.message));
@@ -45,7 +47,7 @@ async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.
     };
     else if (path.endsWith('/cultural-items') && request.method() === 'POST') {
       const body = request.postDataJSON();
-      creates.push(body); item = { ...item, location: body.poi.location }; json = { poiId: 7 };
+      creates.push(body); item = { ...item, location: serverLocation(body.poi.location) }; json = { poiId: 7 };
     }
     else if (path.endsWith('/cultural-items/7') && request.method() === 'GET') json = item;
     else if (path.endsWith('/cultural-items/7') && request.method() === 'PUT') {
@@ -53,7 +55,7 @@ async function setup(page, { mediaItems = media, primaryImage = '/storage/cover.
       if (onWrite && !await onWrite(writes.length)) {
         return route.fulfill({ status: 500, json: { message: 'Temporary save failure' } });
       }
-      item = { ...item, location: body.location ?? item.location, media: Object.fromEntries(Object.entries(body.translations).map(([lang, entry]) => [lang, entry.media])) };
+      item = { ...item, location: body.location ? serverLocation(body.location) : item.location, media: Object.fromEntries(Object.entries(body.translations).map(([lang, entry]) => [lang, entry.media])) };
       json = item;
     } else if (path.endsWith('/files') && request.method() === 'POST') {
       const multipart = request.postDataBuffer().toString('latin1'); uploads.push(multipart);
