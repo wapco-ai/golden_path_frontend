@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
     { ...DEFAULT_NAVIGATION_POLICY, gps_enabled: true });
 });
 
-const floors = [{ floor: 0, label: 'همکف' }, { floor: -1, label: 'منفی ۱' }];
+const floors = [{ floor: 1, label: 'طبقه ۱' }, { floor: 0, label: 'همکف' }, { floor: -1, label: 'منفی ۱' }];
 const a = [59.61244, 36.28708];
 const b = [59.61246, 36.28712];
 const c = [59.61269, 36.28729];
@@ -47,10 +47,10 @@ function routeFixture(from, to) {
   };
 }
 
-async function setup(page, state = null, browseFloor = 0) {
+async function setup(page, state = null, browseFloor = 0, mapType = 'satellite') {
   await page.setViewportSize({ width: 430, height: 900 });
-  await page.addInitScript(({ state, browseFloor }) => {
-    sessionStorage.setItem('selectedMapType', 'satellite');
+  await page.addInitScript(({ state, browseFloor, mapType }) => {
+    sessionStorage.setItem('selectedMapType', mapType);
     sessionStorage.setItem('haramCurrentFloor', String(browseFloor));
     localStorage.setItem('lang-storage', JSON.stringify({ state: { language: 'fa' }, version: 1 }));
     if (state) {
@@ -59,7 +59,7 @@ async function setup(page, state = null, browseFloor = 0) {
         sessionStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
       }
     }
-  }, { state, browseFloor });
+  }, { state, browseFloor, mapType });
   await page.route('**/api/v1/**', async route => {
     const { pathname } = new URL(route.request().url());
     const data = pathname.endsWith('/floors') ? floors : { status: 'NO_MATCH', data: [], features: [] };
@@ -70,10 +70,10 @@ async function setup(page, state = null, browseFloor = 0) {
   await page.route('https://**/*', route => route.fulfill({ status: 204 }));
 }
 
-const waitForEngineeringTile = page => page.waitForRequest(request => {
+const waitForEngineeringTile = (page, floor = -1) => page.waitForRequest(request => {
   const url = new URL(request.url());
   return url.pathname.includes('/tiles/public.fn_public_engineering_map_mvt/') &&
-    url.searchParams.get('p_floor') === '-1' && url.searchParams.get('p_lang') === 'fa';
+    url.searchParams.get('p_floor') === String(floor) && url.searchParams.get('p_lang') === 'fa';
 });
 
 const waitForSatelliteTile = page => page.waitForRequest(request =>
@@ -85,6 +85,110 @@ const expectRouteFloor = (page, floor) => expect.poll(() =>
 async function chooseFloor(page, name) {
   await page.locator('.gp-floor-trigger').click();
   await page.locator('.gp-floor-option').filter({ hasText: name }).click();
+}
+
+async function observeMap(page, screen) {
+  await page.goto('/#/');
+  await page.evaluate(async screen => {
+    const source = await (await fetch('/src/components/map/Mpbc.jsx')).text();
+    const modulePath = source.match(/["']([^"']*\/maplibre-gl\.js\?[^"']+)["']/)?.[1];
+    if (!modulePath) throw new Error('MapLibre module not found');
+    const lib = (await import(modulePath)).default;
+    const on = lib.Map.prototype.on;
+    lib.Map.prototype.on = function (...args) {
+      window.__engineeringMap = this;
+      return on.apply(this, args);
+    };
+    window.location.hash = `#/${screen}`;
+  }, screen);
+  await expect.poll(() => page.evaluate(() => Boolean(window.__engineeringMap?.isStyleLoaded()))).toBe(true);
+}
+
+const readCamera = page => page.evaluate(() => {
+  const map = window.__engineeringMap;
+  return [map.getCenter().lng, map.getCenter().lat, map.getZoom(), map.getBearing()];
+});
+
+for (const screen of ['mpb', 'mpr']) {
+  test(`${screen} middle option selects engineering geometry on the displayed floor`, async ({ page }) => {
+    test.slow(); // Several complete style/floor changes, including a reload, under software rendering.
+    await setup(page);
+    const routeRequests = [];
+    page.on('request', request => {
+      if (new URL(request.url()).pathname.endsWith('/routing/route')) routeRequests.push(request.postData());
+    });
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await observeMap(page, screen);
+    const box = await page.locator('.maplibregl-canvas').boundingBox();
+    const initialCamera = await readCamera(page);
+    await page.mouse.move(box.x + 180, box.y + 120);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 100, box.y + 160, { steps: 8 });
+    await page.mouse.up();
+    await expect.poll(async () => (await readCamera(page))[0]).not.toBe(initialCamera[0]);
+    await page.mouse.wheel(0, -300);
+    await expect.poll(async () => (await readCamera(page))[2]).not.toBe(initialCamera[2]);
+    await expect.poll(() => page.evaluate(() => window.__engineeringMap.isMoving())).toBe(false);
+    const before = await readCamera(page);
+    await page.locator(screen === 'mpb' ? '.map-style-button-mpb' : '.map-style-button-mpr').click();
+    const options = page.locator('.map-style-menu-mpr .map-style-option');
+    await expect(options).toHaveCount(3);
+    await expect(options.nth(1)).toHaveAttribute('title', 'نقشهٔ مهندسی');
+    await expect(options.nth(1).locator('img')).toHaveAttribute('src', /engineering-map/);
+    const groundTile = waitForEngineeringTile(page, 0);
+    await options.nth(1).click();
+    await groundTile;
+    const camera = await readCamera(page);
+    for (const [i, expected] of before.entries()) expect(camera[i]).toBeCloseTo(expected, 5);
+    expect(await page.evaluate(() => sessionStorage.getItem('selectedMapType'))).toBe('base');
+
+    for (const [name, floor] of [['طبقه ۱', 1], ['منفی ۱', -1], ['همکف', 0]]) {
+      const nextTile = waitForEngineeringTile(page, floor);
+      await chooseFloor(page, name);
+      await nextTile;
+    }
+    const restoredTile = waitForEngineeringTile(page, 0);
+    await page.reload();
+    await restoredTile;
+    await expect(page.locator('.gp-floor-trigger')).toContainText('همکف');
+    const basementTile = waitForEngineeringTile(page);
+    await chooseFloor(page, 'منفی ۱');
+    await basementTile;
+    await page.locator(screen === 'mpb' ? '.map-style-button-mpb' : '.map-style-button-mpr').click();
+    await page.locator('.map-style-menu-mpr .map-style-option').first().click();
+    const satelliteTile = waitForSatelliteTile(page);
+    await chooseFloor(page, 'همکف');
+    await satelliteTile;
+    expect(routeRequests).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+}
+
+for (const screen of ['fs', 'rop', 'rng']) {
+  test(`${screen} keeps the engineering selection and the server route on ground floor`, async ({ page }) => {
+    const state = routeFixture(0, 0);
+    await setup(page, state, 0, 'base');
+    const tile = waitForEngineeringTile(page, 0);
+    await observeMap(page, screen);
+    await tile;
+    await expect(page.locator('.maplibregl-canvas')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => {
+      const layers = window.__engineeringMap.getStyle().layers;
+      return layers.some(layer => layer.type === 'line' && /route/.test(layer.source));
+    })).toBe(true);
+    const routes = await page.evaluate(() => {
+      const map = window.__engineeringMap;
+      return Object.entries(map.getStyle().sources).filter(([id, source]) => /route/.test(id) && source.type === 'geojson')
+        .map(([, source]) => source.data);
+    });
+    expect(JSON.stringify(routes)).toContain(String(state.routeGeo.geometry.coordinates[0][0]));
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('route-storage')).state);
+    expect(stored.routeGeo).toEqual(state.routeGeo);
+    expect(stored.routeSteps).toEqual(state.routeSteps);
+    expect(stored.origin).toEqual(state.origin);
+    expect(stored.destination).toEqual(state.destination);
+  });
 }
 
 for (const screen of ['mpb', 'mpr', 'fs']) {

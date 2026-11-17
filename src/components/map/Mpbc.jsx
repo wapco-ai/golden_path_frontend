@@ -126,7 +126,7 @@ const Mpbc = ({
       ? `mbtiles-offline-osmh-${styleKey}`
       : `${styleKey}-${isRtl ? 'rtl' : 'en'}`;
   const { mapStyle, mapRenderKey, isEngineeringMap, onMapError } = usePublicFloorMap(
-    mapFloor, language, regularMapStyle, regularMapKey, isSatellite ? undefined : handleMapError
+    mapFloor, language, regularMapStyle, regularMapKey, isSatellite ? undefined : handleMapError, selectedMapType
   );
   const vectorTileConfig = useMemo(() => {
     return createHaramVectorTileConfig(language).filter(

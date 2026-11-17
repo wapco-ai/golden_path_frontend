@@ -433,6 +433,7 @@
   "locationUpdated": "Location updated successfully",
   "mapType": "Map Type",
   "baseMap": "Base Map",
+  "engineeringMap": "Engineering map",
   "simpleMap": "Simple Map",
   "satelliteMap": "Satellite Map",
   "searchResults": "Search Results",

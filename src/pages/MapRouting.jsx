@@ -26,7 +26,7 @@ import { fetchAreaDoors } from '../services/areaDoorsService';
 import { routeMode } from '../utils/doorRouteEndpoint';
 import { getSessionFloor, setSessionFloor } from '../utils/sessionFloor';
 import { fetchLandmarkPlaces, localizedPlaceAddress } from '../services/landmarkService';
-import mode1 from '../assets/images/mode1.png';
+import engineeringMapPreview from '../assets/images/engineering-map.png';
 import mode2 from '../assets/images/mode2.png';
 import mode3 from '../assets/images/mode3.png';
 
@@ -1652,8 +1652,8 @@ const MapRoutingPage = () => {
             >
               <div className="map-button-preview">
                 <img
-                  src={selectedMapType === 'satellite' ? mode2 : selectedMapType === 'simple' ? mode3 : mode1}
-                  alt={selectedMapType === 'satellite' ? 'Satellite view' : selectedMapType === 'simple' ? 'Offline OSMH view' : 'Default view'}
+                  src={selectedMapType === 'satellite' ? mode2 : selectedMapType === 'simple' ? mode3 : engineeringMapPreview}
+                  alt={selectedMapType === 'satellite' ? 'Satellite view' : selectedMapType === 'simple' ? 'Offline OSMH view' : 'Engineering map view'}
                   className="map-preview-thumbnail"
                 />
               </div>
@@ -1684,12 +1684,12 @@ const MapRoutingPage = () => {
                     setSelectedMapType('base');
                     setShowMapStyleMenu(false);
                   }}
-                  title={intl.formatMessage({ id: 'baseMap' })}
+                  title={intl.formatMessage({ id: 'engineeringMap' })}
                 >
                   <div className="map-preview-container">
                     <img
-                      src={mode1}
-                      alt="Default map view"
+                      src={engineeringMapPreview}
+                      alt="Engineering map view"
                       className="map-preview-image"
                     />
                   </div>
