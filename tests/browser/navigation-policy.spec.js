@@ -143,13 +143,16 @@ test('confirmed arrival marks the map with a green check in both panel states an
 });
 
 for (const [scenario, heading] of [['five-degree bias', 5], ['missing heading', null]]) {
-  test(`the 47 m endpoint explains ${scenario} and keeps QR correction available`, async ({ page }) => {
+  test(`the 47 m endpoint explains ${scenario} and keeps QR correction available`, async ({ page }, testInfo) => {
     test.setTimeout(120000);
     await setup(page, 47);
     await walk(page, 68, heading);
     await expect(page.locator('.routing-page')).toHaveAttribute('data-navigation-mode', 'live');
     await expect(page.locator('.instruction-text')).toContainText('موقعیت برای تأیید رسیدن مطمئن نیست');
     await expect(page.locator('.instruction-text')).toContainText('دکمهٔ QR');
+    const instructionBox = await page.locator('.instruction-text').boundingBox();
+    expect(instructionBox.y + instructionBox.height).toBeLessThanOrEqual(780);
+    await page.screenshot({ path: testInfo.outputPath('uncertain-closed.png') });
     await expect(page.locator('[data-navigation-marker="arrived"]')).toHaveCount(0);
     await expect(page.locator('[data-navigation-marker="active"]')).toHaveCount(1);
     const qrButton = page.getByRole('button', { name: 'اصلاح مسیر با QR', exact: true });
