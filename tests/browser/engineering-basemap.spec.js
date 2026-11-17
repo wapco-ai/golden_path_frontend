@@ -50,8 +50,8 @@ function routeFixture(from, to) {
 async function setup(page, state = null, browseFloor = 0, mapType = 'satellite') {
   await page.setViewportSize({ width: 430, height: 900 });
   await page.addInitScript(({ state, browseFloor, mapType }) => {
-    sessionStorage.setItem('selectedMapType', mapType);
-    sessionStorage.setItem('haramCurrentFloor', String(browseFloor));
+    if (!sessionStorage.getItem('selectedMapType')) sessionStorage.setItem('selectedMapType', mapType);
+    if (!sessionStorage.getItem('haramCurrentFloor')) sessionStorage.setItem('haramCurrentFloor', String(browseFloor));
     localStorage.setItem('lang-storage', JSON.stringify({ state: { language: 'fa' }, version: 1 }));
     if (state) {
       localStorage.setItem('route-storage', JSON.stringify({ state, version: 1 }));
