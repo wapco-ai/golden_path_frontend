@@ -77,7 +77,7 @@ const FinalSearch = () => {
   const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
   const regularMapKey = `${selectedMapType}-${styleKey}-${isRtl ? 'rtl' : 'en'}`;
   const { mapStyle, mapRenderKey, isEngineeringMap, onMapError } = usePublicFloorMap(
-    mapFloor, language, offlineMapStyle, regularMapKey, handleMapError
+    mapFloor, language, offlineMapStyle, regularMapKey, handleMapError, selectedMapType
   );
   const {
     origin: storedOrigin,

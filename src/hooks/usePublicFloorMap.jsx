@@ -23,8 +23,8 @@ const appearance = {
   areaCovered: ['get', 'is_covered']
 };
 
-export const createEngineeringMapStyle = (language) => {
-  const params = new URLSearchParams({ p_floor: '-1', p_lang: language });
+export const createEngineeringMapStyle = (language, floor = -1) => {
+  const params = new URLSearchParams({ p_floor: String(normalizeFloor(floor)), p_lang: language });
   const tile = `${appConfig.tileBaseUrl}/${TILE_FUNCTION}/{z}/{x}/{y}.pbf?${params}`;
   return {
     version: 8,
@@ -60,11 +60,16 @@ export const createEngineeringMapStyle = (language) => {
   };
 };
 
-export default function usePublicFloorMap(floor, language, regularStyle, regularKey, onRegularMapError) {
-  const isEngineeringMap = normalizeFloor(floor) === -1;
+export default function usePublicFloorMap(
+  floor, language, regularStyle, regularKey, onRegularMapError,
+  selectedMapType = typeof window === 'undefined' ? null : window.sessionStorage.getItem('selectedMapType')
+) {
+  const normalizedFloor = normalizeFloor(floor);
+  const isBasementMap = normalizedFloor === -1;
+  const isEngineeringMap = isBasementMap || (selectedMapType === 'base' && normalizedFloor !== null);
   const style = useMemo(
-    () => isEngineeringMap ? createEngineeringMapStyle(language) : null,
-    [isEngineeringMap, language]
+    () => isEngineeringMap ? createEngineeringMapStyle(language, normalizedFloor) : null,
+    [isEngineeringMap, language, normalizedFloor]
   );
   const mapId = useId();
   const activeNotice = useRef(null);
@@ -76,7 +81,7 @@ export default function usePublicFloorMap(floor, language, regularStyle, regular
       activeNotice.current = null;
       if (toastId !== null) toast.dismiss(toastId);
     };
-  }, [isEngineeringMap, language]);
+  }, [isEngineeringMap, language, normalizedFloor]);
 
   const handleEngineeringError = useCallback((event) => {
     const resource = event.error?.url ?? event.error?.resource?.url;
@@ -112,8 +117,9 @@ export default function usePublicFloorMap(floor, language, regularStyle, regular
 
   return {
     mapStyle: style ?? regularStyle,
-    mapRenderKey: isEngineeringMap ? `engineering-map-${language}` : regularKey,
+    mapRenderKey: isEngineeringMap ? `engineering-map-${normalizedFloor}-${language}` : regularKey,
     isEngineeringMap,
+    isBasementMap,
     onMapError: isEngineeringMap ? handleEngineeringError : onRegularMapError
   };
 }

@@ -433,6 +433,7 @@
   "locationUpdated": "تم تحديث الموقع بنجاح",
   "mapType": "نوع الخريطة",
   "baseMap": "خريطة الأساس",
+  "engineeringMap": "الخريطة الهندسية",
   "satelliteMap": "خريطة الأقمار الصناعية",
   "simpleMap": "خريطة بسيطة",
   "searchResults": "نتائج البحث",

@@ -546,7 +546,7 @@ const RouteOverview = () => {
     if (!routeCoordinates || routeCoordinates.length === 0) return null;
     const canShowOnFloor = (point) => {
       const floor = getPointFloor(point);
-      return floor === null ? !isEngineeringMap && !isMultifloor(routeGeo) : floor === activeRouteFloor;
+      return floor === null ? !isBasementMap && !isMultifloor(routeGeo) : floor === activeRouteFloor;
     };
 
     // Get a limited selection of subgroups (max 2 per group)
@@ -1014,8 +1014,8 @@ const RouteOverview = () => {
     () => routeCoordinatesOnFloor(routeGeo, activeRouteFloor, originFloor),
     [routeGeo, activeRouteFloor, originFloor]
   );
-  const { mapStyle, mapRenderKey, isEngineeringMap, onMapError } = usePublicFloorMap(
-    activeRouteFloor, language, regularMapStyle, regularMapKey, handleMapError
+  const { mapStyle, mapRenderKey, isEngineeringMap, isBasementMap, onMapError } = usePublicFloorMap(
+    activeRouteFloor, language, regularMapStyle, regularMapKey, handleMapError, selectedMapType
   );
   const handleMapLoad = useCallback((event) => {
     if (!isEngineeringMap) initHaramVectorLayers(event?.target || event, vectorTileConfig);

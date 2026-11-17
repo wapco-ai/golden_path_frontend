@@ -12,7 +12,7 @@ const state = {
   alternativeRoutes: [], transportMode: 'walking', gender: 'both'
 };
 
-async function openResult(page, { mapType = 'base', language = 'fa', failStyle = false } = {}) {
+async function openResult(page, { mapType = 'base', language = 'fa', failStyle = false, failEngineering = false } = {}) {
   const requests = [], errors = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('request', request => requests.push(new URL(request.url()).pathname));
@@ -38,7 +38,9 @@ async function openResult(page, { mapType = 'base', language = 'fa', failStyle =
       version: 8, name: new URL(route.request().url()).pathname, sources: {},
       layers: [{ id: 'test-background', type: 'background', paint: { 'background-color': '#e8e5dd' } }]
     } }));
-  await page.route('**/tiles/**', route => route.fulfill({ status: 204 }));
+  await page.route('**/tiles/**', route => route.fulfill({ status:
+    failEngineering && route.request().url().includes('/public.fn_public_engineering_map_mvt/') ? 503 : 204
+  }));
   await page.route('**/tms/**', route => route.fulfill({ status: 204 }));
   await page.route('**/fonts/**', route => route.fulfill({ status: 204 }));
   // Observe the actual MapLibre style after React creates or replaces the map.
@@ -59,8 +61,8 @@ async function openResult(page, { mapType = 'base', language = 'fa', failStyle =
 }
 
 const styleName = page => page.evaluate(() => window.resultMap?.getStyle()?.name);
-const expectedStyle = (mapType, language = 'fa') => mapType === 'base'
-  ? `/map-styles/osm-voyager/style${language === 'en' ? '-en' : ''}.json`
+const expectedStyle = mapType => mapType === 'base'
+  ? 'engineering-map'
   : mapType === 'simple' ? '/map-styles/osm-basic/style.json' : 'mbtiles-satellite';
 
 async function chooseFloor(page, name) {
@@ -72,15 +74,19 @@ for (const mapType of ['base', 'simple', 'satellite']) {
   for (const language of ['fa', 'en']) {
     test(`result preserves ${mapType} ${language} through reload`, async ({ page }, testInfo) => {
       const { requests, errors } = await openResult(page, { mapType, language });
-      await expect.poll(() => styleName(page)).toBe(expectedStyle(mapType, language));
+      await expect.poll(() => styleName(page)).toBe(expectedStyle(mapType));
       await expect.poll(() => page.evaluate(() => Boolean(window.resultMap?.getSource('main-route')))).toBe(true);
       if (mapType !== 'satellite') expect(requests.some(path => path.includes('/tms/services/gsm/'))).toBe(false);
       expect(await page.evaluate(() => sessionStorage.getItem('selectedMapType'))).toBe(mapType);
       await page.screenshot({ path: testInfo.outputPath(`${mapType}-${language}.png`) });
       // The observer is deliberately not persisted across a reload; verify requests from the new page.
-      const nextRequest = page.waitForRequest(request => mapType === 'satellite'
-        ? request.url().includes('/tms/services/gsm/')
-        : new URL(request.url()).pathname === expectedStyle(mapType, language));
+      const nextRequest = page.waitForRequest(request => {
+        const url = new URL(request.url());
+        if (mapType === 'base') return url.pathname.includes('/public.fn_public_engineering_map_mvt/')
+          && url.searchParams.get('p_floor') === '0' && url.searchParams.get('p_lang') === language;
+        return mapType === 'satellite' ? url.pathname.includes('/tms/services/gsm/')
+          : url.pathname === expectedStyle(mapType);
+      });
       await page.reload();
       await nextRequest;
       expect(await page.evaluate(() => sessionStorage.getItem('selectedMapType'))).toBe(mapType);
@@ -93,9 +99,11 @@ for (const mapType of ['base', 'simple', 'satellite']) {
     await expect.poll(() => styleName(page)).toBe(expectedStyle(mapType));
     await chooseFloor(page, 'منفی ۱');
     await expect.poll(() => styleName(page)).toBe('engineering-map');
-    expect(await page.evaluate(() => window.resultMap.getStyle().sources['engineering-areas'].tiles[0])).toContain('p_floor=-1');
+    await expect.poll(() => page.evaluate(() => window.resultMap?.getStyle()?.sources['engineering-areas']?.tiles[0])).toContain('p_floor=-1');
     await chooseFloor(page, 'همکف');
     await expect.poll(() => styleName(page)).toBe(expectedStyle(mapType));
+    if (mapType === 'base') await expect.poll(() => page.evaluate(() =>
+      window.resultMap?.getStyle()?.sources['engineering-areas']?.tiles[0])).toContain('p_floor=0');
     expect(await page.evaluate(() => sessionStorage.getItem('selectedMapType'))).toBe(mapType);
     expect(errors).toEqual([]);
   });
@@ -109,7 +117,7 @@ for (const mapType of [null, 'invalid']) {
   });
 }
 
-for (const mapType of ['base', 'simple']) {
+for (const mapType of ['simple']) {
   test(`result uses the existing offline fallback when ${mapType} fails`, async ({ page }) => {
     const { requests, errors } = await openResult(page, { mapType, failStyle: true });
     await expect.poll(() => styleName(page)).toBe('offline-fallback');
@@ -118,3 +126,12 @@ for (const mapType of ['base', 'simple']) {
     expect(errors).toEqual([]);
   });
 }
+
+test('result keeps the engineering base when its tiles fail', async ({ page }) => {
+  const { requests, errors } = await openResult(page, { mapType: 'base', failEngineering: true });
+  await expect(page.getByText('بارگذاری نقشهٔ مهندسی ناموفق بود.', { exact: true })).toBeVisible();
+  await expect.poll(() => styleName(page)).toBe('engineering-map');
+  expect(requests.some(path => path.includes('/tms/services/gsm/'))).toBe(false);
+  expect(await page.evaluate(() => sessionStorage.getItem('selectedMapType'))).toBe('base');
+  expect(errors).toEqual([]);
+});
