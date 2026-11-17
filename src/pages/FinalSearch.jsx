@@ -16,6 +16,7 @@ import Map, { Marker, Source, Layer, Popup } from 'react-map-gl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import useOfflineMapStyle from '../hooks/useOfflineMapStyle';
+import { mapAssetRequest } from '../services/legacyMapStyles';
 import usePublicFloorMap from '../hooks/usePublicFloorMap';
 import '../styles/FinalSearch.css';
 import ModeSelector from '../components/common/ModeSelector';
@@ -31,7 +32,8 @@ import { doorEndpoint, doorRouteErrorMessage, replaceDoorEndpoint } from '../uti
 import appConfig from '../config/appConfig';
 import { USER_ACCESS_TOKEN_KEY, useUserAuthStore } from '../auth/user/userAuthStore';
 import { createDestination } from '../services/destinationService';
-import { MBTILES_SATELLITE_STYLE } from '../services/mbtilesMapStyle';
+import { MBTILES_SATELLITE_STYLE, OSM_BASIC_STYLE_URL } from '../services/mbtilesMapStyle';
+import { voyagerStyleUrl } from '../services/osmMapStyle';
 
 const HIDDEN_VECTOR_LAYER_IDS = new Set([
   'areas-outline',
@@ -65,9 +67,15 @@ const FinalSearch = () => {
   const formatDigits = useLocaleDigits();
   const language = useLangStore((state) => state.language);
   const isRtl = ["fa", "ar", "ur"].includes(language);
-  const baseMapStyle = MBTILES_SATELLITE_STYLE;
+  const [selectedMapType] = useState(() => {
+    if (typeof window === 'undefined') return 'satellite';
+    const storedMapType = sessionStorage.getItem('selectedMapType');
+    return ['base', 'simple', 'satellite'].includes(storedMapType) ? storedMapType : 'satellite';
+  });
+  const baseMapStyle = selectedMapType === 'satellite' ? MBTILES_SATELLITE_STYLE
+    : selectedMapType === 'simple' ? OSM_BASIC_STYLE_URL : voyagerStyleUrl(isRtl);
   const { mapStyle: offlineMapStyle, handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
-  const regularMapKey = `${styleKey}-${isRtl ? 'rtl' : 'en'}-satellite`;
+  const regularMapKey = `${selectedMapType}-${styleKey}-${isRtl ? 'rtl' : 'en'}`;
   const { mapStyle, mapRenderKey, isEngineeringMap, onMapError } = usePublicFloorMap(
     mapFloor, language, offlineMapStyle, regularMapKey, handleMapError
   );
@@ -858,6 +866,7 @@ const FinalSearch = () => {
           ref={mapRef}
           mapLib={maplibregl}
           mapStyle={mapStyle}
+          transformRequest={mapAssetRequest}
           styleDiffing={false}
           style={{ width: '100%', height: '100%' }}
           initialViewState={{
