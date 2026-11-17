@@ -27,10 +27,11 @@ async function setup(page, length = 40, observeMap = false, stepTest = false, ne
           { id: 0, kind: 'walk', floor: 0, geometry: { type: 'LineString', coordinates: lower }, duration_s: 120, distance_m: 120 },
           { id: 1, kind: 'lift', floor: 0, fromFloor: 0, toFloor: 1, geometry: null, duration_s: 10, distance_m: 0 },
           { id: 2, kind: 'walk', floor: 1, geometry: { type: 'LineString', coordinates: upper }, duration_s: length, distance_m: length }] } };
-      state.destination = { ...state.destination, floor: 1 };
+      state.destination = { ...state.destination, floor: 1, coordinates: [upper[1][1], upper[1][0]] };
       state.routeSteps = [
         { type: 'stepStart', routeM: 0, floor: 0, segmentId: 0, coord: point(lower[0]), instruction: 'مرحله 1' },
         { type: 'stepChangeFloor', floor: 0, fromFloor: 0, toFloor: 1, segmentId: 1, coord: point(lower[1]), endCoord: point(upper[0]), instruction: 'به طبقه ۱ بروید.' },
+        { type: 'stepStart', routeM: 0, floor: 1, segmentId: 2, coord: point(upper[0]), instruction: 'حرکت در طبقهٔ مقصد' },
         { type: 'stepGoStraight', routeM: 0.75, floor: 1, segmentId: 2,
           coord: point([upper[0][0], upper[0][1] + meters(length * 0.75)]), instruction: 'مرحله 3' },
         { type: 'stepArriveDestination', routeM: 1, floor: 1, segmentId: 2, coord: point(upper[1]) }];
@@ -531,6 +532,7 @@ test('a nearby endpoint without a name or backend text still gets localized guid
 });
 
 test('a multifloor final step is measured from the preceding walk step on the destination floor', async ({ page }) => {
+  test.setTimeout(120000);
   await setup(page, 40, false, false, null, true);
   await walk(page, 100);
   const routing = page.locator('.routing-page');
@@ -539,6 +541,9 @@ test('a multifloor final step is measured from the preceding walk step on the de
   await walk(page, 52);
   await expect(routing).toHaveAttribute('data-navigation-mode', 'live');
   await expect(page.locator('.instruction-text')).toHaveText('۱۰ متر به سمت مقصد حرکت کنید.');
+  await walk(page, 8);
+  await expect(routing).toHaveAttribute('data-navigation-mode', 'arrived');
+  await expect(page.locator('[data-navigation-marker="arrived"]')).toHaveAttribute('aria-label', 'به مقصد رسیدید.');
 });
 
 test('a long final step reports its whole distance before a reachable destination is announced', async ({ page }) => {
