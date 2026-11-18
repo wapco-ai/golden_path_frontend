@@ -21,17 +21,19 @@ function routeFixture({ arrivalM, finalDoor = false, direct = false, durationSec
 
 async function setupRoute(page, options) {
   const raw = routeFixture(options);
+  raw.alternatives = options.alternatives || [];
   const snapshot = normalizeRouteSnapshot(raw, origin, destination);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(({ origin, destination, snapshot, stored }) => {
-    const state = { origin, destination, transportMode: 'walking', gender: 'both', alternativeRoutes: [],
+    const state = { origin, destination, transportMode: 'walking', gender: 'both', alternativeRoutes: snapshot.alternatives,
       routeGeo: stored ? snapshot.geo : null, routeSteps: stored ? snapshot.steps : [] };
     localStorage.setItem('route-storage', JSON.stringify({ state, version: 1 }));
     sessionStorage.setItem('haramCurrentFloor', '0');
     if (stored) {
       sessionStorage.setItem('routeGeo', JSON.stringify(snapshot.geo));
       sessionStorage.setItem('routeSteps', JSON.stringify(snapshot.steps));
+      sessionStorage.setItem('alternativeRoutes', JSON.stringify(snapshot.alternatives));
     }
   }, { origin, destination, snapshot, stored: options.stored });
   await page.route('**/api/v1/**', route => route.fulfill({ json: { status: 'NO_MATCH', data: [], features: [] } }));
@@ -49,6 +51,32 @@ test('summary and single step display the short duration from the routing respon
   await page.locator('.overview-btn').click();
   await expect(page.locator('.time-value')).toHaveText('۹ ثانیه');
   await expect(page.locator('.main-popup')).toHaveText('۹ ثانیه');
+});
+
+test('RNG keeps server durations and raw steps when selecting another route and switching back', async ({ page }) => {
+  const alternative = routeFixture({ arrivalM: 1, durationSeconds: 18 });
+  alternative.steps[0].elapsed_s = 0;
+  alternative.steps[1].routeM = 0.37;
+  alternative.steps[1].elapsed_s = 8;
+  alternative.steps[2].elapsed_s = 18;
+  const expectedSteps = normalizeRouteSnapshot(alternative, origin, destination).steps;
+  await setupRoute(page, { stored: true, direct: true, arrivalM: 1, durationSeconds: 6, alternatives: [alternative] });
+  await page.goto('/#/rng');
+  const stepTime = page.locator('.current-guide .step-time');
+  await expect(stepTime).toHaveText('(6 ثانیه)');
+  const otherRoutes = page.getByRole('button', { name: /سایر مسیرها/u });
+  const alternativeCard = page.locator('.alternative-route-card');
+
+  await otherRoutes.click();
+  await expect(alternativeCard).toContainText('۱۸ ثانیه');
+  await alternativeCard.click();
+  await expect(stepTime).toHaveText('(8 ثانیه)');
+  expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem('routeSteps')))).toEqual(expectedSteps);
+
+  await otherRoutes.click();
+  await expect(alternativeCard).toContainText('۶ ثانیه');
+  await alternativeCard.click();
+  await expect(stepTime).toHaveText('(6 ثانیه)');
 });
 
 for (const [screen, viewport] of [

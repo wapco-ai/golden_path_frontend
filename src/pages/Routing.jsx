@@ -32,6 +32,7 @@ import { arrivalInstruction, finalStepDistanceMeters, liveStepInstruction, rngMe
 import { pauseRouteKey, readPausedNavigation, savePausedNavigation, getResumePosition, resumeStepAt } from '../utils/rngPause.js';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
 import { finishTripHistory } from '../utils/navigationHistory';
+import { serverStepDuration } from '../utils/routeDuration.js';
 import {
   buildRouteMSegments,
   getLineDistanceMeters,
@@ -1096,7 +1097,7 @@ const RoutingPage = () => {
       direction = computeTurn(b1, b1);
     }
 
-    const durationSeconds = Math.max(1, Math.round(distance));
+    const durationSeconds = segment.durationSeconds ?? Math.max(1, Math.round(distance));
 
     return {
       id: idx + 1,
@@ -1208,19 +1209,26 @@ const RoutingPage = () => {
       setRouteData({ sourceGeo: routeGeo, steps: decorate(multi), instructionSteps: multi, mode: transportMode,
         totalTime: formatTotalTime(minutes), arrivalTime: calculateArrivalTime(minutes),
         totalDistance: `${Math.round(routeGeo.properties.distanceMeters)} ${intl.formatMessage({ id: 'meters' })}`,
-        alternativeRoutes: alternativeRoutes.map((alt, i) => ({ ...alt, id: i + 1, steps: decorate(multifloorSteps(alt.geo, withDoorStepInstructions(alt.steps, intl, alt.geo)) || []),
-          totalTime: formatTotalTime(alt.durationSeconds / 60), totalDistance: `${Math.round(alt.distanceMeters)} ${intl.formatMessage({ id: 'meters' })}` })) });
+        alternativeRoutes: alternativeRoutes.map((alt, i) => ({
+          ...alt,
+          id: i + 1,
+          totalTime: formatTotalTime((alt.durationSeconds ?? alt.geo?.properties?.durationSeconds) / 60),
+          totalDistance: `${Math.round(alt.distanceMeters ?? alt.geo?.properties?.distanceMeters)} ${intl.formatMessage({ id: 'meters' })}`
+        })) });
       return;
     }
     const coords = getRouteCoordinates(routeGeo);
+    const [routeLng, routeLat] = coords[0] || [];
     const toLngLat = (coord) => {
       if (!Array.isArray(coord) || coord.length < 2) return null;
 
       const [first, second] = coord;
       if (!Number.isFinite(first) || !Number.isFinite(second)) return null;
 
-      const matchesRouteCoordinate = coords.some(([lng, lat]) => lng === first && lat === second);
-      if (matchesRouteCoordinate) return [first, second];
+      // Old selections saved display coordinates, including interpolated points off the vertex list.
+      if (Math.hypot(first - routeLng, second - routeLat) < Math.hypot(second - routeLng, first - routeLat)) {
+        return [first, second];
+      }
 
       return [second, first];
     };
@@ -1247,7 +1255,7 @@ const RoutingPage = () => {
         const [lng1, lat1] = stepCoords[0];
         const [lng2, lat2] = stepCoords[stepCoords.length - 1];
         distance = Math.hypot(lng2 - lng1, lat2 - lat1) * 100000;
-      } else if (idx > 0) {
+      } else if (idx > 0 && coords[idx]) {
         const [lng1, lat1] = coords[idx - 1];
         const [lng2, lat2] = coords[idx];
         distance = Math.hypot(lng2 - lng1, lat2 - lat1) * 100000;
@@ -1271,7 +1279,7 @@ const RoutingPage = () => {
         const b2 = bearing(coords[idx + 1], coords[idx + 2]);
         direction = computeTurn(b1, b2);
       }
-      const durationSeconds = Math.max(1, Math.round(distance));
+      const durationSeconds = serverStepDuration(s) ?? Math.max(1, Math.round(distance));
       return {
         id: idx + 1,
         type: s.type,
@@ -1318,8 +1326,8 @@ const RoutingPage = () => {
     const totalMinutes = Number.isFinite(routeGeo?.properties?.durationSeconds)
       ? routeGeo.properties.durationSeconds / 60
       : Number.isFinite(summaryMinutes) ? summaryMinutes : calculateTotalTime(displaySteps);
-    const totalDistance = summaryDistance ||
-      displaySteps.reduce((acc, st) => acc + parseInt(st.distance), 0);
+    const totalDistance = Math.round(routeGeo.properties?.distanceMeters ?? (summaryDistance ||
+      displaySteps.reduce((acc, st) => acc + parseInt(st.distance), 0)));
     const formattedTotalTime = formatTotalTime(totalMinutes);
     const arrivalTime = calculateArrivalTime(totalMinutes);
 
@@ -1333,7 +1341,7 @@ const RoutingPage = () => {
           const [lng1, lat1] = stepCoords[0];
           const [lng2, lat2] = stepCoords[stepCoords.length - 1];
           dist = Math.hypot(lng2 - lng1, lat2 - lat1) * 100000;
-        } else if (i > 0) {
+        } else if (i > 0 && altCoords[i]) {
           const [lng1, lat1] = altCoords[i - 1];
           const [lng2, lat2] = altCoords[i];
           dist = Math.hypot(lng2 - lng1, lat2 - lat1) * 100000;
@@ -1357,7 +1365,7 @@ const RoutingPage = () => {
           const b2 = bearing(altCoords[i + 1], altCoords[i + 2]);
           direction = computeTurn(b1, b2);
         }
-        const durationSeconds = Math.max(1, Math.round(dist));
+        const durationSeconds = serverStepDuration(st) ?? Math.max(1, Math.round(dist));
         return {
           id: i + 1,
           type: st.type,
@@ -1376,11 +1384,12 @@ const RoutingPage = () => {
       const displayAltSteps = altRouteMSegments.length
         ? altRouteMSegments.map((segment, idx) => buildDisplayStepFromRouteMSegment(segment, idx, altRouteMSegments, altCoords))
         : normalizeInstructionSteps(altSteps);
-      const minutes = calculateTotalTime(displayAltSteps);
-      const distTot = displayAltSteps.reduce((acc, st) => acc + parseInt(st.distance), 0);
+      const durationSeconds = alt.durationSeconds ?? alt.geo?.properties?.durationSeconds;
+      const minutes = Number.isFinite(durationSeconds) ? durationSeconds / 60 : calculateTotalTime(displayAltSteps);
+      const distTot = Math.round(alt.distanceMeters ?? alt.geo?.properties?.distanceMeters
+        ?? displayAltSteps.reduce((acc, st) => acc + parseInt(st.distance), 0));
       return {
         id: ridx + 1,
-        steps: displayAltSteps,
         geo: alt.geo,
         totalTime: formatTotalTime(minutes),
         totalDistance: `${distTot} ${intl.formatMessage({ id: 'meters' })}`,
@@ -1947,7 +1956,8 @@ const RoutingPage = () => {
     setShowAlternativeRoutesOnMap(false);
   };
 
-  const handleSelectAlternativeRoute = (route) => {
+  const handleSelectAlternativeRoute = (displayRoute) => {
+    const route = alternativeRoutes.find(alt => alt.geo === displayRoute?.geo);
     if (!route?.geo || !route?.steps) {
       console.warn('Selected alternative route is missing geo or steps');
       return;
@@ -1958,7 +1968,7 @@ const RoutingPage = () => {
       steps: routeSteps,
       from: origin?.name || '',
       to: destination?.name || '',
-      via: route.via || [],
+      via: storedRouteSahns,
       sahns: storedRouteSahns
     };
     const newAlternatives = alternativeRoutes.filter(
@@ -1981,7 +1991,8 @@ const RoutingPage = () => {
     sessionStorage.setItem('routeGeo', JSON.stringify(route.geo));
     sessionStorage.setItem('routeSteps', JSON.stringify(route.steps));
     sessionStorage.setItem('alternativeRoutes', JSON.stringify(newAlternatives));
-    sessionStorage.setItem('routeSahns', JSON.stringify(route.via || []));
+    sessionStorage.setItem('routeSahns', JSON.stringify(route.via?.length ? route.via : route.sahns || []));
+    sessionStorage.removeItem('routeSummaryData');
     sessionStorage.setItem('manualRouteSelected', 'true');
     setCurrentStep(0);
     setIsDemoMode(false);
