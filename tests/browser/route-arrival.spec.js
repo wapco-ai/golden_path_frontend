@@ -5,16 +5,17 @@ const coordinates = [[59.615, 36.287], [59.6151, 36.287], [59.6152, 36.287]];
 const origin = { name: 'مبدأ', floor: 0, coordinates: [36.287, 59.615] };
 const destination = { name: 'مقصد آزمایشی', floor: 0, coordinates: [36.287, 59.6152] };
 
-function routeFixture({ arrivalM, finalDoor = false, direct = false }) {
+function routeFixture({ arrivalM, finalDoor = false, direct = false, durationSeconds }) {
   const steps = [
-    { type: 'stepStart', title: 'شروع حرکت', coord: { lat: 36.287, lon: 59.615 }, routeM: 0, floor: 0, segmentId: 0 },
+    { type: 'stepStart', title: 'شروع حرکت', coord: { lat: 36.287, lon: 59.615 }, routeM: 0, floor: 0, segmentId: 0,
+      duration_s: durationSeconds },
     ...(direct ? [] : [{ type: 'stepPassDoor', title: 'درگاه آزمایشی', instruction: 'از درگاه آزمایشی عبور کنید',
       coord: { lat: 36.287, lon: finalDoor ? 59.6152 : 59.6151 }, routeM: finalDoor ? 1 : 0.5,
       doorId: 7, floor: 0, segmentId: 0 }]),
     { type: 'stepArriveDestination', title: '', coord: { lat: 36.287, lon: 59.6152 },
       ...(arrivalM === undefined ? {} : { routeM: arrivalM }), floor: 0, segmentId: 0 }
   ];
-  return { status: 'OK', multifloor: false, geo: { type: 'Feature',
+  return { status: 'OK', multifloor: false, duration_s: durationSeconds, geo: { type: 'Feature',
     geometry: { type: 'LineString', coordinates }, properties: { multifloor: false } }, steps, alternatives: [] };
 }
 
@@ -39,6 +40,16 @@ async function setupRoute(page, options) {
   await page.route('**/tms/**', route => route.fulfill({ status: 204 }));
   return errors;
 }
+
+test('summary and single step display the short duration from the routing response', async ({ page }) => {
+  await setupRoute(page, { direct: true, arrivalM: 1, durationSeconds: 9.4 });
+  await page.goto('/#/fs');
+  await expect(page.locator('.info-time span')).toHaveText('۹ ثانیه');
+  await expect(page.locator('.main-popup')).toHaveText('۹ ثانیه');
+  await page.locator('.overview-btn').click();
+  await expect(page.locator('.time-value')).toHaveText('۹ ثانیه');
+  await expect(page.locator('.main-popup')).toHaveText('۹ ثانیه');
+});
 
 for (const [screen, viewport] of [
   ['desktop', { width: 1440, height: 1000 }],

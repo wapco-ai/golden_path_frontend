@@ -9,6 +9,7 @@ import {
   sliceLineByFraction
 } from '../src/utils/routeSegments.js';
 import { withDoorStepInstructions } from '../src/utils/routeStepInstructions.js';
+import { formatRouteDuration } from '../src/utils/routeDuration.js';
 import { getNavigationProgress } from '../src/utils/rngNavigation.js';
 import { arrivalInstruction, finalStepDistanceMeters, liveStepInstruction, rngMessages } from '../src/utils/rngMessages.js';
 
@@ -19,17 +20,27 @@ const steps = [
   { type: 'stepArriveDestination', floor: 0, segmentId: 0 }
 ];
 
+test('server durations use seconds below one minute, including zero and the rounding boundary', () => {
+  const intl = createIntl({ locale: 'en', messages: { secondsUnit: 'sec', minutesUnit: 'min' } });
+  assert.equal(formatRouteDuration(0, intl, String), '0 sec');
+  assert.equal(formatRouteDuration(59.7, intl, String), '60 sec');
+  assert.equal(formatRouteDuration(60, intl, String), '1 min');
+  assert.equal(formatRouteDuration(89.7, intl, String), '1 min 30 sec');
+  assert.equal(formatRouteDuration(null, intl, String), '—');
+});
+
 test('same-floor stair guidance continues through its exit and advances without floor confirmation', () => {
   const line = [[59.615, 36.287], [59.6152, 36.287]];
   const stair = {
     type: 'stepUseStairs', floor: -1, routeM: 0.3, endRouteM: 0.6, stairDirection: 'up',
-    instruction: 'از پله‌ها بالا بروید.'
+    instruction: 'از پله‌ها بالا بروید.', elapsed_s: 2, end_elapsed_s: 9, duration_s: 7, span_duration_s: 9
   };
-  const arrival = { ...steps[2], floor: -1 };
-  const segments = buildRouteMSegments([{ ...steps[0], floor: -1 }, stair, arrival], line);
+  const arrival = { ...steps[2], floor: -1, elapsed_s: 11 };
+  const segments = buildRouteMSegments([{ ...steps[0], floor: -1, elapsed_s: 0, duration_s: 2 }, stair, arrival], line);
   assert.deepEqual(segments.map(s => [s.type, s.fromM, s.toM]), [
     ['stepUseStairs', 0, 0.6], ['stepArriveDestination', 0.6, 1]
   ]);
+  assert.deepEqual(segments.map(s => s.durationSeconds), [9, 2]);
   assert.equal(segments[0].step.instruction, stair.instruction);
   assert.equal(segments[0].step.routeM, 0.3);
 

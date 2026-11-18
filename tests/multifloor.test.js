@@ -38,6 +38,14 @@ test('segment measures restart per floor and keep elevator time exactly once', (
   assert.deepEqual(activeRouteCoordinates(geo,result[2]),b);
   assert.deepEqual(result.map(s => s.floor),[-1,-1,1,1]);
 });
+test('walking steps use their server timing within each floor segment', () => {
+  const timedSteps = [
+    { ...steps[0], elapsed_s: 0, duration_s: 3 },
+    { ...steps[0], routeM: 0.5, elapsed_s: 3, duration_s: 7 },
+    ...steps.slice(1)
+  ];
+  assert.deepEqual(multifloorSteps(geo, timedSteps).map(step => step.durationSeconds), [3, 7, 36, 10, 0]);
+});
 test('GPS at identical XY cannot advance through an unconfirmed floor transfer', () => {
   const result = multifloorSteps(geo,steps);
   assert.deepEqual(getNavigationProgress({lat:36.3,lng:59.6001},result,1,a),{nextStep:1,arrived:false});

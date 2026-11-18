@@ -823,7 +823,7 @@ const RoutingPage = () => {
       const stored = sessionStorage.getItem('routeSummaryData');
       if (stored) {
         const parsed = JSON.parse(stored);
-        minutes = parseInt(parsed.time, 10);
+        minutes = parseFloat(parsed.time);
         dist = parseInt(parsed.distance, 10);
         storedMode = parsed.mode;
 
@@ -832,7 +832,7 @@ const RoutingPage = () => {
       console.warn('failed to read stored route summary', err);
     }
 
-    if (!minutes || !dist) {
+    if (!Number.isFinite(minutes) || !Number.isFinite(dist)) {
       const coords = getRouteCoordinates(routeGeo) || [];
       if (coords.length === 0) return;
       dist = coords.slice(1).reduce((acc, c, i) => {
@@ -1301,7 +1301,7 @@ const RoutingPage = () => {
       const stored = sessionStorage.getItem('routeSummaryData');
       if (stored) {
         const parsed = JSON.parse(stored);
-        summaryMinutes = parseInt(parsed.time, 10);
+        summaryMinutes = parseFloat(parsed.time);
         summaryDistance = parseInt(parsed.distance, 10);
         summaryMode = parsed.mode;
 
@@ -1315,7 +1315,9 @@ const RoutingPage = () => {
       ? routeMSegments.map((segment, idx) => buildDisplayStepFromRouteMSegment(segment, idx, routeMSegments, coords))
       : normalizeInstructionSteps(steps);
     const routeInstructionSteps = routeMSegments.length ? normalizeRouteMSteps(instructedSteps) : displaySteps;
-    const totalMinutes = summaryMinutes || calculateTotalTime(displaySteps);
+    const totalMinutes = Number.isFinite(routeGeo?.properties?.durationSeconds)
+      ? routeGeo.properties.durationSeconds / 60
+      : Number.isFinite(summaryMinutes) ? summaryMinutes : calculateTotalTime(displaySteps);
     const totalDistance = summaryDistance ||
       displaySteps.reduce((acc, st) => acc + parseInt(st.distance), 0);
     const formattedTotalTime = formatTotalTime(totalMinutes);

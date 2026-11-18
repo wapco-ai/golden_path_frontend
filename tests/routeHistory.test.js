@@ -78,7 +78,10 @@ test('stored route snapshot is normalized through the same routing mapper', () =
   assert.equal(route.durationSeconds, 120);
   assert.equal(route.from, 'A');
   assert.equal(route.to, 'B');
-  assert.deepEqual(route.geo, item.route.geo);
+  assert.equal(route.geo.type, item.route.geo.type);
+  assert.deepEqual(route.geo.geometry, item.route.geo.geometry);
+  assert.equal(route.geo.properties.distanceMeters, route.distanceMeters);
+  assert.equal(route.geo.properties.durationSeconds, route.durationSeconds);
 });
 
 test('routing sends bearer token and endpoint names so successful routes can be captured in history', async () => {
