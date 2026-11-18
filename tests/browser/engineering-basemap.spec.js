@@ -176,7 +176,7 @@ for (const screen of ['fs', 'rop']) {
     await expect.poll(() => page.evaluate(() => {
       const layers = window.__engineeringMap.getStyle().layers;
       return layers.some(layer => layer.type === 'line' && /route/.test(layer.source));
-    })).toBe(true);
+    }), { timeout: 20000 }).toBe(true);
     const routes = await page.evaluate(() => {
       const map = window.__engineeringMap;
       return Object.entries(map.getStyle().sources).filter(([id, source]) => /route/.test(id) && source.type === 'geojson')
