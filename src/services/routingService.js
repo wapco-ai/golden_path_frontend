@@ -227,19 +227,20 @@ const normalizeGeoFeature = (route = {}) => {
 const mapRoute = (route = {}, originName = '', destinationName = '') => {
   const sahns = route.sahns || route.viaPoints || [];
   const steps = mapSteps(route.steps || []);
-  const geo = normalizeGeoFeature(route) || (route.multifloor ? null : toGeoLine(steps));
+  const feature = normalizeGeoFeature(route) || (route.multifloor ? null : toGeoLine(steps));
   const distanceMeters =
     typeof route.distanceMeters === 'number'
       ? route.distanceMeters
       : typeof route.distance_m === 'number'
         ? route.distance_m
-        : null;
+        : feature?.properties?.distanceMeters ?? null;
   const durationSeconds =
-    typeof route.estimatedMinutes === 'number'
-      ? route.estimatedMinutes * 60
-      : typeof route.duration_s === 'number'
-        ? route.duration_s
-        : null;
+    typeof route.duration_s === 'number'
+      ? route.duration_s
+      : feature?.properties?.durationSeconds ?? (typeof route.estimatedMinutes === 'number' ? route.estimatedMinutes * 60 : null);
+  const geo = feature && (feature.properties?.durationSeconds !== durationSeconds || feature.properties?.distanceMeters !== distanceMeters)
+    ? { ...feature, properties: { ...feature.properties, durationSeconds, distanceMeters } }
+    : feature;
 
   return {
     geo,

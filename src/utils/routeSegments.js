@@ -1,3 +1,5 @@
+import { elapsedDuration, serverStepDuration } from './routeDuration.js';
+
 const clampRouteM = (value) => Math.max(0, Math.min(1, Number(value)));
 
 const isLngLat = (coord) => Array.isArray(coord)
@@ -134,6 +136,8 @@ const stepEndFraction = (step) => step.type === 'stepUseStairs' && Number.isFini
   ? Math.max(step.routeM, clampRouteM(step.endRouteM))
   : step.routeM;
 
+const stepEndElapsed = (step) => step.type === 'stepUseStairs' ? step.end_elapsed_s : step.elapsed_s;
+
 export const buildRouteMSegments = (steps = [], coordinates = []) => {
   const normalizedSteps = normalizeRouteMSteps(steps);
 
@@ -154,11 +158,14 @@ export const buildRouteMSegments = (steps = [], coordinates = []) => {
     const segmentCoordinates = sliceLineByFraction(coordinates, fromM, toM);
     if (segmentCoordinates.length < 2) continue;
 
+    const durationSeconds = elapsedDuration(stepEndElapsed(fromStep), stepEndElapsed(toStep))
+      ?? (fromStep.type !== 'stepUseStairs' && toStep.type !== 'stepUseStairs' ? serverStepDuration(fromStep) : undefined);
     segments.push({
       fromM,
       toM,
       fromStep,
       step: toStep,
+      durationSeconds,
       coordinates: segmentCoordinates,
       title: toStep.title,
       type: toStep.type,

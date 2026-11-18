@@ -1,5 +1,6 @@
 import { getLineDistanceMeters, haversineMeters, sliceLineByFraction } from './routeSegments.js';
 import { normalizeFloor } from './floors.js';
+import { elapsedDuration, serverStepDuration } from './routeDuration.js';
 
 export const isMultifloor = geo => geo?.properties?.multifloor === true;
 // For bounds/point lookup only. Never draw these flattened coordinates as a line.
@@ -57,16 +58,27 @@ export function multifloorSteps(geo, steps, translate = s => s.instruction || s.
   return steps.map((step, index) => {
     const segment = geo.properties.segments.find(s => s.id === step.segmentId);
     const next = steps[index + 1];
+    const nextOnSegment = next?.segmentId === step.segmentId ? next : undefined;
     const fromM = Number.isFinite(step.routeM) ? step.routeM : 0;
-    const toM = next?.segmentId === step.segmentId && Number.isFinite(next.routeM) ? next.routeM : 1;
+    const toM = Number.isFinite(nextOnSegment?.routeM) ? nextOnSegment.routeM : 1;
     const isWalk = segment?.kind === 'walk' && step.type !== 'stepArriveDestination';
     const coordinates = isWalk
       ? sliceLineByFraction(segment.geometry.coordinates, fromM, toM)
       : (step.coordinates || []).map(([lat, lon]) => [lon, lat]);
     const points = coordinates.length ? coordinates : (step.coordinates || []).map(([lat, lon]) => [lon, lat]);
     const distanceMeters = isWalk ? getLineDistanceMeters(points) : 0;
-    const durationSeconds = step.type === 'stepChangeFloor' ? Number(step.duration_s || 0)
-      : isWalk ? Number(segment.duration_s) * Math.max(0, toM - fromM) : 0;
+    let durationSeconds = serverStepDuration(step);
+    if (isWalk) {
+      const endElapsed = nextOnSegment ? nextOnSegment.elapsed_s : segment.duration_s;
+      durationSeconds = elapsedDuration(step.elapsed_s, endElapsed) ?? durationSeconds;
+      if (durationSeconds == null && Number.isFinite(segment.duration_s)) {
+        durationSeconds = segment.duration_s * Math.max(0, toM - fromM);
+      }
+    } else if (step.type === 'stepChangeFloor') {
+      durationSeconds ??= segment?.duration_s;
+    } else if (step.type === 'stepArriveDestination') {
+      durationSeconds ??= 0;
+    }
     const instruction = step.instruction || translate(step, index);
     return { ...step, id: index + 1, coordinates: points, fromM, toM, durationSeconds, distanceMeters,
       instruction: step.type === 'stepChangeFloor' && normalizeFloor(step.toFloor) === 0

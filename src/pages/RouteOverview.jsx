@@ -28,6 +28,7 @@ import { requestRouting } from '../services/routingService';
 import { loadGeoJsonData } from '../utils/loadGeoJsonData';
 import { analyzeRoute } from '../utils/routeAnalysis';
 import { buildRouteMSegments, getLineDistanceMeters } from '../utils/routeSegments';
+import { formatRouteDuration, serverStepDuration } from '../utils/routeDuration';
 import { withDoorStepInstructions } from '../utils/routeStepInstructions';
 
 const HIDDEN_VECTOR_LAYER_IDS = new Set([
@@ -65,7 +66,6 @@ const RouteOverview = () => {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [directionArrow, setDirectionArrow] = useState('right');
   const [distance, setDistance] = useState('');
-  const [time, setTime] = useState('');
   const [popupCoord, setPopupCoord] = useState(null);
   const [selectedSubgroup, setSelectedSubgroup] = useState(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -104,23 +104,6 @@ const RouteOverview = () => {
     if (ad < 100) return diff > 0 ? 'left' : 'right';
     return diff > 0 ? 'bend-left' : 'bend-right';
   };
-
-  const formatSegmentTime = useCallback((distanceInMeters, durationSeconds = distanceInMeters) => {
-    const totalMinutes = durationSeconds / 60;
-
-    if (totalMinutes < 1) {
-      return `${formatDigits(Math.max(1, Math.round(totalMinutes * 60)))} ${intl.formatMessage({ id: 'secondsUnit' })}`;
-    }
-
-    const minutes = Math.floor(totalMinutes);
-    const seconds = Math.round((totalMinutes - minutes) * 60);
-
-    if (seconds > 0) {
-      return `${formatDigits(minutes)} ${intl.formatMessage({ id: 'minutesUnit' })} ${formatDigits(seconds)} ${intl.formatMessage({ id: 'secondsUnit' })}`;
-    }
-
-    return `${formatDigits(minutes)} ${intl.formatMessage({ id: 'minutesUnit' })}`;
-  }, [formatDigits, intl]);
 
   const toMeters = useCallback((coord1, coord2) => {
     if (!Array.isArray(coord1) || !Array.isArray(coord2)) return Infinity;
@@ -766,6 +749,7 @@ const RouteOverview = () => {
           instruction,
           services: step?.services || {},
           distance: dist,
+          durationSeconds: segment.durationSeconds,
           doorNames: step?.type === 'stepPassDoor' ? [stepName].filter(Boolean) : [],
           stepType: step?.type,
           stepTitle: step?.title,
@@ -798,6 +782,7 @@ const RouteOverview = () => {
           instruction,
           services: step?.services || {},
           distance: dist,
+          durationSeconds: serverStepDuration(step),
           doorNames: step?.type === 'stepPassDoor' ? [stepName].filter(Boolean) : [],
           stepType: step?.type,
           stepTitle: step?.title,
@@ -860,6 +845,7 @@ const RouteOverview = () => {
           instruction: instr,
           services: seg.services,
           distance: seg.distance,
+          durationSeconds: seg.durationSeconds,
           stepType: seg.stepType,
           stepTitle: seg.stepTitle,
           stepName: seg.stepName,
@@ -899,6 +885,10 @@ const RouteOverview = () => {
     return mappedSegments;
   }, [routeCoordinates, routeGeo, routeSteps, destination?.name, intl]);
 
+  const stepDuration = routeData[currentSlide]?.durationSeconds
+    ?? (routeData.length === 1 ? routeGeo?.properties?.durationSeconds : undefined);
+  const time = formatRouteDuration(stepDuration, intl, formatDigits);
+
   const [viewState, setViewState] = useState({
     latitude: routeCoordinates[0]?.[1] || 0,
     longitude: routeCoordinates[0]?.[0] || 0,
@@ -926,7 +916,6 @@ const RouteOverview = () => {
       const coords = segObj.coordinates;
       const d = segObj.distance;
       setDistance(`${formatDigits(Math.round(d))} ${intl.formatMessage({ id: 'meters' })}`);
-      setTime(formatSegmentTime(d, isMultifloor(routeGeo) ? segObj.durationSeconds : undefined));
 
       if (
         !Array.isArray(coords) ||
@@ -1006,7 +995,7 @@ const RouteOverview = () => {
         }
       }
     }
-  }, [currentSlide, formatDigits, formatSegmentTime, intl, mapLoaded, routeData]);
+  }, [currentSlide, formatDigits, intl, mapLoaded, routeData]);
 
   const originFloor = getPointFloor(origin, getSessionFloor());
   const activeRouteFloor = getPointFloor(routeData[currentSlide], originFloor);
