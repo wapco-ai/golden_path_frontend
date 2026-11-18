@@ -446,7 +446,7 @@ test('route discrepancy briefly opens a separate warning and keeps the QR badge 
   await walk(page, 18, 0);
   await expect(badge).toHaveCount(0);
   await expect(warning).toHaveCount(0);
-  await expect(state).toHaveAttribute('data-navigation-mode', 'live');
+  await expect(state).toHaveAttribute('data-navigation-mode', 'arrived');
   expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
 });
 
