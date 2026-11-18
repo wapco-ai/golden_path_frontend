@@ -238,8 +238,13 @@ const mapRoute = (route = {}, originName = '', destinationName = '') => {
     typeof route.duration_s === 'number'
       ? route.duration_s
       : feature?.properties?.durationSeconds ?? (typeof route.estimatedMinutes === 'number' ? route.estimatedMinutes * 60 : null);
-  const geo = feature && (feature.properties?.durationSeconds !== durationSeconds || feature.properties?.distanceMeters !== distanceMeters)
-    ? { ...feature, properties: { ...feature.properties, durationSeconds, distanceMeters } }
+  const hasNewDuration = Number.isFinite(durationSeconds) && feature?.properties?.durationSeconds !== durationSeconds;
+  const hasNewDistance = Number.isFinite(distanceMeters) && feature?.properties?.distanceMeters !== distanceMeters;
+  const geo = feature && (hasNewDuration || hasNewDistance)
+    ? { ...feature, properties: { ...feature.properties,
+      ...(hasNewDuration && { durationSeconds }),
+      ...(hasNewDistance && { distanceMeters })
+    } }
     : feature;
 
   return {
