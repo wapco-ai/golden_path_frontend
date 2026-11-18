@@ -11,7 +11,7 @@ import {
 import { withDoorStepInstructions } from '../src/utils/routeStepInstructions.js';
 import { formatRouteDuration } from '../src/utils/routeDuration.js';
 import { getNavigationProgress } from '../src/utils/rngNavigation.js';
-import { arrivalInstruction, finalStepDistanceMeters, liveStepInstruction, rngMessages } from '../src/utils/rngMessages.js';
+import { finalStepDistanceMeters, liveStepInstruction, rngMessages } from '../src/utils/rngMessages.js';
 
 const coordinates = [[59.615, 36.287], [59.6151, 36.287], [59.6151, 36.2872]];
 const steps = [
@@ -196,7 +196,7 @@ const finalContext = (step, geo, name, label) => {
   return { nearby: Boolean(nearby), name: nearby ? label : name, distance: meters > 0 ? String(meters) : null };
 };
 
-test('a reachable destination is guided by final-segment distance and named only after arrival', () => {
+test('direction to a reachable destination uses the final-segment distance and name', () => {
   const messages = rngMessages.fa;
   const line = [[59.615, 36.287], [59.615, 36.2876]];
   const segment = buildRouteMSegments([steps[0], { ...steps[2], instruction: 'backend' }], line).at(-1);
@@ -204,12 +204,9 @@ test('a reachable destination is guided by final-segment distance and named only
   const context = finalContext(step, null, 'باب‌الجواد');
   assert.equal(context.distance, '67');
   assert.equal(liveStepInstruction(step, messages, context), '67 متر به سمت باب‌الجواد حرکت کنید.');
-  assert.equal(arrivalInstruction(step, messages, context), 'به باب‌الجواد رسیدید.');
   assert.equal(liveStepInstruction({ instruction: 'مسیر را ادامه دهید.' }, messages, context), 'مسیر را ادامه دهید.');
   assert.equal(liveStepInstruction(step, rngMessages.en, { ...context, name: 'Bab al-Jawad' }), 'Walk 67 meters toward Bab al-Jawad.');
-  assert.equal(arrivalInstruction(step, rngMessages.en, { ...context, name: 'Bab al-Jawad' }), 'You have arrived at Bab al-Jawad.');
   assert.equal(liveStepInstruction(step, messages, { ...context, name: '' }), messages.approach);
-  assert.equal(arrivalInstruction(step, messages, { ...context, name: ' ' }), messages.arrived);
   assert.equal(liveStepInstruction(step, messages, { ...context, distance: null }), 'به سمت باب‌الجواد حرکت کنید.');
 });
 
@@ -225,31 +222,17 @@ test('a long terminal step reports its whole final segment, not a short generic 
   assert.equal(liveStepInstruction(step, rngMessages.fa, context), `${context.distance} متر به سمت باب‌الجواد حرکت کنید.`);
 });
 
-test('a nearby endpoint guides to the real route end and then shows the backend arrival text', () => {
+test('guidance to a nearby endpoint uses the real route end and its label', () => {
   const messages = rngMessages.fa;
   const geo = { properties: { nearbyDestination: { coordinates: [36.2876, 59.615], floor: 0, label: { name: 'باب الجواد' } } } };
   const line = [[59.615, 36.287], [59.615, 36.2876]];
-  const backend = 'به نزدیک‌ترین نقطهٔ قابل‌دسترسی به باب‌الجواد رسیدید.';
-  const segment = buildRouteMSegments([steps[0], { ...steps[2], instruction: backend }], line).at(-1);
+  const segment = buildRouteMSegments([steps[0], steps[2]], line).at(-1);
   const step = { ...segment.step, coordinates: segment.coordinates };
   const named = finalContext(step, geo, 'باب‌الجواد', 'باب الجواد');
   assert.equal(liveStepInstruction(step, messages, named), '67 متر به سمت باب الجواد حرکت کنید.');
-  assert.equal(arrivalInstruction(step, messages, named), backend);
   const unnamed = finalContext(step, geo, 'باب‌الجواد', null);
   assert.equal(liveStepInstruction(step, messages, unnamed), '67 متر تا انتهای مسیر ادامه دهید.');
   assert.equal(liveStepInstruction(step, messages, { nearby: true, name: null, distance: null }), messages.toEnd);
-  assert.equal(arrivalInstruction({ ...step, instruction: '  ' }, messages, named), messages.arrivedNearby);
-});
-
-test('a nearby endpoint with empty backend text uses the localized closest-point arrival message', () => {
-  const context = { nearby: true, name: null, distance: null };
-  for (const text of [undefined, null, '', '   ']) {
-    const step = { type: 'stepArriveDestination', instruction: text };
-    assert.equal(arrivalInstruction(step, rngMessages.fa, context), 'به نزدیک‌ترین نقطهٔ قابل‌دسترسی رسیدید.');
-    assert.equal(arrivalInstruction(step, rngMessages.en, context), 'You have reached the closest accessible point.');
-  }
-  assert.equal(arrivalInstruction({ instruction: 'متن بک‌اند' }, rngMessages.fa, context), 'متن بک‌اند');
-  assert.equal(arrivalInstruction({ instruction: '' }, rngMessages.fa, { nearby: false, name: 'باب‌الجواد' }), 'به باب‌الجواد رسیدید.');
 });
 
 test('an unnamed nearby endpoint without a distance asks the pilgrim to continue to the route end', () => {

@@ -1,4 +1,5 @@
 import { getNavigationPolicy } from '../services/navigationPolicy.js';
+import { normalizeFloor } from './floors.js';
 import { isFresh } from './locationQuality.js';
 import { getNavigationProgress, getStepStartRouteM, isNavigationGeo, projectPointOnRoute } from './rngNavigation.js';
 import { getLineDistanceMeters, haversineMeters, sliceLineByDistance } from './routeSegments.js';
@@ -14,26 +15,24 @@ export class NavigationProgressTracker {
     this.timestamp = null;
     this.along = null;
     this.routeM = null;
-    this.arrival = null;
-    this.arrivalFeedback = null;
   }
 
   constructor() { this.reset(); }
 
   update(input) {
-    const progress = this.updateObservation(input);
-    const { steps, currentStep, coordinates } = input;
+    const { steps, currentStep, coordinates, floor } = input;
     const total = getLineDistanceMeters(coordinates);
-    const atEnd = currentStep === steps?.length - 1
-      && steps[currentStep]?.type === 'stepArriveDestination'
-      && this.along !== null && this.along >= total - 0.1;
-    // Feedback never changes the evidence required to confirm arrival.
-    this.arrivalFeedback = !progress.arrived && atEnd
-      ? (this.arrival ? 'arrivalChecking' : 'arrivalUncertain') : null;
-    return progress;
+    const progress = this.updateObservation({ ...input, total });
+    const terminal = steps?.[progress.nextStep];
+    const terminalFloor = normalizeFloor(terminal?.floor);
+    const arrived = progress.arrived && terminal?.type === 'stepArriveDestination'
+      && progress.nextStep === steps.length - 1
+      && terminal.segmentId === steps[currentStep]?.segmentId
+      && (terminalFloor === null || terminalFloor === normalizeFloor(floor));
+    return { ...progress, arrived };
   }
 
-  updateObservation({ measurement, steps, currentStep, coordinates, context, mode, now = Date.now() }) {
+  updateObservation({ measurement, steps, currentStep, coordinates, total, context, mode, now = Date.now() }) {
     const policy = getNavigationPolicy();
     const blind = !policy.gps_enabled;
     const unchanged = { nextStep: currentStep, arrived: false };
@@ -43,16 +42,12 @@ export class NavigationProgressTracker {
       }
       this.context = context;
     }
-    const total = getLineDistanceMeters(coordinates);
     const startM = this.initialRouteM ?? getStepStartRouteM(steps?.[currentStep], coordinates) ?? 0;
     if (this.along === null) { this.along = startM * total; this.routeM = startM; }
     if (blind) return this.updateBlind({ measurement, steps, currentStep, coordinates, total, now, policy });
     if (!measurement || !isFresh(measurement.timestamp, now)
       || !Number.isFinite(measurement.accuracy) || measurement.accuracy < 0
-      || measurement.accuracy > policy.gps_progress_accuracy_m) {
-      this.arrival = null;
-      return unchanged;
-    }
+      || measurement.accuracy > policy.gps_progress_accuracy_m) return unchanged;
     // React rerenders and the age timer must not count as new observations.
     if (this.timestamp !== null && measurement.timestamp <= this.timestamp) return unchanged;
     const seconds = this.timestamp === null ? 0 : Math.min(5, (measurement.timestamp - this.timestamp) / 1000);
@@ -61,40 +56,25 @@ export class NavigationProgressTracker {
     this.timestamp = measurement.timestamp;
     const projection = projectPointOnRoute([measurement.lng, measurement.lat], coordinates,
       { minAlong: Math.max(0, this.along - window), maxAlong: this.along + window });
-    if (total > 0 && (!projection || projection.lateralDistanceM > policy.gps_progress_accuracy_m)) {
-      this.arrival = null;
-      return unchanged;
-    }
+    if (total > 0 && (!projection || projection.lateralDistanceM > policy.gps_progress_accuracy_m)) return unchanged;
     if (projection) {
       this.along = projection.alongDistanceM;
       this.routeM = projection.routeM;
     }
     const progress = getNavigationProgress(measurement, steps, currentStep, coordinates, { projection, arrivalRadius: policy.arrival_radius_m });
-    if (!progress.arrived || measurement.accuracy > policy.gps_arrival_accuracy_m) {
-      this.arrival = null;
-      return { ...progress, arrived: false };
-    }
-    if (!this.arrival) this.arrival = { since: measurement.timestamp, count: 0 };
-    this.arrival.count += 1;
-    return { ...progress, arrived: this.arrival.count >= 3 && measurement.timestamp - this.arrival.since >= 2000 };
+    return { ...progress, arrived: projection ? this.along >= total : progress.arrived };
   }
 
   updateBlind({ measurement, steps, currentStep, coordinates, total, now, policy }) {
     const unchanged = { nextStep: currentStep, arrived: false };
     if (!measurement || measurement.source !== 'dead_reckoning'
       || !isFresh(measurement.timestamp, now, policy.measurement_max_age_ms)
-      || !Number.isFinite(measurement.distanceSinceAnchor)) {
-      this.arrival = null;
-      return unchanged;
-    }
+      || !Number.isFinite(measurement.distanceSinceAnchor)) return unchanged;
     if (this.timestamp !== null && measurement.timestamp <= this.timestamp) return unchanged;
     const walked = measurement.distanceSinceAnchor - this.distance;
     this.timestamp = measurement.timestamp;
     this.distance = measurement.distanceSinceAnchor;
-    if (walked <= 0 || steps?.[currentStep]?.type === 'stepChangeFloor') {
-      this.arrival = null;
-      return unchanged;
-    }
+    if (walked <= 0 || steps?.[currentStep]?.type === 'stepChangeFloor') return unchanged;
 
     // Only detected walking distance advances the display along the server line.
     const previousAlong = this.along;
@@ -106,12 +86,11 @@ export class NavigationProgressTracker {
       ? { alongDistanceM: this.along, totalDistanceM: total, lateralDistanceM: 0 } : null;
     const displayProgress = getNavigationProgress(this.snappedGeo, steps, currentStep, coordinates,
       { projection: displayProjection, arrivalRadius: policy.arrival_radius_m });
-    const next = { ...displayProgress, arrived: false };
+    const next = { ...displayProgress, arrived: Boolean(point) && this.along >= total };
 
-    // Only a fresh raw observation may update the discrepancy or confirm arrival.
+    // Raw observations are used for the route discrepancy advisory.
     if (measurement.positionTimestamp !== measurement.timestamp
       || !isNavigationGeo(measurement) || !Number.isFinite(measurement.heading)) {
-      this.arrival = null;
       return next;
     }
     const rawPoint = [measurement.lng, measurement.lat];
@@ -122,19 +101,6 @@ export class NavigationProgressTracker {
     });
     const nearest = projection ? [projection.geo.lng, projection.geo.lat] : point;
     this.routeDistance = nearest ? haversineMeters(rawPoint, nearest) : null;
-    const headingMatches = !projection
-      || Math.abs(((projection.heading - measurement.heading + 540) % 360) - 180) <= policy.heading_tolerance_deg;
-    const rawProgress = getNavigationProgress(measurement, steps, currentStep, coordinates,
-      { projection, arrivalRadius: policy.arrival_radius_m });
-    if (!headingMatches || !displayProgress.arrived || !rawProgress.arrived) {
-      this.arrival = null;
-      return next;
-    }
-
-    if (!this.arrival) this.arrival = { since: measurement.timestamp, count: 0 };
-    this.arrival.count += 1;
-    return { ...next, arrived: this.arrival.count >= policy.arrival_samples
-      && measurement.timestamp - this.arrival.since >= policy.arrival_dwell_ms };
+    return next;
   }
-
 }

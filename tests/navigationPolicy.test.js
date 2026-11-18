@@ -39,14 +39,15 @@ test('invalid settings never replace a valid offline policy or enable GPS', asyn
 test('step-only navigation advances in sequence and arrives without a destination QR', () => {
   const tracker = new NavigationProgressTracker();
   let currentStep = 0, arrived = false;
-  for (let m = 0.7; m <= 50; m += 0.7) {
+  for (let m = 0.7; m <= 51; m += 0.7) {
     const result = feed(tracker, m, { currentStep });
     currentStep = result.nextStep;
     if (result.arrived) { arrived = true; break; }
   }
   assert.equal(currentStep, 2);
   assert.equal(arrived, true);
-  assert.ok(tracker.routeDistance < 0.01);
+  assert.equal(tracker.routeM, 1);
+  assert.ok(tracker.routeDistance < 0.7);
 });
 
 test('a discrepancy above 20 m never blocks progress or uses reported accuracy', () => {
@@ -64,7 +65,7 @@ test('a discrepancy above 20 m never blocks progress or uses reported accuracy',
   assert.ok(tracker.routeDistance < 0.01);
 });
 
-test('a display marker reaching the end cannot declare arrival while the raw estimate is off route', () => {
+test('the tracked endpoint completes the route even when the raw estimate is off route', () => {
   const tracker = new NavigationProgressTracker();
   let currentStep = 0;
   for (let m = 0.7; m <= 50; m += 0.7) {
@@ -74,7 +75,9 @@ test('a display marker reaching the end cannot declare arrival while the raw est
   }
   assert.equal(tracker.snappedGeo.lng, 0);
   assert.ok(tracker.routeDistance > 20);
-  assert.ok(tracker.routeM > 0.99);
+  assert.ok(tracker.routeM < 1);
+  assert.equal(feed(tracker, 50.4, { offset: 22, currentStep }).arrived, true);
+  assert.equal(tracker.routeM, 1);
 });
 
 test('the discrepancy projects onto the bounded section of a single long edge', () => {
@@ -103,52 +106,28 @@ test('floor changes and duplicate samples never auto-confirm arrival', () => {
   for (let i = 0; i < 5; i++) assert.deepEqual(tracker.update(input), { nextStep: 0, arrived: false });
 });
 
-test('missing heading allows display progress but cannot update the raw distance or confirm arrival', () => {
+test('missing heading allows endpoint arrival and preserves the last known discrepancy', () => {
   const tracker = new NavigationProgressTracker();
   feed(tracker, 0.7, { offset: 22 });
   const distance = tracker.routeDistance;
-  const result = feed(tracker, 50, { currentStep: 2, heading: null, positionTimestamp: null });
-  assert.equal(result.arrived, false);
-  assert.ok(tracker.routeM > 0.99);
+  assert.equal(feed(tracker, 49.9, { currentStep: 2, heading: null, positionTimestamp: null }).arrived, false);
+  const result = feed(tracker, 50.6, { currentStep: 2, heading: null, positionTimestamp: null });
+  assert.equal(result.arrived, true);
+  assert.equal(tracker.routeM, 1);
   assert.equal(tracker.routeDistance, distance);
 });
 
-test('arrival feedback explains a displayed endpoint without weakening raw-position checks', () => {
+test('arrival requires the final step and the destination floor', () => {
   const tracker = new NavigationProgressTracker();
-  feed(tracker, 1);
-  assert.equal(tracker.arrivalFeedback, null);
-  feed(tracker, 49, { currentStep: 2, offset: 4 });
-  assert.equal(tracker.arrivalFeedback, null);
-  assert.equal(feed(tracker, 50, { currentStep: 2, offset: 4 }).arrived, false);
-  assert.equal(tracker.arrivalFeedback, 'arrivalUncertain');
+  assert.equal(feed(tracker, 51, { currentStep: 0 }).arrived, false);
+  const update = (floor, timestamp, distance) => tracker.update({
+    measurement: { timestamp, distanceSinceAnchor: distance, source: 'dead_reckoning' },
+    steps: [{ ...steps[2], floor: 1 }], currentStep: 0, coordinates, floor,
+    context: 'trip|1', now: timestamp,
+  });
+  assert.equal(update(0, 160000, 52).arrived, false);
   assert.equal(tracker.routeM, 1);
-  assert.equal(feed(tracker, 50.7, { currentStep: 2 }).arrived, false);
-  assert.equal(tracker.arrivalFeedback, 'arrivalChecking');
-  assert.equal(feed(tracker, 51.4, { currentStep: 2 }).arrived, true);
-  assert.equal(tracker.arrivalFeedback, null);
-  tracker.reset();
-  assert.equal(tracker.arrivalFeedback, null);
-});
-
-test('missing and expired observations explain an unconfirmed endpoint, never confirm it', () => {
-  const tracker = new NavigationProgressTracker();
-  feed(tracker, 50, { currentStep: 2, heading: null, positionTimestamp: null });
-  assert.equal(tracker.arrivalFeedback, 'arrivalUncertain');
-  feed(tracker, 50.7, { currentStep: 2 });
-  assert.equal(tracker.arrivalFeedback, 'arrivalChecking');
-  const result = tracker.update({ measurement: null, steps, currentStep: 2,
-    coordinates, context: 'trip|0', now: 200000 });
-  assert.equal(result.arrived, false);
-  assert.equal(tracker.arrivalFeedback, 'arrivalUncertain');
-});
-
-test('arrival feedback cannot appear on a floor transfer or an earlier route step', () => {
-  const tracker = new NavigationProgressTracker();
-  feed(tracker, 50, { currentStep: 1, offset: 4 });
-  assert.equal(tracker.arrivalFeedback, null);
-  tracker.update({ measurement: null, steps: [{ type: 'stepChangeFloor' }], currentStep: 0,
-    coordinates, context: 'transfer', now: 200000 });
-  assert.equal(tracker.arrivalFeedback, null);
+  assert.equal(update(1, 161000, 53).arrived, true);
 });
 
 test('DR keeps the raw path and detected walking distance independent without a drift coefficient', async t => {
