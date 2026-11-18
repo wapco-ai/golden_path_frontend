@@ -10,8 +10,9 @@ async function setup(page, length = 40, observeMap = false, stepTest = false, ne
     const middle = stepTest ? 0.15 : 0.5;
     const coordinates = [[59.615, 36.287], [59.615, 36.287 + length * middle / 111195], [59.615, 36.287 + length / 111195]];
     const meters = value => value / 111195;
-    const lower = [[59.615, 36.287], [59.615, 36.287 + meters(120)]];
-    const upper = [[59.615, 36.287 + meters(120)], [59.615, 36.287 + meters(120) + meters(length)]];
+    const lowerLength = 12;
+    const lower = [[59.615, 36.287], [59.615, 36.287 + meters(lowerLength)]];
+    const upper = [lower[1], [59.615, lower[1][1] + meters(length)]];
     const state = { origin: { name: 'مبدأ', coordinates: [36.287, 59.615], floor: 0,
       ...(gpsOrigin && { source: 'gps', accuracy: 5, timestamp: Date.now() }) },
       destination: { name: 'مقصد', coordinates: [coordinates[2][1], 59.615], floor: 0 },
@@ -25,8 +26,8 @@ async function setup(page, length = 40, observeMap = false, stepTest = false, ne
     if (multifloor) {
       const point = ([lon, lat]) => ({ lon, lat });
       state.routeGeo = { type: 'Feature', geometry: { type: 'MultiLineString', coordinates: [lower, upper] },
-        properties: { multifloor: true, floor: 0, distanceMeters: 120 + length, durationSeconds: 120 + length, segments: [
-          { id: 0, kind: 'walk', floor: 0, geometry: { type: 'LineString', coordinates: lower }, duration_s: 120, distance_m: 120 },
+        properties: { multifloor: true, floor: 0, distanceMeters: lowerLength + length, durationSeconds: lowerLength + length, segments: [
+          { id: 0, kind: 'walk', floor: 0, geometry: { type: 'LineString', coordinates: lower }, duration_s: lowerLength, distance_m: lowerLength },
           { id: 1, kind: 'lift', floor: 0, fromFloor: 0, toFloor: 1, geometry: null, duration_s: 10, distance_m: 0 },
           { id: 2, kind: 'walk', floor: 1, geometry: { type: 'LineString', coordinates: upper }, duration_s: length, distance_m: length }] } };
       state.destination = { ...state.destination, floor: 1, coordinates: [upper[1][1], upper[1][0]] };
@@ -545,7 +546,7 @@ test('a nearby endpoint without a name or backend text still gets localized guid
 test('a multifloor final step is measured from the preceding walk step on the destination floor', async ({ page }) => {
   test.setTimeout(120000);
   await setup(page, 40, false, false, null, true);
-  await walk(page, 100);
+  await walk(page, 18);
   const routing = page.locator('.routing-page');
   await expect(routing).toHaveAttribute('data-navigation-mode', 'live');
   await expect(page.locator('[data-navigation-marker="arrived"]')).toHaveCount(0);
