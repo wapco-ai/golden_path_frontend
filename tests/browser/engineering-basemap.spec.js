@@ -101,7 +101,9 @@ async function observeMap(page, screen) {
     };
     window.location.hash = `#/${screen}`;
   }, screen);
-  await expect.poll(() => page.evaluate(() => Boolean(window.__engineeringMap?.isStyleLoaded()))).toBe(true);
+  await expect.poll(() => page.evaluate(() => Boolean(window.__engineeringMap?.isStyleLoaded())), {
+    timeout: 20000
+  }).toBe(true);
 }
 
 const readCamera = page => page.evaluate(() => {
@@ -176,7 +178,7 @@ for (const screen of ['fs', 'rop']) {
     await expect.poll(() => page.evaluate(() => {
       const layers = window.__engineeringMap.getStyle().layers;
       return layers.some(layer => layer.type === 'line' && /route/.test(layer.source));
-    }), { timeout: 20000 }).toBe(true);
+    })).toBe(true);
     const routes = await page.evaluate(() => {
       const map = window.__engineeringMap;
       return Object.entries(map.getStyle().sources).filter(([id, source]) => /route/.test(id) && source.type === 'geojson')
