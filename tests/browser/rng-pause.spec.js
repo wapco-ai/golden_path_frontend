@@ -152,7 +152,7 @@ test('manual next without GPS keeps live navigation, QR and pause active', async
   await expect(qr(page)).toBeVisible();
 });
 
-test('GPS advances with plausible motion and only confirms arrival after precise distinct samples', async ({ page }) => {
+test('GPS advances with usable fixes and finishes at the endpoint', async ({ page }) => {
   await page.clock.install();
   await setup(page);
   await expect(state(page)).toHaveAttribute('data-current-step', '0');
@@ -167,18 +167,21 @@ test('GPS advances with plausible motion and only confirms arrival after precise
   await expect(state(page)).toHaveAttribute('data-navigation-mode', 'live');
   await expect(qr(page)).toBeVisible();
   await expect(pause(page)).toBeVisible();
-  for (let i = 12; i <= 20; i++) {
+  for (let i = 12; i < 20; i++) {
     await page.clock.fastForward(5000);
     await page.evaluate(i => window.sendGps(36.287 + i * 0.0001, 59.615), i);
     await page.clock.runFor(100);
   }
   await expect(state(page)).toHaveAttribute('data-navigation-mode', 'live');
-  for (let i = 0; i < 3; i++) {
-    await page.clock.fastForward(1000);
-    await page.evaluate(() => window.sendGps(36.289, 59.615, 2));
-    await page.clock.runFor(100);
-  }
+  await page.clock.fastForward(5000);
+  await page.evaluate(() => window.sendGps(36.289, 59.615, 25));
+  await page.clock.runFor(100);
+  await expect(state(page)).toHaveAttribute('data-navigation-mode', 'live');
+  await page.clock.fastForward(1000);
+  await page.evaluate(() => window.sendGps(36.289, 59.615, 5));
+  await page.clock.runFor(100);
   await expect(state(page)).toHaveAttribute('data-navigation-mode', 'arrived');
+  await expect(page.locator('.instruction-text')).toHaveText('شما به مقصد رسیدید.');
   await expect(qr(page)).toHaveCount(0);
   await expect(pause(page)).toHaveCount(0);
 });
