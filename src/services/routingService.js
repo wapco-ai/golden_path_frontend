@@ -26,7 +26,7 @@ const buildCoordinatePayload = (point, fallbackFloor = null) => {
 const buildRequestBody = ({ origin, destination, mode, gender, lang, maxAlternatives, floor, allowNearbyDestination }) => {
   const normalizedFloor = normalizeFloor(floor);
   const originPayload = buildCoordinatePayload(origin, normalizedFloor);
-  const destinationPayload = destination?.privateArea
+  const destinationPayload = destination?.privateArea && !doorEndpoint(destination)
     ? { type: 'privateArea', id: destination.areaId,
       floor: getPointFloor(destination, normalizedFloor) ?? undefined, name: destination.name }
     : buildCoordinatePayload(destination, normalizedFloor);

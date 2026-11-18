@@ -155,7 +155,12 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 900, height: 480 
     await expect.poll(() => insideViewport(footerClose)).toBe(true);
     expect(await body.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
     if (viewport.width > 540) {
-      const [first, second] = await Promise.all([dialog.locator('.role-item').nth(0).boundingBox(), dialog.locator('.role-item').nth(1).boundingBox()]);
+      // Read both positions in one frame while the dialog is opening.
+      const [first, second] = await dialog.locator('.role-item').evaluateAll(items =>
+        items.slice(0, 2).map(item => {
+          const { x, y } = item.getBoundingClientRect();
+          return { x, y };
+        }));
       expect(Math.abs(first.y - second.y)).toBeLessThan(2);
       expect(Math.abs(first.x - second.x)).toBeGreaterThan(100);
     }
