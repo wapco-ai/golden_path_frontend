@@ -2,30 +2,18 @@ import { getLineDistanceMeters, sliceLineByFraction } from './routeSegments.js';
 
 // Accessible icon names and live arrival instructions.
 export const rngMessages = {
-  fa: { next: 'نمایش گام بعدی در دمو', nextLive: 'رفتن به گام بعدی', approach: 'به مسیر تا مقصد ادامه دهید.', arrived: 'به مقصد رسیدید.',
-    arrivalChecking: 'در حال تأیید رسیدن… گوشی را رو به مسیر نگه دارید؛ در صورت نیاز از دکمهٔ QR استفاده کنید.',
-    arrivalUncertain: 'موقعیت برای تأیید رسیدن مطمئن نیست. جهت گوشی را بررسی یا با دکمهٔ QR موقعیت را اصلاح کنید.',
+  fa: { next: 'نمایش گام بعدی در دمو', nextLive: 'رفتن به گام بعدی', approach: 'به مسیر تا مقصد ادامه دهید.', arrived: 'شما به مقصد رسیدید.',
     toward: '{distance} متر به سمت {name} حرکت کنید.', towardNoDistance: 'به سمت {name} حرکت کنید.',
-    towardEnd: '{distance} متر تا انتهای مسیر ادامه دهید.', arrivedAt: 'به {name} رسیدید.',
-    arrivedNearby: 'به نزدیک‌ترین نقطهٔ قابل‌دسترسی رسیدید.', toEnd: 'تا انتهای مسیر ادامه دهید.' },
+    towardEnd: '{distance} متر تا انتهای مسیر ادامه دهید.', toEnd: 'تا انتهای مسیر ادامه دهید.' },
   en: { next: 'Preview next demo step', nextLive: 'Go to the next step', approach: 'Continue along the route to your destination.', arrived: 'You have arrived at your destination.',
-    arrivalChecking: 'Confirming arrival… Face your phone along the route, or use the QR button to correct your location.',
-    arrivalUncertain: 'Position uncertain; arrival unconfirmed. Check phone direction or use the QR button.',
     toward: 'Walk {distance} meters toward {name}.', towardNoDistance: 'Walk toward {name}.',
-    towardEnd: 'Continue {distance} meters to the end of the route.', arrivedAt: 'You have arrived at {name}.',
-    arrivedNearby: 'You have reached the closest accessible point.', toEnd: 'Continue to the end of the route.' },
+    towardEnd: 'Continue {distance} meters to the end of the route.', toEnd: 'Continue to the end of the route.' },
   ar: { next: 'معاينة الخطوة التجريبية التالية', nextLive: 'الانتقال إلى الخطوة التالية', approach: 'تابع المسار إلى وجهتك.', arrived: 'لقد وصلت إلى وجهتك.',
-    arrivalChecking: 'جارٍ تأكيد الوصول… وجّه الهاتف باتجاه المسار أو صحح موقعك بزر QR.',
-    arrivalUncertain: 'الموقع غير مؤكد؛ لم يتم تأكيد الوصول. تحقق من اتجاه الهاتف أو صحح موقعك بزر QR.',
     toward: 'سر {distance} مترًا باتجاه {name}.', towardNoDistance: 'سر باتجاه {name}.',
-    towardEnd: 'تابع {distance} مترًا حتى نهاية المسار.', arrivedAt: 'لقد وصلت إلى {name}.',
-    arrivedNearby: 'وصلت إلى أقرب نقطة متاحة.', toEnd: 'تابع حتى نهاية المسار.' },
+    towardEnd: 'تابع {distance} مترًا حتى نهاية المسار.', toEnd: 'تابع حتى نهاية المسار.' },
   ur: { next: 'ڈیمو کا اگلا مرحلہ دکھائیں', nextLive: 'اگلے مرحلے پر جائیں', approach: 'منزل تک راستے پر چلتے رہیں۔', arrived: 'آپ منزل پر پہنچ گئے ہیں۔',
-    arrivalChecking: 'پہنچنے کی تصدیق ہو رہی ہے… فون راستے کی سمت رکھیں یا QR بٹن سے مقام درست کریں۔',
-    arrivalUncertain: 'مقام غیر یقینی ہے؛ پہنچنے کی تصدیق نہیں ہوئی۔ فون کی سمت دیکھیں یا QR بٹن سے مقام درست کریں۔',
     toward: '{name} کی طرف {distance} میٹر چلیں۔', towardNoDistance: '{name} کی طرف چلیں۔',
-    towardEnd: 'راستے کے اختتام تک {distance} میٹر چلتے رہیں۔', arrivedAt: 'آپ {name} پر پہنچ گئے ہیں۔',
-    arrivedNearby: 'آپ قریب ترین قابلِ رسائی مقام پر پہنچ گئے ہیں۔', toEnd: 'راستے کے اختتام تک چلتے رہیں۔' }
+    towardEnd: 'راستے کے اختتام تک {distance} میٹر چلتے رہیں۔', toEnd: 'راستے کے اختتام تک چلتے رہیں۔' }
 };
 
 const fill = (template, values) => template.replace(/\{(\w+)\}/g, (_, key) => values[key]);
@@ -61,13 +49,6 @@ export const finalStepDistanceMeters = (geo, step, previousStep) => {
     return getLineDistanceMeters(sliceLineByFraction(coordinates, from, Number.isFinite(step?.routeM) ? step.routeM : 1));
   }
   return Number.isFinite(step?.distanceMeters) ? step.distanceMeters : getLineDistanceMeters(step?.coordinates);
-};
-
-// A reachable destination is named locally. A nearby endpoint shows the backend's wording.
-export const arrivalInstruction = (step, messages, context = {}) => {
-  if (context.nearby) return clean(step?.instruction) || messages.arrivedNearby;
-  const name = clean(context.name);
-  return name ? fill(messages.arrivedAt, { name }) : messages.arrived;
 };
 
 export const rngPauseMessages = {

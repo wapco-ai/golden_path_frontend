@@ -27,17 +27,16 @@ test('four metres of noise cannot jump to the return leg of a six-metre-wide U r
   }
 });
 
-test('poor GPS cannot advance or arrive; arrival needs three distinct precise observations', () => {
+test('GPS progress reaches arrival only at the endpoint with a usable fix', () => {
   const tracker = new NavigationProgressTracker();
   const coordinates = [point(0), point(5)];
   const steps = [{ type: 'stepArriveDestination', fromM: 0 }];
-  const update = (time, accuracy) => tracker.update({ measurement: fix(5, 0, time, accuracy), steps, currentStep: 0,
+  const update = (distance, time, accuracy) => tracker.update({ measurement: fix(distance, 0, time, accuracy), steps, currentStep: 0,
     coordinates, context: 'arrival', now: time });
-  assert.equal(update(now, 25).arrived, false);
-  assert.equal(update(now + 1000, 2).arrived, false);
-  assert.equal(update(now + 1000, 2).arrived, false);
-  assert.equal(update(now + 2000, 2).arrived, false);
-  assert.equal(update(now + 3000, 2).arrived, true);
+  assert.equal(update(5, now, 25).arrived, false);
+  assert.equal(update(4, now + 1000, 2).arrived, false);
+  assert.equal(update(5, now + 1000, 5).arrived, false);
+  assert.equal(update(5, now + 2000, 5).arrived, true);
 });
 
 test('new observations follow a normal walk and one fix cannot cascade through several steps', () => {

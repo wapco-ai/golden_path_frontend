@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { DEFAULT_NAVIGATION_POLICY } from '../../src/services/navigationPolicy.js';
 
+const arrivalMessage = 'شما به مقصد رسیدید.';
+
 async function setup(page, length = 40, observeMap = false, stepTest = false, nearby = null, multifloor = false, gpsOrigin = false) {
   await page.clock.install();
   await page.setViewportSize({ width: 360, height: 780 });
@@ -113,26 +115,26 @@ test('Haram default ignores GPS and reaches the destination using actual motion 
   await setup(page);
   await walk(page, 58);
   await expect(page.locator('.routing-page')).toHaveAttribute('data-navigation-mode', 'arrived');
-  await expect(page.locator('.instruction-text')).toHaveText('به مقصد رسیدید.');
+  await expect(page.locator('.instruction-text')).toHaveText(arrivalMessage);
   await expect(page.getByTestId('step-diagnostics')).toHaveCount(0);
   expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
 });
 
-test('confirmed arrival marks the map with a green check in both panel states and clears on a new trip', async ({ page }, testInfo) => {
+test('arrival marks the map with a green check in both panel states and clears on a new trip', async ({ page }, testInfo) => {
   test.setTimeout(120000);
   await setup(page, 47);
   await expect(page.locator('[data-navigation-marker="active"]')).toHaveCount(1);
   await walk(page, 68);
   const marker = page.locator('[data-navigation-marker="arrived"]');
   await expect(marker).toHaveCount(1);
-  await expect(marker).toHaveAttribute('aria-label', 'به مقصد رسیدید.');
+  await expect(marker).toHaveAttribute('aria-label', arrivalMessage);
   await expect(marker.locator('path[fill="#15803D"]')).toHaveCount(1);
   await expect(marker.locator('path[d="m5 12 4 4L19 6"]')).toHaveCount(1);
-  await expect(page.locator('.instruction-text')).toHaveText('به مقصد رسیدید.');
+  await expect(page.locator('.instruction-text')).toHaveText(arrivalMessage);
   await page.screenshot({ path: testInfo.outputPath('arrived-closed.png') });
   await page.locator('.modal-toggle3').click();
   await expect(marker).toBeVisible();
-  await expect(page.locator('.instruction-text')).toHaveText('به مقصد رسیدید.');
+  await expect(page.locator('.instruction-text')).toHaveText(arrivalMessage);
   await page.screenshot({ path: testInfo.outputPath('arrived-open.png') });
   await page.locator('.modal-toggle3').click();
   await expect(marker).toBeVisible();
@@ -143,28 +145,34 @@ test('confirmed arrival marks the map with a green check in both panel states an
 });
 
 for (const [scenario, heading] of [['five-degree bias', 5], ['missing heading', null]]) {
-  test(`the 47 m endpoint explains ${scenario} and keeps QR correction available`, async ({ page }, testInfo) => {
+  test(`the 47 m endpoint completes navigation with ${scenario}`, async ({ page }) => {
     test.setTimeout(120000);
+    await page.addInitScript(() => {
+      window.spokenInstructions = [];
+      HTMLMediaElement.prototype.play = async () => {};
+    });
+    await page.route('**/src/services/ttsService.js*', route => route.fulfill({
+      contentType: 'application/javascript',
+      body: 'export default { async fetchSpeech(text) { window.spokenInstructions.push(text); return new Blob(); } };',
+    }));
     await setup(page, 47);
-    await walk(page, 68, heading);
-    await expect(page.locator('.routing-page')).toHaveAttribute('data-navigation-mode', 'live');
-    await expect(page.locator('.instruction-text')).toContainText('موقعیت برای تأیید رسیدن مطمئن نیست');
-    await expect(page.locator('.instruction-text')).toContainText('دکمهٔ QR');
-    const instructionBox = await page.locator('.instruction-text').boundingBox();
-    expect(instructionBox.y + instructionBox.height).toBeLessThanOrEqual(780);
-    await page.screenshot({ path: testInfo.outputPath('uncertain-closed.png') });
-    await expect(page.locator('[data-navigation-marker="arrived"]')).toHaveCount(0);
-    await expect(page.locator('[data-navigation-marker="active"]')).toHaveCount(1);
+    const routing = page.locator('.routing-page');
     const qrButton = page.getByRole('button', { name: 'اصلاح مسیر با QR', exact: true });
+    await walk(page, 67, heading);
+    await expect(routing).toHaveAttribute('data-navigation-mode', 'live');
     await expect(qrButton).toBeVisible();
-    await qrButton.click();
-    await expect(page.locator('.rng-qr-dialog')).toBeVisible();
-    await page.locator('.rng-qr-dialog-actions button').last().click();
-    await expect(page.locator('.rng-qr-dialog')).not.toBeVisible();
+    await walk(page, 1, heading);
+    await expect(routing).toHaveAttribute('data-navigation-mode', 'arrived');
+    await expect(page.locator('.instruction-text')).toHaveText(arrivalMessage);
+    await expect(page.locator('[data-navigation-marker="arrived"]')).toBeVisible();
+    await expect(qrButton).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'توقف موقت', exact: true })).toHaveCount(0);
     await page.locator('.modal-toggle3').click();
-    await expect(page.locator('.instruction-text')).toContainText('موقعیت برای تأیید رسیدن مطمئن نیست');
+    await expect(page.locator('.instruction-text')).toHaveText(arrivalMessage);
     await page.clock.runFor(20000);
-    await expect(page.locator('.instruction-text')).toContainText('موقعیت برای تأیید رسیدن مطمئن نیست');
+    await expect(routing).toHaveAttribute('data-navigation-mode', 'arrived');
+    const announcements = () => page.evaluate(text => window.spokenInstructions.filter(line => line === text), arrivalMessage);
+    await expect.poll(announcements).toEqual([arrivalMessage]);
     expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
   });
 }
@@ -496,7 +504,7 @@ test('pause and resume keep the map position, accept late sensor data, and requi
   await expect(state).toHaveAttribute('data-navigation-mode', 'live');
   await expect(page.locator('.instruction-text')).toHaveText('۳۴ متر به سمت مقصد حرکت کنید.');
 
-  // Pause again after the first qualifying observation near the destination.
+  // Pause near the destination and complete the remaining steps after resuming.
   await walk(page, 42);
   await expect(steps).toHaveText('53');
   await expect(state).toHaveAttribute('data-navigation-mode', 'live');
@@ -505,13 +513,13 @@ test('pause and resume keep the map position, accept late sensor data, and requi
   await resume.click();
   await walk(page, 1);
   await expect(state).toHaveAttribute('data-navigation-mode', 'live');
-  await walk(page, 1);
+  await walk(page, 4);
   await expect(state).toHaveAttribute('data-navigation-mode', 'arrived');
-  await expect(page.locator('.instruction-text')).toHaveText('به مقصد رسیدید.');
+  await expect(page.locator('.instruction-text')).toHaveText(arrivalMessage);
   expect(await page.evaluate(() => [window.gpsCalls, window.motionPermissionRequests])).toEqual([0, 1]);
 });
 
-test('a nearby endpoint is named while walking and shows the backend arrival text after arrival', async ({ page }) => {
+test('a nearby endpoint is named while walking and uses the common arrival message', async ({ page }) => {
   const instruction = 'به نزدیک‌ترین نقطهٔ قابل‌دسترسی به باب‌الجواد رسیدید.';
   await setup(page, 40, false, false, { label: { name: 'باب الجواد', kind: 'door', nearby: false }, instruction });
   await walk(page, 30);
@@ -520,7 +528,7 @@ test('a nearby endpoint is named while walking and shows the backend arrival tex
   await expect(page.locator('.instruction-text')).toHaveText('۲۰ متر به سمت باب الجواد حرکت کنید.');
   await walk(page, 28);
   await expect(routing).toHaveAttribute('data-navigation-mode', 'arrived');
-  await expect(page.locator('.instruction-text')).toHaveText(instruction);
+  await expect(page.locator('.instruction-text')).toHaveText(arrivalMessage);
 });
 
 test('a nearby endpoint without a name or backend text still gets localized guidance and arrival', async ({ page }) => {
@@ -531,7 +539,7 @@ test('a nearby endpoint without a name or backend text still gets localized guid
   await expect(page.locator('.instruction-text')).toHaveText('۲۰ متر تا انتهای مسیر ادامه دهید.');
   await walk(page, 28);
   await expect(routing).toHaveAttribute('data-navigation-mode', 'arrived');
-  await expect(page.locator('.instruction-text')).toHaveText('به نزدیک‌ترین نقطهٔ قابل‌دسترسی رسیدید.');
+  await expect(page.locator('.instruction-text')).toHaveText(arrivalMessage);
 });
 
 test('a multifloor final step is measured from the preceding walk step on the destination floor', async ({ page }) => {
@@ -539,14 +547,19 @@ test('a multifloor final step is measured from the preceding walk step on the de
   await setup(page, 40, false, false, null, true);
   await walk(page, 100);
   const routing = page.locator('.routing-page');
+  await expect(routing).toHaveAttribute('data-navigation-mode', 'live');
+  await expect(page.locator('[data-navigation-marker="arrived"]')).toHaveCount(0);
+  expect(await page.evaluate(() => sessionStorage.getItem('haramCurrentFloor'))).toBe('0');
   await page.getByRole('button', { name: 'تأیید رسیدن به طبقه مقصد' }).click();
   await expect(routing).toHaveAttribute('data-navigation-mode', 'live');
-  await walk(page, 52);
+  expect(await page.evaluate(() => sessionStorage.getItem('haramCurrentFloor'))).toBe('1');
+  await walk(page, 57, null);
   await expect(routing).toHaveAttribute('data-navigation-mode', 'live');
   await expect(page.locator('.instruction-text')).toHaveText('۱۰ متر به سمت مقصد حرکت کنید.');
-  await walk(page, 8);
+  await walk(page, 1, null);
   await expect(routing).toHaveAttribute('data-navigation-mode', 'arrived');
-  await expect(page.locator('[data-navigation-marker="arrived"]')).toHaveAttribute('aria-label', 'به مقصد رسیدید.');
+  await expect(page.locator('[data-navigation-marker="arrived"]')).toHaveAttribute('aria-label', arrivalMessage);
+  await expect(page.locator('.instruction-text')).toHaveText(arrivalMessage);
 });
 
 test('a long final step reports its whole distance before a reachable destination is announced', async ({ page }) => {
@@ -555,7 +568,7 @@ test('a long final step reports its whole distance before a reachable destinatio
   const routing = page.locator('.routing-page');
   await expect(routing).toHaveAttribute('data-navigation-mode', 'live');
   await expect(page.locator('.instruction-text')).toHaveText('۱۷۰ متر به سمت مقصد حرکت کنید.');
-  await expect(page.locator('.instruction-text')).not.toHaveText('به مقصد رسیدید.');
+  await expect(page.locator('.instruction-text')).not.toHaveText(arrivalMessage);
 });
 
 async function openAdminPanel(page, profile) {
