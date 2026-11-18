@@ -165,7 +165,7 @@ for (const screen of ['mpb', 'mpr']) {
   });
 }
 
-for (const screen of ['fs', 'rop', 'rng']) {
+for (const screen of ['fs', 'rop']) {
   test(`${screen} keeps the engineering selection and the server route on ground floor`, async ({ page }) => {
     const state = routeFixture(0, 0);
     await setup(page, state, 0, 'base');
@@ -191,6 +191,71 @@ for (const screen of ['fs', 'rop', 'rng']) {
     expect(stored.routeSteps).toEqual(state.routeSteps);
     expect(stored.origin).toEqual(state.origin);
     expect(stored.destination).toEqual(state.destination);
+  });
+}
+
+// RNG has a fixed satellite basemap on regular floors. A saved selection belongs
+// to the browsing/result pages and must not override navigation's satellite map.
+async function observeNavigationMap(page) {
+  await page.goto('/#/');
+  await page.evaluate(async () => {
+    const source = await (await fetch('/src/components/map/RouteMap.jsx')).text();
+    const modulePath = source.match(/["']([^"']*\/maplibre-gl\.js\?[^"']+)["']/)?.[1];
+    if (!modulePath) throw new Error('MapLibre module not found');
+    const lib = (await import(modulePath)).default;
+    const addSource = lib.Map.prototype.addSource;
+    lib.Map.prototype.addSource = function (...args) {
+      window.__navigationMap = this;
+      return addSource.apply(this, args);
+    };
+    window.location.hash = '#/rng';
+  });
+}
+
+const navigationStyle = page => page.evaluate(() => window.__navigationMap?.getStyle()?.name);
+
+for (const mapType of ['base', 'simple', 'satellite']) {
+  const selection = mapType === 'base' ? 'the engineering selection' : `the ${mapType} selection`;
+  test(`rng keeps ${selection} for other pages while using satellite`, async ({ page }) => {
+    const state = routeFixture(0, 0);
+    await setup(page, state, 0, mapType);
+    const engineeringGround = [];
+    page.on('request', request => {
+      const url = new URL(request.url());
+      if (url.pathname.includes('/public.fn_public_engineering_map_mvt/') && url.searchParams.get('p_floor') === '0') {
+        engineeringGround.push(request.url());
+      }
+    });
+    await observeNavigationMap(page);
+    await expect.poll(() => navigationStyle(page), { timeout: 15000 }).toBe('mbtiles-satellite');
+    await expect.poll(() => page.evaluate(() => Object.values(window.__navigationMap.getStyle().sources)
+      .some(source => source.type === 'geojson' && source.data?.geometry))).toBe(true);
+    expect(engineeringGround).toEqual([]);
+    expect(await page.evaluate(() => sessionStorage.getItem('selectedMapType'))).toBe(mapType);
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('route-storage')).state);
+    expect(stored.routeGeo).toEqual(state.routeGeo);
+    expect(stored.routeSteps).toEqual(state.routeSteps);
+  });
+}
+
+for (const mapType of ['base', 'simple']) {
+  test(`rng changes the basemap after the transfer step from -1 to 0 without adopting ${mapType}`, async ({ page }) => {
+    const state = routeFixture(-1, 0);
+    await setup(page, state, 0, mapType);
+    await observeNavigationMap(page);
+    await expect.poll(() => navigationStyle(page), { timeout: 15000 }).toBe('engineering-map');
+    await expectRouteFloor(page, -1);
+    expect(await page.evaluate(() => window.__navigationMap.getStyle().sources['engineering-areas'].tiles[0])).toContain('p_floor=-1');
+    await page.locator('.direction-icon-rng').click();
+    await expect(page.locator('.instruction-text')).toContainText('از رمپ عبور کنید');
+    await expectRouteFloor(page, -1);
+    await page.locator('.direction-icon-rng').click();
+    await expect.poll(() => navigationStyle(page), { timeout: 15000 }).toBe('mbtiles-satellite');
+    await expectRouteFloor(page, 0);
+    expect(await page.evaluate(() => sessionStorage.getItem('selectedMapType'))).toBe(mapType);
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('route-storage')).state);
+    expect(stored.routeGeo).toEqual(state.routeGeo);
+    expect(stored.routeSteps).toEqual(state.routeSteps);
   });
 }
 

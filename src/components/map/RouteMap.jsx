@@ -72,8 +72,9 @@ const RouteMap = forwardRef(({
   const baseMapStyle = voyagerBaseMapStyle;
   const { handleMapError, styleKey } = useOfflineMapStyle(baseMapStyle);
   const regularMapKey = `mbtiles-satellite-${styleKey}-${isRtl ? 'rtl' : 'en'}`;
+  // Keep regular navigation floors satellite; the hook still handles basement maps.
   const { mapStyle, mapRenderKey, isEngineeringMap, onMapError } = usePublicFloorMap(
-    routeFloor, language, MBTILES_SATELLITE_STYLE, regularMapKey, handleMapError
+    routeFloor, language, MBTILES_SATELLITE_STYLE, regularMapKey, handleMapError, 'satellite'
   );
 
   const center = isValidUserLocation

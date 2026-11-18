@@ -129,7 +129,7 @@ for (const mapType of ['simple']) {
 
 test('result keeps the engineering base when its tiles fail', async ({ page }) => {
   const { requests, errors } = await openResult(page, { mapType: 'base', failEngineering: true });
-  await expect(page.getByText('بارگذاری نقشهٔ مهندسی ناموفق بود.', { exact: true })).toBeVisible();
+  await expect(page.getByText('بارگذاری نقشهٔ مهندسی ناموفق بود.', { exact: true }).first()).toBeVisible();
   await expect.poll(() => styleName(page)).toBe('engineering-map');
   expect(requests.some(path => path.includes('/tms/services/gsm/'))).toBe(false);
   expect(await page.evaluate(() => sessionStorage.getItem('selectedMapType'))).toBe('base');
