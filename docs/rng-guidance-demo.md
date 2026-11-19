@@ -27,6 +27,8 @@ Its accessible name and navigation diagnostic data attributes are retained.
 - Preview and demo fetch once per selected step. Live navigation continues
   polling with the latest position. Step, floor, and mode changes abort the
   previous context. Errors clear stale imagery.
+- If a live image file fails, the next successful lookup can reload the same
+  URL. The current image remains visible during later lookups after recovery.
 - Guidance-only image selection uses NetworkOnly in the PWA service worker; it
   cannot replay a previously cached API match when the network is unavailable.
 

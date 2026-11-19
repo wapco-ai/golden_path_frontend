@@ -164,6 +164,68 @@ test.describe('RNG arrival guidance image', () => {
   }
 });
 
+test.describe('RNG live guidance image recovery', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, serviceWorkers: 'block' });
+
+  for (const multifloor of [false, true]) {
+    const floors = multifloor ? 'multifloor' : 'same-floor';
+    test(`RNG live guidance image recovery retries the same URL on a ${floors} route`, async ({ page, baseURL }) => {
+      const hostname = new URL(baseURL).hostname;
+      await page.route(url => ![hostname, 'localhost', '127.0.0.1'].includes(url.hostname), route => route.abort());
+      const errors = await setupRoute(page, { multifloor, stored: true, arrivalM: 1 });
+      await page.addInitScript(() => sessionStorage.setItem('rngQrCorrectionHintSeen', '1'));
+      const screen = page.locator('.routing-page');
+      const currentStep = multifloor ? '2' : '0';
+      const imagePath = '/storage/rng-live-guidance-recovery.svg';
+      let lookupCount = 0;
+      let fileAvailable = false;
+      const downloads = [];
+      await page.route('**/api/v1/landmark-view-image?*', async route => {
+        const [mode, step] = await screen.evaluate(el => [el.dataset.navigationMode, el.dataset.currentStep]);
+        if (mode !== 'live' || step !== currentStep) {
+          return route.fulfill({ json: { status: 'NO_MATCH', source: 'guidance_points', image: null } });
+        }
+        lookupCount++;
+        return route.fulfill({ json: { status: 'OK', source: 'guidance_points', image: { url: imagePath } } });
+      });
+      await page.route(`**${imagePath}`, route => {
+        downloads.push(route.request().url());
+        return fileAvailable ? route.fulfill({ contentType: 'image/svg+xml',
+          body: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="green"/></svg>' })
+          : multifloor ? route.fulfill({ contentType: 'image/svg+xml', body: 'invalid image' })
+            : route.fulfill({ status: 503 });
+      });
+
+      await page.goto('/#/rng');
+      await page.locator('.start-routing-button').click();
+      await expect(screen).toHaveAttribute('data-navigation-mode', 'live');
+      if (multifloor) {
+        await page.locator('.direction-icon-rng').click();
+        await page.getByRole('button', { name: 'تأیید رسیدن به طبقه مقصد', exact: true }).click();
+      }
+      await expect(screen).toHaveAttribute('data-current-step', currentStep);
+      const status = page.locator('.image-placeholder-text');
+      await expect(status).toHaveText('دریافت تصویر راهنما ممکن نشد.');
+      fileAvailable = true;
+      const image = page.getByRole('img', { name: 'تصویر راهنما', exact: true });
+      await expect(image).toBeVisible({ timeout: 12000 });
+      expect(await image.evaluate(element => element.naturalWidth)).toBe(16);
+      expect(downloads.length).toBeGreaterThanOrEqual(2);
+      expect(new Set(downloads).size).toBe(1);
+      await expect(status).toHaveCount(0);
+      await expect(screen).toHaveAttribute('data-current-step', currentStep);
+      await expect(screen).toHaveAttribute('data-navigation-mode', 'live');
+
+      const recoveredDownloads = downloads.length;
+      const recoveredLookups = lookupCount;
+      await expect.poll(() => lookupCount).toBeGreaterThan(recoveredLookups);
+      await expect(image).toBeVisible();
+      expect(downloads).toHaveLength(recoveredDownloads);
+      expect(errors).toEqual([]);
+    });
+  }
+});
+
 test('summary and single step display the short duration from the routing response', async ({ page }) => {
   await setupRoute(page, { direct: true, arrivalM: 1, durationSeconds: 9.4 });
   await page.goto('/#/fs');

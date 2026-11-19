@@ -2293,8 +2293,8 @@ const RoutingPage = () => {
         </div>
         <RngGuidanceImage
           key={JSON.stringify([guidanceContextKey, guidanceImageUrl])}
-          url={guidanceImageUrl}
-          title={guidanceImage.data?.content?.title}
+          lookup={guidanceImage.data}
+          retryOnNewLookup={navigationFrame.mode === 'live'}
           loading={guidanceImage.loading}
           error={guidanceImage.error}
         />
