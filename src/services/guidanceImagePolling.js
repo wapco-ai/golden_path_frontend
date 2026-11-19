@@ -2,7 +2,7 @@
 // not continually abort/restart the request before it can finish.
 export const startGuidanceImagePolling = ({
   readRequest, fetchImage, onResult, onError, onLoading,
-  intervalMs = 1500, timeoutMs = 10000,
+  repeat = true, intervalMs = 1500, timeoutMs = 10000,
   schedule = setTimeout, cancel = clearTimeout
 }) => {
   let disposed = false;
@@ -24,7 +24,7 @@ export const startGuidanceImagePolling = ({
       cancel(deadline);
       if (!disposed) {
         onLoading(false);
-        timer = schedule(poll, intervalMs);
+        if (repeat) timer = schedule(poll, intervalMs);
       }
     }
   };

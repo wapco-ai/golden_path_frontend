@@ -10,6 +10,7 @@ import { useUserAuthStore } from '../auth/user/userAuthStore';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { formatEndpointLabel } from '../hooks/useRouteEndpointLabel';
 import RouteMap from '../components/map/RouteMap';
+import RngGuidanceImage from '../components/map/RngGuidanceImage';
 import RngQrCorrection from '../components/map/RngQrCorrection';
 import RngPauseControl from '../components/map/RngPauseControl';
 import NavigationStepDiagnostics from '../components/map/NavigationStepDiagnostics.jsx';
@@ -160,7 +161,6 @@ const RoutingPage = () => {
   const [userHeading, setUserHeading] = useState(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [hasArrived, setHasArrived] = useState(false);
-  const [failedImageUrl, setFailedImageUrl] = useState(null);
 
   // GPS offline notice dismissal state & refs
   const gpsNoticeRef = useRef(null);
@@ -1150,15 +1150,16 @@ const RoutingPage = () => {
     ? [navigationFrame.geo.lat, navigationFrame.geo.lng] : userLocation,
   [navigationFrame.geo?.lat, navigationFrame.geo?.lng, userLocation]);
   const routeImageKey = useMemo(() => JSON.stringify(routeGeo?.geometry || null), [routeGeo]);
+  const previewingStep = navigationFrame.mode === 'preview' || navigationFrame.mode === 'demo';
   const guidanceContextKey = JSON.stringify([
-    routeImageKey, currentStep, navigationFrame.mode, navigationFrame.floor, language, effectiveHeading
+    routeImageKey, currentStep, navigationFrame.mode, navigationFrame.floor, language, effectiveHeading,
+    previewingStep ? navigationFrame.geo : null
   ]);
   const guidanceImage = useGuidanceImage({
     language, geo: navigationFrame.geo, heading: effectiveHeading,
     floor: navigationFrame.floor, fov: 60, maxDistance: 250
-  }, guidanceContextKey);
-  const liveLandmarkImage = guidanceImage.data;
-  const isLiveImageLoading = guidanceImage.loading;
+  }, guidanceContextKey, { repeat: !previewingStep });
+  const guidanceImageUrl = guidanceImage.data?.image?.url;
 
   useEffect(() => {
     const coords = getRouteCoordinates(routeGeo);
@@ -2290,30 +2291,13 @@ const RoutingPage = () => {
             )}
           </div>
         </div>
-        <div className="image-placeholder">
-          {liveLandmarkImage?.image?.url && failedImageUrl !== liveLandmarkImage.image.url ? (
-            <>
-              <img
-                src={liveLandmarkImage.image.url}
-                alt={liveLandmarkImage?.content?.title || 'landmark'}
-                onError={() => setFailedImageUrl(liveLandmarkImage.image.url)}
-                className="live-landmark-image"
-              />
-              {/* <div className="live-landmark-overlay">
-                <div className="live-landmark-title">{liveLandmarkImage?.content?.title || '-'}</div>
-                {Number.isFinite(liveLandmarkImage?.distance_m) && (
-                  <div className="live-landmark-meta">
-                    {formatDigits(liveLandmarkImage.distance_m)} <FormattedMessage id="meters" />
-                  </div>
-                )}
-              </div> */}
-            </>
-          ) : (
-            <div className="image-placeholder-text">
-              {isLiveImageLoading ? <FormattedMessage id="liveLandmarkLoading" /> : <FormattedMessage id="liveLandmarkWaiting" />}
-            </div>
-          )}
-        </div>
+        <RngGuidanceImage
+          key={JSON.stringify([guidanceContextKey, guidanceImageUrl])}
+          url={guidanceImageUrl}
+          title={guidanceImage.data?.content?.title}
+          loading={guidanceImage.loading}
+          error={guidanceImage.error}
+        />
         <div className="map-fade-rng"></div>
       </div>
 

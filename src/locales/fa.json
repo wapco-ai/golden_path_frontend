@@ -438,6 +438,8 @@
   "searchResults": "نتایج جستجو",
   "simpleMap": "نقشه ساده",
   "noSearchResults": "نتیجه‌ای برای \"{query}\" یافت نشد",
-  "liveLandmarkLoading": "در حال دریافت تصویر لندمارک...",
-  "liveLandmarkWaiting": "منتظر تصویر لندمارک بعدی..."
+  "guidanceImageLoading": "در حال دریافت تصویر راهنما…",
+  "guidanceImageUnavailable": "برای این گام تصویر راهنما موجود نیست.",
+  "guidanceImageError": "دریافت تصویر راهنما ممکن نشد.",
+  "guidanceImageAlt": "تصویر راهنما"
 }
