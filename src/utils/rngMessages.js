@@ -19,6 +19,15 @@ export const rngMessages = {
 const fill = (template, values) => template.replace(/\{(\w+)\}/g, (_, key) => values[key]);
 const clean = value => typeof value === 'string' ? value.trim() : '';
 
+export const withPreviewArrivalInstruction = (steps, intl, destinationName) => {
+  const arrival = steps.at(-1);
+  if (arrival?.type !== 'stepArriveDestination' || clean(arrival.instruction)) return steps;
+
+  const name = clean(destinationName) || intl.formatMessage({ id: 'destination' }).trim();
+  const instruction = intl.formatMessage({ id: arrival.type }, { name });
+  return [...steps.slice(0, -1), { ...arrival, instruction }];
+};
+
 // context: { nearby, name, distance } for the terminal step. `name` is the requested
 // destination, or the nearby endpoint's own label for a nearby route; `distance` is the
 // already localized length of the final segment, or null when it is unknown.

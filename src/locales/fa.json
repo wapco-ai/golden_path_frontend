@@ -220,7 +220,7 @@
   "stepTurnLeft": "به چپ بپیچید.",
   "stepTurnRight": "به راست بپیچید.",
   "stepTurnBack": "دور بزنید.",
-  "stepArriveDestination": "رسیدن به  {name}",
+  "stepArriveDestination": "رسیدن به {name}",
   "stepNumber": "گام {num}",
   "landmarkSuffix": "به سمت {name} بچرخید و {distance} متر به جلو بروید",
   "doorToDoor": "از {from} عبور و به {to} برسید",
