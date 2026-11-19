@@ -19,29 +19,75 @@ function routeFixture({ arrivalM, finalDoor = false, direct = false, durationSec
     geometry: { type: 'LineString', coordinates }, properties: { multifloor: false } }, steps, alternatives: [] };
 }
 
+function multifloorRouteFixture() {
+  const route = routeFixture({ direct: true, arrivalM: 1, durationSeconds: 56 });
+  const [start, landing, end] = coordinates;
+  const point = ([lon, lat]) => ({ lat, lon });
+  const [first, arrival] = route.steps;
+  return { ...route, multifloor: true, geo: { type: 'Feature',
+    geometry: { type: 'MultiLineString', coordinates: [[start, landing], [landing, end]] },
+    properties: { multifloor: true, distanceMeters: 20, durationSeconds: 56, segments: [
+      { id: 0, kind: 'walk', floor: -1, geometry: { type: 'LineString', coordinates: [start, landing] }, duration_s: 10 },
+      { id: 1, kind: 'elevator', floor: -1, fromFloor: -1, toFloor: 0, geometry: null, duration_s: 36 },
+      { id: 2, kind: 'walk', floor: 0, geometry: { type: 'LineString', coordinates: [landing, end] }, duration_s: 10 }
+    ] } }, steps: [
+    { ...first, floor: -1 },
+    { type: 'stepChangeFloor', coord: point(landing), segmentId: 1, floor: -1, fromFloor: -1, toFloor: 0,
+      instruction: 'با آسانسور به طبقه همکف بروید.' },
+    { ...first, coord: point(landing), segmentId: 2, instruction: 'حرکت در طبقه همکف' },
+    { ...arrival, segmentId: 2, instruction: '   ' }
+  ] };
+}
+
 async function setupRoute(page, options) {
-  const raw = routeFixture(options);
+  const raw = options.multifloor ? multifloorRouteFixture() : routeFixture(options);
+  const routeOrigin = { ...origin, floor: options.multifloor ? -1 : 0 };
+  const routeDestination = { ...destination, ...options.destination };
   raw.alternatives = options.alternatives || [];
-  const snapshot = normalizeRouteSnapshot(raw, origin, destination);
+  const snapshot = normalizeRouteSnapshot(raw, routeOrigin, routeDestination);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(({ origin, destination, snapshot, stored }) => {
     const state = { origin, destination, transportMode: 'walking', gender: 'both', alternativeRoutes: snapshot.alternatives,
       routeGeo: stored ? snapshot.geo : null, routeSteps: stored ? snapshot.steps : [] };
     localStorage.setItem('route-storage', JSON.stringify({ state, version: 1 }));
-    sessionStorage.setItem('haramCurrentFloor', '0');
+    sessionStorage.setItem('haramCurrentFloor', String(origin.floor));
     if (stored) {
       sessionStorage.setItem('routeGeo', JSON.stringify(snapshot.geo));
       sessionStorage.setItem('routeSteps', JSON.stringify(snapshot.steps));
       sessionStorage.setItem('alternativeRoutes', JSON.stringify(snapshot.alternatives));
     }
-  }, { origin, destination, snapshot, stored: options.stored });
+  }, { origin: routeOrigin, destination: routeDestination, snapshot, stored: options.stored });
   await page.route('**/api/v1/**', route => route.fulfill({ json: { status: 'NO_MATCH', data: [], features: [] } }));
   await page.route('**/api/v1/routing/route', route => route.fulfill({ json: raw }));
   await page.route('**/tiles/**', route => route.fulfill({ status: 204 }));
   await page.route('**/tms/**', route => route.fulfill({ status: 204 }));
   return errors;
 }
+
+test.describe('RNG mobile arrival preview', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+  for (const multifloor of [false, true]) {
+    for (const name of [destination.name, undefined]) {
+      const floors = multifloor ? 'multifloor' : 'same-floor';
+      const destinationType = name ? 'named' : 'unnamed';
+      test(`RNG previews the ${floors} arrival for a ${destinationType} destination`, async ({ page }) => {
+        const errors = await setupRoute(page, { multifloor, stored: true, arrivalM: 1, destination: { name } });
+        await page.goto('/#/rng');
+        const icon = page.locator('.direction-icon-rng');
+        const screen = page.locator('.routing-page');
+        const lastIndex = multifloor ? 3 : 1;
+        for (let index = 1; index <= lastIndex; index++) {
+          await icon.click();
+          await expect(screen).toHaveAttribute('data-current-step', String(index));
+        }
+        await expect(page.locator('.current-guide .instruction-text')).toHaveText(`رسیدن به ${name || 'مقصد'}`);
+        expect(errors).toEqual([]);
+      });
+    }
+  }
+});
 
 test('summary and single step display the short duration from the routing response', async ({ page }) => {
   await setupRoute(page, { direct: true, arrivalM: 1, durationSeconds: 9.4 });

@@ -28,7 +28,7 @@ import { prepareQrReader } from '../services/qrReader';
 import { doorEndpoint, doorRouteErrorMessage } from '../utils/doorRouteEndpoint';
 import useGuidanceImage from '../hooks/useGuidanceImage.js';
 import { getLiveNavigationGeo, nextDemoStep, projectPointOnRoute, resolveNavigationFrame } from '../utils/rngNavigation.js';
-import { finalStepDistanceMeters, liveStepInstruction, rngMessages, rngQrMessages, rngPauseMessages } from '../utils/rngMessages.js';
+import { finalStepDistanceMeters, liveStepInstruction, rngMessages, rngQrMessages, rngPauseMessages, withPreviewArrivalInstruction } from '../utils/rngMessages.js';
 import { pauseRouteKey, readPausedNavigation, savePausedNavigation, getResumePosition, resumeStepAt } from '../utils/rngPause.js';
 import { getSessionFloor, setSessionFloor, subscribeToSessionFloor } from '../utils/sessionFloor';
 import { finishTripHistory } from '../utils/navigationHistory';
@@ -1199,7 +1199,7 @@ const RoutingPage = () => {
   // Build route data from stored steps
   useEffect(() => {
     if (!routeSteps || routeSteps.length === 0 || !routeGeo) return;
-    const instructedSteps = withDoorStepInstructions(routeSteps, intl, routeGeo);
+    const instructedSteps = withPreviewArrivalInstruction(withDoorStepInstructions(routeSteps, intl, routeGeo), intl, destinationName);
     const multi = multifloorSteps(routeGeo, instructedSteps, (step, idx) => intl.formatMessage({ id: step.type }, { name: step.name, title: step.title, num: idx + 1 }));
     if (multi) {
       const decorate = steps => steps.map(s => ({ ...s, distance: `${Math.round(s.distanceMeters)} ${intl.formatMessage({ id: 'meters' })}`, time: formatDurationFromSeconds(s.durationSeconds) }));
@@ -1331,7 +1331,7 @@ const RoutingPage = () => {
 
     const alternativesData = (alternativeRoutes || []).map((alt, ridx) => {
       const altCoords = getRouteCoordinates(alt.geo);
-      const instructedAltSteps = withDoorStepInstructions(alt.steps, intl, alt.geo);
+      const instructedAltSteps = withPreviewArrivalInstruction(withDoorStepInstructions(alt.steps, intl, alt.geo), intl, destinationName);
       const altSteps = instructedAltSteps.map((st, i) => {
         let dist = 0;
         const stepCoords = Array.isArray(st.coordinates?.[0]) ? st.coordinates : altCoords.slice(i, i + 2);
@@ -1421,7 +1421,7 @@ const RoutingPage = () => {
     } catch (err) {
       console.warn('failed to persist route summary', err);
     }
-  }, [routeSteps, routeGeo, alternativeRoutes, transportMode, resolveLandmarkName, formatDurationFromSeconds, calculateTotalTime, buildStepInstruction, normalizeInstructionSteps, buildDisplayStepFromRouteMSegment, intl, bearing, computeTurn]);
+  }, [routeSteps, routeGeo, alternativeRoutes, transportMode, destinationName, resolveLandmarkName, formatDurationFromSeconds, calculateTotalTime, buildStepInstruction, normalizeInstructionSteps, buildDisplayStepFromRouteMSegment, intl, bearing, computeTurn]);
 
 
   // Update arrival time every minute
