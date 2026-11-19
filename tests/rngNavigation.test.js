@@ -242,11 +242,25 @@ test('request failure clears through onError and polling can recover', async () 
   stop();
 });
 
+test('a preview request settles without scheduling another lookup', async () => {
+  const clock = fakeClock();
+  const results = [];
+  const stop = startGuidanceImagePolling({
+    ...clock, repeat: false, readRequest: () => input,
+    fetchImage: async () => ({ status: 'NO_MATCH', image: null }),
+    onResult: (data) => results.push(data), onError: assert.fail, onLoading: () => {},
+  });
+  await flush();
+  assert.deepEqual(results, [{ status: 'NO_MATCH', image: null }]);
+  assert.equal(clock.timers.size, 0);
+  stop();
+});
+
 // Read the actual RNG call site: service defaults alone did not catch the
 // page's explicit 45-degree override. No database or live network is used.
 const rngImageOptions = () => {
   const source = readFileSync(new URL('../src/pages/Routing.jsx', import.meta.url), 'utf8');
-  const call = source.match(/useGuidanceImage\(\{([\s\S]*?)\}, guidanceContextKey\)/);
+  const call = source.match(/useGuidanceImage\(\{([\s\S]*?)\}, guidanceContextKey, /);
   assert.ok(call, 'The RNG image request must be wired to the shared navigation frame');
   assert.match(call[1], /geo: navigationFrame\.geo/);
   assert.match(call[1], /heading: effectiveHeading/);

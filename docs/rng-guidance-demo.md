@@ -21,11 +21,12 @@ Its accessible name and navigation diagnostic data attributes are retained.
   The final segment remains active until near the actual destination.
 - RNG requests source=guidance_points. NO_MATCH clears the image. An older backend
   that returns a POI or ignores the source is rejected, not displayed.
-- The existing liveLandmarkLoading/liveLandmarkWaiting placeholder copy is reused
-  for loading and empty/error states; the request data still retains errors and
-  NO_MATCH for diagnosis. Failed image files are not left visibly broken.
-- One request is active at a time. Latest position is sampled between polls;
-  step/floor/mode changes abort the previous context. Errors clear stale imagery.
+- The guide image panel shows distinct messages while loading, when no image is
+  available, and when the lookup or image file fails. A matching image can still
+  be displayed on the arrival step.
+- Preview and demo fetch once per selected step. Live navigation continues
+  polling with the latest position. Step, floor, and mode changes abort the
+  previous context. Errors clear stale imagery.
 - Guidance-only image selection uses NetworkOnly in the PWA service worker; it
   cannot replay a previously cached API match when the network is unavailable.
 
@@ -49,7 +50,7 @@ npm run build
 
 Tests cover DR movement, isolated demo, unequal two-step boundaries, arrival,
 floor selection, strict imagery and request cleanup/retry. Source-level appearance
-guards check the original stylesheet, span icon, placeholder keys and absence of
+guards check the original stylesheet, span icon, image panel classes and absence of
 new visible controls. They are not pixel/screenshot or physical-device tests.
 
 Manual acceptance: load a server-generated route on /#/rng, inspect image requests

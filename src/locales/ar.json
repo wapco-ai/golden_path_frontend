@@ -438,6 +438,8 @@
   "simpleMap": "خريطة بسيطة",
   "searchResults": "نتائج البحث",
   "noSearchResults": "لم يتم العثور على نتائج لـ \"{query}\"",
-  "liveLandmarkLoading": "جارٍ تحميل صورة المعلم...",
-  "liveLandmarkWaiting": "بانتظار صورة المعلم التالية..."
+  "guidanceImageLoading": "جارٍ تحميل صورة الإرشاد…",
+  "guidanceImageUnavailable": "لا تتوفر صورة إرشاد لهذه الخطوة.",
+  "guidanceImageError": "تعذّر تحميل صورة الإرشاد.",
+  "guidanceImageAlt": "صورة الإرشاد"
 }

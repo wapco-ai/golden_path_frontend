@@ -3,7 +3,7 @@ import { fetchLandmarkViewImage } from '../services/landmarkViewImageService.js'
 import { startGuidanceImagePolling } from '../services/guidanceImagePolling.js';
 import { isNavigationGeo } from '../utils/rngNavigation.js';
 
-export default function useGuidanceImage(request, contextKey) {
+export default function useGuidanceImage(request, contextKey, { repeat = true } = {}) {
   const latest = useRef(request);
   latest.current = request;
   const enabled = isNavigationGeo(request?.geo) && Number.isFinite(request?.heading);
@@ -12,13 +12,14 @@ export default function useGuidanceImage(request, contextKey) {
     setState({ key: contextKey, data: null, error: null, loading: enabled });
     if (!enabled) return undefined;
     return startGuidanceImagePolling({
+      repeat,
       readRequest: () => latest.current,
       fetchImage: fetchLandmarkViewImage,
       onResult: (data) => setState((previous) => ({ ...previous, data, error: null })),
       onError: (error) => setState((previous) => ({ ...previous, data: null, error })),
       onLoading: (loading) => setState((previous) => ({ ...previous, loading }))
     });
-  }, [contextKey, enabled]);
+  }, [contextKey, enabled, repeat]);
   // Do not render even one frame of the previous step/floor's image.
   return state.key === contextKey ? state : { data: null, error: null, loading: enabled };
 }

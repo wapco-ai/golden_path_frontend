@@ -89,6 +89,81 @@ test.describe('RNG mobile arrival preview', () => {
   }
 });
 
+test.describe('RNG arrival guidance image', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, serviceWorkers: 'block' });
+
+  for (const multifloor of [false, true]) {
+    for (const result of ['image', 'no match', 'API error', 'image error']) {
+      const floors = multifloor ? 'multifloor' : 'same-floor';
+      test(`RNG shows the ${floors} arrival with guidance image result ${result}`, async ({ page, baseURL }) => {
+        const hostname = new URL(baseURL).hostname;
+        await page.route(url => ![hostname, 'localhost', '127.0.0.1'].includes(url.hostname), route => route.abort());
+        const errors = await setupRoute(page, { multifloor, stored: true, arrivalM: 1 });
+        const requests = [];
+        const noMatch = { status: 'NO_MATCH', source: 'guidance_points', image: null };
+        const imagePath = '/storage/rng-guidance-preview.svg';
+        let finishRequest;
+        const pending = new Promise(resolve => { finishRequest = resolve; });
+        await page.route('**/api/v1/landmark-view-image?*', async route => {
+          const params = new URL(route.request().url()).searchParams;
+          const atDestination = Math.abs(Number(params.get('geo[lng]')) - destination.coordinates[1]) < 1e-7;
+          requests.push({ atDestination, floor: Number(params.get('floor')), source: params.get('source') });
+          if (!atDestination) return route.fulfill({ json: noMatch });
+          await pending;
+          if (result === 'API error') return route.fulfill({ status: 503, json: { status: 'ERROR' } });
+          return route.fulfill({ json: result === 'no match' ? noMatch : {
+            status: 'OK', source: 'guidance_points', image: { url: imagePath }
+          } });
+        });
+        await page.route(`**${imagePath}`, route => result === 'image error'
+          ? route.fulfill({ status: 404 })
+          : route.fulfill({ contentType: 'image/svg+xml',
+            body: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="green"/></svg>' }));
+
+        const icon = page.locator('.direction-icon-rng');
+        const screen = page.locator('.routing-page');
+        const status = page.locator('.image-placeholder-text');
+        const arrivalRequests = () => requests.filter(request => request.atDestination);
+        try {
+          await page.goto('/#/rng');
+          await expect.poll(() => requests.length).toBeGreaterThan(0);
+          for (let index = 1; index <= (multifloor ? 3 : 1); index++) {
+            await icon.click();
+            await expect(screen).toHaveAttribute('data-current-step', String(index));
+          }
+          await expect.poll(() => arrivalRequests().length).toBe(1);
+          expect(arrivalRequests()[0]).toEqual({ atDestination: true, floor: 0, source: 'guidance_points' });
+          await expect(status).toHaveText('در حال دریافت تصویر راهنما…');
+        } finally {
+          finishRequest();
+        }
+
+        const image = page.getByRole('img', { name: 'تصویر راهنما', exact: true });
+        if (result === 'image') {
+          await expect(image).toBeVisible();
+          expect(await image.evaluate(element => element.naturalWidth)).toBe(16);
+          await expect(status).toHaveCount(0);
+        } else {
+          await expect(status).toHaveText(result === 'no match'
+            ? 'برای این گام تصویر راهنما موجود نیست.' : 'دریافت تصویر راهنما ممکن نشد.');
+          await expect(image).toHaveCount(0);
+        }
+        // Stay on the destination longer than the live refresh interval.
+        await page.waitForTimeout(1800);
+        expect(arrivalRequests()).toHaveLength(1);
+
+        const requestCount = requests.length;
+        await icon.click();
+        await expect(screen).toHaveAttribute('data-current-step', '0');
+        await expect.poll(() => requests.length).toBeGreaterThan(requestCount);
+        expect(requests.at(-1)).toMatchObject({ atDestination: false, floor: multifloor ? -1 : 0 });
+        await expect(status).toHaveText('برای این گام تصویر راهنما موجود نیست.');
+        expect(errors).toEqual([]);
+      });
+    }
+  }
+});
+
 test('summary and single step display the short duration from the routing response', async ({ page }) => {
   await setupRoute(page, { direct: true, arrivalM: 1, durationSeconds: 9.4 });
   await page.goto('/#/fs');

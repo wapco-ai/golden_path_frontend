@@ -50,9 +50,10 @@ test('the original span icon retains demo interaction without button styling', (
   assert.doesNotMatch(guide, /<button|title=|style=/);
 });
 
-test('image loading and no-match use the existing placeholder copy', () => {
-  assert.match(source, /isLiveImageLoading \? <FormattedMessage id="liveLandmarkLoading" \/> : <FormattedMessage id="liveLandmarkWaiting" \/>/);
-  assert.doesNotMatch(source, /rngText\.(?:waiting|error|imageError|imageAlt)/);
-  assert.match(source, /onError=\{\(\) => setFailedImageUrl\(liveLandmarkImage\.image\.url\)\}/);
-  assert.match(source, /useGuidanceImage\(/);
+test('guidance image states use the existing placeholder and image styles', () => {
+  const image = readFileSync(new URL('../src/components/map/RngGuidanceImage.jsx', import.meta.url), 'utf8');
+  assert.match(source, /<RngGuidanceImage\b/);
+  for (const className of ['image-placeholder', 'image-placeholder-text', 'live-landmark-image']) {
+    assert.ok(image.includes(`className="${className}"`), `Expected the existing ${className} style`);
+  }
 });

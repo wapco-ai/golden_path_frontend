@@ -438,6 +438,8 @@
   "simpleMap": "سادہ نقشہ",
   "searchResults": "تلاش کے نتائج",
   "noSearchResults": "\"{query}\" کے لیے کوئی نتیجہ نہیں ملا",
-  "liveLandmarkLoading": "لینڈمارک تصویر لوڈ ہو رہی ہے...",
-  "liveLandmarkWaiting": "اگلی لینڈمارک تصویر کا انتظار ہے..."
+  "guidanceImageLoading": "رہنمائی کی تصویر لوڈ ہو رہی ہے…",
+  "guidanceImageUnavailable": "اس مرحلے کے لیے رہنمائی کی تصویر دستیاب نہیں ہے۔",
+  "guidanceImageError": "رہنمائی کی تصویر لوڈ نہیں ہو سکی۔",
+  "guidanceImageAlt": "رہنمائی کی تصویر"
 }

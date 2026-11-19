@@ -438,6 +438,8 @@
   "satelliteMap": "Satellite Map",
   "searchResults": "Search Results",
   "noSearchResults": "No results found for \"{query}\"",
-  "liveLandmarkLoading": "Fetching landmark image...",
-  "liveLandmarkWaiting": "Waiting for the next landmark image..."
+  "guidanceImageLoading": "Loading guidance image…",
+  "guidanceImageUnavailable": "No guidance image is available for this step.",
+  "guidanceImageError": "Could not load the guidance image.",
+  "guidanceImageAlt": "Guidance image"
 }
