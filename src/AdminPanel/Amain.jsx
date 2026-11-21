@@ -1,4 +1,5 @@
 import NavigationSettings from './NavigationSettings.jsx';
+import AreaCorridorDialog from './AreaCorridorDialog.jsx';
 import { routeOnFloor, isMultifloor, routeCoordinates } from '../utils/multifloorRoute';
 // src/pages/Amain.jsx
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -1338,6 +1339,7 @@ const Amain = () => {
   const [isPlaceCovered, setIsPlaceCovered] = useState(null);
   const [areaAccess, setAreaAccess] = useState({ saved: '', selected: '' });
   const [areaRouting, setAreaRouting] = useState(EMPTY_AREA_ROUTING);
+  const [corridorAreaId, setCorridorAreaId] = useState(null);
   const [isAreaEditMode, setIsAreaEditMode] = useState(false);
   const [isAreaGeometryDirty, setIsAreaGeometryDirty] = useState(false);
   const [isSavingAreaGeometry, setIsSavingAreaGeometry] = useState(false);
@@ -13084,6 +13086,12 @@ const Amain = () => {
                           data-map-tooltip="ویرایش اطلاعات محدوده انتخاب‌شده" aria-label="ویرایش اطلاعات محدوده انتخاب‌شده" onClick={handleOpenAddPlaceWithRoofOption}>
                           <svg xmlns="http://www.w3.org/2000/svg" shapeRendering="geometricPrecision" textRendering="geometricPrecision" imageRendering="optimizeQuality" fillRule="evenodd" clipRule="evenodd" viewBox="0 0 512 438.76"><path d="M61.42 0h338.91c33.78 0 61.42 27.65 61.42 61.42V178.3c-2.65-.26-5.31-.34-7.96-.22-1.79.05-3.59.2-5.4.44-10.99 1.52-22.13 6.81-30.32 14.38H242.91v87.19h83.02l-27.87 26.32h-55.15v87.19h9.12l-6.73 34.81H61.42C27.65 428.41 0 400.77 0 366.98V61.42C0 27.64 27.64 0 61.42 0zm303.35 428.24-72.14 10.52 14.58-75.31 57.56 64.79zm-33.7-86.51L450.8 228.58c2.23-2.19 6.19-3.1 8.3-.83l51.52 55.84c2.31 2.56 1.54 6.26-.96 8.62L388.57 406.56l-57.5-64.83zM30.13 306.41h186.46v87.19H30.13v-87.19zm0-227.01h186.46v87.18H30.13V79.4zm0 113.5h186.46v87.19H30.13V192.9zM242.91 79.4h186.47v87.18H242.91V79.4z" /></svg>
                         </button>
+                        {isAreaLayerActive && (
+                          <button className="sub-btn with-label" disabled={!selectedAreaId}
+                            onClick={() => setCorridorAreaId(selectedAreaId)}>
+                            <span className="sub-btn-label">تبدیل به راهرو</span>
+                          </button>
+                        )}
                         <button className="sub-btn delete-area"
                           data-map-tooltip="حذف محدوده انتخاب‌شده" aria-label="حذف محدوده انتخاب‌شده" onClick={handleDeleteSelectedArea}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
@@ -14078,6 +14086,21 @@ const Amain = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {corridorAreaId && (
+        <AreaCorridorDialog key={corridorAreaId} areaId={corridorAreaId} language={language}
+          onCancel={() => setCorridorAreaId(null)}
+          onSaved={(graph) => {
+            setCorridorAreaId(null);
+            refreshLayerTiles('areas-outline', { force: true });
+            refreshLayerTiles('routing_edges_static-ground', { force: true });
+            if (graph?.status === 'insufficient_access_points') {
+              toast.info('راهرو ثبت شد. برای ساخت مسیر داخلی دست‌کم دو نقطهٔ اتصال معتبر لازم است.');
+            } else {
+              toast.success(graph?.status === 'ready' ? 'راهرو ثبت شد و گراف داخلی آماده است.' : 'راهرو ثبت شد.');
+            }
+          }} />
       )}
 
       {/* Add Place Modal */}
