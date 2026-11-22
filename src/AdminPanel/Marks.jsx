@@ -7,16 +7,15 @@ import '../AdminPanel/Amain.css';
 import './Marks.css';
 import apiAdmin from '../api/apiAdmin';
 import { deleteFile } from '../services/fileService';
-import { MBTILES_SATELLITE_STYLE } from '../services/mbtilesMapStyle';
-import { ADMIN_MAP_MAX_ZOOM, extendAdminMapStyle } from '../services/legacyMapStyles';
+import { ADMIN_MAP_MAX_ZOOM } from '../services/legacyMapStyles';
 import { createEngineeringMapStyle } from '../hooks/usePublicFloorMap';
 import { DEFAULT_GUIDANCE_COVERAGE_RADIUS_M, coverageRadiusForForm, parseCoverageRadius } from '../utils/guidanceCoverage.js';
 import { floorLabel } from '../utils/connectorForm.js';
 import SortableTableHeader from './SortableTableHeader';
 import useAdminTablePreferences from './useAdminTablePreferences';
 
-const GROUND_MAP_STYLE = extendAdminMapStyle(MBTILES_SATELLITE_STYLE);
-const BASEMENT_MAP_STYLE = createEngineeringMapStyle('fa');
+const GROUND_MAP_STYLE = createEngineeringMapStyle('fa', 0);
+const BASEMENT_MAP_STYLE = createEngineeringMapStyle('fa', -1);
 const itemsPerPage = 5;
 
 // RTL plugin initialization

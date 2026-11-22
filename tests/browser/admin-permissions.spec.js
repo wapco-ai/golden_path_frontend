@@ -161,26 +161,23 @@ test('guidance-only access opens its form without granting map access', async ({
   await expect(page.getByRole('heading', { name: 'مدیریت نقاط راهنما', exact: true })).toBeVisible();
 });
 
-const waitForGuidanceGroundTile = page => page.waitForResponse(response =>
-  new URL(response.url()).pathname.includes('/tms/services/gsm/tiles/') && response.ok());
-
-const waitForGuidanceBasementTile = page => page.waitForResponse(response => {
+const waitForGuidanceTile = (page, floor) => page.waitForResponse(response => {
   const url = new URL(response.url());
   return url.pathname.includes('/tiles/public.fn_public_engineering_map_mvt/') &&
-    url.searchParams.get('p_floor') === '-1' && url.searchParams.get('p_lang') === 'fa' && response.ok();
+    url.searchParams.get('p_floor') === String(floor) && url.searchParams.get('p_lang') === 'fa' && response.ok();
 });
 
 test('a new guidance point switches to the basement map and submits its photo on that floor', async ({ page }) => {
   const png = readFileSync(new URL('../../public/icons/pwa-192x192.png', import.meta.url));
   await openPanel(page, [], ['manage_guidance_points']);
-  await page.route('**/tms/services/gsm/tiles/**', route => route.fulfill({ contentType: 'image/png', body: png }));
+  await page.route('**/public.fn_public_engineering_map_mvt/**', route => route.fulfill({ status: 204 }));
   await page.route('**/api/v1/admin/guidance-points**', route => route.fulfill({
     json: { success: true, data: [], meta: { total: 0 } }
   }));
   await page.getByText('مدیریت امکانات', { exact: true }).click();
   await page.locator('#amain-sidebar').getByText('مدیریت نقاط راهنما', { exact: true }).click();
   const openAdd = page.getByRole('button', { name: 'اضافه کردن نقطه راهنمای جدید' });
-  const groundTile = waitForGuidanceGroundTile(page);
+  const groundTile = waitForGuidanceTile(page, 0);
   await openAdd.click();
   const modal = page.getByRole('dialog', { name: 'افزودن نقطه راهنما' });
   const floor = modal.getByLabel('طبقه', { exact: true });
@@ -192,7 +189,7 @@ test('a new guidance point switches to the basement map and submits its photo on
   const coordinates = modal.locator('.guidance-modal__coordinates');
   await expect(coordinates).toBeVisible();
   const selectedCoordinates = await coordinates.innerText();
-  const basementTile = waitForGuidanceBasementTile(page);
+  const basementTile = waitForGuidanceTile(page, -1);
   await floor.selectOption('-1');
   await basementTile;
   await expect(modal.locator('.maplibregl-marker')).toBeVisible();
@@ -248,7 +245,7 @@ test('editing guidance opens the saved basement map and returns to ground while 
     await route.fulfill({ status: 204 });
   });
   const basementRequest = page.waitForRequest('**/public.fn_public_engineering_map_mvt/**');
-  const basementTile = waitForGuidanceBasementTile(page);
+  const basementTile = waitForGuidanceTile(page, -1);
   await edit.click();
   await page.setViewportSize({ width: 390, height: 740 });
   const modal = page.getByRole('dialog', { name: 'ویرایش نقطه راهنما' });
@@ -262,7 +259,7 @@ test('editing guidance opens the saved basement map and returns to ground while 
     releaseBasementTiles();
   }
   await basementTile;
-  const groundTile = waitForGuidanceGroundTile(page);
+  const groundTile = waitForGuidanceTile(page, 0);
   await floor.selectOption('0');
   await groundTile;
   await expect(modal.locator('.maplibregl-marker')).toBeVisible();
@@ -277,8 +274,10 @@ test('editing guidance opens the saved basement map and returns to ground while 
   expect(writes[0].has('x')).toBe(false);
   expect(writes[0].has('y')).toBe(false);
   await page.setViewportSize({ width: 1440, height: 1000 });
+  const savedGroundTile = waitForGuidanceTile(page, 0);
   await edit.click();
   await expect(floor).toHaveValue('0');
+  await savedGroundTile;
 });
 
 test('map-only access does not grant the guidance form', async ({ page }) => {
