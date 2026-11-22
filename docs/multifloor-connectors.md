@@ -12,12 +12,12 @@ Clicking “select point” temporarily shows that floor's map, then returns to 
 same form and step. Escape cancels the pick. One unambiguous access area is
 selected automatically; overlapping candidate areas require an explicit choice.
 
-To correct a lobby or corridor imported as a stair or elevator, select its polygon
-on the editable areas layer and choose **تبدیل به راهرو** in the area tools. Check
-the name, ID, floor and current type, then choose **ثبت به‌عنوان راهرو**. The
-editor saves `functional_area` with the `routable` role through the area API.
-Public/private access is edited separately. A lift stop needs a valid access
-point touching the corridor. An internal corridor path needs two valid points.
+Edit an existing polygon with **ویرایش اطلاعات محدوده انتخاب‌شده** and select
+**نوع محدوده** in step two. The final save applies the type and graph together.
+**راهرو** is a distinct walkable type. Existing functional spaces retain their type.
+Stairs, lifts and ramps use the separate stop/landing editor. Reassign dependent
+active stops before removing their walkable space. A corridor needs two valid
+access points for an internal path. Public/private access remains independently editable.
 
 Select an existing named connector to load all its stops, or edit its portal on
 any floor. Shared edits carry the server version, so an outdated form cannot

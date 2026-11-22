@@ -1,5 +1,4 @@
 import NavigationSettings from './NavigationSettings.jsx';
-import AreaCorridorDialog from './AreaCorridorDialog.jsx';
 import { routeOnFloor, isMultifloor, routeCoordinates } from '../utils/multifloorRoute';
 // src/pages/Amain.jsx
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -98,7 +97,17 @@ const ADMIN_TABLE_VIEW_KEY = 'gp_admin_table_view';
 const SORTABLE_ADMIN_VIEWS = ['مدیریت اطلاعات فرهنگی', 'مدیریت نقاط راهنما'];
 const culturalItemsPerPage = 7;
 
-const EMPTY_AREA_ROUTING = { saved: 'default', selected: 'default', defaultRole: null };
+const AREA_TYPES = {
+  corridor: ['راهرو', 'routable'], stair_area: ['پله', 'transparent'],
+  elevator_area: ['آسانسور', 'transparent'], ramp_area: ['رمپ', 'transparent'],
+  courtyard: ['صحن', 'routable'], riwaq: ['رواق', 'routable'],
+  iwan: ['ایوان', 'routable'], mosque: ['مسجد', 'routable'],
+  functional_area: ['فضای عملکردی', 'doorstep_only'], admin_zone: ['محدودهٔ اداری', 'doorstep_only'],
+  storage_area: ['انبار', 'doorstep_only'], warehouse_area: ['انبار کالا', 'doorstep_only'],
+  facility_area: ['تأسیسات', 'doorstep_only'], service_room: ['اتاق خدمات', 'doorstep_only'],
+  technical_area: ['فضای فنی', 'doorstep_only'],
+};
+const EMPTY_AREA_ROUTING = { saved: 'default', selected: 'default', defaultRole: null, savedType: '', type: '' };
 const AREA_ROUTING_LABELS = {
   routable: 'عبور از داخل مجاز',
   doorstep_only: 'فقط تا ورودی',
@@ -1339,7 +1348,9 @@ const Amain = () => {
   const [isPlaceCovered, setIsPlaceCovered] = useState(null);
   const [areaAccess, setAreaAccess] = useState({ saved: '', selected: '' });
   const [areaRouting, setAreaRouting] = useState(EMPTY_AREA_ROUTING);
-  const [corridorAreaId, setCorridorAreaId] = useState(null);
+  const originalAreaForm = useRef(null);
+  const areaTypeChanged = areaRouting.type !== areaRouting.savedType;
+  const areaDefaultRole = areaTypeChanged ? AREA_TYPES[areaRouting.type]?.[1] : areaRouting.defaultRole;
   const [isAreaEditMode, setIsAreaEditMode] = useState(false);
   const [isAreaGeometryDirty, setIsAreaGeometryDirty] = useState(false);
   const [isSavingAreaGeometry, setIsSavingAreaGeometry] = useState(false);
@@ -5455,6 +5466,7 @@ const Amain = () => {
     setIsPlaceCovered(null);
     setAreaAccess({ saved: '', selected: '' });
     setAreaRouting(EMPTY_AREA_ROUTING);
+    originalAreaForm.current = null;
 
     setIsEditingDoorInfo(false);
     setLastCreatedDoorId(null);
@@ -9417,8 +9429,10 @@ const Amain = () => {
           ...(areaAccess.selected && areaAccess.selected !== areaAccess.saved
             ? { public_access: areaAccess.selected === 'public' }
             : {}),
-          ...(areaRouting.selected !== areaRouting.saved ? { routing_role: areaRouting.selected } : {}),
+          ...((areaTypeChanged ? areaRouting.selected !== 'default' : areaRouting.selected !== areaRouting.saved)
+            ? { routing_role: areaRouting.selected } : {}),
           meta: {
+            ...(areaTypeChanged ? { area_type: areaRouting.type, expected_area_type: areaRouting.savedType } : {}),
             is_closed: isInactive
           }
         }
@@ -9439,6 +9453,12 @@ const Amain = () => {
       notes: additionalNotes
     };
   };
+
+  useEffect(() => {
+    if (areaRouting.savedType && !isLoadingAreaInfo && !originalAreaForm.current) {
+      originalAreaForm.current = buildDoorInfoPayload();
+    }
+  });
 
   const previewNewDoor = async (point) => {
     if (newDoorPreviewRequest.current) return false;
@@ -9527,8 +9547,16 @@ const Amain = () => {
           toast.success('پلهٔ داخل طبقه غیرفعال شد');
         } else if (isAreaLayerActive) {
           setIsSavingAreaInfo(true);
+          if (areaTypeChanged && originalAreaForm.current) {
+            // Leave untouched imported metadata, permissions and translations intact.
+            const original = originalAreaForm.current;
+            for (const section of ['basic_info', 'grouping', 'operational', 'notes']) {
+              if (JSON.stringify(payload[section]) === JSON.stringify(original[section])) delete payload[section];
+            }
+            if (payload.meta.is_closed === original.meta.is_closed) delete payload.meta.is_closed;
+          }
           const response = await updateAreaInfo(targetAreaId, payload);
-          if ('public_access' in payload) {
+          if ('public_access' in payload || areaTypeChanged) {
             refreshLayerTiles('areas-outline', { force: true });
           }
           if ('public_access' in payload || response?.area_graph) {
@@ -9579,7 +9607,7 @@ const Amain = () => {
           ? 'ثبت اطلاعات محدوده ناموفق بود'
           : 'ثبت اطلاعات مکان ناموفق بود';
         if (isAreaLayerActive) {
-          toast.error(getApiErrorMessage(error, defaultMessage));
+          toast.error(error?.response?.data?.errors?.['meta.area_type']?.[0] || getApiErrorMessage(error, defaultMessage));
         } else {
           handleDoorMutationError(error, defaultMessage);
         }
@@ -9741,6 +9769,7 @@ const Amain = () => {
     setIsEditingDoorInfo(isEditMode);
     setAreaAccess({ saved: '', selected: '' });
     setAreaRouting(EMPTY_AREA_ROUTING);
+    originalAreaForm.current = null;
     setRoutingAreaOptions([]);
     setIsAddPlaceModalOpen(true);
     setCurrentStep(1);
@@ -9756,7 +9785,8 @@ const Amain = () => {
       setAreaAccess({ saved: access, selected: access });
       const override = info.attrs_raw?.routing_role;
       const routingRole = Object.hasOwn(AREA_ROUTING_LABELS, override) ? override : 'default';
-      setAreaRouting({ saved: routingRole, selected: routingRole, defaultRole: info.default_routing_role });
+      const type = info.meta?.area_type || info.area_type || '';
+      setAreaRouting({ saved: routingRole, selected: routingRole, defaultRole: info.default_routing_role, savedType: type, type });
       setRoutingBidirectional(true);
       setRoutingFromArea('');
       setRoutingToArea('');
@@ -13086,12 +13116,6 @@ const Amain = () => {
                           data-map-tooltip="ویرایش اطلاعات محدوده انتخاب‌شده" aria-label="ویرایش اطلاعات محدوده انتخاب‌شده" onClick={handleOpenAddPlaceWithRoofOption}>
                           <svg xmlns="http://www.w3.org/2000/svg" shapeRendering="geometricPrecision" textRendering="geometricPrecision" imageRendering="optimizeQuality" fillRule="evenodd" clipRule="evenodd" viewBox="0 0 512 438.76"><path d="M61.42 0h338.91c33.78 0 61.42 27.65 61.42 61.42V178.3c-2.65-.26-5.31-.34-7.96-.22-1.79.05-3.59.2-5.4.44-10.99 1.52-22.13 6.81-30.32 14.38H242.91v87.19h83.02l-27.87 26.32h-55.15v87.19h9.12l-6.73 34.81H61.42C27.65 428.41 0 400.77 0 366.98V61.42C0 27.64 27.64 0 61.42 0zm303.35 428.24-72.14 10.52 14.58-75.31 57.56 64.79zm-33.7-86.51L450.8 228.58c2.23-2.19 6.19-3.1 8.3-.83l51.52 55.84c2.31 2.56 1.54 6.26-.96 8.62L388.57 406.56l-57.5-64.83zM30.13 306.41h186.46v87.19H30.13v-87.19zm0-227.01h186.46v87.18H30.13V79.4zm0 113.5h186.46v87.19H30.13V192.9zM242.91 79.4h186.47v87.18H242.91V79.4z" /></svg>
                         </button>
-                        {isAreaLayerActive && (
-                          <button className="sub-btn with-label" disabled={!selectedAreaId}
-                            onClick={() => setCorridorAreaId(selectedAreaId)}>
-                            <span className="sub-btn-label">تبدیل به راهرو</span>
-                          </button>
-                        )}
                         <button className="sub-btn delete-area"
                           data-map-tooltip="حذف محدوده انتخاب‌شده" aria-label="حذف محدوده انتخاب‌شده" onClick={handleDeleteSelectedArea}>
                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-trash">
@@ -14088,21 +14112,6 @@ const Amain = () => {
         </div>
       )}
 
-      {corridorAreaId && (
-        <AreaCorridorDialog key={corridorAreaId} areaId={corridorAreaId} language={language}
-          onCancel={() => setCorridorAreaId(null)}
-          onSaved={(graph) => {
-            setCorridorAreaId(null);
-            refreshLayerTiles('areas-outline', { force: true });
-            refreshLayerTiles('routing_edges_static-ground', { force: true });
-            if (graph?.status === 'insufficient_access_points') {
-              toast.info('راهرو ثبت شد. برای ساخت مسیر داخلی دست‌کم دو نقطهٔ اتصال معتبر لازم است.');
-            } else {
-              toast.success(graph?.status === 'ready' ? 'راهرو ثبت شد و گراف داخلی آماده است.' : 'راهرو ثبت شد.');
-            }
-          }} />
-      )}
-
       {/* Add Place Modal */}
       {isAddPlaceModalOpen && (
         <div className="modal-overlay">
@@ -14316,7 +14325,24 @@ const Amain = () => {
                             </div>
                           </fieldset>
                         )}
-                        {isAreaLayerActive && AREA_ROUTING_LABELS[areaRouting.defaultRole] && (
+                        {isAreaLayerActive && areaRouting.savedType && (
+                          <div className="location-type-section">
+                            <label htmlFor="map-area-type" className="location-type-label">نوع محدوده</label>
+                            <select id="map-area-type" className="form-input" value={areaRouting.type}
+                              disabled={isLoadingAreaInfo || isSavingAreaInfo}
+                              onChange={(event) => {
+                                const type = event.target.value;
+                                setAreaRouting(current => ({ ...current, type,
+                                  selected: type === current.savedType ? current.saved : 'default' }));
+                              }}>
+                              {!AREA_TYPES[areaRouting.savedType] && <option value={areaRouting.savedType}>{areaRouting.savedType}</option>}
+                              {Object.entries(AREA_TYPES).map(([code, [label]]) => <option key={code} value={code}>{label}</option>)}
+                            </select>
+                            {areaDefaultRole === 'transparent' && <small>پاگردها یا توقف‌ها از بخش اتصال‌ها تعریف می‌شوند.</small>}
+                            {areaRouting.type === 'corridor' && <small>عبور از داخل راهرو مجاز است.</small>}
+                          </div>
+                        )}
+                        {isAreaLayerActive && areaRouting.type !== 'corridor' && AREA_ROUTING_LABELS[areaDefaultRole] && (
                           <fieldset className="location-type-section area-routing-field" disabled={isLoadingAreaInfo || isSavingAreaInfo}>
                             <legend className="location-type-label">عبور از داخل محدوده</legend>
                             <div className="location-type-options">
@@ -14334,7 +14360,7 @@ const Amain = () => {
                               ))}
                             </div>
                             {areaRouting.selected === 'default' && (
-                              <small className="area-routing-hint">رفتار پیش‌فرض این نوع محدوده «{AREA_ROUTING_LABELS[areaRouting.defaultRole]}» است.</small>
+                              <small className="area-routing-hint">رفتار پیش‌فرض این نوع محدوده «{AREA_ROUTING_LABELS[areaDefaultRole]}» است.</small>
                             )}
                           </fieldset>
                         )}

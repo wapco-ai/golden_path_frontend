@@ -11954,18 +11954,3 @@ body {
   margin: 0;
   padding: 8px 16px;
 }
-.area-corridor-dialog {
-  width: min(26rem, 90vw);
-  box-sizing: border-box;
-  border: none;
-  border-radius: 12px;
-  padding: 1.25rem;
-  margin: auto;
-  font: inherit;
-  color: inherit;
-  text-align: start;
-}
-
-.area-corridor-dialog::backdrop {
-  background: rgb(0 0 0 / 45%);
-}
