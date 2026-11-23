@@ -3,15 +3,19 @@ import { getLineDistanceMeters, sliceLineByFraction } from './routeSegments.js';
 // Accessible icon names and live arrival instructions.
 export const rngMessages = {
   fa: { next: 'نمایش گام بعدی در دمو', nextLive: 'رفتن به گام بعدی', approach: 'به مسیر تا مقصد ادامه دهید.', arrived: 'شما به مقصد رسیدید.',
+    floorTransfer: 'در حال تغییر طبقه با پله‌برقی…',
     toward: '{distance} متر به سمت {name} حرکت کنید.', towardNoDistance: 'به سمت {name} حرکت کنید.',
     towardEnd: '{distance} متر تا انتهای مسیر ادامه دهید.', toEnd: 'تا انتهای مسیر ادامه دهید.' },
   en: { next: 'Preview next demo step', nextLive: 'Go to the next step', approach: 'Continue along the route to your destination.', arrived: 'You have arrived at your destination.',
+    floorTransfer: 'Changing floors on the escalator…',
     toward: 'Walk {distance} meters toward {name}.', towardNoDistance: 'Walk toward {name}.',
     towardEnd: 'Continue {distance} meters to the end of the route.', toEnd: 'Continue to the end of the route.' },
   ar: { next: 'معاينة الخطوة التجريبية التالية', nextLive: 'الانتقال إلى الخطوة التالية', approach: 'تابع المسار إلى وجهتك.', arrived: 'لقد وصلت إلى وجهتك.',
+    floorTransfer: 'جارٍ الانتقال إلى الطابق التالي بالسلم المتحرك…',
     toward: 'سر {distance} مترًا باتجاه {name}.', towardNoDistance: 'سر باتجاه {name}.',
     towardEnd: 'تابع {distance} مترًا حتى نهاية المسار.', toEnd: 'تابع حتى نهاية المسار.' },
   ur: { next: 'ڈیمو کا اگلا مرحلہ دکھائیں', nextLive: 'اگلے مرحلے پر جائیں', approach: 'منزل تک راستے پر چلتے رہیں۔', arrived: 'آپ منزل پر پہنچ گئے ہیں۔',
+    floorTransfer: 'برقی زینے سے منزل بدلی جا رہی ہے…',
     toward: '{name} کی طرف {distance} میٹر چلیں۔', towardNoDistance: '{name} کی طرف چلیں۔',
     towardEnd: 'راستے کے اختتام تک {distance} میٹر چلتے رہیں۔', toEnd: 'راستے کے اختتام تک چلتے رہیں۔' }
 };

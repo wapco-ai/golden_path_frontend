@@ -38,13 +38,20 @@ export class NavigationProgressTracker {
     const unchanged = { nextStep: currentStep, arrived: false };
     if (this.context !== context) {
       if (this.context !== null) {
+        const enteringTransfer = blind && steps?.[currentStep]?.type === 'stepChangeFloor';
+        const displayGeo = this.snappedGeo;
+        const discrepancy = this.routeDistance;
         this.reset(null, measurement?.distanceSinceAnchor ?? 0);
+        if (enteringTransfer) {
+          this.snappedGeo = displayGeo;
+          this.routeDistance = discrepancy;
+        }
       }
       this.context = context;
     }
     const startM = this.initialRouteM ?? getStepStartRouteM(steps?.[currentStep], coordinates) ?? 0;
     if (this.along === null) { this.along = startM * total; this.routeM = startM; }
-    if (blind) return this.updateBlind({ measurement, steps, currentStep, coordinates, total, now, policy });
+    if (blind) return this.updateBlind({ measurement, steps, currentStep, coordinates, total, mode, now, policy });
     if (!measurement || !isFresh(measurement.timestamp, now)
       || !Number.isFinite(measurement.accuracy) || measurement.accuracy < 0
       || measurement.accuracy > policy.gps_progress_accuracy_m) return unchanged;
@@ -65,7 +72,7 @@ export class NavigationProgressTracker {
     return { ...progress, arrived: projection ? this.along >= total : progress.arrived };
   }
 
-  updateBlind({ measurement, steps, currentStep, coordinates, total, now, policy }) {
+  updateBlind({ measurement, steps, currentStep, coordinates, total, mode, now, policy }) {
     const unchanged = { nextStep: currentStep, arrived: false };
     if (!measurement || measurement.source !== 'dead_reckoning'
       || !isFresh(measurement.timestamp, now, policy.measurement_max_age_ms)
@@ -86,7 +93,10 @@ export class NavigationProgressTracker {
       ? { alongDistanceM: this.along, totalDistanceM: total, lateralDistanceM: 0 } : null;
     const displayProgress = getNavigationProgress(this.snappedGeo, steps, currentStep, coordinates,
       { projection: displayProjection, arrivalRadius: policy.arrival_radius_m });
-    const next = { ...displayProgress, arrived: Boolean(point) && this.along >= total };
+    const atEnd = Boolean(point) && this.along >= total;
+    const approachingEscalator = ['walk', 'walking'].includes(mode) && steps?.[currentStep + 1]?.timedEscalator;
+    const nextStep = approachingEscalator ? currentStep + Number(atEnd) : displayProgress.nextStep;
+    const next = { nextStep, arrived: atEnd };
 
     // Raw observations are used for the route discrepancy advisory.
     if (measurement.positionTimestamp !== measurement.timestamp

@@ -12,7 +12,9 @@ async function setup(page, length = 40, observeMap = false, stepTest = false, ne
     const meters = value => value / 111195;
     const lowerLength = 12;
     const lower = [[59.615, 36.287], [59.615, 36.287 + meters(lowerLength)]];
-    const upper = [lower[1], [59.615, lower[1][1] + meters(length)]];
+    const escalator = multifloor === 'escalator';
+    const exit = escalator ? [59.615, lower[1][1] + meters(8)] : lower[1];
+    const upper = [exit, [exit[0], exit[1] + meters(length)]];
     const state = { origin: { name: 'مبدأ', coordinates: [36.287, 59.615], floor: 0,
       ...(gpsOrigin && { source: 'gps', accuracy: 5, timestamp: Date.now() }) },
       destination: { name: 'مقصد', coordinates: [coordinates[2][1], 59.615], floor: 0 },
@@ -28,12 +30,15 @@ async function setup(page, length = 40, observeMap = false, stepTest = false, ne
       state.routeGeo = { type: 'Feature', geometry: { type: 'MultiLineString', coordinates: [lower, upper] },
         properties: { multifloor: true, floor: 0, distanceMeters: lowerLength + length, durationSeconds: lowerLength + length, segments: [
           { id: 0, kind: 'walk', floor: 0, geometry: { type: 'LineString', coordinates: lower }, duration_s: lowerLength, distance_m: lowerLength },
-          { id: 1, kind: 'lift', floor: 0, fromFloor: 0, toFloor: 1, geometry: null, duration_s: 10, distance_m: 0 },
+          { id: 1, kind: escalator ? 'escalator' : 'lift', floor: 0, fromFloor: 0, toFloor: 1,
+            fromPoint: lower[1], toPoint: exit, geometry: null, duration_s: 10, distance_m: 0 },
           { id: 2, kind: 'walk', floor: 1, geometry: { type: 'LineString', coordinates: upper }, duration_s: length, distance_m: length }] } };
       state.destination = { ...state.destination, floor: 1, coordinates: [upper[1][1], upper[1][0]] };
       state.routeSteps = [
         { type: 'stepStart', routeM: 0, floor: 0, segmentId: 0, coord: point(lower[0]), instruction: 'مرحله 1' },
-        { type: 'stepChangeFloor', floor: 0, fromFloor: 0, toFloor: 1, segmentId: 1, coord: point(lower[1]), endCoord: point(upper[0]), instruction: 'به طبقه ۱ بروید.' },
+        { type: 'stepChangeFloor', floor: 0, fromFloor: 0, toFloor: 1, segmentId: 1,
+          coord: point(lower[1]), endCoord: point(upper[0]), coordinates: [lower[1], exit].map(([lng, lat]) => [lat, lng]),
+          instruction: 'به طبقه ۱ بروید.' },
         { type: 'stepStart', routeM: 0, floor: 1, segmentId: 2, coord: point(upper[0]), instruction: 'حرکت در طبقهٔ مقصد' },
         { type: 'stepGoStraight', routeM: 0.75, floor: 1, segmentId: 2,
           coord: point([upper[0][0], upper[0][1] + meters(length * 0.75)]), instruction: 'مرحله 3' },
@@ -111,6 +116,77 @@ async function walk(page, count, bearing = 0) {
     await page.clock.runFor(20);
   }
 }
+
+test('a timed escalator changes the basemap after the transfer step without GPS or a tap', async ({ page }) => {
+  const imageRequests = [];
+  page.on('request', request => {
+    const url = new URL(request.url());
+    if (url.pathname.endsWith('/landmark-view-image')) {
+      imageRequests.push({ floor: Number(url.searchParams.get('floor')), lat: Number(url.searchParams.get('geo[lat]')) });
+    }
+  });
+  await setup(page, 80, true, false, null, 'escalator');
+  const state = page.locator('.routing-page');
+  const instruction = page.locator('.instruction-text');
+  const next = page.locator('.direction-icon-rng');
+  const floor = () => page.evaluate(() => sessionStorage.getItem('haramCurrentFloor'));
+  const latitude = () => page.evaluate(() => window.rngMap?.getCenter().lat);
+  const entryLat = 36.287 + 12 / 111195;
+  const exitLat = entryLat + 8 / 111195;
+
+  await walk(page, 17);
+  await page.clock.fastForward(12000);
+  await expect(state).toHaveAttribute('data-current-step', '0');
+  await expect(next).toBeDisabled();
+  expect(await floor()).toBe('0');
+
+  await walk(page, 1);
+  await expect(instruction).toContainText('در حال تغییر طبقه با پله‌برقی');
+  await expect(next).toBeDisabled();
+  await page.clock.runFor(380);
+  expect(await latitude()).toBeCloseTo(entryLat, 7);
+  await expect.poll(() => imageRequests.at(-1)?.lat).toBeCloseTo(entryLat, 7);
+  expect(imageRequests.at(-1)?.floor).toBe(0);
+
+  await page.clock.fastForward(3000);
+  await page.getByRole('button', { name: 'توقف موقت', exact: true }).click();
+  await page.clock.fastForward(20000);
+  expect(await floor()).toBe('0');
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'ادامه مسیر', exact: true }).click();
+  await page.clock.fastForward(2000);
+  expect(await floor()).toBe('0');
+  await page.clock.fastForward(8000);
+  await expect(state).toHaveAttribute('data-current-step', '2');
+  await page.clock.runFor(380);
+  expect(await floor()).toBe('1');
+  expect(await latitude()).toBeCloseTo(exitLat, 7);
+  await expect.poll(() => imageRequests.at(-1)?.lat).toBeCloseTo(exitLat, 7);
+  expect(imageRequests.at(-1)?.floor).toBe(1);
+  expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
+});
+
+test('changing a same-floor step keeps the blind marker on the route with a drifting DR estimate', async ({ page }) => {
+  await setup(page, 100, true);
+  await walk(page, 16, 90);
+  await page.clock.runFor(380);
+  const mapCenter = () => page.evaluate(() => window.rngMap?.getCenter().toArray());
+  const before = await mapCenter();
+  const state = page.locator('.routing-page');
+  await expect(state).toHaveAttribute('data-current-step', '0');
+  await page.locator('.direction-icon-rng').click();
+  await expect(state).toHaveAttribute('data-current-step', '1');
+  await page.clock.runFor(380);
+  const after = await mapCenter();
+  expect(after[0]).toBeCloseTo(before[0], 8);
+  expect(after[1]).toBeCloseTo(before[1], 8);
+  await walk(page, 1, 90);
+  await page.clock.runFor(380);
+  const advanced = await mapCenter();
+  expect(advanced[0]).toBeCloseTo(before[0], 8);
+  expect(advanced[1] - after[1]).toBeCloseTo(0.7 / 111195, 7);
+  expect(await page.evaluate(() => window.gpsCalls)).toBe(0);
+});
 
 test('Haram default ignores GPS and reaches the destination using actual motion events without scanning', async ({ page }) => {
   await setup(page);
