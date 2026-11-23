@@ -73,7 +73,7 @@ const getBearing = (a, b) => {
 
 // Use the outgoing route tangent at the marker; at the route end use the
 // incoming tangent. Repeated coordinates carry no direction and are skipped.
-const bearingAtRouteM = (coordinates, routeM) => {
+export const bearingAtRouteM = (coordinates, routeM) => {
   if (routeM === null) return null;
   const forward = sliceLineByFraction(coordinates, routeM, 1);
   for (let i = 1; i < forward.length; i += 1) {

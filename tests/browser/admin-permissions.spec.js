@@ -58,7 +58,7 @@ test('guidance table keeps search, selected page and sorting after edit and refr
   await Promise.all([waitForList('sort_order:asc', 2, 'راهنما'), page.getByRole('button', { name: '2', exact: true }).click()]);
   await expect(secondPage).toBeVisible();
 
-  await table.locator('.edit-btn21').click();
+  await table.getByRole('button', { name: 'ویرایش راهنمای قدیمی', exact: true }).click();
   const modal = page.getByRole('dialog', { name: 'ویرایش نقطه راهنما' });
   const save = modal.getByRole('button', { name: 'ویرایش نقطه راهنما', exact: true });
   await Promise.all([waitForList('sort_order:asc', 2, 'راهنما'), save.click()]);
@@ -237,7 +237,7 @@ test('editing guidance opens the saved basement map and returns to ground while 
   });
   await page.getByText('مدیریت امکانات', { exact: true }).click();
   await page.locator('#amain-sidebar').getByText('مدیریت نقاط راهنما', { exact: true }).click();
-  const edit = page.locator('tr').filter({ hasText: point.title }).locator('.edit-btn21');
+  const edit = page.getByRole('button', { name: `ویرایش ${point.title}`, exact: true });
   let releaseBasementTiles;
   const basementTileGate = new Promise(resolve => { releaseBasementTiles = resolve; });
   await page.route('**/public.fn_public_engineering_map_mvt/**', async route => {

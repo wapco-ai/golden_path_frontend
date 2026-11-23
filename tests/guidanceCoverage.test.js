@@ -82,6 +82,6 @@ test('add and edit share the map initializer while retaining coordinate selectio
   const editStart = source.indexOf('const openEditModal =');
   const deleteStart = source.indexOf('const openDeleteModal =');
   assert.ok(addStart >= 0 && editStart > addStart && deleteStart > editStart);
-  assert.match(source.slice(addStart, editStart), /initializeMap\(36\.2880, 59\.6157\)/);
+  assert.match(source.slice(addStart, editStart), /initializeMap\(location\?\.lat \?\? GUIDANCE_CENTER\[1\], location\?\.lng \?\? GUIDANCE_CENTER\[0\]\)/);
   assert.match(source.slice(editStart, deleteStart), /initializeMap\(mark\.location\.lat, mark\.location\.lng\)/);
 });

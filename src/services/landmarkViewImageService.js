@@ -2,6 +2,8 @@ import appConfig from '../config/appConfig.js';
 
 import { resolveMediaUrl } from '../utils/locationMedia.js';
 
+export const NAVIGATION_IMAGE_OPTIONS = { fov: 60, maxDistance: 250 };
+
 const resolveImageSource = (image) => {
   const url = resolveMediaUrl(image, { apiBaseUrl: appConfig.apiBaseUrl });
   if (!url || /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(url)) return url;
