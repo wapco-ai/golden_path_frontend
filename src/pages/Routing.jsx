@@ -28,6 +28,7 @@ import { clearQrLocation, resolveScannedQrPoint, readQrPoint } from '../services
 import { prepareQrReader } from '../services/qrReader';
 import { doorEndpoint, doorRouteErrorMessage } from '../utils/doorRouteEndpoint';
 import useGuidanceImage from '../hooks/useGuidanceImage.js';
+import { NAVIGATION_IMAGE_OPTIONS } from '../services/landmarkViewImageService.js';
 import { getLiveNavigationGeo, nextDemoStep, projectPointOnRoute, resolveNavigationFrame } from '../utils/rngNavigation.js';
 import { finalStepDistanceMeters, liveStepInstruction, rngMessages, rngQrMessages, rngPauseMessages, withPreviewArrivalInstruction } from '../utils/rngMessages.js';
 import { pauseRouteKey, readPausedNavigation, savePausedNavigation, getResumePosition, resumeStepAt } from '../utils/rngPause.js';
@@ -1180,7 +1181,7 @@ const RoutingPage = () => {
   ]);
   const guidanceImage = useGuidanceImage({
     language, geo: navigationFrame.geo, heading: effectiveHeading,
-    floor: navigationFrame.floor, fov: 60, maxDistance: 250
+    floor: navigationFrame.floor, ...NAVIGATION_IMAGE_OPTIONS
   }, guidanceContextKey, { repeat: !previewingStep });
   const guidanceImageUrl = guidanceImage.data?.image?.url;
 

@@ -1,5 +1,6 @@
 // src/pages/Marks.jsx
-import React, { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
+import { FiMapPin } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -11,19 +12,17 @@ import { ADMIN_MAP_MAX_ZOOM } from '../services/legacyMapStyles';
 import { createEngineeringMapStyle } from '../hooks/usePublicFloorMap';
 import { DEFAULT_GUIDANCE_COVERAGE_RADIUS_M, coverageRadiusForForm, parseCoverageRadius } from '../utils/guidanceCoverage.js';
 import { floorLabel } from '../utils/connectorForm.js';
+import { haversineMeters } from '../utils/routeSegments.js';
 import SortableTableHeader from './SortableTableHeader';
 import useAdminTablePreferences from './useAdminTablePreferences';
+import GuidanceRouteCheck from './GuidanceRouteCheck';
+import { ensureGuidanceRtl, GUIDANCE_CENTER, hasMarkLocation, showGuidancePoints } from './guidanceMapLayers';
 
 const GROUND_MAP_STYLE = createEngineeringMapStyle('fa', 0);
 const BASEMENT_MAP_STYLE = createEngineeringMapStyle('fa', -1);
 const itemsPerPage = 5;
-
-// RTL plugin initialization
-function ensureRtlOnce() {
-  if (window.__RTL_PLUGIN_SET__) return;
-  window.__RTL_PLUGIN_SET__ = true;
-  maplibregl.setRTLTextPlugin("/rtl/mapbox-gl-rtl-text.js", null, true);
-}
+const NEARBY_DISTANCE_M = 10;
+const distanceFormat = new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 });
 
 // Custom red marker creator
 const createRedMarker = () => {
@@ -147,7 +146,7 @@ const normalizeMark = (item) => ({
   ...item,
   title: item.title || 'بدون عنوان',
   images: (item.images || []).map((image, index) => normalizeGuidanceImage(image, index)),
-  location: { lat: Number(item.latitude), lng: Number(item.longitude) }
+  location: { lat: Number(item.latitude ?? NaN), lng: Number(item.longitude ?? NaN) }
 });
 
 const Marks = () => {
@@ -160,6 +159,13 @@ const Marks = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const listRequest = useRef(0);
+  const [view, setView] = useState('list');
+  const [mapFloor, setMapFloor] = useState(0);
+  const [jumpTo, setJumpTo] = useState(null);
+  const [showCoverage, setShowCoverage] = useState(false);
+  const [allMarks, setAllMarks] = useState([]);
+  const [mapVersion, setMapVersion] = useState(0);
+  const [mapStatus, setMapStatus] = useState('loading');
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -167,6 +173,9 @@ const Marks = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedMark, setSelectedMark] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [showNearbyReview, setShowNearbyReview] = useState(false);
+  const addDraftBeforeEdit = useRef(null);
+  const reviewHeading = useRef(null);
   const [totalItems, setTotalItems] = useState(0);
   const [deletedImages, setDeletedImages] = useState([]);
 
@@ -192,6 +201,64 @@ const Marks = () => {
   const mapStyle = Number(formData.floor) === -1 ? BASEMENT_MAP_STYLE : GROUND_MAP_STYLE;
   const mapStyleRef = useRef(mapStyle);
   const [selectedLocation, setSelectedLocation] = useState(null);
+
+  const needsMapPoints = view === 'map' || isAddModalOpen || isEditModalOpen;
+  useEffect(() => {
+    if (!needsMapPoints) return;
+    const controller = new AbortController();
+    setMapStatus('loading');
+    async function loadMapPoints() {
+      try {
+        const points = new Map();
+        const limit = 100;
+        let lastPage = 1;
+        for (let page = 1; page <= lastPage; page += 1) {
+          const { data } = await apiAdmin.get('/api/v1/admin/guidance-points', {
+            params: { page, limit, sort: 'id' }, signal: controller.signal
+          });
+          if (!data?.success || !Array.isArray(data.data)) throw new Error('Invalid guidance points response');
+          for (const item of data.data) points.set(item.id, normalizeMark(item));
+          lastPage = Number(data.meta?.last_page ?? Math.ceil((data.meta?.total ?? data.data.length) / limit));
+        }
+        if (!controller.signal.aborted) {
+          setAllMarks([...points.values()].filter(hasMarkLocation));
+          setMapStatus('ready');
+        }
+      } catch {
+        if (!controller.signal.aborted) setMapStatus('error');
+      }
+    }
+    loadMapPoints();
+    return () => controller.abort();
+  }, [needsMapPoints, mapVersion]);
+
+  const overviewMarks = useMemo(() => {
+    const search = searchTerm.trim().toLowerCase();
+    return allMarks.filter(mark => Number(mark.floor ?? 0) === mapFloor
+      && (!search || mark.title.toLowerCase().includes(search) || mark.id === jumpTo?.id));
+  }, [allMarks, jumpTo, mapFloor, searchTerm]);
+
+  const formMarks = useMemo(() => allMarks.filter(mark => Number(mark.floor ?? 0) === Number(formData.floor)
+    && (!isEditModalOpen || mark.id !== selectedMark?.id)), [allMarks, formData.floor, isEditModalOpen, selectedMark]);
+  const nearbyMarks = useMemo(() => {
+    if (!isAddModalOpen || !hasMarkLocation(formData)) return [];
+    const { lng, lat } = formData.location;
+    return formMarks.map(mark => ({
+      mark, distance: haversineMeters([lng, lat], [mark.location.lng, mark.location.lat])
+    })).filter(({ distance }) => distance <= NEARBY_DISTANCE_M)
+      .sort((a, b) => a.distance - b.distance || a.mark.id - b.mark.id);
+  }, [formData, formMarks, isAddModalOpen]);
+  useEffect(() => {
+    if (showNearbyReview) reviewHeading.current?.focus();
+  }, [showNearbyReview]);
+
+  const formMarksRef = useRef(formMarks);
+  useEffect(() => {
+    formMarksRef.current = formMarks;
+    const map = mapRef.current;
+    if (map && map.getContainer() === mapContainerRef.current
+      && (map.getSource('guidance-saved-points') || map.isStyleLoaded())) showGuidancePoints(map, formMarks);
+  }, [formMarks]);
 
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
   const fetchMarks = useCallback(async () => {
@@ -248,7 +315,7 @@ const Marks = () => {
     }
 
     // Initialize RTL plugin
-    ensureRtlOnce();
+    ensureGuidanceRtl();
 
     try {
       const map = new maplibregl.Map({
@@ -260,6 +327,7 @@ const Marks = () => {
       });
 
       map.addControl(new maplibregl.NavigationControl());
+      map.on('style.load', () => showGuidancePoints(map, formMarksRef.current));
 
       const marker = new maplibregl.Marker({
         element: createRedMarker(),
@@ -305,21 +373,19 @@ const Marks = () => {
 
   // Cleanup map on unmount
   useEffect(() => {
-    return () => {
-      if (markerRef.current) {
-        markerRef.current.remove();
+    if (isAddModalOpen || isEditModalOpen) {
+      return () => {
+        markerRef.current?.remove();
         markerRef.current = null;
-      }
-      if (mapRef.current) {
-        mapRef.current.remove();
+        mapRef.current?.remove();
         mapRef.current = null;
-      }
-    };
-  }, []);
+      };
+    }
+  }, [isAddModalOpen, isEditModalOpen]);
 
   // Resize map when modal becomes visible
   useEffect(() => {
-    if ((isAddModalOpen || isEditModalOpen) && mapRef.current) {
+    if ((isAddModalOpen || isEditModalOpen) && !showNearbyReview && mapRef.current) {
       const timeoutId = setTimeout(() => {
         if (mapRef.current) {
           mapRef.current.resize();
@@ -327,7 +393,7 @@ const Marks = () => {
       }, 200);
       return () => clearTimeout(timeoutId);
     }
-  }, [isAddModalOpen, isEditModalOpen]);
+  }, [isAddModalOpen, isEditModalOpen, showNearbyReview]);
 
   // Close orientation modal
   const closeOrientationModal = () => {
@@ -406,22 +472,23 @@ const Marks = () => {
   };
 
   // Open add modal
-  const openAddModal = () => {
-    setFormData({
+  const openAddModal = (location = null, floor = 0, draft = null) => {
+    setShowNearbyReview(false);
+    setFormData(draft ?? {
       title: '',
       images: [],
-      location: null,
-      floor: 0,
+      location,
+      floor,
       coverage_radius_m: DEFAULT_GUIDANCE_COVERAGE_RADIUS_M
     });
-    setSelectedLocation(null);
+    setSelectedLocation(location);
     setDeletedImages([]);
     setIsAddModalOpen(true);
 
     // Initialize map after modal is rendered
     setTimeout(() => {
       if (mapContainerRef.current) {
-        initializeMap(36.2880, 59.6157);
+        initializeMap(location?.lat ?? GUIDANCE_CENTER[1], location?.lng ?? GUIDANCE_CENTER[0]);
       }
     }, 150);
   };
@@ -445,6 +512,21 @@ const Marks = () => {
         initializeMap(mark.location.lat, mark.location.lng);
       }
     }, 150);
+  };
+
+  const editNearbyMark = (mark) => {
+    addDraftBeforeEdit.current = formData;
+    setShowNearbyReview(false);
+    setIsAddModalOpen(false);
+    openEditModal(mark);
+  };
+
+  const finishEdit = () => {
+    setIsEditModalOpen(false);
+    setDeletedImages([]);
+    const draft = addDraftBeforeEdit.current;
+    addDraftBeforeEdit.current = null;
+    if (draft) openAddModal(draft.location, draft.floor, draft);
   };
 
   // Open delete modal
@@ -538,10 +620,9 @@ const Marks = () => {
   };
 
   // Handle add mark (title no longer mandatory)
-  // Handle add mark (title no longer mandatory)
-  const handleAddMark = () => {
-    // Only check location, title is optional
-    if (!formData.location) {
+  const handleAddMark = (confirmed = false) => {
+    if (isSaving || mapStatus !== 'ready') return;
+    if (!hasMarkLocation(formData)) {
       toast.error('لطفا موقعیت را روی نقشه انتخاب کنید');
       return;
     }
@@ -549,6 +630,11 @@ const Marks = () => {
     const coverageRadius = parseCoverageRadius(formData.coverage_radius_m);
     if (coverageRadius === null) {
       toast.error('شعاع پوشش باید بین ۰٫۰۱ و ۱۰۰ متر و حداکثر دارای دو رقم اعشار باشد.');
+      return;
+    }
+
+    if (!confirmed && nearbyMarks.length) {
+      setShowNearbyReview(true);
       return;
     }
 
@@ -567,8 +653,10 @@ const Marks = () => {
 
       setIsSaving(false);
       setIsAddModalOpen(false);
+      setShowNearbyReview(false);
       setDeletedImages([]);
       toast.success('نقطه جدید با موفقیت اضافه شد');
+      setMapVersion(version => version + 1);
       if (currentPage === 1) fetchMarks();
       else setCurrentPage(1);
       setFormData({
@@ -644,9 +732,9 @@ const Marks = () => {
       }
 
       setIsSaving(false);
-      setIsEditModalOpen(false);
-      setDeletedImages([]);
+      finishEdit();
       toast.success('نقطه با موفقیت ویرایش شد');
+      setMapVersion(version => version + 1);
       fetchMarks();
     }).catch((err) => {
       console.error('Edit guidance point failed:', err);
@@ -670,6 +758,7 @@ const Marks = () => {
       setIsDeleteModalOpen(false);
       setDeletedImages([]);
       toast.success('نقطه با موفقیت حذف شد');
+      setMapVersion(version => version + 1);
       fetchMarks();
     }).catch((err) => {
       setIsSaving(false);
@@ -680,6 +769,7 @@ const Marks = () => {
   // Handle refresh
   const handleRefresh = () => {
     setIsRefreshing(true);
+    setMapVersion(version => version + 1);
     fetchMarks().then((loaded) => {
       if (loaded) toast.success('لیست نقاط به‌روزرسانی شد');
     });
@@ -764,16 +854,32 @@ const Marks = () => {
   const editingMark = isEditModalOpen && selectedMark;
   const modalTitle = editingMark ? 'ویرایش نقطه راهنما' : 'افزودن نقطه راهنما';
   const closeMarkModal = () => {
-    if (editingMark) setIsEditModalOpen(false);
-    else setIsAddModalOpen(false);
+    if (editingMark) {
+      finishEdit();
+      return;
+    }
+    setShowNearbyReview(false);
+    setIsAddModalOpen(false);
     setDeletedImages([]);
   };
+  const nearbyCheckNotice = !editingMark && mapStatus !== 'ready' && (
+    <div className="guidance-nearby__notice" role="status">
+      {mapStatus === 'loading' ? 'در حال دریافت نقاط برای بررسی فاصله…' : (
+        <>
+          دریافت نقاط برای بررسی فاصله ناموفق بود.
+          <button type="button" className="guidance-modal__cancel" onClick={() => setMapVersion(version => version + 1)}>
+            تلاش دوباره
+          </button>
+        </>
+      )}
+    </div>
+  );
 
   return (
     <div className="admins-page">
       {/* Page Header */}
       <div className="section-header">
-        <div className="section-header-top">
+        <div className="section-header-top guidance-section-header">
           <div className="title-container">
             <div className="title-cell">
               <h3>مدیریت نقاط راهنما</h3>
@@ -815,7 +921,11 @@ const Marks = () => {
                 className="search-input7"
               />
             </div>
-            <button className="add-admin-btn" onClick={openAddModal}>
+            <div className="guidance-view-toggle" role="group" aria-label="نمایش نقاط راهنما">
+              <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')}>فهرست</button>
+              <button type="button" aria-pressed={view === 'map'} onClick={() => { setJumpTo(null); setView('map'); }}>نقشه</button>
+            </div>
+            <button className="add-admin-btn" onClick={() => openAddModal(null, view === 'map' ? mapFloor : 0)}>
               اضافه کردن نقطه راهنمای جدید
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path fillRule="evenodd" clipRule="evenodd" d="M10.0003 18.3334C14.6027 18.3334 18.3337 14.6024 18.3337 10C18.3337 5.39765 14.6027 1.66669 10.0003 1.66669C5.39795 1.66669 1.66699 5.39765 1.66699 10C1.66699 14.6024 5.39795 18.3334 10.0003 18.3334ZM10.6253 7.50002C10.6253 7.15484 10.3455 6.87502 10.0003 6.87502C9.65515 6.87502 9.37533 7.15484 9.37533 7.50002L9.37532 9.37504H7.50033C7.15515 9.37504 6.87533 9.65486 6.87533 10C6.87533 10.3452 7.15515 10.625 7.50033 10.625H9.37532V12.5C9.37532 12.8452 9.65515 13.125 10.0003 13.125C10.3455 13.125 10.6253 12.8451 10.6253 12.5L10.6253 10.625H12.5003C12.8455 10.625 13.1253 10.3452 13.1253 10C13.1253 9.65486 12.8455 9.37504 12.5003 9.37504H10.6253V7.50002Z" fill="white" />
@@ -825,7 +935,31 @@ const Marks = () => {
         </div>
       </div>
 
-      {/* Marks Table */}
+      {view === 'map' ? (
+        <section className="guidance-overview" dir="rtl">
+          <div className="guidance-overview__toolbar">
+            <label htmlFor="guidance-overview-floor">طبقهٔ نقشه</label>
+            <select id="guidance-overview-floor" value={mapFloor} onChange={event => {
+              setJumpTo(null);
+              setMapFloor(Number(event.target.value));
+            }}>
+              {[0, -1].map(floor => <option value={floor} key={floor}>{floorLabel(floor)}</option>)}
+            </select>
+            <label className="guidance-overview__coverage">
+              <input type="checkbox" checked={showCoverage} onChange={event => setShowCoverage(event.target.checked)} />
+              نمایش شعاع پوشش
+            </label>
+            <span className="guidance-overview__status" role="status">
+              {mapStatus === 'loading' ? 'در حال دریافت نقاط…' : mapStatus === 'error'
+                ? 'دریافت نقاط ناموفق بود.' : overviewMarks.length
+                  ? `${overviewMarks.length.toLocaleString('fa-IR')} نقطه` : 'نقطه‌ای یافت نشد.'}
+            </span>
+          </div>
+          <GuidanceRouteCheck floor={mapFloor} version={mapVersion} onFloorChange={floor => { setJumpTo(null); setMapFloor(floor); }}
+            style={mapFloor === -1 ? BASEMENT_MAP_STYLE : GROUND_MAP_STYLE}
+            marks={overviewMarks} jumpTo={jumpTo} coverage={showCoverage} onEdit={openEditModal} onAdd={openAddModal} />
+        </section>
+      ) : (
       <div className="users-table-container">
         <table className="users-table" aria-busy={isLoading}>
           <thead>
@@ -887,8 +1021,18 @@ const Marks = () => {
                   <td>{mark.sort_order}</td>
                   <td>
                     <div className="Marks-admin-actions">
+                      <button type="button" className="edit-btn21" disabled={!hasMarkLocation(mark)}
+                        title="نمایش روی نقشه" aria-label={`نمایش روی نقشه: ${mark.title}`}
+                        onClick={() => {
+                          setMapFloor(Number(mark.floor ?? 0));
+                          setJumpTo(mark);
+                          setView('map');
+                        }}>
+                        <FiMapPin size={16} aria-hidden="true" />
+                      </button>
                       <button
                         className="edit-btn21"
+                        aria-label={`ویرایش ${mark.title}`}
                         onClick={() => openEditModal(mark)}
                       >
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -983,6 +1127,7 @@ const Marks = () => {
           </div>
         )}
       </div>
+      )}
 
       {(isAddModalOpen || editingMark) && (
         <div className="modal-overlay">
@@ -992,7 +1137,7 @@ const Marks = () => {
               <button type="button" className="guidance-modal__close" aria-label="بستن" onClick={closeMarkModal} disabled={isSaving}>×</button>
             </header>
 
-            <div className="guidance-modal__body">
+            <div className="guidance-modal__body" hidden={showNearbyReview}>
               <div className="guidance-modal__fields">
                 <div className="guidance-modal__field guidance-modal__title-field">
                   <label htmlFor="guidance-title">عنوان</label>
@@ -1086,19 +1231,44 @@ const Marks = () => {
                 <div ref={mapContainerRef} className="guidance-modal__map" />
                 <p className="guidance-modal__map-help">
                   {editingMark ? 'برای تغییر موقعیت، روی نقشه کلیک کنید.' : 'برای انتخاب موقعیت دقیق، روی نقشه کلیک کنید.'}
+                  {' '}نشانگرهای آبی نقاط ثبت‌شده‌اند.
+                  {mapStatus === 'error' && ' دریافت نقاط ثبت‌شده ناموفق بود.'}
                 </p>
               </div>
             </div>
 
+            {showNearbyReview && (
+              <section className="guidance-modal__body guidance-nearby" aria-labelledby="guidance-nearby-title">
+                <h4 id="guidance-nearby-title" tabIndex={-1} ref={reviewHeading}>نقاط نزدیک در {floorLabel(formData.floor)}</h4>
+                <p>این نقاط در فاصلهٔ حداکثر {distanceFormat.format(NEARBY_DISTANCE_M)} متر از موقعیت انتخاب‌شده هستند.</p>
+                <ul aria-label="نقاط نزدیک">
+                  {nearbyMarks.map(({ mark, distance }) => (
+                    <li key={mark.id}>
+                      {mark.images[0]?.url && <img src={mark.images[0].url} alt="" />}
+                      <div>
+                        <strong>{mark.title}</strong>
+                        <small>شناسه {distanceFormat.format(mark.id)} · {distanceFormat.format(distance)} متر</small>
+                      </div>
+                      <button type="button" className="guidance-modal__cancel" disabled={isSaving || mapStatus !== 'ready'}
+                        aria-label={`ویرایش ${mark.title}، شناسه ${mark.id}`} onClick={() => editNearbyMark(mark)}>ویرایش</button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+            {nearbyCheckNotice}
             <footer className="guidance-modal__footer">
-              <button type="button" className="guidance-modal__cancel" onClick={closeMarkModal} disabled={isSaving}>انصراف</button>
+              <button type="button" className="guidance-modal__cancel" disabled={isSaving}
+                onClick={showNearbyReview ? () => setShowNearbyReview(false) : closeMarkModal}>
+                {showNearbyReview ? 'بازگشت به فرم' : 'انصراف'}
+              </button>
               <button
                 type="button"
                 className="guidance-modal__save"
-                onClick={editingMark ? handleEditMark : handleAddMark}
-                disabled={isSaving || !formData.location}
+                onClick={editingMark ? handleEditMark : () => handleAddMark(showNearbyReview)}
+                disabled={isSaving || !hasMarkLocation(formData) || (!editingMark && mapStatus !== 'ready')}
               >
-                {isSaving ? 'در حال ذخیره...' : modalTitle}
+                {isSaving ? 'در حال ذخیره...' : showNearbyReview ? 'ادامه ثبت نقطه جدید' : modalTitle}
               </button>
             </footer>
           </div>

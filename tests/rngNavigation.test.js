@@ -7,7 +7,7 @@ import {
   nextDemoStep, resolveNavigationFrame
 } from '../src/utils/rngNavigation.js';
 import { startGuidanceImagePolling } from '../src/services/guidanceImagePolling.js';
-import { fetchLandmarkViewImage } from '../src/services/landmarkViewImageService.js';
+import { fetchLandmarkViewImage, NAVIGATION_IMAGE_OPTIONS } from '../src/services/landmarkViewImageService.js';
 
 const route = [[59.61, 36.28], [59.611, 36.28], [59.611, 36.282]];
 const steps = buildRouteMSegments([
@@ -265,10 +265,8 @@ const rngImageOptions = () => {
   assert.match(call[1], /geo: navigationFrame\.geo/);
   assert.match(call[1], /heading: effectiveHeading/);
   assert.match(call[1], /floor: navigationFrame\.floor/);
-  const fov = call[1].match(/\bfov:\s*(\d+)/);
-  const maxDistance = call[1].match(/\bmaxDistance:\s*(\d+)/);
-  assert.ok(fov && maxDistance);
-  return { fov: Number(fov[1]), maxDistance: Number(maxDistance[1]) };
+  assert.match(call[1], /\.\.\.NAVIGATION_IMAGE_OPTIONS/);
+  return NAVIGATION_IMAGE_OPTIONS;
 };
 
 test('RNG uses a 60-degree request FOV for the reported diagonal-heading case', () => {
