@@ -1,6 +1,7 @@
 import { getLineDistanceMeters, haversineMeters, sliceLineByFraction } from './routeSegments.js';
 import { normalizeFloor } from './floors.js';
 import { elapsedDuration, serverStepDuration } from './routeDuration.js';
+import { validGeo } from './locationQuality.js';
 
 export const isMultifloor = geo => geo?.properties?.multifloor === true;
 // For bounds/point lookup only. Never draw these flattened coordinates as a line.
@@ -52,6 +53,17 @@ function formatFloorChangeInstruction(instruction) {
     .replace(/ سے منزل [0۰] پر جائیں۔$/u, ' سے گراؤنڈ فلور پر جائیں۔');
 }
 
+function timedEscalator(segment, nextStep) {
+  if (segment?.kind !== 'escalator' || !Number.isFinite(segment.duration_s) || segment.duration_s <= 0) return null;
+  const fromFloor = normalizeFloor(segment.fromFloor);
+  const toFloor = normalizeFloor(segment.toFloor);
+  const entry = { lng: segment.fromPoint?.[0], lat: segment.fromPoint?.[1] };
+  const exit = { lng: segment.toPoint?.[0], lat: segment.toPoint?.[1] };
+  if (fromFloor === null || toFloor === null || fromFloor === toFloor
+    || toFloor !== normalizeFloor(nextStep?.floor) || !validGeo(entry) || !validGeo(exit)) return null;
+  return { entry, exit, toFloor, durationMs: Math.ceil(segment.duration_s * 1000) };
+}
+
 // routeM belongs to one walk segment, never to the concatenation of floors.
 export function multifloorSteps(geo, steps, translate = s => s.instruction || s.title || '') {
   if (!isMultifloor(geo)) return null;
@@ -80,7 +92,9 @@ export function multifloorSteps(geo, steps, translate = s => s.instruction || s.
       durationSeconds ??= 0;
     }
     const instruction = step.instruction || translate(step, index);
+    const transfer = step.type === 'stepChangeFloor' ? timedEscalator(segment, next) : null;
     return { ...step, id: index + 1, coordinates: points, fromM, toM, durationSeconds, distanceMeters,
+      ...(transfer && { timedEscalator: transfer }),
       instruction: step.type === 'stepChangeFloor' && normalizeFloor(step.toFloor) === 0
         ? formatFloorChangeInstruction(instruction) : instruction,
       direction: step.maneuver || (step.type === 'stepArriveDestination' ? 'arrived' : 'straight') };

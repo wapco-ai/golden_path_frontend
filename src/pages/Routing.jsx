@@ -43,6 +43,9 @@ import {
 
 const ROUTE_OVERVIEW_HISTORY_KEY = 'routingRouteOverviewHistory';
 
+const remainingEscalatorTime = clock => Math.max(0, clock.remainingMs
+  - (clock.startedAt === null ? 0 : performance.now() - clock.startedAt));
+
 const readRouteQrAnchor = (origin) => {
   const point = readQrPoint();
   if (!point?.verified || !isFresh(point.timestamp, Date.now(), DR_MAX_ANCHOR_AGE)
@@ -62,6 +65,9 @@ const RoutingPage = () => {
     [routeGeo, destination, transportMode, gender]);
   const [pausedNavigation, setPausedNavigation] = useState(() => readPausedNavigation(pauseKey));
   const pauseRef = useRef(pausedNavigation);
+  const savedTransferTime = pausedNavigation?.escalatorRemainingMs;
+  const escalatorClock = useRef(Number.isFinite(savedTransferTime) && savedTransferTime >= 0
+    ? { step: pausedNavigation.step, remainingMs: savedTransferTime, startedAt: null } : null);
   const resumeRequest = useRef(null);
   const [isResuming, setIsResuming] = useState(false);
   const [pendingResume, setPendingResume] = useState(null);
@@ -71,6 +77,10 @@ const RoutingPage = () => {
     setPausedNavigation(value);
     savePausedNavigation(value);
   }, []);
+  const saveActivePause = useCallback(snapshot => {
+    const clock = escalatorClock.current;
+    updatePause({ ...snapshot, escalatorRemainingMs: clock?.step === snapshot.step ? remainingEscalatorTime(clock) : null });
+  }, [updatePause]);
   const cancelResume = useCallback(() => {
     resumeRequest.current?.abort();
     resumeRequest.current = null;
@@ -129,7 +139,7 @@ const RoutingPage = () => {
   const [showDistanceMessage, setShowDistanceMessage] = useState(false);
   const distanceMessageTimer = useRef(null);
   const [drAccuracy, setDrAccuracy] = useState(null);
-  const resetProgress = (routeM = null, distance = 0, displayGeo = null, discrepancy = null) => {
+  const resetProgress = useCallback((routeM = null, distance = 0, displayGeo = null, discrepancy = null) => {
     const tracker = progressTracker.current;
     tracker.reset(routeM, distance);
     tracker.snappedGeo = displayGeo;
@@ -137,7 +147,7 @@ const RoutingPage = () => {
     setLiveRouteM(routeM);
     setSnappedGeo(displayGeo);
     setRouteDistance(discrepancy);
-  };
+  }, []);
   const [selectedSoundOption, setSelectedSoundOption] = useState('on');
   const [isRoutingActive, setIsRoutingActive] = useState(Boolean(pausedNavigation));
   const canPrepareQr = Boolean(destination?.coordinates && navigator.mediaDevices?.getUserMedia);
@@ -161,6 +171,12 @@ const RoutingPage = () => {
   const [userHeading, setUserHeading] = useState(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [hasArrived, setHasArrived] = useState(false);
+  const finishNavigation = useCallback(() => {
+    setHasArrived(true);
+    setIsRoutingActive(false);
+    setIs3DView(false);
+    advancedDeadReckoningService.stop();
+  }, []);
 
   // GPS offline notice dismissal state & refs
   const gpsNoticeRef = useRef(null);
@@ -253,6 +269,7 @@ const RoutingPage = () => {
     resetProgress();
     // Session hydration can replace the route object without changing the trip.
     if (pauseRef.current?.key === pauseKey) return;
+    escalatorClock.current = null;
     qrAnchorRef.current = readRouteQrAnchor(origin);
     setCurrentStep(0);
     setIsDemoMode(false);
@@ -421,7 +438,7 @@ const RoutingPage = () => {
     const onVisibility = () => {
       if (document.hidden) {
         cancelResume();
-        if (activeSnapshot.current && !pauseRef.current) updatePause(activeSnapshot.current);
+        if (activeSnapshot.current && !pauseRef.current) saveActivePause({ ...activeSnapshot.current, startedAt: Date.now() });
         advancedDeadReckoningService.stop();
         setDrTimestamp(null);
       }
@@ -434,7 +451,7 @@ const RoutingPage = () => {
       document.removeEventListener('visibilitychange', onVisibility);
       advancedDeadReckoningService.stop();
     };
-  }, [cancelResume]);
+  }, [cancelResume, saveActivePause]);
 
   useEffect(() => {
     const audioEl = audioRef.current;
@@ -563,6 +580,7 @@ const RoutingPage = () => {
     qrAnchorRef.current = { geo, timestamp, floor: newOrigin.floor };
     lastDrFix.current = null;
     confirmedLanding.current = null;
+    escalatorClock.current = null;
     resetProgress();
     gpsFixRef.current = null;
     setGpsTimestamp(null);
@@ -577,7 +595,7 @@ const RoutingPage = () => {
     previousRoute.current = result.geo;
     if (pauseRef.current) {
       updatePause({ ...pauseRef.current, key: pauseRouteKey(result.geo, destination, transportMode, gender),
-        step: 0, dr: { geo, accuracy: policy.qr_accuracy_m, distance: 0, routeM: 0 },
+        step: 0, escalatorRemainingMs: null, dr: { geo, accuracy: policy.qr_accuracy_m, distance: 0, routeM: 0 },
         frame: { ...pauseRef.current.frame, geo, floor: newOrigin.floor, routeM: 0, heading: null } });
     }
     persistRouteData(result.geo, result.steps, result.alternatives, result.sahns, newOrigin);
@@ -1120,23 +1138,28 @@ const RoutingPage = () => {
   }, [bearing, buildStepInstruction, computeTurn, formatDurationFromSeconds, intl, resolveLandmarkName, resolveRouteMStepInstructionBase]);
 
   // One navigation frame feeds the image and map in both open/closed panel states.
-  // Demo/preview uses the selected segment; live navigation uses actual DR/GPS.
+  // In blind navigation, the raw DR estimate feeds the discrepancy calculation.
+  const guideStep = routeData?.steps?.[currentStep];
+  const blindWalking = !policy.gps_enabled && ['walk', 'walking'].includes(transportMode);
+  const escalator = blindWalking && isRoutingActive && !isDemoMode && routeData?.sourceGeo === routeGeo
+    ? guideStep?.timedEscalator : null;
+  const routePosition = escalator?.entry ?? snappedGeo;
   const routeOriginFloor = getPointFloor(origin, sessionFloor);
   const liveHeading = isDrActive ? advancedDeadReckoningService.getHeading() : null;
   const navigationFrame = useMemo(() => pausedNavigation?.frame || resolveNavigationFrame({
-    step: routeData?.steps?.[currentStep],
+    step: guideStep,
     stepIndex: currentStep,
-    routeCoordinates: activeRouteCoordinates(routeGeo, routeData?.steps?.[currentStep]),
+    routeCoordinates: activeRouteCoordinates(routeGeo, guideStep),
     isRoutingActive, isDemoMode, hasArrived, isDrActive,
     drTimestamp, gpsTimestamp: policy.gps_enabled ? gpsTimestamp : null, now: positionClock,
-    drPosition: !policy.gps_enabled && snappedGeo ? snappedGeo : drPosition,
+    drPosition: policy.gps_enabled ? drPosition : routePosition,
     liveRouteM: liveRouteM ?? progressTracker.current.routeM ?? 0,
-    anchorGeo: !policy.gps_enabled && snappedGeo ? snappedGeo
+    anchorGeo: !policy.gps_enabled && routePosition ? routePosition
       : qrAnchorRef.current?.floor === sessionFloor ? qrAnchorRef.current.geo : null,
     userLocation: gpsFixRef.current
       ? [gpsFixRef.current.lat, gpsFixRef.current.lng] : userLocation, userHeading, liveHeading, sessionFloor: routeOriginFloor
-  }), [pausedNavigation, routeData?.steps, currentStep, routeGeo, isRoutingActive, isDemoMode,
-    hasArrived, isDrActive, drPosition, userLocation, userHeading, routeOriginFloor, sessionFloor, drTimestamp, gpsTimestamp, positionClock, liveRouteM, snappedGeo, liveHeading]);
+  }), [pausedNavigation, guideStep, currentStep, routeGeo, isRoutingActive, isDemoMode,
+    hasArrived, isDrActive, drPosition, userLocation, userHeading, routeOriginFloor, sessionFloor, drTimestamp, gpsTimestamp, positionClock, liveRouteM, routePosition, liveHeading, policy.gps_enabled]);
   useEffect(() => {
     if (isMultifloor(routeGeo) && (!isRoutingActive || isDemoMode)) setSessionFloor(navigationFrame.floor);
   }, [routeGeo, navigationFrame.floor, isRoutingActive, isDemoMode]);
@@ -1494,14 +1517,9 @@ const RoutingPage = () => {
     setSnappedGeo(progressTracker.current.snappedGeo);
     setRouteDistance(progressTracker.current.routeDistance);
     if (progress.nextStep !== currentStep) setCurrentStep(progress.nextStep);
-    if (progress.arrived) {
-      setHasArrived(true);
-      setIsRoutingActive(false);
-      setIs3DView(false);
-      advancedDeadReckoningService.stop();
-    }
+    if (progress.arrived) finishNavigation();
   }, [routeData?.steps, routeGeo, isRoutingActive, isDemoMode, isPaused, currentStep,
-    isDrActive, drPosition, drAccuracy, userLocation, drTimestamp, drStepTimestamp, gpsTimestamp, positionClock, pauseKey, sessionFloor, transportMode]);
+    isDrActive, drPosition, drAccuracy, userLocation, drTimestamp, drStepTimestamp, gpsTimestamp, positionClock, pauseKey, sessionFloor, transportMode, finishNavigation]);
 
   const toggleMapModal = () => {
     setIsMapModalOpen(!isMapModalOpen);
@@ -1622,7 +1640,7 @@ const RoutingPage = () => {
   const pauseNavigation = () => {
     if (!isRoutingActive || pauseRef.current) return;
     cancelResume();
-    updatePause({ ...activeSnapshot.current, key: pauseKey, step: currentStep, frame: navigationFrame, startedAt: Date.now() });
+    saveActivePause({ ...activeSnapshot.current, key: pauseKey, step: currentStep, frame: navigationFrame, startedAt: Date.now() });
     audioRef.current?.pause();
     if (policy.gps_enabled) advancedDeadReckoningService.stop();
     else advancedDeadReckoningService.pause();
@@ -1786,6 +1804,7 @@ const RoutingPage = () => {
     setCurrentStep(0);
     lastDrFix.current = null;
     confirmedLanding.current = null;
+    escalatorClock.current = null;
     resetProgress();
     const anchor = qrAnchorRef.current;
     const trustedQr = anchor && isFresh(anchor.timestamp, Date.now(), DR_MAX_ANCHOR_AGE);
@@ -1826,33 +1845,62 @@ const RoutingPage = () => {
     else setShowDistanceMessage(false);
     return () => window.clearTimeout(distanceMessageTimer.current);
   }, [distanceWarning, openDistanceMessage]);
-  const guideStep = routeData?.steps?.[currentStep];
   const stepCount = routeData?.steps?.length ?? 0;
+  const nextGuideStep = routeData?.steps?.[currentStep + 1];
   const guideInstruction = hasArrived ? rngText.arrived
     : liveRouting ? liveStepInstruction(guideStep, rngText, finalStepContext(guideStep, routeData?.steps?.[currentStep - 1])) : guideStep?.instruction;
-  const confirmsFloor = liveRouting && guideStep?.type === 'stepChangeFloor';
+  const confirmsFloor = liveRouting && guideStep?.type === 'stepChangeFloor' && !escalator;
   const directionDisabled = hasArrived || isPaused || !routeGeo || !guideStep
+    || Boolean(escalator || (liveRouting && blindWalking && nextGuideStep?.timedEscalator))
     || (liveRouting && !confirmsFloor && currentStep >= stepCount - 1);
+
+  const completeFloorTransfer = useCallback((nextIndex, floor, landing, manual) => {
+    const dr = advancedDeadReckoningService;
+    const { positionAccuracy, distanceSinceAnchor } = dr;
+    const blindLanding = policy.gps_enabled ? null : landing;
+    resetProgress(blindLanding ? 0 : null, distanceSinceAnchor, blindLanding);
+    setSessionFloor(floor);
+    if (manual && landing) confirmedLanding.current = { ...landing, floor, timestamp: Date.now() };
+    if (blindLanding && Number.isFinite(positionAccuracy)) {
+      dr.reset(blindLanding, { accuracy: positionAccuracy, distanceSinceAnchor, mode: transportMode });
+    } else dr.reset(null);
+    setCurrentStep(previous => Math.max(previous, nextIndex));
+  }, [policy.gps_enabled, resetProgress, transportMode]);
+
+  useEffect(() => {
+    if (!escalator || isPaused || document.hidden) return;
+    if (escalatorClock.current?.step !== currentStep) {
+      escalatorClock.current = { step: currentStep, remainingMs: escalator.durationMs, startedAt: null };
+    }
+    const clock = escalatorClock.current;
+    clock.remainingMs = Math.min(escalator.durationMs, clock.remainingMs);
+    clock.startedAt = performance.now();
+    const timer = setTimeout(() => {
+      if (pauseRef.current || document.hidden || escalatorClock.current !== clock) return;
+      escalatorClock.current = null;
+      completeFloorTransfer(currentStep + 1, escalator.toFloor, escalator.exit, false);
+      if (nextGuideStep?.type === 'stepArriveDestination' && nextGuideStep.segmentId === guideStep.segmentId) {
+        finishNavigation();
+      }
+    }, clock.remainingMs);
+    return () => {
+      clearTimeout(timer);
+      clock.remainingMs = remainingEscalatorTime(clock);
+      clock.startedAt = null;
+    };
+  }, [escalator, isPaused, currentStep, nextGuideStep, guideStep?.segmentId, completeFloorTransfer, finishNavigation]);
 
   const handleDirectionIconClick = (event) => {
     event.stopPropagation();
     if (directionDisabled || pauseRef.current) return;
     if (liveRouting) {
-      resetProgress(null, advancedDeadReckoningService.distanceSinceAnchor, null, confirmsFloor ? null : routeDistance);
-      if (confirmsFloor) {
-        setSessionFloor(guideStep.toFloor);
-        const next = routeData.steps[currentStep + 1];
-        const point = activeRouteCoordinates(routeGeo, next)?.[0];
-        const dr = advancedDeadReckoningService;
-        if (point) confirmedLanding.current = { lng: point[0], lat: point[1],
-          floor: guideStep.toFloor, timestamp: Date.now() };
-        const accuracy = dr.positionAccuracy;
-        const distanceSinceAnchor = dr.distanceSinceAnchor;
-        if (!policy.gps_enabled && point && Number.isFinite(accuracy)) {
-          dr.reset({ lng: point[0], lat: point[1] }, { accuracy, distanceSinceAnchor, mode: transportMode });
-        } else dr.reset(null);
-      }
       const nextStep = Math.min(currentStep + 1, stepCount - 1);
+      if (confirmsFloor) {
+        const point = activeRouteCoordinates(routeGeo, nextGuideStep)?.[0];
+        completeFloorTransfer(nextStep, guideStep.toFloor, point ? { lng: point[0], lat: point[1] } : null, true);
+        return;
+      }
+      if (policy.gps_enabled) resetProgress(null, advancedDeadReckoningService.distanceSinceAnchor, null, routeDistance);
       // GPS may already have advanced this step by the time the tap is applied.
       setCurrentStep(previous => Math.max(previous, nextStep));
       return;
@@ -2501,7 +2549,8 @@ const RoutingPage = () => {
                         </span>
                         <span className="instruction-text">
                           {guideInstruction}
-                          {routeData.steps[currentStep].type === 'stepChangeFloor' && isRoutingActive && !isDemoMode
+                          {escalator ? ` ${rngText.floorTransfer}` : ''}
+                          {confirmsFloor
                             ? ({ fa: ' پس از رسیدن، فلش را لمس کنید.', en: ' Tap the arrow after arriving.', ar: ' اضغط السهم بعد الوصول.', ur: ' پہنچنے کے بعد تیر دبائیں۔' })[language] : ''}
                         </span>
                         <span className="step-time">

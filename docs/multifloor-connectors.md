@@ -49,8 +49,10 @@ Wheelchairs cannot use stairs/escalators; Zaerbar cannot use connectors.
 
 Selected origin/destination floors survive search, map selection and route storage.
 Routes retain separate walk geometry per floor and explicit transfer steps.
-No line is drawn between floors. During live navigation the existing direction
-arrow confirms reaching the next floor; GPS alone cannot confirm a transfer.
+During walking guidance without GPS, a timed escalator keeps the marker at its
+server-defined entrance for the configured crossing time, then continues at its
+exit on the destination floor. Other transfers use the existing direction arrow
+to confirm reaching the next floor. Transfer segments have no drawn geometry.
 The local routing fallback cannot create cross-floor paths or override an API
 rejection. Existing single-floor route geometry and RNG styles are preserved.
 

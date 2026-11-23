@@ -159,7 +159,7 @@ export const resolveNavigationFrame = ({
     && (!Number.isFinite(gpsTimestamp) || drTimestamp > gpsTimestamp)
     ? drPosition : Number.isFinite(gpsTimestamp) && Array.isArray(userLocation)
       ? asGeo([userLocation[1], userLocation[0]]) : null;
-  const geo = hasArrived ? asGeo(routeCoordinates.at(-1))
+  const geo = hasArrived ? (asGeo(routeCoordinates.at(-1)) || anchorGeo || preview.geo)
     : live ? (liveGeo || lastKnownGeo || anchorGeo || preview.geo) : preview.geo;
   const projection = isNavigationGeo(geo) ? projectPointOnRoute([geo.lng, geo.lat], routeCoordinates) : null;
   const floor = [step?.floor, step?.routeStep?.floor, sessionFloor]
