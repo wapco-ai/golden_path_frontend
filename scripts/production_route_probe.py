@@ -41,8 +41,11 @@ def one_sided_routes():
     area_id = 1001506
     data = json.loads(fetch(f"/api/v1/area-doors?area_id={area_id}&floor=0&mode=walk&gender=both"))
     doors = {int(door["accessId"]): door for door in data["data"]["doors"]}
+    one_sided_access_id = 2200414
+    assert one_sided_access_id in doors, f"Missing one-sided routing fixture {one_sided_access_id}"
+    assert doors[one_sided_access_id]["otherAreaId"] is None
     endpoints = []
-    for access_id in (2200370, 2200259):
+    for access_id in (one_sided_access_id, 2200259):
         door = doors[access_id]
         assert door["routingStatus"] == "available"
         lon, lat = door["coord4326"]
